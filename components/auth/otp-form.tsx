@@ -70,11 +70,14 @@ export function OTPForm({ className, ...props }: React.ComponentProps<"div">) {
             const password = localStorage.getItem('signup_password')
             if (password) {
               await masterKeyManager.deriveAndCacheMasterKey(password, userData.crypto_keypairs.accountSalt)
-              // console.log('🔐 Master key cached after OTP verification')
             } else {
               // console.warn('No password found in localStorage for master key derivation')
             }
           }
+
+          // Initialize keyManager with user data so uploads work immediately
+          const { keyManager } = await import("@/lib/key-manager")
+          await keyManager.initialize(userData)
         }
 
         // Clear signup data from localStorage

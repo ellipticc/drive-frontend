@@ -315,13 +315,18 @@ export async function generateAllKeypairs(password: string, providedSalt?: strin
   // Derive master encryption key from password
   const masterKey = await deriveEncryptionKey(password, keyDerivationSalt);
 
-  // Generate all keypairs
-  const [ed25519Keys, x25519Keys, kyberKeys, dilithiumKeys] = await Promise.all([
-    generateEd25519Keypair(),
-    generateX25519Keypair(),
-    generateKyberKeypair(),
-    generateDilithiumKeypair(),
-  ]);
+  // Generate all keypairs sequentially to reduce overhead and improve performance
+  console.log('🔑 Generating Ed25519 keypair...')
+  const ed25519Keys = await generateEd25519Keypair()
+  
+  console.log('🔑 Generating X25519 keypair...')
+  const x25519Keys = await generateX25519Keypair()
+  
+  console.log('🔑 Generating Kyber keypair...')
+  const kyberKeys = await generateKyberKeypair()
+  
+  console.log('🔑 Generating Dilithium keypair...')
+  const dilithiumKeys = await generateDilithiumKeypair()
 
   // Generate random encryption keys for each private key
   const ed25519Key = new Uint8Array(32);

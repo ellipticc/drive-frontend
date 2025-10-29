@@ -110,7 +110,6 @@ export function SignupForm({
       // Navigate to OTP verification
       router.push("/otp")
     } catch (err) {
-      // console.error("Registration error:", err)
       setError("An unexpected error occurred")
     } finally {
       setIsLoading(false)

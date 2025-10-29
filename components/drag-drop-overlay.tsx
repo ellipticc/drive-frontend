@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { IconUpload } from "@tabler/icons-react";
+import { IconUpload, IconFile, IconFolder } from "@tabler/icons-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 interface DragDropOverlayProps {
   isVisible: boolean;
@@ -46,29 +48,60 @@ export function DragDropOverlay({ isVisible, onDrop, onDragLeave }: DragDropOver
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in-0 duration-300"
       onDragOver={handleDragOver}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      <div className={`bg-white dark:bg-gray-900 rounded-lg p-8 shadow-2xl border-2 border-dashed transition-all duration-200 ${
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/20 backdrop-blur-sm animate-in fade-in-0 duration-300" />
+
+      {/* Modal */}
+      <Card className={`relative max-w-md w-full shadow-2xl border-2 border-dashed transition-all duration-300 animate-in slide-in-from-bottom-4 fade-in-0 duration-500 ${
         isHovering
-          ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/20'
-          : 'border-gray-300 dark:border-gray-600'
+          ? 'border-primary bg-primary/5 scale-105 shadow-primary/20'
+          : 'border-muted-foreground/25 bg-card/95'
       }`}>
-        <div className="text-center">
-          <IconUpload className={`w-12 h-12 mx-auto mb-4 transition-colors ${
-            isHovering ? 'text-blue-500' : 'text-gray-400'
-          }`} />
-          <h3 className="text-lg font-semibold mb-2">
-            {isHovering ? 'Drop to upload' : 'Drop files here'}
-          </h3>
-          <p className="text-sm text-gray-500">
-            Files will be securely encrypted
-          </p>
-        </div>
-      </div>
+        <CardContent className="p-8 text-center space-y-6">
+          {/* Upload Icon */}
+          <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300 ${
+            isHovering
+              ? 'bg-primary text-primary-foreground scale-110 shadow-lg'
+              : 'bg-muted text-muted-foreground'
+          }`}>
+            <IconUpload className={`w-8 h-8 transition-transform duration-300 ${
+              isHovering ? 'scale-110' : ''
+            }`} />
+          </div>
+
+          {/* Title */}
+          <div className="space-y-2">
+            <h2 className={`text-xl font-semibold transition-colors duration-300 ${
+              isHovering ? 'text-primary' : 'text-foreground'
+            }`}>
+              {isHovering ? 'Drop to Upload' : 'Drop Files Here'}
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              {isHovering
+                ? 'Release to start secure upload'
+                : 'Drag files or folders from your computer'
+              }
+            </p>
+          </div>
+          {/* File Types */}
+          <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
+            <div className="flex items-center gap-1.5">
+              <IconFile className="w-4 h-4" />
+              <span>Files</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <IconFolder className="w-4 h-4" />
+              <span>Folders</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
