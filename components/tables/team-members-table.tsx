@@ -33,11 +33,13 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 export const Table01DividerLineSm = ({ 
   searchQuery,
   onFileUpload,
-  onFolderUpload
+  onFolderUpload,
+  dragDropFiles
 }: { 
   searchQuery?: string
   onFileUpload?: () => void
   onFolderUpload?: () => void
+  dragDropFiles?: { files: File[], folders: FileList | null }
 }) => {
     const router = useRouter();
     const pathname = usePathname();
@@ -581,12 +583,18 @@ export const Table01DividerLineSm = ({
         toast.info('All uploads cancelled');
     };
 
-    // Load files on component mount (only if not initial URL-based load)
+    // Handle drag and drop files
     useEffect(() => {
-        if (!isInitialLoad) {
-            refreshFiles();
+        if (dragDropFiles) {
+            const { files, folders } = dragDropFiles;
+            if (files.length > 0) {
+                startUploads(files);
+            }
+            if (folders) {
+                startFolderUploads(folders);
+            }
         }
-    }, []);
+    }, [dragDropFiles]);
 
     // Refresh files and folders after folder creation
     const refreshFiles = async (folderId: string = currentFolderId) => {

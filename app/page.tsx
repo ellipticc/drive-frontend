@@ -1,10 +1,11 @@
 "use client"
 
-import { useState, useRef, useEffect, useLayoutEffect } from "react"
+import { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react"
 import { AppSidebar } from "@/components/layout/sidebar/app-sidebar"
 import { SectionCards } from "@/components/shared/section-cards"
 import { SiteHeader } from "@/components/layout/header/site-header"
 import { Table01DividerLineSm } from "@/components/tables/team-members-table"
+import { DragDropOverlay } from "@/components/drag-drop-overlay"
 import {
   SidebarInset,
   SidebarProvider,
@@ -16,6 +17,10 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("")
   const fileInputRef = useRef<HTMLInputElement>(null)
   const folderInputRef = useRef<HTMLInputElement>(null)
+
+  // Drag and drop state - simplified
+  const [isDragOverlayVisible, setIsDragOverlayVisible] = useState(false)
+  const [droppedFiles, setDroppedFiles] = useState<{ files: File[], folders: FileList | null } | null>(null)
 
   // Set page title
   useLayoutEffect(() => {
@@ -47,6 +52,44 @@ export default function Home() {
     initializeKeyManager()
   }, [])
 
+  // Drag and drop handlers - simplified
+  const handleDrop = useCallback((files: FileList) => {
+    // Convert FileList to array and separate files and folders
+    const fileArray = Array.from(files)
+    const regularFiles = fileArray.filter(file => !file.webkitRelativePath || file.webkitRelativePath === file.name)
+    const folderFiles = fileArray.filter(file => file.webkitRelativePath && file.webkitRelativePath !== file.name)
+
+    // Set dropped files for the table component to handle
+    setDroppedFiles({
+      files: regularFiles,
+      folders: folderFiles.length > 0 ? (() => {
+        // Create a new FileList-like object for folders
+        const dt = new DataTransfer()
+        folderFiles.forEach(file => dt.items.add(file))
+        return dt.files
+      })() : null
+    })
+
+    // Reset drag state
+    setIsDragOverlayVisible(false)
+  }, [])
+
+  const handleDragLeave = useCallback(() => {
+    setIsDragOverlayVisible(false)
+  }, [])
+
+  // Show overlay on drag enter anywhere on the page
+  useEffect(() => {
+    const handleGlobalDragEnter = (e: DragEvent) => {
+      if (e.dataTransfer?.types.includes('Files')) {
+        setIsDragOverlayVisible(true)
+      }
+    }
+
+    document.addEventListener('dragenter', handleGlobalDragEnter)
+    return () => document.removeEventListener('dragenter', handleGlobalDragEnter)
+  }, [])
+
   const handleSearch = (query: string) => {
     setSearchQuery(query)
   }
@@ -69,13 +112,20 @@ export default function Home() {
       }
     >
       <AppSidebar variant="inset" onFileUpload={handleFileUpload} onFolderUpload={handleFolderUpload} />
-      <SidebarInset>
+      <SidebarInset
+        onDragEnter={() => setIsDragOverlayVisible(true)}
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => {
+          e.preventDefault()
+          handleDrop(e.dataTransfer.files)
+        }}
+      >
         <SiteHeader pageTitle="My Files" onSearch={handleSearch} />
         <div className="flex flex-1 flex-col">
           <div className="@container/main flex flex-1 flex-col gap-2">
             <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
               <SectionCards />
-              <Table01DividerLineSm searchQuery={searchQuery} />
+              <Table01DividerLineSm searchQuery={searchQuery} dragDropFiles={droppedFiles || undefined} />
               
               {/* Hidden file inputs */}
               <input
@@ -113,6 +163,11 @@ export default function Home() {
           </div>
         </div>
       </SidebarInset>
+      <DragDropOverlay
+        isVisible={isDragOverlayVisible}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      />
     </SidebarProvider>
   )
 }
