@@ -944,6 +944,47 @@ async function createZipFromFiles(
 }
 
 /**
+ * Preview PDF file in a new tab using the same encrypted download flow
+ */
+export async function previewPDFFile(
+  fileId: string,
+  userKeys?: any,
+  onProgress?: (progress: DownloadProgress) => void
+): Promise<void> {
+  try {
+    // Download the file using the same encrypted flow
+    const result = await downloadEncryptedFile(fileId, userKeys, onProgress);
+
+    // Verify it's actually a PDF
+    if (!result.mimetype.includes('pdf')) {
+      throw new Error('File is not a PDF');
+    }
+
+    // Create blob URL and open in new tab
+    const blobUrl = URL.createObjectURL(result.blob);
+    
+    // Open in new tab
+    const newTab = window.open(blobUrl, '_blank');
+    
+    if (!newTab) {
+      // If popup blocked, show error
+      throw new Error('Unable to open preview in new tab. Please allow popups for this site.');
+    }
+
+    // Clean up the blob URL after a delay to ensure the tab has loaded
+    setTimeout(() => {
+      URL.revokeObjectURL(blobUrl);
+    }, 1000);
+
+    // console.log(`Opened PDF preview: ${result.filename} (${result.size} bytes)`);
+
+  } catch (error) {
+    console.error('PDF preview failed:', error);
+    throw new Error(`PDF preview failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
  * Semaphore for controlling concurrency
  */
 class Semaphore {

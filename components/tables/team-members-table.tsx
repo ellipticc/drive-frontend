@@ -4,10 +4,9 @@ import { useMemo, useState, useRef, useEffect } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { DotsVertical } from "@untitledui/icons";
 import type { SortDescriptor } from "react-aria-components";
-import type { Selection } from "react-aria-components";
 import { Table, TableCard, TableRowActionsDropdown } from "@/components/application/table/table";
 import { Button } from "@/components/ui/button";
-import { IconFolderPlus, IconUpload, IconFileUpload, IconShare3, IconListDetails, IconDownload, IconFolder, IconEdit, IconInfoCircle, IconTrash, IconPhoto, IconVideo, IconMusic, IconFileText, IconArchive, IconFile, IconHome, IconChevronRight, IconLoader2, IconLink } from "@tabler/icons-react";
+import { IconFolderPlus, IconUpload, IconFileUpload, IconShare3, IconListDetails, IconDownload, IconFolder, IconEdit, IconInfoCircle, IconTrash, IconPhoto, IconVideo, IconMusic, IconFileText, IconArchive, IconFile, IconHome, IconChevronRight, IconLoader2, IconLink, IconEye } from "@tabler/icons-react";
 import { CreateFolderModal } from "@/components/modals/create-folder-modal";
 import { MoveToFolderModal } from "@/components/modals/move-to-folder-modal";
 import { ShareModal } from "@/components/modals/share-modal";
@@ -23,10 +22,9 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
-import { downloadFileToBrowser, downloadFolderAsZip, downloadMultipleItemsAsZip, DownloadProgress } from '@/lib/download';
+import { downloadFileToBrowser, downloadFolderAsZip, downloadMultipleItemsAsZip, DownloadProgress, previewPDFFile } from '@/lib/download';
 import { apiClient, FileItem } from "@/lib/api";
 import { toast } from "sonner";
-import { uploadEncryptedFile } from "@/lib/upload";
 import { keyManager } from "@/lib/key-manager";
 import { UnifiedProgressModal, FileUploadState } from "@/components/modals/unified-progress-modal";
 import { UploadManager, UploadTask } from "@/components/upload-manager";
@@ -915,6 +913,32 @@ export const Table01DividerLineSm = ({
         }
     };
 
+    // Handle PDF preview
+    const handlePDFPreviewClick = async (itemId: string, itemName: string) => {
+        try {
+            setDownloadError(null);
+            setCurrentDownloadFile({ id: itemId, name: itemName, type: 'file' });
+
+            // Open the unified modal immediately when preview starts
+            setUploadModalOpen(true);
+
+            // Get user keys
+            const userKeys = await keyManager.getUserKeys();
+
+            // Start PDF preview with progress tracking
+            await previewPDFFile(itemId, userKeys, (progress) => {
+                setDownloadProgress(progress);
+            });
+
+            toast.success('PDF preview opened successfully');
+
+        } catch (error) {
+            console.error('PDF preview error:', error);
+            setDownloadError(error instanceof Error ? error.message : 'PDF preview failed');
+            toast.error('PDF preview failed');
+        }
+    };
+
     // Handle file download (single item or folder)
     const handleDownloadClick = async (itemId: string, itemName: string, itemType: "file" | "folder") => {
         if (itemType === 'folder') {
@@ -1717,6 +1741,12 @@ export const Table01DividerLineSm = ({
                                                     <IconDownload className="h-4 w-4 mr-2" />
                                                     Download
                                                 </DropdownMenuItem>
+                                                {item.type === 'file' && item.mimeType?.includes('pdf') && (
+                                                    <DropdownMenuItem onClick={() => handlePDFPreviewClick(item.id, item.name)}>
+                                                        <IconEye className="h-4 w-4 mr-2" />
+                                                        PDF Preview
+                                                    </DropdownMenuItem>
+                                                )}
                                                 <DropdownMenuItem onClick={() => handleShareClick(item.id, item.name, item.type)}>
                                                     <IconShare3 className="h-4 w-4 mr-2" />
                                                     Share
@@ -1823,6 +1853,12 @@ export const Table01DividerLineSm = ({
                                                 <IconDownload className="h-4 w-4 mr-2" />
                                                 Download
                                             </DropdownMenuItem>
+                                            {item.type === 'file' && item.mimeType?.includes('pdf') && (
+                                                <DropdownMenuItem onClick={() => handlePDFPreviewClick(item.id, item.name)}>
+                                                    <IconEye className="h-4 w-4 mr-2" />
+                                                    PDF Preview
+                                                </DropdownMenuItem>
+                                            )}
                                             <DropdownMenuItem onClick={() => handleShareClick(item.id, item.name, item.type)}>
                                                 <IconShare3 className="h-4 w-4 mr-2" />
                                                 Share
@@ -2036,6 +2072,20 @@ export const Table01DividerLineSm = ({
                                 <IconDownload className="h-4 w-4" />
                                 Download
                             </button>
+                            {contextMenu.targetItem?.type === 'file' && contextMenu.targetItem?.mimeType?.includes('pdf') && (
+                                <button
+                                    className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
+                                    onClick={() => {
+                                        if (contextMenu.targetItem) {
+                                            handlePDFPreviewClick(contextMenu.targetItem.id, contextMenu.targetItem.name);
+                                        }
+                                        handleContextMenuClose();
+                                    }}
+                                >
+                                    <IconEye className="h-4 w-4" />
+                                    PDF Preview
+                                </button>
+                            )}
                             {/* TODO: Only show Copy Link if item is shared */}
                             <button
                                 className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
