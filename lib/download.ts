@@ -671,10 +671,14 @@ export async function downloadFileToBrowser(
 }
 
 /**
- * Recursively get all files in a folder and subfolders
+ * Recursively get all files and folders in a folder and subfolders
  */
-export async function getRecursiveFolderContents(folderId: string, basePath: string = ''): Promise<Array<{fileId: string, relativePath: string, filename: string}>> {
+export async function getRecursiveFolderContents(folderId: string, basePath: string = ''): Promise<{
+  files: Array<{fileId: string, relativePath: string, filename: string}>,
+  folders: Array<{folderId: string, relativePath: string, folderName: string}>
+}> {
   const allFiles: Array<{fileId: string, relativePath: string, filename: string}> = [];
+  const allFolders: Array<{folderId: string, relativePath: string, folderName: string}> = [];
 
   const response = await apiClient.getFolderContents(folderId);
   if (!response.success || !response.data) {
@@ -692,14 +696,28 @@ export async function getRecursiveFolderContents(folderId: string, basePath: str
     });
   }
 
-  // Recursively get files from subfolders
-  for (const folder of folders || []) {
-    const subfolderPath = basePath ? `${basePath}/${folder.name}` : folder.name;
-    const subfolderFiles = await getRecursiveFolderContents(folder.id, subfolderPath);
-    allFiles.push(...subfolderFiles);
+  // Add current folder to folders list (for empty folders)
+  if (basePath) {
+    // Don't add the root folder
+    const pathParts = basePath.split('/');
+    const folderName = pathParts[pathParts.length - 1];
+    const parentPath = pathParts.slice(0, -1).join('/');
+    allFolders.push({
+      folderId: folderId,
+      relativePath: parentPath,
+      folderName: folderName
+    });
   }
 
-  return allFiles;
+  // Recursively get files and folders from subfolders
+  for (const folder of folders || []) {
+    const subfolderPath = basePath ? `${basePath}/${folder.name}` : folder.name;
+    const subfolderContents = await getRecursiveFolderContents(folder.id, subfolderPath);
+    allFiles.push(...subfolderContents.files);
+    allFolders.push(...subfolderContents.folders);
+  }
+
+  return { files: allFiles, folders: allFolders };
 }
 
 /**
@@ -712,12 +730,14 @@ export async function downloadFolderAsZip(
   onProgress?: (progress: DownloadProgress) => void
 ): Promise<void> {
   try {
-    // Get all files recursively
+    // Get all files and folders recursively
     onProgress?.({ stage: 'initializing', overallProgress: 0 });
-    const allFiles = await getRecursiveFolderContents(folderId);
+    const folderContents = await getRecursiveFolderContents(folderId);
+    const allFiles = folderContents.files;
+    const allFolders = folderContents.folders;
     onProgress?.({ stage: 'initializing', overallProgress: 10 });
 
-    if (allFiles.length === 0) {
+    if (allFiles.length === 0 && allFolders.length === 0) {
       throw new Error('Folder is empty');
     }
 
@@ -766,9 +786,9 @@ export async function downloadFolderAsZip(
       totalDownloadedBytes += result.size;
     }
 
-    // Create ZIP
+    // Create ZIP with both files and folders
     onProgress?.({ stage: 'assembling', overallProgress: 80 });
-    const zipBlob = await createZipFromFiles(downloadedFiles, folderName);
+    const zipBlob = await createZipFromFilesAndFolders(downloadedFiles, allFolders, folderName);
     onProgress?.({ stage: 'assembling', overallProgress: 95 });
 
     // Trigger download
@@ -784,7 +804,7 @@ export async function downloadFolderAsZip(
 
     onProgress?.({ stage: 'complete', overallProgress: 100 });
 
-    // console.log(`📦 Downloaded folder as ZIP: ${zipFilename} (${allFiles.length} files, ${totalDownloadedBytes} bytes)`);
+    // console.log(`📦 Downloaded folder as ZIP: ${zipFilename} (${allFiles.length} files, ${allFolders.length} folders, ${totalDownloadedBytes} bytes)`);
 
   } catch (error) {
     // console.error('Folder ZIP download failed:', error);
@@ -806,10 +826,11 @@ export async function downloadMultipleItemsAsZip(
     const randomHex = Math.random().toString(16).substring(2, 10);
     const zipName = `files-${timestamp}-${randomHex}.zip`;
 
-    // Get all files recursively from all selected items
+    // Get all files and folders recursively from all selected items
     onProgress?.({ stage: 'initializing', overallProgress: 0 });
     const allFiles: Array<{fileId: string, relativePath: string, filename: string}> = [];
-    
+    const allFolders: Array<{folderId: string, relativePath: string, folderName: string}> = [];
+
     for (const item of items) {
       if (item.type === 'file') {
         allFiles.push({
@@ -819,12 +840,13 @@ export async function downloadMultipleItemsAsZip(
         });
       } else {
         // For folders, get recursive contents
-        const folderFiles = await getRecursiveFolderContents(item.id, item.name);
-        allFiles.push(...folderFiles);
+        const folderContents = await getRecursiveFolderContents(item.id, item.name);
+        allFiles.push(...folderContents.files);
+        allFolders.push(...folderContents.folders);
       }
     }
 
-    if (allFiles.length === 0) {
+    if (allFiles.length === 0 && allFolders.length === 0) {
       throw new Error('No files to download');
     }
 
@@ -875,9 +897,9 @@ export async function downloadMultipleItemsAsZip(
       totalDownloadedBytes += result.size;
     }
 
-    // Create ZIP
+    // Create ZIP with both files and folders
     onProgress?.({ stage: 'assembling', overallProgress: 95 });
-    const zipBlob = await createZipFromFiles(downloadedFiles, '');
+    const zipBlob = await createZipFromFilesAndFolders(downloadedFiles, allFolders, '');
     onProgress?.({ stage: 'assembling', overallProgress: 98 });
 
     // Trigger download
@@ -901,10 +923,11 @@ export async function downloadMultipleItemsAsZip(
 }
 
 /**
- * Create ZIP file from array of files with their relative paths
+ * Create ZIP file from array of files and folders with their relative paths
  */
-async function createZipFromFiles(
+async function createZipFromFilesAndFolders(
   files: Array<{relativePath: string, filename: string, blob: Blob}>,
+  folders: Array<{folderId: string, relativePath: string, folderName: string}>,
   folderName: string
 ): Promise<Blob> {
   // Import fflate dynamically
@@ -929,6 +952,23 @@ async function createZipFromFiles(
 
     const arrayBuffer = await file.blob.arrayBuffer();
     zipData[zipPath] = new Uint8Array(arrayBuffer);
+  }
+
+  // Add empty directory entries for folders
+  for (const folder of folders) {
+    let folderPath: string;
+    if (folder.relativePath) {
+      const cleanRelativePath = folder.relativePath.replace(/^\//, '');
+      folderPath = folderName ? `${folderName}/${cleanRelativePath}/${folder.folderName}/` : `${cleanRelativePath}/${folder.folderName}/`;
+    } else {
+      folderPath = folderName ? `${folderName}/${folder.folderName}/` : `${folder.folderName}/`;
+    }
+
+    // Ensure no double slashes and clean up the path, ensure it ends with /
+    folderPath = folderPath.replace(/\/+/g, '/').replace(/^\//, '').replace(/\/$/, '') + '/';
+
+    // Add an empty Uint8Array for the directory entry
+    zipData[folderPath] = new Uint8Array(0);
   }
 
   // Create ZIP
