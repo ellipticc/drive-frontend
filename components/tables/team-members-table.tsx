@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useRef, useEffect } from "react";
+import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { DotsVertical } from "@untitledui/icons";
 import type { SortDescriptor } from "react-aria-components";
@@ -73,10 +73,10 @@ export const Table01DividerLineSm = ({
     const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
 
     // Save view mode to localStorage when it changes
-    const handleViewModeChange = (newViewMode: 'table' | 'grid') => {
+    const handleViewModeChange = useCallback((newViewMode: 'table' | 'grid') => {
         setViewMode(newViewMode);
         localStorage.setItem('viewMode', newViewMode);
-    };
+    }, []);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const folderInputRef = useRef<HTMLInputElement>(null);
@@ -613,7 +613,7 @@ export const Table01DividerLineSm = ({
     }, [dragDropFiles]);
 
     // Refresh files and folders after folder creation
-    const refreshFiles = async (folderId: string = currentFolderId) => {
+    const refreshFiles = useCallback(async (folderId: string = currentFolderId) => {
         try {
             setIsLoading(true);
             setError(null);
@@ -683,7 +683,7 @@ export const Table01DividerLineSm = ({
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [currentFolderId, apiClient, router]);
 
     // Navigate to a folder
     const navigateToFolder = async (folderId: string, folderName: string) => {
@@ -691,6 +691,7 @@ export const Table01DividerLineSm = ({
         setCurrentFolderId(folderId);
         setFolderPath(newPath);
         updateUrl(newPath);
+        setSelectedItems(new Set()); // Clear selection when navigating to new folder
         await refreshFiles(folderId);
     };
 
@@ -714,25 +715,26 @@ export const Table01DividerLineSm = ({
             setCurrentFolderId(folderId);
             setFolderPath(newPath);
             updateUrl(newPath);
+            setSelectedItems(new Set()); // Clear selection when navigating to new folder
             await refreshFiles(folderId);
         }
     };
 
-    const handleFileUpload = () => {
+    const handleFileUpload = useCallback(() => {
         if (onFileUpload) {
             onFileUpload()
         } else {
             fileInputRef.current?.click();
         }
-    };
+    }, [onFileUpload]);
 
-    const handleFolderUpload = () => {
+    const handleFolderUpload = useCallback(() => {
         if (onFolderUpload) {
             onFolderUpload()
         } else {
             folderInputRef.current?.click();
         }
-    };
+    }, [onFolderUpload]);
 
     // Provide upload handlers to parent
     useEffect(() => {
@@ -759,17 +761,17 @@ export const Table01DividerLineSm = ({
         event.target.value = "";
     };
 
-    const handleRenameClick = (itemId: string, itemName: string, itemType: "file" | "folder") => {
+    const handleRenameClick = useCallback((itemId: string, itemName: string, itemType: "file" | "folder") => {
         setSelectedItemForRename({ id: itemId, name: itemName, type: itemType });
         setRenameModalOpen(true);
-    };
+    }, [setSelectedItemForRename, setRenameModalOpen]);
 
-    const handleShareClick = (itemId: string, itemName: string, itemType: "file" | "folder") => {
+    const handleShareClick = useCallback((itemId: string, itemName: string, itemType: "file" | "folder") => {
         setSelectedItemForShare({ id: itemId, name: itemName, type: itemType });
         setShareModalOpen(true);
-    };
+    }, [setSelectedItemForShare, setShareModalOpen]);
 
-    const handleDetailsClick = async (itemId: string, itemName: string, itemType: "file" | "folder") => {
+    const handleDetailsClick = useCallback(async (itemId: string, itemName: string, itemType: "file" | "folder") => {
         try {
             let response;
             if (itemType === 'file') {
@@ -791,7 +793,7 @@ export const Table01DividerLineSm = ({
             // console.error('Details error:', error);
             toast.error(`Failed to load ${itemType} details`);
         }
-    };
+    }, [apiClient, toast, setSelectedItemForDetails, setDetailsModalOpen]);
 
     const handleMoveToFolderClick = (itemId: string, itemName: string, itemType: "file" | "folder") => {
         setSelectedItemsForMoveToFolder([{ id: itemId, name: itemName, type: itemType }]);
@@ -856,9 +858,9 @@ export const Table01DividerLineSm = ({
     };
 
     // Bulk move to trash handler
-    const handleBulkMoveToTrash = async () => {
+    const handleBulkMoveToTrash = useCallback(async () => {
         const selectedItemsArray = Array.from(selectedItems).map(id => {
-            const item = files.find(f => f.id === id);
+            const item = filesMap.get(id);
             return item ? { id: item.id, name: item.name, type: item.type } : null;
         }).filter(Boolean) as Array<{id: string, name: string, type: "file" | "folder"}>;
 
@@ -942,7 +944,7 @@ export const Table01DividerLineSm = ({
             // console.error('Bulk move to trash error:', error);
             toast.error(`Failed to move items to trash`);
         }
-    };
+    }, [selectedItems, apiClient, setFiles, setSelectedItems, toast, refreshFiles]);
 
     // Handle PDF preview
     const handlePDFPreviewClick = async (itemId: string, itemName: string) => {
@@ -988,7 +990,7 @@ export const Table01DividerLineSm = ({
     };
 
     // Handle unified file preview
-    const handlePreviewClick = async (itemId: string, itemName: string, mimeType?: string) => {
+    const handlePreviewClick = useCallback(async (itemId: string, itemName: string, mimeType?: string) => {
         if (!mimeType || !canPreviewFile(mimeType)) {
             toast.error('This file type cannot be previewed');
             return;
@@ -1005,7 +1007,7 @@ export const Table01DividerLineSm = ({
             setSelectedItemForPreview({ id: itemId, name: itemName, mimeType });
             setPreviewModalOpen(true);
         }
-    };
+    }, [previewModalOpen, setPreviewModalOpen, setSelectedItemForPreview, toast]);
 
     // Handle file download (single item or folder)
     const handleDownloadClick = async (itemId: string, itemName: string, itemType: "file" | "folder") => {
@@ -1061,9 +1063,9 @@ export const Table01DividerLineSm = ({
     };
 
     // Handle bulk download of selected items
-    const handleBulkDownload = async () => {
+    const handleBulkDownload = useCallback(async () => {
         const selectedItemsArray = Array.from(selectedItems).map(id => {
-            const item = files.find(f => f.id === id);
+            const item = filesMap.get(id);
             return item ? { id: item.id, name: item.name, type: item.type } : null;
         }).filter(Boolean) as Array<{id: string, name: string, type: "file" | "folder"}>;
 
@@ -1099,189 +1101,7 @@ export const Table01DividerLineSm = ({
             setDownloadError(error instanceof Error ? error.message : 'Bulk download failed');
             toast.error('Bulk download failed');
         }
-    };
-    const renderHeaderIcons = () => {
-        const hasSelection = selectedItems.size > 0;
-        const selectedCount = selectedItems.size;
-        const hasMultipleSelection = selectedCount > 1;
-
-        if (!hasSelection) {
-            // Default state - no selection
-            return (
-                <>
-                    <CreateFolderModal 
-                        parentId={currentFolderId === 'root' ? null : currentFolderId}
-                        onFolderCreated={refreshFiles}
-                    >
-                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
-                            <IconFolderPlus className="h-4 w-4" />
-                        </Button>
-                    </CreateFolderModal>
-                    <div className="h-5 w-px bg-border mx-1" />
-                    <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 w-7 p-0"
-                        onClick={handleFolderUpload}
-                    >
-                        <IconUpload className="h-4 w-4" />
-                    </Button>
-                    <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 w-7 p-0"
-                        onClick={handleFileUpload}
-                    >
-                        <IconFileUpload className="h-4 w-4" />
-                    </Button>
-                    <div className="h-5 w-px bg-border mx-1" />
-                    <Button 
-                        size="sm" 
-                        variant="ghost" 
-                        className="h-7 w-7 p-0"
-                        onClick={() => {
-                            // Open Share Picker Modal when no files are selected
-                            setSharePickerModalOpen(true);
-                        }}
-                        title="Share files"
-                    >
-                        <IconShare3 className="h-4 w-4" />
-                    </Button>
-                    <Button 
-                        size="sm" 
-                        variant="ghost" 
-                        className="h-7 w-7 p-0"
-                        onClick={() => handleViewModeChange(viewMode === 'table' ? 'grid' : 'table')}
-                        title={viewMode === 'table' ? 'Switch to grid view' : 'Switch to table view'}
-                    >
-                        <IconListDetails className="h-4 w-4" />
-                    </Button>
-                </>
-            );
-        } else {
-            // Selected items state
-            return (
-                <>
-                    <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 w-7 p-0"
-                        onClick={handleBulkDownload}
-                        title={`Download ${selectedCount} item${selectedCount > 1 ? 's' : ''}`}
-                    >
-                        <IconDownload className="h-4 w-4" />
-                    </Button>
-                    {selectedCount === 1 && (() => {
-                        const firstItem = Array.from(selectedItems).map(id => files.find(f => f.id === id)).filter(Boolean)[0];
-                        return firstItem?.type === 'file' && firstItem?.mimeType && canPreviewFile(firstItem.mimeType) ? (
-                            <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-7 w-7 p-0"
-                                onClick={() => handlePreviewClick(firstItem.id, firstItem.name, firstItem.mimeType)}
-                                title="Preview file"
-                            >
-                                <IconEye className="h-4 w-4" />
-                            </Button>
-                        ) : null;
-                    })()}
-                    <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 w-7 p-0"
-                        disabled={hasMultipleSelection}
-                        onClick={() => {
-                            if (!hasMultipleSelection) {
-                                const firstItem = Array.from(selectedItems).map(id => files.find(f => f.id === id)).filter(Boolean)[0];
-                                if (firstItem) {
-                                    handleShareClick(firstItem.id, firstItem.name, firstItem.type);
-                                }
-                            }
-                        }}
-                        title={hasMultipleSelection ? "Share not available for multiple items" : "Share"}
-                    >
-                        <IconShare3 className="h-4 w-4" />
-                    </Button>
-                    <div className="h-5 w-px bg-border mx-1" />
-                    <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 w-7 p-0"
-                        onClick={() => {
-                            // Handle bulk move to folder
-                            const selectedItemsArray = Array.from(selectedItems).map(id => {
-                                const item = files.find(f => f.id === id);
-                                return item ? { id: item.id, name: item.name, type: item.type } : null;
-                            }).filter(Boolean) as Array<{id: string, name: string, type: "file" | "folder"}>;
-
-                            if (selectedItemsArray.length > 0) {
-                                setSelectedItemsForMoveToFolder(selectedItemsArray);
-                                setMoveToFolderModalOpen(true);
-                            }
-                        }}
-                        title="Move to folder"
-                    >
-                        <IconFolder className="h-4 w-4" />
-                    </Button>
-                    <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 w-7 p-0"
-                        disabled={hasMultipleSelection}
-                        onClick={() => {
-                            if (!hasMultipleSelection) {
-                                const firstItem = Array.from(selectedItems).map(id => files.find(f => f.id === id)).filter(Boolean)[0];
-                                if (firstItem) {
-                                    handleRenameClick(firstItem.id, firstItem.name, firstItem.type);
-                                }
-                            }
-                        }}
-                        title={hasMultipleSelection ? "Rename not available for multiple items" : "Rename"}
-                    >
-                        <IconEdit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 w-7 p-0"
-                        disabled={hasMultipleSelection}
-                        onClick={() => {
-                            if (!hasMultipleSelection) {
-                                const firstItem = Array.from(selectedItems).map(id => files.find(f => f.id === id)).filter(Boolean)[0];
-                                if (firstItem) {
-                                    handleDetailsClick(firstItem.id, firstItem.name, firstItem.type);
-                                }
-                            }
-                        }}
-                        title={hasMultipleSelection ? "Details not available for multiple items" : "Details"}
-                    >
-                        <IconInfoCircle className="h-4 w-4" />
-                    </Button>
-                    <div className="h-5 w-px bg-border mx-1" />
-                    <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 w-7 p-0"
-                        onClick={handleBulkMoveToTrash}
-                        title="Move to trash"
-                    >
-                        <IconTrash className="h-4 w-4" />
-                    </Button>
-                    <div className="h-5 w-px bg-border mx-1" />
-                    <Button 
-                        size="sm" 
-                        variant="ghost" 
-                        className="h-7 w-7 p-0" 
-                        onClick={() => handleViewModeChange(viewMode === 'table' ? 'grid' : 'table')}
-                        title={viewMode === 'table' ? 'Switch to grid view' : 'Switch to table view'}
-                    >
-                        <IconListDetails className="h-4 w-4" />
-                    </Button>
-                </>
-            );
-        }
-    };
-
+    }, [selectedItems, handleDownloadClick, setDownloadError, setCurrentDownloadFile, setUploadModalOpen, keyManager, downloadMultipleItemsAsZip, setDownloadProgress, toast]);
     // Handle download progress close
     const handleDownloadProgressClose = () => {
         setDownloadProgress(null);
@@ -1445,7 +1265,7 @@ export const Table01DividerLineSm = ({
     };
 
     const sortedItems = useMemo(() => {
-        return files.sort((a, b) => {
+        return [...files].sort((a, b) => {
             const first = a[sortDescriptor.column as keyof FileItem];
             const second = b[sortDescriptor.column as keyof FileItem];
 
@@ -1498,6 +1318,220 @@ export const Table01DividerLineSm = ({
         );
     }, [sortedItems, searchQuery]);
 
+    // Create a memoized map for efficient file lookups
+    const filesMap = useMemo(() => {
+        const map = new Map<string, FileItem>();
+        files.forEach(file => map.set(file.id, file));
+        return map;
+    }, [files]);
+
+    const renderHeaderIcons = useMemo(() => {
+        const hasSelection = selectedItems.size > 0;
+        const selectedCount = selectedItems.size;
+        const hasMultipleSelection = selectedCount > 1;
+
+        if (!hasSelection) {
+            // Default state - no selection
+            return (
+                <>
+                    <CreateFolderModal 
+                        parentId={currentFolderId === 'root' ? null : currentFolderId}
+                        onFolderCreated={refreshFiles}
+                    >
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
+                            <IconFolderPlus className="h-4 w-4" />
+                        </Button>
+                    </CreateFolderModal>
+                    <div className="h-5 w-px bg-border mx-1" />
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 p-0"
+                        onClick={handleFolderUpload}
+                    >
+                        <IconUpload className="h-4 w-4" />
+                    </Button>
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 p-0"
+                        onClick={handleFileUpload}
+                    >
+                        <IconFileUpload className="h-4 w-4" />
+                    </Button>
+                    <div className="h-5 w-px bg-border mx-1" />
+                    <Button 
+                        size="sm" 
+                        variant="ghost" 
+                        className="h-7 w-7 p-0"
+                        onClick={() => {
+                            // Open Share Picker Modal when no files are selected
+                            setSharePickerModalOpen(true);
+                        }}
+                        title="Share files"
+                    >
+                        <IconShare3 className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                        size="sm" 
+                        variant="ghost" 
+                        className="h-7 w-7 p-0"
+                        onClick={() => handleViewModeChange(viewMode === 'table' ? 'grid' : 'table')}
+                        title={viewMode === 'table' ? 'Switch to grid view' : 'Switch to table view'}
+                    >
+                        <IconListDetails className="h-4 w-4" />
+                    </Button>
+                </>
+            );
+        } else {
+            // Selected items state
+            return (
+                <>
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 p-0"
+                        onClick={handleBulkDownload}
+                        title={`Download ${selectedCount} item${selectedCount > 1 ? 's' : ''}`}
+                    >
+                        <IconDownload className="h-4 w-4" />
+                    </Button>
+                    {selectedCount === 1 && (() => {
+                        const firstItemId = Array.from(selectedItems)[0];
+                        const firstItem = filesMap.get(firstItemId);
+                        return firstItem?.type === 'file' && firstItem?.mimeType && canPreviewFile(firstItem.mimeType) ? (
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 w-7 p-0"
+                                onClick={() => handlePreviewClick(firstItem.id, firstItem.name, firstItem.mimeType)}
+                                title="Preview file"
+                            >
+                                <IconEye className="h-4 w-4" />
+                            </Button>
+                        ) : null;
+                    })()}
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 p-0"
+                        disabled={hasMultipleSelection}
+                        onClick={() => {
+                            if (!hasMultipleSelection) {
+                                const firstItemId = Array.from(selectedItems)[0];
+                                const firstItem = filesMap.get(firstItemId);
+                                if (firstItem) {
+                                    handleShareClick(firstItem.id, firstItem.name, firstItem.type);
+                                }
+                            }
+                        }}
+                        title={hasMultipleSelection ? "Share not available for multiple items" : "Share"}
+                    >
+                        <IconShare3 className="h-4 w-4" />
+                    </Button>
+                    <div className="h-5 w-px bg-border mx-1" />
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 p-0"
+                        onClick={() => {
+                            // Handle bulk move to folder
+                            const selectedItemsArray = Array.from(selectedItems).map(id => {
+                                const item = filesMap.get(id);
+                                return item ? { id: item.id, name: item.name, type: item.type } : null;
+                            }).filter(Boolean) as Array<{id: string, name: string, type: "file" | "folder"}>;
+
+                            if (selectedItemsArray.length > 0) {
+                                setSelectedItemsForMoveToFolder(selectedItemsArray);
+                                setMoveToFolderModalOpen(true);
+                            }
+                        }}
+                        title="Move to folder"
+                    >
+                        <IconFolder className="h-4 w-4" />
+                    </Button>
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 p-0"
+                        disabled={hasMultipleSelection}
+                        onClick={() => {
+                            if (!hasMultipleSelection) {
+                                const firstItemId = Array.from(selectedItems)[0];
+                                const firstItem = filesMap.get(firstItemId);
+                                if (firstItem) {
+                                    handleRenameClick(firstItem.id, firstItem.name, firstItem.type);
+                                }
+                            }
+                        }}
+                        title={hasMultipleSelection ? "Rename not available for multiple items" : "Rename"}
+                    >
+                        <IconEdit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 p-0"
+                        disabled={hasMultipleSelection}
+                        onClick={() => {
+                            if (!hasMultipleSelection) {
+                                const firstItemId = Array.from(selectedItems)[0];
+                                const firstItem = filesMap.get(firstItemId);
+                                if (firstItem) {
+                                    handleDetailsClick(firstItem.id, firstItem.name, firstItem.type);
+                                }
+                            }
+                        }}
+                        title={hasMultipleSelection ? "Details not available for multiple items" : "Details"}
+                    >
+                        <IconInfoCircle className="h-4 w-4" />
+                    </Button>
+                    <div className="h-5 w-px bg-border mx-1" />
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 p-0"
+                        onClick={handleBulkMoveToTrash}
+                        title="Move to trash"
+                    >
+                        <IconTrash className="h-4 w-4" />
+                    </Button>
+                    <div className="h-5 w-px bg-border mx-1" />
+                    <Button 
+                        size="sm" 
+                        variant="ghost" 
+                        className="h-7 w-7 p-0" 
+                        onClick={() => handleViewModeChange(viewMode === 'table' ? 'grid' : 'table')}
+                        title={viewMode === 'table' ? 'Switch to grid view' : 'Switch to table view'}
+                    >
+                        <IconListDetails className="h-4 w-4" />
+                    </Button>
+                </>
+            );
+        }
+    }, [selectedItems, filesMap, viewMode, currentFolderId, refreshFiles, handleFolderUpload, handleFileUpload, handleBulkDownload, handlePreviewClick, handleShareClick, handleBulkMoveToTrash, handleViewModeChange, handleRenameClick, handleDetailsClick, setSharePickerModalOpen, setSelectedItemsForMoveToFolder, setMoveToFolderModalOpen]);
+
+    // Memoize the onSelectionChange callback to prevent unnecessary re-renders
+    const handleTableSelectionChange = useCallback((keys: any) => {
+        if (keys === 'all') {
+            const allIds = filteredItems.map(item => item.id);
+            setSelectedItems(prev => {
+                if (prev.size === allIds.length && allIds.every(id => prev.has(id))) {
+                    return prev; // No change needed
+                }
+                return new Set(allIds);
+            });
+        } else {
+            const newKeys = Array.from(keys as Set<string>);
+            setSelectedItems(prev => {
+                if (prev.size === newKeys.length && newKeys.every(id => prev.has(id))) {
+                    return prev; // No change needed
+                }
+                return new Set(newKeys);
+            });
+        }
+    }, [filteredItems]);
+
     // Keyboard shortcuts
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -1522,7 +1556,8 @@ export const Table01DividerLineSm = ({
             // Preview selected file (Space or Enter)
             if ((e.key === ' ' || e.key === 'Enter') && selectedItems.size === 1) {
                 e.preventDefault();
-                const firstItem = Array.from(selectedItems).map(id => files.find(f => f.id === id)).filter(Boolean)[0];
+                const firstItemId = Array.from(selectedItems)[0];
+                const firstItem = filesMap.get(firstItemId);
                 if (firstItem?.type === 'file' && firstItem?.mimeType && canPreviewFile(firstItem.mimeType)) {
                     handlePreviewClick(firstItem.id, firstItem.name, firstItem.mimeType);
                 } else if (firstItem?.type === 'folder') {
@@ -1548,7 +1583,7 @@ export const Table01DividerLineSm = ({
 
         document.addEventListener('keydown', handleKeyDown);
         return () => document.removeEventListener('keydown', handleKeyDown);
-    }, [selectedItems, filteredItems, files]);
+    }, [selectedItems, filesMap]);
 
     if (isLoading) {
         return (
@@ -1748,7 +1783,7 @@ export const Table01DividerLineSm = ({
                 title="My Files"
                 contentTrailing={
                     <div className="absolute top-1 right-4 md:right-6 flex items-center gap-1">
-                        {renderHeaderIcons()}
+                        {renderHeaderIcons}
 
                         {/* Hidden file inputs */}
                         <input
@@ -1772,13 +1807,7 @@ export const Table01DividerLineSm = ({
                 className="py-1 [&>div>h2]:text-base [&>div>h2]:font-medium h-12 flex-shrink-0 border-0"
             />
             {viewMode === 'table' ? (
-                <Table aria-label="Files" selectionMode="multiple" sortDescriptor={sortDescriptor} onSortChange={setSortDescriptor} selectedKeys={selectedItems} onSelectionChange={(keys) => {
-                    if (keys === 'all') {
-                        setSelectedItems(new Set(filteredItems.map(item => item.id)));
-                    } else {
-                        setSelectedItems(new Set(Array.from(keys as Set<string>)));
-                    }
-                }}
+                <Table aria-label="Files" selectionMode="multiple" sortDescriptor={sortDescriptor} onSortChange={setSortDescriptor} selectedKeys={selectedItems} onSelectionChange={handleTableSelectionChange}
                 onContextMenu={(e) => handleContextMenu(e)}
                 >
                     <Table.Header>
@@ -2127,7 +2156,7 @@ export const Table01DividerLineSm = ({
             onCancelAllUploads={handleCancelAllUploads}
             downloadProgress={downloadProgress}
             downloadFilename={currentDownloadFile?.type === 'folder' ? `${currentDownloadFile.name}.zip` : currentDownloadFile?.name}
-            downloadFileSize={currentDownloadFile?.type === 'file' ? (files.find(f => f.id === currentDownloadFile.id)?.size || 0) : 0}
+            downloadFileSize={currentDownloadFile?.type === 'file' ? (filesMap.get(currentDownloadFile.id)?.size || 0) : 0}
             onCancelDownload={handleDownloadProgressClose}
             onRetryDownload={downloadError ? () => handleDownloadClick(currentDownloadFile!.id, currentDownloadFile!.name, currentDownloadFile!.type) : undefined}
             downloadError={downloadError}
