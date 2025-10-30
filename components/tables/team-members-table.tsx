@@ -29,17 +29,24 @@ import { keyManager } from "@/lib/key-manager";
 import { UnifiedProgressModal, FileUploadState } from "@/components/modals/unified-progress-modal";
 import { UploadManager, UploadTask } from "@/components/upload-manager";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { PreviewModal } from "@/components/previews";
 
 export const Table01DividerLineSm = ({ 
   searchQuery,
   onFileUpload,
   onFolderUpload,
-  dragDropFiles
+  dragDropFiles,
+  onFileInputRef,
+  onFolderInputRef,
+  onUploadHandlersReady
 }: { 
   searchQuery?: string
   onFileUpload?: () => void
   onFolderUpload?: () => void
   dragDropFiles?: { files: File[], folders: FileList | null }
+  onFileInputRef?: (ref: HTMLInputElement | null) => void
+  onFolderInputRef?: (ref: HTMLInputElement | null) => void
+  onUploadHandlersReady?: (handlers: { handleFileUpload: () => void; handleFolderUpload: () => void }) => void
 }) => {
     const router = useRouter();
     const pathname = usePathname();
@@ -65,14 +72,6 @@ export const Table01DividerLineSm = ({
     // View mode state
     const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
 
-    // Load view mode from localStorage on mount
-    useEffect(() => {
-        const savedViewMode = localStorage.getItem('viewMode') as 'table' | 'grid';
-        if (savedViewMode && (savedViewMode === 'table' || savedViewMode === 'grid')) {
-            setViewMode(savedViewMode);
-        }
-    }, []);
-
     // Save view mode to localStorage when it changes
     const handleViewModeChange = (newViewMode: 'table' | 'grid') => {
         setViewMode(newViewMode);
@@ -81,6 +80,19 @@ export const Table01DividerLineSm = ({
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const folderInputRef = useRef<HTMLInputElement>(null);
+
+    // Call callbacks when refs are set
+    useEffect(() => {
+        if (onFileInputRef) {
+            onFileInputRef(fileInputRef.current);
+        }
+    }, [onFileInputRef]);
+
+    useEffect(() => {
+        if (onFolderInputRef) {
+            onFolderInputRef(folderInputRef.current);
+        }
+    }, [onFolderInputRef]);
     const [renameModalOpen, setRenameModalOpen] = useState(false);
     const [selectedItemForRename, setSelectedItemForRename] = useState<{ id: string; name: string; type: "file" | "folder" } | null>(null);
     const [shareModalOpen, setShareModalOpen] = useState(false);
@@ -92,6 +104,10 @@ export const Table01DividerLineSm = ({
     const [selectedItemsForMoveToFolder, setSelectedItemsForMoveToFolder] = useState<Array<{ id: string; name: string; type: "file" | "folder" }>>([]);
     const [moveToTrashModalOpen, setMoveToTrashModalOpen] = useState(false);
     const [selectedItemForMoveToTrash, setSelectedItemForMoveToTrash] = useState<{ id: string; name: string; type: "file" | "folder" } | null>(null);
+
+    // Preview modal state
+    const [previewModalOpen, setPreviewModalOpen] = useState(false);
+    const [selectedItemForPreview, setSelectedItemForPreview] = useState<{ id: string; name: string; mimeType?: string } | null>(null);
 
     // Folder upload state
     const [selectedFolderFiles, setSelectedFolderFiles] = useState<FileList | null>(null);
@@ -718,6 +734,13 @@ export const Table01DividerLineSm = ({
         }
     };
 
+    // Provide upload handlers to parent
+    useEffect(() => {
+        if (onUploadHandlersReady) {
+            onUploadHandlersReady({ handleFileUpload, handleFolderUpload });
+        }
+    }, [onUploadHandlersReady, handleFileUpload, handleFolderUpload]);
+
     const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const selectedFiles = event.target.files;
         if (selectedFiles && selectedFiles.length > 0) {
@@ -947,6 +970,43 @@ export const Table01DividerLineSm = ({
         }
     };
 
+    // Check if a file can be previewed
+    const canPreviewFile = (mimeType: string): boolean => {
+        if (!mimeType) return false;
+        return (
+            mimeType.includes('pdf') ||
+            mimeType.startsWith('audio/') ||
+            mimeType.startsWith('video/') ||
+            mimeType.startsWith('image/') ||
+            mimeType.startsWith('text/') ||
+            mimeType.includes('javascript') ||
+            mimeType.includes('json') ||
+            mimeType.includes('xml') ||
+            mimeType.includes('css') ||
+            mimeType.includes('html')
+        );
+    };
+
+    // Handle unified file preview
+    const handlePreviewClick = async (itemId: string, itemName: string, mimeType?: string) => {
+        if (!mimeType || !canPreviewFile(mimeType)) {
+            toast.error('This file type cannot be previewed');
+            return;
+        }
+
+        // Prevent multiple preview modals
+        if (previewModalOpen) {
+            setPreviewModalOpen(false);
+            setTimeout(() => {
+                setSelectedItemForPreview({ id: itemId, name: itemName, mimeType });
+                setPreviewModalOpen(true);
+            }, 100);
+        } else {
+            setSelectedItemForPreview({ id: itemId, name: itemName, mimeType });
+            setPreviewModalOpen(true);
+        }
+    };
+
     // Handle file download (single item or folder)
     const handleDownloadClick = async (itemId: string, itemName: string, itemType: "file" | "folder") => {
         if (itemType === 'folder') {
@@ -1111,6 +1171,20 @@ export const Table01DividerLineSm = ({
                     >
                         <IconDownload className="h-4 w-4" />
                     </Button>
+                    {selectedCount === 1 && (() => {
+                        const firstItem = Array.from(selectedItems).map(id => files.find(f => f.id === id)).filter(Boolean)[0];
+                        return firstItem?.type === 'file' && firstItem?.mimeType && canPreviewFile(firstItem.mimeType) ? (
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 w-7 p-0"
+                                onClick={() => handlePreviewClick(firstItem.id, firstItem.name, firstItem.mimeType)}
+                                title="Preview file"
+                            >
+                                <IconEye className="h-4 w-4" />
+                            </Button>
+                        ) : null;
+                    })()}
                     <Button
                         size="sm"
                         variant="ghost"
@@ -1279,6 +1353,11 @@ export const Table01DividerLineSm = ({
                 case 'download':
                     handleDownloadClick(item.id, item.name, item.type);
                     break;
+                case 'preview':
+                    if (item.type === 'file' && item.mimeType && canPreviewFile(item.mimeType)) {
+                        handlePreviewClick(item.id, item.name, item.mimeType);
+                    }
+                    break;
                 case 'copyLink':
                     // TODO: Implement copy link functionality
                     toast.info('Copy link functionality coming soon');
@@ -1418,6 +1497,58 @@ export const Table01DividerLineSm = ({
             item.name.toLowerCase().includes(query)
         );
     }, [sortedItems, searchQuery]);
+
+    // Keyboard shortcuts
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Only handle shortcuts when not typing in an input
+            if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+                return;
+            }
+
+            // Select all (Ctrl+A)
+            if (e.ctrlKey && e.key === 'a' && !e.shiftKey && !e.altKey) {
+                e.preventDefault();
+                setSelectedItems(new Set(filteredItems.map(item => item.id)));
+                return;
+            }
+
+            // Clear selection (Escape)
+            if (e.key === 'Escape') {
+                setSelectedItems(new Set());
+                return;
+            }
+
+            // Preview selected file (Space or Enter)
+            if ((e.key === ' ' || e.key === 'Enter') && selectedItems.size === 1) {
+                e.preventDefault();
+                const firstItem = Array.from(selectedItems).map(id => files.find(f => f.id === id)).filter(Boolean)[0];
+                if (firstItem?.type === 'file' && firstItem?.mimeType && canPreviewFile(firstItem.mimeType)) {
+                    handlePreviewClick(firstItem.id, firstItem.name, firstItem.mimeType);
+                } else if (firstItem?.type === 'folder') {
+                    handleFolderDoubleClick(firstItem.id, firstItem.name);
+                }
+                return;
+            }
+
+            // Download selected items (Ctrl+D)
+            if (e.ctrlKey && e.key === 'd' && !e.shiftKey && !e.altKey && selectedItems.size > 0) {
+                e.preventDefault();
+                handleBulkDownload();
+                return;
+            }
+
+            // Delete selected items (Delete or Backspace)
+            if ((e.key === 'Delete' || e.key === 'Backspace') && selectedItems.size > 0) {
+                e.preventDefault();
+                handleBulkMoveToTrash();
+                return;
+            }
+        };
+
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [selectedItems, filteredItems, files]);
 
     if (isLoading) {
         return (
@@ -1663,7 +1794,7 @@ export const Table01DividerLineSm = ({
                         {(item) => (
                             <Table.Row 
                                 id={item.id}
-                                onDoubleClick={item.type === 'folder' ? () => handleFolderDoubleClick(item.id, item.name) : undefined}
+                                onDoubleClick={item.type === 'folder' ? () => handleFolderDoubleClick(item.id, item.name) : (item.type === 'file' && item.mimeType && canPreviewFile(item.mimeType) ? () => handlePreviewClick(item.id, item.name, item.mimeType) : undefined)}
                                 className="group hover:bg-muted/50 transition-colors duration-150"
                                 onContextMenu={(e) => handleContextMenu(e, item)}
                             >
@@ -1749,10 +1880,10 @@ export const Table01DividerLineSm = ({
                                                     <IconDownload className="h-4 w-4 mr-2" />
                                                     Download
                                                 </DropdownMenuItem>
-                                                {item.type === 'file' && item.mimeType?.includes('pdf') && (
-                                                    <DropdownMenuItem onClick={() => handlePDFPreviewClick(item.id, item.name)}>
+                                                {item.type === 'file' && item.mimeType && canPreviewFile(item.mimeType) && (
+                                                    <DropdownMenuItem onClick={() => handlePreviewClick(item.id, item.name, item.mimeType)}>
                                                         <IconEye className="h-4 w-4 mr-2" />
-                                                        PDF Preview
+                                                        Preview
                                                     </DropdownMenuItem>
                                                 )}
                                                 <DropdownMenuItem onClick={() => handleShareClick(item.id, item.name, item.type)}>
@@ -1798,11 +1929,15 @@ export const Table01DividerLineSm = ({
                                 onClick={() => {
                                     if (item.type === 'folder') {
                                         handleFolderDoubleClick(item.id, item.name);
+                                    } else if (item.type === 'file' && item.mimeType && canPreviewFile(item.mimeType)) {
+                                        handlePreviewClick(item.id, item.name, item.mimeType);
                                     }
                                 }}
                                 onDoubleClick={() => {
                                     if (item.type === 'folder') {
                                         handleFolderDoubleClick(item.id, item.name);
+                                    } else if (item.type === 'file' && item.mimeType && canPreviewFile(item.mimeType)) {
+                                        handlePreviewClick(item.id, item.name, item.mimeType);
                                     }
                                 }}
                                 onContextMenu={(e) => handleContextMenu(e, item)}
@@ -1861,10 +1996,10 @@ export const Table01DividerLineSm = ({
                                                 <IconDownload className="h-4 w-4 mr-2" />
                                                 Download
                                             </DropdownMenuItem>
-                                            {item.type === 'file' && item.mimeType?.includes('pdf') && (
-                                                <DropdownMenuItem onClick={() => handlePDFPreviewClick(item.id, item.name)}>
+                                            {item.type === 'file' && item.mimeType && canPreviewFile(item.mimeType) && (
+                                                <DropdownMenuItem onClick={() => handlePreviewClick(item.id, item.name, item.mimeType)}>
                                                     <IconEye className="h-4 w-4 mr-2" />
-                                                    PDF Preview
+                                                    Preview
                                                 </DropdownMenuItem>
                                             )}
                                             <DropdownMenuItem onClick={() => handleShareClick(item.id, item.name, item.type)}>
@@ -2080,18 +2215,18 @@ export const Table01DividerLineSm = ({
                                 <IconDownload className="h-4 w-4" />
                                 Download
                             </button>
-                            {contextMenu.targetItem?.type === 'file' && contextMenu.targetItem?.mimeType?.includes('pdf') && (
+                            {contextMenu.targetItem?.type === 'file' && contextMenu.targetItem?.mimeType && canPreviewFile(contextMenu.targetItem.mimeType) && (
                                 <button
                                     className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
                                     onClick={() => {
                                         if (contextMenu.targetItem) {
-                                            handlePDFPreviewClick(contextMenu.targetItem.id, contextMenu.targetItem.name);
+                                            handlePreviewClick(contextMenu.targetItem.id, contextMenu.targetItem.name, contextMenu.targetItem.mimeType);
                                         }
                                         handleContextMenuClose();
                                     }}
                                 >
                                     <IconEye className="h-4 w-4" />
-                                    PDF Preview
+                                    Preview
                                 </button>
                             )}
                             {/* TODO: Only show Copy Link if item is shared */}
@@ -2144,6 +2279,18 @@ export const Table01DividerLineSm = ({
                 </div>
             </div>
         )}
+
+        <PreviewModal
+            file={selectedItemForPreview ? {
+                id: selectedItemForPreview.id,
+                name: selectedItemForPreview.name,
+                type: 'file',
+                mimeType: selectedItemForPreview.mimeType
+            } : null}
+            open={previewModalOpen}
+            onOpenChange={setPreviewModalOpen}
+            onDownload={handleDownloadClick}
+        />
         </>
     );
 };

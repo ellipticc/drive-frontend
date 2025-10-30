@@ -12,6 +12,7 @@ import {
 
 export default function Home() {
   const [searchQuery, setSearchQuery] = useState("")
+  const [uploadHandlers, setUploadHandlers] = useState<{ handleFileUpload: () => void; handleFolderUpload: () => void } | null>(null)
 
   useEffect(() => {
     document.title = "My Files - Ellipticc Drive"
@@ -30,14 +31,17 @@ export default function Home() {
         } as React.CSSProperties
       }
     >
-      <AppSidebar variant="inset" />
+      <AppSidebar variant="inset" onFileUpload={uploadHandlers?.handleFileUpload} onFolderUpload={uploadHandlers?.handleFolderUpload} />
       <SidebarInset>
         <SiteHeader pageTitle="My Files" onSearch={handleSearch} />
         <div className="flex flex-1 flex-col">
           <div className="@container/main flex flex-1 flex-col gap-2">
             <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
               <SectionCards />
-              <Table01DividerLineSm searchQuery={searchQuery} />
+              <Table01DividerLineSm 
+                searchQuery={searchQuery} 
+                onUploadHandlersReady={setUploadHandlers}
+              />
             </div>
           </div>
         </div>

@@ -98,13 +98,10 @@ export async function deriveEncryptionKey(password: string, salt: string): Promi
   try {
     // Try base64 first (expected format for account salt)
     saltBytes = Uint8Array.from(atob(salt), c => c.charCodeAt(0));
-    // console.log('🔐 Successfully decoded salt as base64, length:', saltBytes.length);
   } catch (base64Error) {
-    // console.log('🔐 Failed to decode salt as base64, trying hex:', base64Error);
     try {
       // Try hex as fallback
       saltBytes = hexToUint8Array(salt);
-      // console.log('🔐 Successfully decoded salt as hex, length:', saltBytes.length);
     } catch (hexError) {
       const base64ErrorMsg = base64Error instanceof Error ? base64Error.message : String(base64Error);
       const hexErrorMsg = hexError instanceof Error ? hexError.message : String(hexError);
@@ -316,16 +313,9 @@ export async function generateAllKeypairs(password: string, providedSalt?: strin
   const masterKey = await deriveEncryptionKey(password, keyDerivationSalt);
 
   // Generate all keypairs sequentially to reduce overhead and improve performance
-  console.log('🔑 Generating Ed25519 keypair...')
   const ed25519Keys = await generateEd25519Keypair()
-  
-  console.log('🔑 Generating X25519 keypair...')
   const x25519Keys = await generateX25519Keypair()
-  
-  console.log('🔑 Generating Kyber keypair...')
   const kyberKeys = await generateKyberKeypair()
-  
-  console.log('🔑 Generating Dilithium keypair...')
   const dilithiumKeys = await generateDilithiumKeypair()
 
   // Generate random encryption keys for each private key
@@ -428,17 +418,14 @@ export async function decryptUserPrivateKeys(
   }
 
   const pqcKeypairs = userData.crypto_keypairs.pqcKeypairs;
-  // console.log('🔐 Starting decryption of user private keys');
 
   // Import master key manager dynamically to avoid circular dependencies
   const { masterKeyManager } = await import('./master-key');
 
   // Get cached master key
   const masterKey = masterKeyManager.getMasterKey();
-  // console.log('🔐 Got master key, length:', masterKey.length);
 
   // Decrypt the per-key encryption keys using master key
-  // console.log('🔐 Decrypting per-key encryption keys...');
   const [
     ed25519Key,
     dilithiumKey,
@@ -450,18 +437,12 @@ export async function decryptUserPrivateKeys(
     decryptData(pqcKeypairs.x25519.encryptionKey, masterKey, pqcKeypairs.x25519.encryptionNonce),
     decryptData(pqcKeypairs.kyber.encryptionKey, masterKey, pqcKeypairs.kyber.encryptionNonce)
   ]);
-
-  // console.log('🔐 Successfully decrypted per-key encryption keys');
-
   // Decrypt all private keys using their individual encryption keys
   // Decrypt sequentially to avoid any potential race conditions
-  // console.log('🔐 Decrypting private keys...');
   const ed25519PrivateKey = decryptData(pqcKeypairs.ed25519.encryptedPrivateKey, ed25519Key, pqcKeypairs.ed25519.privateKeyNonce);
   const dilithiumPrivateKey = decryptData(pqcKeypairs.dilithium.encryptedPrivateKey, dilithiumKey, pqcKeypairs.dilithium.privateKeyNonce);
   const x25519PrivateKey = decryptData(pqcKeypairs.x25519.encryptedPrivateKey, x25519Key, pqcKeypairs.x25519.privateKeyNonce);
   const kyberPrivateKey = decryptData(pqcKeypairs.kyber.encryptedPrivateKey, kyberKey, pqcKeypairs.kyber.privateKeyNonce);
-
-  // console.log('🔐 Successfully decrypted all private keys');
 
   return {
     ed25519PrivateKey,

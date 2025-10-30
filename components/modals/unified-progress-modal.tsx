@@ -55,13 +55,16 @@ export interface UnifiedProgressModalProps {
   downloadProgress?: DownloadProgress | null;
   downloadFilename?: string;
   downloadFileSize?: number;
+  downloadFileId?: string;
   onCancelDownload?: () => void;
   onRetryDownload?: () => void;
   downloadError?: string | null;
+  onDownloadComplete?: (fileId: string, filename: string, fileSize: number) => void;
 
   // Common props
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onClose?: () => void;
 }
 
 export function UnifiedProgressModal({
@@ -74,11 +77,14 @@ export function UnifiedProgressModal({
   downloadProgress,
   downloadFilename,
   downloadFileSize = 0,
+  downloadFileId,
   onCancelDownload,
   onRetryDownload,
   downloadError,
+  onDownloadComplete,
   open,
-  onOpenChange
+  onOpenChange,
+  onClose
 }: UnifiedProgressModalProps) {
   const [isMinimized, setIsMinimized] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
@@ -90,6 +96,13 @@ export function UnifiedProgressModal({
     const failedUploads = uploads.filter(u => u.status === 'failed').map(u => u.id);
     setExpandedItems(prev => new Set([...prev, ...failedUploads]));
   }, [uploads]);
+
+  // Handle download completion
+  useEffect(() => {
+    if (downloadProgress?.stage === 'complete' && onDownloadComplete && downloadFilename && downloadFileId) {
+      onDownloadComplete(downloadFileId, downloadFilename, downloadFileSize);
+    }
+  }, [downloadProgress?.stage, onDownloadComplete, downloadFilename, downloadFileId, downloadFileSize]);
 
   const toggleExpanded = (itemId: string) => {
     setExpandedItems(prev => {
@@ -112,6 +125,7 @@ export function UnifiedProgressModal({
     if (hasActiveUploads || hasActiveDownload) {
       setShowCloseConfirm(true);
     } else {
+      onClose?.();
       onOpenChange(false);
     }
   };
@@ -119,6 +133,7 @@ export function UnifiedProgressModal({
   const confirmClose = () => {
     onCancelAllUploads?.();
     onCancelDownload?.();
+    onClose?.();
     setShowCloseConfirm(false);
     onOpenChange(false);
   };
