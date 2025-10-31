@@ -80,14 +80,39 @@ export default function Home() {
 
   // Show overlay on drag enter anywhere on the page
   useEffect(() => {
+    let dragCounter = 0
+
     const handleGlobalDragEnter = (e: DragEvent) => {
       if (e.dataTransfer?.types.includes('Files')) {
+        dragCounter++
         setIsDragOverlayVisible(true)
       }
     }
 
+    const handleGlobalDragLeave = (e: DragEvent) => {
+      if (e.dataTransfer?.types.includes('Files')) {
+        dragCounter--
+        if (dragCounter <= 0) {
+          dragCounter = 0
+          setIsDragOverlayVisible(false)
+        }
+      }
+    }
+
+    const handleGlobalDragEnd = () => {
+      dragCounter = 0
+      setIsDragOverlayVisible(false)
+    }
+
     document.addEventListener('dragenter', handleGlobalDragEnter)
-    return () => document.removeEventListener('dragenter', handleGlobalDragEnter)
+    document.addEventListener('dragleave', handleGlobalDragLeave)
+    window.addEventListener('dragend', handleGlobalDragEnd)
+    
+    return () => {
+      document.removeEventListener('dragenter', handleGlobalDragEnter)
+      document.removeEventListener('dragleave', handleGlobalDragLeave)
+      window.removeEventListener('dragend', handleGlobalDragEnd)
+    }
   }, [])
 
   const handleSearch = (query: string) => {
