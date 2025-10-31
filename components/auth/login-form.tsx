@@ -54,7 +54,7 @@ export function LoginForm({
       const srpClient = new SRPClient(formData.email, formData.password)
 
       // Step 1: Start SRP authentication to generate client public key A
-      const { A } = srpClient.startAuthentication()
+      const { A } = await srpClient.startAuthentication()
 
       // Step 2: Get SRP challenge from server with email and A
       const challengeResponse = await apiClient.srpChallenge(formData.email, A)
