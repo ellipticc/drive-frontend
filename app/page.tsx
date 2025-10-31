@@ -136,7 +136,7 @@ export default function Home() {
         } as React.CSSProperties
       }
     >
-      <AppSidebar variant="inset" onFileUpload={handleFileUpload} onFolderUpload={handleFolderUpload} />
+      <AppSidebar variant="inset" />
       <SidebarInset
         onDragEnter={() => setIsDragOverlayVisible(true)}
         onDragOver={(e) => e.preventDefault()}

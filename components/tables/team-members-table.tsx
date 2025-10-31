@@ -30,6 +30,7 @@ import { UnifiedProgressModal, FileUploadState } from "@/components/modals/unifi
 import { UploadManager, UploadTask } from "@/components/upload-manager";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { PreviewModal } from "@/components/previews";
+import { useCurrentFolder } from "@/components/current-folder-context";
 
 export const Table01DividerLineSm = ({ 
   searchQuery,
@@ -51,6 +52,9 @@ export const Table01DividerLineSm = ({
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
+
+    // Current folder context
+    const { setCurrentFolderId: setGlobalCurrentFolderId } = useCurrentFolder();
 
     const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({
         column: "modified",
@@ -81,18 +85,10 @@ export const Table01DividerLineSm = ({
     const fileInputRef = useRef<HTMLInputElement>(null);
     const folderInputRef = useRef<HTMLInputElement>(null);
 
-    // Call callbacks when refs are set
+    // Update global current folder context when local folder changes
     useEffect(() => {
-        if (onFileInputRef) {
-            onFileInputRef(fileInputRef.current);
-        }
-    }, [onFileInputRef]);
-
-    useEffect(() => {
-        if (onFolderInputRef) {
-            onFolderInputRef(folderInputRef.current);
-        }
-    }, [onFolderInputRef]);
+        setGlobalCurrentFolderId(currentFolderId === 'root' ? null : currentFolderId);
+    }, [currentFolderId, setGlobalCurrentFolderId]);
     const [renameModalOpen, setRenameModalOpen] = useState(false);
     const [selectedItemForRename, setSelectedItemForRename] = useState<{ id: string; name: string; type: "file" | "folder" } | null>(null);
     const [shareModalOpen, setShareModalOpen] = useState(false);

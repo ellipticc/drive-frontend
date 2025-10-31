@@ -119,14 +119,6 @@ export default function Home() {
     setSearchQuery(query)
   }
 
-  const handleFileUpload = () => {
-    fileInputRef.current?.click()
-  }
-
-  const handleFolderUpload = () => {
-    folderInputRef.current?.click()
-  }
-
   return (
     <SidebarProvider
       style={
@@ -136,7 +128,7 @@ export default function Home() {
         } as React.CSSProperties
       }
     >
-      <AppSidebar variant="inset" onFileUpload={handleFileUpload} onFolderUpload={handleFolderUpload} />
+      <AppSidebar variant="inset" />
       <SidebarInset
         onDragEnter={() => setIsDragOverlayVisible(true)}
         onDragOver={(e) => e.preventDefault()}

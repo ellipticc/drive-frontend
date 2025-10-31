@@ -4,6 +4,8 @@ import { JetBrains_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
 import { AuthGuard } from "@/components/auth/auth-guard";
+import { GlobalUploadProvider } from "@/components/global-upload-context";
+import { CurrentFolderProvider } from "@/components/current-folder-context";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -46,17 +48,21 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange={false}
         >
-          <AuthGuard>
-            {children}
-          </AuthGuard>
-          <Toaster
-            position="bottom-right"
-            richColors
-            duration={5000}
-            style={{
-              fontFamily: 'var(--font-geist-sans)',
-            }}
-          />
+          <CurrentFolderProvider>
+            <GlobalUploadProvider>
+              <AuthGuard>
+                {children}
+              </AuthGuard>
+              <Toaster
+                position="bottom-right"
+                richColors
+                duration={5000}
+                style={{
+                  fontFamily: 'var(--font-geist-sans)',
+                }}
+              />
+            </GlobalUploadProvider>
+          </CurrentFolderProvider>
         </ThemeProvider>
       </body>
     </html>
