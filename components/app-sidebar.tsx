@@ -50,21 +50,21 @@ const defaultNavMain = [
     url: "/",
     icon: IconFolder,
   },
-  {
+  /*{
     title: "Photos & Videos - Coming Soon",
     url: "#",
     icon: IconCamera,
-  },
+  },*/
   {
     title: "Shared",
     url: "/shared",
     icon: IconUsers,
   },
-  {
+  /*{
     title: "Shared with me - Coming Soon",
     url: "#",
     icon: IconFolder,
-  },
+  },*/
   {
     title: "Trash",
     url: "/trash",
@@ -72,7 +72,7 @@ const defaultNavMain = [
   },
 ]
 
-const defaultNavClouds = [
+/*const defaultNavClouds = [
   {
     title: "Capture",
     icon: IconCamera,
@@ -155,7 +155,7 @@ const defaultDocuments = [
     url: "#",
     icon: IconFileWord,
   },
-]
+] */
 
 export const AppSidebar = React.memo(function AppSidebar({ 
   onFileUpload,
@@ -252,15 +252,15 @@ export const AppSidebar = React.memo(function AppSidebar({
   const data: {
     user: { id: string; name: string; email: string; avatar: string };
     navMain: typeof defaultNavMain;
-    navClouds: typeof defaultNavClouds;
-    navSecondary: typeof defaultNavSecondary;
-    documents: typeof defaultDocuments;
+    //navClouds: typeof defaultNavClouds;
+    //navSecondary: typeof defaultNavSecondary;
+    //documents: typeof defaultDocuments;
   } = {
     user,
     navMain: defaultNavMain,
-    navClouds: defaultNavClouds,
-    navSecondary: defaultNavSecondary,
-    documents: defaultDocuments,
+    //navClouds: defaultNavClouds,
+    //navSecondary: defaultNavSecondary,
+    //documents: defaultDocuments,
   }
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -281,8 +281,8 @@ export const AppSidebar = React.memo(function AppSidebar({
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} onFileUpload={onFileUpload} onFolderUpload={onFolderUpload} />
-        <NavDocuments items={data.documents} />
-        <NavSecondary items={data.navSecondary} className="mt-auto" />
+        {/* <NavDocuments items={data.documents} />
+        <NavSecondary items={data.navSecondary} className="mt-auto" /> */}
       </SidebarContent>
       <SidebarFooter>
         {state !== "collapsed" && (

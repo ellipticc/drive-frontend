@@ -51,21 +51,21 @@ const defaultNavMain = [
     url: "/",
     icon: IconFolder,
   },
-  {
+  /*{
     title: "Photos & Videos - Coming Soon",
     url: "#",
     icon: IconCamera,
-  },
+  }, */
   {
     title: "Shared",
     url: "/shared",
     icon: IconUsers,
   },
-  {
+  /*{
     title: "Shared with me - Coming Soon",
     url: "#",
     icon: IconFolder,
-  },
+  }, */
   {
     title: "Trash",
     url: "/trash",
@@ -73,7 +73,7 @@ const defaultNavMain = [
   },
 ]
 
-const defaultNavClouds = [
+/*const defaultNavClouds = [
   {
     title: "Capture",
     icon: IconCamera,
@@ -156,7 +156,7 @@ const defaultDocuments = [
     url: "#",
     icon: IconFileWord,
   },
-]
+] */
 
 export const AppSidebar = React.memo(function AppSidebar({ 
   onFileUpload,
@@ -267,9 +267,9 @@ export const AppSidebar = React.memo(function AppSidebar({
   const data = {
     user,
     navMain: defaultNavMain,
-    navClouds: defaultNavClouds,
-    navSecondary: defaultNavSecondary,
-    documents: defaultDocuments,
+    //navClouds: defaultNavClouds,
+    //navSecondary: defaultNavSecondary,
+    //documents: defaultDocuments,
   }
 
   return (
@@ -291,8 +291,8 @@ export const AppSidebar = React.memo(function AppSidebar({
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} onFileUpload={onFileUpload} onFolderUpload={onFolderUpload} />
-        <NavDocuments items={data.documents} />
-        <NavSecondary items={data.navSecondary} className="mt-auto" />
+        {/* <NavDocuments items={data.documents} />
+        <NavSecondary items={data.navSecondary} className="mt-auto" /> */}
       </SidebarContent>
       <SidebarFooter>
         {state !== "collapsed" && (
