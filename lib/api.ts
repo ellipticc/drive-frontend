@@ -689,6 +689,7 @@ class ApiClient {
     recipients: string[];
     share_url: string;
     file_name: string;
+    message?: string;
   }): Promise<ApiResponse<{
     success: boolean;
     results: Array<{ email: string; status: string }>;

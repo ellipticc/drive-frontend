@@ -326,7 +326,8 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
       const emailResponse = await apiClient.sendShareEmails(shareId, {
         recipients: emails,
         share_url: shareUrl,
-        file_name: itemName
+        file_name: itemName,
+        message: includeMessage && message.trim() ? message.trim() : undefined
       })
 
       if (emailResponse.success) {
