@@ -2,25 +2,16 @@
 
 import * as React from "react"
 import {
-  IconCamera,
-  IconChartBar,
-  IconDashboard,
   IconDatabase,
-  IconFileAi,
-  IconFileDescription,
-  IconFileWord,
   IconFolder,
   IconHelp,
   IconCaretLeftRightFilled,
-  IconListDetails,
-  IconReport,
   IconSearch,
   IconSettings,
   IconTrash,
   IconUsers,
 } from "@tabler/icons-react"
 
-import { NavDocuments } from "@/components/layout/navigation/nav-documents"
 import { NavMain } from "@/components/layout/navigation/nav-main"
 import { NavSecondary } from "@/components/layout/navigation/nav-secondary"
 import { NavUser } from "@/components/layout/navigation/nav-user"
@@ -119,7 +110,7 @@ const defaultNavMain = [
       },
     ],
   },
-]
+] */
 
 const defaultNavSecondary = [
   {
@@ -132,14 +123,9 @@ const defaultNavSecondary = [
     url: "#",
     icon: IconHelp,
   },
-  {
-    title: "Search",
-    url: "#",
-    icon: IconSearch,
-  },
 ]
 
-const defaultDocuments = [
+/*const defaultDocuments = [
   {
     name: "Data Library",
     url: "#",
@@ -253,13 +239,13 @@ export const AppSidebar = React.memo(function AppSidebar({
     user: { id: string; name: string; email: string; avatar: string };
     navMain: typeof defaultNavMain;
     //navClouds: typeof defaultNavClouds;
-    //navSecondary: typeof defaultNavSecondary;
+    navSecondary: typeof defaultNavSecondary;
     //documents: typeof defaultDocuments;
   } = {
     user,
     navMain: defaultNavMain,
     //navClouds: defaultNavClouds,
-    //navSecondary: defaultNavSecondary,
+    navSecondary: defaultNavSecondary,
     //documents: defaultDocuments,
   }
   return (
@@ -281,8 +267,8 @@ export const AppSidebar = React.memo(function AppSidebar({
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} onFileUpload={onFileUpload} onFolderUpload={onFolderUpload} />
-        {/* <NavDocuments items={data.documents} />
-        <NavSecondary items={data.navSecondary} className="mt-auto" /> */}
+        {/* <NavDocuments items={data.documents} /> */}
+        <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
         {state !== "collapsed" && (

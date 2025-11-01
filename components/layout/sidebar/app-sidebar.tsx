@@ -3,25 +3,16 @@
 import * as React from "react"
 import { useRouter } from "next/navigation"
 import {
-  IconCamera,
-  IconChartBar,
-  IconDashboard,
   IconDatabase,
-  IconFileAi,
-  IconFileDescription,
-  IconFileWord,
   IconFolder,
   IconHelp,
   IconCaretLeftRightFilled,
-  IconListDetails,
-  IconReport,
   IconSearch,
   IconSettings,
   IconTrash,
   IconUsers,
 } from "@tabler/icons-react"
 
-import { NavDocuments } from "@/components/layout/navigation/nav-documents"
 import { NavMain } from "@/components/layout/navigation/nav-main"
 import { NavSecondary } from "@/components/layout/navigation/nav-secondary"
 import { NavUser } from "@/components/layout/navigation/nav-user"
@@ -121,7 +112,7 @@ const defaultNavMain = [
       },
     ],
   },
-]
+] */
 
 const defaultNavSecondary = [
   {
@@ -134,14 +125,9 @@ const defaultNavSecondary = [
     url: "#",
     icon: IconHelp,
   },
-  {
-    title: "Search",
-    url: "#",
-    icon: IconSearch,
-  },
 ]
 
-const defaultDocuments = [
+/*const defaultDocuments = [
   {
     name: "Data Library",
     url: "#",
@@ -265,7 +251,7 @@ export const AppSidebar = React.memo(function AppSidebar({
     user,
     navMain: defaultNavMain,
     //navClouds: defaultNavClouds,
-    //navSecondary: defaultNavSecondary,
+    navSecondary: defaultNavSecondary,
     //documents: defaultDocuments,
   }
 
@@ -288,8 +274,8 @@ export const AppSidebar = React.memo(function AppSidebar({
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} onFileUpload={handleFileUpload} onFolderUpload={handleFolderUpload} />
-        {/* <NavDocuments items={data.documents} />
-        <NavSecondary items={data.navSecondary} className="mt-auto" /> */}
+        {/* <NavDocuments items={data.documents} /> */}
+        <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
         {state !== "collapsed" && (
