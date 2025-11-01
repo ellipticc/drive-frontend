@@ -220,6 +220,55 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
       const shareCek = new Uint8Array(cekHash)
       const shareCekHex = btoa(String.fromCharCode(...shareCek))
 
+      let saltPw = undefined
+      let finalShareCekHex = shareCekHex
+
+      if (shareSettings.passwordEnabled) {
+        // Generate salt for password key derivation
+        const salt = crypto.getRandomValues(new Uint8Array(16))
+        const saltHex = Array.from(salt).map(b => b.toString(16).padStart(2, '0')).join('')
+
+        // Derive key from password + salt
+        const keyMaterial = await crypto.subtle.importKey(
+          'raw',
+          new TextEncoder().encode(shareSettings.password + saltHex),
+          'PBKDF2',
+          false,
+          ['deriveKey']
+        )
+        const key = await crypto.subtle.deriveKey(
+          {
+            name: 'PBKDF2',
+            salt: salt,
+            iterations: 100000,
+            hash: 'SHA-256'
+          },
+          keyMaterial,
+          { name: 'AES-GCM', length: 256 },
+          false,
+          ['encrypt']
+        )
+
+        // Encrypt share CEK with password-derived key
+        const iv = crypto.getRandomValues(new Uint8Array(12))
+        const encrypted = await crypto.subtle.encrypt(
+          { name: 'AES-GCM', iv: iv },
+          key,
+          shareCek
+        )
+        const encryptedCek = new Uint8Array(encrypted)
+        const encryptedCekWithIv = new Uint8Array(iv.length + encryptedCek.length)
+        encryptedCekWithIv.set(iv)
+        encryptedCekWithIv.set(encryptedCek, iv.length)
+        const encryptedCekB64 = btoa(String.fromCharCode(...encryptedCekWithIv))
+
+        // Store salt:encryptedCek in salt_pw
+        saltPw = saltHex + ':' + encryptedCekB64
+
+        // Don't put CEK in URL for password-protected shares
+        finalShareCekHex = ''
+      }
+
       // Get the file's wrapped CEK from the database and unwrap it
       const fileInfoResponse = await apiClient.getFileInfo(itemId)
       if (!fileInfoResponse.success || !fileInfoResponse.data) {
@@ -270,8 +319,8 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
       shareId = response.data.id
       setExistingShareId(shareId)
 
-      // Construct share URL with share CEK in fragment
-      const shareUrl = `https://drive.ellipticc.com/s/${shareId}#${shareCekHex}`
+      // Construct share URL with share CEK in fragment (only for non-password shares)
+      const shareUrl = `https://drive.ellipticc.com/s/${shareId}${finalShareCekHex ? '#' + finalShareCekHex : ''}`
 
       // Send emails with the CEK-embedded URL
       const emailResponse = await apiClient.sendShareEmails(shareId, {
@@ -385,13 +434,62 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
       const wrappedFileCek = envelopeEncryption.encryptedData
       const envelopeNonce = envelopeEncryption.nonce
 
+      let saltPw = undefined
+      let finalShareCekHex = shareCekHex
+
+      if (shareSettings.passwordEnabled) {
+        // Generate salt for password key derivation
+        const salt = crypto.getRandomValues(new Uint8Array(16))
+        const saltHex = Array.from(salt).map(b => b.toString(16).padStart(2, '0')).join('')
+
+        // Derive key from password + salt
+        const keyMaterial = await crypto.subtle.importKey(
+          'raw',
+          new TextEncoder().encode(shareSettings.password + saltHex),
+          'PBKDF2',
+          false,
+          ['deriveKey']
+        )
+        const key = await crypto.subtle.deriveKey(
+          {
+            name: 'PBKDF2',
+            salt: salt,
+            iterations: 100000,
+            hash: 'SHA-256'
+          },
+          keyMaterial,
+          { name: 'AES-GCM', length: 256 },
+          false,
+          ['encrypt']
+        )
+
+        // Encrypt share CEK with password-derived key
+        const iv = crypto.getRandomValues(new Uint8Array(12))
+        const encrypted = await crypto.subtle.encrypt(
+          { name: 'AES-GCM', iv: iv },
+          key,
+          shareCek
+        )
+        const encryptedCek = new Uint8Array(encrypted)
+        const encryptedCekWithIv = new Uint8Array(iv.length + encryptedCek.length)
+        encryptedCekWithIv.set(iv)
+        encryptedCekWithIv.set(encryptedCek, iv.length)
+        const encryptedCekB64 = btoa(String.fromCharCode(...encryptedCekWithIv))
+
+        // Store salt:encryptedCek in salt_pw
+        saltPw = saltHex + ':' + encryptedCekB64
+
+        // Don't put CEK in URL for password-protected shares
+        finalShareCekHex = ''
+      }
+
       // Create share with envelope-encrypted CEK
       const response = await apiClient.createShare({
         [itemType === 'folder' ? 'folder_id' : 'file_id']: itemId,
         wrapped_cek: wrappedFileCek, // Envelope-encrypted file CEK
         nonce_wrap: envelopeNonce,  // Nonce for envelope encryption
         has_password: shareSettings.passwordEnabled,
-        salt_pw: shareSettings.passwordEnabled ? shareSettings.password : undefined,
+        salt_pw: saltPw,
         expires_at: shareSettings.expirationDate?.toISOString(),
         max_views: shareSettings.maxDownloads || undefined,
         permissions: 'read'
@@ -404,8 +502,8 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
       const shareId = response.data.id
       setExistingShareId(shareId)
 
-      // Construct the final share URL with share CEK in fragment for true E2EE
-      const shareUrl = `https://drive.ellipticc.com/s/${shareId}#${shareCekHex}`
+      // Construct the final share URL with share CEK in fragment for true E2EE (only for non-password)
+      const shareUrl = `https://drive.ellipticc.com/s/${shareId}${finalShareCekHex ? '#' + finalShareCekHex : ''}`
       setShareLink(shareUrl)
 
       toast.success("Public link created successfully")

@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Loader2, Download, File, AlertCircle, CheckCircle, Share2 } from 'lucide-react';
 
@@ -58,6 +60,11 @@ export default function SharedDownloadPage() {
   const [downloading, setDownloading] = useState(false);
   const [downloadComplete, setDownloadComplete] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
+  const [password, setPassword] = useState('');
+  const [passwordRequired, setPasswordRequired] = useState(false);
+  const [passwordVerified, setPasswordVerified] = useState(false);
+  const [verifyingPassword, setVerifyingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
 
   useEffect(() => {
     document.title = "Shared File - Ellipticc Drive"
@@ -99,6 +106,14 @@ export default function SharedDownloadPage() {
           createdAt: share.file.created_at
         });
 
+        // Check if password is required
+        setPasswordRequired(share.has_password);
+
+        // If no password required, set as verified
+        if (!share.has_password) {
+          setPasswordVerified(true);
+        }
+
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load share details');
       } finally {
@@ -111,6 +126,71 @@ export default function SharedDownloadPage() {
     }
   }, [shareId]);
 
+  const handleVerifyPassword = async () => {
+    if (!shareDetails || !password) return;
+
+    setVerifyingPassword(true);
+    setPasswordError(null);
+
+    try {
+      // Try to derive share CEK from password
+      if (!shareDetails.salt_pw) {
+        throw new Error('Password data not available');
+      }
+
+      const [saltHex, encryptedCekB64] = shareDetails.salt_pw.split(':');
+      if (!saltHex || !encryptedCekB64) {
+        throw new Error('Invalid password data format');
+      }
+
+      const salt = new Uint8Array(saltHex.match(/.{2}/g)?.map(byte => parseInt(byte, 16)) || []);
+      const encryptedCekWithIv = new Uint8Array(atob(encryptedCekB64).split('').map(c => c.charCodeAt(0)));
+
+      // Derive key from password + salt
+      const keyMaterial = await crypto.subtle.importKey(
+        'raw',
+        new TextEncoder().encode(password + saltHex),
+        'PBKDF2',
+        false,
+        ['deriveKey']
+      );
+      const key = await crypto.subtle.deriveKey(
+        {
+          name: 'PBKDF2',
+          salt: salt,
+          iterations: 100000,
+          hash: 'SHA-256'
+        },
+        keyMaterial,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['decrypt']
+      );
+
+      // Try to decrypt the share CEK
+      const iv = encryptedCekWithIv.slice(0, 12);
+      const encryptedCek = encryptedCekWithIv.slice(12);
+      const decrypted = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv: iv },
+        key,
+        encryptedCek
+      );
+      const shareCek = new Uint8Array(decrypted);
+
+      if (shareCek.length !== 32) {
+        throw new Error('Invalid decrypted share key');
+      }
+
+      // If successful, mark as verified
+      setPasswordVerified(true);
+
+    } catch (err) {
+      setPasswordError('Incorrect password. Please try again.');
+    } finally {
+      setVerifyingPassword(false);
+    }
+  };
+
   const handleDownload = async () => {
     if (!shareDetails || !fileInfo) return;
 
@@ -119,20 +199,72 @@ export default function SharedDownloadPage() {
     setDownloadProgress(0);
 
     try {
-      // Extract share CEK from URL fragment
-      const urlFragment = window.location.hash.substring(1); // Remove the '#'
-      if (!urlFragment) {
-        throw new Error('Share link is missing encryption key. Please use a valid share link.');
+      let shareCek: Uint8Array;
+
+      if (shareDetails.has_password) {
+        // Derive share CEK from password
+        if (!shareDetails.salt_pw) {
+          throw new Error('Password data not available');
+        }
+
+        const [saltHex, encryptedCekB64] = shareDetails.salt_pw.split(':');
+        if (!saltHex || !encryptedCekB64) {
+          throw new Error('Invalid password data format');
+        }
+
+        const salt = new Uint8Array(saltHex.match(/.{2}/g)?.map(byte => parseInt(byte, 16)) || []);
+        const encryptedCekWithIv = new Uint8Array(atob(encryptedCekB64).split('').map(c => c.charCodeAt(0)));
+
+        // Derive key from password + salt
+        const keyMaterial = await crypto.subtle.importKey(
+          'raw',
+          new TextEncoder().encode(password + saltHex),
+          'PBKDF2',
+          false,
+          ['deriveKey']
+        );
+        const key = await crypto.subtle.deriveKey(
+          {
+            name: 'PBKDF2',
+            salt: salt,
+            iterations: 100000,
+            hash: 'SHA-256'
+          },
+          keyMaterial,
+          { name: 'AES-GCM', length: 256 },
+          false,
+          ['decrypt']
+        );
+
+        // Decrypt the share CEK
+        const iv = encryptedCekWithIv.slice(0, 12);
+        const encryptedCek = encryptedCekWithIv.slice(12);
+        const decrypted = await crypto.subtle.decrypt(
+          { name: 'AES-GCM', iv: iv },
+          key,
+          encryptedCek
+        );
+        shareCek = new Uint8Array(decrypted);
+
+        if (shareCek.length !== 32) {
+          throw new Error('Invalid decrypted share key');
+        }
+      } else {
+        // Extract share CEK from URL fragment
+        const urlFragment = window.location.hash.substring(1); // Remove the '#'
+        if (!urlFragment) {
+          throw new Error('Share link is missing encryption key. Please use a valid share link.');
+        }
+
+        // Decode the base64 share CEK
+        shareCek = new Uint8Array(atob(urlFragment).split('').map(c => c.charCodeAt(0)));
+
+        if (shareCek.length !== 32) {
+          throw new Error('Invalid share encryption key');
+        }
       }
 
-      // Decode the base64 share CEK
-      const shareCek = new Uint8Array(atob(urlFragment).split('').map(c => c.charCodeAt(0)));
-
-      if (shareCek.length !== 32) {
-        throw new Error('Invalid share encryption key');
-      }
-
-      // console.log('🔐 Using share CEK from URL fragment for true E2EE download');
+      // console.log('🔐 Using share CEK for true E2EE download');
 
       // Get the envelope-encrypted file CEK from the share data
       if (!shareDetails.wrapped_cek || !shareDetails.nonce_wrap) {
@@ -309,13 +441,53 @@ export default function SharedDownloadPage() {
         <Card>
           <CardHeader className="text-center">
             <File className="h-12 w-12 text-primary mx-auto mb-4" />
-            <CardTitle>File Ready for Download</CardTitle>
+            <CardTitle>{passwordRequired && !passwordVerified ? 'Password Required' : 'File Ready for Download'}</CardTitle>
             <CardDescription>
-              A file has been shared with you
+              {passwordRequired && !passwordVerified ? 'Enter the password to access this shared file' : 'A file has been shared with you'}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {fileInfo && (
+            {/* Password Verification */}
+            {passwordRequired && !passwordVerified && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="password" className="text-sm font-medium">Enter Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
+                    placeholder="Enter password"
+                    className="text-sm"
+                    onKeyDown={(e) => e.key === 'Enter' && handleVerifyPassword()}
+                  />
+                </div>
+                <Button
+                  onClick={handleVerifyPassword}
+                  disabled={verifyingPassword || !password}
+                  className="w-full"
+                  size="lg"
+                >
+                  {verifyingPassword ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Verifying...
+                    </>
+                  ) : (
+                    'Verify Password'
+                  )}
+                </Button>
+                {passwordError && (
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{passwordError}</AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            )}
+
+            {/* File Info - Only show after password verification */}
+            {passwordVerified && fileInfo && (
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
@@ -359,32 +531,26 @@ export default function SharedDownloadPage() {
               </div>
             )}
 
-            <Button
-              onClick={handleDownload}
-              disabled={downloading}
-              className="w-full"
-              size="lg"
-            >
-              {downloading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Downloading...
-                </>
-              ) : (
-                <>
-                  <Download className="h-4 w-4 mr-2" />
-                  Download File
-                </>
-              )}
-            </Button>
-
-            {shareDetails?.has_password && (
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  This share requires a password. Please ensure you have the correct share link.
-                </AlertDescription>
-              </Alert>
+            {/* Download Button - Only show after password verification */}
+            {passwordVerified && (
+              <Button
+                onClick={handleDownload}
+                disabled={downloading}
+                className="w-full"
+                size="lg"
+              >
+                {downloading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Downloading...
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-4 w-4 mr-2" />
+                    Download File
+                  </>
+                )}
+              </Button>
             )}
           </CardContent>
         </Card>
