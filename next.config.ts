@@ -7,19 +7,9 @@ const nextConfig: NextConfig = {
     unoptimized: true,
   },
   webpack: (config, { isServer }) => {
-    // Exclude libopaque from SSR - it MUST only run on client
-    if (isServer) {
-      // This prevents Next.js from even attempting to parse libopaque imports during SSR
-      config.module.rules.push({
-        test: /libopaque/,
-        loader: 'ignore-loader',
-      });
-    }
-
     // Set externals for modules that can't be bundled on server
     config.externals = config.externals || [];
     config.externals.push(
-      'libopaque',
       '@noble/post-quantum'
     );
 
@@ -29,28 +19,6 @@ const nextConfig: NextConfig = {
       path: false,
       crypto: false,
     };
-
-    // Enable WebAssembly support
-    config.experiments = {
-      ...config.experiments,
-      asyncWebAssembly: true,
-      topLevelAwait: true,
-    };
-
-    // Handle Web Workers as assets
-    config.module.rules.push({
-      test: /\.worker\.(js|ts)$/,
-      type: 'asset/resource',
-      generator: {
-        filename: 'static/workers/[hash][ext]',
-      },
-    });
-
-    // Handle WASM files properly
-    config.module.rules.push({
-      test: /\.wasm$/,
-      type: 'webassembly/async',
-    });
 
     return config;
   },

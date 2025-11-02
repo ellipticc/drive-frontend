@@ -109,7 +109,7 @@ export function RecoverForm({ onError, onSuccess }: RecoverFormProps) {
         email: formData.email,
         mnemonic: hashedMnemonicHex, // Send hashed mnemonic instead of plaintext
         newSalt: dummySalt,
-        newVerifier: dummyVerifier // Now uses OPAQUE user record instead of SRP verifier
+        newVerifier: dummyVerifier
       })
 
       if (response.success) {
