@@ -30,8 +30,8 @@ export class OPAQUERegistration {
     return { registrationRequest: regReqBase64 };
   }
 
-  async step2(registrationRequest: string): Promise<{ registrationResponse: string }> {
-    const response = await apiCall('/auth/opaque/register/step2', { registrationRequest });
+  async step2(email: string, registrationRequest: string): Promise<{ registrationResponse: string }> {
+    const response = await apiCall('/auth/opaque/register/process', { email, registrationRequest });
     return { registrationResponse: response.registrationResponse };
   }
 
@@ -49,7 +49,7 @@ export class OPAQUERegistration {
   }
 
   async step4(email: string, name: string, registrationRecord: string, options?: any): Promise<any> {
-    const response = await apiCall('/auth/opaque/register/step4', {
+    const response = await apiCall('/auth/opaque/register/finish', {
       email, name, registrationRecord, ...options
     });
     return response;
@@ -71,9 +71,9 @@ export class OPAQUELogin {
     return { startLoginRequest: startReqBase64 };
   }
 
-  async step2(email: string, startLoginRequest: string): Promise<{ loginResponse: string }> {
-    const response = await apiCall('/auth/opaque/login/step2', { email, startLoginRequest });
-    return { loginResponse: response.loginResponse };
+  async step2(email: string, startLoginRequest: string): Promise<{ loginResponse: string; sessionId: string }> {
+    const response = await apiCall('/auth/opaque/login/process', { email, startLoginRequest });
+    return { loginResponse: response.loginResponse, sessionId: response.sessionId };
   }
 
   async step3(loginResponse: string): Promise<{ finishLoginRequest: string; sessionKey: string }> {
@@ -99,8 +99,8 @@ export class OPAQUELogin {
     };
   }
 
-  async step4(email: string, finishLoginRequest: string): Promise<any> {
-    const response = await apiCall('/auth/opaque/login/step4', { email, finishLoginRequest });
+  async step4(email: string, finishLoginRequest: string, sessionId: string): Promise<any> {
+    const response = await apiCall('/auth/opaque/login/finish', { email, finishLoginRequest, sessionId });
     return response;
   }
 }
@@ -109,7 +109,7 @@ export class OPAQUE {
   static async register(password: string, email: string, name: string, options?: any): Promise<any> {
     const reg = new OPAQUERegistration();
     const { registrationRequest } = await reg.step1(password);
-    const { registrationResponse } = await reg.step2(registrationRequest);
+    const { registrationResponse } = await reg.step2(email, registrationRequest);
     const { registrationRecord } = await reg.step3(registrationResponse);
     return await reg.step4(email, name, registrationRecord, options);
   }
@@ -117,9 +117,9 @@ export class OPAQUE {
   static async login(password: string, email: string): Promise<any> {
     const login = new OPAQUELogin();
     const { startLoginRequest } = await login.step1(password);
-    const { loginResponse } = await login.step2(email, startLoginRequest);
+    const { loginResponse, sessionId } = await login.step2(email, startLoginRequest);
     const { finishLoginRequest } = await login.step3(loginResponse);
-    return await login.step4(email, finishLoginRequest);
+    return await login.step4(email, finishLoginRequest, sessionId);
   }
 }
 

@@ -78,10 +78,6 @@ export function SignupForm({
         formData.name,
         {
           accountSalt: tempAccountSaltHex,
-          publicKey: keypairs.pqcKeypairs.ed25519.publicKey,
-          encryptedPrivateKey: keypairs.pqcKeypairs.ed25519.encryptedPrivateKey,
-          keyDerivationSalt: tempAccountSaltHex,
-          pqcKeypairs: keypairs.pqcKeypairs,
           algorithmVersion: 'v3-hybrid-pqc-xchacha20'
         }
       )
@@ -103,6 +99,21 @@ export function SignupForm({
 
       // Store mnemonic for backup page
       localStorage.setItem('recovery_mnemonic', keypairs.mnemonic)
+
+      // Now store the PQC keypairs in individual database columns
+      try {
+        const cryptoSetupResponse = await apiClient.storePQCKeysAfterRegistration(userId, keypairs.pqcKeypairs)
+
+        if (!cryptoSetupResponse.success) {
+          console.warn('PQC keypairs setup failed, but registration succeeded:', cryptoSetupResponse)
+          // Don't fail registration if crypto setup fails - user can retry later
+        } else {
+          console.log('PQC keypairs stored successfully')
+        }
+      } catch (cryptoError) {
+        console.warn('PQC keypairs setup error:', cryptoError)
+        // Don't fail registration if crypto setup fails - user can retry later
+      }
 
       // Navigate to OTP verification
       router.push("/otp")

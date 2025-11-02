@@ -95,7 +95,7 @@ export function RecoverForm({ onError, onSuccess }: RecoverFormProps) {
       const { registrationRequest } = await registration.step1(formData.newPassword)
 
       // Step 2: Get server response
-      const { registrationResponse } = await registration.step2(registrationRequest)
+      const { registrationResponse } = await registration.step2(formData.email, registrationRequest)
 
       // Step 3: Finalize registration locally to get user record
       const { registrationRecord } = await registration.step3(registrationResponse)
