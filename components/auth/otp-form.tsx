@@ -30,8 +30,22 @@ export function OTPForm({ className, ...props }: React.ComponentProps<"div">) {
     const storedEmail = localStorage.getItem('signup_email')
     if (storedEmail) {
       setEmail(storedEmail)
+      // Auto-send OTP when page loads after signup
+      sendOTPToEmail(storedEmail)
     }
   }, [])
+
+  const sendOTPToEmail = async (emailAddress: string) => {
+    try {
+      const response = await apiClient.sendOTP(emailAddress)
+      if (!response.success) {
+        setError(response.error || "Failed to send verification code")
+      }
+    } catch (err) {
+      console.error("Send OTP error:", err)
+      setError("Failed to send verification code")
+    }
+  }
 
   const handleOtpChange = (value: string) => {
     setOtp(value)
@@ -65,19 +79,28 @@ export function OTPForm({ className, ...props }: React.ComponentProps<"div">) {
           // Import master key manager and derive master key
           const { masterKeyManager } = await import("@/lib/master-key")
           
-          if (userData.crypto_keypairs?.accountSalt) {
-            // Get password from localStorage (stored during signup)
-            const password = localStorage.getItem('signup_password')
-            if (password) {
-              await masterKeyManager.deriveAndCacheMasterKey(password, userData.crypto_keypairs.accountSalt)
+          try {
+            if (userData.crypto_keypairs?.accountSalt) {
+              // Get password from localStorage (stored during signup)
+              const password = localStorage.getItem('signup_password')
+              if (password) {
+                // Derive master key using account salt
+                await masterKeyManager.deriveAndCacheMasterKey(password, userData.crypto_keypairs.accountSalt)
+                
+                // Initialize keyManager with user data
+                // This will use the derived master key to decrypt and cache the keypairs
+                const { keyManager } = await import("@/lib/key-manager")
+                await keyManager.initialize(userData)
+              } else {
+                throw new Error('Password not found for master key derivation')
+              }
             } else {
-              // console.warn('No password found in localStorage for master key derivation')
+              throw new Error('Account salt not found in user data')
             }
+          } catch (mkError) {
+            console.error('Master key derivation error:', mkError)
+            throw new Error(`Failed to derive master key: ${mkError instanceof Error ? mkError.message : 'Unknown error'}`)
           }
-
-          // Initialize keyManager with user data so uploads work immediately
-          const { keyManager } = await import("@/lib/key-manager")
-          await keyManager.initialize(userData)
         }
 
         // Clear signup data from localStorage
@@ -90,8 +113,8 @@ export function OTPForm({ className, ...props }: React.ComponentProps<"div">) {
         setError(response.error || "Verification failed")
       }
     } catch (err) {
-      // console.error("OTP verification error:", err)
-      setError("An unexpected error occurred")
+      console.error("OTP verification error:", err)
+      setError(err instanceof Error ? err.message : "An unexpected error occurred")
     } finally {
       setIsLoading(false)
     }
@@ -102,16 +125,11 @@ export function OTPForm({ className, ...props }: React.ComponentProps<"div">) {
     setError("")
 
     try {
-      const response = await apiClient.sendOTP(email)
-
-      if (response.success) {
-        setError("") // Clear any previous errors
-        // You could show a success message here
-      } else {
-        setError(response.error || "Failed to resend code")
-      }
+      await sendOTPToEmail(email)
+      // Show success feedback
+      setError("") // Clear any previous errors
     } catch (err) {
-      // console.error("Resend OTP error:", err)
+      console.error("Resend OTP error:", err)
       setError("Failed to resend verification code")
     } finally {
       setIsLoading(false)

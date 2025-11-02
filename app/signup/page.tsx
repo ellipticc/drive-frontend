@@ -1,8 +1,8 @@
 import { IconCaretLeftRightFilled } from "@tabler/icons-react"
 import type { Metadata } from "next"
 
-import { SignupForm } from "@/components/auth/signup-form"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { SignupFormClient } from "@/components/auth/signup-form-client"
 
 export const metadata: Metadata = {
   title: "Register - Ellipticc Drive",
@@ -21,7 +21,7 @@ export default function SignupPage() {
           </div>
           <span className="text-base font-mono break-all">ellipticc</span>
         </a>
-        <SignupForm />
+        <SignupFormClient />
       </div>
     </div>
   )

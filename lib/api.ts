@@ -218,6 +218,70 @@ class ApiClient {
     });
   }
 
+  async loginOPAQUEStart(data: {
+    email: string;
+    clientLogin1: string;
+  }): Promise<ApiResponse<{
+    sessionId: string;
+    serverLogin2: string;
+    clientLogin2: string;
+  }>> {
+    return this.request('/auth/login/start', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async loginOPAQUEFinish(data: {
+    email: string;
+    clientLogin2: string;
+    clientProof: string;
+    sessionId: string;
+  }): Promise<ApiResponse<{
+    token: string;
+    refreshToken: string;
+    serverProof: string;
+    user: any;
+  }>> {
+    return this.request('/auth/login/finish', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async registerOPAQUE(data: {
+    email: string;
+    name: string;
+    salt: string;
+    clientRegStart: string;
+    publicKey: string;
+    encryptedPrivateKey: string;
+    keyDerivationSalt: string;
+  }): Promise<ApiResponse<{
+    sessionId: string;
+    serverRegStart: string;
+  }>> {
+    return this.request('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async registerOPAQUEFinish(data: {
+    email: string;
+    clientRegFinish: string;
+  }): Promise<ApiResponse<{
+    userId: string;
+    accountSalt: string;
+    token: string;
+    user: any;
+  }>> {
+    return this.request('/auth/register/continue', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
   async sendOTP(email: string): Promise<ApiResponse> {
     return this.request('/auth/otp/send', {
       method: 'POST',

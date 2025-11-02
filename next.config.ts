@@ -7,26 +7,34 @@ const nextConfig: NextConfig = {
     unoptimized: true,
   },
   webpack: (config, { isServer }) => {
-    if (!isServer) {
-      // Ignore Node.js modules in client-side bundles
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        fs: false,
-        path: false,
-        crypto: false,
-      };
+    // Exclude libopaque from SSR - it MUST only run on client
+    if (isServer) {
+      // This prevents Next.js from even attempting to parse libopaque imports during SSR
+      config.module.rules.push({
+        test: /libopaque/,
+        loader: 'ignore-loader',
+      });
     }
 
-    // Exclude @noble/post-quantum from bundling
+    // Set externals for modules that can't be bundled on server
     config.externals = config.externals || [];
-    config.externals.push({
-      '@noble/post-quantum': '@noble/post-quantum'
-    });
+    config.externals.push(
+      'libopaque',
+      '@noble/post-quantum'
+    );
 
-    // Enable WebAssembly experiments for argon2-browser and zstd-wasm
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      fs: false,
+      path: false,
+      crypto: false,
+    };
+
+    // Enable WebAssembly support
     config.experiments = {
       ...config.experiments,
       asyncWebAssembly: true,
+      topLevelAwait: true,
     };
 
     // Handle Web Workers as assets
@@ -38,13 +46,10 @@ const nextConfig: NextConfig = {
       },
     });
 
-    // Handle WASM files
+    // Handle WASM files properly
     config.module.rules.push({
       test: /\.wasm$/,
-      type: 'asset/resource',
-      generator: {
-        filename: 'static/wasm/[hash][ext]',
-      },
+      type: 'webassembly/async',
     });
 
     return config;

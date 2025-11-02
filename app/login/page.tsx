@@ -1,8 +1,8 @@
 import { IconCaretLeftRightFilled } from "@tabler/icons-react"
 import type { Metadata } from "next"
 
-import { LoginForm } from "@/components/auth/login-form"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { LoginFormClient } from "@/components/auth/login-form-client"
 
 export const metadata: Metadata = {
   title: "Login - Ellipticc Drive",
@@ -21,7 +21,7 @@ export default function LoginPage() {
           </div>
           <span className="text-base font-mono break-all">ellipticc</span>
         </a>
-        <LoginForm />
+        <LoginFormClient />
       </div>
     </div>
   )

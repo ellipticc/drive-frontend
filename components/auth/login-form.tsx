@@ -21,7 +21,6 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { apiClient } from "@/lib/api"
-import { SRPClient } from "@/lib/srp"
 import { masterKeyManager } from "@/lib/master-key"
 import { keyManager } from "@/lib/key-manager"
 import { Loader2 } from "lucide-react"
@@ -50,154 +49,106 @@ export function LoginForm({
     setError("")
 
     try {
-      // Initialize SRP client
-      const srpClient = new SRPClient(formData.email, formData.password)
+      // Dynamically import OPAQUE to ensure it only runs on client
+      const { OPAQUE } = await import("@/lib/opaque")
+      
+      // Execute complete OPAQUE login (all 4 steps)
+      const loginResult = await OPAQUE.login(formData.password, formData.email)
 
-      // Step 1: Start SRP authentication to generate client public key A
-      const { A } = await srpClient.startAuthentication()
-
-      // Step 2: Get SRP challenge from server with email and A
-      const challengeResponse = await apiClient.srpChallenge(formData.email, A)
-      if (!challengeResponse.success) {
-        setError(challengeResponse.error || "Failed to get authentication challenge")
+      if (!loginResult.success) {
+        setError("Invalid email or password")
         return
       }
 
-      const { sessionId, salt, B } = challengeResponse.data!
+      const { token, user } = loginResult
 
-      // Step 3: Process server challenge and calculate client proof
-      const { clientProof } = await srpClient.processChallenge(salt, B)
+      // Store authentication token
+      apiClient.setAuthToken(token)
 
-      // Step 4: Verify with server
-      const verifyResponse = await apiClient.srpVerify({
-        email: formData.email,
-        clientProof,
-        sessionId
-      })
-
-      if (verifyResponse.success) {
-        // Verify server proof M2
-        const { M2, user } = verifyResponse.data!
-        const serverProofValid = await srpClient.verifyServerProof(M2)
-
-        if (!serverProofValid) {
-          setError("Server proof verification failed")
-          return
-        }
-
-        // Store authentication token FIRST
-        const { token } = verifyResponse.data!
-        apiClient.setAuthToken(token)
-
-        // Validate crypto keypairs structure
-        if (user.crypto_keypairs?.pqcKeypairs) {
-          const requiredKeys = ['ed25519', 'x25519', 'kyber', 'dilithium'];
-          const missingKeys = requiredKeys.filter(key => !user.crypto_keypairs.pqcKeypairs[key]);
-          
-          if (missingKeys.length > 0) {
-            // console.error('🔐 Missing crypto keypairs:', missingKeys);
-            setError(`Missing cryptographic keys: ${missingKeys.join(', ')}`);
-            return;
-          }
-
-          // Validate each keypair has required fields
-          for (const keyType of requiredKeys) {
-            const keypair = user.crypto_keypairs.pqcKeypairs[keyType];
-            const requiredFields = ['publicKey', 'encryptedPrivateKey', 'privateKeyNonce', 'encryptionKey', 'encryptionNonce'];
-            const missingFields = requiredFields.filter(field => !keypair[field]);
-            
-            if (missingFields.length > 0) {
-              // console.error(`🔐 Missing fields in ${keyType} keypair:`, missingFields);
-              setError(`Invalid ${keyType} keypair structure`);
-              return;
-            }
-
-            // Check for suspiciously long data (potential corruption) - adjusted for PQC key sizes
-            // Kyber private key: ~2400 bytes → ~3200 base64 chars
-            // Dilithium private key: ~2420 bytes → ~3227 base64 chars, but can be larger with encryption
-            // Ed25519/X25519 private keys: ~32 bytes → ~44 base64 chars
-            const maxLengths = {
-              encryptedPrivateKey: 6000, // Increased for PQC keys
-              encryptionKey: 200,        // Master key encrypted keys should be small
-              encryptionNonce: 100       // Nonces should be small
-            };
-            
-            if (keypair.encryptedPrivateKey?.length > maxLengths.encryptedPrivateKey || 
-                keypair.encryptionKey?.length > maxLengths.encryptionKey || 
-                keypair.encryptionNonce?.length > maxLengths.encryptionNonce) {
-              // Clear corrupted localStorage data and continue with server data
-              keyManager.forceClearStorage();
-              // console.log('🔐 Cleared corrupted localStorage data, proceeding with server data');
-            }
-          }
-        }
-
-        // If SRP verify didn't include crypto_keypairs, fetch profile
-        let userData = user;
-        if (!user.crypto_keypairs?.accountSalt) {
-          // console.log('🔐 SRP verify missing crypto_keypairs, fetching profile...');
-          const profileResponse = await apiClient.getProfile();
-          if (profileResponse.success && profileResponse.data?.user) {
-            userData = profileResponse.data.user;
-            // console.log('🔐 Profile fetched, has crypto_keypairs:', !!userData.crypto_keypairs?.accountSalt);
-          } else {
-            // console.error('Failed to fetch user profile for crypto keys');
-            setError("Failed to load cryptographic keys");
-            return;
-          }
-        }
-
-        // Derive and cache master key for the session
-        try {
-          if (userData.crypto_keypairs?.accountSalt) {
-            await masterKeyManager.deriveAndCacheMasterKey(formData.password, userData.crypto_keypairs.accountSalt);
-          } else {
-            // console.warn('No account salt found in user data, master key not cached');
-            // console.warn('User crypto_keypairs:', userData.crypto_keypairs);
-          }
-        } catch (keyError) {
-          // console.error('Failed to derive master key:', keyError);
-          setError("Failed to initialize cryptographic keys");
+      // Validate crypto keypairs structure
+      if (user.crypto_keypairs?.pqcKeypairs) {
+        const requiredKeys = ['ed25519', 'x25519', 'kyber', 'dilithium'];
+        const missingKeys = requiredKeys.filter(key => !user.crypto_keypairs.pqcKeypairs[key]);
+        
+        if (missingKeys.length > 0) {
+          setError(`Missing cryptographic keys: ${missingKeys.join(', ')}`);
           return;
         }
 
-        // Initialize KeyManager with user data for upload operations
-        try {
-          await keyManager.initialize(userData);
-          // console.log('🔐 KeyManager initialized successfully');
-        } catch (keyManagerError) {
-          // console.error('Failed to initialize KeyManager:', keyManagerError);
+        // Validate each keypair has required fields
+        for (const keyType of requiredKeys) {
+          const keypair = user.crypto_keypairs.pqcKeypairs[keyType];
+          const requiredFields = ['publicKey', 'encryptedPrivateKey', 'privateKeyNonce', 'encryptionKey', 'encryptionNonce'];
+          const missingFields = requiredFields.filter(field => !keypair[field]);
           
-          // If initialization fails due to corrupted data, try to clear localStorage and retry
-          if (keyManagerError instanceof Error && 
-              (keyManagerError.message.includes('Corrupted') || 
-               keyManagerError.message.includes('corrupted') ||
-               keyManagerError.message.includes('Invalid'))) {
-            // console.log('🔐 Attempting to clear corrupted localStorage data and retry...');
-            keyManager.forceClearStorage();
-            
-            try {
-              await keyManager.initialize(userData);
-              // console.log('🔐 KeyManager initialized successfully after clearing corrupted data');
-            } catch (retryError) {
-              // console.error('Failed to initialize KeyManager after clearing data:', retryError);
-              setError("Failed to initialize key management system. Please try logging out and back in.");
-              return;
-            }
-          } else {
-            setError("Failed to initialize key management system");
+          if (missingFields.length > 0) {
+            setError(`Invalid ${keyType} keypair structure`);
             return;
           }
-        }
 
-        // Redirect to main page
-        router.push("/")
-      } else {
-        setError(verifyResponse.error || "Authentication failed")
+          const maxLengths = {
+            encryptedPrivateKey: 6000,
+            encryptionKey: 200,
+            encryptionNonce: 100
+          };
+          
+          if (keypair.encryptedPrivateKey?.length > maxLengths.encryptedPrivateKey || 
+              keypair.encryptionKey?.length > maxLengths.encryptionKey || 
+              keypair.encryptionNonce?.length > maxLengths.encryptionNonce) {
+            keyManager.forceClearStorage();
+          }
+        }
       }
+
+      // If login didn't include crypto_keypairs, fetch profile
+      let userData = user;
+      if (!user.crypto_keypairs?.accountSalt) {
+        const profileResponse = await apiClient.getProfile();
+        if (profileResponse.success && profileResponse.data?.user) {
+          userData = profileResponse.data.user;
+        } else {
+          setError("Failed to load cryptographic keys");
+          return;
+        }
+      }
+
+      // Derive and cache master key for the session
+      try {
+        if (userData.crypto_keypairs?.accountSalt) {
+          await masterKeyManager.deriveAndCacheMasterKey(formData.password, userData.crypto_keypairs.accountSalt);
+        }
+      } catch (keyError) {
+        setError("Failed to initialize cryptographic keys");
+        return;
+      }
+
+      // Initialize KeyManager with user data
+      try {
+        await keyManager.initialize(userData);
+      } catch (keyManagerError) {
+        if (keyManagerError instanceof Error && 
+            (keyManagerError.message.includes('Corrupted') || 
+             keyManagerError.message.includes('corrupted') ||
+             keyManagerError.message.includes('Invalid'))) {
+          keyManager.forceClearStorage();
+          
+          try {
+            await keyManager.initialize(userData);
+          } catch (retryError) {
+            setError("Failed to initialize key management system. Please try logging out and back in.");
+            return;
+          }
+        } else {
+          setError("Failed to initialize key management system");
+          return;
+        }
+      }
+
+      // Redirect to main page
+      router.push("/")
     } catch (err) {
-      // console.error("Login error:", err)
-      setError("An unexpected error occurred")
+      console.error('Login error:', err)
+      setError(err instanceof Error ? err.message : "An unexpected error occurred")
     } finally {
       setIsLoading(false)
     }

@@ -20,7 +20,6 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { apiClient } from "@/lib/api"
-import { SRPClient, generateSRPSalt } from "@/lib/srp"
 import { Loader2 } from "lucide-react"
 
 export function SignupForm({
@@ -60,57 +59,56 @@ export function SignupForm({
         return
       }
 
-      // Generate SRP salt and verifier
-      const { salt, verifier } = await SRPClient.generateSaltAndVerifier(formData.email, formData.password)
-
-      // Register with SRP first (server generates account salt)
-      const registerResponse = await apiClient.registerSRP({
-        email: formData.email,
-        name: formData.name,
-        salt,
-        verifier,
-        algorithmVersion: "v3-hybrid-pqc-xchacha20"
-        // Don't send encrypted keys yet - we'll send them after getting account salt
-      })
-
-      if (!registerResponse.success) {
-        setError(registerResponse.error || "Registration failed")
-        return
-      }
-
-      // Get the account salt and userId from the registration response
-      const accountSalt = registerResponse.data?.accountSalt
-      const userId = registerResponse.data?.userId
-      if (!accountSalt || !userId) {
-        setError("Failed to get account salt or user ID from server")
-        return
-      }
-
-      // Import PQC crypto functions
+      // Import PQC crypto functions to get keypairs
       const { generateAllKeypairs } = await import("@/lib/crypto")
+      const { OPAQUE } = await import("@/lib/opaque")
+      
+      // Generate a temporary account salt for keypair generation
+      const tempAccountSalt = crypto.getRandomValues(new Uint8Array(32))
+      const tempAccountSaltHex = Array.from(tempAccountSalt)
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('')
+      
+      const keypairs = await generateAllKeypairs(formData.password, tempAccountSaltHex)
 
-      // Generate cryptographic keypairs using the account salt from server
-      const keypairs = await generateAllKeypairs(formData.password, accountSalt)
+      // Execute complete OPAQUE registration (all 4 steps)
+      const registrationResult = await OPAQUE.register(
+        formData.password,
+        formData.email,
+        formData.name,
+        {
+          accountSalt: tempAccountSaltHex,
+          publicKey: keypairs.pqcKeypairs.ed25519.publicKey,
+          encryptedPrivateKey: keypairs.pqcKeypairs.ed25519.encryptedPrivateKey,
+          keyDerivationSalt: tempAccountSaltHex,
+          pqcKeypairs: keypairs.pqcKeypairs,
+          algorithmVersion: 'v3-hybrid-pqc-xchacha20'
+        }
+      )
 
-      // Store the encrypted PQC keys using the account salt
-      const storeKeysResponse = await apiClient.storePQCKeysAfterRegistration(userId, keypairs.pqcKeypairs)
-
-      if (!storeKeysResponse.success) {
-        setError("Account created but failed to store cryptographic keys. Please contact support.")
+      if (!registrationResult.success) {
+        setError("Registration failed. Please try again.")
         return
       }
+
+      // Get account salt and user ID from registration response
+      const { userId, token } = registrationResult
+
+      // Store authentication token
+      apiClient.setAuthToken(token)
+
+      // Store email and password for future use (OTP, master key derivation, etc.)
+      localStorage.setItem('signup_email', formData.email)
+      localStorage.setItem('signup_password', formData.password)
 
       // Store mnemonic for backup page
       localStorage.setItem('recovery_mnemonic', keypairs.mnemonic)
 
-      // Store email and password for OTP verification and master key derivation
-      localStorage.setItem('signup_email', formData.email)
-      localStorage.setItem('signup_password', formData.password)
-
       // Navigate to OTP verification
       router.push("/otp")
     } catch (err) {
-      setError("An unexpected error occurred")
+      console.error('Signup error:', err)
+      setError(err instanceof Error ? err.message : "An unexpected error occurred")
     } finally {
       setIsLoading(false)
     }
