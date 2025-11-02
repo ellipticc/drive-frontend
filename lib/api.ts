@@ -681,6 +681,8 @@ class ApiClient {
   async getShare(shareId: string): Promise<ApiResponse<{
     id: string;
     file_id: string;
+    folder_id?: string;
+    is_folder: boolean;
     has_password: boolean;
     salt_pw?: string;
     expires_at?: string;
@@ -694,11 +696,16 @@ class ApiClient {
     kyber_wrapped_cek?: string;
     nonce_wrap_kyber?: string;
     encryption_version?: number;
-    file: {
+    file?: {
       id: string;
       filename: string;
       size: number;
       mimetype: string;
+      created_at: string;
+    };
+    folder?: {
+      id: string;
+      name: string;
       created_at: string;
     };
   }>> {
@@ -784,6 +791,7 @@ class ApiClient {
     maxViews?: number;
     downloads: number;
     folderPath: string;
+    isFolder: boolean;
     recipients: Array<{
       id: string;
       userId?: string;

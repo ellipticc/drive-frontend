@@ -38,6 +38,7 @@ export interface ShareItem {
   maxViews?: number;
   downloads: number;
   folderPath: string;
+  isFolder: boolean;
   recipients: Array<{
     id: string;
     userId?: string;
@@ -199,8 +200,11 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
         return `${month}/${day}/${year} ${time}`;
     };
 
-    // Get file icon
-    const getFileIcon = () => {
+    // Get file or folder icon
+    const getItemIcon = (item: ShareItem) => {
+        if (item.isFolder) {
+            return <IconFolder className="h-4 w-4 text-blue-500" />;
+        }
         return <IconFile className="h-4 w-4 text-gray-500" />;
     };
 
@@ -503,7 +507,7 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                                 <Table.Cell className="w-full max-w-1/4">
                                     <div className="flex items-center gap-2">
                                         <div className="text-base">
-                                            {getFileIcon()}
+                                            {getItemIcon(item)}
                                         </div>
                                         <p className="text-sm font-medium whitespace-nowrap text-foreground">
                                             {item.fileName}
@@ -539,20 +543,31 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                                                 </Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end" className="w-48">
-                                                <DropdownMenuItem onClick={() => handleDownloadClick(item.id, item.fileId, item.fileName)}>
-                                                    <IconDownload className="h-4 w-4 mr-2" />
-                                                    Download
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => handleShareClick(item.fileId, item.fileName, 'file')}>
-                                                    <IconShare3 className="h-4 w-4 mr-2" />
-                                                    Share
-                                                </DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem onClick={() => handleRenameClick(item.fileId, item.fileName, 'file')}>
-                                                    <IconEdit className="h-4 w-4 mr-2" />
-                                                    Rename
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => handleDetailsClick(item.fileId, item.fileName, 'file')}>
+                                                {item.isFolder ? (
+                                                    <>
+                                                        <DropdownMenuItem onClick={() => {
+                                                            // Open folder share in new tab
+                                                            window.open(`/s/${item.id}`, '_blank');
+                                                        }}>
+                                                            <IconShare3 className="h-4 w-4 mr-2" />
+                                                            Open Share
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuSeparator />
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <DropdownMenuItem onClick={() => handleDownloadClick(item.id, item.fileId, item.fileName)}>
+                                                            <IconDownload className="h-4 w-4 mr-2" />
+                                                            Download
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => handleShareClick(item.fileId, item.fileName, 'file')}>
+                                                            <IconShare3 className="h-4 w-4 mr-2" />
+                                                            Share
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuSeparator />
+                                                    </>
+                                                )}
+                                                <DropdownMenuItem onClick={() => handleDetailsClick(item.fileId, item.fileName, item.isFolder ? 'folder' : 'file')}>
                                                     <IconInfoCircle className="h-4 w-4 mr-2" />
                                                     Details
                                                 </DropdownMenuItem>

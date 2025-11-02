@@ -26,11 +26,11 @@ import { downloadFileToBrowser, downloadFolderAsZip, downloadMultipleItemsAsZip,
 import { apiClient, FileItem } from "@/lib/api";
 import { toast } from "sonner";
 import { keyManager } from "@/lib/key-manager";
-import { UnifiedProgressModal, FileUploadState } from "@/components/modals/unified-progress-modal";
 import { UploadManager, UploadTask } from "@/components/upload-manager";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { PreviewModal } from "@/components/previews";
 import { useCurrentFolder } from "@/components/current-folder-context";
+import { useOnUploadComplete, useOnFileAdded, useGlobalUpload } from "@/components/global-upload-context";
 
 export const Table01DividerLineSm = ({ 
   searchQuery,
@@ -52,6 +52,20 @@ export const Table01DividerLineSm = ({
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
+
+    // Global upload context
+    const { 
+      handleFileUpload: globalHandleFileUpload, 
+      handleFolderUpload: globalHandleFolderUpload,
+      startFileDownload,
+      startFolderDownload,
+      startBulkDownload,
+      cancelUpload,
+      pauseUpload,
+      resumeUpload,
+      retryUpload,
+      cancelAllUploads
+    } = useGlobalUpload();
 
     // Current folder context
     const { setCurrentFolderId: setGlobalCurrentFolderId } = useCurrentFolder();
@@ -107,15 +121,6 @@ export const Table01DividerLineSm = ({
 
     // Folder upload state
     const [selectedFolderFiles, setSelectedFolderFiles] = useState<FileList | null>(null);
-
-    // Upload state management
-    const [uploadModalOpen, setUploadModalOpen] = useState(false);
-    const [uploadManagers, setUploadManagers] = useState<UploadManager[]>([]);
-
-    // Download state management
-    const [downloadProgress, setDownloadProgress] = useState<DownloadProgress | null>(null);
-    const [downloadError, setDownloadError] = useState<string | null>(null);
-    const [currentDownloadFile, setCurrentDownloadFile] = useState<{ id: string; name: string; type: "file" | "folder" } | null>(null);
 
     // Hash copy animation state
     const [copiedHashId, setCopiedHashId] = useState<string | null>(null);
@@ -221,378 +226,45 @@ export const Table01DividerLineSm = ({
 
     // Start file uploads with progress tracking
     const startUploads = async (files: File[]) => {
-        // Open the unified modal immediately
-        setUploadModalOpen(true);
-
-        // Create upload managers for each file
-        const newManagers = files.map(file => {
-            return new UploadManager({
-                file,
-                folderId: currentFolderId === 'root' ? null : currentFolderId,
-                onProgress: (task) => {
-                    setUploadManagers(prev => prev.map(m =>
-                        m.getTask().id === task.id ? m : m
-                    ));
-                    setUploadManagers(prev => [...prev]);
-                },
-                onComplete: (task) => {
-                    console.log(`Upload completed for ${task.file.name}, fetching storage`);
-                    refreshFiles();
-                    // Fetch storage after each single file upload
-                    apiClient.getUserStorage().then(storageResponse => {
-                        if (storageResponse.success) {
-                            console.log('Storage fetched after upload:', storageResponse.data);
-                        } else {
-                            console.error('Failed to fetch storage after upload:', storageResponse.error);
-                        }
-                    }).catch(error => {
-                        console.error('Error fetching storage after upload:', error);
-                    });
-                },
-                onError: (task) => {
-                    // console.error(`Upload failed for ${task.file.name}:`, task.error);
-                    toast.error(`Failed to upload ${task.file.name}`);
-                },
-                onCancel: (task) => {
-                    // console.log(`Upload cancelled for ${task.file.name}`);
-                    toast.info('Upload cancelled');
-                }
-            });
-        });
-
-        // Add all managers to state
-        setUploadManagers(prev => [...prev, ...newManagers]);
-
-        // Start all uploads
-        newManagers.forEach(manager => manager.start());
+        // Use global upload context
+        // The global context handles opening the modal and managing uploads
+        // We just need to trigger the file input or call the global handler
+        if (onFileUpload) {
+            onFileUpload();
+        } else {
+            fileInputRef.current?.click();
+        }
     };
 
     // Start folder uploads with progress tracking (similar to file uploads but with folder hierarchy)
     const startFolderUploads = async (files: FileList) => {
-        try {
-            // Build file tree from FileList
-            const buildFileTree = (files: FileList): any[] => {
-                const root: { [key: string]: any } = {}
-
-                Array.from(files).forEach(file => {
-                    const pathParts = file.webkitRelativePath.split('/').filter(p => p)
-                    let current = root
-
-                    pathParts.forEach((part, index) => {
-                        if (!current[part]) {
-                            current[part] = {
-                                name: part,
-                                type: index === pathParts.length - 1 ? 'file' : 'folder',
-                                path: pathParts.slice(0, index + 1).join('/'),
-                                ...(index === pathParts.length - 1 ? { size: file.size, file } : { children: [] })
-                            }
-                        }
-
-                        if (index < pathParts.length - 1) {
-                            if (!current[part].children) {
-                                current[part].children = []
-                            }
-                            current = current[part].children as { [key: string]: any }
-                        }
-                    })
-                })
-
-                // Convert to array and sort (folders first, then files alphabetically)
-                const convertToArray = (node: { [key: string]: any }): any[] => {
-                    return Object.values(node)
-                        .sort((a, b) => {
-                            if (a.type !== b.type) return a.type === 'folder' ? -1 : 1
-                            return a.name.localeCompare(b.name)
-                        })
-                        .map(item => ({
-                            ...item,
-                            ...(item.children ? { children: convertToArray(item.children) } : {})
-                        }))
-                }
-
-                return convertToArray(root)
-            }
-
-            // Flatten tree into upload tasks (folders first, then files)
-            const flattenTree = (nodes: any[], parentPath = ''): any[] => {
-                const tasks: any[] = []
-
-                nodes.forEach(node => {
-                    const fullPath = parentPath ? `${parentPath}/${node.name}` : node.name
-
-                    if (node.type === 'folder') {
-                        tasks.push({
-                            id: `folder-${fullPath}`,
-                            node: { ...node, path: fullPath },
-                            status: 'pending',
-                            progress: 0
-                        })
-
-                        if (node.children) {
-                            tasks.push(...flattenTree(node.children, fullPath))
-                        }
-                    } else {
-                        tasks.push({
-                            id: `file-${fullPath}`,
-                            node: { ...node, path: fullPath },
-                            status: 'pending',
-                            progress: 0
-                        })
-                    }
-                })
-
-                return tasks
-            }
-
-            // Create folder with manifest signatures
-            const createFolderWithManifest = async (name: string, parentId: string | null): Promise<string> => {
-                const userKeys = await keyManager.getUserKeys()
-
-                // Generate manifest signatures for the folder
-                const manifestData = {
-                    name,
-                    created: Math.floor(Date.now() / 1000),
-                    version: '2.0-folder',
-                    algorithmVersion: 'v3-hybrid-pqc'
-                }
-
-                const manifestJson = JSON.stringify(manifestData)
-                const manifestBytes = new TextEncoder().encode(manifestJson)
-
-                // Sign with Ed25519
-                const { sign: ed25519Sign } = await import('@noble/ed25519')
-                const ed25519Signature = await ed25519Sign(manifestBytes, userKeys.keypairs.ed25519PrivateKey)
-                const manifestSignatureEd25519 = btoa(String.fromCharCode(...ed25519Signature))
-
-                // Sign with Dilithium
-                const { ml_dsa65 } = await import('@noble/post-quantum/ml-dsa.js')
-                const dilithiumSignature = ml_dsa65.sign(userKeys.keypairs.dilithiumPrivateKey, manifestBytes)
-                const manifestSignatureDilithium = btoa(String.fromCharCode(...new Uint8Array(dilithiumSignature)))
-
-                const response = await apiClient.createFolder({
-                    name,
-                    parentId,
-                    manifestJson,
-                    manifestSignatureEd25519,
-                    manifestPublicKeyEd25519: userKeys.keypairs.ed25519PublicKey,
-                    manifestSignatureDilithium,
-                    manifestPublicKeyDilithium: userKeys.keypairs.dilithiumPublicKey,
-                    algorithmVersion: 'v3-hybrid-pqc'
-                })
-
-                if (!response.success || !response.data) {
-                    throw new Error('Failed to create folder')
-                }
-
-                return response.data.id
-            }
-
-            // Create folder recursively
-            const createFolderRecursive = async (pathParts: string[], currentParentId: string | null = null): Promise<string | null> => {
-                if (pathParts.length === 0) return currentParentId
-
-                const folderName = pathParts[0]
-                const remainingParts = pathParts.slice(1)
-
-                try {
-                    // Check if folder already exists
-                    const response = await apiClient.getFolders({ parentId: currentParentId || undefined })
-                    const existingFolder = response.data?.find((folder: any) => folder.name === folderName)
-
-                    let folderId: string
-                    if (existingFolder) {
-                        folderId = existingFolder.id
-                    } else {
-                        // Create new folder
-                        folderId = await createFolderWithManifest(folderName, currentParentId)
-                    }
-
-                    // Continue with remaining path parts
-                    return createFolderRecursive(remainingParts, folderId)
-                } catch (error) {
-                    // console.error(`Error creating folder ${folderName}:`, error)
-                    throw error
-                }
-            }
-
-            const tree = buildFileTree(files)
-            const tasks = flattenTree(tree)
-
-            // Open the unified modal immediately
-            setUploadModalOpen(true)
-
-            // Process tasks in order (folders first, then files)
-            const fileUploadManagers: UploadManager[] = []
-
-            for (const task of tasks) {
-                if (task.node.type === 'folder') {
-                    try {
-                        const pathParts = task.node.path.split('/').filter((p: string) => p)
-                        const folderId = await createFolderRecursive(pathParts, currentFolderId === 'root' ? null : currentFolderId)
-
-                        // Store the root folder ID for file uploads
-                        // (This is now handled by createFolderRecursive using currentFolderId as base)
-
-                    } catch (error) {
-                        // console.error(`Error creating folder ${task.node.name}:`, error)
-                        toast.error(`Failed to create folder "${task.node.name}"`)
-                    }
-                } else {
-                    // Upload file using UploadManager for progress tracking
-                    try {
-                        const pathParts = task.node.path.split('/').filter((p: string) => p)
-                        const fileName = pathParts.pop()!
-                        const folderPath = pathParts
-
-                        let parentFolderId = currentFolderId === 'root' ? null : currentFolderId
-                        if (folderPath.length > 0) {
-                            parentFolderId = await createFolderRecursive(folderPath, currentFolderId === 'root' ? null : currentFolderId)
-                        }
-
-                        // Create UploadManager for this file
-                        const uploadManager = new UploadManager({
-                            file: task.node.file,
-                            folderId: parentFolderId,
-                            onProgress: (task) => {
-                                setUploadManagers(prev => prev.map(m =>
-                                    m.getTask().id === task.id ? m : m
-                                ));
-                                setUploadManagers(prev => [...prev]);
-                            },
-                            onComplete: (task) => {
-                                // console.log(`Upload completed for ${task.file.name}`);
-                                // Remove refreshFiles() call - we'll refresh once after all uploads complete
-                            },
-                            onError: (task) => {
-                                // console.error(`Upload failed for ${task.file.name}:`, task.error);
-                                toast.error(`Failed to upload ${task.file.name}`);
-                            },
-                            onCancel: (task) => {
-                                // console.log(`Upload cancelled for ${task.file.name}`);
-                                toast.info('Upload cancelled');
-                            }
-                        });
-
-                        // Add to upload managers
-                        setUploadManagers(prev => [...prev, uploadManager]);
-                        fileUploadManagers.push(uploadManager);
-
-                        // Start the upload
-                        uploadManager.start();
-
-                    } catch (error) {
-                        // console.error(`Error uploading file ${task.node.name}:`, error)
-                        toast.error(`Failed to upload file "${task.node.name}"`)
-                    }
-                }
-            }
-
-            // Wait for all file uploads to complete before refreshing
-            if (fileUploadManagers.length > 0) {
-                const uploadPromises = fileUploadManagers.map(manager => {
-                    return new Promise<void>((resolve) => {
-                        const checkStatus = () => {
-                            const task = manager.getTask();
-                            if (task.status === 'completed' || task.status === 'failed' || task.status === 'cancelled') {
-                                resolve();
-                            } else {
-                                // Check again in 100ms
-                                setTimeout(checkStatus, 100);
-                            }
-                        };
-                        checkStatus();
-                    });
-                });
-
-                // Wait for all uploads to complete
-                await Promise.all(uploadPromises);
-            }
-
-            // Refresh files after all uploads complete
-            refreshFiles()
-
-        } catch (error) {
-            // console.error('Failed to start folder uploads:', error)
-            toast.error('Failed to start folder uploads')
+        // Use global upload context
+        if (onFolderUpload) {
+            onFolderUpload();
+        } else {
+            folderInputRef.current?.click();
         }
     };
 
-    // Handle upload cancellation
+    // Upload handlers - now using global context
     const handleCancelUpload = (uploadId: string) => {
-        const manager = uploadManagers.find(m => m.getTask().id === uploadId);
-        if (manager) {
-            manager.cancel();
-        }
+        cancelUpload(uploadId);
     };
 
-    // Handle upload pause
     const handlePauseUpload = (uploadId: string) => {
-        const manager = uploadManagers.find(m => m.getTask().id === uploadId);
-        if (manager) {
-            manager.pause();
-        }
+        pauseUpload(uploadId);
     };
 
-    // Handle upload resume
     const handleResumeUpload = (uploadId: string) => {
-        const manager = uploadManagers.find(m => m.getTask().id === uploadId);
-        if (manager) {
-            manager.resume();
-        }
+        resumeUpload(uploadId);
     };
 
-    // Handle upload retry
-    const handleRetryUpload = async (uploadId: string) => {
-        const manager = uploadManagers.find(m => m.getTask().id === uploadId);
-        if (manager && manager.getTask().status === 'failed') {
-            // Create a new manager for retry
-            const newManager = new UploadManager({
-                file: manager.getTask().file,
-                folderId: currentFolderId === 'root' ? null : currentFolderId,
-                onProgress: (task) => {
-                    setUploadManagers(prev => prev.map(m =>
-                        m.getTask().id === task.id ? m : m
-                    ));
-                    setUploadManagers(prev => [...prev]);
-                },
-                onComplete: (task) => {
-                    console.log(`Retry upload completed for ${task.file.name}, fetching storage`);
-                    refreshFiles();
-                    // Fetch storage after retry upload
-                    apiClient.getUserStorage().then(storageResponse => {
-                        if (storageResponse.success) {
-                            console.log('Storage fetched after retry upload:', storageResponse.data);
-                        } else {
-                            console.error('Failed to fetch storage after retry upload:', storageResponse.error);
-                        }
-                    }).catch(error => {
-                        console.error('Error fetching storage after retry upload:', error);
-                    });
-                },
-                onError: (task) => {
-                    // console.error(`Upload failed for ${task.file.name}:`, task.error);
-                    toast.error(`Failed to upload ${task.file.name}`);
-                },
-                onCancel: (task) => {
-                    // console.log(`Upload cancelled for ${task.file.name}`);
-                    toast.info('Upload cancelled');
-                }
-            });
-
-            // Remove old manager and add new one
-            setUploadManagers(prev => prev.filter(m => m.getTask().id !== uploadId).concat(newManager));
-            newManager.start();
-        }
+    const handleRetryUpload = (uploadId: string) => {
+        retryUpload(uploadId);
     };
 
-    // Handle cancel all uploads
     const handleCancelAllUploads = () => {
-        uploadManagers.forEach(manager => {
-            if (manager.getTask().status === 'uploading' || manager.getTask().status === 'pending' || manager.getTask().status === 'paused') {
-                manager.cancel();
-            }
-        });
-        toast.info('All uploads cancelled');
+        cancelAllUploads();
     };
 
     // Handle drag and drop files
@@ -607,6 +279,29 @@ export const Table01DividerLineSm = ({
             }
         }
     }, [dragDropFiles]);
+
+    // Register for file added events to add files incrementally
+    useOnFileAdded(useCallback((fileData: any) => {
+        // Add the newly uploaded file to the current file list incrementally
+        if (fileData && fileData.folderId === currentFolderId) {
+            const newFile: FileItem = {
+                id: fileData.id,
+                name: fileData.name,
+                filename: fileData.filename,
+                size: fileData.size,
+                mimeType: fileData.mimeType,
+                folderId: fileData.folderId,
+                type: 'file' as const,
+                createdAt: fileData.createdAt || new Date().toISOString(),
+                updatedAt: fileData.updatedAt || new Date().toISOString(),
+                sha256Hash: fileData.sha256Hash,
+                is_shared: fileData.is_shared || false
+            };
+            
+            // Add to beginning of files list for visibility
+            setFiles(prev => [newFile, ...prev]);
+        }
+    }, [currentFolderId]));
 
     // Refresh files and folders after folder creation
     const refreshFiles = useCallback(async (folderId: string = currentFolderId) => {
@@ -945,25 +640,18 @@ export const Table01DividerLineSm = ({
     // Handle PDF preview
     const handlePDFPreviewClick = async (itemId: string, itemName: string) => {
         try {
-            setDownloadError(null);
-            setCurrentDownloadFile({ id: itemId, name: itemName, type: 'file' });
-
-            // Open the unified modal immediately when preview starts
-            setUploadModalOpen(true);
-
             // Get user keys
             const userKeys = await keyManager.getUserKeys();
 
             // Start PDF preview with progress tracking
             await previewPDFFile(itemId, userKeys, (progress) => {
-                setDownloadProgress(progress);
+                // Progress is handled by the preview function
             });
 
             toast.success('PDF preview opened successfully');
 
         } catch (error) {
             console.error('PDF preview error:', error);
-            setDownloadError(error instanceof Error ? error.message : 'PDF preview failed');
             toast.error('PDF preview failed');
         }
     };
@@ -1009,52 +697,12 @@ export const Table01DividerLineSm = ({
     const handleDownloadClick = async (itemId: string, itemName: string, itemType: "file" | "folder") => {
         if (itemType === 'folder') {
             // Download folder as ZIP
-            try {
-                setDownloadError(null);
-                setCurrentDownloadFile({ id: itemId, name: itemName, type: itemType });
-
-                // Open the unified modal immediately when download starts
-                setUploadModalOpen(true);
-
-                // Get user keys
-                const userKeys = await keyManager.getUserKeys();
-
-                // Start folder ZIP download with progress tracking
-                await downloadFolderAsZip(itemId, itemName, userKeys, (progress: DownloadProgress) => {
-                    setDownloadProgress(progress);
-                });
-
-                toast.success('Folder downloaded successfully as ZIP');
-
-            } catch (error) {
-                // console.error('Folder download error:', error);
-                setDownloadError(error instanceof Error ? error.message : 'Folder download failed');
-                toast.error('Folder download failed');
-            }
+            await startFolderDownload(itemId, itemName);
+            toast.success('Folder downloaded successfully as ZIP');
         } else {
             // Download single file
-            try {
-                setDownloadError(null);
-                setCurrentDownloadFile({ id: itemId, name: itemName, type: itemType });
-
-                // Open the unified modal immediately when download starts
-                setUploadModalOpen(true);
-
-                // Get user keys
-                const userKeys = await keyManager.getUserKeys();
-
-                // Start download with progress tracking
-                await downloadFileToBrowser(itemId, userKeys, (progress) => {
-                    setDownloadProgress(progress);
-                });
-
-                toast.success('Download completed successfully');
-
-            } catch (error) {
-                // console.error('Download error:', error);
-                setDownloadError(error instanceof Error ? error.message : 'Download failed');
-                toast.error('Download failed');
-            }
+            await startFileDownload(itemId, itemName);
+            toast.success('Download completed successfully');
         }
     };
 
@@ -1075,43 +723,9 @@ export const Table01DividerLineSm = ({
         }
 
         // Multiple items selected - create ZIP
-        try {
-            setDownloadError(null);
-            setCurrentDownloadFile({ id: 'bulk', name: 'Multiple Items', type: 'file' });
-
-            // Open the unified modal immediately
-            setUploadModalOpen(true);
-
-            // Get user keys
-            const userKeys = await keyManager.getUserKeys();
-
-            // Start bulk download with progress tracking
-            await downloadMultipleItemsAsZip(selectedItemsArray, userKeys, (progress) => {
-                setDownloadProgress(progress);
-            });
-
-            toast.success(`Downloaded ${selectedItemsArray.length} items successfully`);
-
-        } catch (error) {
-            // console.error('Bulk download error:', error);
-            setDownloadError(error instanceof Error ? error.message : 'Bulk download failed');
-            toast.error('Bulk download failed');
-        }
-    }, [selectedItems, handleDownloadClick, setDownloadError, setCurrentDownloadFile, setUploadModalOpen, keyManager, downloadMultipleItemsAsZip, setDownloadProgress, toast]);
-    // Handle download progress close
-    const handleDownloadProgressClose = () => {
-        setDownloadProgress(null);
-        setDownloadError(null);
-        setCurrentDownloadFile(null);
-
-        // Close modal if there are no active uploads
-        const hasActiveUploads = uploadManagers.some(m =>
-            ['uploading', 'pending', 'paused'].includes(m.getTask().status)
-        );
-        if (!hasActiveUploads) {
-            setUploadModalOpen(false);
-        }
-    };
+        await startBulkDownload(selectedItemsArray);
+        toast.success(`Downloaded ${selectedItemsArray.length} items successfully`);
+    }, [selectedItems, handleDownloadClick, startBulkDownload, toast]);
 
     // Handle folder double-click navigation
     const handleFolderDoubleClick = async (folderId: string, folderName: string) => {
@@ -2129,33 +1743,6 @@ export const Table01DividerLineSm = ({
                 }
                 refreshFiles();
             }}
-        />
-
-        <UnifiedProgressModal
-            open={uploadModalOpen}
-            onOpenChange={setUploadModalOpen}
-            uploads={uploadManagers.map(m => {
-                const task = m.getTask();
-                return {
-                    id: task.id,
-                    file: task.file,
-                    status: task.status,
-                    progress: task.progress,
-                    error: task.error,
-                    result: task.result
-                };
-            })}
-            onCancelUpload={handleCancelUpload}
-            onPauseUpload={handlePauseUpload}
-            onResumeUpload={handleResumeUpload}
-            onRetryUpload={handleRetryUpload}
-            onCancelAllUploads={handleCancelAllUploads}
-            downloadProgress={downloadProgress}
-            downloadFilename={currentDownloadFile?.type === 'folder' ? `${currentDownloadFile.name}.zip` : currentDownloadFile?.name}
-            downloadFileSize={currentDownloadFile?.type === 'file' ? (filesMap.get(currentDownloadFile.id)?.size || 0) : 0}
-            onCancelDownload={handleDownloadProgressClose}
-            onRetryDownload={downloadError ? () => handleDownloadClick(currentDownloadFile!.id, currentDownloadFile!.name, currentDownloadFile!.type) : undefined}
-            downloadError={downloadError}
         />
 
         {/* Context Menu */}

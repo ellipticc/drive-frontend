@@ -269,15 +269,18 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
         finalShareCekHex = ''
       }
 
-      // Get the file's wrapped CEK from the database and unwrap it
-      const fileInfoResponse = await apiClient.getFileInfo(itemId)
-      if (!fileInfoResponse.success || !fileInfoResponse.data) {
-        throw new Error('Failed to get file encryption info')
+      // Get the file/folder's wrapped CEK from the database and unwrap it
+      const infoResponse = itemType === 'folder' 
+        ? await apiClient.getFolderInfo(itemId)
+        : await apiClient.getFileInfo(itemId)
+      
+      if (!infoResponse.success || !infoResponse.data) {
+        throw new Error(`Failed to get ${itemType} encryption info`)
       }
 
-      const fileData = fileInfoResponse.data.file
-      if (!fileData.wrapped_cek || !fileData.nonce_wrap_kyber) {
-        throw new Error('File encryption info not available')
+      const itemData = infoResponse.data[itemType === 'folder' ? 'folder' : 'file'] || infoResponse.data
+      if (!itemData.wrapped_cek || !itemData.nonce_wrap_kyber) {
+        throw new Error(`${itemType} encryption info not available`)
       }
 
       // Get user keys to unwrap the file's CEK
@@ -288,13 +291,13 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
       const { decryptData, hexToUint8Array } = await import('@/lib/crypto')
 
       // First, get the Kyber shared secret
-      const kyberCiphertext = hexToUint8Array(fileData.kyber_ciphertext)
+      const kyberCiphertext = hexToUint8Array(itemData.kyber_ciphertext)
       const sharedSecret = ml_kem768.decapsulate(kyberCiphertext, userKeys.keypairs.kyberPrivateKey)
 
       // Decrypt the file's CEK
-      const fileCek = decryptData(fileData.wrapped_cek, new Uint8Array(sharedSecret), fileData.nonce_wrap_kyber)
+      const fileCek = decryptData(itemData.wrapped_cek, new Uint8Array(sharedSecret), itemData.nonce_wrap_kyber)
 
-      // Now encrypt the file's CEK with the share CEK (envelope encryption)
+      // Now encrypt the file/folder's CEK with the share CEK (envelope encryption)
       const { encryptData } = await import('@/lib/crypto')
       const envelopeEncryption = encryptData(fileCek, shareCek)
       const wrappedFileCek = envelopeEncryption.encryptedData
@@ -396,44 +399,57 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
         throw new Error('Account salt not available for CEK derivation')
       }
 
-      // Derive CEK deterministically from account salt and file ID
-      // This ensures the same user sharing the same file always gets the same CEK
+      // Derive CEK deterministically from account salt and item ID
+      // This ensures the same user sharing the same item always gets the same CEK
       const derivationInput = `share:${itemId}:${accountSalt}`
       const derivationBytes = new TextEncoder().encode(derivationInput)
       const cekHash = await crypto.subtle.digest('SHA-256', derivationBytes)
       const shareCek = new Uint8Array(cekHash)
-
-      // Get the file's wrapped CEK from the database and unwrap it
-      const fileInfoResponse = await apiClient.getFileInfo(itemId)
-      if (!fileInfoResponse.success || !fileInfoResponse.data) {
-        throw new Error('Failed to get file encryption info')
-      }
-
-      const fileData = fileInfoResponse.data.file
-      if (!fileData.wrapped_cek || !fileData.nonce_wrap_kyber) {
-        throw new Error('File encryption info not available')
-      }
-
-      // Get user keys to unwrap the file's CEK
-      const userKeys = await keyManager.getUserKeys()
-
-      // Unwrap the file's CEK using Kyber decapsulation
-      const { ml_kem768 } = await import('@noble/post-quantum/ml-kem.js')
-      const { decryptData, hexToUint8Array } = await import('@/lib/crypto')
-
-      // First, get the Kyber shared secret
-      const kyberCiphertext = hexToUint8Array(fileData.kyber_ciphertext)
-      const sharedSecret = ml_kem768.decapsulate(kyberCiphertext, userKeys.keypairs.kyberPrivateKey)
-
-      // Decrypt the file's CEK
-      const fileCek = decryptData(fileData.wrapped_cek, new Uint8Array(sharedSecret), fileData.nonce_wrap_kyber)
-
-      // Now encrypt the file's CEK with the share CEK (envelope encryption)
-      const { encryptData } = await import('@/lib/crypto')
       const shareCekHex = btoa(String.fromCharCode(...shareCek))
-      const envelopeEncryption = encryptData(fileCek, shareCek)
-      const wrappedFileCek = envelopeEncryption.encryptedData
-      const envelopeNonce = envelopeEncryption.nonce
+
+      let wrappedFileCek: string
+      let envelopeNonce: string
+
+      if (itemType === 'folder') {
+        // For folder sharing, we don't need to unwrap any existing CEK
+        // We just use the share CEK directly for envelope encryption
+        const { encryptData } = await import('@/lib/crypto')
+        const envelopeEncryption = encryptData(shareCek, shareCek) // Self-encrypt for consistency
+        wrappedFileCek = envelopeEncryption.encryptedData
+        envelopeNonce = envelopeEncryption.nonce
+      } else {
+        // For file sharing, get the file's wrapped CEK from the database and unwrap it
+        const infoResponse = await apiClient.getFileInfo(itemId)
+        
+        if (!infoResponse.success || !infoResponse.data) {
+          throw new Error(`Failed to get file encryption info`)
+        }
+
+        const itemData = infoResponse.data.file || infoResponse.data
+        if (!itemData.wrapped_cek || !itemData.nonce_wrap_kyber) {
+          throw new Error(`File encryption info not available`)
+        }
+
+        // Get user keys to unwrap the file's CEK
+        const userKeys = await keyManager.getUserKeys()
+
+        // Unwrap the file's CEK using Kyber decapsulation
+        const { ml_kem768 } = await import('@noble/post-quantum/ml-kem.js')
+        const { decryptData, hexToUint8Array } = await import('@/lib/crypto')
+
+        // First, get the Kyber shared secret
+        const kyberCiphertext = hexToUint8Array(itemData.kyber_ciphertext)
+        const sharedSecret = ml_kem768.decapsulate(kyberCiphertext, userKeys.keypairs.kyberPrivateKey)
+
+        // Decrypt the file's CEK
+        const fileCek = decryptData(itemData.wrapped_cek, new Uint8Array(sharedSecret), itemData.nonce_wrap_kyber)
+
+        // Now encrypt the file's CEK with the share CEK (envelope encryption)
+        const { encryptData } = await import('@/lib/crypto')
+        const envelopeEncryption = encryptData(fileCek, shareCek)
+        wrappedFileCek = envelopeEncryption.encryptedData
+        envelopeNonce = envelopeEncryption.nonce
+      }
 
       let saltPw = undefined
       let finalShareCekHex = shareCekHex

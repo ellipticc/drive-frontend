@@ -5,6 +5,7 @@ import { UnifiedProgressModal, FileUploadState } from '@/components/modals/unifi
 import { UploadManager } from '@/components/upload-manager';
 import { keyManager } from '@/lib/key-manager';
 import { useCurrentFolder } from '@/components/current-folder-context';
+import { downloadFileToBrowser, downloadFolderAsZip, downloadMultipleItemsAsZip, DownloadProgress } from '@/lib/download';
 
 interface GlobalUploadContextType {
   // Upload state
@@ -25,6 +26,26 @@ interface GlobalUploadContextType {
   resumeUpload: (uploadId: string) => void;
   retryUpload: (uploadId: string) => void;
   cancelAllUploads: () => void;
+
+  // Upload completion callback registration
+  registerOnUploadComplete: (callback: (uploadId: string, result: any) => void) => void;
+  unregisterOnUploadComplete: (callback: (uploadId: string, result: any) => void) => void;
+
+  // File addition callback for incremental updates
+  registerOnFileAdded: (callback: (file: any) => void) => void;
+  unregisterOnFileAdded: (callback: (file: any) => void) => void;
+
+  // Download state
+  downloadProgress: DownloadProgress | null;
+  downloadError: string | null;
+  currentDownloadFile: { id: string; name: string; type: 'file' | 'folder' } | null;
+
+  // Download handlers
+  startFileDownload: (fileId: string, fileName: string) => Promise<void>;
+  startFolderDownload: (folderId: string, folderName: string) => Promise<void>;
+  startBulkDownload: (items: Array<{ id: string; name: string; type: 'file' | 'folder' }>) => Promise<void>;
+  cancelDownload: () => void;
+  retryDownload: () => void;
 }
 
 const GlobalUploadContext = createContext<GlobalUploadContextType | null>(null);
@@ -37,6 +58,28 @@ export function useGlobalUpload() {
   return context;
 }
 
+export function useOnUploadComplete(callback: (uploadId: string, result: any) => void) {
+  const { registerOnUploadComplete, unregisterOnUploadComplete } = useGlobalUpload();
+
+  React.useEffect(() => {
+    registerOnUploadComplete(callback);
+    return () => {
+      unregisterOnUploadComplete(callback);
+    };
+  }, [callback, registerOnUploadComplete, unregisterOnUploadComplete]);
+}
+
+export function useOnFileAdded(callback: (file: any) => void) {
+  const { registerOnFileAdded, unregisterOnFileAdded } = useGlobalUpload();
+
+  React.useEffect(() => {
+    registerOnFileAdded(callback);
+    return () => {
+      unregisterOnFileAdded(callback);
+    };
+  }, [callback, registerOnFileAdded, unregisterOnFileAdded]);
+}
+
 interface GlobalUploadProviderProps {
   children: ReactNode;
 }
@@ -44,6 +87,11 @@ interface GlobalUploadProviderProps {
 export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
   const [uploads, setUploads] = useState<FileUploadState[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Download state
+  const [downloadProgress, setDownloadProgress] = useState<DownloadProgress | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [currentDownloadFile, setCurrentDownloadFile] = useState<{ id: string; name: string; type: 'file' | 'folder' } | null>(null);
 
   // Get current folder from context
   const { currentFolderId } = useCurrentFolder();
@@ -54,6 +102,12 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
 
   // Upload managers
   const uploadManagersRef = useRef<Map<string, UploadManager>>(new Map());
+
+  // Upload completion callbacks
+  const onUploadCompleteCallbacksRef = useRef<Set<(uploadId: string, result: any) => void>>(new Set());
+  
+  // File added callbacks for incremental updates
+  const onFileAddedCallbacksRef = useRef<Set<(file: any) => void>>(new Set());
 
   const updateUploadState = useCallback((uploadId: string, updates: Partial<FileUploadState>) => {
     setUploads(prev => prev.map(upload =>
@@ -90,6 +144,16 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
             status: 'completed',
             result: task.result,
           });
+          // Trigger all registered upload completion callbacks
+          onUploadCompleteCallbacksRef.current.forEach(callback => {
+            callback(task.id, task.result);
+          });
+          // Trigger file added callbacks with the file data
+          if (task.result && task.result.file) {
+            onFileAddedCallbacksRef.current.forEach(callback => {
+              callback(task.result.file);
+            });
+          }
         },
         onError: (task) => {
           updateUploadState(task.id, {
@@ -178,6 +242,22 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
     })));
   }, []);
 
+  const registerOnUploadComplete = useCallback((callback: (uploadId: string, result: any) => void) => {
+    onUploadCompleteCallbacksRef.current.add(callback);
+  }, []);
+
+  const unregisterOnUploadComplete = useCallback((callback: (uploadId: string, result: any) => void) => {
+    onUploadCompleteCallbacksRef.current.delete(callback);
+  }, []);
+
+  const registerOnFileAdded = useCallback((callback: (file: any) => void) => {
+    onFileAddedCallbacksRef.current.add(callback);
+  }, []);
+
+  const unregisterOnFileAdded = useCallback((callback: (file: any) => void) => {
+    onFileAddedCallbacksRef.current.delete(callback);
+  }, []);
+
   // Handle file selection
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -214,6 +294,87 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
     e.target.value = '';
   }, [addUpload, startUpload, openModal]);
 
+  // Download handlers
+  const startFileDownload = useCallback(async (fileId: string, fileName: string) => {
+    try {
+      setDownloadError(null);
+      setCurrentDownloadFile({ id: fileId, name: fileName, type: 'file' });
+      setIsModalOpen(true);
+
+      const userKeys = await keyManager.getUserKeys();
+      await downloadFileToBrowser(fileId, userKeys, (progress) => {
+        setDownloadProgress(progress);
+      });
+
+      // Keep modal open to show completion - user can manually close
+      // The modal will auto-close when all uploads complete
+    } catch (error) {
+      console.error('Download error:', error);
+      setDownloadError(error instanceof Error ? error.message : 'Download failed');
+    }
+  }, []);
+
+  const startFolderDownload = useCallback(async (folderId: string, folderName: string) => {
+    try {
+      setDownloadError(null);
+      setCurrentDownloadFile({ id: folderId, name: folderName, type: 'folder' });
+      setIsModalOpen(true);
+
+      const userKeys = await keyManager.getUserKeys();
+      await downloadFolderAsZip(folderId, folderName, userKeys, (progress) => {
+        setDownloadProgress(progress);
+      });
+
+      // Keep modal open to show completion - user can manually close
+    } catch (error) {
+      console.error('Folder download error:', error);
+      setDownloadError(error instanceof Error ? error.message : 'Folder download failed');
+    }
+  }, []);
+
+  const startBulkDownload = useCallback(async (items: Array<{ id: string; name: string; type: 'file' | 'folder' }>) => {
+    try {
+      setDownloadError(null);
+      setCurrentDownloadFile({ id: 'bulk', name: 'Multiple Items', type: 'file' });
+      setIsModalOpen(true);
+
+      const userKeys = await keyManager.getUserKeys();
+      await downloadMultipleItemsAsZip(items, userKeys, (progress) => {
+        setDownloadProgress(progress);
+      });
+
+      // Keep modal open to show completion - user can manually close
+    } catch (error) {
+      console.error('Bulk download error:', error);
+      setDownloadError(error instanceof Error ? error.message : 'Bulk download failed');
+    }
+  }, []);
+
+  const cancelDownload = useCallback(() => {
+    // Note: The download functions don't have built-in cancellation
+    // This would need to be implemented in the download functions themselves
+    setDownloadProgress(null);
+    setDownloadError(null);
+    setCurrentDownloadFile(null);
+    // Modal stays open until user explicitly closes it
+  }, []);
+
+  const retryDownload = useCallback(() => {
+    if (!currentDownloadFile) return;
+
+    if (currentDownloadFile.id === 'bulk') {
+      // Can't retry bulk download easily
+      setDownloadError('Cannot retry bulk download');
+      return;
+    }
+
+    if (currentDownloadFile.type === 'folder') {
+      startFolderDownload(currentDownloadFile.id, currentDownloadFile.name);
+    } else {
+      startFileDownload(currentDownloadFile.id, currentDownloadFile.name);
+    }
+  }, [currentDownloadFile, startFileDownload, startFolderDownload]);
+
   const contextValue: GlobalUploadContextType = {
     uploads,
     isModalOpen,
@@ -226,6 +387,18 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
     resumeUpload,
     retryUpload,
     cancelAllUploads,
+    registerOnUploadComplete,
+    unregisterOnUploadComplete,
+    registerOnFileAdded,
+    unregisterOnFileAdded,
+    downloadProgress,
+    downloadError,
+    currentDownloadFile,
+    startFileDownload,
+    startFolderDownload,
+    startBulkDownload,
+    cancelDownload,
+    retryDownload,
   };
 
   return (
@@ -258,6 +431,13 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
         onResumeUpload={resumeUpload}
         onRetryUpload={retryUpload}
         onCancelAllUploads={cancelAllUploads}
+        downloadProgress={downloadProgress}
+        downloadFilename={currentDownloadFile?.name}
+        downloadFileSize={0} // This would need to be calculated
+        downloadFileId={currentDownloadFile?.id}
+        onCancelDownload={cancelDownload}
+        onRetryDownload={retryDownload}
+        downloadError={downloadError}
         open={isModalOpen}
         onOpenChange={setIsModalOpen}
         onClose={closeModal}

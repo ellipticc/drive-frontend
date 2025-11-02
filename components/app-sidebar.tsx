@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { apiClient } from "@/lib/api"
+import { useGlobalUpload } from "@/components/global-upload-context"
 
 const defaultUser = {
   id: "",
@@ -144,14 +145,10 @@ const defaultNavSecondary = [
 ] */
 
 export const AppSidebar = React.memo(function AppSidebar({ 
-  onFileUpload,
-  onFolderUpload,
   ...props 
-}: React.ComponentProps<typeof Sidebar> & {
-  onFileUpload?: () => void
-  onFolderUpload?: () => void
-}) {
+}: React.ComponentProps<typeof Sidebar>) {
   const { state } = useSidebar()
+  const { handleFileUpload, handleFolderUpload } = useGlobalUpload()
   const [user, setUser] = React.useState<{
     id: string;
     name: string;
@@ -266,7 +263,7 @@ export const AppSidebar = React.memo(function AppSidebar({
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} onFileUpload={onFileUpload} onFolderUpload={onFolderUpload} />
+        <NavMain items={data.navMain} onFileUpload={handleFileUpload} onFolderUpload={handleFolderUpload} />
         {/* <NavDocuments items={data.documents} /> */}
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
