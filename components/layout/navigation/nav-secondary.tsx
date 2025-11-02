@@ -11,7 +11,6 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { SupportRequestDialog } from "@/components/support-request-dialog"
-import { SettingsModal } from "@/components/modals"
 
 export function NavSecondary({
   items,
@@ -37,12 +36,12 @@ export function NavSecondary({
                   </SidebarMenuButton>
                 </SupportRequestDialog>
               ) : item.title === "Settings" ? (
-                <SettingsModal>
-                  <SidebarMenuButton>
+                <SidebarMenuButton asChild>
+                  <a href="/settings">
                     <item.icon />
                     <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SettingsModal>
+                  </a>
+                </SidebarMenuButton>
               ) : (
                 <SidebarMenuButton asChild>
                   <a href={item.url}>

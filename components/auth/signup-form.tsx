@@ -30,7 +30,6 @@ export function SignupForm({
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [formData, setFormData] = useState({
-    name: "",
     email: "",
     password: "",
     confirmPassword: ""
@@ -75,7 +74,7 @@ export function SignupForm({
       const registrationResult = await OPAQUE.register(
         formData.password,
         formData.email,
-        formData.name,
+        "", // Empty name since it's not required
         {
           accountSalt: tempAccountSaltHex,
           algorithmVersion: 'v3-hybrid-pqc-xchacha20'
@@ -137,18 +136,6 @@ export function SignupForm({
         <CardContent>
           <form onSubmit={handleSubmit}>
             <FieldGroup>
-              <Field>
-                <FieldLabel htmlFor="name">Full Name</FieldLabel>
-                <Input
-                  id="name"
-                  name="name"
-                  type="text"
-                  placeholder="John Doe"
-                  required
-                  value={formData.name}
-                  onChange={handleInputChange}
-                />
-              </Field>
               <Field>
                 <FieldLabel htmlFor="email">Email</FieldLabel>
                 <Input

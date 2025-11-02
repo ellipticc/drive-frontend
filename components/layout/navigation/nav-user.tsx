@@ -33,7 +33,7 @@ import { masterKeyManager } from "@/lib/master-key"
 import { getDiceBearAvatar } from "@/lib/avatar"
 
 // Generate initials from name (e.g., "John Doe" -> "JD", "John" -> "J")
-function getInitials(name: string): string {
+export function getInitials(name: string): string {
   if (!name || name.trim() === '') return 'U';
 
   const parts = name.trim().split(' ').filter(part => part.length > 0);
@@ -48,6 +48,18 @@ function getInitials(name: string): string {
   }
 }
 
+// Get display name: use display name if set, otherwise use email prefix
+function getDisplayName(user: { name: string; email: string }): string {
+  // If user has a display name set (not empty), use it
+  if (user.name && user.name.trim() !== '') {
+    return user.name.trim();
+  }
+  
+  // Otherwise, use the part before "@" in the email
+  const emailPrefix = user.email.split('@')[0];
+  return emailPrefix || 'User';
+}
+
 export function NavUser({
   user,
 }: {
@@ -59,6 +71,7 @@ export function NavUser({
   }
 }) {
   const { isMobile } = useSidebar()
+  const displayName = getDisplayName(user)
 
   const handleLogout = async () => {
     try {
@@ -86,11 +99,11 @@ export function NavUser({
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <Avatar className="h-8 w-8 rounded-lg grayscale">
-                <AvatarImage src={getDiceBearAvatar(user.id)} alt={user.name} />
-                <AvatarFallback className="rounded-lg">{getInitials(user.name)}</AvatarFallback>
+                <AvatarImage src={getDiceBearAvatar(user.id)} alt={displayName} />
+                <AvatarFallback className="rounded-lg">{getInitials(displayName)}</AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{user.name}</span>
+                <span className="truncate font-medium">{displayName}</span>
                 <span className="text-muted-foreground truncate text-xs">
                   {user.email}
                 </span>
@@ -107,11 +120,11 @@ export function NavUser({
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg">
-                  <AvatarImage src={getDiceBearAvatar(user.id)} alt={user.name} />
-                  <AvatarFallback className="rounded-lg">{getInitials(user.name)}</AvatarFallback>
+                  <AvatarImage src={getDiceBearAvatar(user.id)} alt={displayName} />
+                  <AvatarFallback className="rounded-lg">{getInitials(displayName)}</AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">{user.name}</span>
+                  <span className="truncate font-medium">{displayName}</span>
                   <span className="text-muted-foreground truncate text-xs">
                     {user.email}
                   </span>

@@ -356,6 +356,27 @@ class ApiClient {
     return this.request('/auth/me');
   }
 
+  async updateUserProfile(data: {
+    name?: string;
+    email?: string;
+    avatar?: string;
+  }): Promise<ApiResponse> {
+    return this.request('/auth/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async uploadAvatar(formData: FormData): Promise<ApiResponse<{ avatarUrl: string }>> {
+    return this.request('/auth/avatar', {
+      method: 'POST',
+      body: formData,
+      headers: {
+        // Don't set Content-Type for FormData, let the browser set it with boundary
+      },
+    });
+  }
+
   async getUserStorage(): Promise<ApiResponse<{
     used_bytes: number;
     quota_bytes: number;
