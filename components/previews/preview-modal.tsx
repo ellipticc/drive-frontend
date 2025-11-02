@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { DownloadProgress } from '@/lib/download';
 import { PdfPreview } from './pdf-preview';
@@ -236,6 +236,9 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
               )}
             </div>
           </div>
+          <DialogDescription>
+            Preview the contents of your file. Some file types may not be supported for preview.
+          </DialogDescription>
           {file && !canPreview(file) && (
             <p className="text-sm text-muted-foreground mt-2">
               This file type doesn't support preview. You can download it instead.

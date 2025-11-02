@@ -141,12 +141,27 @@ export function encryptData(data: Uint8Array, key: Uint8Array): {
   encryptedData: string;
   nonce: string;
 } {
+  // For very small data (< 16 bytes), pad to ensure encrypted result meets minimum size requirement
+  // XChaCha20-Poly1305 adds ~16 bytes of authentication data, so we need to pad small inputs
+  let dataToEncrypt = data;
+  let isPadded = false;
+
+  if (data.length < 16) {
+    // Pad to exactly 16 bytes to ensure encrypted result is >= 16 bytes
+    dataToEncrypt = new Uint8Array(17); // 1 byte for original length + 16 bytes data
+    dataToEncrypt[0] = data.length; // Store original length (0-15)
+    dataToEncrypt.set(data, 1); // Copy original data
+    // Fill remaining with zeros
+    dataToEncrypt.fill(0, 1 + data.length);
+    isPadded = true;
+  }
+
   // Generate random 24-byte nonce
   const nonce = new Uint8Array(24);
   crypto.getRandomValues(nonce);
 
   // Encrypt using XChaCha20-Poly1305
-  const encrypted = xchacha20poly1305(key, nonce).encrypt(data);
+  const encrypted = xchacha20poly1305(key, nonce).encrypt(dataToEncrypt);
 
   return {
     encryptedData: uint8ArrayToBase64(encrypted),
@@ -225,12 +240,22 @@ export function decryptData(encryptedData: string, key: Uint8Array, nonce: strin
     throw new Error(`Decryption failed: ${e instanceof Error ? e.message : String(e)}`);
   }
 
+  // Check if this data was padded (17 bytes total with length prefix for small files)
+  let finalData = decrypted;
+  if (decrypted.length === 17) {
+    const originalLength = decrypted[0];
+    // If first byte indicates original length 0-15, this was padded data
+    if (originalLength <= 15) {
+      finalData = decrypted.slice(1, 1 + originalLength);
+    }
+  }
+
   // Validate decryption result
-  if (!decrypted || decrypted.length === 0) {
+  if (!finalData || finalData.length === 0) {
     throw new Error('Decryption resulted in empty data');
   }
 
-  return decrypted;
+  return finalData;
 }
 
 // Generate a random mnemonic phrase for backup/recovery using BIP39
