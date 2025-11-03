@@ -9,8 +9,10 @@ export interface ApiResponse<T = any> {
 
 export interface FileItem {
   id: string;
-  name: string; // Display name (encrypted filename for files, plain name for folders)
+  name: string; // Display name (decrypted filename for files, plain name for folders)
   filename?: string; // Original filename (only for files)
+  encryptedFilename?: string; // Encrypted filename (only for files)
+  filenameSalt?: string; // Salt used for filename encryption (only for files)
   size?: number; // Only for files
   mimeType?: string; // Only for files
   folderId?: string | null; // Only for files
@@ -535,8 +537,8 @@ class ApiClient {
     }[];
     files: {
       id: string;
-      name: string;
-      filename: string;
+      encryptedFilename: string;
+      filenameSalt: string;
       size: number;
       mimeType: string;
       folderId: string | null;
@@ -552,9 +554,20 @@ class ApiClient {
 
   // File operations
   async renameFile(fileId: string, newFilename: string): Promise<ApiResponse<{ newFilename: string }>> {
+    // Encrypt the new filename for zero-knowledge storage
+    const { encryptFilename } = await import('./crypto');
+    const { masterKeyManager } = await import('./master-key');
+
+    const masterKey = masterKeyManager.getMasterKey();
+    const { encryptedFilename, filenameSalt } = await encryptFilename(newFilename, masterKey);
+
     return this.request(`/files/${fileId}/rename`, {
       method: 'PUT',
-      body: JSON.stringify({ newFilename }),
+      body: JSON.stringify({
+        newFilename,
+        encryptedFilename,
+        filenameSalt
+      }),
     });
   }
 
@@ -938,7 +951,8 @@ class ApiClient {
 
   // Upload operations
   async initializeUploadSession(data: {
-    filename: string;
+    encryptedFilename: string;
+    filenameSalt: string;
     mimetype: string;
     fileSize: number;
     chunkCount: number;
@@ -1033,6 +1047,7 @@ class ApiClient {
     fileId: string;
     storageKey: string;
     originalFilename: string;
+    filenameSalt?: string;
     mimetype: string;
     size: number;
     sha256: string;

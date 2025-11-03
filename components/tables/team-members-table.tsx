@@ -31,6 +31,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { PreviewModal } from "@/components/previews";
 import { useCurrentFolder } from "@/components/current-folder-context";
 import { useOnUploadComplete, useOnFileAdded, useGlobalUpload } from "@/components/global-upload-context";
+import { decryptFilename } from "@/lib/crypto";
+import { masterKeyManager } from "@/lib/master-key";
 
 export const Table01DividerLineSm = ({ 
   searchQuery,
@@ -284,10 +286,16 @@ export const Table01DividerLineSm = ({
     useOnFileAdded(useCallback((fileData: any) => {
         // Add the newly uploaded file to the current file list incrementally
         if (fileData && fileData.folderId === currentFolderId) {
+            // Start with a default display name
+            let displayName = `File ${fileData.id.substring(0, 8)}`; // Default fallback
+
+            // Add to beginning of files list immediately with default name
             const newFile: FileItem = {
                 id: fileData.id,
-                name: fileData.name,
+                name: displayName,
                 filename: fileData.filename,
+                encryptedFilename: fileData.encryptedFilename,
+                filenameSalt: fileData.filenameSalt,
                 size: fileData.size,
                 mimeType: fileData.mimeType,
                 folderId: fileData.folderId,
@@ -297,9 +305,28 @@ export const Table01DividerLineSm = ({
                 sha256Hash: fileData.sha256Hash,
                 is_shared: fileData.is_shared || false
             };
-            
+
             // Add to beginning of files list for visibility
             setFiles(prev => [newFile, ...prev]);
+
+            // Asynchronously decrypt the filename and update the file
+            if (fileData.encryptedFilename && fileData.filenameSalt) {
+                (async () => {
+                    try {
+                        const masterKey = masterKeyManager.getMasterKey();
+                        const decryptedName = await decryptFilename(fileData.encryptedFilename, fileData.filenameSalt, masterKey);
+                        // Update the file with the decrypted name
+                        setFiles(prev => prev.map(file =>
+                            file.id === fileData.id
+                                ? { ...file, name: decryptedName }
+                                : file
+                        ));
+                    } catch (err) {
+                        console.warn(`Failed to decrypt filename for newly uploaded file ${fileData.id}:`, err);
+                        // Keep the default fallback name
+                    }
+                })();
+            }
         }
     }, [currentFolderId]));
 
@@ -312,6 +339,14 @@ export const Table01DividerLineSm = ({
             const response = await apiClient.getFolderContents(folderId);
             // console.log(`Folder contents response:`, response);
             if (response.success && response.data) {
+                // Get master key for filename decryption
+                let masterKey: Uint8Array | null = null;
+                try {
+                    masterKey = masterKeyManager.getMasterKey();
+                } catch (err) {
+                    console.warn('Could not retrieve master key for filename decryption', err);
+                }
+
                 // Combine folders and files into a single array
                 const combinedItems: FileItem[] = [
                     ...(response.data.folders || []).map((folder: any) => ({
@@ -324,19 +359,35 @@ export const Table01DividerLineSm = ({
                         updatedAt: folder.updatedAt,
                         is_shared: folder.is_shared || false
                     })),
-                    ...(response.data.files || []).map((file: any) => ({
-                        id: file.id,
-                        name: file.name,
-                        filename: file.filename,
-                        size: file.size,
-                        mimeType: file.mimeType,
-                        folderId: file.folderId,
-                        type: 'file' as const,
-                        createdAt: file.createdAt,
-                        updatedAt: file.updatedAt,
-                        sha256Hash: file.sha256Hash,
-                        is_shared: file.is_shared || false
-                    }))
+                    ...(await Promise.all((response.data.files || []).map(async (file: any) => {
+                        // Decrypt filename if both encrypted_filename and filename_salt are present
+                        let displayName = file.name || '';
+                        if (file.encryptedFilename && file.filenameSalt && masterKey) {
+                            try {
+                                displayName = await decryptFilename(file.encryptedFilename, file.filenameSalt, masterKey);
+                            } catch (err) {
+                                console.warn(`Failed to decrypt filename for file ${file.id}:`, err);
+                                // Fall back to encrypted filename if decryption fails
+                                displayName = file.name || file.encryptedFilename;
+                            }
+                        }
+
+                        return {
+                            id: file.id,
+                            name: displayName,
+                            filename: file.filename,
+                            encryptedFilename: file.encryptedFilename,
+                            filenameSalt: file.filenameSalt,
+                            size: file.size,
+                            mimeType: file.mimeType,
+                            folderId: file.folderId,
+                            type: 'file' as const,
+                            createdAt: file.createdAt,
+                            updatedAt: file.updatedAt,
+                            sha256Hash: file.sha256Hash,
+                            is_shared: file.is_shared || false
+                        };
+                    })))
                 ];
                 // console.log(`Loaded ${combinedItems.length} items`);
                 setFiles(combinedItems);
@@ -426,13 +477,6 @@ export const Table01DividerLineSm = ({
             folderInputRef.current?.click();
         }
     }, [onFolderUpload]);
-
-    // Provide upload handlers to parent
-    useEffect(() => {
-        if (onUploadHandlersReady) {
-            onUploadHandlersReady({ handleFileUpload, handleFolderUpload });
-        }
-    }, [onUploadHandlersReady, handleFileUpload, handleFolderUpload]);
 
     const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const selectedFiles = event.target.files;

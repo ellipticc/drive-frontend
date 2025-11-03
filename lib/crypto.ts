@@ -480,3 +480,137 @@ export async function decryptUserPrivateKeys(
     kyberPublicKey: pqcKeypairs.kyber.publicKey
   };
 }
+
+// =====================================================
+// FILENAME ENCRYPTION - ZERO-KNOWLEDGE FILENAMES
+// =====================================================
+
+/**
+ * Encrypt a filename using XChaCha20-Poly1305
+ * Server never sees plaintext filename - complete zero-knowledge
+ * 
+ * @param filename - Plaintext filename to encrypt
+ * @param masterKey - User's master encryption key (32 bytes)
+ * @returns Object with encrypted filename and salt for decryption
+ */
+export async function encryptFilename(filename: string, masterKey: Uint8Array): Promise<{
+  encryptedFilename: string;
+  filenameSalt: string;
+}> {
+  if (!filename || typeof filename !== 'string') {
+    throw new Error('filename must be a non-empty string');
+  }
+  if (!masterKey || !(masterKey instanceof Uint8Array) || masterKey.length !== 32) {
+    throw new Error('masterKey must be a 32-byte Uint8Array');
+  }
+
+  // Generate random 32-byte salt for this specific filename
+  const filenameSalt = new Uint8Array(32);
+  crypto.getRandomValues(filenameSalt);
+
+  // Derive filename-specific key from master key and salt using deterministic HKDF-like expansion
+  // Use HKDF-like construction: HMAC(masterKey, salt + 'filename-key')
+  const keyMaterial = new Uint8Array(filenameSalt.length + 12); // salt + 'filename-key'
+  keyMaterial.set(filenameSalt, 0);
+  keyMaterial.set(new TextEncoder().encode('filename-key'), filenameSalt.length);
+
+  // Use Web Crypto HMAC-SHA256 for key derivation
+  const hmacKey = await crypto.subtle.importKey(
+    'raw',
+    masterKey as BufferSource,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+
+  const derivedKeyMaterial = await crypto.subtle.sign('HMAC', hmacKey, keyMaterial);
+  const filenameKey = new Uint8Array(derivedKeyMaterial.slice(0, 32));
+
+  // Encrypt filename using XChaCha20-Poly1305
+  const filenameBytes = new TextEncoder().encode(filename);
+  const filenameNonce = new Uint8Array(24);
+  crypto.getRandomValues(filenameNonce);
+
+  const encryptedFilenameBytes = xchacha20poly1305(filenameKey, filenameNonce).encrypt(filenameBytes);
+
+  return {
+    encryptedFilename: uint8ArrayToBase64(encryptedFilenameBytes) + ':' + uint8ArrayToBase64(filenameNonce),
+    filenameSalt: uint8ArrayToBase64(filenameSalt)
+  };
+}
+
+/**
+ * Decrypt a filename using XChaCha20-Poly1305
+ * Called on frontend after fetching encrypted filename from server
+ * 
+ * @param encryptedFilename - Encrypted filename with embedded nonce (format: "encrypted:nonce" in base64)
+ * @param filenameSalt - Salt stored in database (base64)
+ * @param masterKey - User's master encryption key (32 bytes)
+ * @returns Plaintext filename
+ */
+export async function decryptFilename(encryptedFilename: string, filenameSalt: string, masterKey: Uint8Array): Promise<string> {
+  if (!encryptedFilename || typeof encryptedFilename !== 'string') {
+    throw new Error('encryptedFilename must be a non-empty string');
+  }
+  if (!filenameSalt || typeof filenameSalt !== 'string') {
+    throw new Error('filenameSalt must be a non-empty string');
+  }
+  if (!masterKey || !(masterKey instanceof Uint8Array) || masterKey.length !== 32) {
+    throw new Error('masterKey must be a 32-byte Uint8Array');
+  }
+
+  try {
+    // Parse encrypted filename (format: "encryptedData:nonce" in base64)
+    const [encryptedPart, noncePart] = encryptedFilename.split(':');
+    if (!encryptedPart || !noncePart) {
+      throw new Error('Invalid encrypted filename format: expected "encryptedData:nonce"');
+    }
+
+    // Decode salt and nonce from base64
+    const decodedSalt = Uint8Array.from(atob(filenameSalt), c => c.charCodeAt(0));
+    const filenameNonce = Uint8Array.from(atob(noncePart), c => c.charCodeAt(0));
+    const encryptedBytes = Uint8Array.from(atob(encryptedPart), c => c.charCodeAt(0));
+
+    // Diagnostic logging
+    console.log('🔍 DEBUG filename decryption:', {
+      masterKeyLength: masterKey.length,
+      masterKeyPreview: uint8ArrayToHex(masterKey.slice(0, 8)) + '...',
+      saltLength: decodedSalt.length,
+      saltPreview: uint8ArrayToHex(decodedSalt.slice(0, 8)) + '...',
+      nonceLength: filenameNonce.length,
+      encryptedBytesLength: encryptedBytes.length,
+      encryptedPreview: uint8ArrayToHex(encryptedBytes.slice(0, 16)) + '...'
+    });
+
+    // Derive filename-specific key using the same method as encryption
+    const keyMaterial = new Uint8Array(decodedSalt.length + 12); // salt + 'filename-key'
+    keyMaterial.set(decodedSalt, 0);
+    keyMaterial.set(new TextEncoder().encode('filename-key'), decodedSalt.length);
+
+    // Use Web Crypto HMAC-SHA256 for key derivation (same as encryption)
+    const hmacKey = await crypto.subtle.importKey(
+      'raw',
+      masterKey as BufferSource,
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    );
+
+    const derivedKeyMaterial = await crypto.subtle.sign('HMAC', hmacKey, keyMaterial);
+    const filenameKey = new Uint8Array(derivedKeyMaterial.slice(0, 32));
+
+    console.log('🔍 DEBUG derived key:', {
+      derivedKeyLength: filenameKey.length,
+      derivedKeyPreview: uint8ArrayToHex(filenameKey.slice(0, 8)) + '...'
+    });
+
+    // Decrypt filename
+    const decryptedBytes = xchacha20poly1305(filenameKey, filenameNonce).decrypt(encryptedBytes);
+    const filename = new TextDecoder().decode(decryptedBytes);
+
+    console.log('✅ Filename decrypted successfully');
+    return filename;
+  } catch (error) {
+    throw new Error(`Failed to decrypt filename: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}

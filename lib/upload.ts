@@ -64,6 +64,8 @@ export interface UploadSession {
   chunks: ChunkInfo[];
   fileId: string;
   chunkHashes: string[]; // SHA256 hashes of encrypted chunks
+  encryptedFilename?: string;
+  filenameSalt?: string;
 }
 
 export interface UploadResult {
@@ -71,6 +73,20 @@ export interface UploadResult {
   sessionId: string;
   metadata: FileMetadata;
   chunks: ChunkInfo[];
+  file?: {
+    id: string;
+    name: string;
+    encryptedFilename?: string;
+    filenameSalt?: string;
+    size: number;
+    mimeType: string;
+    folderId: string | null;
+    type: 'file';
+    createdAt: string;
+    updatedAt: string;
+    sha256Hash: string;
+    is_shared: boolean;
+  };
 }
 
 // Configuration
@@ -231,7 +247,7 @@ export async function uploadEncryptedFile(
     }
 
     // Stage 7: Finalize upload
-    const result = await finalizeUpload(session.sessionId, file, sha256Hash, keys);
+    const result = await finalizeUpload(session.sessionId, file, sha256Hash, keys, folderId, session.encryptedFilename, session.filenameSalt);
 
     onProgress?.({ stage: 'finalizing', overallProgress: 100 });
 
@@ -361,13 +377,44 @@ async function initializeUploadSession(
   const kyberCiphertext = uint8ArrayToHex(new Uint8Array(cekEncryptionResult.cipherText));
 
   // Encrypt the random CEK with the Kyber shared secret (additional layer)
-  const { encryptData } = await import('./crypto');
+  const { encryptData, encryptFilename } = await import('./crypto');
+  const { masterKeyManager } = await import('./master-key');
+  
   const cekEncryption = encryptData(randomCek, new Uint8Array(cekEncryptionResult.sharedSecret));
   const wrappedCek = cekEncryption.encryptedData; // Already hex string
   const cekNonce = cekEncryption.nonce;
 
+  // 🔒 ENCRYPT FILENAME - ZERO-KNOWLEDGE METADATA
+  // Get master key from cache to encrypt filename
+  let encryptedFilename: string;
+  let filenameSalt: string;
+  
+  try {
+    const masterKey = masterKeyManager.getMasterKey();
+    console.log('✅ Master key retrieved for filename encryption');
+    
+    const encrypted = await encryptFilename(file.name, masterKey);
+    encryptedFilename = encrypted.encryptedFilename;
+    filenameSalt = encrypted.filenameSalt;
+    
+    // Validate encryption happened
+    if (!encryptedFilename || !encryptedFilename.includes(':')) {
+      throw new Error(`Invalid encrypted filename format - missing nonce separator. Got: ${encryptedFilename}`);
+    }
+    if (!filenameSalt) {
+      throw new Error('Missing filename salt after encryption');
+    }
+    
+    console.log(`✅ Filename encrypted successfully: ${encryptedFilename.substring(0, 30)}...`);
+    console.log(`✅ Filename salt: ${filenameSalt}`);
+  } catch (error) {
+    console.error('❌ CRITICAL: Filename encryption failed:', error);
+    throw new Error(`Failed to encrypt filename: ${error instanceof Error ? error.message : String(error)}`);
+  }
+
   const response = await apiClient.initializeUploadSession({
-    filename: file.name,
+    encryptedFilename: encryptedFilename,
+    filenameSalt: filenameSalt,
     mimetype: file.type || 'application/octet-stream',
     fileSize: file.size,
     chunkCount: chunks.length,
@@ -406,7 +453,9 @@ async function initializeUploadSession(
     fileId: response.data.fileId,
     uploadUrls,
     chunks,
-    chunkHashes
+    chunkHashes,
+    encryptedFilename,
+    filenameSalt
   };
 }
 
@@ -534,7 +583,10 @@ async function finalizeUpload(
   sessionId: string,
   file: File,
   sha256Hash: string,
-  keys: UserKeys
+  keys: UserKeys,
+  folderId: string | null = null,
+  encryptedFilename?: string,
+  filenameSalt?: string
 ): Promise<UploadResult> {
   // Regenerate manifest data for finalization
   const manifestCreatedAt = Math.floor(Date.now() / 1000);
@@ -586,7 +638,21 @@ async function finalizeUpload(
       wrappedCek: '', // TODO: Implement CEK wrapping
       cekNonce: ''   // TODO: Implement CEK wrapping
     },
-    chunks: [] // Chunks info not needed in final result
+    chunks: [], // Chunks info not needed in final result
+    file: {
+      id: response.data.fileId,
+      name: file.name,
+      encryptedFilename,
+      filenameSalt,
+      size: file.size,
+      mimeType: file.type || 'application/octet-stream',
+      folderId,
+      type: 'file' as const,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      sha256Hash,
+      is_shared: false
+    }
   };
 }
 

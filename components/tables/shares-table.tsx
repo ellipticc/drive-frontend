@@ -23,6 +23,8 @@ import { downloadEncryptedFileWithCEK, downloadEncryptedFile } from '@/lib/downl
 import { apiClient } from "@/lib/api";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { decryptFilename } from "@/lib/crypto";
+import { masterKeyManager } from "@/lib/master-key";
 
 export interface ShareItem {
   id: string;
@@ -88,7 +90,32 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
             const response = await apiClient.getMyShares();
             // console.log('Shares response:', response);
             if (response.success && response.data) {
-                setShares(response.data);
+                // Get master key for filename decryption
+                let masterKey: Uint8Array | null = null;
+                try {
+                    masterKey = masterKeyManager.getMasterKey();
+                } catch (err) {
+                    console.warn('Could not retrieve master key for filename decryption', err);
+                }
+
+                // Decrypt filenames in shares
+                const sharesWithDecryptedNames = response.data.map((share: any) => {
+                    let displayName = share.fileName || '';
+                    if (share.encryptedFilename && share.filenameSalt && masterKey) {
+                        try {
+                            displayName = decryptFilename(share.encryptedFilename, share.filenameSalt, masterKey);
+                        } catch (err) {
+                            console.warn(`Failed to decrypt filename for share ${share.id}:`, err);
+                            displayName = share.fileName || '';
+                        }
+                    }
+                    return {
+                        ...share,
+                        fileName: displayName
+                    };
+                });
+
+                setShares(sharesWithDecryptedNames);
             } else {
                 const errorMessage = response.error || 'Failed to load shares';
                 // console.error(`Failed to load shares: ${errorMessage}`);

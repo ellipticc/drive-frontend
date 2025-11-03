@@ -28,6 +28,8 @@ import { IconPhoto, IconVideo, IconMusic, IconFileText, IconArchive, IconFile } 
 import { apiClient } from "@/lib/api";
 import { IconLoader2 } from "@tabler/icons-react";
 import { toast } from "sonner";
+import { decryptFilename } from "@/lib/crypto";
+import { masterKeyManager } from "@/lib/master-key";
 
 interface TrashItem {
     id: string;
@@ -76,20 +78,41 @@ export const TrashTable = () => {
             ]);
 
             if (filesResponse.success && foldersResponse.success) {
+                // Get master key for filename decryption
+                let masterKey: Uint8Array | null = null;
+                try {
+                    masterKey = masterKeyManager.getMasterKey();
+                } catch (err) {
+                    console.warn('Could not retrieve master key for filename decryption', err);
+                }
+
                 // Combine files and folders into a single array
                 const combinedItems: TrashItem[] = [
-                    ...(filesResponse.data?.files || []).map((file: any) => ({
-                        id: file.id,
-                        name: file.encrypted_filename,
-                        filename: file.filename,
-                        size: file.size,
-                        mimeType: file.mimetype,
-                        type: 'file' as const,
-                        createdAt: file.created_at,
-                        updatedAt: file.updated_at,
-                        deletedAt: file.deleted_at,
-                        sha256Hash: file.sha256_hash,
-                    })),
+                    ...(filesResponse.data?.files || []).map((file: any) => {
+                        // Decrypt filename if both encrypted_filename and filename_salt are present
+                        let displayName = file.encrypted_filename || '';
+                        if (file.encryptedFilename && file.filenameSalt && masterKey) {
+                            try {
+                                displayName = decryptFilename(file.encryptedFilename, file.filenameSalt, masterKey);
+                            } catch (err) {
+                                console.warn(`Failed to decrypt filename for trash file ${file.id}:`, err);
+                                displayName = file.encrypted_filename || '';
+                            }
+                        }
+
+                        return {
+                            id: file.id,
+                            name: displayName,
+                            filename: file.filename,
+                            size: file.size,
+                            mimeType: file.mimetype,
+                            type: 'file' as const,
+                            createdAt: file.created_at,
+                            updatedAt: file.updated_at,
+                            deletedAt: file.deleted_at,
+                            sha256Hash: file.sha256_hash,
+                        };
+                    }),
                     ...(foldersResponse.data || []).map((folder: any) => ({
                         id: folder.id,
                         name: folder.name,

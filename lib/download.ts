@@ -10,7 +10,7 @@
  */
 
 import { apiClient } from './api';
-import { decryptData, uint8ArrayToHex, hexToUint8Array } from './crypto';
+import { decryptData, uint8ArrayToHex, hexToUint8Array, decryptFilename } from './crypto';
 import { keyManager } from './key-manager';
 
 // Utility function to convert Uint8Array to base64 safely (avoids stack overflow)
@@ -332,6 +332,20 @@ async function initializeDownloadSession(fileId: string): Promise<DownloadSessio
 
   const data = response.data;
 
+  // Decrypt the filename if it's encrypted
+  let decryptedFilename = data.originalFilename;
+  if (data.filenameSalt && data.filenameSalt.trim()) {
+    try {
+      const { masterKeyManager } = await import('./master-key');
+      const masterKey = masterKeyManager.getMasterKey();
+      decryptedFilename = await decryptFilename(data.originalFilename, data.filenameSalt, masterKey);
+    } catch (err) {
+      console.warn(`Failed to decrypt filename for download ${fileId}:`, err);
+      // Fallback to encrypted filename
+      decryptedFilename = data.originalFilename;
+    }
+  }
+
   // Merge chunks metadata with presigned URLs
   const mergedChunks: DownloadChunk[] = data.chunks.map((chunk: any) => {
     // Find the corresponding presigned URL entry
@@ -354,7 +368,7 @@ async function initializeDownloadSession(fileId: string): Promise<DownloadSessio
   return {
     fileId: data.fileId,
     filename: data.storageKey,
-    originalFilename: data.originalFilename,
+    originalFilename: decryptedFilename,
     mimetype: data.mimetype,
     size: data.size,
     sha256: data.sha256,
@@ -673,7 +687,7 @@ export async function downloadFileToBrowser(
 /**
  * Recursively get all files and folders in a folder and subfolders
  */
-export async function getRecursiveFolderContents(folderId: string, basePath: string = ''): Promise<{
+export async function getRecursiveFolderContents(folderId: string, basePath: string = '', userKeys?: any): Promise<{
   files: Array<{fileId: string, relativePath: string, filename: string}>,
   folders: Array<{folderId: string, relativePath: string, folderName: string}>
 }> {
@@ -689,10 +703,25 @@ export async function getRecursiveFolderContents(folderId: string, basePath: str
 
   // Add files from current folder
   for (const file of files || []) {
+    // Decrypt filename if encrypted
+    let filename = '';
+    if (file.encryptedFilename && file.filenameSalt && userKeys) {
+      try {
+        const { masterKeyManager } = await import('./master-key');
+        const masterKey = masterKeyManager.getMasterKey();
+        filename = await decryptFilename(file.encryptedFilename, file.filenameSalt, masterKey);
+      } catch (err) {
+        console.warn(`Failed to decrypt filename for file ${file.id}:`, err);
+        filename = file.encryptedFilename || 'unknown';
+      }
+    } else {
+      filename = 'unknown';
+    }
+
     allFiles.push({
       fileId: file.id,
       relativePath: basePath,
-      filename: file.filename
+      filename: filename
     });
   }
 
@@ -712,7 +741,7 @@ export async function getRecursiveFolderContents(folderId: string, basePath: str
   // Recursively get files and folders from subfolders
   for (const folder of folders || []) {
     const subfolderPath = basePath ? `${basePath}/${folder.name}` : folder.name;
-    const subfolderContents = await getRecursiveFolderContents(folder.id, subfolderPath);
+    const subfolderContents = await getRecursiveFolderContents(folder.id, subfolderPath, userKeys);
     allFiles.push(...subfolderContents.files);
     allFolders.push(...subfolderContents.folders);
   }
@@ -732,7 +761,7 @@ export async function downloadFolderAsZip(
   try {
     // Get all files and folders recursively
     onProgress?.({ stage: 'initializing', overallProgress: 0 });
-    const folderContents = await getRecursiveFolderContents(folderId);
+    const folderContents = await getRecursiveFolderContents(folderId, '', userKeys);
     const allFiles = folderContents.files;
     const allFolders = folderContents.folders;
     onProgress?.({ stage: 'initializing', overallProgress: 10 });
@@ -840,7 +869,7 @@ export async function downloadMultipleItemsAsZip(
         });
       } else {
         // For folders, get recursive contents
-        const folderContents = await getRecursiveFolderContents(item.id, item.name);
+        const folderContents = await getRecursiveFolderContents(item.id, item.name, userKeys);
         allFiles.push(...folderContents.files);
         allFolders.push(...folderContents.folders);
       }
