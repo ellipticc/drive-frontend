@@ -740,7 +740,22 @@ export async function getRecursiveFolderContents(folderId: string, basePath: str
 
   // Recursively get files and folders from subfolders
   for (const folder of folders || []) {
-    const subfolderPath = basePath ? `${basePath}/${folder.name}` : folder.name;
+    // Decrypt folder name if encrypted
+    let folderName = '';
+    if (folder.encryptedName && folder.nameSalt && userKeys) {
+      try {
+        const { masterKeyManager } = await import('./master-key');
+        const masterKey = masterKeyManager.getMasterKey();
+        folderName = await decryptFilename(folder.encryptedName, folder.nameSalt, masterKey);
+      } catch (err) {
+        console.warn(`Failed to decrypt folder name for folder ${folder.id}:`, err);
+        folderName = folder.encryptedName || 'unknown';
+      }
+    } else {
+      folderName = 'unknown';
+    }
+
+    const subfolderPath = basePath ? `${basePath}/${folderName}` : folderName;
     const subfolderContents = await getRecursiveFolderContents(folder.id, subfolderPath, userKeys);
     allFiles.push(...subfolderContents.files);
     allFolders.push(...subfolderContents.folders);

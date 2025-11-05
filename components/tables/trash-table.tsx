@@ -89,14 +89,14 @@ export const TrashTable = () => {
                 // Combine files and folders into a single array
                 const combinedItems: TrashItem[] = [
                     ...(filesResponse.data?.files || []).map((file: any) => {
-                        // Decrypt filename if both encrypted_filename and filename_salt are present
-                        let displayName = file.encrypted_filename || '';
+                        // Decrypt filename if both encryptedFilename and filenameSalt are present
+                        let displayName = file.encryptedFilename || '';
                         if (file.encryptedFilename && file.filenameSalt && masterKey) {
                             try {
                                 displayName = decryptFilename(file.encryptedFilename, file.filenameSalt, masterKey);
                             } catch (err) {
                                 console.warn(`Failed to decrypt filename for trash file ${file.id}:`, err);
-                                displayName = file.encrypted_filename || '';
+                                displayName = file.encryptedFilename || '';
                             }
                         }
 
@@ -107,10 +107,10 @@ export const TrashTable = () => {
                             size: file.size,
                             mimeType: file.mimetype,
                             type: 'file' as const,
-                            createdAt: file.created_at,
-                            updatedAt: file.updated_at,
-                            deletedAt: file.deleted_at,
-                            sha256Hash: file.sha256_hash,
+                            createdAt: file.createdAt,
+                            updatedAt: file.updatedAt,
+                            deletedAt: file.deletedAt,
+                            sha256Hash: file.sha256Hash,
                         };
                     }),
                     ...(foldersResponse.data || []).map((folder: any) => ({

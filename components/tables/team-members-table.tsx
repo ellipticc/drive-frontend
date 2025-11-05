@@ -187,8 +187,21 @@ export const Table01DividerLineSm = ({
                     // console.log(`Folder info response for ${segment}:`, response);
 
                     if (response.success && response.data) {
-                        // console.log(`Folder ${segment} found: ${response.data.name}`);
-                        currentPath.push({id: segment, name: response.data.name});
+                        // Decrypt folder name if encrypted fields are present
+                        let displayName = response.data.name || '';
+                        if (response.data.encryptedName && response.data.nameSalt) {
+                            try {
+                                const masterKey = masterKeyManager.getMasterKey();
+                                displayName = await decryptFilename(response.data.encryptedName, response.data.nameSalt, masterKey);
+                            } catch (err) {
+                                console.warn(`Failed to decrypt folder name for breadcrumb ${segment}:`, err);
+                                // Fall back to encrypted name if decryption fails
+                                displayName = response.data.name || response.data.encryptedName;
+                            }
+                        }
+
+                        // console.log(`Folder ${segment} found: ${displayName}`);
+                        currentPath.push({id: segment, name: displayName});
                         currentId = segment;
                     } else {
                         // Invalid folder ID, redirect to root
@@ -349,16 +362,30 @@ export const Table01DividerLineSm = ({
 
                 // Combine folders and files into a single array
                 const combinedItems: FileItem[] = [
-                    ...(response.data.folders || []).map((folder: any) => ({
-                        id: folder.id,
-                        name: folder.name,
-                        parentId: folder.parentId,
-                        path: folder.path,
-                        type: 'folder' as const,
-                        createdAt: folder.createdAt,
-                        updatedAt: folder.updatedAt,
-                        is_shared: folder.is_shared || false
-                    })),
+                    ...(await Promise.all((response.data.folders || []).map(async (folder: any) => {
+                        // Decrypt folder name if both encryptedName and nameSalt are present
+                        let displayName = folder.name || '';
+                        if (folder.encryptedName && folder.nameSalt && masterKey) {
+                            try {
+                                displayName = await decryptFilename(folder.encryptedName, folder.nameSalt, masterKey);
+                            } catch (err) {
+                                console.warn(`Failed to decrypt folder name for folder ${folder.id}:`, err);
+                                // Fall back to encrypted name if decryption fails
+                                displayName = folder.name || folder.encryptedName;
+                            }
+                        }
+
+                        return {
+                            id: folder.id,
+                            name: displayName,
+                            parentId: folder.parentId,
+                            path: folder.path,
+                            type: 'folder' as const,
+                            createdAt: folder.createdAt,
+                            updatedAt: folder.updatedAt,
+                            is_shared: folder.is_shared || false
+                        };
+                    }))),
                     ...(await Promise.all((response.data.files || []).map(async (file: any) => {
                         // Decrypt filename if both encrypted_filename and filename_salt are present
                         let displayName = file.name || '';
@@ -856,15 +883,30 @@ export const Table01DividerLineSm = ({
         handleContextMenuClose();
     };
 
-    const handleRename = async (newName: string) => {
+    const handleRename = async (data: string | {
+      manifestJson: string;
+      manifestSignatureEd25519: string;
+      manifestPublicKeyEd25519: string;
+      manifestSignatureDilithium?: string;
+      manifestPublicKeyDilithium?: string;
+      algorithmVersion?: string;
+    }) => {
         if (!selectedItemForRename) return;
 
         try {
             let response;
             if (selectedItemForRename.type === 'file') {
-                response = await apiClient.renameFile(selectedItemForRename.id, newName);
+                // For files, data should be a string
+                if (typeof data !== 'string') {
+                    throw new Error('Expected string for file rename');
+                }
+                response = await apiClient.renameFile(selectedItemForRename.id, data);
             } else {
-                response = await apiClient.renameFolder(selectedItemForRename.id, newName);
+                // For folders, data should be manifest object
+                if (typeof data === 'string') {
+                    throw new Error('Expected manifest object for folder rename');
+                }
+                response = await apiClient.renameFolder(selectedItemForRename.id, data);
             }
 
             if (response.success) {

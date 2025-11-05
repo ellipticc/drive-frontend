@@ -14,14 +14,38 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { IconFile, IconFolder, IconEdit } from "@tabler/icons-react"
+import { apiClient } from "@/lib/api"
+import { createSignedFolderManifest, decryptUserPrivateKeys } from "@/lib/crypto"
+import { masterKeyManager } from "@/lib/master-key"
+import { toast } from "sonner"
 
 interface RenameModalProps {
   children?: React.ReactNode
   itemName?: string
   itemType?: "file" | "folder"
-  onRename?: (newName: string) => void
+  onRename?: (data: string | {
+    manifestJson: string;
+    manifestSignatureEd25519: string;
+    manifestPublicKeyEd25519: string;
+    manifestSignatureDilithium?: string;
+    manifestPublicKeyDilithium?: string;
+    algorithmVersion?: string;
+  }) => void
   open?: boolean
   onOpenChange?: (open: boolean) => void
+}
+
+interface UserData {
+  id: string
+  crypto_keypairs: {
+    accountSalt: string
+    pqcKeypairs: {
+      kyber: { publicKey: string; encryptedPrivateKey: string; privateKeyNonce: string; encryptionKey: string; encryptionNonce: string }
+      x25519: { publicKey: string; encryptedPrivateKey: string; privateKeyNonce: string; encryptionKey: string; encryptionNonce: string }
+      dilithium: { publicKey: string; encryptedPrivateKey: string; privateKeyNonce: string; encryptionKey: string; encryptionNonce: string }
+      ed25519: { publicKey: string; encryptedPrivateKey: string; privateKeyNonce: string; encryptionKey: string; encryptionNonce: string }
+    }
+  }
 }
 
 export function RenameModal({
@@ -35,22 +59,65 @@ export function RenameModal({
   const [internalOpen, setInternalOpen] = useState(false)
   const [newName, setNewName] = useState(itemName)
   const [isLoading, setIsLoading] = useState(false)
+  const [userData, setUserData] = useState<UserData | null>(null)
+  const [userDataLoaded, setUserDataLoaded] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   // Use external state if provided, otherwise internal state
   const open = externalOpen !== undefined ? externalOpen : internalOpen
   const setOpen = externalOnOpenChange || setInternalOpen
 
+  const fetchUserData = async () => {
+    if (userDataLoaded) return; // Don't fetch twice
+    
+    try {
+      const response = await apiClient.getProfile()
+      if (response.success && response.data?.user?.crypto_keypairs) {
+        const cryptoKeys = response.data.user.crypto_keypairs
+        if (cryptoKeys.pqcKeypairs) {
+          // Check if we have the new encryption scheme data
+          const hasNewFormat = cryptoKeys.pqcKeypairs.kyber.encryptionKey &&
+                              cryptoKeys.pqcKeypairs.kyber.encryptionNonce &&
+                              cryptoKeys.pqcKeypairs.kyber.privateKeyNonce
+
+          if (hasNewFormat) {
+            setUserData({
+              id: response.data.user.id,
+              crypto_keypairs: {
+                accountSalt: cryptoKeys.accountSalt,
+                pqcKeypairs: cryptoKeys.pqcKeypairs
+              }
+            })
+            setUserDataLoaded(true)
+          } else {
+            // console.warn('⚠️ Backend is using old encryption format. Folder renaming may fail until backend is updated.')
+            setUserData(null)
+            setUserDataLoaded(true)
+            toast.error("Encryption format not supported. Please update your account.")
+          }
+        }
+      }
+    } catch (error) {
+      // console.error("Failed to fetch user data:", error)
+      setUserDataLoaded(true)
+      toast.error("Failed to load user data")
+    }
+  }
+
   // Automatically focus & select text when modal opens
   useEffect(() => {
-    if (open && inputRef.current) {
+    if (open) {
       setNewName(itemName)
+      // Fetch user data for folder renaming
+      if (itemType === "folder") {
+        fetchUserData()
+      }
       requestAnimationFrame(() => {
-        inputRef.current!.focus()
-        inputRef.current!.select()
+        inputRef.current?.focus()
+        inputRef.current?.select()
       })
     }
-  }, [open, itemName])
+  }, [open, itemName, itemType])
 
   const handleRename = async () => {
     if (!newName.trim() || newName.trim() === itemName) {
@@ -60,17 +127,49 @@ export function RenameModal({
 
     setIsLoading(true)
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      if (itemType === "folder") {
+        // For folders, create signed manifest
+        if (!userData) {
+          toast.error("User data not loaded. Please try again.")
+          return
+        }
 
-      // console.log(`Renaming ${itemType} "${itemName}" to "${newName.trim()}"`)
+        // Check if master key is available
+        if (!masterKeyManager.hasMasterKey()) {
+          toast.error("Session expired. Please login again.")
+          return
+        }
 
-      // Call the onRename callback if provided
-      onRename?.(newName.trim())
+        // Decrypt user's private keys using cached master key
+        const privateKeys = await decryptUserPrivateKeys(userData)
+
+        // Get the parent ID - for renaming, we keep the same parent
+        // so we can pass null since the backend will preserve the current parentId
+        const parentId = null;
+
+        // Create signed folder manifest
+        const signedManifest = await createSignedFolderManifest(
+          newName.trim(),
+          parentId,
+          {
+            ed25519PrivateKey: privateKeys.ed25519PrivateKey,
+            ed25519PublicKey: privateKeys.ed25519PublicKey,
+            dilithiumPrivateKey: privateKeys.dilithiumPrivateKey,
+            dilithiumPublicKey: privateKeys.dilithiumPublicKey
+          }
+        )
+
+        // Call the onRename callback with manifest data
+        onRename?.(signedManifest)
+      } else {
+        // For files, just pass the new name
+        onRename?.(newName.trim())
+      }
 
       setOpen(false)
     } catch (error) {
       // console.error("Failed to rename item:", error)
+      toast.error("Failed to rename item. Please try again.")
     } finally {
       setIsLoading(false)
     }

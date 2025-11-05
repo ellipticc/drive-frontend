@@ -634,15 +634,30 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                 itemType={selectedItemForRename?.type || "file"}
                 open={renameModalOpen}
                 onOpenChange={setRenameModalOpen}
-                onRename={async (newName: string) => {
+                onRename={async (data: string | {
+                    manifestJson: string;
+                    manifestSignatureEd25519: string;
+                    manifestPublicKeyEd25519: string;
+                    manifestSignatureDilithium?: string;
+                    manifestPublicKeyDilithium?: string;
+                    algorithmVersion?: string;
+                }) => {
                     if (!selectedItemForRename) return;
 
                     try {
                         let response;
                         if (selectedItemForRename.type === 'file') {
-                            response = await apiClient.renameFile(selectedItemForRename.id, newName);
+                            // For files, data should be a string
+                            if (typeof data !== 'string') {
+                                throw new Error('Expected string for file rename');
+                            }
+                            response = await apiClient.renameFile(selectedItemForRename.id, data);
                         } else {
-                            response = await apiClient.renameFolder(selectedItemForRename.id, newName);
+                            // For folders, data should be manifest object
+                            if (typeof data === 'string') {
+                                throw new Error('Expected manifest object for folder rename');
+                            }
+                            response = await apiClient.renameFolder(selectedItemForRename.id, data);
                         }
 
                         if (response.success) {

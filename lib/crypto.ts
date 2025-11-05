@@ -280,10 +280,19 @@ export async function createSignedFolderManifest(
   manifestSignatureDilithium?: string;
   manifestPublicKeyDilithium?: string;
   algorithmVersion: string;
+  encryptedName: string;
+  nameSalt: string;
 }> {
-  // Create the manifest object
+  // Import master key manager to get the master key for folder name encryption
+  const { masterKeyManager } = await import('./master-key');
+  const masterKey = masterKeyManager.getMasterKey();
+
+  // Encrypt folder name for zero-knowledge storage
+  const { encryptedFilename: encryptedName, filenameSalt: nameSalt } = await encryptFilename(folderName, masterKey);
+
+  // Create the manifest object with encrypted name for zero-knowledge security
   const manifest = {
-    name: folderName,
+    encryptedName: encryptedName,
     parentId: parentId,
     created: Math.floor(Date.now() / 1000),
     version: '2.0-hybrid',
@@ -311,7 +320,9 @@ export async function createSignedFolderManifest(
     manifestPublicKeyEd25519: userKeys.ed25519PublicKey,
     manifestSignatureDilithium,
     manifestPublicKeyDilithium: userKeys.dilithiumPublicKey,
-    algorithmVersion: 'v3-hybrid-pqc-xchacha20'
+    algorithmVersion: 'v3-hybrid-pqc-xchacha20',
+    encryptedName,
+    nameSalt
   };
 }
 

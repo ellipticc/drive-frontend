@@ -476,7 +476,6 @@ class ApiClient {
 
   // Folders endpoints
   async createFolder(data: {
-    name: string;
     parentId?: string | null;
     manifestJson: string;
     manifestSignatureEd25519: string;
@@ -528,12 +527,14 @@ class ApiClient {
   async getFolderContents(folderId: string = 'root'): Promise<ApiResponse<{
     folders: {
       id: string;
-      name: string;
+      encryptedName: string;
+      nameSalt: string;
       parentId: string | null;
       path: string;
       type: string;
       createdAt: string;
       updatedAt: string;
+      is_shared: boolean;
     }[];
     files: {
       id: string;
@@ -546,6 +547,7 @@ class ApiClient {
       createdAt: string;
       updatedAt: string;
       sha256Hash: string;
+      is_shared: boolean;
     }[];
   }>> {
     const normalizedFolderId = folderId === 'root' ? 'root' : folderId;
@@ -626,7 +628,14 @@ class ApiClient {
   }
 
   // Folder operations
-  async renameFolder(folderId: string, newName: string): Promise<ApiResponse<{
+  async renameFolder(folderId: string, data: {
+    manifestJson: string;
+    manifestSignatureEd25519: string;
+    manifestPublicKeyEd25519: string;
+    manifestSignatureDilithium?: string;
+    manifestPublicKeyDilithium?: string;
+    algorithmVersion?: string;
+  }): Promise<ApiResponse<{
     id: string;
     name: string;
     path: string;
@@ -634,7 +643,7 @@ class ApiClient {
   }>> {
     return this.request(`/folders/${folderId}/rename`, {
       method: 'PUT',
-      body: JSON.stringify({ newName }),
+      body: JSON.stringify(data),
     });
   }
 

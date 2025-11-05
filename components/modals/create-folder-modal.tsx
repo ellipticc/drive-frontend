@@ -113,7 +113,6 @@ export function CreateFolderModal({ children, parentId = null, onFolderCreated }
 
       // Create folder via API
       const response = await apiClient.createFolder({
-        name: folderName.trim(),
         parentId,
         ...signedManifest
       })

@@ -14,6 +14,8 @@ import { IconFolder, IconFile, IconPhoto, IconVideo, IconMusic, IconFileText, Ic
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 import { apiClient } from "@/lib/api"
+import { decryptFilename } from "@/lib/crypto"
+import { masterKeyManager } from "@/lib/master-key"
 
 interface SharePickerModalProps {
   open: boolean
@@ -23,17 +25,20 @@ interface SharePickerModalProps {
 
 interface Folder {
   id: string;
-  name: string;
+  encryptedName: string;
+  nameSalt: string;
   parentId: string | null;
   path: string;
+  type: string;
   createdAt: string;
   updatedAt: string;
+  is_shared: boolean;
   isExpanded?: boolean;
   isLoading?: boolean;
   children?: Folder[];
   level?: number;
   hasExploredChildren?: boolean; // Track if we've tried to load children
-  is_shared?: boolean;
+  decryptedName?: string; // Display name after decryption
 }
 
 interface FileItem {
@@ -53,6 +58,20 @@ export function SharePickerModal({ open, onOpenChange, onFileSelected }: SharePi
   const [files, setFiles] = useState<FileItem[]>([])
   const [folderFiles, setFolderFiles] = useState<Record<string, FileItem[]>>({})
 
+  // Helper function to decrypt folder name
+  const decryptFolderName = useCallback(async (encryptedName: string, nameSalt: string): Promise<string> => {
+    try {
+      if (!masterKeyManager.hasMasterKey()) {
+        return encryptedName;
+      }
+      const masterKey = masterKeyManager.getMasterKey();
+      return await decryptFilename(encryptedName, nameSalt, masterKey);
+    } catch (err) {
+      console.warn(`Failed to decrypt folder name:`, err);
+      return encryptedName;
+    }
+  }, [])
+
   // Fetch folders and files when modal opens
   useEffect(() => {
     if (open) {
@@ -67,29 +86,38 @@ export function SharePickerModal({ open, onOpenChange, onFileSelected }: SharePi
 
       if (response.success && response.data) {
         // Filter out folders that are in trash
-        const activeFolders = (response.data.folders || []).filter((folder: Folder) =>
+        const activeFolders = (response.data.folders || []).filter((folder: any) =>
           !folder.path.includes('/trash')
         )
 
-        // Build folder tree with only root level folders initially
-        const rootFolders: Folder[] = activeFolders
-          .map((folder: any) => ({
-            ...folder,
-            isExpanded: false,
-            level: 0,
-            children: [], // Start with empty children, load lazily
-            hasExploredChildren: false, // Haven't tried to load children yet
-            is_shared: folder.is_shared || false
-          }))
+        // Decrypt folder names and build folder tree with only root level folders initially
+        const rootFolders: Folder[] = await Promise.all(activeFolders
+          .map(async (folder: any) => {
+            const decryptedName = await decryptFolderName(folder.encryptedName, folder.nameSalt);
+            return {
+              ...folder,
+              decryptedName: decryptedName,
+              isExpanded: false,
+              level: 0,
+              children: [], // Start with empty children, load lazily
+              hasExploredChildren: false, // Haven't tried to load children yet
+              type: 'folder'
+            }
+          })
+        )
 
         // Add root folder
         const rootFolder: Folder = {
           id: "root",
-          name: "My Files",
+          encryptedName: "root",
+          nameSalt: "",
+          decryptedName: "My Files",
           parentId: null,
           path: "/",
+          type: "folder",
           createdAt: "",
           updatedAt: "",
+          is_shared: false,
           isExpanded: true,
           level: 0,
           children: rootFolders
@@ -100,7 +128,7 @@ export function SharePickerModal({ open, onOpenChange, onFileSelected }: SharePi
         // Set root level files
         const rootFiles: FileItem[] = (response.data.files || []).map((file: any) => ({
           id: file.id,
-          name: file.name,
+          name: file.encryptedFilename,
           type: 'file' as const,
           mimeType: file.mimeType,
           size: file.size,
@@ -140,24 +168,24 @@ export function SharePickerModal({ open, onOpenChange, onFileSelected }: SharePi
           const response = await apiClient.getFolderContents(folder.id)
 
           if (response.success && response.data) {
-            const subfolders = (response.data.folders || []).map((subfolder: any) => ({
-              id: subfolder.id,
-              name: subfolder.name,
-              parentId: folder.id,
-              path: subfolder.path,
-              createdAt: subfolder.createdAt,
-              updatedAt: subfolder.updatedAt,
-              isExpanded: false,
-              level: (folder.level || 0) + 1,
-              children: [],
-              hasExploredChildren: false,
-              is_shared: subfolder.is_shared || false
+            const subfolders = await Promise.all((response.data.folders || []).map(async (subfolder: any) => {
+              const decryptedName = await decryptFolderName(subfolder.encryptedName, subfolder.nameSalt);
+              return {
+                ...subfolder,
+                decryptedName: decryptedName,
+                parentId: folder.id,
+                isExpanded: false,
+                level: (folder.level || 0) + 1,
+                children: [],
+                hasExploredChildren: false,
+                type: 'folder'
+              }
             }))
 
             // Store files for this folder
             const folderFilesData: FileItem[] = (response.data.files || []).map((file: any) => ({
               id: file.id,
-              name: file.name,
+              name: file.encryptedFilename,
               type: 'file' as const,
               mimeType: file.mimeType,
               size: file.size,
@@ -239,7 +267,7 @@ export function SharePickerModal({ open, onOpenChange, onFileSelected }: SharePi
       return [
         <div key={folder.id}>
           <button
-            onClick={() => setSelectedItem({ id: folder.id, name: folder.name, type: "folder" })}
+            onClick={() => setSelectedItem({ id: folder.id, name: folder.decryptedName || folder.encryptedName, type: "folder" })}
             className={`flex items-center gap-2 w-full p-2 rounded-md text-left hover:bg-accent transition-colors ${
               selectedItem?.id === folder.id ? "bg-accent ring-1 ring-ring" : ""
             }`}
@@ -267,7 +295,7 @@ export function SharePickerModal({ open, onOpenChange, onFileSelected }: SharePi
             )}
             <IconFolder className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             <div className="flex-1 min-w-0">
-              <div className="font-medium text-sm truncate">{folder.name}</div>
+              <div className="font-medium text-sm truncate">{folder.decryptedName || folder.encryptedName}</div>
             </div>
             {folder.is_shared && (
               <IconShare className="h-3 w-3 text-blue-500 flex-shrink-0 ml-1" />
