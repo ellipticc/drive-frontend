@@ -4,6 +4,7 @@ import { JetBrains_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
 import { AuthGuard } from "@/components/auth/auth-guard";
+import { UserProvider } from "@/components/user-context";
 import { GlobalUploadProvider } from "@/components/global-upload-context";
 import { CurrentFolderProvider } from "@/components/current-folder-context";
 import "./globals.css";
@@ -50,17 +51,19 @@ export default function RootLayout({
         >
           <CurrentFolderProvider>
             <GlobalUploadProvider>
-              <AuthGuard>
-                {children}
-              </AuthGuard>
-              <Toaster
-                position="bottom-right"
-                richColors
-                duration={5000}
-                style={{
-                  fontFamily: 'var(--font-geist-sans)',
-                }}
-              />
+              <UserProvider>
+                <AuthGuard>
+                  {children}
+                </AuthGuard>
+                <Toaster
+                  position="bottom-right"
+                  richColors
+                  duration={5000}
+                  style={{
+                    fontFamily: 'var(--font-geist-sans)',
+                  }}
+                />
+              </UserProvider>
             </GlobalUploadProvider>
           </CurrentFolderProvider>
         </ThemeProvider>

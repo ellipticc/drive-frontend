@@ -367,11 +367,11 @@ export default function SharedDownloadPage() {
       // Track the download
       await apiClient.trackShareDownload(shareId);
 
-      // Create download link
+      // Create download link with the decrypted filename from share details
       const url = URL.createObjectURL(result.blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = result.filename;
+      a.download = fileInfo.filename; // Use decrypted filename from share details
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -471,11 +471,11 @@ export default function SharedDownloadPage() {
       // Track the download
       await apiClient.trackShareDownload(shareId);
 
-      // Create download link
+      // Create download link with the decrypted filename
       const url = URL.createObjectURL(result.blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = result.filename;
+      a.download = fileName; // Use the decrypted filename passed as parameter
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

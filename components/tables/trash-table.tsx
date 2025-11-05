@@ -29,6 +29,7 @@ import { apiClient } from "@/lib/api";
 import { IconLoader2 } from "@tabler/icons-react";
 import { toast } from "sonner";
 import { truncateFilename } from "@/lib/utils";
+import { isTextTruncated } from "@/lib/tooltip-helper";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { masterKeyManager } from "@/lib/master-key";
 import { decryptFilename } from "@/lib/crypto";
@@ -92,13 +93,13 @@ export const TrashTable = () => {
                 const combinedItems: TrashItem[] = [
                     ...(filesResponse.data?.files || []).map((file: any) => {
                         // Decrypt filename if both encryptedFilename and filenameSalt are present
-                        let displayName = file.encryptedFilename || '';
-                        if (file.encryptedFilename && file.filenameSalt && masterKey) {
+                        let displayName = file.encrypted_filename || file.encryptedFilename || '';
+                        if ((file.encrypted_filename || file.encryptedFilename) && (file.filenameSalt || file.filename_salt) && masterKey) {
                             try {
-                                displayName = decryptFilename(file.encryptedFilename, file.filenameSalt, masterKey);
+                                displayName = decryptFilename(file.encrypted_filename || file.encryptedFilename, file.filenameSalt || file.filename_salt, masterKey);
                             } catch (err) {
                                 console.warn(`Failed to decrypt filename for trash file ${file.id}:`, err);
-                                displayName = file.encryptedFilename || '';
+                                displayName = file.encrypted_filename || file.encryptedFilename || '';
                             }
                         }
 
@@ -109,10 +110,10 @@ export const TrashTable = () => {
                             size: file.size,
                             mimeType: file.mimetype,
                             type: 'file' as const,
-                            createdAt: file.createdAt,
-                            updatedAt: file.updatedAt,
-                            deletedAt: file.deletedAt,
-                            sha256Hash: file.sha256Hash,
+                            createdAt: file.created_at || file.createdAt,
+                            updatedAt: file.updated_at || file.updatedAt,
+                            deletedAt: file.deleted_at || file.deletedAt,
+                            sha256Hash: file.sha256_hash || file.sha256Hash,
                         };
                     }),
                     ...(foldersResponse.data || []).map((folder: any) => {
@@ -468,18 +469,24 @@ export const TrashTable = () => {
                                             <div className="text-base">
                                                 {getFileIcon(item.mimeType || '', item.type)}
                                             </div>
-                                            <Tooltip>
-                                                <TooltipTrigger>
-                                                    <p className="text-xs font-medium whitespace-nowrap text-foreground truncate cursor-default">
-                                                        {truncateFilename(item.name)}
-                                                    </p>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p className="text-xs text-muted-foreground max-w-xs break-words">
-                                                        {item.name}
-                                                    </p>
-                                                </TooltipContent>
-                                            </Tooltip>
+                                            {isTextTruncated(item.name) ? (
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <p className="text-xs font-medium whitespace-nowrap text-foreground truncate cursor-default">
+                                                            {truncateFilename(item.name)}
+                                                        </p>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p className="text-xs text-muted-foreground max-w-xs break-words">
+                                                            {item.name}
+                                                        </p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            ) : (
+                                                <p className="text-xs font-medium whitespace-nowrap text-foreground truncate cursor-default">
+                                                    {item.name}
+                                                </p>
+                                            )}
                                         </div>
                                     </Table.Cell>
                                     <Table.Cell className="text-right">

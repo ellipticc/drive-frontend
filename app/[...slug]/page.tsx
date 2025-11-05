@@ -11,9 +11,10 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar"
 import { keyManager } from "@/lib/key-manager"
-import { apiClient } from "@/lib/api"
+import { useUser } from "@/components/user-context"
 
 export default function Home() {
+  const { user } = useUser()
   const [searchQuery, setSearchQuery] = useState("")
   const [uploadHandlers, setUploadHandlers] = useState<{ handleFileUpload: () => void; handleFolderUpload: () => void } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -36,13 +37,12 @@ export default function Home() {
       }
 
       try {
-        // Get user profile to initialize key manager
-        const profileResponse = await apiClient.getProfile()
-        if (profileResponse.success && profileResponse.data?.user?.crypto_keypairs) {
-          await keyManager.initialize(profileResponse.data.user)
-          // console.log('🔐 KeyManager initialized on main page')
+        // Use user from context (already fetched by UserProvider)
+        if (user?.crypto_keypairs) {
+          await keyManager.initialize(user)
+          // console.log('🔐 KeyManager initialized on folder page')
         } else {
-          // console.warn('Failed to get user profile for key manager initialization')
+          // console.warn('Failed to initialize key manager - user crypto keypairs not available')
         }
       } catch (error) {
         // console.error('Failed to initialize key manager:', error)
@@ -50,7 +50,7 @@ export default function Home() {
     }
 
     initializeKeyManager()
-  }, [])
+  }, [user])
 
   // Drag and drop handlers - simplified
   const handleDrop = useCallback((files: FileList) => {

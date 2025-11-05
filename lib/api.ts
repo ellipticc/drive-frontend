@@ -874,14 +874,15 @@ class ApiClient {
     files: {
       id: string;
       filename: string;
-      encrypted_filename: string;
+      encryptedFilename: string;
+      filenameSalt: string;
       mimetype: string;
       size: number;
-      sha256_hash: string;
-      chunk_count: number;
-      created_at: string;
-      updated_at: string;
-      deleted_at: string;
+      sha256Hash: string;
+      chunkCount: number;
+      createdAt: string;
+      updatedAt: string;
+      deletedAt: string;
     }[];
     pagination: {
       page: number;

@@ -27,8 +27,8 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
-import { apiClient } from "@/lib/api"
 import { useGlobalUpload } from "@/components/global-upload-context"
+import { useUser } from "@/components/user-context"
 
 const defaultUser = {
   name: "Loading...",
@@ -151,8 +151,7 @@ export const AppSidebar = React.memo(function AppSidebar({
   const { state } = useSidebar()
   const router = useRouter()
   const { handleFileUpload, handleFolderUpload } = useGlobalUpload()
-  const [user, setUser] = React.useState(defaultUser)
-  const [loading, setLoading] = React.useState(true)
+  const { user: contextUser, loading: userLoading } = useUser()
   const [isAuthenticated, setIsAuthenticated] = React.useState(false)
   const [storage, setStorage] = React.useState({
     used_bytes: 0,
@@ -161,10 +160,16 @@ export const AppSidebar = React.memo(function AppSidebar({
     used_readable: "0 Bytes",
     quota_readable: "3 GB"
   })
-  const [userFetched, setUserFetched] = React.useState(false)
+
+  const user = contextUser ? {
+    name: contextUser.name || "User",
+    email: contextUser.email,
+    avatar: contextUser.avatar || "/avatars/default.jpg",
+    id: contextUser.id,
+  } : defaultUser
 
   React.useEffect(() => {
-    const checkAuthAndFetchUser = async () => {
+    const checkAuth = async () => {
       // Check if token exists
       let token = localStorage.getItem('auth_token');
       if (!token) {
@@ -211,39 +216,18 @@ export const AppSidebar = React.memo(function AppSidebar({
       }
 
       setIsAuthenticated(true)
-
-      // Only fetch user data once
-      if (!userFetched) {
-        try {
-          const response = await apiClient.getProfile()
-          if (response.success && response.data?.user) {
-            const userData = response.data.user
-            setUser({
-              name: userData.name || "User",
-              email: userData.email,
-              avatar: userData.avatar || "/avatars/default.jpg",
-              id: userData.id,
-            })
-            // Update storage data if available
-            if (userData.storage) {
-              setStorage(userData.storage)
-            }
-          }
-        } catch (error) {
-          // console.error("Failed to fetch user data:", error)
-          // Keep default user data on error
-        } finally {
-          setLoading(false)
-          setUserFetched(true)
-        }
+      
+      // Update storage if available from context user
+      if (contextUser?.storage) {
+        setStorage(contextUser.storage)
       }
     }
 
-    checkAuthAndFetchUser()
-  }, [userFetched]) // Only depend on userFetched to prevent re-renders
+    checkAuth()
+  }, [contextUser])
 
   // Don't render if not authenticated (will redirect)
-  if (!isAuthenticated && !loading) {
+  if (!isAuthenticated && !userLoading) {
     return null
   }
 

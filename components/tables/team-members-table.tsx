@@ -34,6 +34,7 @@ import { useOnUploadComplete, useOnFileAdded, useGlobalUpload } from "@/componen
 import { decryptFilename } from "@/lib/crypto";
 import { masterKeyManager } from "@/lib/master-key";
 import { truncateFilename } from "@/lib/utils";
+import { isTextTruncated } from "@/lib/tooltip-helper";
 
 export const Table01DividerLineSm = ({ 
   searchQuery,
@@ -1529,16 +1530,22 @@ export const Table01DividerLineSm = ({
                                         <div className="text-base">
                                             {getFileIcon(item.mimeType || '', item.type)}
                                         </div>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <p className="text-sm font-medium whitespace-nowrap text-foreground truncate cursor-default">
-                                                    {truncateFilename(item.name)}
-                                                </p>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>{item.name}</p>
-                                            </TooltipContent>
-                                        </Tooltip>
+                                        {isTextTruncated(item.name) ? (
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <p className="text-sm font-medium whitespace-nowrap text-foreground truncate cursor-default">
+                                                        {truncateFilename(item.name)}
+                                                    </p>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>{item.name}</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        ) : (
+                                            <p className="text-sm font-medium whitespace-nowrap text-foreground truncate cursor-default">
+                                                {item.name}
+                                            </p>
+                                        )}
                                     </div>
                                 </Table.Cell>
                                 <Table.Cell className="text-left">
@@ -1701,16 +1708,22 @@ export const Table01DividerLineSm = ({
                                     </div>
 
                                     {/* File name */}
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <p className="text-sm font-medium text-center text-foreground line-clamp-2 break-words w-full cursor-default">
-                                                {truncateFilename(item.name)}
-                                            </p>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>{item.name}</p>
-                                        </TooltipContent>
-                                    </Tooltip>
+                                    {isTextTruncated(item.name) ? (
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <p className="text-sm font-medium text-center text-foreground line-clamp-2 break-words w-full cursor-default">
+                                                    {truncateFilename(item.name)}
+                                                </p>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>{item.name}</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    ) : (
+                                        <p className="text-sm font-medium text-center text-foreground line-clamp-2 break-words w-full cursor-default">
+                                            {truncateFilename(item.name)}
+                                        </p>
+                                    )}
 
                                     {/* File size or folder indicator */}
                                     <p className="text-xs text-muted-foreground text-center">

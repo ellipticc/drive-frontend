@@ -38,9 +38,11 @@ import { apiClient } from "@/lib/api"
 import { useTheme } from "next-themes"
 import { getDiceBearAvatar } from "@/lib/avatar"
 import { getInitials } from "@/components/layout/navigation/nav-user"
+import { useUser } from "@/components/user-context"
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme()
+  const { user } = useUser()
   const [isLoading, setIsLoading] = React.useState(false)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
@@ -60,21 +62,18 @@ export default function SettingsPage() {
 
   React.useEffect(() => {
     loadSettings()
-  }, [])
+  }, [user])
 
   const loadSettings = async () => {
+    if (!user) return
+    
     try {
-      const userData = await apiClient.getProfile()
-
-      if (userData.success && userData.data?.user) {
-        const user = userData.data.user
-        const name = user.name || ""
-        setUserSettings({
-          name: name,
-          avatar: user.avatar || ""
-        })
-        setOriginalName(name)
-      }
+      const name = user.name || ""
+      setUserSettings({
+        name: name,
+        avatar: user.avatar || ""
+      })
+      setOriginalName(name)
     } catch (error) {
       console.error('Failed to load settings:', error)
       toast.error("Failed to load settings")

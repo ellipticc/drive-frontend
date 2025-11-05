@@ -19,10 +19,10 @@ export function AuthGuard({ children }: AuthGuardProps) {
       const publicRoutes = ['/login', '/signup', '/otp', '/recover'];
 
       // Check if current path is public (including share links)
-      const isPublicRoute = publicRoutes.includes(pathname) || pathname.startsWith('/s/');
+      const isPublic = publicRoutes.includes(pathname) || pathname.startsWith('/s/');
 
       // Skip auth check for public routes
-      if (isPublicRoute) {
+      if (isPublic) {
         setIsAuthenticated(true);
         return;
       }
@@ -52,5 +52,5 @@ export function AuthGuard({ children }: AuthGuardProps) {
   }
 
   // Only render children if authenticated (or if it's a public route)
-  return isAuthenticated ? <>{children}</> : null;
+  return isAuthenticated ? children : null;
 }

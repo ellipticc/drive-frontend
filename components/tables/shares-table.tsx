@@ -26,6 +26,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { decryptFilename } from "@/lib/crypto";
 import { masterKeyManager } from "@/lib/master-key";
 import { truncateFilename } from "@/lib/utils";
+import { isTextTruncated } from "@/lib/tooltip-helper";
 
 export interface ShareItem {
   id: string;
@@ -537,16 +538,22 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                                         <div className="text-base">
                                             {getItemIcon(item)}
                                         </div>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <p className="text-sm font-medium truncate text-foreground">
-                                                    {truncateFilename(item.fileName)}
-                                                </p>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
+                                        {isTextTruncated(item.fileName) ? (
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <p className="text-sm font-medium truncate text-foreground">
+                                                        {truncateFilename(item.fileName)}
+                                                    </p>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    {item.fileName}
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        ) : (
+                                            <p className="text-sm font-medium truncate text-foreground">
                                                 {item.fileName}
-                                            </TooltipContent>
-                                        </Tooltip>
+                                            </p>
+                                        )}
                                     </div>
                                 </Table.Cell>
                                 <Table.Cell className="text-left">
