@@ -33,6 +33,7 @@ import { useCurrentFolder } from "@/components/current-folder-context";
 import { useOnUploadComplete, useOnFileAdded, useGlobalUpload } from "@/components/global-upload-context";
 import { decryptFilename } from "@/lib/crypto";
 import { masterKeyManager } from "@/lib/master-key";
+import { truncateFilename } from "@/lib/utils";
 
 export const Table01DividerLineSm = ({ 
   searchQuery,
@@ -1528,9 +1529,16 @@ export const Table01DividerLineSm = ({
                                         <div className="text-base">
                                             {getFileIcon(item.mimeType || '', item.type)}
                                         </div>
-                                        <p className="text-sm font-medium whitespace-nowrap text-foreground">
-                                            {item.name}
-                                        </p>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <p className="text-sm font-medium whitespace-nowrap text-foreground truncate cursor-default">
+                                                    {truncateFilename(item.name)}
+                                                </p>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>{item.name}</p>
+                                            </TooltipContent>
+                                        </Tooltip>
                                     </div>
                                 </Table.Cell>
                                 <Table.Cell className="text-left">
@@ -1693,9 +1701,16 @@ export const Table01DividerLineSm = ({
                                     </div>
 
                                     {/* File name */}
-                                    <p className="text-sm font-medium text-center text-foreground line-clamp-2 break-words w-full">
-                                        {item.name}
-                                    </p>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <p className="text-sm font-medium text-center text-foreground line-clamp-2 break-words w-full cursor-default">
+                                                {truncateFilename(item.name)}
+                                            </p>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>{item.name}</p>
+                                        </TooltipContent>
+                                    </Tooltip>
 
                                     {/* File size or folder indicator */}
                                     <p className="text-xs text-muted-foreground text-center">

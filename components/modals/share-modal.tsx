@@ -39,6 +39,7 @@ import { apiClient } from "@/lib/api"
 import { keyManager } from "@/lib/key-manager"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { format } from "date-fns"
+import { truncateFilename } from "@/lib/utils"
 
 interface ShareModalProps {
   children?: React.ReactNode
@@ -561,7 +562,7 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
         <DialogContent className="sm:max-w-lg animate-in fade-in-0 zoom-in-95 duration-200" showCloseButton={false}>
           <DialogHeader className="flex flex-row items-center justify-between">
             <div>
-              <DialogTitle>Share "{itemName}"</DialogTitle>
+              <DialogTitle>Share "{truncateFilename(itemName)}"</DialogTitle>
               <DialogDescription>
                 Invite people to view this {itemType}.
               </DialogDescription>

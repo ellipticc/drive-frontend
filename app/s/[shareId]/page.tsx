@@ -6,6 +6,7 @@ import { apiClient } from '@/lib/api';
 import { downloadEncryptedFileWithCEK, downloadEncryptedFile } from '@/lib/download';
 import { decryptData, hexToUint8Array } from '@/lib/crypto';
 import { Button } from '@/components/ui/button';
+import { truncateFilename } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
@@ -707,7 +708,7 @@ export default function SharedDownloadPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <span className="text-sm font-medium text-muted-foreground">Filename</span>
-                      <p className="text-sm font-mono break-all">{fileInfo.filename}</p>
+                      <p className="text-sm font-mono break-all">{truncateFilename(fileInfo.filename)}</p>
                     </div>
                     <div className="space-y-1">
                       <span className="text-sm font-medium text-muted-foreground">Size</span>
@@ -834,7 +835,7 @@ export default function SharedDownloadPage() {
                               <File className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                             )}
                             <div className="min-w-0">
-                              <p className="text-sm font-medium truncate">{item.name}</p>
+                              <p className="text-sm font-medium truncate">{truncateFilename(item.name)}</p>
                               {!item.is_folder && item.size && (
                                 <p className="text-xs text-muted-foreground">{formatFileSize(item.size)}</p>
                               )}

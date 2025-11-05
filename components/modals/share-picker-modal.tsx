@@ -16,6 +16,7 @@ import { toast } from "sonner"
 import { apiClient } from "@/lib/api"
 import { decryptFilename } from "@/lib/crypto"
 import { masterKeyManager } from "@/lib/master-key"
+import { truncateFilename } from "@/lib/utils"
 
 interface SharePickerModalProps {
   open: boolean
@@ -295,7 +296,7 @@ export function SharePickerModal({ open, onOpenChange, onFileSelected }: SharePi
             )}
             <IconFolder className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             <div className="flex-1 min-w-0">
-              <div className="font-medium text-sm truncate">{folder.decryptedName || folder.encryptedName}</div>
+              <div className="font-medium text-sm truncate">{truncateFilename(folder.decryptedName || folder.encryptedName)}</div>
             </div>
             {folder.is_shared && (
               <IconShare className="h-3 w-3 text-blue-500 flex-shrink-0 ml-1" />
@@ -321,7 +322,7 @@ export function SharePickerModal({ open, onOpenChange, onFileSelected }: SharePi
                     <div className="w-5" />
                     {getFileIcon(file.mimeType)}
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium text-sm truncate">{file.name}</div>
+                      <div className="font-medium text-sm truncate">{truncateFilename(file.name)}</div>
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
                       {file.is_shared && (

@@ -18,6 +18,7 @@ import { apiClient } from "@/lib/api"
 import { createSignedFolderManifest, decryptUserPrivateKeys } from "@/lib/crypto"
 import { masterKeyManager } from "@/lib/master-key"
 import { toast } from "sonner"
+import { truncateFilename } from "@/lib/utils"
 
 interface RenameModalProps {
   children?: React.ReactNode
@@ -200,7 +201,7 @@ export function RenameModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <IconEdit className="h-5 w-5" />
-            Rename {itemName}
+            Rename {truncateFilename(itemName)}
           </DialogTitle>
           <DialogDescription>
             Enter a new name for this {itemType}.
