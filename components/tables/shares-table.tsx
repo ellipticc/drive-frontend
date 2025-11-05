@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { decryptFilename } from "@/lib/crypto";
 import { masterKeyManager } from "@/lib/master-key";
+import { truncateFilename } from "@/lib/utils";
 
 export interface ShareItem {
   id: string;
@@ -536,9 +537,16 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                                         <div className="text-base">
                                             {getItemIcon(item)}
                                         </div>
-                                        <p className="text-sm font-medium whitespace-nowrap text-foreground">
-                                            {item.fileName}
-                                        </p>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <p className="text-sm font-medium truncate text-foreground">
+                                                    {truncateFilename(item.fileName)}
+                                                </p>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                {item.fileName}
+                                            </TooltipContent>
+                                        </Tooltip>
                                     </div>
                                 </Table.Cell>
                                 <Table.Cell className="text-left">

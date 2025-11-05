@@ -16,6 +16,9 @@ import { IconFolder, IconChevronRight, IconChevronDown, IconLoader2 } from "@tab
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 import { apiClient } from "@/lib/api"
+import { truncateFilename } from "@/lib/utils"
+import { masterKeyManager } from "@/lib/master-key"
+import { decryptFilename } from "@/lib/crypto"
 
 interface MoveToFolderModalProps {
   children?: React.ReactNode
@@ -59,7 +62,7 @@ export function MoveToFolderModal({ children, itemId = "", itemName = "item", it
   const operationTitle = isBulkOperation ? `Move ${operationItems.length} item${operationItems.length > 1 ? 's' : ''} to Folder` : `Move to Folder`
   const operationDescription = isBulkOperation 
     ? `Choose a destination folder for ${operationItems.length} selected item${operationItems.length > 1 ? 's' : ''}.`
-    : `Choose a destination folder for "${itemName}".`
+    : `Choose a destination folder for "${truncateFilename(itemName)}".`
 
   // Fetch folders when modal opens
   useEffect(() => {
@@ -74,10 +77,36 @@ export function MoveToFolderModal({ children, itemId = "", itemName = "item", it
       const response = await apiClient.getFolders()
 
       if (response.success && response.data) {
-        // Filter out folders that are in trash (we'll assume folders with path containing '/trash' are in trash)
-        const activeFolders = response.data.filter((folder: Folder) => 
-          !folder.path.includes('/trash')
-        )
+        // Get master key for filename decryption
+        let masterKey: Uint8Array | null = null;
+        try {
+          masterKey = masterKeyManager.getMasterKey();
+        } catch (err) {
+          console.warn('Could not retrieve master key for folder name decryption', err);
+        }
+
+        // Filter out folders in trash and decrypt names
+        const activeFolders = response.data
+          .filter((folder: Folder) => !folder.path.includes('/trash'))
+          .map((folder: any) => {
+            // Decrypt folder name if both encryptedName and nameSalt are present
+            let displayName = folder.encryptedName || '';
+            if (folder.encryptedName && folder.nameSalt && masterKey) {
+              try {
+                displayName = decryptFilename(folder.encryptedName, folder.nameSalt, masterKey);
+              } catch (err) {
+                console.warn(`Failed to decrypt folder name for ${folder.id}:`, err);
+                displayName = folder.encryptedName || '';
+              }
+            }
+
+            return {
+              ...folder,
+              name: displayName, // Add decrypted name
+              encryptedName: folder.encryptedName,
+              nameSalt: folder.nameSalt
+            };
+          });
 
         // Build folder tree with only root level folders initially
         const rootFolders: Folder[] = activeFolders
@@ -138,18 +167,41 @@ export function MoveToFolderModal({ children, itemId = "", itemName = "item", it
           const response = await apiClient.getFolderContents(folder.id)
           
           if (response.success && response.data) {
-            const subfolders = (response.data.folders || []).map((subfolder: any) => ({
-              id: subfolder.id,
-              name: subfolder.name,
-              parentId: folder.id,
-              path: subfolder.path,
-              createdAt: subfolder.createdAt,
-              updatedAt: subfolder.updatedAt,
-              isExpanded: false,
-              level: (folder.level || 0) + 1,
-              children: [],
-              hasExploredChildren: false
-            }))
+            // Get master key for filename decryption
+            let masterKey: Uint8Array | null = null;
+            try {
+              masterKey = masterKeyManager.getMasterKey();
+            } catch (err) {
+              console.warn('Could not retrieve master key for subfolder name decryption', err);
+            }
+
+            const subfolders = (response.data.folders || []).map((subfolder: any) => {
+              // Decrypt subfolder name if both encryptedName and nameSalt are present
+              let displayName = subfolder.encryptedName || '';
+              if (subfolder.encryptedName && subfolder.nameSalt && masterKey) {
+                try {
+                  displayName = decryptFilename(subfolder.encryptedName, subfolder.nameSalt, masterKey);
+                } catch (err) {
+                  console.warn(`Failed to decrypt subfolder name for ${subfolder.id}:`, err);
+                  displayName = subfolder.encryptedName || '';
+                }
+              }
+
+              return {
+                id: subfolder.id,
+                name: displayName, // Add decrypted name
+                encryptedName: subfolder.encryptedName,
+                nameSalt: subfolder.nameSalt,
+                parentId: folder.id,
+                path: subfolder.path,
+                createdAt: subfolder.createdAt,
+                updatedAt: subfolder.updatedAt,
+                isExpanded: false,
+                level: (folder.level || 0) + 1,
+                children: [],
+                hasExploredChildren: false
+              };
+            })
 
             // Update the folder with its children
             setFolders(prev => updateFolderInTree(prev, folder.id, { 
@@ -230,7 +282,7 @@ export function MoveToFolderModal({ children, itemId = "", itemName = "item", it
             )}
             <IconFolder className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             <div className="flex-1 min-w-0">
-              <div className="font-medium text-sm truncate">{folder.name}</div>
+              <div className="font-medium text-sm truncate">{truncateFilename(folder.name)}</div>
             </div>
           </button>
           {folder.isExpanded && folder.children && renderFolderTree(folder.children)}

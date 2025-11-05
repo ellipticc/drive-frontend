@@ -5,12 +5,14 @@ import { useParams, useRouter } from 'next/navigation';
 import { apiClient } from '@/lib/api';
 import { downloadEncryptedFileWithCEK, downloadEncryptedFile } from '@/lib/download';
 import { decryptData } from '@/lib/crypto';
+import { truncateFilename } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Loader2, Download, File, AlertCircle, CheckCircle, Share2, FolderOpen, ChevronRight, Lock } from 'lucide-react';
 
@@ -535,7 +537,14 @@ export default function SharedDownloadPage() {
                       >
                         <div className="flex items-center gap-3 flex-1 text-left">
                           <FolderOpen className="h-4 w-4 text-blue-500 flex-shrink-0" />
-                          <p className="text-sm font-medium truncate">{folder.name}</p>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <p className="text-sm font-medium truncate">{truncateFilename(folder.name)}</p>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {folder.name}
+                            </TooltipContent>
+                          </Tooltip>
                         </div>
                         <ChevronRight className="h-4 w-4 text-muted-foreground ml-2 flex-shrink-0" />
                       </button>
@@ -551,7 +560,14 @@ export default function SharedDownloadPage() {
                         <div className="flex items-center gap-3 flex-1 text-left min-w-0">
                           <File className="h-4 w-4 text-gray-500 flex-shrink-0" />
                           <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium truncate">{file.name}</p>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <p className="text-sm font-medium truncate">{truncateFilename(file.name)}</p>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {file.name}
+                              </TooltipContent>
+                            </Tooltip>
                             {file.size && (
                               <p className="text-xs text-muted-foreground">{formatFileSize(file.size)}</p>
                             )}
@@ -584,7 +600,14 @@ export default function SharedDownloadPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-1">
                         <span className="text-sm font-medium text-muted-foreground">Filename</span>
-                        <p className="text-sm font-mono break-all">{shareDetails.file.filename}</p>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <p className="text-sm font-mono break-all">{truncateFilename(shareDetails.file.filename)}</p>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {shareDetails.file.filename}
+                          </TooltipContent>
+                        </Tooltip>
                       </div>
                       <div className="space-y-1">
                         <span className="text-sm font-medium text-muted-foreground">Size</span>

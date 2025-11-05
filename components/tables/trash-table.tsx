@@ -28,8 +28,10 @@ import { IconPhoto, IconVideo, IconMusic, IconFileText, IconArchive, IconFile } 
 import { apiClient } from "@/lib/api";
 import { IconLoader2 } from "@tabler/icons-react";
 import { toast } from "sonner";
-import { decryptFilename } from "@/lib/crypto";
+import { truncateFilename } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { masterKeyManager } from "@/lib/master-key";
+import { decryptFilename } from "@/lib/crypto";
 
 interface TrashItem {
     id: string;
@@ -113,14 +115,27 @@ export const TrashTable = () => {
                             sha256Hash: file.sha256Hash,
                         };
                     }),
-                    ...(foldersResponse.data || []).map((folder: any) => ({
-                        id: folder.id,
-                        name: folder.name,
-                        type: 'folder' as const,
-                        createdAt: folder.createdAt,
-                        updatedAt: folder.updatedAt,
-                        deletedAt: folder.deletedAt,
-                    }))
+                    ...(foldersResponse.data || []).map((folder: any) => {
+                        // Decrypt folder name if both encryptedName and nameSalt are present
+                        let displayName = folder.name || '';
+                        if (folder.encryptedName && folder.nameSalt && masterKey) {
+                            try {
+                                displayName = decryptFilename(folder.encryptedName, folder.nameSalt, masterKey);
+                            } catch (err) {
+                                console.warn(`Failed to decrypt folder name for trash folder ${folder.id}:`, err);
+                                displayName = folder.name || folder.encryptedName;
+                            }
+                        }
+
+                        return {
+                            id: folder.id,
+                            name: displayName,
+                            type: 'folder' as const,
+                            createdAt: folder.createdAt,
+                            updatedAt: folder.updatedAt,
+                            deletedAt: folder.deletedAt,
+                        };
+                    })
                 ];
                 setTrashItems(combinedItems);
             } else {
@@ -453,9 +468,18 @@ export const TrashTable = () => {
                                             <div className="text-base">
                                                 {getFileIcon(item.mimeType || '', item.type)}
                                             </div>
-                                            <p className="text-sm font-medium whitespace-nowrap text-foreground">
-                                                {item.name}
-                                            </p>
+                                            <Tooltip>
+                                                <TooltipTrigger>
+                                                    <p className="text-xs font-medium whitespace-nowrap text-foreground truncate cursor-default">
+                                                        {truncateFilename(item.name)}
+                                                    </p>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p className="text-xs text-muted-foreground max-w-xs break-words">
+                                                        {item.name}
+                                                    </p>
+                                                </TooltipContent>
+                                            </Tooltip>
                                         </div>
                                     </Table.Cell>
                                     <Table.Cell className="text-right">

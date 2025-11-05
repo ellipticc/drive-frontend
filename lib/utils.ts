@@ -10,11 +10,16 @@ export function cn(...inputs: ClassValue[]) {
  * Useful for long encrypted filenames that need to fit in UI components.
  *
  * @param filename - The filename to truncate
- * @param maxLength - Maximum length of the truncated string (default: 50)
+ * @param maxLength - Maximum length of the truncated string (default: 30)
  * @returns The truncated filename with ellipsis
  */
-export function truncateFilename(filename: string, maxLength: number = 50): string {
-  if (!filename || filename.length <= maxLength) {
+export function truncateFilename(filename: string, maxLength: number = 30): string {
+  // Handle null, undefined, or non-string inputs
+  if (!filename || typeof filename !== 'string') {
+    return '';
+  }
+
+  if (filename.length <= maxLength) {
     return filename;
   }
 

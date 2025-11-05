@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button"
 import { IconTrash, IconAlertTriangle } from "@tabler/icons-react"
 import { toast } from "sonner"
 import { apiClient } from "@/lib/api"
+import { truncateFilename } from "@/lib/utils"
 
 interface DeletePermanentlyModalProps {
   children?: React.ReactNode
@@ -85,7 +86,7 @@ export function DeletePermanentlyModal({ children, itemId = "", itemName = "item
         </DialogHeader>
         <div className="py-4">
           <p className="text-sm text-muted-foreground">
-            Are you sure you want to permanently delete <strong>"{itemName}"</strong>?
+            Are you sure you want to permanently delete <strong>"{truncateFilename(itemName)}"</strong>?
             {itemType === "folder" && " This will also permanently delete all files inside this folder."}
           </p>
           <p className="text-sm text-muted-foreground mt-2">

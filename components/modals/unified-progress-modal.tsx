@@ -32,6 +32,7 @@ import {
 } from "@tabler/icons-react";
 import { UploadProgress as UploadProgressType } from '@/lib/upload';
 import { DownloadProgress } from '@/lib/download';
+import { truncateFilename } from '@/lib/utils';
 
 export interface FileUploadState {
   id: string;
@@ -360,7 +361,7 @@ export function UnifiedProgressModal({
                       <div className="flex items-center gap-2 min-w-0 flex-1">
                         <IconFile className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                         <span className="font-medium text-sm truncate" title={upload.file.name}>
-                          {upload.file.name}
+                          {truncateFilename(upload.file.name)}
                         </span>
                         <span className="text-xs text-muted-foreground flex-shrink-0">
                           ({formatFileSize(upload.file.size)})
@@ -469,7 +470,7 @@ export function UnifiedProgressModal({
                       <div className="flex items-center gap-2 min-w-0 flex-1">
                         <IconFile className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                         <span className="font-medium text-sm truncate" title={downloadFilename}>
-                          {downloadFilename}
+                          {truncateFilename(downloadFilename || '')}
                         </span>
                         <span className="text-xs text-muted-foreground flex-shrink-0">
                           ({formatFileSize(downloadFileSize)})

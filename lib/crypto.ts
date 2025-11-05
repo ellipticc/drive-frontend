@@ -582,17 +582,6 @@ export async function decryptFilename(encryptedFilename: string, filenameSalt: s
     const filenameNonce = Uint8Array.from(atob(noncePart), c => c.charCodeAt(0));
     const encryptedBytes = Uint8Array.from(atob(encryptedPart), c => c.charCodeAt(0));
 
-    // Diagnostic logging
-    console.log('🔍 DEBUG filename decryption:', {
-      masterKeyLength: masterKey.length,
-      masterKeyPreview: uint8ArrayToHex(masterKey.slice(0, 8)) + '...',
-      saltLength: decodedSalt.length,
-      saltPreview: uint8ArrayToHex(decodedSalt.slice(0, 8)) + '...',
-      nonceLength: filenameNonce.length,
-      encryptedBytesLength: encryptedBytes.length,
-      encryptedPreview: uint8ArrayToHex(encryptedBytes.slice(0, 16)) + '...'
-    });
-
     // Derive filename-specific key using the same method as encryption
     const keyMaterial = new Uint8Array(decodedSalt.length + 12); // salt + 'filename-key'
     keyMaterial.set(decodedSalt, 0);
@@ -610,16 +599,10 @@ export async function decryptFilename(encryptedFilename: string, filenameSalt: s
     const derivedKeyMaterial = await crypto.subtle.sign('HMAC', hmacKey, keyMaterial);
     const filenameKey = new Uint8Array(derivedKeyMaterial.slice(0, 32));
 
-    console.log('🔍 DEBUG derived key:', {
-      derivedKeyLength: filenameKey.length,
-      derivedKeyPreview: uint8ArrayToHex(filenameKey.slice(0, 8)) + '...'
-    });
-
     // Decrypt filename
     const decryptedBytes = xchacha20poly1305(filenameKey, filenameNonce).decrypt(encryptedBytes);
     const filename = new TextDecoder().decode(decryptedBytes);
 
-    console.log('✅ Filename decrypted successfully');
     return filename;
   } catch (error) {
     throw new Error(`Failed to decrypt filename: ${error instanceof Error ? error.message : String(error)}`);

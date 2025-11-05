@@ -17,6 +17,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { IconFile, IconFolder, IconCalendar, IconUser, IconInfoCircle, IconDatabase, IconLoader2 } from "@tabler/icons-react"
 import { toast } from "sonner"
 import { apiClient } from "@/lib/api"
+import { truncateFilename } from "@/lib/utils"
 
 interface DetailsModalProps {
   children?: React.ReactNode
@@ -111,7 +112,7 @@ export function DetailsModal({
             ) : (
               <IconFolder className="h-5 w-5" />
             )}
-            {itemName}
+            {truncateFilename(itemName)}
           </DialogTitle>
           <DialogDescription>
             View details and properties of this {itemType}.

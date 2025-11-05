@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button"
 import { IconTrash, IconAlertTriangle } from "@tabler/icons-react"
 import { toast } from "sonner"
 import { apiClient } from "@/lib/api"
+import { truncateFilename } from "@/lib/utils"
 
 interface MoveToTrashModalProps {
   children?: React.ReactNode
@@ -85,7 +86,7 @@ export function MoveToTrashModal({ children, itemId = "", itemName = "item", ite
         </DialogHeader>
         <div className="py-4">
           <p className="text-sm text-muted-foreground">
-            Are you sure you want to move <strong>"{itemName}"</strong> to the trash?
+            Are you sure you want to move <strong>"{truncateFilename(itemName)}"</strong> to the trash?
             {itemType === "folder" && " This will also move all files inside this folder."}
           </p>
         </div>

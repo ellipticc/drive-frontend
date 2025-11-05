@@ -906,14 +906,26 @@ class ApiClient {
 
   async getTrashFolders(): Promise<ApiResponse<{
     id: string;
-    name: string;
+    encryptedName: string;
+    nameSalt: string;
     parentId: string | null;
     path: string;
     createdAt: string;
     updatedAt: string;
     deletedAt: string;
   }[]>> {
-    return this.request('/folders/trash/list');
+    const response = await this.request('/folders/trash/list') as any;
+    // The backend returns {folders: [...], files: [...]}, but we only want folders
+    if (response.success && response.data && response.data.folders) {
+      return {
+        success: true,
+        data: response.data.folders
+      };
+    }
+    return {
+      success: false,
+      error: response.error || 'Failed to fetch trash folders'
+    };
   }
 
   async deleteFilePermanently(fileId: string): Promise<ApiResponse<{ message: string }>> {
