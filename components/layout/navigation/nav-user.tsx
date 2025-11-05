@@ -1,11 +1,13 @@
 "use client"
 
+import { useState } from "react"
 import {
   IconCreditCard,
   IconDotsVertical,
   IconLogout,
   IconNotification,
   IconUserCircle,
+  IconSettings,
 } from "@tabler/icons-react"
 
 import {
@@ -31,6 +33,7 @@ import {
 import { apiClient } from "@/lib/api"
 import { masterKeyManager } from "@/lib/master-key"
 import { getDiceBearAvatar } from "@/lib/avatar"
+import { SettingsModal } from "@/components/modals/settings-modal"
 
 // Generate initials from name (e.g., "John Doe" -> "JD", "John" -> "J")
 export function getInitials(name: string): string {
@@ -71,6 +74,7 @@ export function NavUser({
   }
 }) {
   const { isMobile } = useSidebar()
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const displayName = getDisplayName(user)
 
   const handleLogout = async () => {
@@ -133,9 +137,16 @@ export function NavUser({
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <IconUserCircle />
-                Account
+              <DropdownMenuItem asChild>
+                <SettingsModal
+                  open={settingsOpen}
+                  onOpenChange={setSettingsOpen}
+                >
+                  <div className="flex items-center gap-2 cursor-pointer px-2 py-1.5">
+                    <IconSettings className="h-4 w-4" />
+                    <span>Settings</span>
+                  </div>
+                </SettingsModal>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => window.location.href = '/billing'}>
                 <IconCreditCard />
