@@ -53,13 +53,13 @@ export function getInitials(name: string): string {
 
 // Get display name: use display name if set, otherwise use email prefix
 function getDisplayName(user: { name: string; email: string }): string {
-  // If user has a display name set (not empty), use it
-  if (user.name && user.name.trim() !== '') {
+  // If user has a display name set (not empty and not just "User"), use it
+  if (user.name && user.name.trim() !== '' && user.name.trim().toLowerCase() !== 'user') {
     return user.name.trim();
   }
-  
+
   // Otherwise, use the part before "@" in the email
-  const emailPrefix = user.email.split('@')[0];
+  const emailPrefix = user.email ? user.email.split('@')[0] : '';
   return emailPrefix || 'User';
 }
 

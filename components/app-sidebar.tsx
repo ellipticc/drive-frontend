@@ -28,13 +28,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { apiClient } from "@/lib/api"
 import { useGlobalUpload } from "@/components/global-upload-context"
-
-const defaultUser = {
-  id: "",
-  name: "Loading...",
-  email: "loading@example.com",
-  avatar: "",
-}
+import { useUser } from "@/components/user-context"
 
 const defaultNavMain = [
   {
@@ -149,15 +143,8 @@ export const AppSidebar = React.memo(function AppSidebar({
 }: React.ComponentProps<typeof Sidebar>) {
   const { state } = useSidebar()
   const { handleFileUpload, handleFolderUpload } = useGlobalUpload()
-  const [user, setUser] = React.useState<{
-    id: string;
-    name: string;
-    email: string;
-    avatar: string;
-  }>(defaultUser)
-  const [loading, setLoading] = React.useState(true)
+  const { user: userData, loading: userLoading } = useUser()
   const [isAuthenticated, setIsAuthenticated] = React.useState(false)
-  const [userFetched, setUserFetched] = React.useState(false)
   const [storage, setStorage] = React.useState<{
     used_bytes: number;
     quota_bytes: number;
@@ -167,46 +154,20 @@ export const AppSidebar = React.memo(function AppSidebar({
   } | null>(null)
   const [storageLoading, setStorageLoading] = React.useState(false)
 
+  // Check authentication status
   React.useEffect(() => {
-    const checkAuthAndFetchUser = async () => {
-      // Check if token exists
+    const checkAuth = () => {
       const token = localStorage.getItem('auth_token') || document.cookie.includes('auth_token')
-
       if (!token) {
-        // Redirect to login if no token
         window.location.href = '/login'
         return
       }
-
       setIsAuthenticated(true)
-
-      // Only fetch user data once
-      if (!userFetched) {
-        try {
-          const response = await apiClient.getProfile()
-          if (response.success && response.data?.user) {
-            const userData = response.data.user
-            setUser({
-              id: userData.id,
-              name: userData.name || "User",
-              email: userData.email,
-              avatar: "",
-            })
-          }
-        } catch (error) {
-          // console.error("Failed to fetch user data:", error)
-          // Keep default user data on error
-        } finally {
-          setLoading(false)
-          setUserFetched(true)
-        }
-      }
     }
+    checkAuth()
+  }, [])
 
-    checkAuthAndFetchUser()
-  }, [userFetched]) // Only depend on userFetched to prevent re-renders
-
-  // Fetch storage data separately
+  // Fetch storage data when authenticated
   React.useEffect(() => {
     const fetchStorage = async () => {
       if (!isAuthenticated) return
@@ -227,9 +188,22 @@ export const AppSidebar = React.memo(function AppSidebar({
     fetchStorage()
   }, [isAuthenticated])
 
-  // Don't render if not authenticated (will redirect)
-  if (!isAuthenticated && !loading) {
+  // Don't render if not authenticated
+  if (!isAuthenticated) {
     return null
+  }
+
+  // Prepare user data for NavUser component
+  const user = userData ? {
+    id: userData.id,
+    name: userData.name || "",
+    email: userData.email,
+    avatar: "",
+  } : {
+    id: "",
+    name: "Loading...",
+    email: "loading@example.com",
+    avatar: "",
   }
 
   const data: {

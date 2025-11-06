@@ -15,6 +15,8 @@ interface GlobalUploadContextType {
   // Upload handlers
   handleFileUpload: () => void;
   handleFolderUpload: () => void;
+  startUploadWithFiles: (files: File[], folderId: string | null) => void;
+  startUploadWithFolders: (files: FileList, folderId: string | null) => void;
 
   // Modal controls
   openModal: () => void;
@@ -359,6 +361,22 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
     // Modal stays open until user explicitly closes it
   }, []);
 
+  const startUploadWithFiles = useCallback((files: File[], folderId: string | null) => {
+    files.forEach(file => {
+      const uploadState = addUpload(file);
+      startUpload(uploadState);
+    });
+    openModal();
+  }, [addUpload, startUpload, openModal]);
+
+  const startUploadWithFolders = useCallback((files: FileList, folderId: string | null) => {
+    Array.from(files).forEach(file => {
+      const uploadState = addUpload(file);
+      startUpload(uploadState);
+    });
+    openModal();
+  }, [addUpload, startUpload, openModal]);
+
   const retryDownload = useCallback(() => {
     if (!currentDownloadFile) return;
 
@@ -380,6 +398,8 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
     isModalOpen,
     handleFileUpload,
     handleFolderUpload,
+    startUploadWithFiles,
+    startUploadWithFolders,
     openModal,
     closeModal,
     cancelUpload,

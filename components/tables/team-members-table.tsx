@@ -61,6 +61,8 @@ export const Table01DividerLineSm = ({
     const { 
       handleFileUpload: globalHandleFileUpload, 
       handleFolderUpload: globalHandleFolderUpload,
+      startUploadWithFiles,
+      startUploadWithFolders,
       startFileDownload,
       startFolderDownload,
       startBulkDownload,
@@ -244,23 +246,13 @@ export const Table01DividerLineSm = ({
     // Start file uploads with progress tracking
     const startUploads = async (files: File[]) => {
         // Use global upload context
-        // The global context handles opening the modal and managing uploads
-        // We just need to trigger the file input or call the global handler
-        if (onFileUpload) {
-            onFileUpload();
-        } else {
-            fileInputRef.current?.click();
-        }
+        startUploadWithFiles(files, currentFolderId === 'root' ? null : currentFolderId);
     };
 
     // Start folder uploads with progress tracking (similar to file uploads but with folder hierarchy)
     const startFolderUploads = async (files: FileList) => {
         // Use global upload context
-        if (onFolderUpload) {
-            onFolderUpload();
-        } else {
-            folderInputRef.current?.click();
-        }
+        startUploadWithFolders(files, currentFolderId === 'root' ? null : currentFolderId);
     };
 
     // Upload handlers - now using global context
@@ -1033,7 +1025,7 @@ export const Table01DividerLineSm = ({
                         parentId={currentFolderId === 'root' ? null : currentFolderId}
                         onFolderCreated={refreshFiles}
                     >
-                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Create new folder">
                             <IconFolderPlus className="h-4 w-4" />
                         </Button>
                     </CreateFolderModal>
@@ -1043,6 +1035,7 @@ export const Table01DividerLineSm = ({
                         variant="ghost"
                         className="h-7 w-7 p-0"
                         onClick={handleFolderUpload}
+                        title="Upload folder"
                     >
                         <IconUpload className="h-4 w-4" />
                     </Button>
@@ -1051,6 +1044,7 @@ export const Table01DividerLineSm = ({
                         variant="ghost"
                         className="h-7 w-7 p-0"
                         onClick={handleFileUpload}
+                        title="Upload file"
                     >
                         <IconFileUpload className="h-4 w-4" />
                     </Button>

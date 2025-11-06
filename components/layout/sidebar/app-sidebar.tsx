@@ -162,7 +162,7 @@ export const AppSidebar = React.memo(function AppSidebar({
   })
 
   const user = contextUser ? {
-    name: contextUser.name || "User",
+    name: contextUser.name || "",
     email: contextUser.email,
     avatar: contextUser.avatar || "/avatars/default.jpg",
     id: contextUser.id,

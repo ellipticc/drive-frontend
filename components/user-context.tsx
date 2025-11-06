@@ -28,19 +28,88 @@ interface UserContextType {
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
+// Local storage key for user data
+const USER_DATA_KEY = 'user_profile_data';
+const USER_DATA_TIMESTAMP_KEY = 'user_profile_timestamp';
+
+// Cache user data for 24 hours
+const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+
+// Helper functions for localStorage
+const saveUserDataToCache = (userData: UserData) => {
+  try {
+    localStorage.setItem(USER_DATA_KEY, JSON.stringify(userData));
+    localStorage.setItem(USER_DATA_TIMESTAMP_KEY, Date.now().toString());
+  } catch (error) {
+    console.warn('Failed to save user data to cache:', error);
+  }
+};
+
+const getUserDataFromCache = (): UserData | null => {
+  try {
+    const cachedData = localStorage.getItem(USER_DATA_KEY);
+    const timestamp = localStorage.getItem(USER_DATA_TIMESTAMP_KEY);
+
+    if (!cachedData || !timestamp) {
+      return null;
+    }
+
+    const cacheAge = Date.now() - parseInt(timestamp);
+    if (cacheAge > CACHE_DURATION) {
+      // Cache is expired, remove it
+      localStorage.removeItem(USER_DATA_KEY);
+      localStorage.removeItem(USER_DATA_TIMESTAMP_KEY);
+      return null;
+    }
+
+    return JSON.parse(cachedData);
+  } catch (error) {
+    console.warn('Failed to load user data from cache:', error);
+    return null;
+  }
+};
+
+const clearUserDataCache = () => {
+  try {
+    localStorage.removeItem(USER_DATA_KEY);
+    localStorage.removeItem(USER_DATA_TIMESTAMP_KEY);
+  } catch (error) {
+    console.warn('Failed to clear user data cache:', error);
+  }
+};
+
 export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasFetched, setHasFetched] = useState(false);
 
-  const fetchUser = async () => {
-    // Only fetch once unless explicitly refetching
-    if (hasFetched && user !== null) {
+  const fetchUser = async (forceRefresh = false) => {
+    // If we already have data and don't need to force refresh, use cached data
+    if (!forceRefresh && hasFetched && user !== null) {
       setLoading(false);
       return;
     }
 
+    // Try to load from cache first (unless forcing refresh)
+    if (!forceRefresh) {
+      const cachedUser = getUserDataFromCache();
+      if (cachedUser) {
+        console.log('UserProvider: Loaded user data from cache');
+        setUser(cachedUser);
+        setLoading(false);
+        setHasFetched(true);
+        // Still fetch fresh data in background for next time
+        fetchFreshUserData();
+        return;
+      }
+    }
+
+    // Fetch fresh data
+    await fetchFreshUserData();
+  };
+
+  const fetchFreshUserData = async () => {
     // Double-check token exists before making request
     const token = apiClient.getAuthToken();
     if (!token) {
@@ -50,16 +119,19 @@ export function UserProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    console.log('UserProvider: Fetching user profile with token...');
+    console.log('UserProvider: Fetching fresh user profile with token...');
     try {
       setLoading(true);
       setError(null);
       const response = await apiClient.getProfile();
       
       if (response.success && response.data?.user) {
-        console.log('UserProvider: Successfully fetched user profile');
-        setUser(response.data.user);
+        console.log('UserProvider: Successfully fetched fresh user profile');
+        const userData = response.data.user;
+        setUser(userData);
         setHasFetched(true);
+        // Cache the user data
+        saveUserDataToCache(userData);
       } else {
         console.log('UserProvider: Failed to fetch user profile:', response.error);
         throw new Error(response.error || 'Failed to fetch user');
@@ -80,8 +152,23 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   const refetch = async () => {
     setHasFetched(false);
-    await fetchUser();
+    await fetchUser(true); // Force refresh
   };
+
+  // Clear cache on logout
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'auth_token' && !e.newValue) {
+        // Token was removed (logout), clear user cache
+        clearUserDataCache();
+        setUser(null);
+        setHasFetched(false);
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
   return (
     <UserContext.Provider value={{ user, loading, error, refetch }}>

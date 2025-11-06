@@ -566,7 +566,6 @@ class ApiClient {
     return this.request(`/files/${fileId}/rename`, {
       method: 'PUT',
       body: JSON.stringify({
-        newFilename,
         encryptedFilename,
         filenameSalt
       }),
