@@ -463,7 +463,6 @@ export const Table01DividerLineSm = ({
         setFolderPath(newPath);
         updateUrl(newPath);
         setSelectedItems(new Set()); // Clear selection when navigating to new folder
-        await refreshFiles(folderId);
     };
 
     // Navigate to parent folder
@@ -474,7 +473,6 @@ export const Table01DividerLineSm = ({
             setCurrentFolderId(parentFolder.id);
             setFolderPath(newPath);
             updateUrl(newPath);
-            await refreshFiles(parentFolder.id);
         }
     };
 
@@ -487,7 +485,6 @@ export const Table01DividerLineSm = ({
             setFolderPath(newPath);
             updateUrl(newPath);
             setSelectedItems(new Set()); // Clear selection when navigating to new folder
-            await refreshFiles(folderId);
         }
     };
 
