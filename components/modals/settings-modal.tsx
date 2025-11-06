@@ -290,9 +290,6 @@ export function SettingsModal({
                         )}
                       </div>
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      Click the avatar to update your profile picture
-                    </p>
                   </div>
                 </div>
               </div>
@@ -316,9 +313,6 @@ export function SettingsModal({
                   <SelectItem value="dark">Dark</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-sm text-muted-foreground">
-                Choose your preferred theme for the application.
-              </p>
             </div>
           </div>
 
@@ -338,9 +332,6 @@ export function SettingsModal({
                   <SelectItem value="24h">24-hour</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-sm text-muted-foreground">
-                Choose how time is displayed throughout the application.
-              </p>
             </div>
           </div>
         </div>
