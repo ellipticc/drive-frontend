@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react"
 import { toast } from "sonner"
+import { useRouter } from "next/navigation"
 import {
   Dialog,
   DialogContent,
@@ -21,18 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import {
-  Field,
-  FieldDescription,
-  FieldLabel,
-} from "@/components/ui/field"
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs"
-import { IconUserCircle, IconBlur, IconClockHour4, IconSettings } from "@tabler/icons-react"
+import { IconSettings, IconLoader2, IconPencil, IconCheck } from "@tabler/icons-react"
 import { apiClient } from "@/lib/api"
 import { useTheme } from "next-themes"
 import { getDiceBearAvatar } from "@/lib/avatar"
@@ -53,112 +43,35 @@ export function SettingsModal({
   const [internalOpen, setInternalOpen] = useState(false)
   const { user, refetch } = useUser()
   const { theme, setTheme } = useTheme()
+  const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const nameInputRef = useRef<HTMLInputElement>(null)
 
   // Use external state if provided, otherwise internal state
   const open = externalOpen !== undefined ? externalOpen : internalOpen
   const setOpen = externalOnOpenChange || setInternalOpen
 
-  // User settings state
-  const [userSettings, setUserSettings] = useState({
-    name: "",
-    avatar: ""
-  })
+  // State management
+  const [displayName, setDisplayName] = useState("")
   const [originalName, setOriginalName] = useState("")
   const [isEditingName, setIsEditingName] = useState(false)
-
-  // General settings state
-  const [generalSettings, setGeneralSettings] = useState({
-    dateFormat: "MM/DD/YYYY"
-  })
-  const [originalDateFormat, setOriginalDateFormat] = useState("MM/DD/YYYY")
-
-  // Loading states
-  const [isLoading, setIsLoading] = useState(false)
-  const [isSavingProfile, setIsSavingProfile] = useState(false)
-  const [isSavingDateFormat, setIsSavingDateFormat] = useState(false)
+  const [isLoadingAvatar, setIsLoadingAvatar] = useState(false)
+  const [isSavingName, setIsSavingName] = useState(false)
+  const [dateTimePreference, setDateTimePreference] = useState("24h")
 
   useEffect(() => {
-    if (open && user) {
-      loadSettings()
+    if (isEditingName && nameInputRef.current) {
+      nameInputRef.current.focus()
+      nameInputRef.current.select()
     }
-  }, [open, user])
+  }, [isEditingName])
 
-  const loadSettings = async () => {
-    if (!user) return
-    
-    try {
-      const name = user.name || ""
-      setUserSettings({
-        name: name,
-        avatar: user.avatar || ""
-      })
-      setOriginalName(name)
-
-      // Load date format from localStorage
-      const savedDateFormat = localStorage.getItem('dateFormat') || "MM/DD/YYYY"
-      setGeneralSettings({ dateFormat: savedDateFormat })
-      setOriginalDateFormat(savedDateFormat)
-    } catch (error) {
-      console.error('Failed to load settings:', error)
-      toast.error("Failed to load settings")
-    }
-  }
-
-  const handleUserSettingsUpdate = async () => {
-    // Only send if name was actually changed
-    if (userSettings.name === originalName) {
-      setIsEditingName(false)
-      toast.info("No changes to save")
-      return
-    }
-
-    setIsSavingProfile(true)
-    try {
-      const response = await apiClient.updateUserProfile({
-        name: userSettings.name,
-        avatar: userSettings.avatar
-      })
-
-      if (response.success) {
-        setOriginalName(userSettings.name)
-        setIsEditingName(false)
-        await refetch()
-        toast.success("Profile updated successfully!")
-      } else {
-        toast.error(response.error || "Failed to update profile")
-      }
-    } catch (error) {
-      toast.error("Failed to update profile")
-    } finally {
-      setIsSavingProfile(false)
-    }
-  }
-
-  const handleDateFormatUpdate = async () => {
-    // Only send if format actually changed
-    if (generalSettings.dateFormat === originalDateFormat) {
-      toast.info("No changes to save")
-      return
-    }
-
-    setIsSavingDateFormat(true)
-    try {
-      // Save to localStorage (in a real app, this would call an API)
-      localStorage.setItem('dateFormat', generalSettings.dateFormat)
-      setOriginalDateFormat(generalSettings.dateFormat)
-      toast.success("Date format updated!")
-    } catch (error) {
-      toast.error("Failed to update date format")
-    } finally {
-      setIsSavingDateFormat(false)
-    }
-  }
-
+  // Handle avatar click to open file picker
   const handleAvatarClick = () => {
     fileInputRef.current?.click()
   }
 
+  // Handle avatar file selection and upload
   const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
@@ -175,34 +88,21 @@ export function SettingsModal({
       return
     }
 
-    setIsLoading(true)
+    setIsLoadingAvatar(true)
     try {
-      // Generate random 32-byte hex filename
-      const randomHex = Array.from(crypto.getRandomValues(new Uint8Array(32)))
-        .map(b => b.toString(16).padStart(2, '0'))
-        .join('')
-
-      // Upload to Backblaze
       const formData = new FormData()
       formData.append('file', file)
-      formData.append('filename', randomHex)
 
       const uploadResponse = await apiClient.uploadAvatar(formData)
 
       if (uploadResponse.success && uploadResponse.data?.avatarUrl) {
-        // Update user profile with new avatar URL
-        const updateResponse = await apiClient.updateUserProfile({
-          name: userSettings.name,
+        // Update the user's profile with the new avatar URL
+        await apiClient.updateUserProfile({
           avatar: uploadResponse.data.avatarUrl
         })
-
-        if (updateResponse.success) {
-          setUserSettings(prev => ({ ...prev, avatar: uploadResponse.data?.avatarUrl || '' }))
-          await refetch()
-          toast.success("Avatar updated successfully!")
-        } else {
-          toast.error("Failed to update profile")
-        }
+        // Force refetch to update user data
+        await refetch()
+        toast.success("Avatar updated successfully!")
       } else {
         toast.error("Failed to upload avatar")
       }
@@ -210,12 +110,78 @@ export function SettingsModal({
       console.error('Avatar upload error:', error)
       toast.error("Failed to upload avatar")
     } finally {
-      setIsLoading(false)
+      setIsLoadingAvatar(false)
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ""
+      }
     }
   }
 
-  const hasProfileChanges = userSettings.name !== originalName
-  const hasDateFormatChanges = generalSettings.dateFormat !== originalDateFormat
+  // Handle display name save
+  const handleSaveName = async () => {
+    if (displayName === originalName) {
+      setIsEditingName(false)
+      return
+    }
+
+    if (!displayName.trim()) {
+      toast.error("Display name cannot be empty")
+      return
+    }
+
+    setIsSavingName(true)
+    try {
+      const response = await apiClient.updateUserProfile({
+        name: displayName.trim()
+      })
+
+      if (response.success) {
+        setOriginalName(displayName.trim())
+        setIsEditingName(false)
+        await refetch()
+        toast.success("Display name updated!")
+      } else {
+        toast.error(response.error || "Failed to update display name")
+      }
+    } catch (error) {
+      toast.error("Failed to update display name")
+    } finally {
+      setIsSavingName(false)
+    }
+  }
+
+  // Handle display name cancel
+  const handleCancelEdit = () => {
+    setDisplayName(originalName)
+    setIsEditingName(false)
+  }
+
+  // Handle avatar removal
+  const handleRemoveAvatar = async () => {
+    try {
+      setIsLoadingAvatar(true)
+      
+      const response = await apiClient.updateUserProfile({
+        avatar: ""
+      })
+
+      if (response.success) {
+        await refetch()
+        toast.success("Avatar removed successfully!")
+      } else {
+        toast.error("Failed to remove avatar")
+      }
+    } catch (error) {
+      console.error('Avatar removal error:', error)
+      toast.error("Failed to remove avatar")
+    } finally {
+      setIsLoadingAvatar(false)
+    }
+  }
+
+  // Check if current avatar is a DiceBear avatar
+  const isDiceBearAvatar = user?.avatar && user.avatar.includes('dicebear-api.com')
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -232,181 +198,162 @@ export function SettingsModal({
       )}
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <IconSettings className="h-5 w-5" />
+          <DialogTitle className="flex items-center gap-2 text-xl">
+            <IconSettings className="h-6 w-6" />
             Settings
           </DialogTitle>
           <DialogDescription>
-            Manage your profile, appearance, and preferences
+            Manage your account settings and preferences.
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs defaultValue="profile" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="profile" className="flex items-center gap-2">
-              <IconUserCircle className="h-4 w-4" />
-              <span className="hidden sm:inline">Profile</span>
-            </TabsTrigger>
-            <TabsTrigger value="appearance" className="flex items-center gap-2">
-              <IconBlur className="h-4 w-4" />
-              <span className="hidden sm:inline">Appearance</span>
-            </TabsTrigger>
-            <TabsTrigger value="datetime" className="flex items-center gap-2">
-              <IconClockHour4 className="h-4 w-4" />
-              <span className="hidden sm:inline">Date & Time</span>
-            </TabsTrigger>
-          </TabsList>
-
-          {/* Profile Tab */}
-          <TabsContent value="profile" className="space-y-4">
-            <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <Avatar
-                  className="h-16 w-16 cursor-pointer hover:opacity-80 transition-opacity"
-                  onClick={handleAvatarClick}
-                >
-                  <AvatarImage
-                    src={userSettings.avatar || getDiceBearAvatar(user?.id || "user")}
-                    alt="Profile"
-                  />
-                  <AvatarFallback className="text-sm">
-                    {getInitials(userSettings.name || "User")}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <p className="text-sm font-medium">Profile Picture</p>
-                  <p className="text-xs text-muted-foreground mb-2">
-                    Click to upload a new avatar
-                  </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
+        <div className="space-y-8 py-4">
+          {/* Profile Section */}
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Profile</h3>
+              <div className="flex items-start gap-6">
+                {/* Avatar */}
+                <div className="relative group">
+                  <Avatar
+                    className="h-24 w-24 cursor-pointer hover:opacity-75 transition-opacity flex-shrink-0"
                     onClick={handleAvatarClick}
-                    disabled={isLoading}
                   >
-                    {isLoading ? "Uploading..." : "Change Avatar"}
-                  </Button>
-                </div>
-              </div>
-
-              <div className="border-t pt-4">
-                <Field>
-                  <FieldLabel htmlFor="displayName">Display Name</FieldLabel>
-                  <div className="flex gap-2">
-                    <Input
-                      id="displayName"
-                      value={userSettings.name}
-                      onChange={(e) => setUserSettings(prev => ({ ...prev, name: e.target.value }))}
-                      placeholder="Enter your display name"
-                      disabled={!isEditingName}
-                      className="flex-1"
+                    <AvatarImage
+                      src={user?.avatar || getDiceBearAvatar(user?.id || "user")}
+                      alt="Profile"
                     />
-                    {!isEditingName ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setIsEditingName(true)}
-                      >
-                        Edit
-                      </Button>
-                    ) : (
-                      <div className="flex gap-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setUserSettings(prev => ({ ...prev, name: originalName }))
-                            setIsEditingName(false)
+                    <AvatarFallback className="text-lg">
+                      {getInitials(displayName || "User")}
+                    </AvatarFallback>
+                  </Avatar>
+                  {isLoadingAvatar && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full">
+                      <IconLoader2 className="h-6 w-6 animate-spin text-white" />
+                    </div>
+                  )}
+                  {/* Remove avatar cross - only show for non-DiceBear avatars */}
+                  {user?.avatar && !isDiceBearAvatar && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleRemoveAvatar()
+                      }}
+                      className="absolute -top-1 -right-1 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                      title="Remove avatar"
+                    >
+                      <span className="text-xs font-bold">✕</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Display Name Section */}
+                <div className="flex-1 pt-2">
+                  <div className="space-y-3">
+                    <div>
+                      <Label htmlFor="display-name" className="text-sm font-medium">
+                        Display name
+                      </Label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Input
+                          ref={nameInputRef}
+                          id="display-name"
+                          value={displayName}
+                          onChange={(e) => setDisplayName(e.target.value)}
+                          placeholder="Enter your name"
+                          readOnly={!isEditingName}
+                          className={`flex-1 ${!isEditingName ? 'bg-muted cursor-pointer' : ''}`}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && isEditingName) handleSaveName()
+                            if (e.key === 'Escape' && isEditingName) handleCancelEdit()
                           }}
-                          disabled={isSavingProfile}
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          size="sm"
-                          onClick={handleUserSettingsUpdate}
-                          disabled={!hasProfileChanges || isSavingProfile}
-                        >
-                          {isSavingProfile ? "Saving..." : "Save"}
-                        </Button>
+                        />
+                        {isEditingName ? (
+                          <Button
+                            size="sm"
+                            onClick={handleSaveName}
+                            disabled={isSavingName || displayName === originalName || !displayName.trim()}
+                            className="h-9 w-9 p-0"
+                          >
+                            <IconCheck className="h-4 w-4" />
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setIsEditingName(true)}
+                            className="h-9 w-9 p-0"
+                            title="Edit display name"
+                          >
+                            <IconPencil className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
-                    )}
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Click the avatar to update your profile picture
+                    </p>
                   </div>
-                  <FieldDescription>
-                    This is how you'll appear to others on the platform.
-                  </FieldDescription>
-                </Field>
+                </div>
               </div>
             </div>
-          </TabsContent>
+          </div>
 
-          {/* Appearance Tab */}
-          <TabsContent value="appearance" className="space-y-4">
-            <div className="space-y-4">
-              <Field>
-                <FieldLabel>Theme</FieldLabel>
-                <div className="flex gap-2">
-                  <Button
-                    variant={theme === 'light' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setTheme('light')}
-                    className="flex items-center gap-2"
-                  >
-                    <div className="w-4 h-4 rounded-full bg-white border border-gray-300"></div>
-                    Light
-                  </Button>
-                  <Button
-                    variant={theme === 'dark' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setTheme('dark')}
-                    className="flex items-center gap-2"
-                  >
-                    <div className="w-4 h-4 rounded-full bg-gray-900 border border-gray-600"></div>
-                    Dark
-                  </Button>
-                </div>
-                <FieldDescription>
-                  Choose your preferred theme for the application.
-                </FieldDescription>
-              </Field>
+          {/* Appearance Section */}
+          <div className="border-t pt-6 space-y-4">
+            <h3 className="text-lg font-semibold">Appearance</h3>
+            <div className="space-y-2">
+              <Label htmlFor="theme-select" className="text-sm font-medium">
+                Theme
+              </Label>
+              <Select value={theme || "system"} onValueChange={setTheme}>
+                <SelectTrigger id="theme-select" className="w-full max-w-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="system">System</SelectItem>
+                  <SelectItem value="light">Light</SelectItem>
+                  <SelectItem value="dark">Dark</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-sm text-muted-foreground">
+                Choose your preferred theme for the application.
+              </p>
             </div>
-          </TabsContent>
+          </div>
 
-          {/* Date & Time Tab */}
-          <TabsContent value="datetime" className="space-y-4">
-            <div className="space-y-4">
-              <Field>
-                <FieldLabel htmlFor="dateFormat">Date Format</FieldLabel>
-                <Select
-                  value={generalSettings.dateFormat}
-                  onValueChange={(value) => setGeneralSettings(prev => ({ ...prev, dateFormat: value }))}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="MM/DD/YYYY">MM/DD/YYYY (US)</SelectItem>
-                    <SelectItem value="DD/MM/YYYY">DD/MM/YYYY (European)</SelectItem>
-                    <SelectItem value="YYYY-MM-DD">YYYY-MM-DD (ISO)</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FieldDescription>
-                  Choose how dates are formatted throughout the application.
-                </FieldDescription>
-                {hasDateFormatChanges && (
-                  <Button
-                    size="sm"
-                    className="mt-2"
-                    onClick={handleDateFormatUpdate}
-                    disabled={isSavingDateFormat}
-                  >
-                    {isSavingDateFormat ? "Saving..." : "Save Format"}
-                  </Button>
-                )}
-              </Field>
+          {/* Date & Time Section */}
+          <div className="border-t pt-6 space-y-4">
+            <h3 className="text-lg font-semibold">Date & Time</h3>
+            <div className="space-y-2">
+              <Label htmlFor="datetime-select" className="text-sm font-medium">
+                Time format
+              </Label>
+              <Select value={dateTimePreference} onValueChange={setDateTimePreference}>
+                <SelectTrigger id="datetime-select" className="w-full max-w-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="12h">12-hour (AM/PM)</SelectItem>
+                  <SelectItem value="24h">24-hour</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-sm text-muted-foreground">
+                Choose how time is displayed throughout the application.
+              </p>
             </div>
-          </TabsContent>
-        </Tabs>
+          </div>
+        </div>
+
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleAvatarChange}
+          className="hidden"
+          disabled={isLoadingAvatar}
+        />
       </DialogContent>
     </Dialog>
   )

@@ -29,11 +29,12 @@ import {
 import { Button } from "@/components/ui/button"
 import { useGlobalUpload } from "@/components/global-upload-context"
 import { useUser } from "@/components/user-context"
+import { getDiceBearAvatar } from "@/lib/avatar"
 
 const defaultUser = {
   name: "Loading...",
   email: "loading@example.com",
-  avatar: "/avatars/default.jpg",
+  avatar: getDiceBearAvatar("loading"),
   id: "",
 }
 
@@ -164,7 +165,7 @@ export const AppSidebar = React.memo(function AppSidebar({
   const user = contextUser ? {
     name: contextUser.name || "",
     email: contextUser.email,
-    avatar: contextUser.avatar || "/avatars/default.jpg",
+    avatar: contextUser.avatar || getDiceBearAvatar(contextUser.id),
     id: contextUser.id,
   } : defaultUser
 
