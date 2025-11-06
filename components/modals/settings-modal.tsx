@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -22,7 +23,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { IconSettings, IconLoader2, IconPencil, IconCheck } from "@tabler/icons-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { IconSettings, IconLoader2, IconPencil, IconCheck, IconMail, IconLock, IconLogout, IconTrash } from "@tabler/icons-react"
 import { apiClient } from "@/lib/api"
 import { useTheme } from "next-themes"
 import { getDiceBearAvatar } from "@/lib/avatar"
@@ -58,6 +60,23 @@ export function SettingsModal({
   const [isLoadingAvatar, setIsLoadingAvatar] = useState(false)
   const [isSavingName, setIsSavingName] = useState(false)
   const [dateTimePreference, setDateTimePreference] = useState("24h")
+
+  // Security state
+  const [currentEmail, setCurrentEmail] = useState("")
+  const [newEmail, setNewEmail] = useState("")
+  const [confirmEmail, setConfirmEmail] = useState("")
+  const [emailPassword, setEmailPassword] = useState("")
+  const [isChangingEmail, setIsChangingEmail] = useState(false)
+  const [showEmailModal, setShowEmailModal] = useState(false)
+  const [currentPassword, setCurrentPassword] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [isChangingPassword, setIsChangingPassword] = useState(false)
+  const [showPasswordModal, setShowPasswordModal] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deleteConfirmation, setDeleteConfirmation] = useState("")
 
   useEffect(() => {
     if (isEditingName && nameInputRef.current) {
@@ -183,6 +202,150 @@ export function SettingsModal({
   // Check if current avatar is a DiceBear avatar
   const isDiceBearAvatar = user?.avatar && user.avatar.includes('dicebear-api.com')
 
+  // Handle email change
+  const handleChangeEmail = async () => {
+    if (!newEmail.trim()) {
+      toast.error("New email cannot be empty")
+      return
+    }
+
+    if (newEmail === user?.email) {
+      toast.error("New email must be different from current email")
+      return
+    }
+
+    setIsChangingEmail(true)
+    try {
+      const response = await apiClient.updateUserProfile({
+        email: newEmail.trim()
+      })
+
+      if (response.success) {
+        setNewEmail("")
+        await refetch()
+        toast.success("Email updated successfully! Please check your new email for verification.")
+      } else {
+        toast.error(response.error || "Failed to update email")
+      }
+    } catch (error) {
+      toast.error("Failed to update email")
+    } finally {
+      setIsChangingEmail(false)
+    }
+  }
+
+  // Handle password change
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast.error("All password fields are required")
+      return
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error("New passwords do not match")
+      return
+    }
+
+    if (newPassword.length < 8) {
+      toast.error("New password must be at least 8 characters long")
+      return
+    }
+
+    setIsChangingPassword(true)
+    try {
+      // For OPAQUE, password change is more complex and requires client-side OPAQUE operations
+      // This is a placeholder - the actual implementation would need to integrate with OPAQUE
+      toast.error("Password change requires OPAQUE protocol integration. Please use account recovery instead.")
+      
+      // Reset form
+      setCurrentPassword("")
+      setNewPassword("")
+      setConfirmPassword("")
+    } catch (error) {
+      toast.error("Failed to change password")
+    } finally {
+      setIsChangingPassword(false)
+    }
+  }
+
+  // Complete logout with full cleanup
+  const completeLogout = async () => {
+    try {
+      // Call logout API
+      await apiClient.logout()
+    } catch (error) {
+      console.error('Logout API error:', error)
+    }
+
+    // Clear all local storage
+    if (typeof window !== 'undefined') {
+      localStorage.clear()
+      sessionStorage.clear()
+
+      // Clear all cookies
+      document.cookie.split(";").forEach((c) => {
+        document.cookie = c
+          .replace(/^ +/, "")
+          .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/")
+      })
+    }
+
+    // Clear user context (this will trigger re-render)
+    // The user context should handle clearing its own state
+  }
+
+  // Handle logout
+  const handleLogout = async () => {
+    setIsLoggingOut(true)
+    try {
+      await completeLogout()
+      toast.success("Logged out successfully")
+      // Redirect to login page immediately
+      window.location.href = '/login'
+    } catch (error) {
+      toast.error("Failed to logout")
+    } finally {
+      setIsLoggingOut(false)
+    }
+  }
+
+  // Handle account deletion
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmation !== "DELETE") {
+      toast.error("Please type 'DELETE' to confirm account deletion")
+      return
+    }
+
+    setIsDeletingAccount(true)
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://drive.ellipticc.com/api/v1'}/auth/delete`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${apiClient.getAuthToken()}`,
+          'Content-Type': 'application/json',
+        },
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        // Complete cleanup
+        await completeLogout()
+        toast.success("Account deleted successfully")
+        // Redirect to landing page
+        window.location.href = '/'
+      } else {
+        toast.error(data.error || "Failed to delete account")
+      }
+    } catch (error) {
+      toast.error("Failed to delete account")
+    } finally {
+      setIsDeletingAccount(false)
+      setShowDeleteModal(false)
+      setDeleteConfirmation("")
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {externalOpen === undefined && externalOnOpenChange === undefined ? (
@@ -207,7 +370,13 @@ export function SettingsModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-8 py-4">
+        <Tabs defaultValue="general" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="general">General</TabsTrigger>
+            <TabsTrigger value="security">Security</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="general" className="space-y-8 py-4">
           {/* Profile Section */}
           <div className="space-y-6">
             <div>
@@ -332,9 +501,331 @@ export function SettingsModal({
                   <SelectItem value="24h">24-hour</SelectItem>
                 </SelectContent>
               </Select>
+              <p className="text-sm text-muted-foreground">
+                Choose how time is displayed throughout the application.
+              </p>
             </div>
           </div>
-        </div>
+          </TabsContent>
+
+          <TabsContent value="security" className="space-y-8 py-4">
+            {/* Change Email Section */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <IconMail className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <p className="font-medium">Email Address</p>
+                  <p className="text-sm text-muted-foreground">{user?.email}</p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowEmailModal(true)}
+              >
+                Change
+              </Button>
+            </div>
+
+            {/* Change Password Section */}
+            <div className="flex items-center justify-between border-t pt-6">
+              <div className="flex items-center gap-3">
+                <IconLock className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <p className="font-medium">Password</p>
+                  <p className="text-sm text-muted-foreground">••••••••</p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowPasswordModal(true)}
+              >
+                Change
+              </Button>
+            </div>
+
+            {/* Account Actions Section */}
+            <div className="border-t pt-6 space-y-4">
+              <h3 className="text-lg font-semibold">Account Actions</h3>
+              <div className="space-y-3">
+                <Button
+                  variant="outline"
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
+                  className="w-full"
+                >
+                  {isLoggingOut ? (
+                    <>
+                      <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
+                      Logging out...
+                    </>
+                  ) : (
+                    <>
+                      <IconLogout className="h-4 w-4 mr-2" />
+                      Log Out
+                    </>
+                  )}
+                </Button>
+
+                <Button
+                  variant="destructive"
+                  onClick={() => setShowDeleteModal(true)}
+                  className="w-full"
+                >
+                  <IconTrash className="h-4 w-4 mr-2" />
+                  Delete Account
+                </Button>
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
+
+        {/* Email Change Modal */}
+        <Dialog open={showEmailModal} onOpenChange={setShowEmailModal}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Change Email Address</DialogTitle>
+              <DialogDescription>
+                Update your email address. You'll need to verify the new email.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="modal-new-email">New Email</Label>
+                <Input
+                  id="modal-new-email"
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder="Enter your new email address"
+                />
+              </div>
+              <div>
+                <Label htmlFor="modal-confirm-email">Confirm New Email</Label>
+                <Input
+                  id="modal-confirm-email"
+                  type="email"
+                  value={confirmEmail}
+                  onChange={(e) => setConfirmEmail(e.target.value)}
+                  placeholder="Confirm your new email address"
+                />
+              </div>
+              <div>
+                <Label htmlFor="modal-email-password">Current Password</Label>
+                <Input
+                  id="modal-email-password"
+                  type="password"
+                  value={emailPassword}
+                  onChange={(e) => setEmailPassword(e.target.value)}
+                  placeholder="Enter your current password"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => {
+                setShowEmailModal(false)
+                setNewEmail("")
+                setConfirmEmail("")
+                setEmailPassword("")
+              }}>
+                Cancel
+              </Button>
+              <Button
+                onClick={async () => {
+                  if (!newEmail.trim() || !confirmEmail.trim() || !emailPassword.trim()) {
+                    toast.error("All fields are required")
+                    return
+                  }
+                  if (newEmail !== confirmEmail) {
+                    toast.error("Email addresses do not match")
+                    return
+                  }
+                  if (newEmail === user?.email) {
+                    toast.error("New email must be different from current email")
+                    return
+                  }
+
+                  setIsChangingEmail(true)
+                  try {
+                    const response = await apiClient.updateUserProfile({
+                      email: newEmail.trim()
+                    })
+
+                    if (response.success) {
+                      setShowEmailModal(false)
+                      setNewEmail("")
+                      setConfirmEmail("")
+                      setEmailPassword("")
+                      await refetch()
+                      toast.success("Email successfully updated.")
+                    } else {
+                      toast.error(response.error || "Failed to update email")
+                    }
+                  } catch (error) {
+                    toast.error("Failed to update email")
+                  } finally {
+                    setIsChangingEmail(false)
+                  }
+                }}
+                disabled={isChangingEmail}
+              >
+                {isChangingEmail ? (
+                  <>
+                    <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
+                    Updating...
+                  </>
+                ) : (
+                  "Update Email"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Password Change Modal */}
+        <Dialog open={showPasswordModal} onOpenChange={setShowPasswordModal}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Change Password</DialogTitle>
+              <DialogDescription>
+                Update your password. Make sure it's strong and secure.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="modal-current-password">Current Password</Label>
+                <Input
+                  id="modal-current-password"
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="Enter your current password"
+                />
+              </div>
+              <div>
+                <Label htmlFor="modal-new-password">New Password</Label>
+                <Input
+                  id="modal-new-password"
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Enter your new password"
+                />
+              </div>
+              <div>
+                <Label htmlFor="modal-confirm-password">Confirm New Password</Label>
+                <Input
+                  id="modal-confirm-password"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm your new password"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => {
+                setShowPasswordModal(false)
+                setCurrentPassword("")
+                setNewPassword("")
+                setConfirmPassword("")
+              }}>
+                Cancel
+              </Button>
+              <Button
+                onClick={async () => {
+                  if (!currentPassword || !newPassword || !confirmPassword) {
+                    toast.error("All fields are required")
+                    return
+                  }
+                  if (newPassword !== confirmPassword) {
+                    toast.error("New passwords do not match")
+                    return
+                  }
+                  if (newPassword.length < 8) {
+                    toast.error("New password must be at least 8 characters long")
+                    return
+                  }
+
+                  setIsChangingPassword(true)
+                  try {
+                    // For OPAQUE, password change is more complex and requires client-side OPAQUE operations
+                    // This is a placeholder - the actual implementation would need to integrate with OPAQUE
+                    toast.error("Password change requires OPAQUE protocol integration. Please use account recovery instead.")
+
+                    // Reset form
+                    setCurrentPassword("")
+                    setNewPassword("")
+                    setConfirmPassword("")
+                    setShowPasswordModal(false)
+                  } catch (error) {
+                    toast.error("Failed to change password")
+                  } finally {
+                    setIsChangingPassword(false)
+                  }
+                }}
+                disabled={isChangingPassword}
+              >
+                {isChangingPassword ? (
+                  <>
+                    <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
+                    Changing...
+                  </>
+                ) : (
+                  "Change Password"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Account Deletion Modal */}
+        <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-destructive">Permanently Delete Account</DialogTitle>
+              <DialogDescription>
+                This action cannot be undone. This will permanently delete your account and remove all your data from our servers.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+                <p className="text-sm font-medium text-destructive mb-2">
+                  Type "DELETE" to confirm
+                </p>
+                <Input
+                  value={deleteConfirmation}
+                  onChange={(e) => setDeleteConfirmation(e.target.value)}
+                  placeholder="Type DELETE to confirm"
+                  className="font-mono"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => {
+                setShowDeleteModal(false)
+                setDeleteConfirmation("")
+              }}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDeleteAccount}
+                disabled={isDeletingAccount || deleteConfirmation !== "DELETE"}
+              >
+                {isDeletingAccount ? (
+                  <>
+                    <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
+                    Deleting...
+                  </>
+                ) : (
+                  "Delete Permanently"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Hidden file input */}
         <input
