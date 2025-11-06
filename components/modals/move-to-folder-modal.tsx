@@ -77,7 +77,7 @@ export function MoveToFolderModal({ children, itemId = "", itemName = "item", it
       const response = await apiClient.getFolders()
 
       if (response.success && response.data) {
-        // Get master key for filename decryption
+        // Get master key for decryption
         let masterKey: Uint8Array | null = null;
         try {
           masterKey = masterKeyManager.getMasterKey();
@@ -85,28 +85,34 @@ export function MoveToFolderModal({ children, itemId = "", itemName = "item", it
           console.warn('Could not retrieve master key for folder name decryption', err);
         }
 
-        // Filter out folders in trash and decrypt names
-        const activeFolders = response.data
-          .filter((folder: Folder) => !folder.path.includes('/trash'))
-          .map((folder: any) => {
-            // Decrypt folder name if both encryptedName and nameSalt are present
+        // Decrypt folder names from the API response - use Promise.all since decryptFilename is async
+        const activeFolders = await Promise.all(response.data
+          .filter((folder: any) => !folder.path.includes('/trash'))
+          .map(async (folder: any) => {
+            // API returns encryptedName and nameSalt - need to decrypt
             let displayName = folder.encryptedName || '';
             if (folder.encryptedName && folder.nameSalt && masterKey) {
               try {
-                displayName = decryptFilename(folder.encryptedName, folder.nameSalt, masterKey);
+                displayName = await decryptFilename(folder.encryptedName, folder.nameSalt, masterKey);
               } catch (err) {
                 console.warn(`Failed to decrypt folder name for ${folder.id}:`, err);
-                displayName = folder.encryptedName || '';
+                displayName = folder.encryptedName || 'Unknown Folder';
               }
+            } else {
+              displayName = folder.encryptedName || 'Unknown Folder';
             }
 
             return {
-              ...folder,
-              name: displayName, // Add decrypted name
+              id: folder.id,
+              name: displayName, // Decrypted name
               encryptedName: folder.encryptedName,
-              nameSalt: folder.nameSalt
+              nameSalt: folder.nameSalt,
+              parentId: folder.parentId,
+              path: folder.path,
+              createdAt: folder.createdAt,
+              updatedAt: folder.updatedAt
             };
-          });
+          }));
 
         // Build folder tree with only root level folders initially
         const rootFolders: Folder[] = activeFolders
@@ -175,21 +181,23 @@ export function MoveToFolderModal({ children, itemId = "", itemName = "item", it
               console.warn('Could not retrieve master key for subfolder name decryption', err);
             }
 
-            const subfolders = (response.data.folders || []).map((subfolder: any) => {
+            const subfolders = await Promise.all((response.data.folders || []).map(async (subfolder: any) => {
               // Decrypt subfolder name if both encryptedName and nameSalt are present
               let displayName = subfolder.encryptedName || '';
               if (subfolder.encryptedName && subfolder.nameSalt && masterKey) {
                 try {
-                  displayName = decryptFilename(subfolder.encryptedName, subfolder.nameSalt, masterKey);
+                  displayName = await decryptFilename(subfolder.encryptedName, subfolder.nameSalt, masterKey);
                 } catch (err) {
                   console.warn(`Failed to decrypt subfolder name for ${subfolder.id}:`, err);
-                  displayName = subfolder.encryptedName || '';
+                  displayName = subfolder.encryptedName || 'Unknown Folder';
                 }
+              } else {
+                displayName = subfolder.encryptedName || 'Unknown Folder';
               }
 
               return {
                 id: subfolder.id,
-                name: displayName, // Add decrypted name
+                name: displayName || 'Unknown Folder', // Fallback for blank names
                 encryptedName: subfolder.encryptedName,
                 nameSalt: subfolder.nameSalt,
                 parentId: folder.id,
@@ -201,7 +209,7 @@ export function MoveToFolderModal({ children, itemId = "", itemName = "item", it
                 children: [],
                 hasExploredChildren: false
               };
-            })
+            }))
 
             // Update the folder with its children
             setFolders(prev => updateFolderInTree(prev, folder.id, { 

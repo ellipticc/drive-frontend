@@ -51,10 +51,10 @@ export function getInitials(name: string): string {
   }
 }
 
-// Get display name: use display name if set, otherwise use email prefix
+// Get display name: use name if set, otherwise use email prefix
 function getDisplayName(user: { name: string; email: string }): string {
-  // If user has a display name set (not empty and not just "User"), use it
-  if (user.name && user.name.trim() !== '' && user.name.trim().toLowerCase() !== 'user') {
+  // If user has a display name set (not empty), use it
+  if (user.name && user.name.trim() !== '') {
     return user.name.trim();
   }
 

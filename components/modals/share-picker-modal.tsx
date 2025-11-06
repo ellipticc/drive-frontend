@@ -126,14 +126,40 @@ export function SharePickerModal({ open, onOpenChange, onFileSelected }: SharePi
 
         setFolders([rootFolder])
 
-        // Set root level files
-        const rootFiles: FileItem[] = (response.data.files || []).map((file: any) => ({
-          id: file.id,
-          name: file.encryptedFilename,
-          type: 'file' as const,
-          mimeType: file.mimeType,
-          size: file.size,
-          is_shared: file.is_shared || false
+        // Set root level files - use Promise.all since decryptFilename is async
+        const rootFiles: FileItem[] = await Promise.all((response.data.files || []).map(async (file: any) => {
+          let displayName = '';
+          
+          // Always try to decrypt if we have the encrypted name and salt
+          if (file.encryptedFilename && file.filenameSalt) {
+            try {
+              if (masterKeyManager.hasMasterKey()) {
+                const masterKey = masterKeyManager.getMasterKey();
+                displayName = await decryptFilename(file.encryptedFilename, file.filenameSalt, masterKey);
+              } else {
+                // No master key, use encrypted name as fallback
+                displayName = file.encryptedFilename;
+              }
+            } catch (err) {
+              console.warn(`Failed to decrypt filename for file ${file.id}:`, err);
+              // Keep encrypted name as fallback
+              displayName = file.encryptedFilename;
+            }
+          }
+          
+          // Final fallback if still empty
+          if (!displayName || displayName.trim() === '') {
+            displayName = 'Unknown File';
+          }
+
+          return {
+            id: file.id,
+            name: displayName,
+            type: 'file' as const,
+            mimeType: file.mimeType,
+            size: file.size,
+            is_shared: file.is_shared || false
+          }
         }))
 
         setFiles(rootFiles)
@@ -183,14 +209,40 @@ export function SharePickerModal({ open, onOpenChange, onFileSelected }: SharePi
               }
             }))
 
-            // Store files for this folder
-            const folderFilesData: FileItem[] = (response.data.files || []).map((file: any) => ({
-              id: file.id,
-              name: file.encryptedFilename,
-              type: 'file' as const,
-              mimeType: file.mimeType,
-              size: file.size,
-              is_shared: file.is_shared || false
+            // Store files for this folder - use Promise.all since decryptFilename is async
+            const folderFilesData: FileItem[] = await Promise.all((response.data.files || []).map(async (file: any) => {
+              let displayName = '';
+              
+              // Always try to decrypt if we have the encrypted name and salt
+              if (file.encryptedFilename && file.filenameSalt) {
+                try {
+                  if (masterKeyManager.hasMasterKey()) {
+                    const masterKey = masterKeyManager.getMasterKey();
+                    displayName = await decryptFilename(file.encryptedFilename, file.filenameSalt, masterKey);
+                  } else {
+                    // No master key, use encrypted name as fallback
+                    displayName = file.encryptedFilename;
+                  }
+                } catch (err) {
+                  console.warn(`Failed to decrypt filename for file ${file.id}:`, err);
+                  // Keep encrypted name as fallback
+                  displayName = file.encryptedFilename;
+                }
+              }
+              
+              // Final fallback if still empty
+              if (!displayName || displayName.trim() === '') {
+                displayName = 'Unknown File';
+              }
+
+              return {
+                id: file.id,
+                name: displayName,
+                type: 'file' as const,
+                mimeType: file.mimeType,
+                size: file.size,
+                is_shared: file.is_shared || false
+              }
             }))
 
             setFolderFiles(prev => ({
