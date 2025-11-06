@@ -19,6 +19,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
 import { Calendar } from "@/components/ui/calendar"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   IconUser,
   IconMail,
@@ -48,6 +49,7 @@ interface ShareModalProps {
   itemType?: "file" | "folder"
   open?: boolean
   onOpenChange?: (open: boolean) => void
+  onShareUpdate?: () => void
 }
 
 interface ShareSettings {
@@ -57,7 +59,7 @@ interface ShareSettings {
   maxDownloads: number
 }
 
-export function ShareModal({ children, itemId = "", itemName = "item", itemType = "file", open: externalOpen, onOpenChange: externalOnOpenChange }: ShareModalProps) {
+export function ShareModal({ children, itemId = "", itemName = "item", itemType = "file", open: externalOpen, onOpenChange: externalOnOpenChange, onShareUpdate }: ShareModalProps) {
   const [internalOpen, setInternalOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [messageModalOpen, setMessageModalOpen] = useState(false)
@@ -65,6 +67,7 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
   const [emails, setEmails] = useState<string[]>([])
   const [emailError, setEmailError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [isModalLoading, setIsModalLoading] = useState(false)
   const [shareLink, setShareLink] = useState("")
   const [copied, setCopied] = useState(false)
   const [createPublicLink, setCreatePublicLink] = useState(false)
@@ -104,6 +107,9 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
   // Reset state when modal opens for different items
   useEffect(() => {
     if (open && itemId && itemType) {
+      // Set loading state first
+      setIsModalLoading(true)
+
       // Reset all share-related state for new items
       setEmails([])
       setEmailInput("")
@@ -121,14 +127,17 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
       setIncludeMessage(true)
       setMessageModalOpen(false)
       setSettingsOpen(false)
-      
+
       // Then check for existing shares
       checkExistingShare()
     }
   }, [open, itemId, itemType])
 
   const checkExistingShare = async () => {
-    if (!itemId || !itemType) return
+    if (!itemId || !itemType) {
+      setIsModalLoading(false)
+      return
+    }
 
     try {
       // Check if there's an existing active share for this item
@@ -139,12 +148,33 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
         )
         if (existingShare) {
           setExistingShareId(existingShare.id)
+
+          // Automatically enable public link toggle and show existing link
+          setCreatePublicLink(true)
+
+          // Generate the existing share link
+          const { masterKeyManager } = await import('@/lib/master-key')
+          const accountSalt = masterKeyManager.getAccountSalt()
+          if (accountSalt) {
+            // Derive CEK deterministically from account salt and file ID
+            const derivationInput = `share:${itemId}:${accountSalt}`
+            const derivationBytes = new TextEncoder().encode(derivationInput)
+            const cekHash = await crypto.subtle.digest('SHA-256', derivationBytes)
+            const shareCek = new Uint8Array(cekHash)
+            const shareCekHex = btoa(String.fromCharCode(...shareCek))
+
+            // Show existing share link with deterministically derived CEK in fragment
+            const shareUrl = `https://drive.ellipticc.com/s/${existingShare.id}#${shareCekHex}`
+            setShareLink(shareUrl)
+          }
         } else {
           setExistingShareId(null)
         }
       }
     } catch (error) {
       setExistingShareId(null)
+    } finally {
+      setIsModalLoading(false)
     }
   }
 
@@ -340,6 +370,7 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
         setMessage("")
         setMessageModalOpen(false)
         setOpen(false)
+        onShareUpdate?.()
       } else {
         toast.error(`Failed to send emails: ${emailResponse.error}`)
       }
@@ -525,6 +556,7 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
       setShareLink(shareUrl)
 
       toast.success("Public link created successfully")
+      onShareUpdate?.()
 
     } catch (error) {
       // console.error("Failed to create public link:", error)
@@ -573,6 +605,7 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
                 size="sm"
                 onClick={() => setSettingsOpen(true)}
                 className="h-8 w-8 p-0"
+                disabled={isModalLoading}
               >
                 <IconSettings className="h-4 w-4" />
               </Button>
@@ -588,105 +621,138 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
             </div>
           </DialogHeader>
 
-          <div className="grid gap-6 py-4">
-            {/* Send via Email Section */}
-            <div className="grid gap-3">
-              <div className="flex items-center gap-2">
-                <IconSend className="h-4 w-4 text-muted-foreground" />
-                <Label className="text-sm font-medium">Send via Email</Label>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="emails" className="text-xs text-muted-foreground">
-                  Enter email addresses (press Enter, Space, or Comma to add)
-                </Label>
-                <Input
-                  id="emails"
-                  value={emailInput}
-                  onChange={(e) => handleEmailInputChange(e.target.value)}
-                  onKeyDown={handleEmailInputKeyDown}
-                  onBlur={handleEmailInputBlur}
-                  placeholder="user1@example.com, user2@example.com"
-                  className={emailError ? "border-destructive" : ""}
-                />
-                {emailError && (
-                  <p className="text-xs text-destructive">{emailError}</p>
-                )}
-                {emails.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {emails.map((email) => (
-                      <Badge key={email} variant="secondary" className="flex items-center gap-1">
-                        {email}
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => removeEmail(email)}
-                          className="h-4 w-4 p-0 hover:bg-destructive hover:text-destructive-foreground"
-                        >
-                          <IconX className="h-3 w-3" />
-                        </Button>
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-                <Button
-                  type="button"
-                  onClick={proceedToMessageModal}
-                  disabled={emails.length === 0 || isLoading}
-                  size="sm"
-                  className="w-full"
-                >
-                  {isLoading ? "Sending..." : `Send to ${emails.length} recipient${emails.length !== 1 ? 's' : ''}`}
-                </Button>
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Create Public Link Section */}
-            <div className="grid gap-3">
-              <div className="flex items-center gap-2">
-                <IconLink className="h-4 w-4 text-muted-foreground" />
-                <Label className="text-sm font-medium">Create Public Link</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="public-link"
-                  checked={createPublicLink}
-                  onCheckedChange={async (checked) => {
-                    setCreatePublicLink(checked)
-                    if (checked) {
-                      await handleCreatePublicLink()
-                    } else {
-                      setShareLink('')
-                    }
-                  }}
-                />
-                <Label htmlFor="public-link" className="text-sm">
-                  Create public link
-                </Label>
-              </div>
-            </div>
-
-            {/* Share Link Display */}
-            {shareLink && (
-              <>
-                <Separator />
-                <div className="grid gap-2 animate-in slide-in-from-bottom-2 duration-300">
-                  <Label className="text-sm font-medium">Share Link</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      value={shareLink}
-                      readOnly
-                      className="flex-1 text-xs"
-                    />
-                    <Button size="sm" variant="outline" onClick={handleCopyLink}>
-                      {copied ? <IconCheck className="h-4 w-4" /> : <IconCopy className="h-4 w-4" />}
-                    </Button>
-                  </div>
+          {isModalLoading ? (
+            // Loading skeleton
+            <div className="grid gap-6 py-4">
+              {/* Send via Email Section Skeleton */}
+              <div className="grid gap-3">
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-4 w-4 rounded" />
+                  <Skeleton className="h-4 w-24" />
                 </div>
-              </>
-            )}
-          </div>
+                <div className="grid gap-2">
+                  <Skeleton className="h-3 w-48" />
+                  <Skeleton className="h-9 w-full" />
+                  <Skeleton className="h-8 w-32" />
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Create Public Link Section Skeleton */}
+              <div className="grid gap-3">
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-4 w-4 rounded" />
+                  <Skeleton className="h-4 w-32" />
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Skeleton className="h-5 w-9" />
+                  <Skeleton className="h-4 w-24" />
+                </div>
+              </div>
+            </div>
+          ) : (
+            // Actual content
+            <div className="grid gap-6 py-4">
+              {/* Send via Email Section */}
+              <div className="grid gap-3">
+                <div className="flex items-center gap-2">
+                  <IconSend className="h-4 w-4 text-muted-foreground" />
+                  <Label className="text-sm font-medium">Send via Email</Label>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="emails" className="text-xs text-muted-foreground">
+                    Enter email addresses (press Enter, Space, or Comma to add)
+                  </Label>
+                  <Input
+                    id="emails"
+                    value={emailInput}
+                    onChange={(e) => handleEmailInputChange(e.target.value)}
+                    onKeyDown={handleEmailInputKeyDown}
+                    onBlur={handleEmailInputBlur}
+                    placeholder="user1@example.com, user2@example.com"
+                    className={emailError ? "border-destructive" : ""}
+                  />
+                  {emailError && (
+                    <p className="text-xs text-destructive">{emailError}</p>
+                  )}
+                  {emails.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {emails.map((email) => (
+                        <Badge key={email} variant="secondary" className="flex items-center gap-1">
+                          {email}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => removeEmail(email)}
+                            className="h-4 w-4 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                          >
+                            <IconX className="h-3 w-3" />
+                          </Button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                  <Button
+                    type="button"
+                    onClick={proceedToMessageModal}
+                    disabled={emails.length === 0 || isLoading}
+                    size="sm"
+                    className="w-full"
+                  >
+                    {isLoading ? "Sending..." : `Send to ${emails.length} recipient${emails.length !== 1 ? 's' : ''}`}
+                  </Button>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Create Public Link Section */}
+              <div className="grid gap-3">
+                <div className="flex items-center gap-2">
+                  <IconLink className="h-4 w-4 text-muted-foreground" />
+                  <Label className="text-sm font-medium">Create Public Link</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="public-link"
+                    checked={createPublicLink}
+                    onCheckedChange={async (checked) => {
+                      setCreatePublicLink(checked)
+                      if (checked) {
+                        await handleCreatePublicLink()
+                      } else {
+                        setShareLink('')
+                      }
+                    }}
+                  />
+                  <Label htmlFor="public-link" className="text-sm">
+                    Create public link
+                  </Label>
+                </div>
+              </div>
+
+              {/* Share Link Display */}
+              {shareLink && (
+                <>
+                  <Separator />
+                  <div className="grid gap-2 animate-in slide-in-from-bottom-2 duration-300">
+                    <Label className="text-sm font-medium">Share Link</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={shareLink}
+                        readOnly
+                        className="flex-1 text-xs"
+                      />
+                      <Button size="sm" variant="outline" onClick={handleCopyLink}>
+                        {copied ? <IconCheck className="h-4 w-4" /> : <IconCopy className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
 
           <DialogFooter>
             <Button

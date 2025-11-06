@@ -1588,12 +1588,18 @@ export const Table01DividerLineSm = ({
                                     {item.is_shared ? (
                                         <Tooltip>
                                             <TooltipTrigger asChild>
-                                                <div className="flex items-center justify-center">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleShareClick(item.id, item.name, item.type);
+                                                    }}
+                                                    className="flex items-center justify-center cursor-pointer hover:bg-accent rounded-sm p-1 transition-colors"
+                                                >
                                                     <IconShare3 className="h-3.5 w-3.5 text-blue-500 opacity-70 hover:opacity-100 transition-opacity" />
-                                                </div>
+                                                </button>
                                             </TooltipTrigger>
                                             <TooltipContent>
-                                                <p>This item is shared</p>
+                                                <p>Manage share</p>
                                             </TooltipContent>
                                         </Tooltip>
                                     ) : null}
@@ -1801,6 +1807,7 @@ export const Table01DividerLineSm = ({
             itemType={selectedItemForShare?.type || "file"}
             open={shareModalOpen}
             onOpenChange={setShareModalOpen}
+            onShareUpdate={refreshFiles}
         />
 
         <SharePickerModal
