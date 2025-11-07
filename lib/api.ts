@@ -426,6 +426,20 @@ class ApiClient {
     });
   }
 
+  async storeCryptoKeypairs(data: {
+    userId: string;
+    accountSalt: string;
+    pqcKeypairs: any;
+    encryptedMnemonic?: string;
+    mnemonicSalt?: string;
+    mnemonicIv?: string;
+  }): Promise<ApiResponse> {
+    return this.request('/auth/crypto/setup', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
   async sendSupportRequest(data: {
     subject: string;
     message: string;
