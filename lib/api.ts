@@ -121,15 +121,30 @@ class ApiClient {
         throw new Error(data.error || `HTTP ${response.status}`);
       }
 
-      // Return successful response in expected format
-      // Always wrap the response data in the data property for consistency
+      // Handle responses that already have success property
+      // Some endpoints return: { success: true, data: { user: ... } } (already wrapped)
+      // Others return: { success: true, sessionId: ..., presigned: ... } (needs wrapping)
       if (data.success !== undefined) {
+        const { success, error, ...responseData } = data;
+        
+        // If already has 'data' property (like from /auth/me), return as-is
+        if (responseData.data !== undefined) {
+          return {
+            success,
+            ...(error && { error }),
+            data: responseData.data,
+          };
+        }
+        
+        // Otherwise wrap other properties as data (like presigned upload responses)
         return {
-          success: data.success,
-          data: data,
-          error: data.error
+          success,
+          ...(error && { error }),
+          data: responseData,
         };
       }
+      
+      // Otherwise wrap raw response in ApiResponse format
       return {
         success: true,
         data: data,
@@ -1237,11 +1252,6 @@ class ApiClient {
     });
   }
 
-  async getRecoveryCodes(): Promise<ApiResponse<{
-    recoveryCodes: string[];
-  }>> {
-    return this.request('/totp/recovery-codes');
-  }
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);

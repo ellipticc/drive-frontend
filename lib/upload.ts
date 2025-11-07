@@ -442,12 +442,22 @@ async function initializeUploadSession(
     kyberPublicKey: keys.keypairs.kyberPublicKey
   });
 
-  if (!response.success || !response.data) {
-    throw new Error('Failed to initialize upload session');
+  if (!response.success) {
+    throw new Error('Failed to initialize upload session: ' + (response.error || 'Unknown error'));
   }
 
   // Extract upload URLs from presigned array
-  const uploadUrls = response.data.presigned.map(item => item.putUrl);
+  // The response.data contains the nested object with presigned array
+  const uploadUrls = response.data?.presigned?.map(item => item.putUrl);
+
+  if (!uploadUrls || uploadUrls.length === 0) {
+    console.error('Failed to extract upload URLs from response:', response);
+    throw new Error('No presigned URLs returned from server');
+  }
+
+  if (!response.data?.sessionId || !response.data?.fileId) {
+    throw new Error('Missing sessionId or fileId in response');
+  }
 
   return {
     sessionId: response.data.sessionId,

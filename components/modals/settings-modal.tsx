@@ -518,24 +518,6 @@ export function SettingsModal({
     }
   }
 
-  // Handle viewing recovery codes
-  const handleViewRecoveryCodes = async () => {
-    setIsLoadingRecoveryCodes(true)
-    try {
-      const response = await apiClient.getRecoveryCodes()
-      if (response.success && response.data?.recoveryCodes) {
-        setRecoveryCodes(response.data.recoveryCodes)
-        setShowRecoveryCodesModal(true)
-      } else {
-        toast.error(response.error || "Failed to load recovery codes")
-      }
-    } catch (error) {
-      toast.error("Failed to load recovery codes")
-    } finally {
-      setIsLoadingRecoveryCodes(false)
-    }
-  }
-
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       {externalOpen === undefined && externalOnOpenChange === undefined ? (
@@ -797,36 +779,6 @@ export function SettingsModal({
                       </Button>
                     )}
                   </div>
-
-                  {/* Recovery Codes Section */}
-                  {totpEnabled && (
-                    <div className="flex items-center justify-between border-t pt-6">
-                      <div className="flex items-center gap-3">
-                        <Shield className="h-5 w-5 text-muted-foreground" />
-                        <div>
-                          <p className="font-medium">Recovery Codes</p>
-                          <p className="text-sm text-muted-foreground">
-                            Backup codes for account recovery
-                          </p>
-                        </div>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleViewRecoveryCodes}
-                        disabled={isLoadingRecoveryCodes}
-                      >
-                        {isLoadingRecoveryCodes ? (
-                          <>
-                            <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
-                            Loading...
-                          </>
-                        ) : (
-                          "View Codes"
-                        )}
-                      </Button>
-                    </div>
-                  )}
 
                   {/* Account Actions Section */}
                   <div className="border-t pt-6 space-y-4">
@@ -1169,6 +1121,69 @@ export function SettingsModal({
                   </>
                 ) : (
                   "Enable TOTP"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* TOTP Disable Modal */}
+        <Dialog open={showTOTPDisable} onOpenChange={setShowTOTPDisable}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Disable Two-Factor Authentication</DialogTitle>
+              <DialogDescription>
+                Enter your 6-digit authenticator code or a recovery code to disable TOTP.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="disable-totp-token">6-digit Authenticator Code</Label>
+                <Input
+                  id="disable-totp-token"
+                  value={disableToken}
+                  onChange={(e) => setDisableToken(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="000000"
+                  maxLength={6}
+                  className="text-center text-lg font-mono"
+                />
+              </div>
+              <div className="text-center text-sm text-muted-foreground">OR</div>
+              <div className="space-y-2">
+                <Label htmlFor="disable-recovery-code">Recovery Code</Label>
+                <Input
+                  id="disable-recovery-code"
+                  value={disableRecoveryCode}
+                  onChange={(e) => setDisableRecoveryCode(e.target.value.toUpperCase().slice(0, 8))}
+                  placeholder="XXXXXXXX"
+                  maxLength={8}
+                  className="text-center text-lg font-mono"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowTOTPDisable(false)
+                  setDisableToken("")
+                  setDisableRecoveryCode("")
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleTOTPDisable}
+                disabled={isDisablingTOTP || (!disableToken && !disableRecoveryCode)}
+              >
+                {isDisablingTOTP ? (
+                  <>
+                    <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
+                    Disabling...
+                  </>
+                ) : (
+                  "Disable TOTP"
                 )}
               </Button>
             </DialogFooter>
