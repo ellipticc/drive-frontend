@@ -155,19 +155,16 @@ export function UserProvider({ children }: { children: ReactNode }) {
     await fetchUser(true); // Force refresh
   };
 
-  // Clear cache on logout
+  // Listen for custom login event
   useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'auth_token' && !e.newValue) {
-        // Token was removed (logout), clear user cache
-        clearUserDataCache();
-        setUser(null);
-        setHasFetched(false);
-      }
+    const handleLogin = () => {
+      console.log('UserProvider: Login event detected, refetching user data');
+      setHasFetched(false);
+      fetchUser(true); // Force refresh
     };
 
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    window.addEventListener('user-login', handleLogin);
+    return () => window.removeEventListener('user-login', handleLogin);
   }, []);
 
   return (

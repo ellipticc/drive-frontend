@@ -4,15 +4,32 @@ import { useState, useRef, useEffect } from "react"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import {
+  Bell,
+  Check,
+  Globe,
+  Home,
+  Keyboard,
+  Link,
+  Lock,
+  Menu,
+  MessageCircle,
+  Paintbrush,
+  Settings,
+  Video,
+  User,
+  Shield,
+} from "lucide-react"
+
+import { Button } from "@/components/ui/button"
+import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogHeader,
   DialogTitle,
   DialogTrigger,
   DialogFooter,
+  DialogHeader,
 } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -23,7 +40,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+} from "@/components/ui/sidebar"
 import { IconSettings, IconLoader2, IconPencil, IconCheck, IconMail, IconLock, IconLogout, IconTrash } from "@tabler/icons-react"
 import { apiClient } from "@/lib/api"
 import { useTheme } from "next-themes"
@@ -35,6 +61,13 @@ interface SettingsModalProps {
   children?: React.ReactNode
   open?: boolean
   onOpenChange?: (open: boolean) => void
+}
+
+const data = {
+  nav: [
+    { name: "General", icon: User, id: "general" },
+    { name: "Security", icon: Shield, id: "security" },
+  ],
 }
 
 export function SettingsModal({
@@ -53,6 +86,21 @@ export function SettingsModal({
   const open = externalOpen !== undefined ? externalOpen : internalOpen
   const setOpen = externalOnOpenChange || setInternalOpen
 
+  // Handle modal open/close with URL hash
+  const handleOpenChange = (newOpen: boolean) => {
+    const finalSetOpen = externalOnOpenChange || setInternalOpen
+    finalSetOpen(newOpen)
+    if (newOpen) {
+      // Add #settings to URL when opening
+      window.history.replaceState(null, '', '#settings')
+    } else {
+      // Remove #settings from URL when closing
+      const url = new URL(window.location.href)
+      url.hash = ''
+      window.history.replaceState(null, '', url.pathname + url.search)
+    }
+  }
+
   // State management
   const [displayName, setDisplayName] = useState("")
   const [originalName, setOriginalName] = useState("")
@@ -60,6 +108,9 @@ export function SettingsModal({
   const [isLoadingAvatar, setIsLoadingAvatar] = useState(false)
   const [isSavingName, setIsSavingName] = useState(false)
   const [dateTimePreference, setDateTimePreference] = useState("24h")
+
+  // Tab state
+  const [activeTab, setActiveTab] = useState("general")
 
   // Security state
   const [currentEmail, setCurrentEmail] = useState("")
@@ -180,7 +231,7 @@ export function SettingsModal({
   const handleRemoveAvatar = async () => {
     try {
       setIsLoadingAvatar(true)
-      
+
       const response = await apiClient.updateUserProfile({
         avatar: ""
       })
@@ -256,7 +307,7 @@ export function SettingsModal({
       // For OPAQUE, password change is more complex and requires client-side OPAQUE operations
       // This is a placeholder - the actual implementation would need to integrate with OPAQUE
       toast.error("Password change requires OPAQUE protocol integration. Please use account recovery instead.")
-      
+
       // Reset form
       setCurrentPassword("")
       setNewPassword("")
@@ -347,7 +398,7 @@ export function SettingsModal({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       {externalOpen === undefined && externalOnOpenChange === undefined ? (
         <DialogTrigger asChild>
           {children || (
@@ -359,227 +410,247 @@ export function SettingsModal({
       ) : (
         children
       )}
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-xl">
-            <IconSettings className="h-6 w-6" />
-            Settings
-          </DialogTitle>
-          <DialogDescription>
-            Manage your account settings and preferences.
-          </DialogDescription>
-        </DialogHeader>
-
-        <Tabs defaultValue="general" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="general">General</TabsTrigger>
-            <TabsTrigger value="security">Security</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="general" className="space-y-8 py-4">
-          {/* Profile Section */}
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Profile</h3>
-              <div className="flex items-start gap-6">
-                {/* Avatar */}
-                <div className="relative group">
-                  <Avatar
-                    className="h-24 w-24 cursor-pointer hover:opacity-75 transition-opacity flex-shrink-0"
-                    onClick={handleAvatarClick}
-                  >
-                    <AvatarImage
-                      src={user?.avatar || getDiceBearAvatar(user?.id || "user")}
-                      alt="Profile"
-                    />
-                    <AvatarFallback className="text-lg">
-                      {getInitials(displayName || "User")}
-                    </AvatarFallback>
-                  </Avatar>
-                  {isLoadingAvatar && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full">
-                      <IconLoader2 className="h-6 w-6 animate-spin text-white" />
-                    </div>
-                  )}
-                  {/* Remove avatar cross - only show for non-DiceBear avatars */}
-                  {user?.avatar && !isDiceBearAvatar && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleRemoveAvatar()
-                      }}
-                      className="absolute -top-1 -right-1 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
-                      title="Remove avatar"
-                    >
-                      <span className="text-xs font-bold">✕</span>
-                    </button>
-                  )}
-                </div>
-
-                {/* Display Name Section */}
-                <div className="flex-1 pt-2">
-                  <div className="space-y-3">
-                    <div>
-                      <Label htmlFor="display-name" className="text-sm font-medium">
-                        Display name
-                      </Label>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Input
-                          ref={nameInputRef}
-                          id="display-name"
-                          value={displayName}
-                          onChange={(e) => setDisplayName(e.target.value)}
-                          placeholder="Enter your name"
-                          readOnly={!isEditingName}
-                          className={`flex-1 ${!isEditingName ? 'bg-muted cursor-pointer' : ''}`}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && isEditingName) handleSaveName()
-                            if (e.key === 'Escape' && isEditingName) handleCancelEdit()
-                          }}
-                        />
-                        {isEditingName ? (
-                          <Button
-                            size="sm"
-                            onClick={handleSaveName}
-                            disabled={isSavingName || displayName === originalName || !displayName.trim()}
-                            className="h-9 w-9 p-0"
-                          >
-                            <IconCheck className="h-4 w-4" />
-                          </Button>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => setIsEditingName(true)}
-                            className="h-9 w-9 p-0"
-                            title="Edit display name"
-                          >
-                            <IconPencil className="h-4 w-4" />
-                          </Button>
+      <DialogContent className="overflow-hidden p-0 md:max-h-[500px] md:max-w-[800px]">
+        <DialogTitle className="sr-only">Settings</DialogTitle>
+        <DialogDescription className="sr-only">
+          Customize your settings here.
+        </DialogDescription>
+        <SidebarProvider className="items-start">
+          <Sidebar collapsible="none" className="hidden md:flex">
+            <SidebarContent>
+              <SidebarGroup>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {data.nav.map((item) => (
+                      <SidebarMenuItem key={item.name}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={activeTab === item.id}
+                        >
+                          <button onClick={() => setActiveTab(item.id)}>
+                            <item.icon />
+                            <span>{item.name}</span>
+                          </button>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            </SidebarContent>
+          </Sidebar>
+          <main className="flex h-[480px] flex-1 flex-col overflow-hidden">
+            <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-6">
+              {activeTab === "general" && (
+                <div className="space-y-6">
+                  {/* Profile Section */}
+                  <div className="space-y-4">
+                    <h2 className="text-xl font-semibold">General</h2>
+                    <div className="flex items-start gap-6">
+                      {/* Avatar */}
+                      <div className="relative group">
+                        <Avatar
+                          className="h-20 w-20 cursor-pointer hover:opacity-75 transition-opacity flex-shrink-0"
+                          onClick={handleAvatarClick}
+                        >
+                          <AvatarImage
+                            src={user?.avatar || getDiceBearAvatar(user?.id || "user")}
+                            alt="Profile"
+                          />
+                          <AvatarFallback className="text-base">
+                            {getInitials(displayName || "User")}
+                          </AvatarFallback>
+                        </Avatar>
+                        {isLoadingAvatar && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full">
+                            <IconLoader2 className="h-5 w-5 animate-spin text-white" />
+                          </div>
                         )}
+                        {/* Remove avatar cross - only show for non-DiceBear avatars */}
+                        {user?.avatar && !isDiceBearAvatar && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleRemoveAvatar()
+                            }}
+                            className="absolute -top-1 -right-1 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                            title="Remove avatar"
+                          >
+                            <span className="text-xs font-bold">×</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Display Name Section */}
+                      <div className="flex-1 pt-1">
+                        <div className="space-y-2">
+                          <div>
+                            <Label htmlFor="display-name" className="text-sm font-medium">
+                              Display name
+                            </Label>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Input
+                                ref={nameInputRef}
+                                id="display-name"
+                                value={displayName}
+                                onChange={(e) => setDisplayName(e.target.value)}
+                                placeholder={displayName || "Enter your name"}
+                                readOnly={!isEditingName}
+                                className={`flex-1 ${!isEditingName ? 'bg-muted cursor-not-allowed' : ''}`}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && isEditingName) handleSaveName()
+                                  if (e.key === 'Escape' && isEditingName) handleCancelEdit()
+                                }}
+                              />
+                              {isEditingName ? (
+                                <Button
+                                  size="sm"
+                                  onClick={handleSaveName}
+                                  disabled={isSavingName || displayName === originalName || !displayName.trim()}
+                                  className="h-9 w-9 p-0"
+                                >
+                                  <IconCheck className="h-4 w-4" />
+                                </Button>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => setIsEditingName(true)}
+                                  className="h-9 w-9 p-0"
+                                  title="Edit display name"
+                                >
+                                  <IconPencil className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
+
+                  {/* Appearance Section */}
+                  <div className="border-t pt-6 space-y-4">
+                    <h3 className="text-lg font-semibold">Appearance</h3>
+                    <div className="space-y-2">
+                      <Label htmlFor="theme-select" className="text-sm font-medium">
+                        Theme
+                      </Label>
+                      <Select value={theme || "system"} onValueChange={setTheme}>
+                        <SelectTrigger id="theme-select" className="w-full max-w-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="system">System</SelectItem>
+                          <SelectItem value="light">Light</SelectItem>
+                          <SelectItem value="dark">Dark</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Date & Time Section */}
+                  <div className="border-t pt-6 space-y-4">
+                    <h3 className="text-lg font-semibold">Date & Time</h3>
+                    <div className="space-y-2">
+                      <Label htmlFor="datetime-select" className="text-sm font-medium">
+                        Time format
+                      </Label>
+                      <Select value={dateTimePreference} onValueChange={setDateTimePreference}>
+                        <SelectTrigger id="datetime-select" className="w-full max-w-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="12h">12-hour (AM/PM)</SelectItem>
+                          <SelectItem value="24h">24-hour</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-sm text-muted-foreground">
+                        Choose how time is displayed throughout the application.
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          </div>
+              )}
 
-          {/* Appearance Section */}
-          <div className="border-t pt-6 space-y-4">
-            <h3 className="text-lg font-semibold">Appearance</h3>
-            <div className="space-y-2">
-              <Label htmlFor="theme-select" className="text-sm font-medium">
-                Theme
-              </Label>
-              <Select value={theme || "system"} onValueChange={setTheme}>
-                <SelectTrigger id="theme-select" className="w-full max-w-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="system">System</SelectItem>
-                  <SelectItem value="light">Light</SelectItem>
-                  <SelectItem value="dark">Dark</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+              {activeTab === "security" && (
+                <div className="space-y-6">
+                  <h2 className="text-xl font-semibold">Security</h2>
 
-          {/* Date & Time Section */}
-          <div className="border-t pt-6 space-y-4">
-            <h3 className="text-lg font-semibold">Date & Time</h3>
-            <div className="space-y-2">
-              <Label htmlFor="datetime-select" className="text-sm font-medium">
-                Time format
-              </Label>
-              <Select value={dateTimePreference} onValueChange={setDateTimePreference}>
-                <SelectTrigger id="datetime-select" className="w-full max-w-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="12h">12-hour (AM/PM)</SelectItem>
-                  <SelectItem value="24h">24-hour</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-sm text-muted-foreground">
-                Choose how time is displayed throughout the application.
-              </p>
-            </div>
-          </div>
-          </TabsContent>
+                  {/* Change Email Section */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <IconMail className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="font-medium">Email Address</p>
+                        <p className="text-sm text-muted-foreground">{user?.email}</p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowEmailModal(true)}
+                    >
+                      Change
+                    </Button>
+                  </div>
 
-          <TabsContent value="security" className="space-y-8 py-4">
-            {/* Change Email Section */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <IconMail className="h-5 w-5 text-muted-foreground" />
-                <div>
-                  <p className="font-medium">Email Address</p>
-                  <p className="text-sm text-muted-foreground">{user?.email}</p>
+                  {/* Change Password Section */}
+                  <div className="flex items-center justify-between border-t pt-6">
+                    <div className="flex items-center gap-3">
+                      <IconLock className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="font-medium">Password</p>
+                        <p className="text-sm text-muted-foreground">••••••••</p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowPasswordModal(true)}
+                    >
+                      Change
+                    </Button>
+                  </div>
+
+                  {/* Account Actions Section */}
+                  <div className="border-t pt-6 space-y-4">
+                    <h3 className="text-lg font-semibold">Account Actions</h3>
+                    <div className="space-y-3">
+                      <Button
+                        variant="outline"
+                        onClick={handleLogout}
+                        disabled={isLoggingOut}
+                        className="w-full"
+                      >
+                        {isLoggingOut ? (
+                          <>
+                            <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
+                            Logging out...
+                          </>
+                        ) : (
+                          <>
+                            <IconLogout className="h-4 w-4 mr-2" />
+                            Log Out
+                          </>
+                        )}
+                      </Button>
+
+                      <Button
+                        variant="destructive"
+                        onClick={() => setShowDeleteModal(true)}
+                        className="w-full"
+                      >
+                        <IconTrash className="h-4 w-4 mr-2" />
+                        Delete Account
+                      </Button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowEmailModal(true)}
-              >
-                Change
-              </Button>
+              )}
             </div>
-
-            {/* Change Password Section */}
-            <div className="flex items-center justify-between border-t pt-6">
-              <div className="flex items-center gap-3">
-                <IconLock className="h-5 w-5 text-muted-foreground" />
-                <div>
-                  <p className="font-medium">Password</p>
-                  <p className="text-sm text-muted-foreground">••••••••</p>
-                </div>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowPasswordModal(true)}
-              >
-                Change
-              </Button>
-            </div>
-
-            {/* Account Actions Section */}
-            <div className="border-t pt-6 space-y-4">
-              <h3 className="text-lg font-semibold">Account Actions</h3>
-              <div className="space-y-3">
-                <Button
-                  variant="outline"
-                  onClick={handleLogout}
-                  disabled={isLoggingOut}
-                  className="w-full"
-                >
-                  {isLoggingOut ? (
-                    <>
-                      <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
-                      Logging out...
-                    </>
-                  ) : (
-                    <>
-                      <IconLogout className="h-4 w-4 mr-2" />
-                      Log Out
-                    </>
-                  )}
-                </Button>
-
-                <Button
-                  variant="destructive"
-                  onClick={() => setShowDeleteModal(true)}
-                  className="w-full"
-                >
-                  <IconTrash className="h-4 w-4 mr-2" />
-                  Delete Account
-                </Button>
-              </div>
-            </div>
-          </TabsContent>
-        </Tabs>
+          </main>
+        </SidebarProvider>
 
         {/* Email Change Modal */}
         <Dialog open={showEmailModal} onOpenChange={setShowEmailModal}>

@@ -145,6 +145,7 @@ export function LoginForm({
       }
 
       // Redirect to main page
+      window.dispatchEvent(new CustomEvent('user-login'));
       router.push("/")
     } catch (err) {
       console.error('Login error:', err)
