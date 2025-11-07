@@ -144,7 +144,34 @@ export function LoginForm({
         }
       }
 
-      // Redirect to main page
+      // Check if TOTP is enabled for this user
+      const totpStatusResponse = await apiClient.getTOTPStatus()
+      if (totpStatusResponse.success && totpStatusResponse.data?.enabled) {
+        // Check if device is remembered
+        const deviceToken = localStorage.getItem('totp_device_token')
+        if (deviceToken) {
+          const deviceResponse = await apiClient.verifyDeviceToken(deviceToken)
+          if (deviceResponse.success && deviceResponse.data?.isValidDevice) {
+            // Device is remembered, proceed with login
+          } else {
+            // Device not remembered or invalid, redirect to TOTP
+            localStorage.setItem('login_email', formData.email)
+            localStorage.setItem('login_password', formData.password)
+            localStorage.setItem('login_user_id', user.id)
+            router.push(`/totp?email=${encodeURIComponent(formData.email)}&userId=${user.id}`)
+            return
+          }
+        } else {
+          // TOTP enabled but no remembered device, redirect to TOTP
+          localStorage.setItem('login_email', formData.email)
+          localStorage.setItem('login_password', formData.password)
+          localStorage.setItem('login_user_id', user.id)
+          router.push(`/totp?email=${encodeURIComponent(formData.email)}&userId=${user.id}`)
+          return
+        }
+      }
+
+      // Redirect to main page (for both TOTP disabled users and TOTP enabled users with remembered devices)
       window.dispatchEvent(new CustomEvent('user-login'));
       router.push("/")
     } catch (err) {

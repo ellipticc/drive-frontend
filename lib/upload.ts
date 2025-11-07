@@ -427,7 +427,8 @@ async function initializeUploadSession(
     encryptionIv: uint8ArrayToHex(encryptionIv),
     encryptionSalt: uint8ArrayToHex(encryptionSalt),
     dataEncryptionKey: uint8ArrayToHex(randomCek),
-    wrappedCek: wrappedCek, // Use Kyber-wrapped CEK
+    wrappedCek: wrappedCek, // Kyber-wrapped CEK
+    nonceWrapClassical: cekNonce, // Kyber wrapping nonce
     fileNoncePrefix: uint8ArrayToHex(fileNoncePrefix),
     folderId,
     manifestSignatureEd25519,
@@ -435,8 +436,8 @@ async function initializeUploadSession(
     manifestSignatureDilithium,
     manifestPublicKeyDilithium: keys.keypairs.dilithiumPublicKey,
     algorithmVersion: 'v3-hybrid-pqc',
-    wrappedCekKyber: wrappedCek,
-    nonceWrapKyber: cekNonce,
+    wrappedCekKyber: wrappedCek, // Same as wrappedCek for now
+    nonceWrapKyber: cekNonce, // Same as nonceWrapClassical for now
     kyberCiphertext: kyberCiphertext,
     kyberPublicKey: keys.keypairs.kyberPublicKey
   });

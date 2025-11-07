@@ -4,18 +4,6 @@ import { useState, useRef, useEffect } from "react"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import {
-  Bell,
-  Check,
-  Globe,
-  Home,
-  Keyboard,
-  Link,
-  Lock,
-  Menu,
-  MessageCircle,
-  Paintbrush,
-  Settings,
-  Video,
   User,
   Shield,
 } from "lucide-react"
@@ -50,7 +38,7 @@ import {
   SidebarMenuItem,
   SidebarProvider,
 } from "@/components/ui/sidebar"
-import { IconSettings, IconLoader2, IconPencil, IconCheck, IconMail, IconLock, IconLogout, IconTrash } from "@tabler/icons-react"
+import { IconSettings, IconLoader2, IconPencil, IconCheck, IconMail, IconLock, IconLogout, IconTrash, IconDownload } from "@tabler/icons-react"
 import { apiClient } from "@/lib/api"
 import { useTheme } from "next-themes"
 import { getDiceBearAvatar } from "@/lib/avatar"
@@ -129,12 +117,49 @@ export function SettingsModal({
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleteConfirmation, setDeleteConfirmation] = useState("")
 
+  // TOTP state
+  const [totpEnabled, setTotpEnabled] = useState(false)
+  const [isLoadingTOTP, setIsLoadingTOTP] = useState(false)
+  const [showTOTPSetup, setShowTOTPSetup] = useState(false)
+  const [showTOTPDisable, setShowTOTPDisable] = useState(false)
+  const [totpSecret, setTotpSecret] = useState("")
+  const [totpUri, setTotpUri] = useState("")
+  const [totpQrCode, setTotpQrCode] = useState("")
+  const [totpToken, setTotpToken] = useState("")
+  const [disableToken, setDisableToken] = useState("")
+  const [disableRecoveryCode, setDisableRecoveryCode] = useState("")
+  const [isVerifyingTOTP, setIsVerifyingTOTP] = useState(false)
+  const [isDisablingTOTP, setIsDisablingTOTP] = useState(false)
+  // Recovery codes state
+  const [recoveryCodes, setRecoveryCodes] = useState<string[]>([])
+  const [showRecoveryCodesModal, setShowRecoveryCodesModal] = useState(false)
+  const [isLoadingRecoveryCodes, setIsLoadingRecoveryCodes] = useState(false)
+
   useEffect(() => {
     if (isEditingName && nameInputRef.current) {
       nameInputRef.current.focus()
       nameInputRef.current.select()
     }
   }, [isEditingName])
+
+  // Load TOTP status when modal opens
+  useEffect(() => {
+    if (open) {
+      loadTOTPStatus()
+    }
+  }, [open])
+
+  // Load TOTP status
+  const loadTOTPStatus = async () => {
+    try {
+      const response = await apiClient.getTOTPStatus()
+      if (response.success && response.data) {
+        setTotpEnabled(response.data.enabled)
+      }
+    } catch (error) {
+      console.error('Failed to load TOTP status:', error)
+    }
+  }
 
   // Handle avatar click to open file picker
   const handleAvatarClick = () => {
@@ -397,6 +422,120 @@ export function SettingsModal({
     }
   }
 
+  // Handle TOTP setup
+  const handleTOTPSetup = async () => {
+    setIsLoadingTOTP(true)
+    try {
+      const response = await apiClient.setupTOTP()
+      console.log('TOTP Setup Response:', response)
+      if (response.success && response.data) {
+        console.log('Setting TOTP state:', {
+          secret: response.data.secret,
+          totpUri: response.data.totpUri,
+          qrCode: response.data.qrCode ? 'present' : 'missing'
+        })
+        setTotpSecret(response.data.secret)
+        setTotpUri(response.data.totpUri)
+        setTotpQrCode(response.data.qrCode)
+        setShowTOTPSetup(true)
+      } else {
+        toast.error("Failed to setup TOTP")
+      }
+    } catch (error) {
+      console.error('TOTP Setup Error:', error)
+      toast.error("Failed to setup TOTP")
+    } finally {
+      setIsLoadingTOTP(false)
+    }
+  }
+
+  // Handle TOTP verification and enable
+  const handleTOTPVerify = async () => {
+    if (!totpToken.trim()) {
+      toast.error("Please enter the TOTP token")
+      return
+    }
+
+    setIsVerifyingTOTP(true)
+    try {
+      const response = await apiClient.verifyTOTPSetup(totpToken.trim())
+      if (response.success && response.data) {
+        setRecoveryCodes(response.data.recoveryCodes)
+        setTotpEnabled(true)
+        setShowTOTPSetup(false)
+        setShowRecoveryCodesModal(true)
+        toast.success("TOTP enabled successfully!")
+        // Reset form
+        setTotpToken("")
+        setTotpSecret("")
+        setTotpUri("")
+        setTotpQrCode("")
+      } else {
+        toast.error("Invalid TOTP token")
+      }
+    } catch (error) {
+      toast.error("Failed to verify TOTP token")
+    } finally {
+      setIsVerifyingTOTP(false)
+    }
+  }
+
+  // Handle TOTP disable
+  const handleTOTPDisable = async () => {
+    if (!disableToken.trim() && !disableRecoveryCode.trim()) {
+      toast.error("Please enter either a TOTP token or recovery code")
+      return
+    }
+
+    if (disableToken && !/^\d{6}$/.test(disableToken)) {
+      toast.error("TOTP token must be 6 digits")
+      return
+    }
+
+    if (disableRecoveryCode && disableRecoveryCode.length !== 8) {
+      toast.error("Recovery code must be 8 characters")
+      return
+    }
+
+    setIsDisablingTOTP(true)
+    try {
+      const response = await apiClient.disableTOTP(disableToken || undefined, disableRecoveryCode || undefined)
+      if (response.success) {
+        setTotpEnabled(false)
+        setShowTOTPDisable(false)
+        setDisableToken("")
+        setDisableRecoveryCode("")
+        toast.success("TOTP disabled successfully")
+        // Reload TOTP status to ensure UI is updated
+        await loadTOTPStatus()
+      } else {
+        toast.error(response.error || "Failed to disable TOTP")
+      }
+    } catch (error) {
+      toast.error("Failed to disable TOTP")
+    } finally {
+      setIsDisablingTOTP(false)
+    }
+  }
+
+  // Handle viewing recovery codes
+  const handleViewRecoveryCodes = async () => {
+    setIsLoadingRecoveryCodes(true)
+    try {
+      const response = await apiClient.getRecoveryCodes()
+      if (response.success && response.data?.recoveryCodes) {
+        setRecoveryCodes(response.data.recoveryCodes)
+        setShowRecoveryCodesModal(true)
+      } else {
+        toast.error(response.error || "Failed to load recovery codes")
+      }
+    } catch (error) {
+      toast.error("Failed to load recovery codes")
+    } finally {
+      setIsLoadingRecoveryCodes(false)
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       {externalOpen === undefined && externalOnOpenChange === undefined ? (
@@ -612,6 +751,82 @@ export function SettingsModal({
                       Change
                     </Button>
                   </div>
+
+                  {/* TOTP Section */}
+                  <div className="flex items-center justify-between border-t pt-6">
+                    <div className="flex items-center gap-3">
+                      <Shield className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="font-medium">Two-Factor Authentication</p>
+                        <p className="text-sm text-muted-foreground">
+                          {totpEnabled ? "Enabled" : "Add an extra layer of security"}
+                        </p>
+                      </div>
+                    </div>
+                    {totpEnabled ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowTOTPDisable(true)}
+                        disabled={isLoadingTOTP}
+                      >
+                        {isLoadingTOTP ? (
+                          <>
+                            <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
+                            Loading...
+                          </>
+                        ) : (
+                          "Disable"
+                        )}
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleTOTPSetup}
+                        disabled={isLoadingTOTP}
+                      >
+                        {isLoadingTOTP ? (
+                          <>
+                            <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
+                            Setting up...
+                          </>
+                        ) : (
+                          "Enable"
+                        )}
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Recovery Codes Section */}
+                  {totpEnabled && (
+                    <div className="flex items-center justify-between border-t pt-6">
+                      <div className="flex items-center gap-3">
+                        <Shield className="h-5 w-5 text-muted-foreground" />
+                        <div>
+                          <p className="font-medium">Recovery Codes</p>
+                          <p className="text-sm text-muted-foreground">
+                            Backup codes for account recovery
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleViewRecoveryCodes}
+                        disabled={isLoadingRecoveryCodes}
+                      >
+                        {isLoadingRecoveryCodes ? (
+                          <>
+                            <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
+                            Loading...
+                          </>
+                        ) : (
+                          "View Codes"
+                        )}
+                      </Button>
+                    </div>
+                  )}
 
                   {/* Account Actions Section */}
                   <div className="border-t pt-6 space-y-4">
@@ -893,6 +1108,123 @@ export function SettingsModal({
                 ) : (
                   "Delete Permanently"
                 )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* TOTP Setup Modal */}
+        <Dialog open={showTOTPSetup} onOpenChange={setShowTOTPSetup}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Setup Two-Factor Authentication</DialogTitle>
+              <DialogDescription>
+                Scan the QR code with your authenticator app, then enter the 6-digit code to enable TOTP.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              {totpQrCode && (
+                <div className="flex justify-center">
+                  <img src={totpQrCode} alt="TOTP QR Code" className="max-w-full h-auto" />
+                </div>
+              )}
+              {totpSecret && (
+                <div className="space-y-2">
+                  <Label>Manual Entry Code</Label>
+                  <code className="block p-2 bg-muted rounded font-mono text-sm break-all">
+                    {totpSecret}
+                  </code>
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label htmlFor="setup-totp-token">Enter 6-digit code</Label>
+                <Input
+                  id="setup-totp-token"
+                  value={totpToken}
+                  onChange={(e) => setTotpToken(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="000000"
+                  maxLength={6}
+                  className="text-center text-lg font-mono"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => {
+                setShowTOTPSetup(false)
+                setTotpSecret("")
+                setTotpUri("")
+                setTotpQrCode("")
+                setTotpToken("")
+              }}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleTOTPVerify}
+                disabled={isVerifyingTOTP || totpToken.length !== 6}
+              >
+                {isVerifyingTOTP ? (
+                  <>
+                    <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
+                    Verifying...
+                  </>
+                ) : (
+                  "Enable TOTP"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Recovery Codes Modal */}
+        <Dialog open={showRecoveryCodesModal} onOpenChange={setShowRecoveryCodesModal}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Your Recovery Codes</DialogTitle>
+              <DialogDescription>
+                These codes can be used to access your account if you lose your authenticator device. Keep them safe.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="p-4 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                  <strong>Important:</strong> Each code can only be used once. Store these codes securely and treat them like passwords.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                {recoveryCodes.map((code, index) => (
+                  <code key={index} className="block p-2 bg-muted rounded font-mono text-sm text-center">
+                    {code}
+                  </code>
+                ))}
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                onClick={() => {
+                  // Download recovery codes
+                  const codesText = recoveryCodes.join('\n')
+                  const blob = new Blob([codesText], { type: 'text/plain' })
+                  const url = URL.createObjectURL(blob)
+                  const a = document.createElement('a')
+                  a.href = url
+                  a.download = 'recovery-codes.txt'
+                  document.body.appendChild(a)
+                  a.click()
+                  document.body.removeChild(a)
+                  URL.revokeObjectURL(url)
+                  setShowRecoveryCodesModal(false)
+                  setRecoveryCodes([])
+                }}
+              >
+                Download Codes
+              </Button>
+              <Button
+                onClick={() => {
+                  setShowRecoveryCodesModal(false)
+                  setRecoveryCodes([])
+                }}
+              >
+                Close
               </Button>
             </DialogFooter>
           </DialogContent>

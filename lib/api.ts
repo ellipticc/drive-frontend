@@ -122,6 +122,14 @@ class ApiClient {
       }
 
       // Return successful response in expected format
+      // Always wrap the response data in the data property for consistency
+      if (data.success !== undefined) {
+        return {
+          success: data.success,
+          data: data,
+          error: data.error
+        };
+      }
       return {
         success: true,
         data: data,
@@ -987,6 +995,7 @@ class ApiClient {
     encryptionSalt: string;
     dataEncryptionKey: string;
     wrappedCek: string;
+    nonceWrapClassical?: string;
     fileNoncePrefix: string;
     folderId?: string | null;
     manifestSignatureEd25519: string;
@@ -1158,6 +1167,80 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify(data),
     });
+  }
+
+  // TOTP endpoints
+  async getTOTPStatus(): Promise<ApiResponse<{
+    enabled: boolean;
+    hasRecoveryCodes: boolean;
+  }>> {
+    return this.request('/totp/status');
+  }
+
+  async setupTOTP(): Promise<ApiResponse<{
+    secret: string;
+    totpUri: string;
+    qrCode: string;
+    recoveryCodes: string[];
+  }>> {
+    return this.request('/totp/setup', {
+      method: 'POST',
+    });
+  }
+
+  async verifyTOTPSetup(token: string): Promise<ApiResponse<{
+    recoveryCodes: string[];
+  }>> {
+    return this.request('/totp/verify', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
+    });
+  }
+
+  async disableTOTP(token?: string, recoveryCode?: string): Promise<ApiResponse<{
+    message: string;
+  }>> {
+    const body: any = {};
+    if (token) body.token = token;
+    if (recoveryCode) body.recoveryCode = recoveryCode;
+
+    return this.request('/totp/disable', {
+      method: 'DELETE',
+      body: JSON.stringify(body),
+    });
+  }
+
+  async verifyTOTPLogin(userId: string, token: string, rememberDevice?: boolean): Promise<ApiResponse<{
+    deviceToken?: string;
+  }>> {
+    return this.request('/totp/verify-login', {
+      method: 'POST',
+      body: JSON.stringify({ userId, token, rememberDevice }),
+    });
+  }
+
+  async verifyDeviceToken(deviceToken: string): Promise<ApiResponse<{
+    isValidDevice: boolean;
+  }>> {
+    return this.request('/totp/verify-device', {
+      method: 'POST',
+      body: JSON.stringify({ deviceToken }),
+    });
+  }
+
+  async verifyRecoveryCode(recoveryCode: string): Promise<ApiResponse<{
+    valid: boolean;
+  }>> {
+    return this.request('/totp/verify-recovery', {
+      method: 'POST',
+      body: JSON.stringify({ recoveryCode }),
+    });
+  }
+
+  async getRecoveryCodes(): Promise<ApiResponse<{
+    recoveryCodes: string[];
+  }>> {
+    return this.request('/totp/recovery-codes');
   }
 }
 
