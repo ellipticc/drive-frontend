@@ -16,6 +16,7 @@
  */
 
 import { deriveEncryptionKey } from './crypto'
+import { xchacha20poly1305 } from '@noble/ciphers/chacha'
 
 // Declare Ethereum provider type
 declare global {
@@ -42,11 +43,12 @@ interface SignedMessage {
 }
 
 interface EncryptedMasterKeyData {
-  encryptedMasterKey: string // Encrypted with eth_encrypt (MetaMask)
+  encryptedMasterKey: string // Encrypted with signature-derived key
   masterKeyMetadata: {
-    version: string // "v1"
-    algorithm: string // "xsalsa20-poly1305" (MetaMask standard)
-    publicKey: string // Wallet's public key used for encryption
+    version: string // "v2-signature-derived"
+    algorithm: string // "xchacha20-poly1305"
+    nonce?: string // Nonce for encryption (hex)
+    publicKey?: string // Wallet's public key (v1 only)
     createdAt: number
   }
 }
@@ -165,88 +167,170 @@ class MetaMaskAuthService {
   }
 
   /**
-   * STEP 4: Encrypt Master Key with MetaMask (eth_encrypt)
+   * STEP 4: Encrypt Master Key using Constant MetaMask Signature
    * 
-   * Uses MetaMask's eth_encrypt method which uses:
-   * - Algorithm: xsalsa20-poly1305 (NaCl crypto)
-   * - Encryption key: Wallet's public key (cannot be forged)
-   * - Result: Only the wallet owner can decrypt it
+   * NEW APPROACH: Use a CONSTANT message that gets signed by MetaMask
+   * - At registration: Sign message "Ellipticc Drive - Master Key Derivation"
+   * - At re-login: Sign the SAME message again
+   * - Result: SAME signature every time (because same message, same wallet)
+   * - Use that signature to derive encryption key
    * 
-   * In the browser, this requires the MetaMask extension.
+   * Why this works:
+   *   1. Message is fixed (not a random challenge nonce)
+   *   2. Same wallet + same message = same signature (deterministic)
+   *   3. Signature has high entropy (256 bits from ECDSA)
+   *   4. On re-login: Same signature → same derived key → can decrypt
    */
-  async encryptMasterKeyWithMetaMask(
+  async encryptMasterKeyWithConstantSignature(
     masterKey: Uint8Array,
-    walletAddress: string,
-    walletPublicKey: string
+    constantSignature: string
   ): Promise<EncryptedMasterKeyData> {
     try {
-      // Check if MetaMask is available
-      if (typeof window === 'undefined' || !window.ethereum) {
-        throw new Error('MetaMask not available')
-      }
+      // Generate a PERSISTENT encryption nonce (stored with encrypted MK)
+      const encryptionNonce = new Uint8Array(24) // XChaCha20 requires 24-byte nonce
+      crypto.getRandomValues(encryptionNonce)
 
-      // Convert master key to hex string for eth_encrypt
-      const masterKeyHex = '0x' + Array.from(masterKey)
-        .map((b: number) => b.toString(16).padStart(2, '0'))
-        .join('')
+      // Derive encryption key from CONSTANT SIGNATURE
+      // Same wallet + same message = same signature = same key
+      const signatureBytes = new Uint8Array(
+        (constantSignature.startsWith('0x') ? constantSignature.slice(2) : constantSignature)
+          .match(/.{1,2}/g)!
+          .map((byte: string) => parseInt(byte, 16))
+      )
 
-      // Call eth_encrypt (MetaMask method)
-      const encryptedMasterKey = await window.ethereum.request({
-        method: 'eth_encrypt',
-        params: [walletPublicKey, masterKeyHex],
-      })
+      const encryptionKeyMaterial = await crypto.subtle.importKey(
+        'raw',
+        signatureBytes,
+        'HKDF',
+        false,
+        ['deriveBits']
+      )
+
+      const derivedKeyBits = await crypto.subtle.deriveBits(
+        {
+          name: 'HKDF',
+          hash: 'SHA-256',
+          salt: new Uint8Array(16),
+          info: new TextEncoder().encode('master-key-encryption-metamask'),
+        },
+        encryptionKeyMaterial,
+        256
+      )
+
+      const encryptionKey = new Uint8Array(derivedKeyBits)
+
+      // Prepare plaintext
+      const plaintext = new TextEncoder().encode(
+        JSON.stringify({
+          masterKey: Array.from(masterKey),
+          timestamp: Date.now(),
+        })
+      )
+
+      console.log('[MK Encryption] Using constant MetaMask signature')
+      console.log('[MK Encryption] Signature:', constantSignature.slice(0, 20) + '...')
+      console.log('[MK Encryption] Plaintext:', plaintext.length, 'bytes')
+      console.log('[MK Encryption] Encryption key:', Buffer.from(encryptionKey).toString('hex').slice(0, 16) + '...')
+
+      // Encrypt
+      const ciphertext = xchacha20poly1305(encryptionKey, encryptionNonce).encrypt(plaintext)
+
+      console.log('[MK Encryption] Ciphertext:', ciphertext.length, 'bytes')
+
+      // Convert to base64
+      const ciphertextBase64 = Buffer.from(ciphertext).toString('base64')
+      const nonceBase64 = Buffer.from(encryptionNonce).toString('base64')
 
       return {
-        encryptedMasterKey,
+        encryptedMasterKey: ciphertextBase64,
         masterKeyMetadata: {
-          version: 'v1',
-          algorithm: 'xsalsa20-poly1305',
-          publicKey: walletPublicKey,
+          version: 'v3-constant-signature',
+          algorithm: 'xchacha20-poly1305',
+          nonce: nonceBase64,
           createdAt: Date.now(),
         },
       }
     } catch (error) {
       console.error('Error encrypting master key:', error)
-      throw new Error('Failed to encrypt master key with MetaMask')
+      throw new Error('Failed to encrypt master key')
     }
   }
 
   /**
-   * STEP 5: Decrypt Master Key with MetaMask (eth_decrypt)
+   * STEP 5: Decrypt Master Key using Constant MetaMask Signature
    * 
-   * Reverses the encryption process:
-   * - Uses MetaMask's eth_decrypt method
-   * - Only works when the wallet is connected and user approves
-   * - Proves wallet ownership and restores the unencrypted MK
+   * Reverses the encryption:
+   * - Signature: Same constant signature (from signing fixed message)
+   * - Derived Key: HKDF(constantSignature, "master-key-encryption-metamask")
+   * - Decryption: XChaCha20-Poly1305 using stored nonce
+   * - Result: Same signature → same key → can decrypt original MK
    */
-  async decryptMasterKeyWithMetaMask(
+  async decryptMasterKeyWithConstantSignature(
     encryptedMasterKey: string,
-    walletAddress: string
+    constantSignature: string,
+    nonce: string
   ): Promise<Uint8Array> {
     try {
-      // Check if MetaMask is available
-      if (typeof window === 'undefined' || !window.ethereum) {
-        throw new Error('MetaMask not available')
-      }
+      console.log('[MK Decryption] Starting with:')
+      console.log('[MK Decryption] - signature:', constantSignature.slice(0, 20) + '...')
+      console.log('[MK Decryption] - encryptedMasterKey length:', encryptedMasterKey.length, 'chars')
+      console.log('[MK Decryption] - nonce:', nonce)
 
-      // Call eth_decrypt (MetaMask method)
-      const decryptedMasterKeyHex = await window.ethereum.request({
-        method: 'eth_decrypt',
-        params: [encryptedMasterKey, walletAddress],
-      })
+      // Convert base64 strings back to bytes
+      const encryptedData = Buffer.from(encryptedMasterKey, 'base64')
+      const encryptionNonce = Buffer.from(nonce, 'base64')
 
-      // Convert hex string back to Uint8Array
-      const hex = decryptedMasterKeyHex.startsWith('0x')
-        ? decryptedMasterKeyHex.slice(2)
-        : decryptedMasterKeyHex
+      console.log('[MK Decryption] - encryptedData decoded:', encryptedData.length, 'bytes')
+      console.log('[MK Decryption] - encryptionNonce decoded:', encryptionNonce.length, 'bytes')
 
-      const masterKey = new Uint8Array(
-        (hex.match(/.{1,2}/g) || []).map((byte: string) => parseInt(byte, 16))
+      // Derive the same encryption key from CONSTANT SIGNATURE
+      const signatureBytes = new Uint8Array(
+        (constantSignature.startsWith('0x') ? constantSignature.slice(2) : constantSignature)
+          .match(/.{1,2}/g)!
+          .map((byte: string) => parseInt(byte, 16))
       )
+
+      const encryptionKeyMaterial = await crypto.subtle.importKey(
+        'raw',
+        signatureBytes,
+        'HKDF',
+        false,
+        ['deriveBits']
+      )
+
+      const derivedKeyBits = await crypto.subtle.deriveBits(
+        {
+          name: 'HKDF',
+          hash: 'SHA-256',
+          salt: new Uint8Array(16),
+          info: new TextEncoder().encode('master-key-encryption-metamask'),
+        },
+        encryptionKeyMaterial,
+        256
+      )
+
+      const encryptionKey = new Uint8Array(derivedKeyBits)
+
+      // Decrypt using noble/ciphers (XChaCha20-Poly1305)
+      console.log('[MK Decryption] Calling xchacha20poly1305.decrypt...')
+      console.log('[MK Decryption] - key:', Buffer.from(encryptionKey).toString('hex').slice(0, 16) + '...')
+      console.log('[MK Decryption] - nonce bytes:', Buffer.from(encryptionNonce).toString('hex').slice(0, 16) + '...')
+
+      const decryptedBytes = xchacha20poly1305(encryptionKey, new Uint8Array(encryptionNonce)).decrypt(
+        new Uint8Array(encryptedData)
+      )
+
+      console.log('[MK Decryption] ✅ Decryption succeeded! Decrypted length:', decryptedBytes.length)
+
+      // Parse the decrypted JSON
+      const decrypted = JSON.parse(new TextDecoder().decode(decryptedBytes))
+
+      // Convert array back to Uint8Array
+      const masterKey = new Uint8Array(decrypted.masterKey)
       return masterKey
     } catch (error) {
       console.error('Error decrypting master key:', error)
-      throw new Error('Failed to decrypt master key with MetaMask')
+      throw new Error('Failed to decrypt master key')
     }
   }
 
@@ -336,6 +420,39 @@ class MetaMaskAuthService {
    * - Used to derive account salt, file encryption keys, PQC keypairs
    * - Maintains compatibility with existing OPAQUE flow
    */
+
+  /**
+   * STEP 9: Get Constant Signature from MetaMask
+   * 
+   * Sign a fixed message to get a deterministic signature
+   * - Same wallet + same message = same signature every time
+   * - Use this for master key encryption key derivation
+   */
+  async getConstantSignature(): Promise<string> {
+    const CONSTANT_MESSAGE = 'Ellipticc Drive - Master Key Derivation v1'
+
+    try {
+      if (typeof window === 'undefined' || !window.ethereum) {
+        throw new Error('MetaMask not installed')
+      }
+
+      const accounts = await (window as any).ethereum.request({
+        method: 'eth_requestAccounts'
+      })
+
+      const signature = await (window as any).ethereum.request({
+        method: 'personal_sign',
+        params: [CONSTANT_MESSAGE, accounts[0]]
+      })
+
+      console.log('[Constant Signature] Generated signature for constant message')
+      return signature
+    } catch (error) {
+      console.error('Error getting constant signature:', error)
+      throw new Error('Failed to get constant signature from wallet')
+    }
+  }
+
   async deriveMasterSecretFromMK(
     masterKey: Uint8Array,
     walletAddress: string

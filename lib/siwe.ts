@@ -8,6 +8,7 @@ interface SIWEResponse {
   message?: string;
   token?: string;
   refreshToken?: string;
+  signature?: string; // For client-side master key encryption
   user?: {
     id: string;
     email?: string;

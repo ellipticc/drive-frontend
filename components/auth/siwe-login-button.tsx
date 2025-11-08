@@ -48,14 +48,14 @@ export function SIWELoginButton({ onSuccess, onError }: SIWELoginButtonProps) {
         return
       }
 
-      const { token, user } = loginResult
+      const { token, user, signature } = loginResult
       const isNewUser = loginResult.user.isNewUser
 
       // Store authentication token
       apiClient.setAuthToken(token)
 
       if (isNewUser) {
-        // NEW USER: Generate Master Key, encrypt with MetaMask, then generate crypto keypairs
+        // NEW USER: Generate Master Key, encrypt with signature, then generate crypto keypairs
 
         // STEP 1: Generate Master Key (root of all encryption)
         const masterKey = await metamaskAuthService.generateMasterKey()
@@ -63,17 +63,23 @@ export function SIWELoginButton({ onSuccess, onError }: SIWELoginButtonProps) {
         // STEP 2: Cache MK in session for immediate use
         metamaskAuthService.cacheMasterKeyInSession(masterKey)
 
-        // STEP 3: Get wallet public key and encrypt MK with MetaMask
-        // Note: For now, we'll store the MK in session. In production, use eth_encrypt
-        // TODO: Implement eth_encrypt for production security
-        
-        // STEP 4: Derive OPAQUE master secret from MK (for account salt and key derivation)
+        // STEP 3: Get constant signature from MetaMask for key derivation
+        // Same wallet + same message = same signature every time
+        const constantSignature = await metamaskAuthService.getConstantSignature()
+
+        // STEP 4: Encrypt Master Key using constant signature-derived key
+        const encryptedMKData = await metamaskAuthService.encryptMasterKeyWithConstantSignature(
+          masterKey,
+          constantSignature
+        )
+
+        // STEP 5: Derive OPAQUE master secret from MK (for account salt and key derivation)
         const masterSecret = await metamaskAuthService.deriveMasterSecretFromMK(
           masterKey,
           user.walletAddress
         )
 
-        // STEP 5: Generate all crypto keypairs using derived master secret
+        // STEP 6: Generate all crypto keypairs using derived master secret
         const { generateAllKeypairs } = await import("@/lib/crypto")
         const keypairs = await generateAllKeypairs(
           Array.from(masterSecret)
@@ -81,21 +87,24 @@ export function SIWELoginButton({ onSuccess, onError }: SIWELoginButtonProps) {
             .join('')
         )
 
-        // STEP 6: CRITICAL FIX - Store crypto keypairs to backend for user registration
+        // STEP 7: Store crypto keypairs AND encrypted master key to backend
         const storeResponse = await apiClient.storeCryptoKeypairs({
           userId: user.id,
-          accountSalt: keypairs.keyDerivationSalt,  // Store as HEX, not base64
+          accountSalt: keypairs.keyDerivationSalt,
           pqcKeypairs: keypairs.pqcKeypairs,
           encryptedMnemonic: keypairs.encryptedMnemonic,
           mnemonicSalt: keypairs.mnemonicSalt,
-          mnemonicIv: keypairs.mnemonicIv
+          mnemonicIv: keypairs.mnemonicIv,
+          // Store encrypted master key (encrypted with constant signature)
+          encryptedMasterKey: encryptedMKData.encryptedMasterKey,
+          masterKeySalt: JSON.stringify(encryptedMKData.masterKeyMetadata)
         })
 
         if (!storeResponse.success) {
           throw new Error('Failed to store crypto keypairs on backend')
         }
 
-        // STEP 7: Cache master key for session
+        // STEP 8: Cache master key for session
         await masterKeyManager.deriveAndCacheMasterKey(
           Array.from(masterSecret)
             .map((b: number) => b.toString(16).padStart(2, '0'))
@@ -103,7 +112,7 @@ export function SIWELoginButton({ onSuccess, onError }: SIWELoginButtonProps) {
           keypairs.keyDerivationSalt
         )
 
-        // STEP 8: Fetch updated profile with stored keypairs
+        // STEP 9: Fetch updated profile with stored keypairs
         const profileResponse = await apiClient.getProfile()
         if (!profileResponse.success || !profileResponse.data?.user) {
           throw new Error('Failed to fetch updated user profile')
@@ -111,12 +120,12 @@ export function SIWELoginButton({ onSuccess, onError }: SIWELoginButtonProps) {
 
         const userData = profileResponse.data.user
 
-        // STEP 9: Initialize key manager with decrypted keypairs
+        // STEP 10: Initialize key manager with decrypted keypairs
         await keyManager.initialize(userData)
 
         toast.success("Account created successfully!")
       } else {
-        // EXISTING USER: Retrieve encrypted MK from storage, decrypt, restore keys
+        // EXISTING USER: Retrieve encrypted MK from storage, decrypt with constant signature, restore keys
 
         const profileResponse = await apiClient.getProfile()
         if (!profileResponse.success || !profileResponse.data?.user) {
@@ -125,17 +134,40 @@ export function SIWELoginButton({ onSuccess, onError }: SIWELoginButtonProps) {
 
         const userData = profileResponse.data.user
 
-        // CRITICAL: Extract account salt from profile and derive master key
-        if (userData.crypto_keypairs?.accountSalt) {
+        // CRITICAL: For MetaMask users, restore the original encrypted master key
+        if (userData.encryptedMasterKey) {
           try {
-            // For returning users: derive MK from stored account salt
-            // This ensures deterministic MK across sessions
+            // Parse the stored master key metadata
+            const mkMetadata = typeof userData.masterKeySalt === 'string' 
+              ? JSON.parse(userData.masterKeySalt)
+              : userData.masterKeySalt
+
+            console.log('[SIWE Login] Restoring MetaMask master key...')
+            console.log('[SIWE Login] - mkMetadata:', mkMetadata)
+            console.log('[SIWE Login] - userData.encryptedMasterKey (first 50 chars):', userData.encryptedMasterKey.slice(0, 50))
+
+            // STEP 1: Get the same constant signature from MetaMask
+            const constantSignature = await metamaskAuthService.getConstantSignature()
+
+            // STEP 2: Decrypt the stored encrypted master key using constant signature
+            const decryptedMasterKey = await metamaskAuthService.decryptMasterKeyWithConstantSignature(
+              userData.encryptedMasterKey,
+              constantSignature,
+              mkMetadata.nonce
+            )
+
+            console.log('[SIWE Login] ✅ Master key decrypted successfully! Length:', decryptedMasterKey.length)
+
+            // STEP 2: Cache the restored master key in session
+            metamaskAuthService.cacheMasterKeyInSession(decryptedMasterKey)
+
+            // STEP 3: Derive master secret from the restored master key
             const masterSecret = await metamaskAuthService.deriveMasterSecretFromMK(
-              await metamaskAuthService.generateMasterKey(), // Generate new MK for this session
+              decryptedMasterKey,
               user.walletAddress
             )
 
-            // Cache for session use
+            // STEP 4: Cache master key for session
             await masterKeyManager.deriveAndCacheMasterKey(
               Array.from(masterSecret)
                 .map((b: number) => b.toString(16).padStart(2, '0'))
@@ -143,14 +175,15 @@ export function SIWELoginButton({ onSuccess, onError }: SIWELoginButtonProps) {
               userData.crypto_keypairs.accountSalt
             )
 
-            metamaskAuthService.cacheMasterKeyInSession(
-              await metamaskAuthService.generateMasterKey()
-            )
-
+            console.log('✅ MetaMask master key restored successfully')
           } catch (keyError) {
-            console.error('Failed to derive master key for returning user:', keyError)
-            throw new Error('Failed to initialize encryption keys')
+            console.error('Failed to restore master key for returning MetaMask user:', keyError)
+            throw new Error('Failed to restore encryption keys. Please try logging in again.')
           }
+        } else if (userData.crypto_keypairs?.accountSalt) {
+          // Fallback for users without encrypted master key (shouldn't happen for MetaMask users)
+          console.warn('No encrypted master key found. This MetaMask user may not have been properly registered.')
+          throw new Error('User encryption keys not properly configured')
         } else {
           console.warn('No account salt found in profile. Master key not cached.')
           throw new Error('User crypto keys not properly initialized')

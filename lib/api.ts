@@ -433,6 +433,8 @@ class ApiClient {
     encryptedMnemonic?: string;
     mnemonicSalt?: string;
     mnemonicIv?: string;
+    encryptedMasterKey?: string;  // For MetaMask users
+    masterKeySalt?: string;        // For MetaMask users
   }): Promise<ApiResponse> {
     return this.request('/auth/crypto/setup', {
       method: 'POST',
