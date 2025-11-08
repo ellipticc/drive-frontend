@@ -59,15 +59,17 @@ export function SignupForm({
       }
 
       // Import PQC crypto functions to get keypairs
-      const { generateAllKeypairs } = await import("@/lib/crypto")
+      const { generateAllKeypairs, hexToUint8Array } = await import("@/lib/crypto")
       const { OPAQUE } = await import("@/lib/opaque")
       
-      // Generate a temporary account salt for keypair generation
+      // Generate a random account salt (32 bytes) in hex format
+      // This salt is used for PBKDF2 key derivation and is deterministic per user
       const tempAccountSalt = crypto.getRandomValues(new Uint8Array(32))
       const tempAccountSaltHex = Array.from(tempAccountSalt)
         .map(b => b.toString(16).padStart(2, '0'))
         .join('')
       
+      // Generate keypairs using the hex salt
       const keypairs = await generateAllKeypairs(formData.password, tempAccountSaltHex)
 
       // Execute complete OPAQUE registration (all 4 steps)
@@ -100,8 +102,16 @@ export function SignupForm({
       localStorage.setItem('recovery_mnemonic', keypairs.mnemonic)
 
       // Now store the PQC keypairs in individual database columns
+      // CRITICAL: Store accountSalt as HEX (same format used for key derivation)
       try {
-        const cryptoSetupResponse = await apiClient.storePQCKeysAfterRegistration(userId, keypairs.pqcKeypairs)
+        const cryptoSetupResponse = await apiClient.storeCryptoKeypairs({
+          userId,
+          accountSalt: tempAccountSaltHex,  // Store as HEX, not base64
+          pqcKeypairs: keypairs.pqcKeypairs,
+          encryptedMnemonic: keypairs.encryptedMnemonic,
+          mnemonicSalt: keypairs.mnemonicSalt,
+          mnemonicIv: keypairs.mnemonicIv
+        })
 
         if (!cryptoSetupResponse.success) {
           console.warn('PQC keypairs setup failed, but registration succeeded:', cryptoSetupResponse)

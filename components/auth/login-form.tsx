@@ -116,9 +116,17 @@ export function LoginForm({
       // Derive and cache master key for the session
       try {
         if (userData.crypto_keypairs?.accountSalt) {
-          await masterKeyManager.deriveAndCacheMasterKey(formData.password, userData.crypto_keypairs.accountSalt);
+          // accountSalt is stored as base64 in the backend
+          // deriveEncryptionKey will handle both base64 and hex formats
+          await masterKeyManager.deriveAndCacheMasterKey(
+            formData.password,
+            userData.crypto_keypairs.accountSalt
+          );
+        } else {
+          throw new Error('No account salt found in user profile');
         }
       } catch (keyError) {
+        console.error('Failed to derive master key:', keyError);
         setError("Failed to initialize cryptographic keys");
         return;
       }

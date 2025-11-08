@@ -88,7 +88,6 @@ export function CreateFolderModal({ children, parentId = null, onFolderCreated }
     if (!folderName.trim() || !userData) return
 
     // Check if master key is available
-    // console.log('🔐 Checking master key availability:', masterKeyManager.hasMasterKey());
     if (!masterKeyManager.hasMasterKey()) {
       toast.error("Session expired. Please login again.")
       return
@@ -126,8 +125,9 @@ export function CreateFolderModal({ children, parentId = null, onFolderCreated }
         toast.error(response.error || "Failed to create folder")
       }
     } catch (error) {
-      // console.error("Failed to create folder:", error)
-      toast.error("Failed to create folder. Please try again.")
+      const errorMsg = error instanceof Error ? error.message : "Unknown error"
+      console.error("Failed to create folder:", errorMsg, error)
+      toast.error("Failed to create folder: " + errorMsg)
     } finally {
       setIsLoading(false)
     }

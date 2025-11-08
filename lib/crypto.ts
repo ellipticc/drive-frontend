@@ -95,14 +95,17 @@ export async function generateDilithiumKeypair(): Promise<{
 // Derive encryption key from password using Argon2id
 export async function deriveEncryptionKey(password: string, salt: string): Promise<Uint8Array> {
   let saltBytes: Uint8Array;
+  
+  // Try to decode salt - it could be base64 (from backend storage) or hex (from registration)
   try {
-    // Try base64 first (expected format for account salt)
+    // First try base64 (expected format from backend /me endpoint)
     saltBytes = Uint8Array.from(atob(salt), c => c.charCodeAt(0));
   } catch (base64Error) {
     try {
-      // Try hex as fallback
+      // Fallback to hex format (used during registration for key derivation)
       saltBytes = hexToUint8Array(salt);
     } catch (hexError) {
+      // If both fail, this is an error
       const base64ErrorMsg = base64Error instanceof Error ? base64Error.message : String(base64Error);
       const hexErrorMsg = hexError instanceof Error ? hexError.message : String(hexError);
       throw new Error(`Invalid salt format: not base64 or hex. Base64 error: ${base64ErrorMsg}, Hex error: ${hexErrorMsg}`);
@@ -459,37 +462,48 @@ export async function decryptUserPrivateKeys(
   const { masterKeyManager } = await import('./master-key');
 
   // Get cached master key
-  const masterKey = masterKeyManager.getMasterKey();
+  let masterKey: Uint8Array;
+  try {
+    masterKey = masterKeyManager.getMasterKey();
+  } catch (e) {
+    throw new Error('Master key not available. Please login again.');
+  }
 
-  // Decrypt the per-key encryption keys using master key
-  const [
-    ed25519Key,
-    dilithiumKey,
-    x25519Key,
-    kyberKey
-  ] = await Promise.all([
-    decryptData(pqcKeypairs.ed25519.encryptionKey, masterKey, pqcKeypairs.ed25519.encryptionNonce),
-    decryptData(pqcKeypairs.dilithium.encryptionKey, masterKey, pqcKeypairs.dilithium.encryptionNonce),
-    decryptData(pqcKeypairs.x25519.encryptionKey, masterKey, pqcKeypairs.x25519.encryptionNonce),
-    decryptData(pqcKeypairs.kyber.encryptionKey, masterKey, pqcKeypairs.kyber.encryptionNonce)
-  ]);
-  // Decrypt all private keys using their individual encryption keys
-  // Decrypt sequentially to avoid any potential race conditions
-  const ed25519PrivateKey = decryptData(pqcKeypairs.ed25519.encryptedPrivateKey, ed25519Key, pqcKeypairs.ed25519.privateKeyNonce);
-  const dilithiumPrivateKey = decryptData(pqcKeypairs.dilithium.encryptedPrivateKey, dilithiumKey, pqcKeypairs.dilithium.privateKeyNonce);
-  const x25519PrivateKey = decryptData(pqcKeypairs.x25519.encryptedPrivateKey, x25519Key, pqcKeypairs.x25519.privateKeyNonce);
-  const kyberPrivateKey = decryptData(pqcKeypairs.kyber.encryptedPrivateKey, kyberKey, pqcKeypairs.kyber.privateKeyNonce);
+  try {
+    // Decrypt the per-key encryption keys using master key
+    const [
+      ed25519Key,
+      dilithiumKey,
+      x25519Key,
+      kyberKey
+    ] = await Promise.all([
+      decryptData(pqcKeypairs.ed25519.encryptionKey, masterKey, pqcKeypairs.ed25519.encryptionNonce),
+      decryptData(pqcKeypairs.dilithium.encryptionKey, masterKey, pqcKeypairs.dilithium.encryptionNonce),
+      decryptData(pqcKeypairs.x25519.encryptionKey, masterKey, pqcKeypairs.x25519.encryptionNonce),
+      decryptData(pqcKeypairs.kyber.encryptionKey, masterKey, pqcKeypairs.kyber.encryptionNonce)
+    ]);
+    
+    // Decrypt all private keys using their individual encryption keys
+    // Decrypt sequentially to avoid any potential race conditions
+    const ed25519PrivateKey = decryptData(pqcKeypairs.ed25519.encryptedPrivateKey, ed25519Key, pqcKeypairs.ed25519.privateKeyNonce);
+    const dilithiumPrivateKey = decryptData(pqcKeypairs.dilithium.encryptedPrivateKey, dilithiumKey, pqcKeypairs.dilithium.privateKeyNonce);
+    const x25519PrivateKey = decryptData(pqcKeypairs.x25519.encryptedPrivateKey, x25519Key, pqcKeypairs.x25519.privateKeyNonce);
+    const kyberPrivateKey = decryptData(pqcKeypairs.kyber.encryptedPrivateKey, kyberKey, pqcKeypairs.kyber.privateKeyNonce);
 
-  return {
-    ed25519PrivateKey,
-    ed25519PublicKey: pqcKeypairs.ed25519.publicKey,
-    dilithiumPrivateKey,
-    dilithiumPublicKey: pqcKeypairs.dilithium.publicKey,
-    x25519PrivateKey,
-    x25519PublicKey: pqcKeypairs.x25519.publicKey,
-    kyberPrivateKey,
-    kyberPublicKey: pqcKeypairs.kyber.publicKey
-  };
+    return {
+      ed25519PrivateKey,
+      ed25519PublicKey: pqcKeypairs.ed25519.publicKey,
+      dilithiumPrivateKey,
+      dilithiumPublicKey: pqcKeypairs.dilithium.publicKey,
+      x25519PrivateKey,
+      x25519PublicKey: pqcKeypairs.x25519.publicKey,
+      kyberPrivateKey,
+      kyberPublicKey: pqcKeypairs.kyber.publicKey
+    };
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to decrypt private keys: ${errorMsg}. This usually means your master key derivation is incorrect or your password is wrong.`);
+  }
 }
 
 // =====================================================

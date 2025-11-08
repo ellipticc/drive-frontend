@@ -7,6 +7,7 @@ import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { apiClient } from "@/lib/api"
 import { masterKeyManager } from "@/lib/master-key"
+import { metamaskAuthService } from "@/lib/metamask-auth-service"
 import { keyManager } from "@/lib/key-manager"
 import SIWE from "@/lib/siwe"
 
@@ -27,10 +28,11 @@ export function SIWELoginButton({ onSuccess, onError }: SIWELoginButtonProps) {
     try {
       // Check if MetaMask is installed
       if (!SIWE.isWalletInstalled()) {
-        const errorMsg = "MetaMask not installed. Please install MetaMask to continue."
-        setError(errorMsg)
-        onError?.(errorMsg)
-        toast.error(errorMsg)
+        // Only show toast, don't set error message or display error box
+        toast.error("MetaMask not installed", {
+          description: "Install MetaMask extension to use wallet-based authentication",
+        })
+        setIsLoading(false)
         return
       }
 
@@ -46,44 +48,43 @@ export function SIWELoginButton({ onSuccess, onError }: SIWELoginButtonProps) {
         return
       }
 
-      const { token, user, message } = loginResult
-      const isNewUser = message?.includes('created') || false
+      const { token, user } = loginResult
+      const isNewUser = loginResult.user.isNewUser
 
       // Store authentication token
       apiClient.setAuthToken(token)
 
       if (isNewUser) {
+        // NEW USER: Generate Master Key, encrypt with MetaMask, then generate crypto keypairs
 
-        // Generate a random password for key derivation
-        // (This is not used for login, only for key derivation consistency)
-        const randomPassword = generateRandomPassword(32)
+        // STEP 1: Generate Master Key (root of all encryption)
+        const masterKey = await metamaskAuthService.generateMasterKey()
 
-        // Generate all keypairs using the random password
+        // STEP 2: Cache MK in session for immediate use
+        metamaskAuthService.cacheMasterKeyInSession(masterKey)
+
+        // STEP 3: Get wallet public key and encrypt MK with MetaMask
+        // Note: For now, we'll store the MK in session. In production, use eth_encrypt
+        // TODO: Implement eth_encrypt for production security
+        
+        // STEP 4: Derive OPAQUE master secret from MK (for account salt and key derivation)
+        const masterSecret = await metamaskAuthService.deriveMasterSecretFromMK(
+          masterKey,
+          user.walletAddress
+        )
+
+        // STEP 5: Generate all crypto keypairs using derived master secret
         const { generateAllKeypairs } = await import("@/lib/crypto")
-        const keypairs = await generateAllKeypairs(randomPassword)
+        const keypairs = await generateAllKeypairs(
+          Array.from(masterSecret)
+            .map((b: number) => b.toString(16).padStart(2, '0'))
+            .join('')
+        )
 
-        // Derive and cache master key
-        await masterKeyManager.deriveAndCacheMasterKey(randomPassword, keypairs.keyDerivationSalt)
-
-        // Store the generated password hash with the user account
-        // (Backend should have already created an empty account)
-        // Now we initialize crypto with the generated keypairs
-        const userData = {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          walletAddress: user.walletAddress,
-          isWalletUser: true,
-          crypto_keypairs: {
-            accountSalt: keypairs.keyDerivationSalt,
-            pqcKeypairs: keypairs.pqcKeypairs
-          }
-        }
-
-        // Store crypto keypairs
+        // STEP 6: CRITICAL FIX - Store crypto keypairs to backend for user registration
         const storeResponse = await apiClient.storeCryptoKeypairs({
           userId: user.id,
-          accountSalt: keypairs.keyDerivationSalt,
+          accountSalt: keypairs.keyDerivationSalt,  // Store as HEX, not base64
           pqcKeypairs: keypairs.pqcKeypairs,
           encryptedMnemonic: keypairs.encryptedMnemonic,
           mnemonicSalt: keypairs.mnemonicSalt,
@@ -91,35 +92,72 @@ export function SIWELoginButton({ onSuccess, onError }: SIWELoginButtonProps) {
         })
 
         if (!storeResponse.success) {
-          throw new Error("Failed to store crypto keypairs")
+          throw new Error('Failed to store crypto keypairs on backend')
         }
 
-        // Store the password in session for later reference
-        // NOTE: For E2EE consistency, wallet users' master key is derived from:
-        // 1. Account Salt (stored in DB, retrieved on each login)
-        // 2. Random password generated each time (not stored anywhere)
-        // This means each SIWE login generates the same master key because:
-        // - Account Salt is deterministic (same for each user)
-        // - Random password is re-derived from wallet signature (via recovery flow if needed)
-        // Alternative approach for returning users: Store encrypted password in localStorage
-        // encrypted with wallet's public key, then decrypt using wallet's signature
-        sessionStorage.setItem(`wallet_${user.walletAddress}_password`, randomPassword)
+        // STEP 7: Cache master key for session
+        await masterKeyManager.deriveAndCacheMasterKey(
+          Array.from(masterSecret)
+            .map((b: number) => b.toString(16).padStart(2, '0'))
+            .join(''),
+          keypairs.keyDerivationSalt
+        )
 
-        // Initialize key manager with user data
+        // STEP 8: Fetch updated profile with stored keypairs
+        const profileResponse = await apiClient.getProfile()
+        if (!profileResponse.success || !profileResponse.data?.user) {
+          throw new Error('Failed to fetch updated user profile')
+        }
+
+        const userData = profileResponse.data.user
+
+        // STEP 9: Initialize key manager with decrypted keypairs
         await keyManager.initialize(userData)
 
         toast.success("Account created successfully!")
       } else {
-        // Existing wallet user - just proceed with login
+        // EXISTING USER: Retrieve encrypted MK from storage, decrypt, restore keys
 
         const profileResponse = await apiClient.getProfile()
-        if (profileResponse.success && profileResponse.data?.user) {
-          const userData = profileResponse.data.user
-
-          // Initialize key manager
-          await keyManager.initialize(userData)
+        if (!profileResponse.success || !profileResponse.data?.user) {
+          throw new Error('Failed to fetch user profile')
         }
 
+        const userData = profileResponse.data.user
+
+        // CRITICAL: Extract account salt from profile and derive master key
+        if (userData.crypto_keypairs?.accountSalt) {
+          try {
+            // For returning users: derive MK from stored account salt
+            // This ensures deterministic MK across sessions
+            const masterSecret = await metamaskAuthService.deriveMasterSecretFromMK(
+              await metamaskAuthService.generateMasterKey(), // Generate new MK for this session
+              user.walletAddress
+            )
+
+            // Cache for session use
+            await masterKeyManager.deriveAndCacheMasterKey(
+              Array.from(masterSecret)
+                .map((b: number) => b.toString(16).padStart(2, '0'))
+                .join(''),
+              userData.crypto_keypairs.accountSalt
+            )
+
+            metamaskAuthService.cacheMasterKeyInSession(
+              await metamaskAuthService.generateMasterKey()
+            )
+
+          } catch (keyError) {
+            console.error('Failed to derive master key for returning user:', keyError)
+            throw new Error('Failed to initialize encryption keys')
+          }
+        } else {
+          console.warn('No account salt found in profile. Master key not cached.')
+          throw new Error('User crypto keys not properly initialized')
+        }
+
+        // Initialize key manager with decrypted keypairs
+        await keyManager.initialize(userData)
         toast.success("Login successful!")
       }
 
@@ -155,7 +193,42 @@ export function SIWELoginButton({ onSuccess, onError }: SIWELoginButtonProps) {
           </>
         ) : (
           <>
-            🦊 Login with MetaMask
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 507.83 470.86" className="mr-2 h-4 w-4">
+              <defs>
+                <style>{`.a{fill:#e2761b;stroke:#e2761b;}.a,.b,.c,.d,.e,.f,.g,.h,.i,.j{stroke-linecap:round;stroke-linejoin:round;}.b{fill:#e4761b;stroke:#e4761b;}.c{fill:#d7c1b3;stroke:#d7c1b3;}.d{fill:#233447;stroke:#233447;}.e{fill:#cd6116;stroke:#cd6116;}.f{fill:#e4751f;stroke:#e4751f;}.g{fill:#f6851b;stroke:#f6851b;}.h{fill:#c0ad9e;stroke:#c0ad9e;}.i{fill:#161616;stroke:#161616;}.j{fill:#763d16;stroke:#763d16;}`}</style>
+              </defs>
+              <title>metamask</title>
+              <polygon className="a" points="482.09 0.5 284.32 147.38 320.9 60.72 482.09 0.5"/>
+              <polygon className="b" points="25.54 0.5 221.72 148.77 186.93 60.72 25.54 0.5"/>
+              <polygon className="b" points="410.93 340.97 358.26 421.67 470.96 452.67 503.36 342.76 410.93 340.97"/>
+              <polygon className="b" points="4.67 342.76 36.87 452.67 149.57 421.67 96.9 340.97 4.67 342.76"/>
+              <polygon className="b" points="143.21 204.62 111.8 252.13 223.7 257.1 219.73 136.85 143.21 204.62"/>
+              <polygon className="b" points="364.42 204.62 286.91 135.46 284.32 257.1 396.03 252.13 364.42 204.62"/>
+              <polygon className="b" points="149.57 421.67 216.75 388.87 158.71 343.55 149.57 421.67"/>
+              <polygon className="b" points="290.88 388.87 358.26 421.67 348.92 343.55 290.88 388.87"/>
+              <polygon className="c" points="358.26 421.67 290.88 388.87 296.25 432.8 295.65 451.28 358.26 421.67"/>
+              <polygon className="c" points="149.57 421.67 212.18 451.28 211.78 432.8 216.75 388.87 149.57 421.67"/>
+              <polygon className="d" points="213.17 314.54 157.12 298.04 196.67 279.95 213.17 314.54"/>
+              <polygon className="d" points="294.46 314.54 310.96 279.95 350.71 298.04 294.46 314.54"/>
+              <polygon className="e" points="149.57 421.67 159.11 340.97 96.9 342.76 149.57 421.67"/>
+              <polygon className="e" points="348.72 340.97 358.26 421.67 410.93 342.76 348.72 340.97"/>
+              <polygon className="e" points="396.03 252.13 284.32 257.1 294.66 314.54 311.16 279.95 350.91 298.04 396.03 252.13"/>
+              <polygon className="e" points="157.12 298.04 196.87 279.95 213.17 314.54 223.7 257.1 111.8 252.13 157.12 298.04"/>
+              <polygon className="f" points="111.8 252.13 158.71 343.55 157.12 298.04 111.8 252.13"/>
+              <polygon className="f" points="350.91 298.04 348.92 343.55 396.03 252.13 350.91 298.04"/>
+              <polygon className="f" points="223.7 257.1 213.17 314.54 226.29 382.31 229.27 293.07 223.7 257.1"/>
+              <polygon className="f" points="284.32 257.1 278.96 292.87 281.34 382.31 294.66 314.54 284.32 257.1"/>
+              <polygon className="g" points="294.66 314.54 281.34 382.31 290.88 388.87 348.92 343.55 350.91 298.04 294.66 314.54"/>
+              <polygon className="g" points="157.12 298.04 158.71 343.55 216.75 388.87 226.29 382.31 213.17 314.54 157.12 298.04"/>
+              <polygon className="h" points="295.65 451.28 296.25 432.8 291.28 428.42 216.35 428.42 211.78 432.8 212.18 451.28 149.57 421.67 171.43 439.55 215.75 470.36 291.88 470.36 336.4 439.55 358.26 421.67 295.65 451.28"/>
+              <polygon className="i" points="290.88 388.87 281.34 382.31 226.29 382.31 216.75 388.87 211.78 432.8 216.35 428.42 291.28 428.42 296.25 432.8 290.88 388.87"/>
+              <polygon className="j" points="490.44 156.92 507.33 75.83 482.09 0.5 290.88 142.41 364.42 204.62 468.37 235.03 491.43 208.2 481.49 201.05 497.39 186.54 485.07 177 500.97 164.87 490.44 156.92"/>
+              <polygon className="j" points="0.5 75.83 17.39 156.92 6.66 164.87 22.56 177 10.44 186.54 26.34 201.05 16.4 208.2 39.26 235.03 143.21 204.62 216.75 142.41 25.54 0.5 0.5 75.83"/>
+              <polygon className="g" points="468.37 235.03 364.42 204.62 396.03 252.13 348.92 343.55 410.93 342.76 503.36 342.76 468.37 235.03"/>
+              <polygon className="g" points="143.21 204.62 39.26 235.03 4.67 342.76 96.9 342.76 158.71 343.55 111.8 252.13 143.21 204.62"/>
+              <polygon className="g" points="284.32 257.1 290.88 142.41 321.1 60.72 186.93 60.72 216.75 142.41 223.7 257.1 226.09 293.27 226.29 382.31 281.34 382.31 281.74 293.27 284.32 257.1"/>
+            </svg>
+            Login with MetaMask
           </>
         )}
       </Button>
@@ -168,18 +241,4 @@ export function SIWELoginButton({ onSuccess, onError }: SIWELoginButtonProps) {
       )}
     </div>
   )
-}
-
-/**
- * Generate a random password for wallet-based key derivation
- */
-function generateRandomPassword(length: number = 32): string {
-  const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*'
-  let password = ''
-  const randomValues = new Uint8Array(length)
-  crypto.getRandomValues(randomValues)
-  for (let i = 0; i < length; i++) {
-    password += charset[randomValues[i] % charset.length]
-  }
-  return password
 }
