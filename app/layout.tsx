@@ -7,6 +7,7 @@ import { AuthGuard } from "@/components/auth/auth-guard";
 import { UserProvider } from "@/components/user-context";
 import { GlobalUploadProvider } from "@/components/global-upload-context";
 import { CurrentFolderProvider } from "@/components/current-folder-context";
+import { ConditionalLayout } from "@/components/layout/conditional-layout";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -53,7 +54,7 @@ export default function RootLayout({
             <GlobalUploadProvider>
               <UserProvider>
                 <AuthGuard>
-                  {children}
+                  <ConditionalLayout>{children}</ConditionalLayout>
                 </AuthGuard>
                 <Toaster
                   position="bottom-right"

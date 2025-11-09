@@ -28,10 +28,7 @@ export function SIWELoginButton({ onSuccess, onError }: SIWELoginButtonProps) {
     try {
       // Check if MetaMask is installed
       if (!SIWE.isWalletInstalled()) {
-        // Only show toast, don't set error message or display error box
-        toast.error("MetaMask not installed", {
-          description: "Install MetaMask extension to use wallet-based authentication",
-        })
+        setError("MetaMask not installed. Install MetaMask extension to use wallet-based authentication.")
         setIsLoading(false)
         return
       }
@@ -216,6 +213,7 @@ export function SIWELoginButton({ onSuccess, onError }: SIWELoginButtonProps) {
   return (
     <div className="w-full space-y-2">
       <Button
+        type="button"
         onClick={handleMetaMaskLogin}
         disabled={isLoading}
         className="w-full"

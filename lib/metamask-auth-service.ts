@@ -226,16 +226,8 @@ class MetaMaskAuthService {
           timestamp: Date.now(),
         })
       )
-
-      console.log('[MK Encryption] Using constant MetaMask signature')
-      console.log('[MK Encryption] Signature:', constantSignature.slice(0, 20) + '...')
-      console.log('[MK Encryption] Plaintext:', plaintext.length, 'bytes')
-      console.log('[MK Encryption] Encryption key:', Buffer.from(encryptionKey).toString('hex').slice(0, 16) + '...')
-
       // Encrypt
       const ciphertext = xchacha20poly1305(encryptionKey, encryptionNonce).encrypt(plaintext)
-
-      console.log('[MK Encryption] Ciphertext:', ciphertext.length, 'bytes')
 
       // Convert to base64
       const ciphertextBase64 = Buffer.from(ciphertext).toString('base64')
@@ -271,17 +263,10 @@ class MetaMaskAuthService {
     nonce: string
   ): Promise<Uint8Array> {
     try {
-      console.log('[MK Decryption] Starting with:')
-      console.log('[MK Decryption] - signature:', constantSignature.slice(0, 20) + '...')
-      console.log('[MK Decryption] - encryptedMasterKey length:', encryptedMasterKey.length, 'chars')
-      console.log('[MK Decryption] - nonce:', nonce)
 
       // Convert base64 strings back to bytes
       const encryptedData = Buffer.from(encryptedMasterKey, 'base64')
       const encryptionNonce = Buffer.from(nonce, 'base64')
-
-      console.log('[MK Decryption] - encryptedData decoded:', encryptedData.length, 'bytes')
-      console.log('[MK Decryption] - encryptionNonce decoded:', encryptionNonce.length, 'bytes')
 
       // Derive the same encryption key from CONSTANT SIGNATURE
       const signatureBytes = new Uint8Array(
@@ -312,15 +297,9 @@ class MetaMaskAuthService {
       const encryptionKey = new Uint8Array(derivedKeyBits)
 
       // Decrypt using noble/ciphers (XChaCha20-Poly1305)
-      console.log('[MK Decryption] Calling xchacha20poly1305.decrypt...')
-      console.log('[MK Decryption] - key:', Buffer.from(encryptionKey).toString('hex').slice(0, 16) + '...')
-      console.log('[MK Decryption] - nonce bytes:', Buffer.from(encryptionNonce).toString('hex').slice(0, 16) + '...')
-
       const decryptedBytes = xchacha20poly1305(encryptionKey, new Uint8Array(encryptionNonce)).decrypt(
         new Uint8Array(encryptedData)
       )
-
-      console.log('[MK Decryption] ✅ Decryption succeeded! Decrypted length:', decryptedBytes.length)
 
       // Parse the decrypted JSON
       const decrypted = JSON.parse(new TextDecoder().decode(decryptedBytes))
@@ -445,7 +424,6 @@ class MetaMaskAuthService {
         params: [CONSTANT_MESSAGE, accounts[0]]
       })
 
-      console.log('[Constant Signature] Generated signature for constant message')
       return signature
     } catch (error) {
       console.error('Error getting constant signature:', error)

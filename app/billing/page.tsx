@@ -1,12 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { AppSidebar } from "@/components/layout/sidebar/app-sidebar"
 import { SiteHeader } from "@/components/layout/header/site-header"
-import {
-  SidebarInset,
-  SidebarProvider,
-} from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -132,28 +127,23 @@ export default function BillingPage() {
 
   if (loading) {
     return (
-      <SidebarProvider>
-        <AppSidebar variant="inset" />
-        <SidebarInset>
-          <SiteHeader pageTitle="Billing" />
-          <div className="flex items-center justify-center py-12">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-              <p className="text-sm text-muted-foreground">Loading billing information...</p>
-            </div>
+      <>
+        <SiteHeader pageTitle="Billing" />
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-sm text-muted-foreground">Loading billing information...</p>
           </div>
-        </SidebarInset>
-      </SidebarProvider>
+        </div>
+      </>
     )
   }
 
   return (
-    <SidebarProvider>
-      <AppSidebar variant="inset" />
-      <SidebarInset>
-        <SiteHeader pageTitle="Billing" />
+    <>
+      <SiteHeader pageTitle="Billing" />
 
-        <div className="flex flex-1 flex-col gap-6 p-6">
+      <div className="flex flex-1 flex-col gap-6 p-6">
           {/* Current Subscription Status */}
           {subscription && (
             <Card>
@@ -300,7 +290,6 @@ export default function BillingPage() {
             </CardContent>
           </Card>
         </div>
-      </SidebarInset>
-    </SidebarProvider>
+    </>
   )
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { apiClient } from "@/lib/api";
 
@@ -12,35 +12,40 @@ export function AuthGuard({ children }: AuthGuardProps) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const router = useRouter();
   const pathname = usePathname();
+  const hasCheckedAuthRef = useRef(false);
 
   useEffect(() => {
-    const checkAuth = () => {
-      // Define public routes that don't require authentication
-      const publicRoutes = ['/login', '/signup', '/otp', '/recover'];
+    // Skip if we've already checked auth to prevent infinite loops
+    if (hasCheckedAuthRef.current) {
+      return;
+    }
 
-      // Check if current path is public (including share links)
-      const isPublic = publicRoutes.includes(pathname) || pathname.startsWith('/s/');
+    // Define public routes that don't require authentication
+    const publicRoutes = ['/login', '/signup', '/otp', '/recover', '/backup', '/totp', '/totp/recovery'];
 
-      // Skip auth check for public routes
-      if (isPublic) {
-        setIsAuthenticated(true);
-        return;
-      }
+    // Check if current path is public (including share links)
+    const isPublic = publicRoutes.includes(pathname) || pathname.startsWith('/s/');
 
-      // For private routes, check if token exists
-      const token = apiClient.getAuthToken();
-      if (!token) {
-        // No token found, redirect to login
-        router.push("/login");
-        setIsAuthenticated(false);
-      } else {
-        // Token exists, allow access
-        setIsAuthenticated(true);
-      }
-    };
+    // Skip auth check for public routes
+    if (isPublic) {
+      setIsAuthenticated(true);
+      hasCheckedAuthRef.current = true;
+      return;
+    }
 
-    checkAuth();
-  }, [router, pathname]);
+    // For private routes, check if token exists
+    const token = apiClient.getAuthToken();
+    if (!token) {
+      // No token found, redirect to login
+      hasCheckedAuthRef.current = true;
+      router.push("/login");
+      setIsAuthenticated(false);
+    } else {
+      // Token exists, allow access
+      hasCheckedAuthRef.current = true;
+      setIsAuthenticated(true);
+    }
+  }, [pathname]); // Only depend on pathname, not router
 
   // Show loading state while checking authentication
   if (isAuthenticated === null) {

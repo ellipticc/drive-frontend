@@ -132,6 +132,7 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
   const startUpload = useCallback(async (uploadState: FileUploadState) => {
     try {
       const uploadManager = new UploadManager({
+        id: uploadState.id,  // Pass the upload state ID to ensure consistency
         file: uploadState.file,
         folderId: currentFolderId,
         onProgress: (task) => {
@@ -145,6 +146,7 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
           updateUploadState(task.id, {
             status: 'completed',
             result: task.result,
+            progress: task.progress,
           });
           // Trigger all registered upload completion callbacks
           onUploadCompleteCallbacksRef.current.forEach(callback => {

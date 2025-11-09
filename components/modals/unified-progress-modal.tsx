@@ -267,6 +267,9 @@ export function UnifiedProgressModal({
   const hasActiveDownload = downloadProgress && downloadProgress.stage !== 'complete' && !downloadError;
   const downloadCompleted = downloadProgress?.stage === 'complete';
 
+  // Note: Modal no longer auto-closes to allow user to see completion status
+  // User can manually close it when ready. Modal persists across navigation.
+
   // Calculate elapsed time for download
   const downloadElapsedTime = Math.round((Date.now() - downloadStartTime) / 1000);
 
@@ -374,23 +377,28 @@ export function UnifiedProgressModal({
                     </div>
 
                     {/* Progress Details */}
-                    {upload.progress && upload.status !== 'completed' && upload.status !== 'failed' && upload.status !== 'cancelled' && (
+                    {(upload.progress || upload.status === 'pending') && upload.status !== 'completed' && upload.status !== 'failed' && upload.status !== 'cancelled' && (
                       <div className="space-y-1">
                         <div className="flex items-center justify-between text-xs">
                           <span className="text-muted-foreground">
-                            {getUploadStageDescription(upload.progress.stage)}
-                            {upload.progress.currentChunk && upload.progress.totalChunks &&
+                            {upload.progress ? getUploadStageDescription(upload.progress.stage) : 'Queued for upload'}
+                            {upload.progress && upload.progress.currentChunk && upload.progress.totalChunks &&
                               ` (${upload.progress.currentChunk}/${upload.progress.totalChunks})`
                             }
                           </span>
                           <span className="font-medium">
-                            {Math.round(upload.progress.overallProgress)}%
+                            {upload.progress ? Math.round(upload.progress.overallProgress) : 0}%
                           </span>
                         </div>
-                        <Progress value={upload.progress.overallProgress} className="h-1 transition-all duration-300 ease-out" />
+                        {upload.progress && (
+                          <Progress value={upload.progress.overallProgress} className="h-1 transition-all duration-300 ease-out" />
+                        )}
+                        {!upload.progress && (
+                          <Progress value={0} className="h-1 transition-all duration-300 ease-out" />
+                        )}
 
                         {/* Bytes processed */}
-                        {upload.progress.bytesProcessed !== undefined &&
+                        {upload.progress && upload.progress.bytesProcessed !== undefined &&
                          upload.progress.totalBytes !== undefined && (
                           <div className="text-xs text-muted-foreground">
                             {formatFileSize(upload.progress.bytesProcessed)} / {formatFileSize(upload.progress.totalBytes)}

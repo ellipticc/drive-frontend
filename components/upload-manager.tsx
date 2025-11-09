@@ -18,6 +18,7 @@ export interface UploadTask {
 }
 
 export interface UploadManagerProps {
+  id: string;  // Add explicit ID parameter
   file: File;
   folderId: string | null;
   userKeys?: UserKeys;
@@ -36,7 +37,7 @@ export class UploadManager {
   constructor(props: UploadManagerProps) {
     this.props = props;
     this.task = {
-      id: `upload-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: props.id,  // Use the provided ID instead of creating one
       file: props.file,
       status: 'pending',
       progress: null,
@@ -93,8 +94,9 @@ export class UploadManager {
         this.notifyProgress();
         this.props.onCancel?.(this.task);
       } else if (isPaused) {
-        // Upload was paused - don't change status, just log
-        // console.log(`Upload paused for ${this.task.file.name}`);
+        // Upload was paused - keep status as 'paused'
+        // Don't call any callback, just return and wait for resume
+        return;
       } else {
         // Upload failed with actual error
         this.task.status = 'failed';
@@ -116,14 +118,17 @@ export class UploadManager {
 
   resume(): void {
     if (this.task.status === 'paused') {
-      // Restart the upload from the beginning
-      // The progress will be reset but the user knows it was resumed
+      // Change status back to uploading and restart
+      this.task.status = 'uploading';
+      this.notifyProgress();
+      // Restart the upload (note: this will re-upload from the beginning)
+      // In a more sophisticated implementation, you'd resume from the last chunk
       this.start();
     }
   }
 
   cancel(): void {
-    if (this.task.status === 'uploading' || this.task.status === 'paused') {
+    if (this.task.status === 'uploading' || this.task.status === 'paused' || this.task.status === 'pending') {
       this.task.status = 'cancelled';
       this.task.abortController?.abort();
       this.notifyProgress();
