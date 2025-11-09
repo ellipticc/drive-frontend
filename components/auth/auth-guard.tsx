@@ -10,23 +10,25 @@ interface AuthGuardProps {
 
 export function AuthGuard({ children }: AuthGuardProps) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [isHydrated, setIsHydrated] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
   const hasCheckedAuthRef = useRef(false);
 
+  // Define public routes that don't require authentication
+  const publicRoutes = ['/login', '/signup', '/otp', '/recover', '/backup', '/totp', '/totp/recovery'];
+  const isPublic = publicRoutes.includes(pathname) || pathname.startsWith('/s/');
+
   useEffect(() => {
+    // Mark as hydrated immediately
+    setIsHydrated(true);
+
     // Skip if we've already checked auth to prevent infinite loops
     if (hasCheckedAuthRef.current) {
       return;
     }
 
-    // Define public routes that don't require authentication
-    const publicRoutes = ['/login', '/signup', '/otp', '/recover', '/backup', '/totp', '/totp/recovery'];
-
     // Check if current path is public (including share links)
-    const isPublic = publicRoutes.includes(pathname) || pathname.startsWith('/s/');
-
-    // Skip auth check for public routes
     if (isPublic) {
       setIsAuthenticated(true);
       hasCheckedAuthRef.current = true;
@@ -45,9 +47,14 @@ export function AuthGuard({ children }: AuthGuardProps) {
       hasCheckedAuthRef.current = true;
       setIsAuthenticated(true);
     }
-  }, [pathname]); // Only depend on pathname, not router
+  }, [pathname, isPublic]); // Added isPublic to dependencies
 
-  // Show loading state while checking authentication
+  // For public routes, render immediately (no loading state)
+  if (isPublic && isHydrated) {
+    return children;
+  }
+
+  // Show loading state only for private routes while checking authentication
   if (isAuthenticated === null) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -56,6 +63,6 @@ export function AuthGuard({ children }: AuthGuardProps) {
     );
   }
 
-  // Only render children if authenticated (or if it's a public route)
+  // Only render children if authenticated
   return isAuthenticated ? children : null;
 }
