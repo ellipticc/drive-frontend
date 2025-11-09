@@ -38,7 +38,7 @@ import {
   SidebarMenuItem,
   SidebarProvider,
 } from "@/components/ui/sidebar"
-import { IconSettings, IconLoader2, IconPencil, IconCheck, IconMail, IconLock, IconLogout, IconTrash, IconDownload } from "@tabler/icons-react"
+import { IconSettings, IconLoader2, IconPencil, IconCheck, IconMail, IconLock, IconLogout, IconTrash, IconUserCog, IconLockSquareRounded  } from "@tabler/icons-react"
 import { apiClient } from "@/lib/api"
 import { useTheme } from "next-themes"
 import { getDiceBearAvatar } from "@/lib/avatar"
@@ -53,8 +53,8 @@ interface SettingsModalProps {
 
 const data = {
   nav: [
-    { name: "General", icon: User, id: "general" },
-    { name: "Security", icon: Shield, id: "security" },
+    { name: "General", icon: IconUserCog, id: "general" },
+    { name: "Security", icon: IconLockSquareRounded, id: "security" },
   ],
 }
 
@@ -698,6 +698,21 @@ export function SettingsModal({
                 <div className="space-y-6">
                   <h2 className="text-xl font-semibold">Security</h2>
 
+                  {/* Wallet User Notice */}
+                  {(user?.email?.endsWith('@wallet.local') || user?.authMethod === 'wallet') && (
+                    <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                      <div className="flex items-start gap-3">
+                        <Shield className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <h3 className="font-medium text-blue-900 dark:text-blue-100">MetaMask Authentication</h3>
+                          <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                            You are authenticated via MetaMask wallet. Email, password, and two-factor authentication settings are managed through your wallet and cannot be modified here.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Change Email Section */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -711,6 +726,7 @@ export function SettingsModal({
                       variant="outline"
                       size="sm"
                       onClick={() => setShowEmailModal(true)}
+                      disabled={user?.email?.endsWith('@wallet.local') || user?.authMethod === 'wallet'}
                     >
                       Change
                     </Button>
@@ -729,6 +745,7 @@ export function SettingsModal({
                       variant="outline"
                       size="sm"
                       onClick={() => setShowPasswordModal(true)}
+                      disabled={user?.email?.endsWith('@wallet.local') || user?.authMethod === 'wallet'}
                     >
                       Change
                     </Button>
@@ -750,7 +767,7 @@ export function SettingsModal({
                         variant="outline"
                         size="sm"
                         onClick={() => setShowTOTPDisable(true)}
-                        disabled={isLoadingTOTP}
+                        disabled={isLoadingTOTP || user?.email?.endsWith('@wallet.local') || user?.authMethod === 'wallet'}
                       >
                         {isLoadingTOTP ? (
                           <>
@@ -766,7 +783,7 @@ export function SettingsModal({
                         variant="outline"
                         size="sm"
                         onClick={handleTOTPSetup}
-                        disabled={isLoadingTOTP}
+                        disabled={isLoadingTOTP || user?.email?.endsWith('@wallet.local') || user?.authMethod === 'wallet'}
                       >
                         {isLoadingTOTP ? (
                           <>

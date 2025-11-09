@@ -195,6 +195,16 @@ export function SIWELoginButton({ onSuccess, onError }: SIWELoginButtonProps) {
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "An error occurred"
       console.error("SIWE login error:", errorMsg)
+
+      // For user rejection, only show toast (not error box)
+      if (errorMsg === "User rejected signature request") {
+        toast.error("Signature request cancelled", {
+          description: "Please try again if you want to sign in with MetaMask"
+        })
+        return
+      }
+
+      // For other errors, show both error box and toast
       setError(errorMsg)
       onError?.(errorMsg)
       toast.error(errorMsg)
