@@ -142,10 +142,6 @@ export function SIWELoginButton({ onSuccess, onError }: SIWELoginButtonProps) {
               ? JSON.parse(userData.masterKeySalt)
               : userData.masterKeySalt
 
-            console.log('[SIWE Login] Restoring MetaMask master key...')
-            console.log('[SIWE Login] - mkMetadata:', mkMetadata)
-            console.log('[SIWE Login] - userData.encryptedMasterKey (first 50 chars):', userData.encryptedMasterKey.slice(0, 50))
-
             // STEP 1: Get the same constant signature from MetaMask
             const constantSignature = await metamaskAuthService.getConstantSignature()
 
@@ -155,8 +151,6 @@ export function SIWELoginButton({ onSuccess, onError }: SIWELoginButtonProps) {
               constantSignature,
               mkMetadata.nonce
             )
-
-            console.log('[SIWE Login] ✅ Master key decrypted successfully! Length:', decryptedMasterKey.length)
 
             // STEP 2: Cache the restored master key in session
             metamaskAuthService.cacheMasterKeyInSession(decryptedMasterKey)
@@ -174,8 +168,6 @@ export function SIWELoginButton({ onSuccess, onError }: SIWELoginButtonProps) {
                 .join(''),
               userData.crypto_keypairs.accountSalt
             )
-
-            console.log('✅ MetaMask master key restored successfully')
           } catch (keyError) {
             console.error('Failed to restore master key for returning MetaMask user:', keyError)
             throw new Error('Failed to restore encryption keys. Please try logging in again.')

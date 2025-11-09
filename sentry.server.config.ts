@@ -9,43 +9,46 @@ function hashUserId(id: string | number | undefined): string | undefined {
   return id ? btoa(String(id)).substring(0, 12) : undefined;
 }
 
-Sentry.init({
-  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+// Only initialize Sentry in production to avoid blocking issues in development
+if (process.env.NODE_ENV === 'production' && process.env.NEXT_PUBLIC_SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
 
-  // Disable performance tracing to reduce noise
-  tracesSampleRate: 0,
+    // Disable performance tracing to reduce noise
+    tracesSampleRate: 0,
 
-  // Disable sending user PII (Personally Identifiable Information)
-  sendDefaultPii: false,
+    // Disable sending user PII (Personally Identifiable Information)
+    sendDefaultPii: false,
 
-  // Only capture critical events (errors and exceptions)
-  beforeSend(event) {
-    // Drop non-error events
-    if (!event.exception && event.level !== 'error') {
-      return null;
-    }
+    // Only capture critical events (errors and exceptions)
+    beforeSend(event) {
+      // Drop non-error events
+      if (!event.exception && event.level !== 'error') {
+        return null;
+      }
 
-    // Strip sensitive data
-    if (event.request) {
-      delete event.request.headers;
-      delete event.request.cookies;
-      delete event.request.data;
-      delete event.request.query_string;
-    }
+      // Strip sensitive data
+      if (event.request) {
+        delete event.request.headers;
+        delete event.request.cookies;
+        delete event.request.data;
+        delete event.request.query_string;
+      }
 
-    if (event.user) {
-      // Keep only anonymized user ID
-      event.user = {
-        id: event.user.id ? hashUserId(event.user.id) : undefined,
-      };
-    }
+      if (event.user) {
+        // Keep only anonymized user ID
+        event.user = {
+          id: event.user.id ? hashUserId(event.user.id) : undefined,
+        };
+      }
 
-    return event;
-  },
+      return event;
+    },
 
-  // Only capture error-level breadcrumbs
-  beforeBreadcrumb(breadcrumb) {
-    if (breadcrumb.level !== 'error') return null;
-    return breadcrumb;
-  },
-});
+    // Only capture error-level breadcrumbs
+    beforeBreadcrumb(breadcrumb) {
+      if (breadcrumb.level !== 'error') return null;
+      return breadcrumb;
+    },
+  });
+}
