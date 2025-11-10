@@ -25,6 +25,7 @@ import { masterKeyManager } from "@/lib/master-key"
 import { keyManager } from "@/lib/key-manager"
 import { Loader2 } from "lucide-react"
 import { SIWELoginButton } from "./siwe-login-button"
+import { GoogleOAuthButton } from "./google-oauth-button"
 
 export function LoginForm({
   className,
@@ -206,8 +207,11 @@ export function LoginForm({
               <Field>
                 <SIWELoginButton />
               </Field>
+              <Field className="-mt-4">
+                <GoogleOAuthButton />
+              </Field>
               <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
-                Or continue with
+                Or continue with email
               </FieldSeparator>
               <Field>
                 <FieldLabel htmlFor="email">Email</FieldLabel>

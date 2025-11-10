@@ -1319,6 +1319,42 @@ class ApiClient {
     });
   }
 
+  // OAuth endpoints
+  async getGoogleOAuthUrl(): Promise<ApiResponse<{
+    authUrl: string;
+  }>> {
+    return this.request('/auth/oauth/google/url', {
+      method: 'GET',
+    });
+  }
+
+  async handleGoogleOAuthCallback(code: string, state: string): Promise<ApiResponse<{
+    token: string;
+    user: {
+      id: string;
+      email: string;
+      has_account_salt: boolean;
+    };
+  }>> {
+    return this.request(`/auth/oauth/google/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`, {
+      method: 'GET',
+    });
+  }
+
+  async completeOAuthRegistration(data: {
+    accountSalt: string;
+    encrypted_recovery_key: string;
+    recovery_key_nonce: string;
+  }): Promise<ApiResponse<{
+    success: boolean;
+    message?: string;
+  }>> {
+    return this.request('/auth/oauth/complete-registration', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);
