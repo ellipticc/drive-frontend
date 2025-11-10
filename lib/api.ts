@@ -562,6 +562,8 @@ class ApiClient {
 
   // Folders endpoints
   async createFolder(data: {
+    encryptedName?: string;
+    nameSalt?: string;
     parentId?: string | null;
     manifestJson: string;
     manifestSignatureEd25519: string;
@@ -571,6 +573,8 @@ class ApiClient {
     algorithmVersion?: string;
   }): Promise<ApiResponse<{
     id: string;
+    encryptedName: string;
+    nameSalt: string;
     name: string;
     parentId: string | null;
     path: string;

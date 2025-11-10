@@ -1,11 +1,13 @@
 "use client"
 
-import React, { createContext, useContext, useState, useRef, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useRef, useCallback, useEffect, ReactNode } from 'react';
 import { UnifiedProgressModal, FileUploadState } from '@/components/modals/unified-progress-modal';
 import { UploadManager } from '@/components/upload-manager';
 import { keyManager } from '@/lib/key-manager';
 import { useCurrentFolder } from '@/components/current-folder-context';
 import { downloadFileToBrowser, downloadFolderAsZip, downloadMultipleItemsAsZip, DownloadProgress } from '@/lib/download';
+import { prepareFilesForUpload, CreatedFolder } from '@/lib/folder-upload-utils';
+import { ParallelUploadQueue, getUploadQueue, destroyUploadQueue } from '@/lib/parallel-upload-queue';
 
 interface GlobalUploadContextType {
   // Upload state
@@ -105,11 +107,24 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
   // Upload managers
   const uploadManagersRef = useRef<Map<string, UploadManager>>(new Map());
 
+  // Parallel upload queue for handling concurrent uploads
+  const uploadQueueRef = useRef<ParallelUploadQueue | null>(null);
+
   // Upload completion callbacks
   const onUploadCompleteCallbacksRef = useRef<Set<(uploadId: string, result: any) => void>>(new Set());
   
   // File added callbacks for incremental updates
   const onFileAddedCallbacksRef = useRef<Set<(file: any) => void>>(new Set());
+
+  // Initialize upload queue on mount and cleanup on unmount
+  useEffect(() => {
+    uploadQueueRef.current = getUploadQueue(3); // 3 concurrent uploads
+
+    return () => {
+      destroyUploadQueue();
+      uploadQueueRef.current = null;
+    };
+  }, []);
 
   const updateUploadState = useCallback((uploadId: string, updates: Partial<FileUploadState>) => {
     setUploads(prev => prev.map(upload =>
@@ -372,12 +387,90 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
   }, [addUpload, startUpload, openModal]);
 
   const startUploadWithFolders = useCallback((files: FileList, folderId: string | null) => {
-    Array.from(files).forEach(file => {
-      const uploadState = addUpload(file);
-      startUpload(uploadState);
-    });
-    openModal();
-  }, [addUpload, startUpload, openModal]);
+    // Register callback to add folders immediately when they're created
+    const onFolderCreated = (folder: CreatedFolder) => {
+      console.log('🗂️ onFolderCreated callback triggered:', { 
+        id: folder.id, 
+        name: folder.name, 
+        plaintext: folder.name,
+        encrypted: folder.encryptedName 
+      });
+      
+      // Trigger folder added callbacks
+      onFileAddedCallbacksRef.current.forEach(callback => {
+        callback({
+          id: folder.id,
+          name: folder.name,
+          parentId: folder.parentId,
+          path: folder.path,
+          type: 'folder',
+          createdAt: folder.createdAt,
+          updatedAt: folder.updatedAt,
+          is_shared: false
+        });
+      });
+    };
+
+    // Process folder structure and create folders as needed
+    prepareFilesForUpload(files, folderId, onFolderCreated)
+      .then(filesForUpload => {
+        // Upload each file to its correct folder
+        filesForUpload.forEach(({ file, folderId: targetFolderId }) => {
+          const uploadState = addUpload(file);
+          // Store the correct folder ID for this upload
+          const uploadManager = new UploadManager({
+            id: uploadState.id,
+            file: uploadState.file,
+            folderId: targetFolderId,
+            onProgress: (task) => {
+              updateUploadState(task.id, {
+                status: task.status,
+                progress: task.progress,
+                error: task.error,
+              });
+            },
+            onComplete: (task) => {
+              updateUploadState(task.id, {
+                status: 'completed',
+                result: task.result,
+                progress: task.progress,
+              });
+              // Trigger all registered upload completion callbacks
+              onUploadCompleteCallbacksRef.current.forEach(callback => {
+                callback(task.id, task.result);
+              });
+              // Trigger file added callbacks with the file data
+              if (task.result && task.result.file) {
+                onFileAddedCallbacksRef.current.forEach(callback => {
+                  callback(task.result.file);
+                });
+              }
+            },
+            onError: (task) => {
+              updateUploadState(task.id, {
+                status: 'failed',
+                error: task.error,
+              });
+            },
+            onCancel: (task) => {
+              updateUploadState(task.id, {
+                status: 'cancelled',
+              });
+            },
+          });
+
+          uploadManagersRef.current.set(uploadState.id, uploadManager);
+          uploadManager.start();
+        });
+        openModal();
+      })
+      .catch((error) => {
+        console.error('Failed to prepare folder uploads:', error);
+        // Show error toast
+        const message = error instanceof Error ? error.message : 'Failed to create folder structure';
+        // You might want to add a toast notification here
+      });
+  }, [addUpload, updateUploadState, openModal]);
 
   const retryDownload = useCallback(() => {
     if (!currentDownloadFile) return;

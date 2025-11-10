@@ -75,32 +75,52 @@ export const TrashTable = () => {
             setError(null);
 
             // Fetch both trash files and folders
-            const [filesResponse, foldersResponse] = await Promise.all([
-                apiClient.getTrashFiles(),
-                apiClient.getTrashFolders()
-            ]);
+            let filesResponse;
+            let foldersResponse;
+            
+            try {
+                [filesResponse, foldersResponse] = await Promise.all([
+                    apiClient.getTrashFiles(),
+                    apiClient.getTrashFolders()
+                ]);
+            } catch (fetchErr) {
+                console.error('Error fetching trash items:', fetchErr);
+                setError('Failed to load trash items');
+                setIsLoading(false);
+                return;
+            }
 
-            if (filesResponse.success && foldersResponse.success) {
+            if (filesResponse?.success && foldersResponse?.success) {
                 // Get master key for filename decryption
                 let masterKey: Uint8Array | null = null;
                 try {
                     masterKey = masterKeyManager.getMasterKey();
                 } catch (err) {
-                    console.warn('Could not retrieve master key for filename decryption', err);
+                    // Don't warn - master key might not be available yet
+                    masterKey = null;
                 }
 
                 // Combine files and folders into a single array
                 const combinedItems: TrashItem[] = [
                     ...(filesResponse.data?.files || []).map((file: any) => {
-                        // Decrypt filename if both encryptedFilename and filenameSalt are present
-                        let displayName = file.encrypted_filename || file.encryptedFilename || '';
-                        if ((file.encrypted_filename || file.encryptedFilename) && (file.filenameSalt || file.filename_salt) && masterKey) {
+                        // Try plaintext name first, then decrypt if needed
+                        let displayName = file.name || '';
+                        
+                        // Only try to decrypt if we have plaintext name is not available AND we have encrypted data
+                        if (!displayName && (file.encrypted_filename || file.encryptedFilename) && (file.filenameSalt || file.filename_salt) && masterKey) {
                             try {
                                 displayName = decryptFilename(file.encrypted_filename || file.encryptedFilename, file.filenameSalt || file.filename_salt, masterKey);
                             } catch (err) {
                                 console.warn(`Failed to decrypt filename for trash file ${file.id}:`, err);
-                                displayName = file.encrypted_filename || file.encryptedFilename || '';
+                                // Fallback to showing partial encrypted name with ellipsis
+                                const encrypted = file.encrypted_filename || file.encryptedFilename || '';
+                                displayName = encrypted.substring(0, 20) + '...';
                             }
+                        }
+                        
+                        // Final fallback if still no name
+                        if (!displayName) {
+                            displayName = file.encrypted_filename || file.encryptedFilename || '(Unnamed)';
                         }
 
                         return {
@@ -117,15 +137,23 @@ export const TrashTable = () => {
                         };
                     }),
                     ...(foldersResponse.data || []).map((folder: any) => {
-                        // Decrypt folder name if both encryptedName and nameSalt are present
+                        // Use plaintext name if available, only decrypt if needed
                         let displayName = folder.name || '';
-                        if (folder.encryptedName && folder.nameSalt && masterKey) {
+                        
+                        // Only try to decrypt if plaintext name is not available AND we have encrypted data
+                        if (!displayName && folder.encryptedName && folder.nameSalt && masterKey) {
                             try {
                                 displayName = decryptFilename(folder.encryptedName, folder.nameSalt, masterKey);
                             } catch (err) {
                                 console.warn(`Failed to decrypt folder name for trash folder ${folder.id}:`, err);
-                                displayName = folder.name || folder.encryptedName;
+                                // Fallback to showing partial encrypted name with ellipsis
+                                displayName = folder.encryptedName.substring(0, 20) + '...';
                             }
+                        }
+                        
+                        // Final fallback if still no name
+                        if (!displayName) {
+                            displayName = folder.encryptedName || '(Unnamed)';
                         }
 
                         return {

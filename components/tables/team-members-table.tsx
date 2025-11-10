@@ -152,6 +152,15 @@ export const Table01DividerLineSm = ({
         return '/' + folderPath.slice(1).map(f => f.id).join('/');
     };
 
+    // Truncate breadcrumb names that are too long (encrypted names)
+    const truncateBreadcrumbName = (name: string, maxLength: number = 20): string => {
+        if (name.length <= maxLength) return name;
+        // For long encrypted names, show start and end with ellipsis
+        const startLen = Math.ceil(maxLength / 2 - 2);
+        const endLen = Math.floor(maxLength / 2 - 2);
+        return name.substring(0, startLen) + '...' + name.substring(name.length - endLen);
+    };
+
     // Update URL when folder navigation changes
     const updateUrl = (newFolderPath: Array<{id: string, name: string}>) => {
         const urlPath = buildUrlPath(newFolderPath);
@@ -289,60 +298,99 @@ export const Table01DividerLineSm = ({
         }
     }, [dragDropFiles]);
 
-    // Register for file added events to add files incrementally
+    // Register for file added events to add files and folders incrementally
     useOnFileAdded(useCallback((fileData: any) => {
-        // Add the newly uploaded file to the current file list incrementally
-        // Handle: null folderId === 'root' currentFolderId case
-        const fileInCurrentFolder = fileData && (
-            (currentFolderId === 'root' && fileData.folderId === null) ||
-            (currentFolderId !== 'root' && fileData.folderId === currentFolderId)
-        );
-        if (fileInCurrentFolder) {
-            // Start with a default display name
-            let displayName = `File ${fileData.id.substring(0, 8)}`; // Default fallback
+        console.log('📁 useOnFileAdded received:', { id: fileData.id, type: fileData.type, name: fileData.name });
+        
+        // Check if this is a folder or a file
+        if (fileData.type === 'folder') {
+            // Handle folder - it should appear in the current folder view
+            const folderInCurrentFolder = fileData && (
+                (currentFolderId === 'root' && fileData.parentId === null) ||
+                (currentFolderId !== 'root' && fileData.parentId === currentFolderId)
+            );
+            
+            console.log('🗂️ Folder detected:', { 
+                inCurrentFolder: folderInCurrentFolder, 
+                currentFolderId, 
+                folderParentId: fileData.parentId,
+                plaintext: fileData.name 
+            });
+            
+            if (folderInCurrentFolder) {
+                // Use plaintext name directly from callback
+                const displayName = fileData.name || '(Unnamed)';
+                
+                console.log('✅ Adding folder to list:', { id: fileData.id, name: displayName });
+                
+                const newFolder: FileItem = {
+                    id: fileData.id,
+                    name: displayName,
+                    parentId: fileData.parentId,
+                    path: fileData.path,
+                    type: 'folder' as const,
+                    createdAt: fileData.createdAt || new Date().toISOString(),
+                    updatedAt: fileData.updatedAt || new Date().toISOString(),
+                    is_shared: fileData.is_shared || false
+                };
+                
+                // Add folder to beginning of list
+                setFiles(prev => [newFolder, ...prev]);
+            }
+        } else {
+            // Handle file - existing logic
+            // Add the newly uploaded file to the current file list incrementally
+            // Handle: null folderId === 'root' currentFolderId case
+            const fileInCurrentFolder = fileData && (
+                (currentFolderId === 'root' && fileData.folderId === null) ||
+                (currentFolderId !== 'root' && fileData.folderId === currentFolderId)
+            );
+            if (fileInCurrentFolder) {
+                // Start with a default display name
+                let displayName = `File ${fileData.id.substring(0, 8)}`; // Default fallback
 
-            // Add to beginning of files list immediately with default name
-            const newFile: FileItem = {
-                id: fileData.id,
-                name: displayName,
-                filename: fileData.filename,
-                encryptedFilename: fileData.encryptedFilename,
-                filenameSalt: fileData.filenameSalt,
-                size: fileData.size,
-                mimeType: fileData.mimeType,
-                folderId: fileData.folderId,
-                type: 'file' as const,
-                createdAt: fileData.createdAt || new Date().toISOString(),
-                updatedAt: fileData.updatedAt || new Date().toISOString(),
-                sha256Hash: fileData.sha256Hash,
-                is_shared: fileData.is_shared || false
-            };
+                // Add to beginning of files list immediately with default name
+                const newFile: FileItem = {
+                    id: fileData.id,
+                    name: displayName,
+                    filename: fileData.filename,
+                    encryptedFilename: fileData.encryptedFilename,
+                    filenameSalt: fileData.filenameSalt,
+                    size: fileData.size,
+                    mimeType: fileData.mimeType,
+                    folderId: fileData.folderId,
+                    type: 'file' as const,
+                    createdAt: fileData.createdAt || new Date().toISOString(),
+                    updatedAt: fileData.updatedAt || new Date().toISOString(),
+                    sha256Hash: fileData.sha256Hash,
+                    is_shared: fileData.is_shared || false
+                };
 
-            // Add to beginning of files list for visibility
-            setFiles(prev => [newFile, ...prev]);
+                // Add to beginning of files list for visibility
+                setFiles(prev => [newFile, ...prev]);
 
-            // Asynchronously decrypt the filename and update the file
-            if (fileData.encryptedFilename && fileData.filenameSalt) {
-                (async () => {
-                    try {
-                        const masterKey = masterKeyManager.getMasterKey();
-                        const decryptedName = await decryptFilename(fileData.encryptedFilename, fileData.filenameSalt, masterKey);
-                        // Update the file with the decrypted name
-                        setFiles(prev => prev.map(file =>
-                            file.id === fileData.id
-                                ? { ...file, name: decryptedName }
-                                : file
-                        ));
-                    } catch (err) {
-                        console.warn(`Failed to decrypt filename for newly uploaded file ${fileData.id}:`, err);
-                        // Keep the default fallback name
-                    }
-                })();
+                // Asynchronously decrypt the filename and update the file
+                if (fileData.encryptedFilename && fileData.filenameSalt) {
+                    (async () => {
+                        try {
+                            const masterKey = masterKeyManager.getMasterKey();
+                            const decryptedName = await decryptFilename(fileData.encryptedFilename, fileData.filenameSalt, masterKey);
+                            // Update the file with the decrypted name
+                            setFiles(prev => prev.map(file =>
+                                file.id === fileData.id
+                                    ? { ...file, name: decryptedName }
+                                    : file
+                            ));
+                        } catch (err) {
+                            console.warn(`Failed to decrypt filename for newly uploaded file ${fileData.id}:`, err);
+                            // Keep the default fallback name
+                        }
+                    })();
+                }
             }
         }
     }, [currentFolderId]));
 
-    // Refresh files and folders after folder creation
     const refreshFiles = useCallback(async (folderId: string = currentFolderId) => {
         try {
             setIsLoading(true);
@@ -362,16 +410,23 @@ export const Table01DividerLineSm = ({
                 // Combine folders and files into a single array
                 const combinedItems: FileItem[] = [
                     ...(await Promise.all((response.data.folders || []).map(async (folder: any) => {
-                        // Decrypt folder name if both encryptedName and nameSalt are present
+                        // Use plaintext name if available, only decrypt if necessary
                         let displayName = folder.name || '';
-                        if (folder.encryptedName && folder.nameSalt && masterKey) {
+                        
+                        // Only decrypt if plaintext name is not available
+                        if (!displayName && folder.encryptedName && folder.nameSalt && masterKey) {
                             try {
                                 displayName = await decryptFilename(folder.encryptedName, folder.nameSalt, masterKey);
                             } catch (err) {
                                 console.warn(`Failed to decrypt folder name for folder ${folder.id}:`, err);
-                                // Fall back to encrypted name if decryption fails
-                                displayName = folder.name || folder.encryptedName;
+                                // Fall back to showing partial encrypted name with ellipsis
+                                displayName = folder.encryptedName?.substring(0, 20) + '...' || '(Unnamed)';
                             }
+                        }
+                        
+                        // Final fallback
+                        if (!displayName) {
+                            displayName = folder.encryptedName || '(Unnamed)';
                         }
 
                         return {
@@ -386,16 +441,23 @@ export const Table01DividerLineSm = ({
                         };
                     }))),
                     ...(await Promise.all((response.data.files || []).map(async (file: any) => {
-                        // Decrypt filename if both encrypted_filename and filename_salt are present
+                        // Use plaintext name if available, only decrypt if necessary
                         let displayName = file.name || '';
-                        if (file.encryptedFilename && file.filenameSalt && masterKey) {
+                        
+                        // Only decrypt if plaintext name is not available
+                        if (!displayName && file.encryptedFilename && file.filenameSalt && masterKey) {
                             try {
                                 displayName = await decryptFilename(file.encryptedFilename, file.filenameSalt, masterKey);
                             } catch (err) {
                                 console.warn(`Failed to decrypt filename for file ${file.id}:`, err);
-                                // Fall back to encrypted filename if decryption fails
-                                displayName = file.name || file.encryptedFilename;
+                                // Fall back to showing partial encrypted name with ellipsis
+                                displayName = file.encryptedFilename?.substring(0, 20) + '...' || '(Unnamed)';
                             }
+                        }
+                        
+                        // Final fallback
+                        if (!displayName) {
+                            displayName = file.encryptedFilename || '(Unnamed)';
                         }
 
                         return {
@@ -1028,7 +1090,7 @@ export const Table01DividerLineSm = ({
                 <>
                     <CreateFolderModal 
                         parentId={currentFolderId === 'root' ? null : currentFolderId}
-                        onFolderCreated={refreshFiles}
+                        onFolderCreated={() => refreshFiles()}
                     >
                         <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Create new folder">
                             <IconFolderPlus className="h-4 w-4" />
@@ -1295,8 +1357,9 @@ export const Table01DividerLineSm = ({
                                         index === folderPath.length - 1 ? 'font-medium text-foreground' : 'text-muted-foreground'
                                     }`}
                                     disabled={index === folderPath.length - 1}
+                                    title={folder.name}
                                 >
-                                    {folder.name}
+                                    {truncateBreadcrumbName(folder.name)}
                                 </button>
                             </div>
                         ))}
@@ -1392,8 +1455,9 @@ export const Table01DividerLineSm = ({
                                         index === folderPath.length - 1 ? 'font-medium text-foreground' : 'text-muted-foreground'
                                     }`}
                                     disabled={index === folderPath.length - 1}
+                                    title={folder.name}
                                 >
-                                    {folder.name}
+                                    {truncateBreadcrumbName(folder.name)}
                                 </button>
                             </div>
                         ))}
@@ -1464,8 +1528,9 @@ export const Table01DividerLineSm = ({
                                     index === folderPath.length - 1 ? 'font-medium text-foreground' : 'text-muted-foreground'
                                 }`}
                                 disabled={index === folderPath.length - 1}
+                                title={folder.name}
                             >
-                                {folder.name}
+                                {truncateBreadcrumbName(folder.name)}
                             </button>
                         </div>
                     ))}
