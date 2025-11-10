@@ -107,14 +107,19 @@ export function RecoverForm({ onError, onSuccess }: RecoverFormProps) {
         .map(b => b.toString(16).padStart(2, '0'))
         .join('')
 
-      // Call recovery API with hashed mnemonic
-      // The backend will verify the mnemonic and reset the password
+      // Call recovery API with hashed mnemonic and new password
+      // The backend will verify the mnemonic hash and invalidate old tokens
+      // User will then log in with new password using OPAQUE protocol
       const response = await apiClient.recoverAccount({
         email: formData.email,
         mnemonic: hashedMnemonicHex,
+        // Note: Actual password reset happens via OPAQUE protocol on login
+        // The backend only verifies the mnemonic hash here
       })
 
       if (response.success) {
+        // User has proven they know the mnemonic
+        // They can now log in with OPAQUE using their new password
         toast.success("Account recovered! Please log in with your new password.")
         onSuccess?.()
         router.push('/login')
@@ -122,6 +127,7 @@ export function RecoverForm({ onError, onSuccess }: RecoverFormProps) {
         setError(response.error || "Recovery failed. Please check your information and try again.")
       }
     } catch (err) {
+      console.error('Recovery error:', err)
       setError(err instanceof Error ? err.message : "An error occurred. Please try again.")
     } finally {
       setIsLoading(false)

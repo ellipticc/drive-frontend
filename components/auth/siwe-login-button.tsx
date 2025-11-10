@@ -89,9 +89,7 @@ export function SIWELoginButton({ onSuccess, onError }: SIWELoginButtonProps) {
           userId: user.id,
           accountSalt: keypairs.keyDerivationSalt,
           pqcKeypairs: keypairs.pqcKeypairs,
-          encryptedMnemonic: keypairs.encryptedMnemonic,
-          mnemonicSalt: keypairs.mnemonicSalt,
-          mnemonicIv: keypairs.mnemonicIv,
+          mnemonicHash: keypairs.mnemonicHash,  // Zero-knowledge recovery: only send hash
           // Store encrypted master key (encrypted with constant signature)
           encryptedMasterKey: encryptedMKData.encryptedMasterKey,
           masterKeySalt: JSON.stringify(encryptedMKData.masterKeyMetadata)

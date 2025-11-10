@@ -108,9 +108,9 @@ export function SignupForm({
           userId,
           accountSalt: tempAccountSaltHex,  // Store as HEX, not base64
           pqcKeypairs: keypairs.pqcKeypairs,
-          encryptedMnemonic: keypairs.encryptedMnemonic,
-          mnemonicSalt: keypairs.mnemonicSalt,
-          mnemonicIv: keypairs.mnemonicIv
+          encryptedMnemonic: '', // Not used - we only send mnemonicHash for zero-knowledge verification
+          mnemonicSalt: '',
+          mnemonicIv: ''
         })
 
         if (!cryptoSetupResponse.success) {

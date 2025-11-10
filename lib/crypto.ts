@@ -341,6 +341,7 @@ export async function generateAllKeypairs(password: string, providedSalt?: strin
     ed25519: { publicKey: string; encryptedPrivateKey: string; privateKeyNonce: string; encryptionKey: string; encryptionNonce: string };
   };
   mnemonic: string;
+  mnemonicHash: string;
   encryptedMnemonic: string;
   mnemonicSalt: string;
   mnemonicIv: string;
@@ -382,11 +383,9 @@ export async function generateAllKeypairs(password: string, providedSalt?: strin
   // Generate recovery mnemonic
   const mnemonic = generateRecoveryMnemonic();
 
-  // Encrypt mnemonic with XChaCha20-Poly1305 using SHA256(mnemonic) as key (for recovery purposes)
+  // Compute SHA256(mnemonic) - this is sent to server for verification
   const mnemonicBytes = new TextEncoder().encode(mnemonic);
   const mnemonicHash = await crypto.subtle.digest('SHA-256', mnemonicBytes);
-  const mnemonicKey = new Uint8Array(mnemonicHash);
-  const mnemonicEncrypted = encryptData(mnemonicBytes, mnemonicKey);
 
   return {
     publicKey: ed25519Keys.publicKey, // Primary Ed25519 public key
@@ -423,9 +422,10 @@ export async function generateAllKeypairs(password: string, providedSalt?: strin
       },
     },
     mnemonic,
-    encryptedMnemonic: mnemonicEncrypted.encryptedData,
-    mnemonicSalt: '', // Not used for SHA256-based encryption
-    mnemonicIv: mnemonicEncrypted.nonce
+    mnemonicHash: Buffer.from(mnemonicHash).toString('hex'), // Send as hex for backend verification
+    encryptedMnemonic: '', // Not sent to backend
+    mnemonicSalt: '', // Not used
+    mnemonicIv: '' // Not sent to backend
   };
 }
 

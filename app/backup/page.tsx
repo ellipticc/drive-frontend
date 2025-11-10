@@ -45,10 +45,11 @@ export default function BackupPage() {
 
   const downloadAsText = () => {
     const element = document.createElement('a')
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+    const timestamp = Date.now()
+    const randomHex = Math.floor(Math.random() * 0xFFFFFF).toString(16).padStart(6, '0');
     const file = new Blob([mnemonic], { type: 'text/plain' })
     element.href = URL.createObjectURL(file)
-    element.download = `recovery-phrase-${timestamp}.txt`
+    element.download = `recovery-phrase-${randomHex}-${timestamp}.txt`
     document.body.appendChild(element)
     element.click()
     document.body.removeChild(element)

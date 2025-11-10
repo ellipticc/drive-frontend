@@ -428,6 +428,7 @@ class ApiClient {
     userId: string;
     accountSalt: string;
     pqcKeypairs: any;
+    mnemonicHash?: string;    // SHA256(mnemonic) for zero-knowledge verification
     encryptedMnemonic?: string;
     mnemonicSalt?: string;
     mnemonicIv?: string;
