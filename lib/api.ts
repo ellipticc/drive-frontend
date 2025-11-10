@@ -402,6 +402,39 @@ class ApiClient {
     });
   }
 
+  /**
+   * Initiate email change process - sends OTP to new email
+   */
+  async initiateEmailChange(newEmail: string): Promise<ApiResponse<{ emailChangeToken: string }>> {
+    return this.request('/auth/email/change/initiate', {
+      method: 'POST',
+      body: JSON.stringify({ newEmail }),
+    });
+  }
+
+  /**
+   * Verify email change with OTP
+   */
+  async verifyEmailChange(emailChangeToken: string, otpCode: string): Promise<ApiResponse> {
+    return this.request('/auth/email/change/verify', {
+      method: 'POST',
+      body: JSON.stringify({ emailChangeToken, otpCode }),
+    });
+  }
+
+  /**
+   * Change password using OPAQUE protocol
+   * Client-side OPAQUE operations ensure password is never sent to backend
+   */
+  async changePassword(data: {
+    newOpaquePasswordFile: string;  // New OPAQUE registration record from OPAQUE step 3
+  }): Promise<ApiResponse> {
+    return this.request('/auth/password/change', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
   async uploadAvatar(formData: FormData): Promise<ApiResponse<{ avatarUrl: string }>> {
     return this.request('/auth/avatar', {
       method: 'POST',
