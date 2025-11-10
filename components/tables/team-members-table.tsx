@@ -292,7 +292,12 @@ export const Table01DividerLineSm = ({
     // Register for file added events to add files incrementally
     useOnFileAdded(useCallback((fileData: any) => {
         // Add the newly uploaded file to the current file list incrementally
-        if (fileData && fileData.folderId === currentFolderId) {
+        // Handle: null folderId === 'root' currentFolderId case
+        const fileInCurrentFolder = fileData && (
+            (currentFolderId === 'root' && fileData.folderId === null) ||
+            (currentFolderId !== 'root' && fileData.folderId === currentFolderId)
+        );
+        if (fileInCurrentFolder) {
             // Start with a default display name
             let displayName = `File ${fileData.id.substring(0, 8)}`; // Default fallback
 

@@ -328,9 +328,7 @@ class ApiClient {
 
   async recoverAccount(data: {
     email: string;
-    mnemonic: string; // Now expects SHA256 hash of the mnemonic
-    newSalt: string;
-    newVerifier: string;
+    mnemonic: string; // SHA256 hash of the mnemonic
     encryptedMasterKey?: string;
     masterKeySalt?: string;
     masterKeyVersion?: number;

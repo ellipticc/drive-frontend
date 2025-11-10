@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/card"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { RecoverFormClient } from "@/components/auth/recover-form-client"
+import { IconCaretLeftRightFilled } from "@tabler/icons-react"
 
 export default function RecoverPage() {
   useEffect(() => {
@@ -17,23 +18,30 @@ export default function RecoverPage() {
   }, [])
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="bg-muted flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10">
       <div className="absolute top-4 right-4">
         <ThemeToggle />
       </div>
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">
-            Recover Your Account
-          </CardTitle>
-          <CardDescription>
-            Enter your email and recovery phrase to regain access
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <RecoverFormClient />
-        </CardContent>
-      </Card>
+      <div className="flex w-full max-w-sm flex-col gap-6">
+        <a href="#" className="flex items-center gap-2 self-center font-medium">
+          <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
+            <IconCaretLeftRightFilled className="!size-5" />
+          </div>
+          <span className="text-base font-mono break-all">ellipticc</span>
+        </a>
+        
+        <Card>
+          <CardHeader>
+            <CardTitle>Recover Your Account</CardTitle>
+            <CardDescription>
+              Enter your email and recovery phrase to set a new password
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <RecoverFormClient />
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }
