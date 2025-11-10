@@ -26,8 +26,16 @@ export default function BackupPage() {
     // Get mnemonic from localStorage
     const storedMnemonic = localStorage.getItem('recovery_mnemonic')
     if (!storedMnemonic) {
-      // Redirect to signup if no mnemonic
-      router.push('/signup')
+      // Check if user is authenticated (has auth token)
+      const authToken = localStorage.getItem('auth_token')
+      if (!authToken) {
+        // Not authenticated and no mnemonic - redirect to signup
+        router.push('/signup')
+        return
+      }
+      // User is authenticated but no mnemonic in recovery phase - redirect to dashboard
+      // This shouldn't happen in normal flow, but handle it gracefully
+      router.push('/')
       return
     }
     setMnemonic(storedMnemonic)

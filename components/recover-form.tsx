@@ -107,22 +107,157 @@ export function RecoverForm({ onError, onSuccess }: RecoverFormProps) {
         .map(b => b.toString(16).padStart(2, '0'))
         .join('')
 
-      // Call recovery API with hashed mnemonic and new password
-      // The backend will verify the mnemonic hash and invalidate old tokens
-      // User will then log in with new password using OPAQUE protocol
+      // DOUBLE-WRAPPED MASTER KEY RECOVERY
+      // 1. Derive RKEK from mnemonic
+      // 2. Decrypt RK with RKEK
+      // 3. Decrypt original Master Key with RK
+      // 4. Re-encrypt Master Key with new password's RK (optional rotation)
+      // 5. Update password using OPAQUE
+      
+      const { 
+        deriveRecoveryKeyEncryptionKey, 
+        decryptRecoveryKey,
+        decryptMasterKeyWithRecoveryKey,
+        encryptRecoveryKey,
+        encryptMasterKeyWithRecoveryKey,
+        deriveEncryptionKey,
+        generateKeyDerivationSalt
+      } = await import("@/lib/crypto")
+      const { masterKeyManager } = await import("@/lib/master-key")
+      const { OPAQUERegistration } = await import("@/lib/opaque")
+
+      // CRITICAL: Normalize mnemonic input (trim whitespace, normalize spacing)
+      const normalizedMnemonic = formData.mnemonic.trim().split(/\s+/).join(' ').toLowerCase()
+      const mnemonicWords = normalizedMnemonic.split(' ')
+      
+      if (mnemonicWords.length !== 12) {
+        setError("Recovery phrase must contain exactly 12 words")
+        return
+      }
+      
+      console.log('📝 Recovery Phrase Analysis:')
+      console.log('- Word count:', mnemonicWords.length)
+      console.log('- Words:', mnemonicWords.join(' | '))
+      
+      // Step 1: Derive RKEK from mnemonic
+      const rkek = await deriveRecoveryKeyEncryptionKey(normalizedMnemonic)
+      console.log('Derived RKEK from mnemonic')
+      const rkekHex = Array.from(rkek).map(b => b.toString(16).padStart(2, '0')).join('')
+      console.log('RKEK (first 32 chars):', rkekHex.substring(0, 32))
+
+      // Step 2: Get user's encrypted recovery key from backend
+      // We need to fetch it first - initiate recovery should return it
+      const recoveryCheck = await apiClient.initiateRecovery(formData.email)
+      if (!recoveryCheck.success || !recoveryCheck.data?.encryptedRecoveryKey) {
+        setError("Unable to retrieve recovery data. Please try again.")
+        return
+      }
+
+      if (!recoveryCheck.data?.accountSalt) {
+        setError("Account salt not found. Please try again.")
+        return
+      }
+
+      const { encryptedRecoveryKey, recoveryKeyNonce, accountSalt } = recoveryCheck.data
+
+      // Step 3: Decrypt RK with RKEK
+      if (!recoveryKeyNonce) {
+        setError("Recovery key nonce not found. Please try again.")
+        return
+      }
+      let recoveryKey: Uint8Array
+      try {
+        recoveryKey = decryptRecoveryKey(encryptedRecoveryKey, recoveryKeyNonce, rkek)
+        console.log('✅ Successfully decrypted Recovery Key with RKEK')
+      } catch (decryptError) {
+        console.error('❌ RK decryption error:', decryptError)
+        console.error('This means the recovery phrase is incorrect or was stored differently.')
+        console.error('Recovery phrase provided:', normalizedMnemonic)
+        console.error('Encrypted RK (first 50 chars):', encryptedRecoveryKey.substring(0, 50))
+        setError("The recovery phrase you entered is incorrect. Please double-check your 12-word phrase and try again. If you don't have your recovery phrase, you may need to contact support.")
+        return
+      }
+
+      // Step 4: Get encrypted master key from recovery data
+      if (!recoveryCheck.data?.encryptedMasterKey || !recoveryCheck.data?.masterKeyNonce) {
+        setError("Master key recovery data not found. Cannot restore file access.")
+        return
+      }
+
+      const { encryptedMasterKey: originalEncryptedMK, masterKeyNonce: originalMKNonce } = recoveryCheck.data
+
+      // Step 5: Decrypt original Master Key with RK
+      const originalMasterKey = decryptMasterKeyWithRecoveryKey(originalEncryptedMK, originalMKNonce, recoveryKey)
+      console.log('Decrypted original Master Key with Recovery Key')
+
+      // CRITICAL: Keep the SAME master key! Do NOT derive a new one from password.
+      // The master key is what encrypts all files - it must remain unchanged.
+      // We only update the password authentication mechanism.
+
+      // Re-encrypt the SAME original master key with same Recovery Key
+      // This allows future recovery with the same mnemonic
+      const reEncryptedMKResult = encryptMasterKeyWithRecoveryKey(originalMasterKey, recoveryKey)
+
+      // Re-encrypt RK with SAME RKEK (derived from same mnemonic)
+      // The RKEK is deterministic: SHA256(SHA256(mnemonic)), so it never changes
+      const reEncryptedRKResult = encryptRecoveryKey(recoveryKey, rkek)
+
+      console.log('Re-encrypted keys (keeping same master key for file access)')
+
+      // Step 7: Update password using OPAQUE
+      // OPAQUE protocol ensures password is NEVER sent to backend - only derived OPAQUE record
+      console.log('Updating password with OPAQUE...')
+      const opaqueReg = new OPAQUERegistration()
+      
+      // OPAQUE Step 1: Client creates registration request
+      const regStep1 = await opaqueReg.step1(formData.newPassword)
+      
+      // OPAQUE Step 2: Server creates registration response
+      const regStep2 = await opaqueReg.step2(formData.email, regStep1.registrationRequest)
+      
+      // OPAQUE Step 3: Client finalizes registration
+      const regStep3 = await opaqueReg.step3(regStep2.registrationResponse)
+      
+      // Step 8: Call recovery API with:
+      // - Mnemonic hash for verification
+      // - Re-encrypted Master Key for file access
+      // - Re-encrypted Recovery Key for future recovery
+      // - New OPAQUE registration record (derived from password, never plaintext sent)
       const response = await apiClient.recoverAccount({
         email: formData.email,
         mnemonic: hashedMnemonicHex,
-        // Note: Actual password reset happens via OPAQUE protocol on login
-        // The backend only verifies the mnemonic hash here
+        encryptedMasterKey: reEncryptedMKResult.encryptedMasterKey,
+        masterKeySalt: JSON.stringify({
+          accountSalt: accountSalt,
+          masterKeyNonce: reEncryptedMKResult.masterKeyNonce,
+          version: 1
+        }),
+        encryptedRecoveryKey: reEncryptedRKResult.encryptedRecoveryKey,
+        recoveryKeyNonce: reEncryptedRKResult.recoveryKeyNonce,
+        masterKeyVersion: 1,
+        // OPAQUE-derived password file (password never sent to backend)
+        newOpaquePasswordFile: regStep3.registrationRecord
       })
 
       if (response.success) {
-        // User has proven they know the mnemonic
-        // They can now log in with OPAQUE using their new password
-        toast.success("Account recovered! Please log in with your new password.")
-        onSuccess?.()
-        router.push('/login')
+        // Store auth token if provided
+        if (response.data?.token) {
+          apiClient.setAuthToken(response.data.token)
+        }
+
+        // Cache the RECOVERED master key for immediate dashboard access
+        // Use the original account salt that was used to derive the master key initially
+        masterKeyManager.cacheExistingMasterKey(originalMasterKey, accountSalt)
+        
+        toast.success("Account recovered! Your files are accessible again.")
+        
+        // Give a brief moment for toast to show, then redirect
+        // The UserProvider will automatically fetch profile data when we redirect
+        setTimeout(() => {
+          onSuccess?.()
+          // Force a full page reload to ensure UserProvider refreshes
+          window.location.href = '/'
+        }, 1000)
       } else {
         setError(response.error || "Recovery failed. Please check your information and try again.")
       }

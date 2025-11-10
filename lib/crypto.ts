@@ -622,3 +622,177 @@ export async function decryptFilename(encryptedFilename: string, filenameSalt: s
     throw new Error(`Failed to decrypt filename: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
+
+// =====================================================
+// DOUBLE-WRAPPED MASTER KEY - ACCOUNT RECOVERY
+// =====================================================
+
+/**
+ * Derive Recovery Key Encryption Key (RKEK) from mnemonic
+ * RKEK is used to encrypt the Recovery Key (RK)
+ * RK is used to decrypt the Master Key
+ * 
+ * This scheme allows:
+ * 1. User forgets password but has mnemonic
+ * 2. User can derive RKEK from mnemonic
+ * 3. User can decrypt RK using RKEK
+ * 4. User can decrypt Master Key using RK
+ * 5. User can access files without losing data
+ * 
+ * @param mnemonic - 12-word recovery phrase
+ * @returns RKEK (32 bytes for XChaCha20-Poly1305)
+ */
+export async function deriveRecoveryKeyEncryptionKey(mnemonic: string): Promise<Uint8Array> {
+  // Hash the mnemonic with SHA-256 twice for additional security
+  const mnemonicBytes = new TextEncoder().encode(mnemonic);
+  const firstHash = await crypto.subtle.digest('SHA-256', mnemonicBytes);
+  const secondHash = await crypto.subtle.digest('SHA-256', firstHash);
+  
+  return new Uint8Array(secondHash);
+}
+
+/**
+ * Generate Recovery Key (RK) - a random 32-byte key
+ * RK will be encrypted with RKEK and stored as encryptedRecoveryKey
+ * RK will be used to decrypt the Master Key
+ * 
+ * @returns 32-byte Recovery Key
+ */
+export function generateRecoveryKey(): Uint8Array {
+  const rk = new Uint8Array(32);
+  crypto.getRandomValues(rk);
+  return rk;
+}
+
+/**
+ * Encrypt Recovery Key with RKEK from mnemonic
+ * Returns encryptedRecoveryKey that can be stored on server
+ * 
+ * @param recoveryKey - 32-byte RK to encrypt
+ * @param rkek - Recovery Key Encryption Key (32 bytes)
+ * @returns Base64 encoded encrypted RK with embedded nonce
+ */
+export function encryptRecoveryKey(recoveryKey: Uint8Array, rkek: Uint8Array): {
+  encryptedRecoveryKey: string;
+  recoveryKeyNonce: string;
+} {
+  if (recoveryKey.length !== 32) {
+    throw new Error('Recovery Key must be 32 bytes');
+  }
+  if (rkek.length !== 32) {
+    throw new Error('RKEK must be 32 bytes');
+  }
+
+  // Generate random nonce
+  const nonce = new Uint8Array(24);
+  crypto.getRandomValues(nonce);
+
+  // Encrypt RK with RKEK using XChaCha20-Poly1305
+  const encrypted = xchacha20poly1305(rkek, nonce).encrypt(recoveryKey);
+
+  return {
+    encryptedRecoveryKey: uint8ArrayToBase64(encrypted),
+    recoveryKeyNonce: uint8ArrayToBase64(nonce)
+  };
+}
+
+/**
+ * Decrypt Recovery Key using RKEK
+ * 
+ * @param encryptedRecoveryKey - Base64 encoded encrypted RK
+ * @param recoveryKeyNonce - Base64 encoded nonce
+ * @param rkek - Recovery Key Encryption Key (32 bytes)
+ * @returns Decrypted 32-byte Recovery Key
+ */
+export function decryptRecoveryKey(encryptedRecoveryKey: string, recoveryKeyNonce: string, rkek: Uint8Array): Uint8Array {
+  if (rkek.length !== 32) {
+    throw new Error('RKEK must be 32 bytes');
+  }
+
+  try {
+    const encryptedBytes = Uint8Array.from(atob(encryptedRecoveryKey), c => c.charCodeAt(0));
+    const nonceBytes = Uint8Array.from(atob(recoveryKeyNonce), c => c.charCodeAt(0));
+
+    if (nonceBytes.length !== 24) {
+      throw new Error(`Invalid nonce length: ${nonceBytes.length}, expected 24`);
+    }
+
+    const decrypted = xchacha20poly1305(rkek, nonceBytes).decrypt(encryptedBytes);
+
+    if (decrypted.length !== 32) {
+      throw new Error(`Invalid decrypted key length: ${decrypted.length}, expected 32`);
+    }
+
+    return decrypted;
+  } catch (error) {
+    throw new Error(`Failed to decrypt recovery key: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+/**
+ * Encrypt Master Key with Recovery Key
+ * During registration, we encrypt MK with RK
+ * During recovery, we can decrypt MK with RK (after decrypting RK with RKEK from mnemonic)
+ * 
+ * @param masterKey - 32-byte Master Key to encrypt
+ * @param recoveryKey - 32-byte Recovery Key
+ * @returns Base64 encoded encrypted MK with embedded nonce
+ */
+export function encryptMasterKeyWithRecoveryKey(masterKey: Uint8Array, recoveryKey: Uint8Array): {
+  encryptedMasterKey: string;
+  masterKeyNonce: string;
+} {
+  if (masterKey.length !== 32) {
+    throw new Error('Master Key must be 32 bytes');
+  }
+  if (recoveryKey.length !== 32) {
+    throw new Error('Recovery Key must be 32 bytes');
+  }
+
+  // Generate random nonce
+  const nonce = new Uint8Array(24);
+  crypto.getRandomValues(nonce);
+
+  // Encrypt MK with RK using XChaCha20-Poly1305
+  const encrypted = xchacha20poly1305(recoveryKey, nonce).encrypt(masterKey);
+
+  return {
+    encryptedMasterKey: uint8ArrayToBase64(encrypted),
+    masterKeyNonce: uint8ArrayToBase64(nonce)
+  };
+}
+
+/**
+ * Decrypt Master Key using Recovery Key
+ * This is done during account recovery after decrypting RK with RKEK
+ * 
+ * @param encryptedMasterKey - Base64 encoded encrypted MK
+ * @param masterKeyNonce - Base64 encoded nonce
+ * @param recoveryKey - 32-byte Recovery Key (decrypted from RKEK)
+ * @returns Decrypted 32-byte Master Key
+ */
+export function decryptMasterKeyWithRecoveryKey(encryptedMasterKey: string, masterKeyNonce: string, recoveryKey: Uint8Array): Uint8Array {
+  if (recoveryKey.length !== 32) {
+    throw new Error('Recovery Key must be 32 bytes');
+  }
+
+  try {
+    const encryptedBytes = Uint8Array.from(atob(encryptedMasterKey), c => c.charCodeAt(0));
+    const nonceBytes = Uint8Array.from(atob(masterKeyNonce), c => c.charCodeAt(0));
+
+    if (nonceBytes.length !== 24) {
+      throw new Error(`Invalid nonce length: ${nonceBytes.length}, expected 24`);
+    }
+
+    const decrypted = xchacha20poly1305(recoveryKey, nonceBytes).decrypt(encryptedBytes);
+
+    if (decrypted.length !== 32) {
+      throw new Error(`Invalid decrypted key length: ${decrypted.length}, expected 32`);
+    }
+
+    return decrypted;
+  } catch (error) {
+    throw new Error(`Failed to decrypt master key: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+

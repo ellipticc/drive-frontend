@@ -331,8 +331,15 @@ class ApiClient {
     mnemonic: string; // SHA256 hash of the mnemonic
     encryptedMasterKey?: string;
     masterKeySalt?: string;
+    encryptedRecoveryKey?: string; // RK encrypted with RKEK from mnemonic
+    recoveryKeyNonce?: string; // Nonce for RK decryption
     masterKeyVersion?: number;
-  }): Promise<ApiResponse> {
+    // OPAQUE password reset - OPAQUE protocol ensures no plaintext password sent
+    newOpaquePasswordFile?: string; // New OPAQUE registration record (derived from password client-side)
+  }): Promise<ApiResponse<{
+    token?: string;
+    refreshToken?: string;
+  }>> {
     return this.request('/recovery/verify', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -341,6 +348,11 @@ class ApiClient {
 
   async initiateRecovery(email: string): Promise<ApiResponse<{
     hasRecovery: boolean;
+    encryptedRecoveryKey?: string; // RK encrypted with RKEK
+    recoveryKeyNonce?: string; // Nonce for RK decryption
+    encryptedMasterKey?: string; // Original MK encrypted with RK
+    masterKeyNonce?: string; // Nonce for MK decryption
+    accountSalt?: string; // Original account salt for master key derivation
   }>> {
     return this.request('/recovery/initiate', {
       method: 'POST',
@@ -432,8 +444,11 @@ class ApiClient {
     encryptedMnemonic?: string;
     mnemonicSalt?: string;
     mnemonicIv?: string;
-    encryptedMasterKey?: string;  // For MetaMask users
-    masterKeySalt?: string;        // For MetaMask users
+    encryptedMasterKey?: string;  // For MetaMask users / recovery
+    masterKeySalt?: string;        // For MetaMask users / recovery (can include masterKeyNonce in JSON)
+    masterKeyNonce?: string;       // Nonce for encrypting master key with recovery key
+    encryptedRecoveryKey?: string; // RK encrypted with RKEK(mnemonic)
+    recoveryKeyNonce?: string;     // Nonce for decrypting recovery key
   }): Promise<ApiResponse> {
     return this.request('/auth/crypto/setup', {
       method: 'POST',

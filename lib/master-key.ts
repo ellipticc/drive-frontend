@@ -11,23 +11,20 @@ class MasterKeyManager {
   private static readonly ACCOUNT_SALT_STORAGE_KEY = 'account_salt';
 
   /**
-   * Derive and cache master key from password and account salt
-   * This should be called once per login session
+   * Cache an existing master key (for recovery scenarios)
+   * This should be called when we already have the master key from recovery
    */
-  async deriveAndCacheMasterKey(password: string, accountSalt: string): Promise<void> {
+  cacheExistingMasterKey(masterKey: Uint8Array, accountSalt: string): void {
     try {
-      const masterKey = await deriveEncryptionKey(password, accountSalt);
-
       // Store in localStorage as base64 for cross-tab persistence
       const binaryString = String.fromCharCode(...masterKey);
       const masterKeyBase64 = btoa(binaryString);
       localStorage.setItem(MasterKeyManager.MASTER_KEY_STORAGE_KEY, masterKeyBase64);
       localStorage.setItem(MasterKeyManager.ACCOUNT_SALT_STORAGE_KEY, accountSalt);
 
-      // console.log('🔐 Master key cached in localStorage');
     } catch (error) {
-      // console.error('Failed to derive master key:', error);
-      throw new Error('Failed to derive master key');
+      // console.error('Failed to cache existing master key:', error);
+      throw new Error('Failed to cache master key');
     }
   }
 
@@ -68,7 +65,6 @@ class MasterKeyManager {
   clearMasterKey(): void {
     localStorage.removeItem(MasterKeyManager.MASTER_KEY_STORAGE_KEY);
     localStorage.removeItem(MasterKeyManager.ACCOUNT_SALT_STORAGE_KEY);
-    // console.log('🔐 Master key cleared from localStorage');
   }
 
   /**
@@ -76,6 +72,23 @@ class MasterKeyManager {
    */
   getAccountSalt(): string | null {
     return localStorage.getItem(MasterKeyManager.ACCOUNT_SALT_STORAGE_KEY);
+  }
+
+  /**
+   * Derive and cache master key from password and account salt
+   * This is used during normal login when we need to derive the master key from credentials
+   */
+  async deriveAndCacheMasterKey(password: string, accountSalt: string): Promise<void> {
+    try {
+      // Derive master key from password and account salt
+      const masterKey = await deriveEncryptionKey(password, accountSalt);
+      
+      // Cache the derived master key
+      this.cacheExistingMasterKey(masterKey, accountSalt);
+    } catch (error) {
+      // console.error('Failed to derive and cache master key:', error);
+      throw new Error('Failed to derive master key from password');
+    }
   }
 }
 

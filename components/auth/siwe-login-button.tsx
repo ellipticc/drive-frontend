@@ -77,27 +77,63 @@ export function SIWELoginButton({ onSuccess, onError }: SIWELoginButtonProps) {
         )
 
         // STEP 6: Generate all crypto keypairs using derived master secret
-        const { generateAllKeypairs } = await import("@/lib/crypto")
+        const { 
+          generateAllKeypairs,
+          generateRecoveryMnemonic: generateRecoveryMnemonicFn,
+          deriveRecoveryKeyEncryptionKey,
+          generateRecoveryKey,
+          encryptRecoveryKey,
+          encryptMasterKeyWithRecoveryKey
+        } = await import("@/lib/crypto")
         const keypairs = await generateAllKeypairs(
           Array.from(masterSecret)
             .map((b: number) => b.toString(16).padStart(2, '0'))
             .join('')
         )
 
-        // STEP 7: Store crypto keypairs AND encrypted master key to backend
+        // STEP 6.5: Generate recovery key components for double-wrapped scheme
+        const mnemonic = keypairs.mnemonic
+        const mnemonicHash = keypairs.mnemonicHash
+        
+        // Derive RKEK from mnemonic
+        const rkek = await deriveRecoveryKeyEncryptionKey(mnemonic)
+        
+        // Generate random RK
+        const rk = generateRecoveryKey()
+        
+        // Encrypt RK with RKEK
+        const recoveryKeyEncryption = encryptRecoveryKey(rk, rkek)
+        const encryptedRecoveryKey = recoveryKeyEncryption.encryptedRecoveryKey
+        const recoveryKeyNonce = recoveryKeyEncryption.recoveryKeyNonce
+        
+        // Encrypt the Master Key with the Recovery Key (for recovery without password)
+        const masterKeyEncryption = encryptMasterKeyWithRecoveryKey(masterKey, rk)
+        const encryptedMasterKeyForRecovery = masterKeyEncryption.encryptedMasterKey
+        const masterKeyNonce = masterKeyEncryption.masterKeyNonce
+
+        // STEP 7: Store crypto keypairs AND encrypted keys to backend
         const storeResponse = await apiClient.storeCryptoKeypairs({
           userId: user.id,
           accountSalt: keypairs.keyDerivationSalt,
           pqcKeypairs: keypairs.pqcKeypairs,
-          mnemonicHash: keypairs.mnemonicHash,  // Zero-knowledge recovery: only send hash
-          // Store encrypted master key (encrypted with constant signature)
+          mnemonicHash,  // Zero-knowledge recovery: only send hash
+          // Store encrypted master key (encrypted with constant signature for MetaMask)
           encryptedMasterKey: encryptedMKData.encryptedMasterKey,
-          masterKeySalt: JSON.stringify(encryptedMKData.masterKeyMetadata)
+          masterKeySalt: JSON.stringify({
+            ...encryptedMKData.masterKeyMetadata,
+            masterKeyNonce: masterKeyNonce  // Nonce for recovery key encryption
+          }),
+          // Store encrypted recovery key components
+          encryptedRecoveryKey,
+          recoveryKeyNonce
         })
 
         if (!storeResponse.success) {
           throw new Error('Failed to store crypto keypairs on backend')
         }
+
+        // Store mnemonic for backup page (same as password auth)
+        localStorage.setItem('recovery_mnemonic', mnemonic)
 
         // STEP 8: Cache master key for session
         await masterKeyManager.deriveAndCacheMasterKey(

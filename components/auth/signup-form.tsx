@@ -58,8 +58,16 @@ export function SignupForm({
         return
       }
 
-      // Import PQC crypto functions to get keypairs
-      const { generateAllKeypairs, hexToUint8Array } = await import("@/lib/crypto")
+      // Import crypto functions
+      const { 
+        generateAllKeypairs, 
+        hexToUint8Array,
+        deriveRecoveryKeyEncryptionKey,
+        generateRecoveryKey,
+        encryptRecoveryKey,
+        encryptMasterKeyWithRecoveryKey,
+        deriveEncryptionKey
+      } = await import("@/lib/crypto")
       const { OPAQUE } = await import("@/lib/opaque")
       
       // Generate a random account salt (32 bytes) in hex format
@@ -71,6 +79,36 @@ export function SignupForm({
       
       // Generate keypairs using the hex salt
       const keypairs = await generateAllKeypairs(formData.password, tempAccountSaltHex)
+      
+      // The mnemonic is already generated in generateAllKeypairs
+      const mnemonic = keypairs.mnemonic
+      const mnemonicHash = keypairs.mnemonicHash
+      
+      // Derive RKEK (Recovery Key Encryption Key) from mnemonic
+      const rkek = await deriveRecoveryKeyEncryptionKey(mnemonic)
+      
+      // Generate a random Recovery Key (RK)
+      const rk = generateRecoveryKey()
+      
+      // Encrypt the RK with RKEK
+      const recoveryKeyEncryption = encryptRecoveryKey(rk, rkek)
+      const encryptedRecoveryKey = recoveryKeyEncryption.encryptedRecoveryKey
+      const recoveryKeyNonce = recoveryKeyEncryption.recoveryKeyNonce
+      
+      // Derive the Master Key from password (same as regular login)
+      const masterKey = await deriveEncryptionKey(formData.password, tempAccountSaltHex)
+      
+      // Encrypt the Master Key with the Recovery Key
+      const masterKeyEncryption = encryptMasterKeyWithRecoveryKey(masterKey, rk)
+      const encryptedMasterKey = masterKeyEncryption.encryptedMasterKey
+      const masterKeyNonce = masterKeyEncryption.masterKeyNonce
+      
+      // Prepare master key salt for storage (JSON stringified with the nonce)
+      const masterKeySalt = JSON.stringify({
+        salt: tempAccountSaltHex,
+        algorithm: 'argon2id',
+        masterKeyNonce: masterKeyNonce
+      })
 
       // Execute complete OPAQUE registration (all 4 steps)
       const registrationResult = await OPAQUE.register(
@@ -108,9 +146,14 @@ export function SignupForm({
           userId,
           accountSalt: tempAccountSaltHex,  // Store as HEX, not base64
           pqcKeypairs: keypairs.pqcKeypairs,
+          mnemonicHash,  // SHA256(mnemonic) for zero-knowledge verification
           encryptedMnemonic: '', // Not used - we only send mnemonicHash for zero-knowledge verification
           mnemonicSalt: '',
-          mnemonicIv: ''
+          mnemonicIv: '',
+          encryptedRecoveryKey,  // RK encrypted with RKEK(mnemonic)
+          recoveryKeyNonce,      // Nonce for decrypting recovery key
+          encryptedMasterKey,    // MK encrypted with RK
+          masterKeySalt          // JSON stringified with salt and algorithm
         })
 
         if (!cryptoSetupResponse.success) {
@@ -124,8 +167,8 @@ export function SignupForm({
         // Don't fail registration if crypto setup fails - user can retry later
       }
 
-      // Navigate to OTP verification
-      router.push("/otp")
+      // Navigate to backup mnemonic screen (CRITICAL: user must save recovery phrase)
+      router.push("/backup")
     } catch (err) {
       console.error('Signup error:', err)
       setError(err instanceof Error ? err.message : "An unexpected error occurred")
