@@ -146,6 +146,21 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
 
   const startUpload = useCallback(async (uploadState: FileUploadState) => {
     try {
+      // Ensure KeyManager is initialized before starting upload
+      // This handles the case where uploads start before KeyManager initialization completes
+      if (!keyManager.hasKeys()) {
+        try {
+          // Try to get user data to initialize KeyManager
+          // This will recursively call apiClient.getProfile() if needed
+          await keyManager.getUserKeys();
+          console.log('KeyManager initialized in startUpload');
+        } catch (error) {
+          console.warn('Failed to initialize KeyManager before upload:', error);
+          // Try to initialize without explicit user data
+          // The KeyManager might have restored from localStorage
+        }
+      }
+
       const uploadManager = new UploadManager({
         id: uploadState.id,  // Pass the upload state ID to ensure consistency
         file: uploadState.file,

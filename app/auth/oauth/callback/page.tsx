@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { Loader2, AlertCircle, ArrowLeft } from 'lucide-react';
 import { IconCaretLeftRightFilled } from '@tabler/icons-react';
 import { apiClient } from '@/lib/api';
 import { OAuthPasswordModal } from '@/components/auth/oauth-password-modal';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
+import { FieldDescription } from '@/components/ui/field';
 
 export default function OAuthCallbackPage() {
   const router = useRouter();
@@ -144,6 +146,16 @@ export default function OAuthCallbackPage() {
             <span className="text-base font-mono break-all">ellipticc</span>
           </a>
           <OAuthPasswordModal email={oauthData.email} />
+          <FieldDescription className="text-center text-xs">
+            By continuing, you agree to our{" "}
+            <Link href="/terms-of-service" className="underline hover:text-primary">
+              Terms of Service
+            </Link>{" "}
+            and{" "}
+            <Link href="/privacy-policy" className="underline hover:text-primary">
+              Privacy Policy
+            </Link>
+          </FieldDescription>
         </div>
       </div>
     );

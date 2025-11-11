@@ -56,6 +56,14 @@ export function CreateFolderModal({ children, parentId = null, onFolderCreated }
       const response = await apiClient.getProfile()
       if (response.success && response.data?.user?.crypto_keypairs) {
         const cryptoKeys = response.data.user.crypto_keypairs
+        
+        // Check if user has incomplete crypto data (e.g., Google OAuth in setup phase)
+        if (!cryptoKeys.pqcKeypairs || !cryptoKeys.accountSalt) {
+          toast.error("Please complete your account setup before creating folders. Check your email for setup instructions.")
+          setUserData(null)
+          return
+        }
+        
         if (cryptoKeys.pqcKeypairs) {
           // Check if we have the new encryption scheme data
           const hasNewFormat = cryptoKeys.pqcKeypairs.kyber.encryptionKey &&

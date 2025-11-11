@@ -42,7 +42,8 @@ export default function Home() {
           // console.warn('Failed to initialize key manager - user crypto keypairs not available')
         }
       } catch (error) {
-        // console.error('Failed to initialize key manager:', error)
+        // Log but don't throw - allows Google OAuth users in setup phase to view dashboard
+        // console.warn('Warning: Failed to initialize key manager:', error)
       }
     }
 

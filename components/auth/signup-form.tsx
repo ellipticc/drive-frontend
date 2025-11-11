@@ -185,8 +185,12 @@ export function SignupForm({
         // Don't fail registration if crypto setup fails - user can retry later
       }
 
-      // Navigate to backup mnemonic screen (CRITICAL: user must save recovery phrase)
-      router.push("/backup")
+      // Store email and password for OTP verification
+      localStorage.setItem('signup_email', formData.email)
+      localStorage.setItem('signup_password', formData.password)
+
+      // Navigate to OTP verification page (CRITICAL: user must verify email first before backup)
+      router.push("/otp")
     } catch (err) {
       console.error('Signup error:', err)
       setError(err instanceof Error ? err.message : "An unexpected error occurred")

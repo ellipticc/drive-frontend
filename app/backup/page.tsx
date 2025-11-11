@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -12,6 +13,7 @@ import {
 } from "@/components/ui/card"
 import { Copy, Eye, EyeOff, AlertTriangle, Download } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { FieldDescription } from "@/components/ui/field"
 
 export default function BackupPage() {
   const router = useRouter()
@@ -176,6 +178,17 @@ export default function BackupPage() {
             >
               Continue
             </Button>
+
+            <FieldDescription className="text-center text-xs">
+              By continuing, you agree to our{" "}
+              <Link href="/terms-of-service" className="underline hover:text-primary">
+                Terms of Service
+              </Link>{" "}
+              and{" "}
+              <Link href="/privacy-policy" className="underline hover:text-primary">
+                Privacy Policy
+              </Link>
+            </FieldDescription>
           </div>
         </CardContent>
       </Card>

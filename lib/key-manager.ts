@@ -36,8 +36,27 @@ class KeyManager {
    * Initialize KeyManager with user data from login
    */
   async initialize(userData: any): Promise<void> {
-    // Validate user data structure before storing
+    // Handle Google OAuth users in setup phase (incomplete pqcKeypairs)
     if (!userData?.crypto_keypairs?.pqcKeypairs) {
+      // For users with no pqcKeypairs (e.g., Google OAuth in setup phase), 
+      // just store the userData without full validation
+      // This allows the dashboard to load without throwing "Corrupted" errors
+      if (userData?.crypto_keypairs?.accountSalt === null || userData?.crypto_keypairs?.pqcKeypairs === null) {
+        console.log('⚠️ User data incomplete (Google OAuth setup phase). Storing without full validation.');
+        this.userData = userData;
+        this.cachedKeys = null;
+        
+        // Persist user data to localStorage
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem(this.STORAGE_KEY, JSON.stringify(userData));
+          } catch (error) {
+            // console.warn('Failed to persist user data to localStorage:', error);
+          }
+        }
+        return;
+      }
+      
       throw new Error('Invalid user data: missing crypto keypairs');
     }
 

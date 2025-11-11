@@ -1,7 +1,9 @@
+import Link from "next/link"
 import { IconCaretLeftRightFilled } from "@tabler/icons-react"
 import type { Metadata } from "next"
 
 import { OTPForm } from "@/components/auth/otp-form"
+import { FieldDescription } from "@/components/ui/field"
 import { ThemeToggle } from "@/components/theme-toggle"
 
 export const metadata: Metadata = {
@@ -15,13 +17,24 @@ export default function OTPPage() {
         <ThemeToggle />
       </div>
       <div className="flex w-full max-w-sm flex-col gap-6">
-        <a href="#" className="flex items-center gap-2 self-center font-medium">
+        <a href="/" className="flex items-center gap-2 self-center font-medium">
           <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
             <IconCaretLeftRightFilled className="!size-5" />
           </div>
           <span className="text-base font-mono break-all">ellipticc</span>
         </a>
         <OTPForm />
+        <FieldDescription className="px-6 text-center">
+          By clicking continue, you agree to our{" "}
+          <Link href="/terms-of-service" className="underline underline-offset-4 hover:underline">
+            Terms of Service
+          </Link>{" "}
+          and{" "}
+          <Link href="/privacy-policy" className="underline underline-offset-4 hover:underline">
+            Privacy Policy
+          </Link>
+          .
+        </FieldDescription>
       </div>
     </div>
   )

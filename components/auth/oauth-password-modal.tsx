@@ -113,13 +113,14 @@ export function OAuthPasswordModal({
       const encryptedRecoveryKey = recoveryKeyEncryption.encryptedRecoveryKey;
       const recoveryKeyNonce = recoveryKeyEncryption.recoveryKeyNonce;
 
-      // Generate account salt (for password derivation) - 32 bytes like signup
-      const accountSaltBytes = new Uint8Array(32);
-      globalThis.crypto.getRandomValues(accountSaltBytes);
-      const accountSalt = uint8ArrayToHex(accountSaltBytes);
+      // CRITICAL: Use the SAME salt that was used to encrypt the keypairs
+      // This ensures the master key used for decryption matches the one used for encryption
+      const accountSalt = allKeypairs.keyDerivationSalt;
+      console.log('🔐 OAuth Setup - accountSalt:', { length: accountSalt.length, format: accountSalt.substring(0, 20) + '...' });
 
-      // Derive master key from password and salt
+      // Derive master key from password and salt (this must be the same as what was used in generateAllKeypairs)
       const masterKey = await deriveEncryptionKey(password, accountSalt);
+      console.log('🔐 OAuth Setup - masterKey derived:', { length: masterKey.length });
 
       // Encrypt the Master Key with the Recovery Key
       const masterKeyEncryption = encryptMasterKeyWithRecoveryKey(masterKey, rk);
@@ -128,6 +129,7 @@ export function OAuthPasswordModal({
 
       // Cache master key locally for immediate use
       masterKeyManager.cacheExistingMasterKey(masterKey, accountSalt);
+      console.log('✅ OAuth Setup - master key cached');
 
       // Store mnemonic for backup page
       localStorage.setItem('recovery_mnemonic', mnemonic);
@@ -156,6 +158,8 @@ export function OAuthPasswordModal({
         ed25519PrivateKeyNonce: allKeypairs.pqcKeypairs.ed25519.privateKeyNonce,
       };
 
+      console.log('🔐 OAuth Setup - sending to backend with accountSalt format:', typeof accountSalt);
+
       // Call backend to complete OAuth registration
       const response = await apiClient.completeOAuthRegistration({
         accountSalt,
@@ -172,14 +176,16 @@ export function OAuthPasswordModal({
       });
 
       if (response.success) {
-        // Redirect to backup page immediately
-        router.push('/backup');
+        console.log('✅ OAuth Setup - backend registration complete, redirecting to dashboard');
+        // Redirect to dashboard directly (no backup page for OAuth users)
+        router.push('/');
       } else {
         setError(
           response.message || 'Failed to complete registration. Please try again.',
         );
       }
     } catch (err) {
+      console.error('❌ OAuth Setup - Error:', err);
       setError('An unexpected error occurred. Please try again.');
     }
   };
@@ -201,6 +207,17 @@ export function OAuthPasswordModal({
 
       // Cache master key locally for immediate use
       masterKeyManager.cacheExistingMasterKey(masterKey, user.account_salt);
+
+      // Initialize keyManager with user data (this will use the cached master key to decrypt keypairs)
+      const { keyManager } = await import("@/lib/key-manager")
+      try {
+        if (user.crypto_keypairs) {
+          await keyManager.initialize(user)
+        }
+      } catch (keyError) {
+        console.warn('KeyManager initialization warning:', keyError)
+        // Don't fail - keyManager might already be initialized
+      }
 
       // Navigate to dashboard
       router.push('/');
