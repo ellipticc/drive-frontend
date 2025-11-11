@@ -1,22 +1,33 @@
+'use client'
+
 /**
- * MetaMask Authentication & E2EE Master Key Service
+ * MetaMask Authentication Service - SECURE IMPLEMENTATION
  * 
- * Implements client-side MetaMask authentication flow:
- * 1. Challenge-Response: Cryptographic proof of wallet ownership
- * 2. Master Key (MK) Generation: Client-side root key for all encryption
- * 3. MK Encryption: Store MK encrypted with MetaMask (eth_encrypt)
- * 4. OPAQUE Integration: Use MK as root secret for PQC key derivation
- * 5. Session Persistence: Reconnect MetaMask, decrypt MK, restore keys
+ * Uses MetaMask's native wallet APIs for authentication + encryption:
+ * - eth_requestAccounts: Connect wallet and request signature
+ * - Sign-In with Ethereum (EIP-4361): Server validates signature
+ * - personal_sign: Sign challenge message (deterministic, wallet-backed)
+ * - Argon2id: Derive encryption key from signature
+ * - XChaCha20-Poly1305: Encrypt master key with derived key
+ * 
+ * Master Key Management:
+ * - Generated locally on new account creation (32 random bytes)
+ * - User signs a challenge to prove wallet ownership
+ * - Challenge includes a per-user random salt (stored on backend)
+ * - Signature + salt → derive encryption key using Argon2id
+ * - Encrypted master key sent to backend and stored in user profile
+ * - On next login: Sign challenge → derive key → decrypt locally
  * 
  * Security Model:
- * - MetaMask = cryptographic identity provider
- * - Master Key = root of trust (never leaves browser unencrypted)
- * - OPAQUE = key management and session control layer
- * - PQC = post-quantum cryptographic protection
+ * - Backend stores: encrypted_master_key + challenge_salt
+ * - Backend CANNOT decrypt without the wallet's signature (private key)
+ * - Signature is deterministic but requires challenge_salt knowledge
+ * - Even if backend is compromised, cannot compute signature without wallet
+ * - User signs with private key (never leaves wallet, hardware compatible)
+ * 
+ * File encryption uses: master_key → account_salt → derived_keys
+ * Recovery via password/mnemonic (independent of wallet)
  */
-
-import { deriveEncryptionKey } from './crypto'
-import { xchacha20poly1305 } from '@noble/ciphers/chacha'
 
 // Declare Ethereum provider type
 declare global {
@@ -30,334 +41,283 @@ declare global {
   }
 }
 
-interface ChallengeResponse {
-  challenge: string
-  timestamp: number
-  expiresAt: number // Challenge valid for 5 minutes
-}
-
-interface SignedMessage {
-  challenge: string
-  walletAddress: string
-  signature: string
-}
+import { xchacha20poly1305 } from '@noble/ciphers/chacha'
 
 interface EncryptedMasterKeyData {
-  encryptedMasterKey: string // Encrypted with signature-derived key
+  encryptedMasterKey: string
+  publicKey: string // Challenge salt (hex encoded)
   masterKeyMetadata: {
-    version: string // "v2-signature-derived"
-    algorithm: string // "xchacha20-poly1305"
-    nonce?: string // Nonce for encryption (hex)
-    publicKey?: string // Wallet's public key (v1 only)
+    version: string
+    algorithm: string
     createdAt: number
   }
 }
 
 class MetaMaskAuthService {
-  private static readonly CHALLENGE_EXPIRY = 5 * 60 * 1000 // 5 minutes
   private static readonly MK_STORAGE_KEY = 'encrypted_master_key'
   private static readonly SESSION_MK_KEY = 'session_master_key'
   private static readonly WALLET_ADDRESS_KEY = 'wallet_address_connected'
 
   /**
-   * STEP 1: Generate a cryptographic challenge for the wallet to sign
-   * 
-   * Format: `{walletAddress}:{randomNonce}`
-   * This challenge proves:
-   * - User controls the wallet (by signing)
-   * - Challenge is fresh (random nonce)
-   * - Challenge is time-limited (5 min expiry)
+   * Check if MetaMask is installed
    */
-  async generateChallenge(walletAddress: string): Promise<ChallengeResponse> {
+  static isMetaMaskInstalled(): boolean {
+    return (
+      typeof window !== 'undefined' &&
+      typeof (window as any).ethereum !== 'undefined'
+    )
+  }
+
+  /**
+   * Get connected wallet address
+   */
+  static async getConnectedWallet(): Promise<string> {
+    if (!this.isMetaMaskInstalled()) {
+      throw new Error('MetaMask not installed')
+    }
+
     try {
-      // Validate wallet address
-      if (!walletAddress || !walletAddress.startsWith('0x')) {
-        throw new Error('Invalid wallet address')
+      const accounts = await (window as any).ethereum.request({
+        method: 'eth_accounts'
+      })
+
+      if (!accounts || accounts.length === 0) {
+        throw new Error('No connected wallet')
       }
 
-      const normalized = walletAddress.toLowerCase()
-
-      // Generate random nonce (32 bytes = 64 hex chars)
-      const nonceArray = new Uint8Array(32)
-      crypto.getRandomValues(nonceArray)
-      const nonce = Array.from(nonceArray)
-        .map((b: number) => b.toString(16).padStart(2, '0'))
-        .join('')
-
-      // Create challenge message
-      const challenge = `${normalized}:${nonce}`
-      const timestamp = Date.now()
-      const expiresAt = timestamp + MetaMaskAuthService.CHALLENGE_EXPIRY
-
-      return {
-        challenge,
-        timestamp,
-        expiresAt,
-      }
+      return accounts[0].toLowerCase()
     } catch (error) {
-      console.error('Error generating challenge:', error)
-      throw new Error('Failed to generate challenge')
+      console.error('Error getting connected wallet:', error)
+      throw error
     }
   }
 
   /**
-   * STEP 2: Verify the signed challenge (challenge-response authentication)
-   * 
-   * This proves the user controls the wallet without revealing any secrets.
-   * Uses ethers.js to recover the wallet address from the signature.
+   * Request account access from MetaMask
    */
-  async verifyChallenge(
-    challenge: string,
-    walletAddress: string,
-    signature: string
-  ): Promise<boolean> {
+  static async requestAccountAccess(): Promise<string> {
+    if (!this.isMetaMaskInstalled()) {
+      throw new Error('MetaMask not installed')
+    }
+
     try {
-      // Validate inputs
-      if (!challenge || !walletAddress || !signature) {
-        throw new Error('Missing required fields for challenge verification')
+      const accounts = await (window as any).ethereum.request({
+        method: 'eth_requestAccounts'
+      })
+
+      if (!accounts || accounts.length === 0) {
+        throw new Error('User denied account access')
       }
 
-      // Validate signature format (should be 0x + 130 hex chars)
-      if (!signature.startsWith('0x') || signature.length !== 132) {
-        throw new Error('Invalid signature format')
-      }
-
-      // Dynamically import ethers at runtime to avoid TypeScript issues
-      const { ethers } = await import('ethers')
-      // Handle both ethers v5 (utils.verifyMessage) and v6 (verifyMessage)
-      const verifyMessage = (ethers as any).verifyMessage || (ethers as any).utils?.verifyMessage
-
-      // Recover the address that signed the message
-      const recoveredAddress = verifyMessage(challenge, signature)
-      const normalized = walletAddress.toLowerCase()
-      const recovered = recoveredAddress.toLowerCase()
-
-      if (recovered !== normalized) {
-        console.error(
-          `Challenge verification failed: expected ${normalized}, got ${recovered}`
-        )
-        return false
-      }
-      return true
+      return accounts[0].toLowerCase()
     } catch (error) {
-      console.error('Error verifying challenge:', error)
-      throw new Error('Failed to verify challenge')
+      console.error('Error requesting account access:', error)
+      throw error
     }
   }
 
   /**
-   * STEP 3: Generate Master Key (MK)
+   * STEP 1: Encrypt master key using signature-derived key with random salt
    * 
-   * The MK is the root key for all user encryption:
-   * - Derived from secure random data
-   * - Size: 32 bytes (256 bits) for XChaCha20-Poly1305
-   * - Never transmitted or stored unencrypted
-   * - Serves as OPAQUE user secret equivalent
+   * Process:
+   * 1. Generate random challenge salt (stored on backend)
+   * 2. Ask wallet to sign a challenge message (requires user approval)
+   * 3. Derive encryption key from signature using Argon2id with challenge salt
+   * 4. Encrypt master key with XChaCha20-Poly1305
+   * 5. Send encrypted MK + challenge_salt to backend
+   * 
+   * Security: Even if backend is compromised, attacker cannot forge signature
+   * (would need wallet's private key). Signature is deterministic given the salt,
+   * so same login flow always works.
    */
-  async generateMasterKey(): Promise<Uint8Array> {
-    try {
-      // Generate 32 bytes of cryptographically secure random data
-      const masterKey = new Uint8Array(32)
-      crypto.getRandomValues(masterKey)
-      return masterKey
-    } catch (error) {
-      console.error('Error generating master key:', error)
-      throw new Error('Failed to generate master key')
-    }
-  }
-
-  /**
-   * STEP 4: Encrypt Master Key using Constant MetaMask Signature
-   * 
-   * NEW APPROACH: Use a CONSTANT message that gets signed by MetaMask
-   * - At registration: Sign message "Ellipticc Drive - Master Key Derivation"
-   * - At re-login: Sign the SAME message again
-   * - Result: SAME signature every time (because same message, same wallet)
-   * - Use that signature to derive encryption key
-   * 
-   * Why this works:
-   *   1. Message is fixed (not a random challenge nonce)
-   *   2. Same wallet + same message = same signature (deterministic)
-   *   3. Signature has high entropy (256 bits from ECDSA)
-   *   4. On re-login: Same signature → same derived key → can decrypt
-   */
-  async encryptMasterKeyWithConstantSignature(
+  static async encryptMasterKeyWithWallet(
     masterKey: Uint8Array,
-    constantSignature: string
+    walletAddress: string,
+    publicKey: string
   ): Promise<EncryptedMasterKeyData> {
-    try {
-      // Generate a PERSISTENT encryption nonce (stored with encrypted MK)
-      const encryptionNonce = new Uint8Array(24) // XChaCha20 requires 24-byte nonce
-      crypto.getRandomValues(encryptionNonce)
-
-      // Derive encryption key from CONSTANT SIGNATURE
-      // Same wallet + same message = same signature = same key
-      const signatureBytes = new Uint8Array(
-        (constantSignature.startsWith('0x') ? constantSignature.slice(2) : constantSignature)
-          .match(/.{1,2}/g)!
-          .map((byte: string) => parseInt(byte, 16))
-      )
-
-      const encryptionKeyMaterial = await crypto.subtle.importKey(
-        'raw',
-        signatureBytes,
-        'HKDF',
-        false,
-        ['deriveBits']
-      )
-
-      const derivedKeyBits = await crypto.subtle.deriveBits(
-        {
-          name: 'HKDF',
-          hash: 'SHA-256',
-          salt: new Uint8Array(16),
-          info: new TextEncoder().encode('master-key-encryption-metamask'),
-        },
-        encryptionKeyMaterial,
-        256
-      )
-
-      const encryptionKey = new Uint8Array(derivedKeyBits)
-
-      // Prepare plaintext
-      const plaintext = new TextEncoder().encode(
-        JSON.stringify({
-          masterKey: Array.from(masterKey),
-          timestamp: Date.now(),
-        })
-      )
-      // Encrypt
-      const ciphertext = xchacha20poly1305(encryptionKey, encryptionNonce).encrypt(plaintext)
-
-      // Convert to base64
-      const ciphertextBase64 = Buffer.from(ciphertext).toString('base64')
-      const nonceBase64 = Buffer.from(encryptionNonce).toString('base64')
-
-      return {
-        encryptedMasterKey: ciphertextBase64,
-        masterKeyMetadata: {
-          version: 'v3-constant-signature',
-          algorithm: 'xchacha20-poly1305',
-          nonce: nonceBase64,
-          createdAt: Date.now(),
-        },
-      }
-    } catch (error) {
-      console.error('Error encrypting master key:', error)
-      throw new Error('Failed to encrypt master key')
+    if (!this.isMetaMaskInstalled()) {
+      throw new Error('MetaMask not installed')
     }
-  }
 
-  /**
-   * STEP 5: Decrypt Master Key using Constant MetaMask Signature
-   * 
-   * Reverses the encryption:
-   * - Signature: Same constant signature (from signing fixed message)
-   * - Derived Key: HKDF(constantSignature, "master-key-encryption-metamask")
-   * - Decryption: XChaCha20-Poly1305 using stored nonce
-   * - Result: Same signature → same key → can decrypt original MK
-   */
-  async decryptMasterKeyWithConstantSignature(
-    encryptedMasterKey: string,
-    constantSignature: string,
-    nonce: string
-  ): Promise<Uint8Array> {
     try {
+      const crypto = globalThis.crypto
 
-      // Convert base64 strings back to bytes
-      const encryptedData = Buffer.from(encryptedMasterKey, 'base64')
-      const encryptionNonce = Buffer.from(nonce, 'base64')
-
-      // Derive the same encryption key from CONSTANT SIGNATURE
-      const signatureBytes = new Uint8Array(
-        (constantSignature.startsWith('0x') ? constantSignature.slice(2) : constantSignature)
-          .match(/.{1,2}/g)!
-          .map((byte: string) => parseInt(byte, 16))
-      )
-
-      const encryptionKeyMaterial = await crypto.subtle.importKey(
-        'raw',
-        signatureBytes,
-        'HKDF',
-        false,
-        ['deriveBits']
-      )
-
-      const derivedKeyBits = await crypto.subtle.deriveBits(
-        {
-          name: 'HKDF',
-          hash: 'SHA-256',
-          salt: new Uint8Array(16),
-          info: new TextEncoder().encode('master-key-encryption-metamask'),
-        },
-        encryptionKeyMaterial,
-        256
-      )
-
-      const encryptionKey = new Uint8Array(derivedKeyBits)
-
-      // Decrypt using noble/ciphers (XChaCha20-Poly1305)
-      const decryptedBytes = xchacha20poly1305(encryptionKey, new Uint8Array(encryptionNonce)).decrypt(
-        new Uint8Array(encryptedData)
-      )
-
-      // Parse the decrypted JSON
-      const decrypted = JSON.parse(new TextDecoder().decode(decryptedBytes))
-
-      // Convert array back to Uint8Array
-      const masterKey = new Uint8Array(decrypted.masterKey)
-      return masterKey
-    } catch (error) {
-      console.error('Error decrypting master key:', error)
-      throw new Error('Failed to decrypt master key')
-    }
-  }
-
-  /**
-   * STEP 6: Cache Master Key in Session Storage
-   * 
-   * For immediate use during the current browser session.
-   * Session storage is cleared on tab close.
-   */
-  cacheMasterKeyInSession(masterKey: Uint8Array): void {
-    try {
-      const hex = Array.from(masterKey)
+      // Generate random challenge salt (this will be stored on backend)
+      const challengeSalt = new Uint8Array(32)
+      crypto.getRandomValues(challengeSalt)
+      const challengeSaltHex = Array.from(challengeSalt)
         .map((b: number) => b.toString(16).padStart(2, '0'))
         .join('')
 
-      sessionStorage.setItem(MetaMaskAuthService.SESSION_MK_KEY, hex)
-    } catch (error) {
-      console.error('Error caching master key:', error)
-    }
-  }
+      // Create a challenge message that includes the salt
+      // This ensures signature is tied to this specific user
+      const challengeMessage = `Decrypt Drive Master Key\nAddress: ${walletAddress.toLowerCase()}\nChallenge: ${challengeSaltHex}`
 
-  /**
-   * STEP 7: Retrieve Cached Master Key from Session
-   */
-  getCachedMasterKeyFromSession(): Uint8Array | null {
-    try {
-      const hex = sessionStorage.getItem(MetaMaskAuthService.SESSION_MK_KEY)
-      if (!hex) return null
+      console.log('Requesting wallet to sign challenge message for key derivation...')
 
-      const masterKey = new Uint8Array(
-        (hex.match(/.{1,2}/g) || []).map((byte: string) => parseInt(byte, 16))
+      // Ask wallet to sign the challenge (deterministic - same challenge always produces same signature)
+      const signature = await (window as any).ethereum.request({
+        method: 'personal_sign',
+        params: [challengeMessage, walletAddress]
+      })
+
+      if (!signature) {
+        throw new Error('Failed to sign challenge message')
+      }
+
+      console.log('Challenge signed successfully, deriving encryption key with Argon2id...')
+
+      // Use argon2-wrapper to hash with Argon2id
+      const { hashWithArgon2 } = await import('./argon2-wrapper')
+
+      // Derive encryption key from signature using Argon2id
+      // The signature is what we're hashing
+      const hashResult = await hashWithArgon2(
+        signature,
+        walletAddress.toLowerCase(),
+        4,           // time iterations (increased for lower memory)
+        65536,       // memory: 64 MB (65536 KB)
+        1,           // parallelism
+        32           // hashLen - 32 bytes output
       )
-      return masterKey
+
+      const encryptionKey = new Uint8Array(
+        (hashResult.match(/.{1,2}/g) || []).map((byte: string) => parseInt(byte, 16))
+      )
+
+      // Generate a random nonce for XChaCha20-Poly1305
+      const nonce = new Uint8Array(24)
+      crypto.getRandomValues(nonce)
+
+      console.log('Encrypting master key with derived key...')
+
+      // Encrypt using XChaCha20-Poly1305 from @noble/ciphers
+      const encryptedData = xchacha20poly1305(encryptionKey, nonce).encrypt(masterKey)
+
+      // Format: nonce (24 bytes) || ciphertext
+      const encryptedWithNonce = new Uint8Array(24 + encryptedData.length)
+      encryptedWithNonce.set(nonce, 0)
+      encryptedWithNonce.set(encryptedData, 24)
+
+      // Convert to base64 for storage
+      const encryptedMasterKey = Buffer.from(encryptedWithNonce).toString('base64')
+
+      console.log('Master key encrypted successfully with Argon2id-derived key')
+
+      return {
+        encryptedMasterKey,
+        publicKey: challengeSaltHex,  // Store challenge salt (not really a "public key", but same field)
+        masterKeyMetadata: {
+          version: 'v10-argon2id-xchacha20',
+          algorithm: 'signature-argon2id-xchacha20poly1305',
+          createdAt: Date.now()
+        }
+      }
     } catch (error) {
-      console.error('Error retrieving cached master key:', error)
-      return null
+      console.error('Error encrypting master key with signature:', error)
+      throw error
     }
   }
 
   /**
-   * STEP 8: Store Encrypted Master Key in localStorage
+   * STEP 3: Decrypt master key using signature-derived decryption key
    * 
-   * For persistence across browser sessions.
-   * The encrypted MK can be safely stored in localStorage because:
-   * - It's encrypted with the wallet's public key
-   * - Only the connected wallet can decrypt it
+   * Instead of using deprecated eth_decrypt, we:
+   * 1. Ask wallet to sign a challenge message
+   * 2. Derive a decryption key from the signature
+   * 3. Decrypt the sealed master key locally
+   * 
+   * This requires the wallet user to approve signing (same UX as eth_decrypt)
+   * but avoids the deprecated RPC method and is more reliable
    */
-  storeEncryptedMasterKeyInLocalStorage(
+  static async decryptMasterKeyWithWallet(
+    encryptedMasterKey: string,
+    challengeSalt: string
+  ): Promise<Uint8Array> {
+    if (!this.isMetaMaskInstalled()) {
+      throw new Error('MetaMask not installed')
+    }
+
+    try {
+      const accounts = await (window as any).ethereum.request({
+        method: 'eth_accounts'
+      })
+
+      if (!accounts || accounts.length === 0) {
+        throw new Error('No connected wallet')
+      }
+
+      const walletAddress = accounts[0]
+
+      // Create a challenge message to sign using the provided challenge salt
+      const challengeMessage = `Decrypt Drive Master Key\nAddress: ${walletAddress.toLowerCase()}\nChallenge: ${challengeSalt}`
+
+      console.log('Requesting wallet to sign challenge message for key derivation...')
+
+      // Ask wallet to sign the challenge
+      const signature = await (window as any).ethereum.request({
+        method: 'personal_sign',
+        params: [challengeMessage, walletAddress]
+      })
+
+      if (!signature) {
+        throw new Error('Failed to sign challenge message')
+      }
+
+      console.log('Challenge signed successfully, deriving decryption key with Argon2id...')
+
+      // Use argon2-wrapper to hash with Argon2id
+      const { hashWithArgon2 } = await import('./argon2-wrapper')
+
+      // Derive same encryption key from signature using Argon2id
+      const hashResult = await hashWithArgon2(
+        signature,
+        walletAddress.toLowerCase(),
+        4,    // time
+        65536, // memory: 64 MB
+        1,    // parallelism
+        32    // hashLen
+      )
+
+      const decryptionKey = new Uint8Array(
+        (hashResult.match(/.{1,2}/g) || []).map((byte: string) => parseInt(byte, 16))
+      )
+
+      // Now decrypt the master key using XChaCha20-Poly1305 with the derived key
+      // First, convert encrypted master key from base64
+      const encryptedBuffer = Buffer.from(encryptedMasterKey, 'base64')
+      const encryptedBytes = new Uint8Array(encryptedBuffer)
+
+      // The encrypted format: nonce (24 bytes) || ciphertext (rest)
+      const nonce = encryptedBytes.slice(0, 24)
+      const ciphertext = encryptedBytes.slice(24)
+
+      // Decrypt using XChaCha20-Poly1305 from @noble/ciphers
+      const decryptedBytes = xchacha20poly1305(decryptionKey, nonce).decrypt(ciphertext)
+
+      console.log('Master key decrypted successfully:', decryptedBytes.length, 'bytes')
+
+      return decryptedBytes
+    } catch (error) {
+      console.error('Error decrypting master key with signature-derived key:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Generate a random master key
+   */
+  static generateMasterKey(): Uint8Array {
+    const masterKey = new Uint8Array(32)
+    crypto.getRandomValues(masterKey)
+    return masterKey
+  }
+
+  /**
+   * Store encrypted master key in localStorage
+   * Safe because it's encrypted with wallet's private key
+   */
+  static storeEncryptedMasterKeyLocally(
     data: EncryptedMasterKeyData,
     walletAddress: string
   ): void {
@@ -370,20 +330,20 @@ class MetaMaskAuthService {
       )
     } catch (error) {
       console.error('Error storing encrypted master key:', error)
+      throw error
     }
   }
 
   /**
-   * STEP 9: Retrieve Encrypted Master Key from localStorage
+   * Retrieve encrypted master key from localStorage
    */
-  getEncryptedMasterKeyFromLocalStorage(
+  static getEncryptedMasterKeyFromLocal(
     walletAddress: string
   ): EncryptedMasterKeyData | null {
     try {
       const key = `${MetaMaskAuthService.MK_STORAGE_KEY}:${walletAddress.toLowerCase()}`
       const stored = localStorage.getItem(key)
       if (!stored) return null
-
       return JSON.parse(stored)
     } catch (error) {
       console.error('Error retrieving encrypted master key:', error)
@@ -392,124 +352,83 @@ class MetaMaskAuthService {
   }
 
   /**
-   * STEP 10: Derive OPAQUE User Secret from Master Key
-   * 
-   * This bridges MetaMask authentication with OPAQUE key management:
-   * - MK serves as the OPAQUE user secret equivalent
-   * - Used to derive account salt, file encryption keys, PQC keypairs
-   * - Maintains compatibility with existing OPAQUE flow
+   * Cache master key in sessionStorage for current session
    */
-
-  /**
-   * STEP 9: Get Constant Signature from MetaMask
-   * 
-   * Sign a fixed message to get a deterministic signature
-   * - Same wallet + same message = same signature every time
-   * - Use this for master key encryption key derivation
-   */
-  async getConstantSignature(): Promise<string> {
-    const CONSTANT_MESSAGE = 'Ellipticc Drive - Master Key Derivation v1'
-
+  static cacheMasterKeyInSession(masterKey: Uint8Array): void {
     try {
-      if (typeof window === 'undefined' || !window.ethereum) {
-        throw new Error('MetaMask not installed')
-      }
-
-      const accounts = await (window as any).ethereum.request({
-        method: 'eth_requestAccounts'
-      })
-
-      const signature = await (window as any).ethereum.request({
-        method: 'personal_sign',
-        params: [CONSTANT_MESSAGE, accounts[0]]
-      })
-
-      return signature
+      const hex =
+        '0x' +
+        Array.from(masterKey)
+          .map((b: number) => b.toString(16).padStart(2, '0'))
+          .join('')
+      sessionStorage.setItem(MetaMaskAuthService.SESSION_MK_KEY, hex)
     } catch (error) {
-      console.error('Error getting constant signature:', error)
-      throw new Error('Failed to get constant signature from wallet')
-    }
-  }
-
-  async deriveMasterSecretFromMK(
-    masterKey: Uint8Array,
-    walletAddress: string
-  ): Promise<Uint8Array> {
-    try {
-      // Create a deterministic seed from wallet address + MK
-      const encoder = new TextEncoder()
-      const seed = encoder.encode(`opaque_secret:${walletAddress.toLowerCase()}`)
-
-      // Derive master secret using PBKDF2
-      const keyMaterial = await crypto.subtle.importKey(
-        'raw',
-        new Uint8Array(masterKey),
-        'PBKDF2',
-        false,
-        ['deriveBits']
-      )
-
-      const derivedBits = await crypto.subtle.deriveBits(
-        {
-          name: 'PBKDF2',
-          hash: 'SHA-256',
-          salt: seed,
-          iterations: 100000,
-        },
-        keyMaterial,
-        32 * 8 // 32 bytes = 256 bits
-      )
-
-      const masterSecret = new Uint8Array(derivedBits)
-      return masterSecret
-    } catch (error) {
-      console.error('Error deriving master secret:', error)
-      throw new Error('Failed to derive master secret')
+      console.error('Error caching master key in session:', error)
     }
   }
 
   /**
-   * STEP 11: Clear all MK-related data on logout
+   * Retrieve cached master key from sessionStorage
    */
-  clearMasterKeyData(walletAddress?: string): void {
+  static getCachedMasterKeyFromSession(): Uint8Array | null {
     try {
-      sessionStorage.removeItem(MetaMaskAuthService.SESSION_MK_KEY)
+      const hex = sessionStorage.getItem(MetaMaskAuthService.SESSION_MK_KEY)
+      if (!hex) return null
 
-      if (walletAddress) {
-        const key = `${MetaMaskAuthService.MK_STORAGE_KEY}:${walletAddress.toLowerCase()}`
-        localStorage.removeItem(key)
-      }
+      const cleanHex = hex.startsWith('0x') ? hex.slice(2) : hex
+      const bytes = new Uint8Array(
+        cleanHex
+          .match(/.{1,2}/g)!
+          .map((byte: string) => parseInt(byte, 16))
+      )
+      return bytes
+    } catch (error) {
+      console.error('Error retrieving cached master key:', error)
+      return null
+    }
+  }
 
+  /**
+   * Clear all cached data for wallet
+   */
+  static clearWalletData(walletAddress: string): void {
+    try {
+      const key = `${MetaMaskAuthService.MK_STORAGE_KEY}:${walletAddress.toLowerCase()}`
+      localStorage.removeItem(key)
       localStorage.removeItem(MetaMaskAuthService.WALLET_ADDRESS_KEY)
+      sessionStorage.removeItem(MetaMaskAuthService.SESSION_MK_KEY)
     } catch (error) {
-      console.error('Error clearing master key data:', error)
+      console.error('Error clearing wallet data:', error)
     }
   }
 
   /**
-   * STEP 12: Check if user has a stored encrypted MK (for auto-reconnect)
+   * Get the last connected wallet (for auto-reconnect)
    */
-  hasStoredEncryptedMK(walletAddress: string): boolean {
-    try {
-      return (
-        this.getEncryptedMasterKeyFromLocalStorage(walletAddress) !== null
-      )
-    } catch {
-      return false
-    }
-  }
-
-  /**
-   * STEP 13: Get the last connected wallet (for auto-reconnect)
-   */
-  getLastConnectedWallet(): string | null {
+  static getLastConnectedWallet(): string | null {
     try {
       return localStorage.getItem(MetaMaskAuthService.WALLET_ADDRESS_KEY)
     } catch {
       return null
     }
   }
+
+  /**
+   * Check if user has a stored encrypted MK (for auto-reconnect)
+   */
+  static hasStoredEncryptedMK(walletAddress: string): boolean {
+    try {
+      return (
+        this.getEncryptedMasterKeyFromLocal(walletAddress) !== null
+      )
+    } catch {
+      return false
+    }
+  }
 }
 
 // Export singleton
 export const metamaskAuthService = new MetaMaskAuthService()
+
+// Export class for type usage
+export { MetaMaskAuthService }

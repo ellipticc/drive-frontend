@@ -48,13 +48,8 @@ export default function OAuthCallbackPage() {
         // Store the JWT token in localStorage (needed for API calls during password setup)
         apiClient.setAuthToken(data.token);
 
-        // Check if user already has account_salt (password already set)
-        if (data.user.has_account_salt) {
-          router.push('/dashboard');
-          return;
-        }
-
-        // Show password setup modal for new user
+        // Always show password entry for OAuth users to decrypt their master key
+        // This is needed even if they already have account_salt set
         setOauthData({
           email: data.user.email,
           token: data.token

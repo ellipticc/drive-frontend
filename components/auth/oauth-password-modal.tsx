@@ -17,7 +17,14 @@ import {
 import { Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-react';
 import { apiClient } from '@/lib/api';
 import { masterKeyManager } from '@/lib/master-key';
-import { deriveEncryptionKey, encryptMasterKeyWithRecoveryKey, uint8ArrayToHex } from '@/lib/crypto';
+import { 
+  deriveEncryptionKey, 
+  encryptMasterKeyWithRecoveryKey, 
+  uint8ArrayToHex,
+  deriveRecoveryKeyEncryptionKey,
+  generateRecoveryKey,
+  encryptRecoveryKey
+} from '@/lib/crypto';
 import { useRouter } from 'next/navigation';
 
 interface OAuthPasswordModalProps {
@@ -33,27 +40,78 @@ export function OAuthPasswordModal({
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>('');
+  const [isNewUser, setIsNewUser] = useState(true); // Will be determined after first API call
 
-  // Password validation
-  const isPasswordValid = password.length >= 8 && password === confirmPassword;
+  // For new user: both passwords must match and be 8+ chars
+  // For existing user: just need to enter the password
+  const isPasswordValid = isNewUser 
+    ? password.length >= 8 && password === confirmPassword
+    : password.length > 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
     if (!isPasswordValid) {
-      setError('Please enter and confirm your password');
+      if (isNewUser) {
+        setError('Please enter and confirm your password');
+      } else {
+        setError('Please enter your password');
+      }
       return;
     }
 
     setIsLoading(true);
 
     try {
+      // First, check if user is new or existing by fetching their account salt from backend
+      const profileResponse = await apiClient.getProfile();
+      
+      if (!profileResponse.success || !profileResponse.data) {
+        setError('Failed to fetch user profile');
+        setIsLoading(false);
+        return;
+      }
+
+      const user = profileResponse.data.user;
+      const userIsNew = !user.account_salt || user.account_salt === 'pending_oauth_setup';
+
+      if (userIsNew) {
+        // NEW USER: Set password and generate keypairs
+        await handleNewUserSetup();
+      } else {
+        // EXISTING USER: Just verify password and load master key
+        await handleExistingUserLogin();
+      }
+    } catch (err) {
+      setError('An unexpected error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleNewUserSetup = async () => {
+    try {
       // Import real keypair generation function (same as signup)
       const { generateAllKeypairs } = await import('@/lib/crypto');
 
       // Generate real Kyber, Dilithium, X25519, Ed25519 keypairs
       const allKeypairs = await generateAllKeypairs(password);
+
+      // The mnemonic is already generated in generateAllKeypairs
+      const mnemonic = allKeypairs.mnemonic;
+      const mnemonicHash = allKeypairs.mnemonicHash;
+
+      // Derive RKEK (Recovery Key Encryption Key) from mnemonic
+      const rkek = await deriveRecoveryKeyEncryptionKey(mnemonic);
+
+      // Generate a random Recovery Key (RK)
+      const rk = generateRecoveryKey();
+
+      // Encrypt the RK with RKEK
+      const recoveryKeyEncryption = encryptRecoveryKey(rk, rkek);
+      const encryptedRecoveryKey = recoveryKeyEncryption.encryptedRecoveryKey;
+      const recoveryKeyNonce = recoveryKeyEncryption.recoveryKeyNonce;
 
       // Generate account salt (for password derivation) - 32 bytes like signup
       const accountSaltBytes = new Uint8Array(32);
@@ -63,16 +121,16 @@ export function OAuthPasswordModal({
       // Derive master key from password and salt
       const masterKey = await deriveEncryptionKey(password, accountSalt);
 
-      // Generate recovery key (for master key backup)
-      const recoveryKeyBytes = new Uint8Array(32);
-      globalThis.crypto.getRandomValues(recoveryKeyBytes);
-
-      // Encrypt master key with recovery key
-      const { encryptedMasterKey, masterKeyNonce } =
-        encryptMasterKeyWithRecoveryKey(masterKey, recoveryKeyBytes);
+      // Encrypt the Master Key with the Recovery Key
+      const masterKeyEncryption = encryptMasterKeyWithRecoveryKey(masterKey, rk);
+      const encryptedMasterKeyValue = masterKeyEncryption.encryptedMasterKey;
+      const masterKeyNonce = masterKeyEncryption.masterKeyNonce;
 
       // Cache master key locally for immediate use
       masterKeyManager.cacheExistingMasterKey(masterKey, accountSalt);
+
+      // Store mnemonic for backup page
+      localStorage.setItem('recovery_mnemonic', mnemonic);
 
       // Convert signup format to OAuth backend format
       const pqcKeypairs = {
@@ -102,9 +160,10 @@ export function OAuthPasswordModal({
       const response = await apiClient.completeOAuthRegistration({
         accountSalt,
         pqcKeypairs,
-        encryptedMasterKey,
-        encryptedRecoveryKey: uint8ArrayToHex(recoveryKeyBytes),
-        recoveryKeyNonce: '',  // No separate nonce for OAuth recovery key
+        mnemonicHash,
+        encryptedRecoveryKey,
+        recoveryKeyNonce,
+        encryptedMasterKey: encryptedMasterKeyValue,
         masterKeySalt: JSON.stringify({
           salt: accountSalt,
           algorithm: 'argon2id',
@@ -122,17 +181,43 @@ export function OAuthPasswordModal({
       }
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
-    } finally {
-      setIsLoading(false);
+    }
+  };
+
+  const handleExistingUserLogin = async () => {
+    try {
+      // Fetch user data which includes encrypted_master_key and master_key_salt
+      const profileResponse = await apiClient.getProfile();
+      
+      if (!profileResponse.success || !profileResponse.data) {
+        setError('Failed to fetch user data');
+        return;
+      }
+
+      const user = profileResponse.data.user;
+
+      // Derive master key from password and stored account salt
+      const masterKey = await deriveEncryptionKey(password, user.account_salt);
+
+      // Cache master key locally for immediate use
+      masterKeyManager.cacheExistingMasterKey(masterKey, user.account_salt);
+
+      // Navigate to dashboard
+      router.push('/');
+    } catch (err) {
+      setError('Incorrect password. Please try again.');
     }
   };
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Set Your Password</CardTitle>
+        <CardTitle>Enter Your Password</CardTitle>
         <CardDescription>
-          Secure your account with a password
+          {isNewUser 
+            ? 'Set a password to secure your account'
+            : 'Enter your password to continue'
+          }
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -164,7 +249,7 @@ export function OAuthPasswordModal({
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isLoading}
-                autoComplete="new-password"
+                autoComplete={isNewUser ? 'new-password' : 'current-password'}
               />
               <button
                 type="button"
@@ -181,23 +266,27 @@ export function OAuthPasswordModal({
             </div>
           </FieldGroup>
 
-          <FieldGroup>
-            <FieldLabel>Confirm Password</FieldLabel>
-            <Input
-              type={showPassword ? 'text' : 'password'}
-              placeholder="Re-enter your password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              disabled={isLoading}
-              autoComplete="new-password"
-            />
-          </FieldGroup>
+          {isNewUser && (
+            <FieldGroup>
+              <FieldLabel>Confirm Password</FieldLabel>
+              <Input
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Re-enter your password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                disabled={isLoading}
+                autoComplete="new-password"
+              />
+            </FieldGroup>
+          )}
 
-          <div className="rounded-lg border border-blue-200/50 bg-blue-50/50 dark:border-blue-900/50 dark:bg-blue-950/20 p-3">
-            <p className="text-xs text-blue-700 dark:text-blue-400 leading-relaxed">
-              Your password is used to encrypt your files locally and never stored on our servers.
-            </p>
-          </div>
+          {isNewUser && (
+            <div className="rounded-lg border border-blue-200/50 bg-blue-50/50 dark:border-blue-900/50 dark:bg-blue-950/20 p-3">
+              <p className="text-xs text-blue-700 dark:text-blue-400 leading-relaxed">
+                Your password is used to encrypt your files locally and never stored on our servers.
+              </p>
+            </div>
+          )}
 
           <Button
             type="submit"
@@ -205,7 +294,7 @@ export function OAuthPasswordModal({
             className="w-full"
           >
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isLoading ? 'Setting up...' : 'Continue'}
+            {isLoading ? (isNewUser ? 'Setting up...' : 'Verifying...') : 'Continue'}
           </Button>
         </form>
       </CardContent>

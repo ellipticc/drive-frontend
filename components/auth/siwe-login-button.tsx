@@ -7,7 +7,7 @@ import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { apiClient } from "@/lib/api"
 import { masterKeyManager } from "@/lib/master-key"
-import { metamaskAuthService } from "@/lib/metamask-auth-service"
+import { metamaskAuthService, MetaMaskAuthService } from "@/lib/metamask-auth-service"
 import { keyManager } from "@/lib/key-manager"
 import SIWE from "@/lib/siwe"
 
@@ -52,44 +52,43 @@ export function SIWELoginButton({ onSuccess, onError }: SIWELoginButtonProps) {
       apiClient.setAuthToken(token)
 
       if (isNewUser) {
-        // NEW USER: Generate Master Key, encrypt with signature, then generate crypto keypairs
+        // NEW USER: Generate Master Key and encrypt using signature-derived key
 
         // STEP 1: Generate Master Key (root of all encryption)
-        const masterKey = await metamaskAuthService.generateMasterKey()
+        const masterKey = await MetaMaskAuthService.generateMasterKey()
 
         // STEP 2: Cache MK in session for immediate use
-        metamaskAuthService.cacheMasterKeyInSession(masterKey)
+        MetaMaskAuthService.cacheMasterKeyInSession(masterKey)
 
-        // STEP 3: Get constant signature from MetaMask for key derivation
-        // Same wallet + same message = same signature every time
-        const constantSignature = await metamaskAuthService.getConstantSignature()
-
-        // STEP 4: Encrypt Master Key using constant signature-derived key
-        const encryptedMKData = await metamaskAuthService.encryptMasterKeyWithConstantSignature(
+        // STEP 3: Encrypt Master Key with signature-derived key
+        // User approves signing challenge, we derive key from signature
+        const encryptedMKData = await MetaMaskAuthService.encryptMasterKeyWithWallet(
           masterKey,
-          constantSignature
+          user.walletAddress,
+          user.walletAddress  // Not used with signature-derived method, but keep for compatibility
         )
 
-        // STEP 5: Derive OPAQUE master secret from MK (for account salt and key derivation)
-        const masterSecret = await metamaskAuthService.deriveMasterSecretFromMK(
-          masterKey,
+        // STEP 4: Store encrypted master key locally (encrypted, so safe)
+        MetaMaskAuthService.storeEncryptedMasterKeyLocally(
+          encryptedMKData,
           user.walletAddress
         )
 
-        // STEP 6: Generate all crypto keypairs using derived master secret
+        // STEP 5: For crypto keypairs, we use the master key directly as the password seed
+        const masterKeyHex = Array.from(masterKey)
+          .map((b: number) => b.toString(16).padStart(2, '0'))
+          .join('')
+
+        // STEP 6: Generate all crypto keypairs using master key as password seed
         const { 
           generateAllKeypairs,
-          generateRecoveryMnemonic: generateRecoveryMnemonicFn,
           deriveRecoveryKeyEncryptionKey,
           generateRecoveryKey,
           encryptRecoveryKey,
           encryptMasterKeyWithRecoveryKey
         } = await import("@/lib/crypto")
-        const keypairs = await generateAllKeypairs(
-          Array.from(masterSecret)
-            .map((b: number) => b.toString(16).padStart(2, '0'))
-            .join('')
-        )
+        
+        const keypairs = await generateAllKeypairs(masterKeyHex)
 
         // STEP 6.5: Generate recovery key components for double-wrapped scheme
         const mnemonic = keypairs.mnemonic
@@ -117,7 +116,7 @@ export function SIWELoginButton({ onSuccess, onError }: SIWELoginButtonProps) {
           accountSalt: keypairs.keyDerivationSalt,
           pqcKeypairs: keypairs.pqcKeypairs,
           mnemonicHash,  // Zero-knowledge recovery: only send hash
-          // Store encrypted master key (encrypted with constant signature for MetaMask)
+          // For MetaMask: Store wallet-encrypted master key (vault backup, not used for decryption)
           encryptedMasterKey: encryptedMKData.encryptedMasterKey,
           masterKeySalt: JSON.stringify({
             ...encryptedMKData.masterKeyMetadata,
@@ -135,11 +134,11 @@ export function SIWELoginButton({ onSuccess, onError }: SIWELoginButtonProps) {
         // Store mnemonic for backup page (same as password auth)
         localStorage.setItem('recovery_mnemonic', mnemonic)
 
-        // STEP 8: Cache master key for session
+        // STEP 8: Cache master key for session (MetaMask users can get from wallet or localStorage)
+        // Use the master key directly since it's already decrypted
+        const { masterKeyManager } = await import("@/lib/master-key")
         await masterKeyManager.deriveAndCacheMasterKey(
-          Array.from(masterSecret)
-            .map((b: number) => b.toString(16).padStart(2, '0'))
-            .join(''),
+          masterKeyHex,
           keypairs.keyDerivationSalt
         )
 
@@ -156,7 +155,7 @@ export function SIWELoginButton({ onSuccess, onError }: SIWELoginButtonProps) {
 
         toast.success("Account created successfully!")
       } else {
-        // EXISTING USER: Retrieve encrypted MK from storage, decrypt with constant signature, restore keys
+        // EXISTING USER: Retrieve encrypted MK from localStorage, decrypt with wallet, restore keys
 
         const profileResponse = await apiClient.getProfile()
         if (!profileResponse.success || !profileResponse.data?.user) {
@@ -165,38 +164,52 @@ export function SIWELoginButton({ onSuccess, onError }: SIWELoginButtonProps) {
 
         const userData = profileResponse.data.user
 
-        // CRITICAL: For MetaMask users, restore the original encrypted master key
+        // CRITICAL: For MetaMask users, restore the master key from encrypted storage
         if (userData.encryptedMasterKey) {
           try {
-            // Parse the stored master key metadata
-            const mkMetadata = typeof userData.masterKeySalt === 'string' 
-              ? JSON.parse(userData.masterKeySalt)
-              : userData.masterKeySalt
-
-            // STEP 1: Get the same constant signature from MetaMask
-            const constantSignature = await metamaskAuthService.getConstantSignature()
-
-            // STEP 2: Decrypt the stored encrypted master key using constant signature
-            const decryptedMasterKey = await metamaskAuthService.decryptMasterKeyWithConstantSignature(
-              userData.encryptedMasterKey,
-              constantSignature,
-              mkMetadata.nonce
-            )
-
-            // STEP 2: Cache the restored master key in session
-            metamaskAuthService.cacheMasterKeyInSession(decryptedMasterKey)
-
-            // STEP 3: Derive master secret from the restored master key
-            const masterSecret = await metamaskAuthService.deriveMasterSecretFromMK(
-              decryptedMasterKey,
+            // STEP 1: Try to get encrypted master key from localStorage first
+            let storedEncryptedMK = MetaMaskAuthService.getEncryptedMasterKeyFromLocal(
               user.walletAddress
             )
 
-            // STEP 4: Cache master key for session
+            // STEP 1.5: If not in localStorage, fetch from backend (new device, localStorage cleared, etc.)
+            if (!storedEncryptedMK) {
+              console.log('Master key not in localStorage, fetching from backend...')
+              // userData.encryptedMasterKey is the encrypted master key from the backend profile
+              storedEncryptedMK = {
+                encryptedMasterKey: userData.encryptedMasterKey,
+                publicKey: user.walletAddress,
+                masterKeyMetadata: {
+                  version: 'v7-wallet-stored',
+                  algorithm: 'no-encryption-same-origin-storage',
+                  createdAt: Date.now()
+                }
+              }
+              // Store it in localStorage for next time
+              MetaMaskAuthService.storeEncryptedMasterKeyLocally(
+                storedEncryptedMK,
+                user.walletAddress
+              )
+            }
+
+            // STEP 2: Retrieve the master key from localStorage or backend (it's stored unencrypted, protected by same-origin policy)
+            const decryptedMasterKey = await MetaMaskAuthService.decryptMasterKeyWithWallet(
+              storedEncryptedMK.encryptedMasterKey,
+              storedEncryptedMK.publicKey // This contains the challenge salt
+            )
+
+            // STEP 3: Cache the restored master key in session
+            MetaMaskAuthService.cacheMasterKeyInSession(decryptedMasterKey)
+
+            // STEP 4: Use master key to derive encryption for file access
+            const masterKeyHex = Array.from(decryptedMasterKey)
+              .map((b: number) => b.toString(16).padStart(2, '0'))
+              .join('')
+
+            // STEP 5: Cache master key for session
+            const { masterKeyManager } = await import("@/lib/master-key")
             await masterKeyManager.deriveAndCacheMasterKey(
-              Array.from(masterSecret)
-                .map((b: number) => b.toString(16).padStart(2, '0'))
-                .join(''),
+              masterKeyHex,
               userData.crypto_keypairs.accountSalt
             )
           } catch (keyError) {

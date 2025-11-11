@@ -64,8 +64,6 @@ class ApiClient {
   ): Promise<ApiResponse<T>> {
     const url = `${this.baseURL}${endpoint}`;
 
-    console.log('🟡 API Request:', { endpoint, method: options.method || 'GET', url });
-
     const config: RequestInit = {
       headers: {
         'Content-Type': 'application/json',
@@ -110,8 +108,6 @@ class ApiClient {
       const response = await fetch(url, config);
       const duration = Date.now() - startTime;
       
-      console.log('🟢 API Response:', { endpoint, status: response.status, duration: `${duration}ms` });
-      
       const data = await response.json();
 
       // Check for 401 Unauthorized (token expired or invalid)
@@ -138,7 +134,7 @@ class ApiClient {
       }
 
       if (!response.ok) {
-        console.error('🔴 API Error:', { endpoint, status: response.status, error: data.error });
+        console.error('API Error:', { endpoint, status: response.status, error: data.error });
         throw new Error(data.error || `HTTP ${response.status}`);
       }
 
