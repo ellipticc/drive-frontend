@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import {
   User,
   Shield,
+  Gift,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -38,7 +39,7 @@ import {
   SidebarMenuItem,
   SidebarProvider,
 } from "@/components/ui/sidebar"
-import { IconSettings, IconLoader2, IconPencil, IconCheck, IconMail, IconLock, IconLogout, IconTrash, IconUserCog, IconLockSquareRounded  } from "@tabler/icons-react"
+import { IconSettings, IconLoader2, IconPencil, IconCheck, IconMail, IconLock, IconLogout, IconTrash, IconUserCog, IconLockSquareRounded, IconGift, IconCopy, IconCheck as IconCheckmark  } from "@tabler/icons-react"
 import { apiClient } from "@/lib/api"
 import { useTheme } from "next-themes"
 import { getDiceBearAvatar } from "@/lib/avatar"
@@ -55,6 +56,7 @@ const data = {
   nav: [
     { name: "General", icon: IconUserCog, id: "general" },
     { name: "Security", icon: IconLockSquareRounded, id: "security" },
+    { name: "Referrals", icon: IconGift, id: "referrals" },
   ],
 }
 
@@ -138,6 +140,18 @@ export function SettingsModal({
   const [showRecoveryCodesModal, setShowRecoveryCodesModal] = useState(false)
   const [isLoadingRecoveryCodes, setIsLoadingRecoveryCodes] = useState(false)
 
+  // Referral state
+  const [referralCode, setReferralCode] = useState("")
+  const [referralLink, setReferralLink] = useState("")
+  const [referralStats, setReferralStats] = useState<{
+    totalReferrals: number
+    completedReferrals: number
+    totalEarningsMB: number
+  } | null>(null)
+  const [recentReferrals, setRecentReferrals] = useState<any[]>([])
+  const [isLoadingReferrals, setIsLoadingReferrals] = useState(false)
+  const [copiedCode, setCopiedCode] = useState(false)
+
   useEffect(() => {
     if (isEditingName && nameInputRef.current) {
       nameInputRef.current.focus()
@@ -149,6 +163,7 @@ export function SettingsModal({
   useEffect(() => {
     if (open) {
       loadTOTPStatus()
+      loadReferralData()
     }
   }, [open])
 
@@ -161,6 +176,46 @@ export function SettingsModal({
       }
     } catch (error) {
       console.error('Failed to load TOTP status:', error)
+    }
+  }
+
+  // Load referral data
+  const loadReferralData = async () => {
+    setIsLoadingReferrals(true)
+    try {
+      const response = await apiClient.getReferralInfo()
+      if (response.success && response.data) {
+        setReferralCode(response.data.referralCode)
+        setReferralLink(response.data.referralLink)
+        setReferralStats(response.data.statistics)
+        setRecentReferrals(response.data.recentReferrals || [])
+      }
+    } catch (error) {
+      console.error('Failed to load referral data:', error)
+    } finally {
+      setIsLoadingReferrals(false)
+    }
+  }
+
+  // Copy referral code to clipboard
+  const handleCopyReferralCode = async () => {
+    try {
+      await navigator.clipboard.writeText(referralCode)
+      setCopiedCode(true)
+      toast.success("Referral code copied!")
+      setTimeout(() => setCopiedCode(false), 2000)
+    } catch (error) {
+      toast.error("Failed to copy referral code")
+    }
+  }
+
+  // Copy referral link to clipboard
+  const handleCopyReferralLink = async () => {
+    try {
+      await navigator.clipboard.writeText(referralLink)
+      toast.success("Referral link copied!")
+    } catch (error) {
+      toast.error("Failed to copy referral link")
     }
   }
 
@@ -917,6 +972,124 @@ export function SettingsModal({
                       </Button>
                     </div>
                   </div>
+                </div>
+              )}
+
+              {activeTab === "referrals" && (
+                <div className="space-y-6">
+                  <h2 className="text-xl font-semibold">Referral Program</h2>
+
+                  {/* Referral Info Banner */}
+                  <div className="p-4 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <IconGift className="h-5 w-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <h3 className="font-medium text-green-900 dark:text-green-100">Earn Free Storage</h3>
+                        <p className="text-sm text-green-700 dark:text-green-300 mt-1">
+                          Invite friends and get 500MB of storage for each friend who signs up, verifies their email, and uploads a file. Maximum 10GB bonus (20 referrals).
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Referral Code Section */}
+                  {isLoadingReferrals ? (
+                    <div className="flex justify-center py-6">
+                      <IconLoader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : (
+                    <>
+                      <div className="space-y-4">
+                        <Label className="text-sm font-medium">Your Referral Code</Label>
+                        <div className="flex items-center gap-2">
+                          <code className="flex-1 p-3 bg-muted rounded font-mono text-sm border border-border">
+                            {referralCode}
+                          </code>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={handleCopyReferralCode}
+                            className="px-3"
+                          >
+                            {copiedCode ? (
+                              <IconCheckmark className="h-4 w-4" />
+                            ) : (
+                              <IconCopy className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Referral Link Section */}
+                      <div className="space-y-4">
+                        <Label className="text-sm font-medium">Your Referral Link</Label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={referralLink}
+                            readOnly
+                            className="flex-1 p-2 text-sm bg-muted rounded border border-border text-muted-foreground truncate"
+                          />
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={handleCopyReferralLink}
+                            className="px-3"
+                          >
+                            <IconCopy className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Referral Stats */}
+                      {referralStats && (
+                        <div className="border-t pt-6 space-y-4">
+                          <h3 className="text-lg font-semibold">Your Referral Stats</h3>
+                          <div className="grid grid-cols-3 gap-4">
+                            <div className="p-4 bg-muted rounded-lg text-center">
+                              <p className="text-2xl font-bold">{referralStats.completedReferrals}</p>
+                              <p className="text-xs text-muted-foreground mt-1">Completed Referrals</p>
+                            </div>
+                            <div className="p-4 bg-muted rounded-lg text-center">
+                              <p className="text-2xl font-bold">{referralStats.totalEarningsMB}</p>
+                              <p className="text-xs text-muted-foreground mt-1">MB Earned</p>
+                            </div>
+                            <div className="p-4 bg-muted rounded-lg text-center">
+                              <p className="text-2xl font-bold">{Math.round((referralStats.totalEarningsMB / 10240) * 100)}%</p>
+                              <p className="text-xs text-muted-foreground mt-1">of 10GB Max</p>
+                            </div>
+                          </div>
+                          <div className="pt-4 text-sm text-muted-foreground">
+                            <p>You have {20 - referralStats.completedReferrals} referral slots remaining.</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Recent Referrals */}
+                      {recentReferrals.length > 0 && (
+                        <div className="border-t pt-6 space-y-4">
+                          <h3 className="text-lg font-semibold">Recent Referrals</h3>
+                          <div className="space-y-3 max-h-48 overflow-y-auto">
+                            {recentReferrals.map((referral) => (
+                              <div key={referral.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-sm truncate">{referral.referredUser.name}</p>
+                                  <p className="text-xs text-muted-foreground truncate">{referral.referredUser.email}</p>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <span className={`text-sm font-medium px-2 py-1 rounded text-white ${
+                                    referral.status === 'completed' ? 'bg-green-500' : 'bg-yellow-500'
+                                  }`}>
+                                    {referral.status === 'completed' ? '+500MB' : 'Pending'}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               )}
             </div>

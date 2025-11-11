@@ -499,6 +499,7 @@ class ApiClient {
     masterKeyNonce?: string;       // Nonce for encrypting master key with recovery key
     encryptedRecoveryKey?: string; // RK encrypted with RKEK(mnemonic)
     recoveryKeyNonce?: string;     // Nonce for decrypting recovery key
+    referralCode?: string;         // Referral code for signup attribution
   }): Promise<ApiResponse> {
     return this.request('/auth/crypto/setup', {
       method: 'POST',
@@ -1316,6 +1317,71 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify({ userId, token, rememberDevice }),
     });
+  }
+
+  // Referral endpoints
+  async getReferralInfo(): Promise<ApiResponse<{
+    referralCode: string;
+    referralLink: string;
+    statistics: {
+      totalReferrals: number;
+      completedReferrals: number;
+      totalEarningsMB: number;
+      totalEarningsBytes: number;
+    };
+    recentReferrals: Array<{
+      id: string;
+      referredUser: {
+        id: string;
+        name: string;
+        email: string;
+      };
+      status: string;
+      earningsMB: number;
+      createdAt: string;
+      completedAt: string | null;
+    }>;
+  }>> {
+    return this.request('/referrals/info');
+  }
+
+  async getReferralLeaderboard(limit?: number): Promise<ApiResponse<{
+    leaderboard: Array<{
+      rank: number;
+      name: string;
+      email: string;
+      totalReferrals: number;
+      totalEarningsMB: number;
+      codeCreatedAt: string;
+    }>;
+  }>> {
+    return this.request(`/referrals/leaderboard${limit ? `?limit=${limit}` : ''}`);
+  }
+
+  async getReferralEarningsHistory(limit?: number): Promise<ApiResponse<{
+    earnings: Array<{
+      id: string;
+      earningsMB: number;
+      description: string;
+      createdAt: string;
+      referredUser: {
+        name: string;
+        email: string;
+      };
+    }>;
+  }>> {
+    return this.request(`/referrals/earnings${limit ? `?limit=${limit}` : ''}`);
+  }
+
+  async validateReferralCode(code: string): Promise<ApiResponse<{
+    valid: boolean;
+    referrer: {
+      id: string;
+      name: string;
+      email: string;
+    };
+  }>> {
+    return this.request(`/referrals/validate/${code}`);
   }
 
   async verifyDeviceToken(deviceToken: string): Promise<ApiResponse<{

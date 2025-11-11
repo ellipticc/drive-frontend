@@ -17,8 +17,8 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { useState, useEffect } from "react"
 import { apiClient } from "@/lib/api"
 import { Loader2 } from "lucide-react"
 
@@ -27,13 +27,26 @@ export function SignupForm({
   ...props
 }: React.ComponentProps<"div">) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
+  const [referralCode, setReferralCode] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     email: "",
     password: "",
     confirmPassword: ""
   })
+
+  // Capture referral code from URL on mount
+  useEffect(() => {
+    const ref = searchParams.get('ref')
+    if (ref) {
+      setReferralCode(ref)
+      // Store in localStorage so it persists across redirects
+      sessionStorage.setItem('referral_code', ref)
+      console.log('Referral code captured:', ref)
+    }
+  }, [searchParams])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -142,6 +155,10 @@ export function SignupForm({
       // Now store the PQC keypairs in individual database columns
       // CRITICAL: Store accountSalt as HEX (same format used for key derivation)
       try {
+        // Retrieve referral code from sessionStorage if it exists
+        const referralCode = sessionStorage.getItem('referral_code')
+        console.log('Sending referral code to backend:', referralCode)
+        
         const cryptoSetupResponse = await apiClient.storeCryptoKeypairs({
           userId,
           accountSalt: tempAccountSaltHex,  // Store as HEX, not base64
@@ -153,7 +170,8 @@ export function SignupForm({
           encryptedRecoveryKey,  // RK encrypted with RKEK(mnemonic)
           recoveryKeyNonce,      // Nonce for decrypting recovery key
           encryptedMasterKey,    // MK encrypted with RK
-          masterKeySalt          // JSON stringified with salt and algorithm
+          masterKeySalt,         // JSON stringified with salt and algorithm
+          referralCode: referralCode || undefined  // Pass referral code if available
         })
 
         if (!cryptoSetupResponse.success) {
@@ -256,8 +274,15 @@ export function SignupForm({
         </CardContent>
       </Card>
       <FieldDescription className="px-6 text-center">
-        By clicking continue, you agree to our <a href="#">Terms of Service</a>{" "}
-        and <a href="#">Privacy Policy</a>.
+        By clicking continue, you agree to our{" "}
+        <Link href="/terms-of-service" className="underline underline-offset-4 hover:underline">
+          Terms of Service
+        </Link>{" "}
+        and{" "}
+        <Link href="/privacy-policy" className="underline underline-offset-4 hover:underline">
+          Privacy Policy
+        </Link>
+        .
       </FieldDescription>
     </div>
   )
