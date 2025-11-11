@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { apiClient } from "@/lib/api";
 
 interface UserData {
@@ -83,8 +84,19 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasFetched, setHasFetched] = useState(false);
+  const pathname = usePathname();
+
+  // Routes that should skip user profile fetching
+  const skipFetchRoutes = ['/login', '/signup', '/otp', '/recover', '/backup', '/totp', '/totp/recovery', '/auth/oauth/callback'];
+  const shouldSkipFetch = skipFetchRoutes.includes(pathname) || pathname.startsWith('/s/');
 
   const fetchUser = async (forceRefresh = false) => {
+    // Skip fetching for public/auth routes
+    if (shouldSkipFetch) {
+      setLoading(false);
+      return;
+    }
+
     // If we already have data and don't need to force refresh, use cached data
     if (!forceRefresh && hasFetched && user !== null) {
       setLoading(false);
@@ -110,6 +122,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
   };
 
   const fetchFreshUserData = async () => {
+    // Skip for public/auth routes
+    if (shouldSkipFetch) {
+      setLoading(false);
+      return;
+    }
+
     // Double-check token exists before making request
     const token = apiClient.getAuthToken();
     if (!token) {
@@ -148,7 +166,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   // Fetch user on mount
   useEffect(() => {
     fetchUser();
-  }, []);
+  }, [shouldSkipFetch]);
 
   const refetch = async () => {
     setHasFetched(false);

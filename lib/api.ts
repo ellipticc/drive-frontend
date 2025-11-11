@@ -64,6 +64,8 @@ class ApiClient {
   ): Promise<ApiResponse<T>> {
     const url = `${this.baseURL}${endpoint}`;
 
+    console.log('🟡 API Request:', { endpoint, method: options.method || 'GET', url });
+
     const config: RequestInit = {
       headers: {
         'Content-Type': 'application/json',
@@ -77,13 +79,19 @@ class ApiClient {
     if (token) {
       // Check if token is expired
       if (this.isTokenExpired(token)) {
-        // Token is expired, clear it and redirect to login
+        // Token is expired, clear it
         this.clearToken();
         if (typeof window !== 'undefined') {
           localStorage.removeItem('master_key');
           localStorage.removeItem('account_salt');
           localStorage.removeItem('viewMode');
-          window.location.href = '/login';
+          // Only redirect to login if we're NOT on auth pages
+          const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+          const authPages = ['/login', '/signup', '/otp', '/recover', '/backup', '/totp', '/auth/oauth/callback'];
+          const isAuthPage = authPages.some(page => pathname.includes(page)) || pathname.startsWith('/s/');
+          if (!isAuthPage) {
+            window.location.href = '/login';
+          }
         }
         return {
           success: false,
@@ -98,18 +106,30 @@ class ApiClient {
     }
 
     try {
+      const startTime = Date.now();
       const response = await fetch(url, config);
+      const duration = Date.now() - startTime;
+      
+      console.log('🟢 API Response:', { endpoint, status: response.status, duration: `${duration}ms` });
+      
       const data = await response.json();
 
       // Check for 401 Unauthorized (token expired or invalid)
       if (response.status === 401) {
-        // Clear token and redirect to login
+        // Clear token but don't redirect automatically
+        // Let components handle the 401 response
         this.clearToken();
         if (typeof window !== 'undefined') {
           localStorage.removeItem('master_key');
           localStorage.removeItem('account_salt');
           localStorage.removeItem('viewMode');
-          window.location.href = '/login';
+          // Only redirect to login if we're NOT on auth pages
+          const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+          const authPages = ['/login', '/signup', '/otp', '/recover', '/backup', '/totp', '/auth/oauth/callback'];
+          const isAuthPage = authPages.some(page => pathname.includes(page)) || pathname.startsWith('/s/');
+          if (!isAuthPage) {
+            window.location.href = '/login';
+          }
         }
         return {
           success: false,
@@ -118,6 +138,7 @@ class ApiClient {
       }
 
       if (!response.ok) {
+        console.error('🔴 API Error:', { endpoint, status: response.status, error: data.error });
         throw new Error(data.error || `HTTP ${response.status}`);
       }
 
@@ -1343,8 +1364,13 @@ class ApiClient {
 
   async completeOAuthRegistration(data: {
     accountSalt: string;
-    encrypted_recovery_key: string;
-    recovery_key_nonce: string;
+    pqcKeypairs?: any;
+    mnemonicHash?: string;
+    encryptedRecoveryKey?: string;
+    recoveryKeyNonce?: string;
+    encryptedMasterKey?: string;
+    masterKeySalt?: string;
+    algorithmVersion?: string;
   }): Promise<ApiResponse<{
     success: boolean;
     message?: string;
