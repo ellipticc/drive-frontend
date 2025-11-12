@@ -26,12 +26,64 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  description: "Secure file storage and collaboration platform",
-  icons: {
-    icon: "/favicon.svg",
-    shortcut: "/favicon.svg",
-    apple: "/favicon.svg",
+  title: {
+    default: "Ellipticc Drive - Secure, Encrypted File Storage",
+    template: "%s | Ellipticc Drive"
   },
+  description: "Secure, end-to-end encrypted file storage and collaboration platform. Keep your files private with military-grade encryption and zero-knowledge architecture.",
+  keywords: ["encrypted file storage", "secure cloud storage", "zero-knowledge encryption", "privacy-focused", "file sharing", "end-to-end encryption"],
+  authors: [{ name: "Ellipticc" }],
+  creator: "Ellipticc",
+  publisher: "Ellipticc",
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://ellipticc.com'),
+  alternates: {
+    canonical: '/',
+  },
+  openGraph: {
+    type: 'website',
+    locale: 'en_US',
+    url: '/',
+    title: 'Ellipticc Drive - Secure, Encrypted File Storage',
+    description: 'Secure, end-to-end encrypted file storage and collaboration platform. Keep your files private with military-grade encryption.',
+    siteName: 'Ellipticc Drive',
+    images: [
+      {
+        url: '/og-image.svg',
+        width: 1200,
+        height: 630,
+        alt: 'Ellipticc Drive - Secure File Storage',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Ellipticc Drive - Secure, Encrypted File Storage',
+    description: 'Secure, end-to-end encrypted file storage and collaboration platform.',
+    images: ['/og-image.svg'],
+    creator: '@ellipticc',
+  },
+  robots: {
+    index: true,
+    follow: true,
+    nocache: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      noimageindex: false,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+  verification: {
+    google: process.env.GOOGLE_SITE_VERIFICATION,
+  },
+  manifest: '/manifest.json',
 };
 
 export default function RootLayout({
@@ -39,8 +91,45 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://ellipticc.com'
+
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Ellipticc Drive",
+    "description": "Secure, end-to-end encrypted file storage and collaboration platform",
+    "url": baseUrl,
+    "applicationCategory": "BusinessApplication",
+    "operatingSystem": "Web Browser",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "creator": {
+      "@type": "Organization",
+      "name": "Ellipticc",
+      "url": baseUrl
+    },
+    "featureList": [
+      "End-to-end encryption",
+      "Zero-knowledge architecture",
+      "Secure file sharing",
+      "Military-grade security",
+      "Privacy-focused design"
+    ]
+  }
+
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(structuredData),
+          }}
+        />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${jetbrainsMono.variable} antialiased`}
       >

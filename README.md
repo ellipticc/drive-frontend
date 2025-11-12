@@ -29,8 +29,29 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-## Deploy on Vercel
+## SEO Configuration
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+This project includes comprehensive SEO optimizations:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Sitemap**: Automatically generated at `/sitemap.xml`
+- **Robots.txt**: Configured for search engine crawling at `/robots.txt`
+- **Meta Tags**: Open Graph, Twitter Cards, and structured data included
+- **PWA Manifest**: Basic PWA support with `/manifest.json`
+
+### Environment Variables
+
+Copy `.env.example` to `.env.local` and configure:
+
+```bash
+NEXT_PUBLIC_BASE_URL=https://yourdomain.com
+GOOGLE_SITE_VERIFICATION=your_google_verification_code
+```
+
+### SEO Features
+
+- Dynamic sitemap generation
+- Search engine crawling instructions
+- Social media meta tags
+- JSON-LD structured data
+- Performance optimizations
+- PWA manifest for mobile experience

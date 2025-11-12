@@ -227,7 +227,7 @@ export function SettingsModal({
     const unixTimestamp = Math.floor(Date.now() / 1000)
     const randomHex = Math.random().toString(16).slice(2, 8) // Random hex for uniqueness
     element.href = URL.createObjectURL(file)
-    element.download = `recovery-phrase-${unixTimestamp}-${randomHex}.txt`
+    element.download = `recovery-phrase-${randomHex}-${unixTimestamp}.txt`
     document.body.appendChild(element)
     element.click()
     document.body.removeChild(element)
@@ -1628,10 +1628,12 @@ export function SettingsModal({
                   // Download recovery codes
                   const codesText = recoveryCodes.join('\n')
                   const blob = new Blob([codesText], { type: 'text/plain' })
+                  const unixTimestamp = Math.floor(Date.now() / 1000)
+                  const randomHex = Math.random().toString(16).slice(2, 8) // Random hex for uniqueness
                   const url = URL.createObjectURL(blob)
                   const a = document.createElement('a')
                   a.href = url
-                  a.download = 'recovery-codes.txt'
+                  a.download = `recovery-codes-${randomHex}-${unixTimestamp}.txt`
                   document.body.appendChild(a)
                   a.click()
                   document.body.removeChild(a)

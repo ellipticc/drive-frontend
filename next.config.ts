@@ -7,6 +7,11 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
+  compress: true, // Enable gzip compression
+  poweredByHeader: false, // Remove X-Powered-By header for security
+  experimental: {
+    optimizeCss: true, // Optimize CSS
+  },
   webpack: (config, { isServer }) => {
     // Set externals for modules that can't be bundled on server
     config.externals = config.externals || [];
