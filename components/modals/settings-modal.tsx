@@ -7,6 +7,8 @@ import {
   User,
   Shield,
   Gift,
+  Eye,
+  EyeOff,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -140,6 +142,11 @@ export function SettingsModal({
   const [showRecoveryCodesModal, setShowRecoveryCodesModal] = useState(false)
   const [isLoadingRecoveryCodes, setIsLoadingRecoveryCodes] = useState(false)
 
+  // Recovery phrase state
+  const [showRecoveryPhrase, setShowRecoveryPhrase] = useState(false)
+  const [recoveryPhrase, setRecoveryPhrase] = useState("")
+  const [showMnemonic, setShowMnemonic] = useState(false)
+
   // Referral state
   const [referralCode, setReferralCode] = useState("")
   const [referralLink, setReferralLink] = useState("")
@@ -194,6 +201,51 @@ export function SettingsModal({
       console.error('Failed to load referral data:', error)
     } finally {
       setIsLoadingReferrals(false)
+    }
+  }
+
+  // Handle viewing recovery phrase
+  const handleShowRecoveryPhrase = () => {
+    const mnemonic = localStorage.getItem('recovery_mnemonic')
+    if (mnemonic) {
+      setRecoveryPhrase(mnemonic)
+      setShowRecoveryPhrase(true)
+    } else {
+      toast.error("Recovery phrase not found. Please re-login to generate it.")
+    }
+  }
+
+  // Handle exporting recovery phrase as text file
+  const handleExportRecoveryPhrase = () => {
+    if (!recoveryPhrase) {
+      toast.error("Recovery phrase not found")
+      return
+    }
+
+    const element = document.createElement('a')
+    const file = new Blob([`Recovery Phrase\n\n${recoveryPhrase}\n\nKEEP THIS SAFE - Never share with anyone!`], { type: 'text/plain' })
+    const unixTimestamp = Math.floor(Date.now() / 1000)
+    const randomHex = Math.random().toString(16).slice(2, 8) // Random hex for uniqueness
+    element.href = URL.createObjectURL(file)
+    element.download = `recovery-phrase-${unixTimestamp}-${randomHex}.txt`
+    document.body.appendChild(element)
+    element.click()
+    document.body.removeChild(element)
+    toast.success("Recovery phrase exported!")
+  }
+
+  // Handle copying recovery phrase to clipboard
+  const handleCopyRecoveryPhrase = async () => {
+    if (!recoveryPhrase) {
+      toast.error("Recovery phrase not found")
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(recoveryPhrase)
+      toast.success("Recovery phrase copied to clipboard!")
+    } catch (error) {
+      toast.error("Failed to copy recovery phrase")
     }
   }
 
@@ -939,6 +991,26 @@ export function SettingsModal({
                     )}
                   </div>
 
+                  {/* Recovery Phrase Section */}
+                  <div className="flex items-start justify-between border-t pt-6">
+                    <div className="flex items-start gap-3 flex-1">
+                      <IconLock className="h-5 w-5 text-muted-foreground mt-1" />
+                      <div>
+                        <p className="font-medium">Recovery Phrase</p>
+                        <p className="text-sm text-muted-foreground">
+                          View and export your 12-word backup recovery phrase
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleShowRecoveryPhrase}
+                    >
+                      View & Export
+                    </Button>
+                  </div>
+
                   {/* Account Actions Section */}
                   <div className="border-t pt-6 space-y-4">
                     <h3 className="text-lg font-semibold">Account Actions</h3>
@@ -1574,6 +1646,66 @@ export function SettingsModal({
                 onClick={() => {
                   setShowRecoveryCodesModal(false)
                   setRecoveryCodes([])
+                }}
+              >
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Recovery Phrase Modal */}
+        <Dialog open={showRecoveryPhrase} onOpenChange={setShowRecoveryPhrase}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Your Recovery Phrase</DialogTitle>
+              <DialogDescription>
+                This 12-word phrase can be used to recover your account. Keep it safe and never share it.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+                <p className="text-sm text-destructive">
+                  <strong>⚠️ Warning:</strong> Anyone with this phrase can access your account. Never share it with anyone.
+                </p>
+              </div>
+              <div className="relative p-4 bg-muted rounded-lg">
+                <div className={`font-mono text-sm leading-relaxed ${!showMnemonic ? 'blur-sm' : ''}`}>
+                  {recoveryPhrase}
+                </div>
+                {!showMnemonic && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowMnemonic(true)}
+                    className="absolute inset-0 w-full h-full flex items-center justify-center hover:bg-black/5"
+                  >
+                    <Eye className="h-4 w-4 mr-2" />
+                    Click to reveal
+                  </Button>
+                )}
+              </div>
+            </div>
+            <DialogFooter className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={handleCopyRecoveryPhrase}
+                className="flex-1"
+              >
+                <IconCopy className="h-4 w-4 mr-2" />
+                Copy
+              </Button>
+              <Button
+                onClick={handleExportRecoveryPhrase}
+                className="flex-1"
+              >
+                Download
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowRecoveryPhrase(false)
+                  setShowMnemonic(false)
                 }}
               >
                 Close

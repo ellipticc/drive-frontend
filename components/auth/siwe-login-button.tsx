@@ -14,9 +14,10 @@ import SIWE from "@/lib/siwe"
 interface SIWELoginButtonProps {
   onSuccess?: (user: any) => void;
   onError?: (error: string) => void;
+  context?: 'login' | 'register';
 }
 
-export function SIWELoginButton({ onSuccess, onError }: SIWELoginButtonProps) {
+export function SIWELoginButton({ onSuccess, onError, context = 'login' }: SIWELoginButtonProps) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
@@ -308,7 +309,7 @@ export function SIWELoginButton({ onSuccess, onError }: SIWELoginButtonProps) {
               <polygon className="g" points="143.21 204.62 39.26 235.03 4.67 342.76 96.9 342.76 158.71 343.55 111.8 252.13 143.21 204.62"/>
               <polygon className="g" points="284.32 257.1 290.88 142.41 321.1 60.72 186.93 60.72 216.75 142.41 223.7 257.1 226.09 293.27 226.29 382.31 281.34 382.31 281.74 293.27 284.32 257.1"/>
             </svg>
-            Login with MetaMask
+                        {context === 'register' ? 'Register with MetaMask' : 'Login with MetaMask'}
           </>
         )}
       </Button>

@@ -12,7 +12,7 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   const pathname = usePathname();
 
   // Define public routes that don't need sidebar
-  const publicRoutes = ['/login', '/signup', '/register', '/otp', '/recover', '/backup', '/totp', '/totp/recovery', '/auth/oauth/callback', '/terms-of-service', '/privacy-policy'];
+  const publicRoutes = ['/login', '/signup', '/register', '/otp', '/recover', '/recover/otp', '/recover/reset', '/backup', '/totp', '/totp/recovery', '/auth/oauth/callback', '/terms-of-service', '/privacy-policy'];
   
   // Check if current path is public
   const isPublic = publicRoutes.includes(pathname) || pathname.startsWith('/s/');

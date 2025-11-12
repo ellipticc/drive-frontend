@@ -68,6 +68,23 @@ class MasterKeyManager {
   }
 
   /**
+   * Complete logout - clear all sensitive data except deviceToken
+   */
+  completeClearOnLogout(): void {
+    // Save deviceToken if it exists
+    const deviceToken = localStorage.getItem('deviceToken');
+    
+    // Clear everything
+    localStorage.clear();
+    sessionStorage.clear();
+    
+    // Restore deviceToken if it existed
+    if (deviceToken) {
+      localStorage.setItem('deviceToken', deviceToken);
+    }
+  }
+
+  /**
    * Get account salt
    */
   getAccountSalt(): string | null {

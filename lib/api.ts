@@ -85,7 +85,7 @@ class ApiClient {
           localStorage.removeItem('viewMode');
           // Only redirect to login if we're NOT on auth pages
           const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
-          const authPages = ['/login', '/signup', '/otp', '/recover', '/backup', '/totp', '/auth/oauth/callback'];
+          const authPages = ['/login', '/signup', '/otp', '/recover', '/recover/otp', '/recover/reset', '/backup', '/totp', '/auth/oauth/callback'];
           const isAuthPage = authPages.some(page => pathname.includes(page)) || pathname.startsWith('/s/');
           if (!isAuthPage) {
             window.location.href = '/login';
@@ -121,7 +121,7 @@ class ApiClient {
           localStorage.removeItem('viewMode');
           // Only redirect to login if we're NOT on auth pages
           const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
-          const authPages = ['/login', '/signup', '/otp', '/recover', '/backup', '/totp', '/auth/oauth/callback'];
+          const authPages = ['/login', '/signup', '/otp', '/recover', '/recover/otp', '/recover/reset', '/backup', '/totp', '/auth/oauth/callback'];
           const isAuthPage = authPages.some(page => pathname.includes(page)) || pathname.startsWith('/s/');
           if (!isAuthPage) {
             window.location.href = '/login';
@@ -360,29 +360,6 @@ class ApiClient {
     return this.request('/recovery/verify', {
       method: 'POST',
       body: JSON.stringify(data),
-    });
-  }
-
-  async initiateRecovery(email: string): Promise<ApiResponse<{
-    hasRecovery: boolean;
-    encryptedRecoveryKey?: string; // RK encrypted with RKEK
-    recoveryKeyNonce?: string; // Nonce for RK decryption
-    encryptedMasterKey?: string; // Original MK encrypted with RK
-    masterKeyNonce?: string; // Nonce for MK decryption
-    accountSalt?: string; // Original account salt for master key derivation
-  }>> {
-    return this.request('/recovery/initiate', {
-      method: 'POST',
-      body: JSON.stringify({ email }),
-    });
-  }
-
-  async refreshToken(): Promise<ApiResponse<{
-    accessToken: string;
-    refreshToken: string;
-  }>> {
-    return this.request('/auth/refresh', {
-      method: 'POST',
     });
   }
 
@@ -1402,6 +1379,67 @@ class ApiClient {
     });
   }
 
+  // Recovery OTP endpoints
+  async initiateRecovery(email: string): Promise<ApiResponse<{
+    hasRecovery: boolean;
+  }>> {
+    return this.request('/recovery/initiate', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  }
+
+  async checkRecoveryTOTPAvailability(email: string): Promise<ApiResponse<{
+    hasTOTP: boolean;
+  }>> {
+    return this.request('/recovery/check-totp', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  }
+
+  async sendRecoveryOTP(email: string): Promise<ApiResponse<{
+    success: boolean;
+  }>> {
+    return this.request('/recovery/send-otp', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  }
+
+  async verifyRecoveryOTP(data: {
+    email: string;
+    mnemonicHash: string;
+    method: 'email' | 'totp' | 'backup';
+    code: string;
+  }): Promise<ApiResponse<{
+    success: boolean;
+    token?: string;
+  }>> {
+    return this.request('/recovery/verify-otp', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async resetPasswordWithRecovery(data: {
+    email: string;
+    newOpaquePasswordFile: string;
+    encryptedMasterKey: string;
+    masterKeyNonce: string;
+    encryptedRecoveryKey: string;
+    recoveryKeyNonce: string;
+  }): Promise<ApiResponse<{
+    success: boolean;
+    token?: string;
+    message?: string;
+  }>> {
+    return this.request('/recovery/reset-password', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
   // OAuth endpoints
   async getGoogleOAuthUrl(): Promise<ApiResponse<{
     authUrl: string;
@@ -1433,6 +1471,7 @@ class ApiClient {
     encryptedMasterKey?: string;
     masterKeySalt?: string;
     algorithmVersion?: string;
+    opaquePasswordFile?: string;
   }): Promise<ApiResponse<{
     success: boolean;
     message?: string;

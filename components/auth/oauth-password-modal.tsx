@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
@@ -41,6 +41,38 @@ export function OAuthPasswordModal({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>('');
   const [isNewUser, setIsNewUser] = useState(true); // Will be determined after first API call
+  const [isChecking, setIsChecking] = useState(true); // Loading state while checking user status
+
+  // Check if user is new or existing on mount
+  useEffect(() => {
+    const checkUserStatus = async () => {
+      try {
+        const profileResponse = await apiClient.getProfile();
+        
+        if (profileResponse.success && profileResponse.data?.user) {
+          const user = profileResponse.data.user;
+          const userIsNew = !user.account_salt || user.account_salt === 'pending_oauth_setup' || user.account_salt === '';
+          
+          console.log('OAuth Modal - Initial user check:', { 
+            email: user.email,
+            hasAccountSalt: !!user.account_salt,
+            accountSalt: user.account_salt?.substring(0, 20) + '...',
+            isNew: userIsNew 
+          });
+          
+          setIsNewUser(userIsNew);
+        }
+      } catch (err) {
+        console.error('Failed to check user status:', err);
+        // Assume new user on error
+        setIsNewUser(true);
+      } finally {
+        setIsChecking(false);
+      }
+    };
+
+    checkUserStatus();
+  }, [email]);
 
   // For new user: both passwords must match and be 8+ chars
   // For existing user: just need to enter the password
@@ -64,19 +96,7 @@ export function OAuthPasswordModal({
     setIsLoading(true);
 
     try {
-      // First, check if user is new or existing by fetching their account salt from backend
-      const profileResponse = await apiClient.getProfile();
-      
-      if (!profileResponse.success || !profileResponse.data) {
-        setError('Failed to fetch user profile');
-        setIsLoading(false);
-        return;
-      }
-
-      const user = profileResponse.data.user;
-      const userIsNew = !user.account_salt || user.account_salt === 'pending_oauth_setup';
-
-      if (userIsNew) {
+      if (isNewUser) {
         // NEW USER: Set password and generate keypairs
         await handleNewUserSetup();
       } else {
@@ -94,6 +114,7 @@ export function OAuthPasswordModal({
     try {
       // Import real keypair generation function (same as signup)
       const { generateAllKeypairs } = await import('@/lib/crypto');
+      const { OPAQUERegistration } = await import('@/lib/opaque');
 
       // Generate real Kyber, Dilithium, X25519, Ed25519 keypairs
       const allKeypairs = await generateAllKeypairs(password);
@@ -116,11 +137,11 @@ export function OAuthPasswordModal({
       // CRITICAL: Use the SAME salt that was used to encrypt the keypairs
       // This ensures the master key used for decryption matches the one used for encryption
       const accountSalt = allKeypairs.keyDerivationSalt;
-      console.log('🔐 OAuth Setup - accountSalt:', { length: accountSalt.length, format: accountSalt.substring(0, 20) + '...' });
+      console.log('OAuth Setup - accountSalt:', { length: accountSalt.length, format: accountSalt.substring(0, 20) + '...' });
 
       // Derive master key from password and salt (this must be the same as what was used in generateAllKeypairs)
       const masterKey = await deriveEncryptionKey(password, accountSalt);
-      console.log('🔐 OAuth Setup - masterKey derived:', { length: masterKey.length });
+      console.log('OAuth Setup - masterKey derived:', { length: masterKey.length });
 
       // Encrypt the Master Key with the Recovery Key
       const masterKeyEncryption = encryptMasterKeyWithRecoveryKey(masterKey, rk);
@@ -129,10 +150,17 @@ export function OAuthPasswordModal({
 
       // Cache master key locally for immediate use
       masterKeyManager.cacheExistingMasterKey(masterKey, accountSalt);
-      console.log('✅ OAuth Setup - master key cached');
+      console.log('OAuth Setup - master key cached');
 
       // Store mnemonic for backup page
       localStorage.setItem('recovery_mnemonic', mnemonic);
+
+      // Generate OPAQUE password file for persistent authentication on this device
+      const opaqueReg = new OPAQUERegistration();
+      const { registrationRequest } = await opaqueReg.step1(password);
+      const { registrationResponse } = await opaqueReg.step2(email, registrationRequest);
+      const { registrationRecord } = await opaqueReg.step3(registrationResponse);
+      console.log('OAuth Setup - OPAQUE password file generated');
 
       // Convert signup format to OAuth backend format
       const pqcKeypairs = {
@@ -173,10 +201,11 @@ export function OAuthPasswordModal({
           algorithm: 'argon2id',
           masterKeyNonce: masterKeyNonce
         }),
+        opaquePasswordFile: registrationRecord,
       });
 
       if (response.success) {
-        console.log('✅ OAuth Setup - backend registration complete, redirecting to dashboard');
+        console.log('OAuth Setup - backend registration complete, redirecting to dashboard');
         // Redirect to dashboard directly (no backup page for OAuth users)
         router.push('/');
       } else {
@@ -185,7 +214,7 @@ export function OAuthPasswordModal({
         );
       }
     } catch (err) {
-      console.error('❌ OAuth Setup - Error:', err);
+      console.error('OAuth Setup - Error:', err);
       setError('An unexpected error occurred. Please try again.');
     }
   };
@@ -201,27 +230,51 @@ export function OAuthPasswordModal({
       }
 
       const user = profileResponse.data.user;
+      
+      console.log('OAuth Existing User Login - Full Response:', {
+        hasUser: !!user,
+        userKeys: user ? Object.keys(user) : [],
+        account_salt_value: user.account_salt,
+        account_salt_type: typeof user.account_salt,
+        account_salt_length: user.account_salt?.length,
+        account_salt_substring: user.account_salt?.substring(0, 20)
+      });
+
+      if (!user.account_salt) {
+        console.error('account_salt is missing from profile response!');
+        setError('Account salt not found. Please complete password setup again.');
+        return;
+      }
 
       // Derive master key from password and stored account salt
       const masterKey = await deriveEncryptionKey(password, user.account_salt);
+      
+      console.log('OAuth Login - Master key derived');
 
       // Cache master key locally for immediate use
       masterKeyManager.cacheExistingMasterKey(masterKey, user.account_salt);
+      
+      console.log('OAuth Login - Master key cached');
 
       // Initialize keyManager with user data (this will use the cached master key to decrypt keypairs)
       const { keyManager } = await import("@/lib/key-manager")
       try {
         if (user.crypto_keypairs) {
           await keyManager.initialize(user)
+          console.log('OAuth Login - KeyManager initialized');
         }
       } catch (keyError) {
         console.warn('KeyManager initialization warning:', keyError)
         // Don't fail - keyManager might already be initialized
       }
 
+      // Dispatch event for global state updates
+      window.dispatchEvent(new CustomEvent('user-login'));
+
       // Navigate to dashboard
       router.push('/');
     } catch (err) {
+      console.error('OAuth login error:', err);
       setError('Incorrect password. Please try again.');
     }
   };
@@ -231,31 +284,39 @@ export function OAuthPasswordModal({
       <CardHeader>
         <CardTitle>Enter Your Password</CardTitle>
         <CardDescription>
-          {isNewUser 
-            ? 'Set a password to secure your account'
-            : 'Enter your password to continue'
+          {isChecking 
+            ? 'Checking your account...'
+            : isNewUser 
+              ? 'Set a password to secure your account'
+              : 'Enter your password to continue'
           }
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {error && (
-          <div className="flex gap-3 rounded-lg border border-destructive/50 bg-destructive/10 p-3">
-            <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-destructive">{error}</p>
+        {isChecking ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
-        )}
+        ) : (
+          <>
+            {error && (
+              <div className="flex gap-3 rounded-lg border border-destructive/50 bg-destructive/10 p-3">
+                <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-destructive">{error}</p>
+              </div>
+            )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <FieldGroup>
-            <FieldLabel>Email</FieldLabel>
-            <Input
-              type="email"
-              value={email}
-              disabled
-              className="bg-muted"
-              autoComplete="username"
-            />
-          </FieldGroup>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <FieldGroup>
+                <FieldLabel>Email</FieldLabel>
+                <Input
+                  type="email"
+                  value={email}
+                  disabled
+                  className="bg-muted"
+                  autoComplete="username"
+                />
+              </FieldGroup>
 
           <FieldGroup>
             <FieldLabel>Password</FieldLabel>
@@ -313,7 +374,9 @@ export function OAuthPasswordModal({
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {isLoading ? (isNewUser ? 'Setting up...' : 'Verifying...') : 'Continue'}
           </Button>
-        </form>
+            </form>
+          </>
+        )}
       </CardContent>
     </Card>
   );

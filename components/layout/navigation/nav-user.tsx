@@ -79,15 +79,15 @@ export function NavUser({
   const handleLogout = async () => {
     try {
       await apiClient.logout()
-      // Clear cached master key
-      masterKeyManager.clearMasterKey()
+      // Clear all sensitive data except deviceToken
+      masterKeyManager.completeClearOnLogout()
       // Redirect to login page
       window.location.href = '/login'
     } catch (error) {
       // console.error('Logout failed:', error)
-      // Even if logout fails on backend, clear local tokens and master key, then redirect
+      // Even if logout fails on backend, clear local tokens and data, then redirect
       apiClient.clearAuthToken()
-      masterKeyManager.clearMasterKey()
+      masterKeyManager.completeClearOnLogout()
       window.location.href = '/login'
     }
   }

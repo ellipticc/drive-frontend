@@ -14,6 +14,7 @@ import {
   FieldDescription,
   FieldGroup,
   FieldLabel,
+  FieldSeparator,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
@@ -21,6 +22,8 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useState, useEffect } from "react"
 import { apiClient } from "@/lib/api"
 import { Loader2 } from "lucide-react"
+import { SIWELoginButton } from "./siwe-login-button"
+import { GoogleOAuthButton } from "./google-oauth-button"
 
 export function SignupForm({
   className,
@@ -211,6 +214,15 @@ export function SignupForm({
         <CardContent>
           <form onSubmit={handleSubmit}>
             <FieldGroup>
+              <Field>
+                <SIWELoginButton context="register" />
+              </Field>
+              <Field className="-mt-4">
+                <GoogleOAuthButton context="register" />
+              </Field>
+              <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
+                Or continue with email
+              </FieldSeparator>
               <Field>
                 <FieldLabel htmlFor="email">Email</FieldLabel>
                 <Input
