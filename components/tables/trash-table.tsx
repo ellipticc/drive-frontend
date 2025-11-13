@@ -45,6 +45,11 @@ interface TrashItem {
     updatedAt: string;
     deletedAt: string;
     sha256Hash?: string;
+    // Temporary fields for async decryption
+    encryptedFilename?: string;
+    filenameSalt?: string;
+    encryptedName?: string;
+    nameSalt?: string;
 }
 
 export const TrashTable = () => {
@@ -91,41 +96,38 @@ export const TrashTable = () => {
             }
 
             if (filesResponse?.success && foldersResponse?.success) {
-                // Get master key for filename decryption
+                // Get master key for filename decryption - we ALWAYS have access to it
                 let masterKey: Uint8Array | null = null;
                 try {
                     masterKey = masterKeyManager.getMasterKey();
+                    if (!masterKey) {
+                        throw new Error('Master key not available');
+                    }
                 } catch (err) {
-                    // Don't warn - master key might not be available yet
-                    masterKey = null;
+                    console.error('Failed to get master key:', err);
+                    setError('Unable to decrypt files - master key not available');
+                    setIsLoading(false);
+                    return;
                 }
 
-                // Combine files and folders into a single array
-                const combinedItems: TrashItem[] = [
-                    ...(filesResponse.data?.files || []).map((file: any) => {
-                        // Try plaintext name first, then decrypt if needed
-                        let displayName = file.name || '';
+                // Decrypt files synchronously since we have master key
+                const decryptedFiles = await Promise.all(
+                    (filesResponse.data?.files || []).map(async (file: any) => {
+                        let decryptedName = '(Unnamed file)';
                         
-                        // Only try to decrypt if we have plaintext name is not available AND we have encrypted data
-                        if (!displayName && (file.encrypted_filename || file.encryptedFilename) && (file.filenameSalt || file.filename_salt) && masterKey) {
+                        // Try to decrypt filename if encrypted data is available
+                        if (file.encryptedFilename && file.filenameSalt) {
                             try {
-                                displayName = decryptFilename(file.encrypted_filename || file.encryptedFilename, file.filenameSalt || file.filename_salt, masterKey);
+                                decryptedName = await decryptFilename(file.encryptedFilename, file.filenameSalt, masterKey);
                             } catch (err) {
-                                console.warn(`Failed to decrypt filename for trash file ${file.id}:`, err);
-                                // Fallback to showing partial encrypted name with ellipsis
-                                const encrypted = file.encrypted_filename || file.encryptedFilename || '';
-                                displayName = encrypted.substring(0, 20) + '...';
+                                console.warn(`Failed to decrypt filename for file ${file.id}:`, err);
+                                decryptedName = '(Unnamed file)';
                             }
                         }
                         
-                        // Final fallback if still no name
-                        if (!displayName) {
-                            displayName = file.encrypted_filename || file.encryptedFilename || '(Unnamed)';
-                        }
-
                         return {
                             id: file.id,
-                            name: displayName,
+                            name: decryptedName || '(Unnamed file)',
                             filename: file.filename,
                             size: file.size,
                             mimeType: file.mimetype,
@@ -135,38 +137,38 @@ export const TrashTable = () => {
                             deletedAt: file.deleted_at || file.deletedAt,
                             sha256Hash: file.sha256_hash || file.sha256Hash,
                         };
-                    }),
-                    ...(foldersResponse.data || []).map((folder: any) => {
-                        // Use plaintext name if available, only decrypt if needed
-                        let displayName = folder.name || '';
+                    })
+                );
+
+                // Decrypt folders synchronously since we have master key
+                const decryptedFolders = await Promise.all(
+                    (foldersResponse.data || []).map(async (folder: any) => {
+                        let decryptedName = '(Unnamed folder)';
                         
-                        // Only try to decrypt if plaintext name is not available AND we have encrypted data
-                        if (!displayName && folder.encryptedName && folder.nameSalt && masterKey) {
+                        // Try to decrypt folder name if encrypted data is available
+                        if (folder.encryptedName && folder.nameSalt) {
                             try {
-                                displayName = decryptFilename(folder.encryptedName, folder.nameSalt, masterKey);
+                                decryptedName = await decryptFilename(folder.encryptedName, folder.nameSalt, masterKey);
                             } catch (err) {
-                                console.warn(`Failed to decrypt folder name for trash folder ${folder.id}:`, err);
-                                // Fallback to showing partial encrypted name with ellipsis
-                                displayName = folder.encryptedName.substring(0, 20) + '...';
+                                console.warn(`Failed to decrypt folder name for folder ${folder.id}:`, err);
+                                decryptedName = '(Unnamed folder)';
                             }
                         }
                         
-                        // Final fallback if still no name
-                        if (!displayName) {
-                            displayName = folder.encryptedName || '(Unnamed)';
-                        }
-
                         return {
                             id: folder.id,
-                            name: displayName,
+                            name: decryptedName || '(Unnamed folder)',
                             type: 'folder' as const,
                             createdAt: folder.createdAt,
                             updatedAt: folder.updatedAt,
                             deletedAt: folder.deletedAt,
                         };
                     })
-                ];
-                setTrashItems(combinedItems);
+                );
+
+                // Combine all items
+                const allItems = [...decryptedFiles, ...decryptedFolders];
+                setTrashItems(allItems);
             } else {
                 setError('Failed to load trash items');
             }
@@ -491,16 +493,16 @@ export const TrashTable = () => {
 
                         <Table.Body items={sortedItems}>
                             {(item) => (
-                                <Table.Row id={item.id}>
-                                    <Table.Cell>
-                                        <div className="flex items-center gap-2">
-                                            <div className="text-base">
+                                <Table.Row id={item.id} className="h-12">
+                                    <Table.Cell className="h-12">
+                                        <div className="flex items-center gap-2 h-full">
+                                            <div className="text-base flex-shrink-0">
                                                 {getFileIcon(item.mimeType || '', item.type)}
                                             </div>
                                             {isTextTruncated(item.name) ? (
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
-                                                        <p className="text-xs font-medium whitespace-nowrap text-foreground truncate cursor-default">
+                                                        <p className="text-xs font-medium whitespace-nowrap text-foreground truncate cursor-default max-w-0 flex-1">
                                                             {truncateFilename(item.name)}
                                                         </p>
                                                     </TooltipTrigger>
@@ -511,24 +513,24 @@ export const TrashTable = () => {
                                                     </TooltipContent>
                                                 </Tooltip>
                                             ) : (
-                                                <p className="text-xs font-medium whitespace-nowrap text-foreground truncate cursor-default">
+                                                <p className="text-xs font-medium whitespace-nowrap text-foreground truncate cursor-default max-w-0 flex-1">
                                                     {item.name}
                                                 </p>
                                             )}
                                         </div>
                                     </Table.Cell>
-                                    <Table.Cell className="text-right">
+                                    <Table.Cell className="text-right h-12">
                                         <span className="text-sm text-muted-foreground font-medium">
                                             {formatDate(item.deletedAt)}
                                         </span>
                                     </Table.Cell>
-                                    <Table.Cell className="text-right">
+                                    <Table.Cell className="text-right h-12">
                                         <span className="text-sm text-muted-foreground">
                                             {item.type === 'folder' ? '--' : formatFileSize(item.size || 0)}
                                         </span>
                                     </Table.Cell>
-                                    <Table.Cell className="px-3">
-                                        <div className="flex justify-end gap-1">
+                                    <Table.Cell className="px-3 h-12">
+                                        <div className="flex justify-end gap-1 h-full items-center">
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
                                                     <Button size="sm" variant="ghost" className="h-8 w-8 p-0">

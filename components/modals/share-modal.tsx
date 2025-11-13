@@ -255,19 +255,19 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
       let finalShareCekHex = shareCekHex
 
       if (shareSettings.passwordEnabled) {
-        // Generate salt for password key derivation
-        const salt = crypto.getRandomValues(new Uint8Array(16))
-        const saltHex = Array.from(salt).map(b => b.toString(16).padStart(2, '0')).join('')
+        // Generate salt for password key derivation (32 bytes for PBKDF2)
+        const salt = crypto.getRandomValues(new Uint8Array(32))
+        const saltB64 = btoa(String.fromCharCode(...salt))
 
-        // Derive key from password + salt
+        // Derive key from password using PBKDF2
         const keyMaterial = await crypto.subtle.importKey(
           'raw',
-          new TextEncoder().encode(shareSettings.password + saltHex),
+          new TextEncoder().encode(shareSettings.password),
           'PBKDF2',
           false,
           ['deriveKey']
         )
-        const key = await crypto.subtle.deriveKey(
+        const passwordKey = await crypto.subtle.deriveKey(
           {
             name: 'PBKDF2',
             salt: salt,
@@ -275,26 +275,26 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
             hash: 'SHA-256'
           },
           keyMaterial,
-          { name: 'AES-GCM', length: 256 },
+          { name: 'AES-KW' },
           false,
-          ['encrypt']
+          ['wrapKey']
         )
 
-        // Encrypt share CEK with password-derived key
-        const iv = crypto.getRandomValues(new Uint8Array(12))
-        const encrypted = await crypto.subtle.encrypt(
-          { name: 'AES-GCM', iv: iv },
-          key,
-          shareCek
+        // Encrypt share CEK with password-derived key using XChaCha20-Poly1305
+        const { xchacha20poly1305 } = await import('@noble/ciphers/chacha')
+        const encryptionKey = new Uint8Array(
+          await crypto.subtle.exportKey('raw', passwordKey)
         )
-        const encryptedCek = new Uint8Array(encrypted)
-        const encryptedCekWithIv = new Uint8Array(iv.length + encryptedCek.length)
-        encryptedCekWithIv.set(iv)
-        encryptedCekWithIv.set(encryptedCek, iv.length)
-        const encryptedCekB64 = btoa(String.fromCharCode(...encryptedCekWithIv))
+        // Ensure we have exactly 32 bytes for XChaCha20
+        const xchachaKey = encryptionKey.slice(0, 32)
+        const nonce = crypto.getRandomValues(new Uint8Array(24))
 
-        // Store salt:encryptedCek in salt_pw
-        saltPw = saltHex + ':' + encryptedCekB64
+        const xchaCiphertext = xchacha20poly1305(xchachaKey, nonce).encrypt(shareCek)
+        const nonceB64 = btoa(String.fromCharCode(...nonce))
+        const ciphertextB64 = btoa(String.fromCharCode(...xchaCiphertext))
+
+        // Store salt:nonce:encryptedCek in salt_pw
+        saltPw = saltB64 + ':' + nonceB64 + ':' + ciphertextB64
 
         // Don't put CEK in URL for password-protected shares
         finalShareCekHex = ''
@@ -334,13 +334,21 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
       const wrappedFileCek = envelopeEncryption.encryptedData
       const envelopeNonce = envelopeEncryption.nonce
 
-      // Create share with envelope-encrypted CEK
+      // Encrypt the filename with the share CEK for E2EE filename decryption on share page
+      const filenameBytes = new TextEncoder().encode(itemName)
+      const filenameEncryption = encryptData(filenameBytes, shareCek)
+      const encryptedFilename = filenameEncryption.encryptedData
+      const filenameNonce = filenameEncryption.nonce
+
+      // Create share with envelope-encrypted CEK and encrypted filename
       const response = await apiClient.createShare({
         [itemType === 'folder' ? 'folder_id' : 'file_id']: itemId,
         wrapped_cek: wrappedFileCek, // Envelope-encrypted file CEK
         nonce_wrap: envelopeNonce,  // Nonce for envelope encryption
         has_password: shareSettings.passwordEnabled,
-        salt_pw: shareSettings.passwordEnabled ? shareSettings.password : undefined,
+        salt_pw: shareSettings.passwordEnabled ? saltPw : undefined,
+        encrypted_filename: encryptedFilename, // Filename encrypted with share CEK
+        nonce_filename: filenameNonce, // Nonce for filename encryption
         expires_at: shareSettings.expirationDate?.toISOString(),
         max_views: shareSettings.maxDownloads || undefined,
         permissions: 'read'
@@ -487,19 +495,19 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
       let finalShareCekHex = shareCekHex
 
       if (shareSettings.passwordEnabled) {
-        // Generate salt for password key derivation
-        const salt = crypto.getRandomValues(new Uint8Array(16))
-        const saltHex = Array.from(salt).map(b => b.toString(16).padStart(2, '0')).join('')
+        // Generate salt for password key derivation (32 bytes for PBKDF2)
+        const salt = crypto.getRandomValues(new Uint8Array(32))
+        const saltB64 = btoa(String.fromCharCode(...salt))
 
-        // Derive key from password + salt
+        // Derive key from password using PBKDF2
         const keyMaterial = await crypto.subtle.importKey(
           'raw',
-          new TextEncoder().encode(shareSettings.password + saltHex),
+          new TextEncoder().encode(shareSettings.password),
           'PBKDF2',
           false,
           ['deriveKey']
         )
-        const key = await crypto.subtle.deriveKey(
+        const passwordKey = await crypto.subtle.deriveKey(
           {
             name: 'PBKDF2',
             salt: salt,
@@ -507,30 +515,37 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
             hash: 'SHA-256'
           },
           keyMaterial,
-          { name: 'AES-GCM', length: 256 },
+          { name: 'AES-KW' },
           false,
-          ['encrypt']
+          ['wrapKey']
         )
 
-        // Encrypt share CEK with password-derived key
-        const iv = crypto.getRandomValues(new Uint8Array(12))
-        const encrypted = await crypto.subtle.encrypt(
-          { name: 'AES-GCM', iv: iv },
-          key,
-          shareCek
+        // Encrypt share CEK with password-derived key using XChaCha20-Poly1305
+        const { xchacha20poly1305 } = await import('@noble/ciphers/chacha')
+        const encryptionKey = new Uint8Array(
+          await crypto.subtle.exportKey('raw', passwordKey)
         )
-        const encryptedCek = new Uint8Array(encrypted)
-        const encryptedCekWithIv = new Uint8Array(iv.length + encryptedCek.length)
-        encryptedCekWithIv.set(iv)
-        encryptedCekWithIv.set(encryptedCek, iv.length)
-        const encryptedCekB64 = btoa(String.fromCharCode(...encryptedCekWithIv))
+        // Ensure we have exactly 32 bytes for XChaCha20
+        const xchachaKey = encryptionKey.slice(0, 32)
+        const nonce = crypto.getRandomValues(new Uint8Array(24))
 
-        // Store salt:encryptedCek in salt_pw
-        saltPw = saltHex + ':' + encryptedCekB64
+        const xchaCiphertext = xchacha20poly1305(xchachaKey, nonce).encrypt(shareCek)
+        const nonceB64 = btoa(String.fromCharCode(...nonce))
+        const ciphertextB64 = btoa(String.fromCharCode(...xchaCiphertext))
+
+        // Store salt:nonce:encryptedCek in salt_pw
+        saltPw = saltB64 + ':' + nonceB64 + ':' + ciphertextB64
 
         // Don't put CEK in URL for password-protected shares
         finalShareCekHex = ''
       }
+
+      // Encrypt the filename with the share CEK for E2EE filename decryption on share page
+      const { encryptData: encryptDataForFilename } = await import('@/lib/crypto')
+      const filenameBytes = new TextEncoder().encode(itemName)
+      const filenameEncryption = encryptDataForFilename(filenameBytes, shareCek)
+      const encryptedFilename = filenameEncryption.encryptedData
+      const filenameNonce = filenameEncryption.nonce
 
       // Create share with envelope-encrypted CEK
       const response = await apiClient.createShare({
@@ -539,6 +554,8 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
         nonce_wrap: envelopeNonce,  // Nonce for envelope encryption
         has_password: shareSettings.passwordEnabled,
         salt_pw: saltPw,
+        encrypted_filename: encryptedFilename, // Filename encrypted with share CEK
+        nonce_filename: filenameNonce, // Nonce for filename encryption
         expires_at: shareSettings.expirationDate?.toISOString(),
         max_views: shareSettings.maxDownloads || undefined,
         permissions: 'read'

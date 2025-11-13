@@ -784,6 +784,8 @@ class ApiClient {
     kyber_public_key?: string;
     kyber_wrapped_cek?: string;
     nonce_wrap_kyber?: string;
+    encrypted_filename?: string; // Filename encrypted with share CEK
+    nonce_filename?: string;  // Nonce for filename encryption
   }): Promise<ApiResponse<{
     id: string;
     encryption_version?: number;
@@ -823,6 +825,8 @@ class ApiClient {
     kyber_wrapped_cek?: string;
     nonce_wrap_kyber?: string;
     encryption_version?: number;
+    encrypted_filename?: string; // Filename encrypted with share CEK
+    nonce_filename?: string; // Nonce for filename encryption
     file?: {
       id: string;
       filename: string;

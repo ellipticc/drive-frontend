@@ -12,6 +12,63 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizeCss: true, // Optimize CSS
   },
+  // Allow access to static files without authentication
+  async headers() {
+    return [
+      {
+        source: '/favicon.svg',
+        headers: [
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: '*',
+          },
+          {
+            key: 'Access-Control-Allow-Methods',
+            value: 'GET',
+          },
+        ],
+      },
+      {
+        source: '/og-image.svg',
+        headers: [
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: '*',
+          },
+          {
+            key: 'Access-Control-Allow-Methods',
+            value: 'GET',
+          },
+        ],
+      },
+      {
+        source: '/robots.txt',
+        headers: [
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: '*',
+          },
+          {
+            key: 'Access-Control-Allow-Methods',
+            value: 'GET',
+          },
+        ],
+      },
+      {
+        source: '/sitemap.xml',
+        headers: [
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: '*',
+          },
+          {
+            key: 'Access-Control-Allow-Methods',
+            value: 'GET',
+          },
+        ],
+      },
+    ];
+  },
   webpack: (config, { isServer }) => {
     // Set externals for modules that can't be bundled on server
     config.externals = config.externals || [];
