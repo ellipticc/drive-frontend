@@ -29,10 +29,12 @@ import { useRouter } from 'next/navigation';
 
 interface OAuthPasswordModalProps {
   email: string;
+  hasAccountSalt?: boolean;
 }
 
 export function OAuthPasswordModal({
   email,
+  hasAccountSalt = false,
 }: OAuthPasswordModalProps) {
   const router = useRouter();
   const [password, setPassword] = useState('');
@@ -40,11 +42,18 @@ export function OAuthPasswordModal({
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>('');
-  const [isNewUser, setIsNewUser] = useState(true); // Will be determined after first API call
-  const [isChecking, setIsChecking] = useState(true); // Loading state while checking user status
+  const [isNewUser, setIsNewUser] = useState(!hasAccountSalt); // Determined from prop
+  const [isChecking, setIsChecking] = useState(!hasAccountSalt && hasAccountSalt === undefined); // Loading state while checking
 
-  // Check if user is new or existing on mount
+  // Check if user is new or existing on mount (fallback if prop not provided)
   useEffect(() => {
+    if (hasAccountSalt !== undefined) {
+      // Use prop value if provided
+      setIsNewUser(!hasAccountSalt);
+      setIsChecking(false);
+      return;
+    }
+
     const checkUserStatus = async () => {
       try {
         const profileResponse = await apiClient.getProfile();
@@ -72,7 +81,7 @@ export function OAuthPasswordModal({
     };
 
     checkUserStatus();
-  }, [email]);
+  }, [email, hasAccountSalt]);
 
   // For new user: both passwords must match and be 8+ chars
   // For existing user: just need to enter the password
@@ -231,28 +240,32 @@ export function OAuthPasswordModal({
 
       const user = profileResponse.data.user;
       
+      // Get account_salt - it might be at user.account_salt or inside crypto_keypairs
+      const accountSalt = user.account_salt || user.crypto_keypairs?.accountSalt;
+      
       console.log('OAuth Existing User Login - Full Response:', {
         hasUser: !!user,
         userKeys: user ? Object.keys(user) : [],
-        account_salt_value: user.account_salt,
-        account_salt_type: typeof user.account_salt,
-        account_salt_length: user.account_salt?.length,
-        account_salt_substring: user.account_salt?.substring(0, 20)
+        account_salt_value: accountSalt,
+        account_salt_type: typeof accountSalt,
+        account_salt_length: accountSalt?.length,
+        account_salt_substring: accountSalt?.substring(0, 20),
+        hasCryptoKeypairs: !!user.crypto_keypairs
       });
 
-      if (!user.account_salt) {
+      if (!accountSalt) {
         console.error('account_salt is missing from profile response!');
         setError('Account salt not found. Please complete password setup again.');
         return;
       }
 
       // Derive master key from password and stored account salt
-      const masterKey = await deriveEncryptionKey(password, user.account_salt);
+      const masterKey = await deriveEncryptionKey(password, accountSalt);
       
       console.log('OAuth Login - Master key derived');
 
       // Cache master key locally for immediate use
-      masterKeyManager.cacheExistingMasterKey(masterKey, user.account_salt);
+      masterKeyManager.cacheExistingMasterKey(masterKey, accountSalt);
       
       console.log('OAuth Login - Master key cached');
 

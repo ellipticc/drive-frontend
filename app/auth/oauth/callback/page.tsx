@@ -19,6 +19,7 @@ export default function OAuthCallbackPage() {
   const [oauthData, setOauthData] = useState<{
     email: string;
     token: string;
+    hasAccountSalt: boolean;
   } | null>(null);
 
   useEffect(() => {
@@ -50,12 +51,24 @@ export default function OAuthCallbackPage() {
         // Store the JWT token in localStorage (needed for API calls during password setup)
         apiClient.setAuthToken(data.token);
 
-        // Always show password entry for OAuth users to decrypt their master key
-        // This is needed even if they already have account_salt set
-        setOauthData({
-          email: data.user.email,
-          token: data.token
-        });
+        // Check if user already has password set up
+        const hasAccountSalt = data.user.has_account_salt;
+
+        if (hasAccountSalt) {
+          // Existing user - show login modal to verify password
+          setOauthData({
+            email: data.user.email,
+            token: data.token,
+            hasAccountSalt: true
+          });
+        } else {
+          // New user - show password setup modal
+          setOauthData({
+            email: data.user.email,
+            token: data.token,
+            hasAccountSalt: false
+          });
+        }
 
         setLoading(false);
       } catch (err) {
@@ -145,7 +158,7 @@ export default function OAuthCallbackPage() {
             </div>
             <span className="text-base font-mono break-all">ellipticc</span>
           </a>
-          <OAuthPasswordModal email={oauthData.email} />
+          <OAuthPasswordModal email={oauthData.email} hasAccountSalt={oauthData.hasAccountSalt} />
           <FieldDescription className="text-center text-xs">
             By continuing, you agree to our{" "}
             <Link href="/terms-of-service" className="underline hover:text-primary">
