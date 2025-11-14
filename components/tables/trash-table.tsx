@@ -492,7 +492,8 @@ export const TrashTable = () => {
                         </Table.Header>
 
                         <Table.Body items={sortedItems}>
-                            {(item) => (
+                            {(item) => {
+                                return (
                                 <Table.Row id={item.id} className="h-12">
                                     <Table.Cell className="h-12">
                                         <div className="flex items-center gap-2 h-full">
@@ -502,7 +503,7 @@ export const TrashTable = () => {
                                             {isTextTruncated(item.name) ? (
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
-                                                        <p className="text-xs font-medium whitespace-nowrap text-foreground truncate cursor-default max-w-0 flex-1">
+                                                        <p className="text-xs font-medium whitespace-nowrap text-foreground truncate cursor-default flex-1 min-w-0">
                                                             {truncateFilename(item.name)}
                                                         </p>
                                                     </TooltipTrigger>
@@ -513,7 +514,7 @@ export const TrashTable = () => {
                                                     </TooltipContent>
                                                 </Tooltip>
                                             ) : (
-                                                <p className="text-xs font-medium whitespace-nowrap text-foreground truncate cursor-default max-w-0 flex-1">
+                                                <p className="text-xs font-medium whitespace-nowrap text-foreground truncate cursor-default flex-1 min-w-0">
                                                     {item.name}
                                                 </p>
                                             )}
@@ -560,7 +561,8 @@ export const TrashTable = () => {
                                         </div>
                                     </Table.Cell>
                                 </Table.Row>
-                            )}
+                                );
+                            }}
                         </Table.Body>
                     </Table>
                 )}
