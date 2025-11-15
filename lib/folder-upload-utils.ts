@@ -120,17 +120,19 @@ export async function createFolderHierarchy(
       );
 
       // Create folder with encrypted name and signed manifest
-      // manifestData already contains encryptedName and nameSalt from createSignedFolderManifest
+      // manifestData contains manifestHash, signatures, and encryptedName/nameSalt
       const response = await apiClient.createFolder({
         encryptedName: manifestData.encryptedName,
         nameSalt: manifestData.nameSalt,
         parentId: parentFolderId,
-        manifestJson: manifestData.manifestJson,
+        manifestHash: manifestData.manifestHash,
+        manifestCreatedAt: manifestData.manifestCreatedAt,
         manifestSignatureEd25519: manifestData.manifestSignatureEd25519,
         manifestPublicKeyEd25519: manifestData.manifestPublicKeyEd25519,
         manifestSignatureDilithium: manifestData.manifestSignatureDilithium,
         manifestPublicKeyDilithium: manifestData.manifestPublicKeyDilithium,
-        algorithmVersion: manifestData.algorithmVersion
+        algorithmVersion: manifestData.algorithmVersion,
+        nameHmac: manifestData.nameHmac
       });
 
       if (response.success && response.data?.id) {

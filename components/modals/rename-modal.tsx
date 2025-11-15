@@ -25,12 +25,14 @@ interface RenameModalProps {
   itemName?: string
   itemType?: "file" | "folder"
   onRename?: (data: string | {
-    manifestJson: string;
+    manifestHash: string;
+    manifestCreatedAt: number;
     manifestSignatureEd25519: string;
     manifestPublicKeyEd25519: string;
-    manifestSignatureDilithium?: string;
-    manifestPublicKeyDilithium?: string;
-    algorithmVersion?: string;
+    manifestSignatureDilithium: string;
+    manifestPublicKeyDilithium: string;
+    algorithmVersion: string;
+    nameHmac: string;
   }) => void
   open?: boolean
   onOpenChange?: (open: boolean) => void

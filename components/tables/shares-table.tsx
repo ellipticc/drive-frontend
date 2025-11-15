@@ -684,12 +684,14 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                 open={renameModalOpen}
                 onOpenChange={setRenameModalOpen}
                 onRename={async (data: string | {
-                    manifestJson: string;
+                    manifestHash: string;
+                    manifestCreatedAt: number;
                     manifestSignatureEd25519: string;
                     manifestPublicKeyEd25519: string;
-                    manifestSignatureDilithium?: string;
-                    manifestPublicKeyDilithium?: string;
-                    algorithmVersion?: string;
+                    manifestSignatureDilithium: string;
+                    manifestPublicKeyDilithium: string;
+                    algorithmVersion: string;
+                    nameHmac: string;
                 }) => {
                     if (!selectedItemForRename) return;
 

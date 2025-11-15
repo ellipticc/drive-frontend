@@ -691,75 +691,39 @@ export const Table01DividerLineSm = ({
             const fileIds = selectedItemsArray.filter(item => item.type === 'file').map(item => item.id);
             const folderIds = selectedItemsArray.filter(item => item.type === 'folder').map(item => item.id);
 
-            let successCount = 0;
-            let errorCount = 0;
+            // Use unified bulk API for both files and folders
+            const response = await apiClient.moveToTrash(folderIds, fileIds);
 
-            // Move files to trash using bulk API
-            if (fileIds.length > 0) {
-                const fileResponse = await apiClient.bulkMoveToTrash(fileIds);
-                if (fileResponse.success) {
-                    successCount += fileResponse.data?.movedCount || 0;
-                } else {
-                    errorCount += fileIds.length;
-                }
-            }
+            if (response.success) {
+                // Remove successfully moved items from the current view
+                setFiles(prevFiles => prevFiles.filter(file => 
+                    !selectedItemsArray.some(selected => selected.id === file.id)
+                ));
 
-            // Move folders to trash individually (no bulk API for folders yet)
-            for (const folderId of folderIds) {
-                try {
-                    const folderResponse = await apiClient.moveFolderToTrash(folderId);
-                    if (folderResponse.success) {
-                        successCount++;
-                    } else {
-                        errorCount++;
-                    }
-                } catch (error) {
-                    errorCount++;
-                }
-            }
+                // Clear selection for all items
+                setSelectedItems(new Set());
 
-            // Remove successfully moved items from the current view
-            setFiles(prevFiles => prevFiles.filter(file => 
-                !selectedItemsArray.some(selected => 
-                    selected.id === file.id && (
-                        (selected.type === 'file' && fileIds.includes(selected.id)) ||
-                        (selected.type === 'folder' && folderIds.includes(selected.id))
-                    )
-                )
-            ));
-
-            // Clear selection for all items
-            setSelectedItems(new Set());
-
-            // Show appropriate toast messages
-            if (successCount > 0) {
-                if (errorCount === 0) {
-                    toast(`${successCount} item${successCount > 1 ? 's' : ''} moved to trash`, {
-                        action: {
-                            label: "Cancel",
-                            onClick: async () => {
-                                // Restore all successfully moved items
-                                const successfulFileIds = fileIds.slice(0, successCount - folderIds.length);
-                                const successfulFolderIds = folderIds.slice(0, Math.min(folderIds.length, successCount - successfulFileIds.length));
-
-                                if (successfulFileIds.length > 0) {
-                                    await apiClient.restoreFilesFromTrash(successfulFileIds);
-                                }
-                                for (const folderId of successfulFolderIds) {
-                                    await apiClient.restoreFolderFromTrash(folderId);
-                                }
-                                refreshFiles();
-                            },
+                // Show success toast
+                toast(`${selectedItemsArray.length} item${selectedItemsArray.length > 1 ? 's' : ''} moved to trash`, {
+                    action: {
+                        label: "Cancel",
+                        onClick: async () => {
+                            // Restore all moved items
+                            if (fileIds.length > 0) {
+                                await apiClient.restoreFilesFromTrash(fileIds);
+                            }
+                            if (folderIds.length > 0) {
+                                await apiClient.restoreFoldersFromTrash(folderIds);
+                            }
+                            refreshFiles();
                         },
-                    });
-                } else {
-                    toast(`${successCount} item${successCount > 1 ? 's' : ''} moved to trash, ${errorCount} failed`);
-                }
-            } else {
-                toast.error(`Failed to move any items to trash`);
-            }
+                    },
+                });
 
-            refreshFiles(); // Refresh to show current state
+                refreshFiles(); // Refresh to show current state
+            } else {
+                toast.error(`Failed to move items to trash`);
+            }
         } catch (error) {
             // console.error('Bulk move to trash error:', error);
             toast.error(`Failed to move items to trash`);
@@ -942,12 +906,14 @@ export const Table01DividerLineSm = ({
     };
 
     const handleRename = async (data: string | {
-      manifestJson: string;
+      manifestHash: string;
+      manifestCreatedAt: number;
       manifestSignatureEd25519: string;
       manifestPublicKeyEd25519: string;
-      manifestSignatureDilithium?: string;
-      manifestPublicKeyDilithium?: string;
-      algorithmVersion?: string;
+      manifestSignatureDilithium: string;
+      manifestPublicKeyDilithium: string;
+      algorithmVersion: string;
+      nameHmac: string;
     }) => {
         if (!selectedItemForRename) return;
 

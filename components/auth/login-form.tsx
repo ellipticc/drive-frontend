@@ -110,6 +110,13 @@ export function LoginForm({
         const requiredKeys = ['ed25519', 'x25519', 'kyber', 'dilithium'];
         const missingKeys = requiredKeys.filter(key => !user.crypto_keypairs.pqcKeypairs[key]);
         
+        console.log('🔐 Login: Validating crypto keypairs:', {
+          ed25519EncryptedPrivateKeyLength: user.crypto_keypairs.pqcKeypairs.ed25519?.encryptedPrivateKey?.length || 0,
+          x25519EncryptedPrivateKeyLength: user.crypto_keypairs.pqcKeypairs.x25519?.encryptedPrivateKey?.length || 0,
+          kyberEncryptedPrivateKeyLength: user.crypto_keypairs.pqcKeypairs.kyber?.encryptedPrivateKey?.length || 0,
+          dilithiumEncryptedPrivateKeyLength: user.crypto_keypairs.pqcKeypairs.dilithium?.encryptedPrivateKey?.length || 0
+        });
+        
         if (missingKeys.length > 0) {
           setError(`Missing cryptographic keys: ${missingKeys.join(', ')}`);
           return;

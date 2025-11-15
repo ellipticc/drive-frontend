@@ -10,7 +10,7 @@ import { wordlist } from '@scure/bip39/wordlists/english.js';
 import { sha512 } from '@noble/hashes/sha2.js';
 import { ml_kem768 } from '@noble/post-quantum/ml-kem.js';
 import { ml_dsa65 } from '@noble/post-quantum/ml-dsa.js';
-import { xchacha20poly1305 } from '@noble/ciphers/chacha';
+import { xchacha20poly1305 } from '@noble/ciphers/chacha.js';
 
 // Configure SHA-512 for noble/ed25519
 import * as ed from '@noble/ed25519';
@@ -86,9 +86,19 @@ export async function generateDilithiumKeypair(): Promise<{
   const seed = new Uint8Array(32);
   crypto.getRandomValues(seed);
   const keys = ml_dsa65.keygen(seed);
+  const privateKeyArray = new Uint8Array(keys.secretKey);
+  
+  if (privateKeyArray.length !== 4032) {
+    console.error('CRITICAL: Dilithium private key has wrong length!', {
+      expected: 4032,
+      actual: privateKeyArray.length,
+      seed: seed.length
+    });
+  }
+  
   return {
     publicKey: uint8ArrayToHex(new Uint8Array(keys.publicKey)),
-    privateKey: new Uint8Array(keys.secretKey)
+    privateKey: privateKeyArray
   };
 }
 
@@ -244,13 +254,23 @@ export function decryptData(encryptedData: string, key: Uint8Array, nonce: strin
   }
 
   // Check if this data was padded (17 bytes total with length prefix for small files)
+  // Only apply unpadding logic to data that was actually padded during encryption (< 16 bytes)
   let finalData = decrypted;
   if (decrypted.length === 17) {
     const originalLength = decrypted[0];
     // If first byte indicates original length 0-15, this was padded data
-    if (originalLength <= 15) {
+    if (originalLength <= 15 && originalLength > 0) {
       finalData = decrypted.slice(1, 1 + originalLength);
     }
+  }
+
+  // Additional validation: if we expect large data (like private keys), ensure we got the right size
+  // Dilithium private keys should be 4032 bytes, Kyber 2400 bytes, etc.
+  // If we got 17 bytes but the first byte suggests unpadding, something went wrong
+  if (decrypted.length === 17 && decrypted[0] > 15) {
+    // This looks like corrupted data - the unpadding logic was applied to non-padded data
+    // This can happen if decryption failed or data was corrupted
+    throw new Error(`Decryption resulted in corrupted data: expected large data but got 17 bytes with invalid padding marker (${decrypted[0]})`);
   }
 
   // Validate decryption result
@@ -264,69 +284,6 @@ export function decryptData(encryptedData: string, key: Uint8Array, nonce: strin
 // Generate a random mnemonic phrase for backup/recovery using BIP39
 export function generateRecoveryMnemonic(): string {
   return generateMnemonic(wordlist);
-}
-
-// Create and sign a folder manifest for zero-knowledge folder creation
-export async function createSignedFolderManifest(
-  folderName: string,
-  parentId: string | null,
-  userKeys: {
-    ed25519PrivateKey: Uint8Array;
-    ed25519PublicKey: string;
-    dilithiumPrivateKey?: Uint8Array;
-    dilithiumPublicKey?: string;
-  }
-): Promise<{
-  manifestJson: string;
-  manifestSignatureEd25519: string;
-  manifestPublicKeyEd25519: string;
-  manifestSignatureDilithium?: string;
-  manifestPublicKeyDilithium?: string;
-  algorithmVersion: string;
-  encryptedName: string;
-  nameSalt: string;
-}> {
-  // Import master key manager to get the master key for folder name encryption
-  const { masterKeyManager } = await import('./master-key');
-  const masterKey = masterKeyManager.getMasterKey();
-
-  // Encrypt folder name for zero-knowledge storage
-  const { encryptedFilename: encryptedName, filenameSalt: nameSalt } = await encryptFilename(folderName, masterKey);
-
-  // Create the manifest object with encrypted name for zero-knowledge security
-  const manifest = {
-    encryptedName: encryptedName,
-    parentId: parentId,
-    created: Math.floor(Date.now() / 1000),
-    version: '2.0-hybrid',
-    algorithmVersion: 'v3-hybrid-pqc-xchacha20'
-  };
-
-  // Convert manifest to canonical JSON for signing
-  const manifestJson = JSON.stringify(manifest);
-  const manifestBytes = new TextEncoder().encode(manifestJson);
-
-  // Sign with Ed25519
-  const ed25519Signature = await ed.sign(manifestBytes, userKeys.ed25519PrivateKey);
-  const manifestSignatureEd25519 = btoa(String.fromCharCode(...ed25519Signature));
-
-  // Sign with Dilithium if available
-  let manifestSignatureDilithium: string | undefined;
-  if (userKeys.dilithiumPrivateKey && userKeys.dilithiumPublicKey) {
-    const dilithiumSignature = ml_dsa65.sign(userKeys.dilithiumPrivateKey, manifestBytes);
-    manifestSignatureDilithium = btoa(String.fromCharCode(...new Uint8Array(dilithiumSignature)));
-  }
-
-  return {
-    manifestJson,
-    manifestSignatureEd25519,
-    manifestPublicKeyEd25519: userKeys.ed25519PublicKey,
-    manifestSignatureDilithium,
-    manifestPublicKeyDilithium: userKeys.dilithiumPublicKey,
-    algorithmVersion: 'v3-hybrid-pqc-xchacha20',
-    encryptedName,
-    nameSalt
-  };
 }
 
 // Generate all required keypairs with proper encryption
@@ -485,10 +442,24 @@ export async function decryptUserPrivateKeys(
     
     // Decrypt all private keys using their individual encryption keys
     // Decrypt sequentially to avoid any potential race conditions
-    const ed25519PrivateKey = decryptData(pqcKeypairs.ed25519.encryptedPrivateKey, ed25519Key, pqcKeypairs.ed25519.privateKeyNonce);
-    const dilithiumPrivateKey = decryptData(pqcKeypairs.dilithium.encryptedPrivateKey, dilithiumKey, pqcKeypairs.dilithium.privateKeyNonce);
-    const x25519PrivateKey = decryptData(pqcKeypairs.x25519.encryptedPrivateKey, x25519Key, pqcKeypairs.x25519.privateKeyNonce);
-    const kyberPrivateKey = decryptData(pqcKeypairs.kyber.encryptedPrivateKey, kyberKey, pqcKeypairs.kyber.privateKeyNonce);
+    const ed25519PrivateKey = await decryptData(pqcKeypairs.ed25519.encryptedPrivateKey, ed25519Key, pqcKeypairs.ed25519.privateKeyNonce);
+    const dilithiumPrivateKey = await decryptData(pqcKeypairs.dilithium.encryptedPrivateKey, dilithiumKey, pqcKeypairs.dilithium.privateKeyNonce);
+    const x25519PrivateKey = await decryptData(pqcKeypairs.x25519.encryptedPrivateKey, x25519Key, pqcKeypairs.x25519.privateKeyNonce);
+    const kyberPrivateKey = await decryptData(pqcKeypairs.kyber.encryptedPrivateKey, kyberKey, pqcKeypairs.kyber.privateKeyNonce);
+
+    // Validate private key lengths to catch decryption corruption
+    if (ed25519PrivateKey.length !== 32) {
+      throw new Error(`Invalid Ed25519 private key length: expected 32 bytes, got ${ed25519PrivateKey.length} bytes`);
+    }
+    if (dilithiumPrivateKey.length !== 4032) {
+      throw new Error(`Invalid Dilithium private key length: expected 4032 bytes, got ${dilithiumPrivateKey.length} bytes`);
+    }
+    if (x25519PrivateKey.length !== 32) {
+      throw new Error(`Invalid X25519 private key length: expected 32 bytes, got ${x25519PrivateKey.length} bytes`);
+    }
+    if (kyberPrivateKey.length !== 2400) {
+      throw new Error(`Invalid Kyber private key length: expected 2400 bytes, got ${kyberPrivateKey.length} bytes`);
+    }
 
     return {
       ed25519PrivateKey,
@@ -794,5 +765,190 @@ export function decryptMasterKeyWithRecoveryKey(encryptedMasterKey: string, mast
   } catch (error) {
     throw new Error(`Failed to decrypt master key: ${error instanceof Error ? error.message : String(error)}`);
   }
+}
+
+/**
+ * Derive a key using HKDF-SHA256
+ * @param ikm - Input Key Material (32 bytes)
+ * @param salt - Salt string
+ * @param info - Info string
+ * @param length - Desired output length in bytes
+ * @returns CryptoKey for HMAC operations
+ */
+async function deriveHKDFKey(
+  ikm: Uint8Array,
+  salt: string,
+  info: string,
+  length: number
+): Promise<CryptoKey> {
+  // Convert salt and info to bytes
+  const saltBytes = new TextEncoder().encode(salt);
+  const infoBytes = new TextEncoder().encode(info);
+
+  // Import IKM as raw key
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    ikm.buffer.slice(ikm.byteOffset, ikm.byteOffset + ikm.byteLength) as ArrayBuffer,
+    'HKDF',
+    false,
+    ['deriveKey']
+  );
+
+  // Derive HMAC key using HKDF
+  const derivedKey = await crypto.subtle.deriveKey(
+    {
+      name: 'HKDF',
+      hash: 'SHA-256',
+      salt: saltBytes,
+      info: infoBytes
+    },
+    keyMaterial,
+    {
+      name: 'HMAC',
+      hash: 'SHA-256'
+    },
+    false,
+    ['sign']
+  );
+
+  return derivedKey;
+}
+
+/**
+ * Convert Uint8Array to base64url (URL-safe base64)
+ * @param array - Input bytes
+ * @returns base64url encoded string
+ */
+function uint8ArrayToBase64Url(array: Uint8Array): string {
+  // First convert to regular base64
+  const base64 = uint8ArrayToBase64(array);
+
+  // Convert to base64url: replace + with -, / with _, remove padding
+  return base64
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '');
+}
+
+// =====================================================
+// FOLDER MANIFEST CREATION AND SIGNING
+// =====================================================
+
+/**
+ * Create canonical JSON representation of a manifest for consistent signing/verification
+ * This MUST match the backend's JSON.stringify() output exactly
+ * @param manifest - The manifest object to canonicalize
+ * @returns The canonical JSON string
+ */
+function createCanonicalManifest(manifest: any): string {
+  // Use JSON.stringify with consistent property ordering
+  // Keys are already in consistent order in the manifest object
+  return JSON.stringify(manifest);
+}
+
+/**
+ * Sign a manifest hash with the appropriate algorithm
+ * @param hashBytes - SHA512 hash of the manifest as Uint8Array
+ * @param privateKey - Private key as Uint8Array (32 for Ed25519, 4032 for Dilithium)
+ * @returns Base64 encoded signature
+ */
+async function signManifest(hashBytes: Uint8Array, privateKey: Uint8Array): Promise<string> {
+  if (privateKey.length === 32) {
+    // Ed25519: sign the hash bytes directly (no double hashing)
+    const signature = ed.sign(hashBytes, privateKey);
+    return Buffer.from(signature).toString('base64');
+  } else if (privateKey.length === 4032) {
+    // Dilithium: sign the hash bytes
+    const signature = ml_dsa65.sign(privateKey, hashBytes);
+    return Buffer.from(signature).toString('base64');
+  } else {
+    throw new Error(`Unsupported private key length: ${privateKey.length}`);
+  }
+}
+
+/**
+ * Create a signed folder manifest for zero-knowledge folder operations
+ * Computes HMAC for duplicate checking, encrypts folder name, and signs manifest
+ *
+ * @param folderName - Plaintext folder name
+ * @param parentId - Parent folder ID (null for root)
+ * @param privateKeys - User's private keys for signing
+ * @returns Signed manifest data ready for backend submission
+ */
+export async function createSignedFolderManifest(
+  folderName: string,
+  parentId: string | null,
+  privateKeys: {
+    ed25519PrivateKey: Uint8Array;
+    ed25519PublicKey: string;
+    dilithiumPrivateKey: Uint8Array;
+    dilithiumPublicKey: string;
+  }
+): Promise<{
+  encryptedName: string;
+  nameSalt: string;
+  manifestHash: string;
+  manifestCreatedAt: number;
+  manifestSignatureEd25519: string;
+  manifestPublicKeyEd25519: string;
+  manifestSignatureDilithium: string;
+  manifestPublicKeyDilithium: string;
+  algorithmVersion: string;
+  nameHmac: string;
+}> {
+  // Get master key for encryption and HMAC computation
+  const { masterKeyManager } = await import('./master-key');
+  const masterKey = masterKeyManager.getMasterKey();
+
+  // Encrypt folder name for zero-knowledge storage
+  const { encryptedFilename: encryptedName, filenameSalt: nameSalt } = await encryptFilename(folderName, masterKey);
+
+  // Compute HMAC for zero-knowledge duplicate checking
+  const normalizedName = folderName.toLowerCase().normalize('NFC');
+  const hmacKey = await deriveHKDFKey(masterKey, 'EllipticcDrive-DuplicateCheck-v1', `filename-hmac-key||${parentId || 'root'}`, 32);
+  const nameHmacBytes = await crypto.subtle.sign('HMAC', hmacKey, new TextEncoder().encode(normalizedName));
+  const nameHmac = Array.from(new Uint8Array(nameHmacBytes))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+
+  // Create folder manifest
+  const manifestCreatedAt = Math.floor(Date.now() / 1000);
+  const manifest = {
+    encryptedName,
+    parentId: parentId || null,
+    created: manifestCreatedAt,
+    version: '2.0-hybrid',
+    algorithmVersion: 'v3-hybrid-pqc-xchacha20'
+  };
+
+  // Create canonical JSON representation
+  const canonicalJson = createCanonicalManifest(manifest);
+
+  // Compute SHA512 hash of manifest
+  const manifestBytes = new TextEncoder().encode(canonicalJson);
+  const manifestHashBytes = sha512(manifestBytes);
+  const manifestHash = Buffer.from(manifestHashBytes).toString('hex');
+
+  // Sign manifest with Ed25519
+  const ed25519Signature = await signManifest(manifestHashBytes, privateKeys.ed25519PrivateKey);
+
+  // Sign manifest with Dilithium (required for post-quantum security)
+  // Dilithium signs the SHA512 hash of the manifest
+  // IMPORTANT: Make a defensive copy of the private key in case it's being mutated
+  const dilithiumKeyForSigning = new Uint8Array(privateKeys.dilithiumPrivateKey);
+  const dilithiumSignature = await signManifest(manifestHashBytes, dilithiumKeyForSigning);
+
+  return {
+    encryptedName,
+    nameSalt,
+    manifestHash,
+    manifestCreatedAt,
+    manifestSignatureEd25519: ed25519Signature,
+    manifestPublicKeyEd25519: privateKeys.ed25519PublicKey,
+    manifestSignatureDilithium: dilithiumSignature,
+    manifestPublicKeyDilithium: privateKeys.dilithiumPublicKey,
+    algorithmVersion: 'v3-hybrid-pqc-xchacha20',
+    nameHmac
+  };
 }
 

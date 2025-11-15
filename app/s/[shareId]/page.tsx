@@ -3,8 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { apiClient } from '@/lib/api';
-import { downloadEncryptedFileWithCEK, downloadEncryptedFile } from '@/lib/download';
-import { decryptData } from '@/lib/crypto';
+import { downloadEncryptedFileWithCEK } from '@/lib/download';
 import { truncateFilename } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,8 +13,8 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { Loader2, Download, File, AlertCircle, CheckCircle, FolderOpen, ChevronRight, Lock } from 'lucide-react';
-import { IconCaretLeftRightFilled, IconDotsVertical, IconLogout } from '@tabler/icons-react';
+import { Loader2, Download, File, AlertCircle, FolderOpen, ChevronRight, Lock } from 'lucide-react';
+import { IconCaretLeftRightFilled, IconLogout } from '@tabler/icons-react';
 import {
   Avatar,
   AvatarFallback,
@@ -33,36 +32,10 @@ import {
 import { masterKeyManager } from '@/lib/master-key';
 import { getDiceBearAvatar } from '@/lib/avatar';
 
-// Helper to encrypt filename using share CEK for transmission
-async function encryptFilenameWithCEK(filename: string, shareCek: Uint8Array): Promise<{ encrypted: string; nonce: string }> {
-  try {
-    const { xchacha20poly1305 } = await import('@noble/ciphers/chacha');
-    
-    // Generate random nonce (24 bytes for XChaCha20)
-    const nonce = crypto.getRandomValues(new Uint8Array(24));
-    
-    const plaintextBytes = new TextEncoder().encode(filename);
-    const cipher = xchacha20poly1305(shareCek, nonce);
-    const encryptedBytes = cipher.encrypt(plaintextBytes);
-    
-    // Encode to base64
-    const encryptedB64 = btoa(String.fromCharCode(...encryptedBytes));
-    const nonceB64 = btoa(String.fromCharCode(...nonce));
-    
-    return {
-      encrypted: encryptedB64,
-      nonce: nonceB64
-    };
-  } catch (err) {
-    console.warn('Failed to encrypt filename:', err);
-    throw err;
-  }
-}
-
 // Helper to decrypt filename using share CEK
 async function decryptShareFilename(encryptedFilename: string, nonce: string, shareCek: Uint8Array): Promise<string> {
   try {
-    const { xchacha20poly1305 } = await import('@noble/ciphers/chacha');
+    const { xchacha20poly1305 } = await import('@noble/ciphers/chacha.js');
     
     const encrypted = new Uint8Array(atob(encryptedFilename).split('').map(c => c.charCodeAt(0)));
     const nonceBytes = new Uint8Array(atob(nonce).split('').map(c => c.charCodeAt(0)));
@@ -372,7 +345,7 @@ export default function SharedDownloadPage() {
       const xchachaKey = keyBytes.slice(0, 32);
 
       // Decrypt share CEK using XChaCha20-Poly1305
-      const { xchacha20poly1305 } = await import('@noble/ciphers/chacha');
+      const { xchacha20poly1305 } = await import('@noble/ciphers/chacha.js');
       const shareCekBytes = xchacha20poly1305(xchachaKey, nonce).decrypt(ciphertext);
       const shareCek = new Uint8Array(shareCekBytes);
 
@@ -438,7 +411,7 @@ export default function SharedDownloadPage() {
       const xchachaKey = keyBytes.slice(0, 32);
 
       // Decrypt share CEK using XChaCha20-Poly1305
-      const { xchacha20poly1305 } = await import('@noble/ciphers/chacha');
+      const { xchacha20poly1305 } = await import('@noble/ciphers/chacha.js');
       const shareCekBytes = xchacha20poly1305(xchachaKey, nonce).decrypt(ciphertext);
       return new Uint8Array(shareCekBytes);
     } else {

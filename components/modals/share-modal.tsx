@@ -281,7 +281,7 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
         )
 
         // Encrypt share CEK with password-derived key using XChaCha20-Poly1305
-        const { xchacha20poly1305 } = await import('@noble/ciphers/chacha')
+        const { xchacha20poly1305 } = await import('@noble/ciphers/chacha.js')
         const encryptionKey = new Uint8Array(
           await crypto.subtle.exportKey('raw', passwordKey)
         )
@@ -521,7 +521,7 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
         )
 
         // Encrypt share CEK with password-derived key using XChaCha20-Poly1305
-        const { xchacha20poly1305 } = await import('@noble/ciphers/chacha')
+        const { xchacha20poly1305 } = await import('@noble/ciphers/chacha.js')
         const encryptionKey = new Uint8Array(
           await crypto.subtle.exportKey('raw', passwordKey)
         )

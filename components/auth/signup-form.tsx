@@ -134,6 +134,14 @@ export function SignupForm({
       // Generate keypairs using the hex salt
       const keypairs = await generateAllKeypairs(formData.password, tempAccountSaltHex)
       
+      // Log keypair sizes for debugging
+      console.log('📝 Registration: Generated keypairs:', {
+        ed25519PrivateKeyLength: keypairs.pqcKeypairs.ed25519.encryptedPrivateKey.length,
+        x25519PrivateKeyLength: keypairs.pqcKeypairs.x25519.encryptedPrivateKey.length,
+        kyberPrivateKeyLength: keypairs.pqcKeypairs.kyber.encryptedPrivateKey.length,
+        dilithiumPrivateKeyLength: keypairs.pqcKeypairs.dilithium.encryptedPrivateKey.length
+      })
+      
       // The mnemonic is already generated in generateAllKeypairs
       const mnemonic = keypairs.mnemonic
       const mnemonicHash = keypairs.mnemonicHash
@@ -199,6 +207,13 @@ export function SignupForm({
         // Retrieve referral code from sessionStorage if it exists
         const referralCode = sessionStorage.getItem('referral_code')
         console.log('Sending referral code to backend:', referralCode)
+        
+        console.log('📝 Registration: Sending crypto keypairs to backend:', {
+          dilithiumEncryptedPrivateKeyLength: keypairs.pqcKeypairs.dilithium.encryptedPrivateKey.length,
+          kyberEncryptedPrivateKeyLength: keypairs.pqcKeypairs.kyber.encryptedPrivateKey.length,
+          dilithiumEncryptionKeyLength: keypairs.pqcKeypairs.dilithium.encryptionKey.length,
+          dilithiumEncryptionNonceLength: keypairs.pqcKeypairs.dilithium.encryptionNonce.length
+        })
         
         const cryptoSetupResponse = await apiClient.storeCryptoKeypairs({
           userId,

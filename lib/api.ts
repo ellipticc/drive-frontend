@@ -570,12 +570,14 @@ class ApiClient {
     encryptedName?: string;
     nameSalt?: string;
     parentId?: string | null;
-    manifestJson: string;
+    manifestHash: string;
+    manifestCreatedAt: number;
     manifestSignatureEd25519: string;
     manifestPublicKeyEd25519: string;
-    manifestSignatureDilithium?: string;
-    manifestPublicKeyDilithium?: string;
+    manifestSignatureDilithium: string;
+    manifestPublicKeyDilithium: string;
     algorithmVersion?: string;
+    nameHmac: string;
   }): Promise<ApiResponse<{
     id: string;
     encryptedName: string;
@@ -723,12 +725,14 @@ class ApiClient {
 
   // Folder operations
   async renameFolder(folderId: string, data: {
-    manifestJson: string;
+    manifestHash: string;
+    manifestCreatedAt: number;
     manifestSignatureEd25519: string;
     manifestPublicKeyEd25519: string;
-    manifestSignatureDilithium?: string;
-    manifestPublicKeyDilithium?: string;
+    manifestSignatureDilithium: string;
+    manifestPublicKeyDilithium: string;
     algorithmVersion?: string;
+    nameHmac: string;
   }): Promise<ApiResponse<{
     id: string;
     name: string;
@@ -771,7 +775,7 @@ class ApiClient {
   async deleteFolder(folderId: string): Promise<ApiResponse<{ message: string }>> {
     return this.request(`/folders/trash`, {
       method: 'DELETE',
-      body: JSON.stringify({ folderId }),
+      body: JSON.stringify({ folderIds: [folderId] }),
     });
   }
 
@@ -861,6 +865,13 @@ class ApiClient {
     return this.request('/files/trash/move', {
       method: 'POST',
       body: JSON.stringify({ fileIds }),
+    });
+  }
+
+  async moveToTrash(folderIds?: string[], fileIds?: string[]): Promise<ApiResponse<{ message: string }>> {
+    return this.request('/folders/trash', {
+      method: 'POST',
+      body: JSON.stringify({ folderIds, fileIds }),
     });
   }
 
@@ -1089,10 +1100,12 @@ class ApiClient {
     nonceWrapClassical?: string;
     fileNoncePrefix: string;
     folderId?: string | null;
+    manifestHash: string;
     manifestSignatureEd25519: string;
     manifestPublicKeyEd25519: string;
     manifestSignatureDilithium: string;
     manifestPublicKeyDilithium: string;
+    manifestCreatedAt?: number;
     algorithmVersion: string;
     wrappedCekKyber: string;
     nonceWrapKyber: string;
@@ -1112,6 +1125,7 @@ class ApiClient {
       objectKey: string;
     }>;
     manifestVerified: boolean;
+    manifestCreatedAt?: number;
     storageType: string;
     endpoint: string;
   }>> {
@@ -1494,6 +1508,45 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify(data),
     });
+  }
+
+  // File signature verification endpoint
+  async verifyFileSignature(fileId: string): Promise<ApiResponse<{
+    success: boolean;
+    verified: boolean;
+    status: string;
+    message: string;
+    signer: {
+      id: string;
+      email: string;
+      name: string;
+    } | null;
+    signatureResults?: {
+      ed25519: boolean;
+      dilithium: boolean;
+    };
+    signedData?: any;
+  }>> {
+    return this.request(`/files/${fileId}/verify`);
+  }
+
+  // Folder signature verification endpoint
+  async verifyFolderSignature(folderId: string): Promise<ApiResponse<{
+    success: boolean;
+    verified: boolean;
+    status: string;
+    message: string;
+    signer: {
+      id: string;
+      email: string;
+      name: string;
+    } | null;
+    signatureResults?: {
+      ed25519: boolean;
+      dilithium: boolean;
+    };
+  }>> {
+    return this.request(`/folders/${folderId}/verify`);
   }
 
 }
