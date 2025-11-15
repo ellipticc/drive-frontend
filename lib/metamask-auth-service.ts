@@ -142,18 +142,27 @@ class MetaMaskAuthService {
     try {
       const crypto = globalThis.crypto
 
-      // Generate random challenge salt (this will be stored on backend)
-      const challengeSalt = new Uint8Array(32)
-      crypto.getRandomValues(challengeSalt)
+      // Generate DETERMINISTIC challenge salt from wallet address
+      // This ensures the same wallet always generates the same challenge salt
+      // allowing the user to decrypt on any device with the same wallet
+      const walletAddressTrim = walletAddress.toLowerCase().trim()
+      const saltInput = new TextEncoder().encode(`ellipticc-wallet-challenge:${walletAddressTrim}`)
+      const saltHash = await crypto.subtle.digest('SHA-256', saltInput)
+      const challengeSalt = new Uint8Array(saltHash)
       const challengeSaltHex = Array.from(challengeSalt)
         .map((b: number) => b.toString(16).padStart(2, '0'))
         .join('')
 
+      console.log('Using deterministic challenge salt derived from wallet address')
+
       // Create a challenge message that includes the salt
       // This ensures signature is tied to this specific user
-      const challengeMessage = `Decrypt Drive Master Key\nAddress: ${walletAddress.toLowerCase()}\nChallenge: ${challengeSaltHex}`
+      // CRITICAL: Must use ACTUAL newlines, not escape sequences
+      const challengeMessage = `Decrypt Drive Master Key
+Address: ${walletAddressTrim}
+Challenge: ${challengeSaltHex}`
 
-      console.log('Requesting wallet to sign challenge message for key derivation...')
+      console.log('Challenge message for signing:', challengeMessage)
 
       // Ask wallet to sign the challenge (deterministic - same challenge always produces same signature)
       const signature = await (window as any).ethereum.request({
@@ -174,7 +183,7 @@ class MetaMaskAuthService {
       // The signature is what we're hashing
       const hashResult = await hashWithArgon2(
         signature,
-        walletAddress.toLowerCase(),
+        walletAddressTrim,
         4,           // time iterations (increased for lower memory)
         65536,       // memory: 64 MB (65536 KB)
         1,           // parallelism
@@ -206,9 +215,9 @@ class MetaMaskAuthService {
 
       return {
         encryptedMasterKey,
-        publicKey: challengeSaltHex,  // Store challenge salt (not really a "public key", but same field)
+        publicKey: challengeSaltHex,  // Store challenge salt (deterministic from wallet address)
         masterKeyMetadata: {
-          version: 'v10-argon2id-xchacha20',
+          version: 'v11-deterministic-argon2id-xchacha20',
           algorithm: 'signature-argon2id-xchacha20poly1305',
           createdAt: Date.now()
         }
@@ -232,7 +241,8 @@ class MetaMaskAuthService {
    */
   static async decryptMasterKeyWithWallet(
     encryptedMasterKey: string,
-    challengeSalt: string
+    challengeSalt: string,
+    version?: string
   ): Promise<Uint8Array> {
     if (!this.isMetaMaskInstalled()) {
       throw new Error('MetaMask not installed')
@@ -247,12 +257,38 @@ class MetaMaskAuthService {
         throw new Error('No connected wallet')
       }
 
-      const walletAddress = accounts[0]
+      const walletAddress = accounts[0].toLowerCase()
 
-      // Create a challenge message to sign using the provided challenge salt
-      const challengeMessage = `Decrypt Drive Master Key\nAddress: ${walletAddress.toLowerCase()}\nChallenge: ${challengeSalt}`
+      // Determine which challenge salt to use based on version
+      let actualChallengeSalt: string
+      
+      if (version && version.includes('deterministic')) {
+        // v11+ uses deterministic salt derived from wallet address
+        console.log('Using deterministic challenge salt (v11+)')
+        const saltInput = new TextEncoder().encode(`ellipticc-wallet-challenge:${walletAddress}`)
+        const saltHash = await crypto.subtle.digest('SHA-256', saltInput)
+        const saltBytes = new Uint8Array(saltHash)
+        actualChallengeSalt = Array.from(saltBytes)
+          .map((b: number) => b.toString(16).padStart(2, '0'))
+          .join('')
+      } else {
+        // v10 and earlier use stored random salt
+        console.log('Using stored random challenge salt (v10)')
+        actualChallengeSalt = (challengeSalt || '').trim()
+        
+        if (!actualChallengeSalt) {
+          throw new Error('Challenge salt is empty - user encryption keys may not be properly configured')
+        }
+      }
 
-      console.log('Requesting wallet to sign challenge message for key derivation...')
+      // Create a challenge message to sign using the challenge salt
+      // CRITICAL: Message format must match EXACTLY what was used during key derivation
+      // CRITICAL: Must use ACTUAL newlines, not escape sequences
+      const challengeMessage = `Decrypt Drive Master Key
+Address: ${walletAddress}
+Challenge: ${actualChallengeSalt}`
+
+      console.log('Challenge message for signing:', challengeMessage)
 
       // Ask wallet to sign the challenge
       const signature = await (window as any).ethereum.request({
@@ -270,13 +306,14 @@ class MetaMaskAuthService {
       const { hashWithArgon2 } = await import('./argon2-wrapper')
 
       // Derive same encryption key from signature using Argon2id
+      // CRITICAL: Parameters must match EXACTLY what was used during encryption
       const hashResult = await hashWithArgon2(
         signature,
-        walletAddress.toLowerCase(),
-        4,    // time
-        65536, // memory: 64 MB
-        1,    // parallelism
-        32    // hashLen
+        walletAddress, // Already lowercased above
+        4,    // time (must match encryption)
+        65536, // memory: 64 MB (must match encryption)
+        1,    // parallelism (must match encryption)
+        32    // hashLen (must match encryption)
       )
 
       const decryptionKey = new Uint8Array(
@@ -289,6 +326,10 @@ class MetaMaskAuthService {
       const encryptedBytes = new Uint8Array(encryptedBuffer)
 
       // The encrypted format: nonce (24 bytes) || ciphertext (rest)
+      if (encryptedBytes.length < 24) {
+        throw new Error('Invalid encrypted master key format - too short')
+      }
+
       const nonce = encryptedBytes.slice(0, 24)
       const ciphertext = encryptedBytes.slice(24)
 

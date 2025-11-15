@@ -121,6 +121,7 @@ export function SIWELoginButton({ onSuccess, onError, context = 'login' }: SIWEL
           encryptedMasterKey: encryptedMKData.encryptedMasterKey,
           masterKeySalt: JSON.stringify({
             ...encryptedMKData.masterKeyMetadata,
+            challengeSalt: encryptedMKData.publicKey,  // CRITICAL: Store the challenge salt for MetaMask decryption
             masterKeyNonce: masterKeyNonce  // Nonce for recovery key encryption
           }),
           // Store encrypted recovery key components
@@ -176,13 +177,31 @@ export function SIWELoginButton({ onSuccess, onError, context = 'login' }: SIWEL
             // STEP 1.5: If not in localStorage, fetch from backend (new device, localStorage cleared, etc.)
             if (!storedEncryptedMK) {
               console.log('Master key not in localStorage, fetching from backend...')
+              
+              // Extract challenge salt from backend metadata
+              let challengeSalt = user.walletAddress;  // fallback to wallet address
+              let version = 'v7-wallet-stored';
+              
+              if (userData.masterKeySalt) {
+                try {
+                  // masterKeySalt is stored as JSON with {version, algorithm, challengeSalt, masterKeyNonce}
+                  if (typeof userData.masterKeySalt === 'string' && userData.masterKeySalt.startsWith('{')) {
+                    const saltObj = JSON.parse(userData.masterKeySalt);
+                    challengeSalt = saltObj.challengeSalt || user.walletAddress;
+                    version = saltObj.version || 'v7-wallet-stored';
+                  }
+                } catch (e) {
+                  console.warn('Could not parse masterKeySalt from backend:', e);
+                }
+              }
+              
               // userData.encryptedMasterKey is the encrypted master key from the backend profile
               storedEncryptedMK = {
                 encryptedMasterKey: userData.encryptedMasterKey,
-                publicKey: user.walletAddress,
+                publicKey: challengeSalt,  // This is the challenge salt for MetaMask
                 masterKeyMetadata: {
-                  version: 'v7-wallet-stored',
-                  algorithm: 'no-encryption-same-origin-storage',
+                  version: version,
+                  algorithm: 'signature-argon2id-xchacha20poly1305',
                   createdAt: Date.now()
                 }
               }
@@ -196,7 +215,8 @@ export function SIWELoginButton({ onSuccess, onError, context = 'login' }: SIWEL
             // STEP 2: Retrieve the master key from localStorage or backend (it's stored unencrypted, protected by same-origin policy)
             const decryptedMasterKey = await MetaMaskAuthService.decryptMasterKeyWithWallet(
               storedEncryptedMK.encryptedMasterKey,
-              storedEncryptedMK.publicKey // This contains the challenge salt
+              storedEncryptedMK.publicKey, // This contains the challenge salt
+              storedEncryptedMK.masterKeyMetadata?.version // Pass version to determine salt strategy
             )
 
             // STEP 3: Cache the restored master key in session
