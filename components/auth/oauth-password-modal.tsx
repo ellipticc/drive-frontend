@@ -23,7 +23,8 @@ import {
   uint8ArrayToHex,
   deriveRecoveryKeyEncryptionKey,
   generateRecoveryKey,
-  encryptRecoveryKey
+  encryptRecoveryKey,
+  decryptUserPrivateKeys
 } from '@/lib/crypto';
 import { useRouter } from 'next/navigation';
 
@@ -264,9 +265,30 @@ export function OAuthPasswordModal({
       
       console.log('OAuth Login - Master key derived');
 
-      // Cache master key locally for immediate use
-      masterKeyManager.cacheExistingMasterKey(masterKey, accountSalt);
-      
+      // CRITICAL: Validate that the derived master key can actually decrypt the user's data
+      // This is a client-side UX check to prevent users from unknowingly using the wrong password
+      console.log('OAuth Login - Validating password by testing decryption...');
+      try {
+        // Temporarily cache the master key so decryptUserPrivateKeys can access it
+        masterKeyManager.cacheExistingMasterKey(masterKey, accountSalt);
+        
+        // Attempt to decrypt one of the user's private keys to validate the password
+        // This will throw an error if the password is incorrect
+        await decryptUserPrivateKeys(user);
+        
+        console.log('OAuth Login - Password validation successful! Decryption works.');
+      } catch (validationError) {
+        // Clear the cached master key since password validation failed
+        masterKeyManager.clearMasterKey();
+        
+        const errorMsg = validationError instanceof Error ? validationError.message : 'Password validation failed';
+        console.error('OAuth Login - Password validation failed:', errorMsg);
+        
+        // Show user-friendly error message
+        setError('The password you entered is incorrect. Please try again.');
+        return;
+      }
+
       console.log('OAuth Login - Master key cached');
 
       // Initialize keyManager with user data (this will use the cached master key to decrypt keypairs)
@@ -288,7 +310,7 @@ export function OAuthPasswordModal({
       router.push('/');
     } catch (err) {
       console.error('OAuth login error:', err);
-      setError('Incorrect password. Please try again.');
+      setError('An unexpected error occurred. Please try again.');
     }
   };
 
