@@ -404,7 +404,8 @@ export default function SharedDownloadPage() {
       const url = URL.createObjectURL(result.blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = result.filename;
+      // Use the already decrypted filename instead of result.filename
+      a.download = fileName;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
