@@ -15,7 +15,23 @@ import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Loader2, Download, File, AlertCircle, CheckCircle, FolderOpen, ChevronRight, Lock } from 'lucide-react';
-import { IconCaretLeftRightFilled } from '@tabler/icons-react';
+import { IconCaretLeftRightFilled, IconDotsVertical, IconLogout } from '@tabler/icons-react';
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@/components/ui/avatar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { masterKeyManager } from '@/lib/master-key';
+import { getDiceBearAvatar } from '@/lib/avatar';
 
 // Helper to encrypt filename using share CEK for transmission
 async function encryptFilenameWithCEK(filename: string, shareCek: Uint8Array): Promise<{ encrypted: string; nonce: string }> {
@@ -124,6 +140,62 @@ export default function SharedDownloadPage() {
   const [verifyingPassword, setVerifyingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [decryptedFilename, setDecryptedFilename] = useState<string | null>(null);
+  const [userSession, setUserSession] = useState<{ id: string; name: string; email: string; avatar: string } | null>(null);
+  const [checkingSession, setCheckingSession] = useState(true);
+
+  // Helper: Get display name
+  const getDisplayName = (user: { name: string; email: string }): string => {
+    if (user.name && user.name.trim() !== '') {
+      return user.name.trim();
+    }
+    const emailPrefix = user.email ? user.email.split('@')[0] : '';
+    return emailPrefix || 'User';
+  };
+
+  // Check user session on mount
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const token = localStorage.getItem('auth_token');
+        if (!token) {
+          setCheckingSession(false);
+          return;
+        }
+
+        // Try to fetch user profile to verify session
+        const response = await apiClient.getProfile();
+        if (response.success && response.data?.user) {
+          setUserSession({
+            id: response.data.user.id,
+            name: response.data.user.name || '',
+            email: response.data.user.email,
+            avatar: response.data.user.avatar || ''
+          });
+        }
+      } catch (err) {
+        // Session check failed - user not authenticated
+        console.warn('Session check failed:', err);
+      } finally {
+        setCheckingSession(false);
+      }
+    };
+
+    checkSession();
+  }, []);
+
+  // Handle logout
+  const handleLogout = async () => {
+    try {
+      await apiClient.logout();
+      masterKeyManager.completeClearOnLogout();
+    } catch (error) {
+      apiClient.clearAuthToken();
+      masterKeyManager.completeClearOnLogout();
+    } finally {
+      setUserSession(null);
+      window.location.href = '/login';
+    }
+  };
 
   // Get items for current folder from manifest
   const currentFolderContents = useMemo(() => {
@@ -443,21 +515,24 @@ export default function SharedDownloadPage() {
     });
   };
 
-  if (loading) {
+  if (loading || checkingSession) {
     return (
       <div className="min-h-screen bg-background">
         <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="container flex h-14 items-center justify-between px-4">
-            <div className="flex items-center gap-2">
+          <div className="flex h-14 items-center px-4">
+            <div className="container flex items-center">
               <a href="/" className="flex items-center gap-2 font-medium">
                 <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
                   <IconCaretLeftRightFilled className="!size-5" />
                 </div>
                 <span className="text-base font-mono">ellipticc</span>
               </a>
-              <h1 className="text-lg font-semibold">File Share</h1>
             </div>
-            <ThemeToggle />
+            <div className="flex-1" />
+            <div className="flex items-center gap-2 pr-4">
+              <ThemeToggle />
+              {/* Loading state has no auth buttons */}
+            </div>
           </div>
         </header>
         <div className="flex items-center justify-center py-16">
@@ -474,17 +549,64 @@ export default function SharedDownloadPage() {
     return (
       <div className="min-h-screen bg-background">
         <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="container flex h-14 items-center justify-between px-4">
-            <div className="flex items-center gap-2">
+          <div className="flex h-14 items-center px-4">
+            <div className="container flex items-center">
               <a href="/" className="flex items-center gap-2 font-medium">
                 <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
                   <IconCaretLeftRightFilled className="!size-5" />
                 </div>
                 <span className="text-base font-mono">ellipticc</span>
               </a>
-              <h1 className="text-lg font-semibold">File Share</h1>
             </div>
-            <ThemeToggle />
+            <div className="flex-1" />
+            <div className="flex items-center gap-2 pr-4">
+              <ThemeToggle />
+              {userSession ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="flex items-center gap-2 rounded-lg p-1 hover:bg-accent transition-colors">
+                      <Avatar className="h-8 w-8 rounded-lg">
+                        <AvatarImage src={userSession.avatar || getDiceBearAvatar(userSession.id)} alt={getDisplayName(userSession)} />
+                        <AvatarFallback className="rounded-lg"></AvatarFallback>
+                      </Avatar>
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-56 rounded-lg" side="bottom" align="end" sideOffset={4}>
+                    <DropdownMenuLabel className="p-0 font-normal">
+                      <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+                        <Avatar className="h-8 w-8 rounded-lg">
+                          <AvatarImage src={userSession.avatar || getDiceBearAvatar(userSession.id)} alt={getDisplayName(userSession)} />
+                          <AvatarFallback className="rounded-lg"></AvatarFallback>
+                        </Avatar>
+                        <div className="grid flex-1 text-left text-sm leading-tight">
+                          <span className="truncate font-medium">{getDisplayName(userSession)}</span>
+                          <span className="text-muted-foreground truncate text-xs">{userSession.email}</span>
+                        </div>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuGroup>
+                      <DropdownMenuItem onClick={() => window.location.href = '/'}>
+                        Go to Dashboard
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleLogout}>
+                        <IconLogout />
+                        Logout
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <>
+                  <Button variant="outline" size="sm" onClick={() => window.location.href = '/login'}>
+                    Log In
+                  </Button>
+                  <Button size="sm" onClick={() => window.location.href = '/signup'}>
+                    Sign Up
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
         </header>
         <div className="flex items-center justify-center py-16 px-4">
@@ -519,19 +641,64 @@ export default function SharedDownloadPage() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 items-center justify-between px-4">
-          <div className="flex items-center gap-2">
+        <div className="flex h-14 items-center px-4">
+          <div className="container flex items-center">
             <a href="/" className="flex items-center gap-2 font-medium">
               <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
                 <IconCaretLeftRightFilled className="!size-5" />
               </div>
               <span className="text-base font-mono">ellipticc</span>
             </a>
-            <h1 className="text-lg font-semibold">
-              {shareDetails.is_folder ? 'Shared Folder' : 'Shared File'}
-            </h1>
           </div>
-          <ThemeToggle />
+          <div className="flex-1" />
+          <div className="flex items-center gap-2 pr-4">
+            <ThemeToggle />
+            {userSession ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center gap-2 rounded-lg p-1 hover:bg-accent transition-colors">
+                    <Avatar className="h-8 w-8 rounded-lg">
+                      <AvatarImage src={userSession.avatar || getDiceBearAvatar(userSession.id)} alt={getDisplayName(userSession)} />
+                      <AvatarFallback className="rounded-lg"></AvatarFallback>
+                    </Avatar>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56 rounded-lg" side="bottom" align="end" sideOffset={4}>
+                  <DropdownMenuLabel className="p-0 font-normal">
+                    <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+                      <Avatar className="h-8 w-8 rounded-lg">
+                        <AvatarImage src={userSession.avatar || getDiceBearAvatar(userSession.id)} alt={getDisplayName(userSession)} />
+                        <AvatarFallback className="rounded-lg"></AvatarFallback>
+                      </Avatar>
+                      <div className="grid flex-1 text-left text-sm leading-tight">
+                        <span className="truncate font-medium">{getDisplayName(userSession)}</span>
+                        <span className="text-muted-foreground truncate text-xs">{userSession.email}</span>
+                      </div>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem onClick={() => window.location.href = '/'}>
+                      Go to Dashboard
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleLogout}>
+                      <IconLogout />
+                      Logout
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <>
+                <Button variant="outline" size="sm" onClick={() => window.location.href = '/login'}>
+                  Log In
+                </Button>
+                <Button size="sm" onClick={() => window.location.href = '/signup'}>
+                  Sign Up
+                </Button>
+              </>
+            )}
+          </div>
         </div>
       </header>
 
