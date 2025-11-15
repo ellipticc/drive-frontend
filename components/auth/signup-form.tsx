@@ -32,6 +32,7 @@ export function SignupForm({
   const router = useRouter()
   const searchParams = useSearchParams()
   const [isLoading, setIsLoading] = useState(false)
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true)
   const [error, setError] = useState("")
   const [referralCode, setReferralCode] = useState<string | null>(null)
   const [formData, setFormData] = useState({
@@ -39,6 +40,43 @@ export function SignupForm({
     password: "",
     confirmPassword: ""
   })
+
+  // Check if user is already authenticated with cached credentials
+  useEffect(() => {
+    const checkAndRedirect = async () => {
+      try {
+        // Check if JWT token exists and is valid
+        const token = localStorage.getItem('auth_token')
+        const masterKey = localStorage.getItem('master_key')
+        const accountSalt = localStorage.getItem('account_salt')
+
+        console.log('Signup page auth check:', {
+          hasToken: !!token,
+          hasMasterKey: !!masterKey,
+          hasAccountSalt: !!accountSalt,
+          token: token ? `${token.substring(0, 50)}...` : null,
+          accountSalt: accountSalt ? `${accountSalt.substring(0, 20)}...` : null
+        })
+
+        if (token && masterKey && accountSalt) {
+          console.log('All credentials found! Redirecting to dashboard...')
+          // Token and master key found in cache - user is authenticated
+          // Silently redirect to dashboard with loading spinner
+          router.push('/')
+          return
+        } else {
+          console.log('Missing credentials - staying on signup page')
+          // No cached credentials - stay on signup page
+          setIsCheckingAuth(false)
+        }
+      } catch (err) {
+        console.error('Auth check error:', err)
+        setIsCheckingAuth(false)
+      }
+    }
+
+    checkAndRedirect()
+  }, [router])
 
   // Capture referral code from URL on mount
   useEffect(() => {
@@ -200,6 +238,28 @@ export function SignupForm({
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // Show loading spinner while checking authentication and redirecting
+  if (isCheckingAuth) {
+    return (
+      <div className={cn("flex flex-col gap-6", className)} {...props}>
+        <Card>
+          <CardHeader className="text-center">
+            <CardTitle className="text-xl">Checking Authentication</CardTitle>
+            <CardDescription>
+              Please wait while we verify your session...
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex justify-center items-center py-8">
+            <div className="flex flex-col items-center gap-4">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="text-sm text-muted-foreground">Loading your dashboard...</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
