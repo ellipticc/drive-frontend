@@ -4,11 +4,10 @@ import { useState, useRef, useEffect } from "react"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import {
-  User,
   Shield,
-  Gift,
   Eye,
-  EyeOff,
+  RotateCcwKeyIcon,
+  ShieldUser
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -137,6 +136,10 @@ export function SettingsModal({
   const [disableRecoveryCode, setDisableRecoveryCode] = useState("")
   const [isVerifyingTOTP, setIsVerifyingTOTP] = useState(false)
   const [isDisablingTOTP, setIsDisablingTOTP] = useState(false)
+  
+  // Session management state
+  const [sessionExpiry, setSessionExpiry] = useState("3600")
+  
   // Recovery codes state
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([])
   const [showRecoveryCodesModal, setShowRecoveryCodesModal] = useState(false)
@@ -171,8 +174,42 @@ export function SettingsModal({
     if (open) {
       loadTOTPStatus()
       loadReferralData()
+      loadSessionConfig()
     }
   }, [open])
+
+  // Load session configuration
+  const loadSessionConfig = async () => {
+    if (typeof window !== 'undefined') {
+      // First try to fetch from backend API
+      try {
+        const response = await apiClient.getProfile()
+        if (response.success && response.data?.user?.sessionDuration) {
+          setSessionExpiry(response.data.user.sessionDuration.toString())
+          // Also save to localStorage for offline access
+          const sessionConfig = {
+            sessionExpiry: response.data.user.sessionDuration,
+            remindBeforeExpiry: 300
+          }
+          localStorage.setItem('session_config', JSON.stringify(sessionConfig))
+          return
+        }
+      } catch (error) {
+        console.error('Failed to fetch session duration from API:', error)
+      }
+
+      // Fallback to localStorage if API fails
+      const stored = localStorage.getItem('session_config')
+      if (stored) {
+        try {
+          const config = JSON.parse(stored)
+          setSessionExpiry(config.sessionExpiry.toString())
+        } catch (e) {
+          setSessionExpiry('3600')
+        }
+      }
+    }
+  }
 
   // Load TOTP status
   const loadTOTPStatus = async () => {
@@ -948,7 +985,7 @@ export function SettingsModal({
                   {/* TOTP Section */}
                   <div className="flex items-center justify-between border-t pt-6">
                     <div className="flex items-center gap-3">
-                      <Shield className="h-5 w-5 text-muted-foreground" />
+                      <ShieldUser className="h-5 w-5 text-muted-foreground" />
                       <div>
                         <p className="font-medium">Two-Factor Authentication</p>
                         <p className="text-sm text-muted-foreground">
@@ -1009,6 +1046,59 @@ export function SettingsModal({
                     >
                       View & Export
                     </Button>
+                  </div>
+
+                  {/* Session Duration Configuration Section */}
+                  <div className="flex items-center justify-between border-t pt-6">
+                    <div className="flex items-center gap-3 flex-1">
+                      <RotateCcwKeyIcon className="h-5 w-5 text-muted-foreground" />
+                      <div className="flex flex-col gap-1">
+                        <p className="font-medium">Session Duration</p>
+                        <p className="text-sm text-muted-foreground">
+                          How long you can stay logged in before automatic logout
+                        </p>
+                      </div>
+                    </div>
+                    <Select 
+                      value={sessionExpiry} 
+                      onValueChange={async (value) => {
+                        setSessionExpiry(value);
+                        const sessionDuration = parseInt(value);
+                        
+                        // Save to localStorage for immediate frontend use
+                        const sessionConfig = {
+                          sessionExpiry: sessionDuration,
+                          remindBeforeExpiry: 300
+                        };
+                        localStorage.setItem('session_config', JSON.stringify(sessionConfig));
+
+                        // Send to backend API to persist in database
+                        try {
+                          const response = await apiClient.updateSessionDuration(sessionDuration);
+                          if (response.success) {
+                            toast.success('Session duration updated');
+                          } else {
+                            toast.error(response.error || 'Failed to save session duration');
+                          }
+                        } catch (error) {
+                          console.error('Error saving session duration:', error);
+                          toast.error('Failed to save session duration');
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="w-32">
+                        <SelectValue placeholder="Select" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1800">30 minutes</SelectItem>
+                        <SelectItem value="3600">1 hour</SelectItem>
+                        <SelectItem value="7200">2 hours</SelectItem>
+                        <SelectItem value="21600">6 hours</SelectItem>
+                        <SelectItem value="43200">12 hours</SelectItem>
+                        <SelectItem value="86400">24 hours</SelectItem>
+                        <SelectItem value="604800">7 days</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {/* Account Actions Section */}

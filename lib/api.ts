@@ -397,6 +397,16 @@ class ApiClient {
   }
 
   /**
+   * Update user's session duration preference
+   */
+  async updateSessionDuration(sessionDuration: number): Promise<ApiResponse> {
+    return this.request('/auth/session-duration', {
+      method: 'POST',
+      body: JSON.stringify({ sessionDuration }),
+    });
+  }
+
+  /**
    * Initiate email change process - sends OTP to new email
    */
   async initiateEmailChange(newEmail: string): Promise<ApiResponse<{ emailChangeToken: string }>> {
