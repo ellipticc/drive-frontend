@@ -19,7 +19,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    // Determine the backend URL based on whether we're accessing via TOR
+    const isTor = request.headers.get('host')?.endsWith('.onion') ?? false;
+    const backendUrl = isTor 
+      ? 'http://i5ih4obfx42tlbqdidrm2qv36ay4waalfoeozvs42impy6vy6pruhgyd.onion'
+      : 'https://drive.ellipticc.com';
 
     // Call backend to verify Google token and create session
     const response = await fetch(

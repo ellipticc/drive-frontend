@@ -1,4 +1,6 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://drive.ellipticc.com/api/v1';
+import { getApiBaseUrl } from './tor-detection';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || getApiBaseUrl();
 
 export interface ApiResponse<T = any> {
   success: boolean;
@@ -62,13 +64,20 @@ class ApiClient {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
-    const url = `${this.baseURL}${endpoint}`;
+    // Build the request URL, handling proxy paths for TOR
+    // /api/proxy + /auth/login -> /api/proxy/v1/auth/login
+    let requestUrl = `${this.baseURL}${endpoint}`;
+    if (this.baseURL === '/api/proxy') {
+      // Using TOR proxy: construct full path including /v1/
+      requestUrl = `/api/proxy/v1${endpoint}`;
+    }
 
     const config: RequestInit = {
       headers: {
         'Content-Type': 'application/json',
         ...options.headers,
       },
+      credentials: 'include', // Essential for CORS with TOR and cross-origin requests
       ...options,
     };
 
@@ -105,7 +114,7 @@ class ApiClient {
 
     try {
       const startTime = Date.now();
-      const response = await fetch(url, config);
+      const response = await fetch(requestUrl, config);
       const duration = Date.now() - startTime;
       
       const data = await response.json();

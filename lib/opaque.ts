@@ -1,10 +1,18 @@
 ﻿'use client';
 import * as opaque from '@serenity-kit/opaque';
+import { getApiBaseUrl, isTorAccess } from './tor-detection';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://drive.ellipticc.com/api/v1';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || getApiBaseUrl();
 
 async function apiCall(endpoint: string, data: any): Promise<any> {
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  // Build the request URL, handling proxy paths for TOR
+  // /api/proxy + /auth/login -> /api/proxy/v1/auth/login
+  let requestUrl = `${API_BASE_URL}${endpoint}`;
+  if (isTorAccess() && API_BASE_URL === '/api/proxy') {
+    requestUrl = `/api/proxy/v1${endpoint}`;
+  }
+
+  const response = await fetch(requestUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
