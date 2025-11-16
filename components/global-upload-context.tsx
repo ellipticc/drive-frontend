@@ -5,6 +5,7 @@ import { UnifiedProgressModal, FileUploadState } from '@/components/modals/unifi
 import { ConflictModal } from '@/components/modals/conflict-modal';
 import { UploadManager } from '@/components/upload-manager';
 import { keyManager } from '@/lib/key-manager';
+import { apiClient } from '@/lib/api';
 import { useCurrentFolder } from '@/components/current-folder-context';
 import { downloadFileToBrowser, downloadFolderAsZip, downloadMultipleItemsAsZip, DownloadProgress } from '@/lib/download';
 import { prepareFilesForUpload, CreatedFolder } from '@/lib/folder-upload-utils';
@@ -39,6 +40,10 @@ interface GlobalUploadContextType {
   // File addition callback for incremental updates
   registerOnFileAdded: (callback: (file: any) => void) => void;
   unregisterOnFileAdded: (callback: (file: any) => void) => void;
+
+  // File deletion callback for incremental updates
+  registerOnFileDeleted: (callback: (fileId: string) => void) => void;
+  unregisterOnFileDeleted: (callback: (fileId: string) => void) => void;
 
   // Download state
   downloadProgress: DownloadProgress | null;
@@ -85,6 +90,17 @@ export function useOnFileAdded(callback: (file: any) => void) {
   }, [callback, registerOnFileAdded, unregisterOnFileAdded]);
 }
 
+export function useOnFileDeleted(callback: (fileId: string) => void) {
+  const { registerOnFileDeleted, unregisterOnFileDeleted } = useGlobalUpload();
+
+  React.useEffect(() => {
+    registerOnFileDeleted(callback);
+    return () => {
+      unregisterOnFileDeleted(callback);
+    };
+  }, [callback, registerOnFileDeleted, unregisterOnFileDeleted]);
+}
+
 interface GlobalUploadProviderProps {
   children: ReactNode;
 }
@@ -120,6 +136,9 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
   
   // File added callbacks for incremental updates
   const onFileAddedCallbacksRef = useRef<Set<(file: any) => void>>(new Set());
+  
+  // File deleted callbacks for incremental updates
+  const onFileDeletedCallbacksRef = useRef<Set<(fileId: string) => void>>(new Set());
 
   // Initialize upload queue on mount and cleanup on unmount
   useEffect(() => {
@@ -143,6 +162,7 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
       file,
       status: 'pending',
       progress: null,
+      currentFilename: file.name, // Initialize with original filename
     };
 
     setUploads(prev => [...prev, uploadState]);
@@ -175,6 +195,7 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
             status: task.status,
             progress: task.progress,
             error: task.error,
+            currentFilename: task.currentFilename,
           });
         },
         onComplete: (task) => {
@@ -192,6 +213,10 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
             onFileAddedCallbacksRef.current.forEach(callback => {
               callback(task.result.file);
             });
+          }
+          // Trigger file deleted callbacks if a file was replaced - use the task property
+          if (task.existingFileIdToDelete) {
+            // File was already removed from UI when replace was chosen, no need to do it again
           }
         },
         onError: (task) => {
@@ -213,6 +238,7 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
             type: conflictInfo.type,
             existingPath: conflictInfo.existingPath,
             newPath: conflictInfo.newPath,
+            existingFileId: conflictInfo.existingFileId, // Store file ID for deletion
           };
           setConflictItems([conflictItem]);
           setIsConflictModalOpen(true);
@@ -310,6 +336,14 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
 
   const unregisterOnFileAdded = useCallback((callback: (file: any) => void) => {
     onFileAddedCallbacksRef.current.delete(callback);
+  }, []);
+
+  const registerOnFileDeleted = useCallback((callback: (fileId: string) => void) => {
+    onFileDeletedCallbacksRef.current.add(callback);
+  }, []);
+
+  const unregisterOnFileDeleted = useCallback((callback: (fileId: string) => void) => {
+    onFileDeletedCallbacksRef.current.delete(callback);
   }, []);
 
   // Handle file selection
@@ -424,12 +458,6 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
   const startUploadWithFolders = useCallback((files: FileList, folderId: string | null) => {
     // Register callback to add folders immediately when they're created
     const onFolderCreated = (folder: CreatedFolder) => {
-      console.log('🗂️ onFolderCreated callback triggered:', { 
-        id: folder.id, 
-        name: folder.name, 
-        plaintext: folder.name,
-        encrypted: folder.encryptedName 
-      });
       
       // Trigger folder added callbacks
       onFileAddedCallbacksRef.current.forEach(callback => {
@@ -480,6 +508,10 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
                   callback(task.result.file);
                 });
               }
+              // Trigger file deleted callbacks if a file was replaced - use the task property
+              if (task.existingFileIdToDelete) {
+                // File was already removed from UI when replace was chosen, no need to do it again
+              }
             },
             onError: (task) => {
               updateUploadState(task.id, {
@@ -500,6 +532,7 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
                 type: conflictInfo.type,
                 existingPath: conflictInfo.existingPath,
                 newPath: conflictInfo.newPath,
+                existingFileId: conflictInfo.existingFileId, // Store file ID for deletion
               };
               setConflictItems([conflictItem]);
               setIsConflictModalOpen(true);
@@ -524,9 +557,32 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
 
   const handleConflictResolution = useCallback((resolutions: Record<string, 'replace' | 'keepBoth' | 'ignore'>) => {
     // Handle conflict resolution for each item
-    Object.entries(resolutions).forEach(([itemId, resolution]) => {
+    Object.entries(resolutions).forEach(async ([itemId, resolution]) => {
       const manager = uploadManagersRef.current.get(itemId);
       if (manager) {
+        if (resolution === 'replace') {
+          // For replace, pass the existing file ID to the upload manager
+          // The backend will handle deletion atomically when initializing the upload
+          const conflictItem = conflictItems.find(item => item.id === itemId) as any;
+          if (conflictItem?.existingFileId) {
+            // Store the existing file ID for the upload manager to pass to uploadEncryptedFile
+            (manager as any).task.existingFileIdToDelete = conflictItem.existingFileId;
+            
+            // Immediately remove the old file from the UI
+            onFileDeletedCallbacksRef.current.forEach(callback => {
+              callback(conflictItem.existingFileId);
+            });
+          } else {
+          }
+        } else if (resolution === 'keepBoth') {
+          // For keepBoth, pass the conflicting filename to extract counter info
+          const conflictItem = conflictItems.find(item => item.id === itemId) as any;
+          if (conflictItem?.name) {
+            // Store the conflict filename for the upload manager to pass to uploadEncryptedFile
+            (manager as any).task.conflictFileName = conflictItem.name;
+          }
+        }
+        
         // Map 'ignore' to 'skip' for UploadManager
         const mappedResolution = resolution === 'ignore' ? 'skip' : resolution;
         manager.resolveConflict(mappedResolution as 'replace' | 'keepBoth' | 'skip');
@@ -537,7 +593,7 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
     // Close conflict modal
     setIsConflictModalOpen(false);
     setConflictItems([]);
-  }, []);
+  }, [conflictItems]);
 
   const retryDownload = useCallback(() => {
     if (!currentDownloadFile) return;
@@ -573,6 +629,8 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
     unregisterOnUploadComplete,
     registerOnFileAdded,
     unregisterOnFileAdded,
+    registerOnFileDeleted,
+    unregisterOnFileDeleted,
     downloadProgress,
     downloadError,
     currentDownloadFile,

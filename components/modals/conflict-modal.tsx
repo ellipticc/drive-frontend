@@ -105,62 +105,60 @@ export function ConflictModal({ isOpen, onClose, conflicts, onResolve, operation
               <RadioGroup
                 value={resolutions[conflict.id] || 'replace'}
                 onValueChange={(value: string) => handleResolutionChange(conflict.id, value as 'replace' | 'keepBoth' | 'ignore')}
-                className="space-y-3"
+                className="space-y-2"
               >
-                <div className="flex items-start space-x-3 p-3 rounded-md hover:bg-background transition-colors">
+                <label className="flex items-start space-x-3 p-3 rounded-md hover:bg-muted/50 transition-colors cursor-pointer">
                   <RadioGroupItem value="replace" id={`replace-${conflict.id}`} className="mt-0.5" />
                   <div className="flex-1">
-                    <Label htmlFor={`replace-${conflict.id}`} className="font-medium cursor-pointer flex items-center gap-2">
+                    <div className="font-medium flex items-center gap-2">
                       <IconReplace className="h-4 w-4" />
                       Replace existing {conflict.type}
-                    </Label>
+                    </div>
                     <p className="text-sm text-muted-foreground mt-1">
                       The existing {conflict.type} will be overwritten with the new one.
                     </p>
                   </div>
-                </div>
+                </label>
 
-                <div className="flex items-start space-x-3 p-3 rounded-md hover:bg-background transition-colors">
+                <label className="flex items-start space-x-3 p-3 rounded-md hover:bg-muted/50 transition-colors cursor-pointer">
                   <RadioGroupItem value="keepBoth" id={`keepBoth-${conflict.id}`} className="mt-0.5" />
                   <div className="flex-1">
-                    <Label htmlFor={`keepBoth-${conflict.id}`} className="font-medium cursor-pointer flex items-center gap-2">
+                    <div className="font-medium flex items-center gap-2">
                       <IconCopy className="h-4 w-4" />
                       Keep both {conflict.type}s
-                    </Label>
+                    </div>
                     <p className="text-sm text-muted-foreground mt-1">
                       The new {conflict.type} will be renamed with a number suffix.
                     </p>
                   </div>
-                </div>
+                </label>
 
-                <div className="flex items-start space-x-3 p-3 rounded-md hover:bg-background transition-colors">
+                <label className="flex items-start space-x-3 p-3 rounded-md hover:bg-muted/50 transition-colors cursor-pointer">
                   <RadioGroupItem value="ignore" id={`ignore-${conflict.id}`} className="mt-0.5" />
                   <div className="flex-1">
-                    <Label htmlFor={`ignore-${conflict.id}`} className="font-medium cursor-pointer flex items-center gap-2">
+                    <div className="font-medium flex items-center gap-2">
                       <IconX className="h-4 w-4" />
                       Skip this {conflict.type}
-                    </Label>
+                    </div>
                     <p className="text-sm text-muted-foreground mt-1">
                       Don't {operation} this {conflict.type} and continue with others.
                     </p>
                   </div>
-                </div>
+                </label>
               </RadioGroup>
             </div>
           ))}
 
-          {conflicts.length > 1 && (
-            <div className="flex items-center space-x-2 pt-4 border-t bg-muted/20 p-3 rounded-md">
-              <Checkbox
-                id="applyToAll"
-                checked={applyToAll}
-                onCheckedChange={handleApplyToAllChange}
-              />
-              <Label htmlFor="applyToAll" className="text-sm font-medium">
-                Apply the same choice to all conflicts
-              </Label>
-            </div>
-          )}
+          <div className="flex items-center space-x-2 pt-4">
+            <Checkbox
+              id="applyToAll"
+              checked={applyToAll}
+              onCheckedChange={handleApplyToAllChange}
+            />
+            <Label htmlFor="applyToAll" className="text-sm font-medium cursor-pointer">
+              Apply to all duplicates
+            </Label>
+          </div>
         </div>
 
         <DialogFooter className="gap-2">

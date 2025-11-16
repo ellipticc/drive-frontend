@@ -30,7 +30,7 @@ import { UploadManager, UploadTask } from "@/components/upload-manager";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { PreviewModal } from "@/components/previews";
 import { useCurrentFolder } from "@/components/current-folder-context";
-import { useOnUploadComplete, useOnFileAdded, useGlobalUpload } from "@/components/global-upload-context";
+import { useOnUploadComplete, useOnFileAdded, useOnFileDeleted, useGlobalUpload } from "@/components/global-upload-context";
 import { decryptFilename } from "@/lib/crypto";
 import { masterKeyManager } from "@/lib/master-key";
 import { truncateFilename } from "@/lib/utils";
@@ -390,6 +390,14 @@ export const Table01DividerLineSm = ({
             }
         }
     }, [currentFolderId]));
+
+    // Register for file deleted events to remove files incrementally
+    useOnFileDeleted(useCallback((fileId: string) => {
+        console.log('🗑️ useOnFileDeleted received:', fileId);
+        
+        // Remove the file from the current file list
+        setFiles(prev => prev.filter(file => file.id !== fileId));
+    }, []));
 
     const refreshFiles = useCallback(async (folderId: string = currentFolderId) => {
         try {

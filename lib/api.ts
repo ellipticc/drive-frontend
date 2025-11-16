@@ -1128,6 +1128,8 @@ class ApiClient {
     kyberPublicKey: string;
     nameHmac?: string; // Filename HMAC for zero-knowledge duplicate detection
     forceReplace?: boolean; // Force replace existing file with same HMAC
+    existingFileIdToDelete?: string; // File ID to delete when replacing
+    isKeepBothAttempt?: boolean; // Flag to indicate this is a keepBoth retry scenario
   }): Promise<ApiResponse<{
     sessionId: string;
     fileId: string;
@@ -1145,6 +1147,8 @@ class ApiClient {
     manifestCreatedAt?: number;
     storageType: string;
     endpoint: string;
+    existingFileId?: string; // ID of the existing file if conflict detected
+    isKeepBothConflict?: boolean; // Flag to indicate this is a keepBoth retry scenario
   }>> {
     return this.request('/files/upload/presigned/initialize', {
       method: 'POST',

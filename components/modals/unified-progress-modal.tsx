@@ -41,6 +41,8 @@ export interface FileUploadState {
   progress: UploadProgressType | null;
   error?: string;
   result?: any;
+  currentFilename?: string; // Current filename being uploaded (may be incremented for keepBoth)
+  existingFileIdToDelete?: string; // ID of file to delete if this is a replace operation
 }
 
 export interface UnifiedProgressModalProps {
@@ -363,8 +365,8 @@ export function UnifiedProgressModal({
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 min-w-0 flex-1">
                         <IconFile className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                        <span className="font-medium text-sm truncate" title={upload.file.name}>
-                          {truncateFilename(upload.file.name)}
+                        <span className="font-medium text-sm truncate" title={upload.currentFilename || upload.file.name}>
+                          {truncateFilename(upload.currentFilename || upload.file.name)}
                         </span>
                         <span className="text-xs text-muted-foreground flex-shrink-0">
                           ({formatFileSize(upload.file.size)})

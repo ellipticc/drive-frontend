@@ -104,7 +104,10 @@ export async function uploadEncryptedFile(
   onProgress?: (progress: UploadProgress) => void,
   abortSignal?: AbortSignal,
   isPaused?: () => boolean,
-  conflictResolution?: 'replace' | 'keepBoth' | 'skip'
+  conflictResolution?: 'replace' | 'keepBoth' | 'skip',
+  conflictFileName?: string, // The conflicting filename to extract counter from
+  existingFileIdToDelete?: string, // For replace operations
+  isKeepBothAttempt?: boolean // Flag to indicate this is a keepBoth retry
 ): Promise<UploadResult> {
   try {
     // 🔒 STRICT QUOTA ENFORCEMENT: Check storage quota BEFORE starting upload
@@ -220,7 +223,7 @@ export async function uploadEncryptedFile(
     }
 
     // Stage 4: Initialize upload session with backend
-    const session = await initializeUploadSession(file, folderId, processedChunks, encryptedChunks, sha256Hash, keys, conflictResolution);
+    const session = await initializeUploadSession(file, folderId, processedChunks, encryptedChunks, sha256Hash, keys, conflictResolution, conflictFileName, existingFileIdToDelete, isKeepBothAttempt);
 
     // Check for abort before uploading chunks
     if (abortSignal?.aborted) {
@@ -328,7 +331,10 @@ async function initializeUploadSession(
   encryptedChunks: Uint8Array[],
   sha256Hash: string,
   keys: UserKeys,
-  conflictResolution?: 'replace' | 'keepBoth' | 'skip'
+  conflictResolution?: 'replace' | 'keepBoth' | 'skip',
+  conflictFileName?: string,
+  existingFileIdToDelete?: string,
+  isKeepBothAttempt?: boolean
 ): Promise<UploadSession> {
   // Compute SHA256 hashes for each encrypted chunk
   const chunkHashes: string[] = [];
@@ -351,13 +357,47 @@ async function initializeUploadSession(
 
   // Handle conflict resolution
   let actualFile = file;
+  let keepBothCounter = 0; // Track how many keepBoth conflicts we've seen
+  
   if (conflictResolution === 'keepBoth') {
-    // Generate a new filename with suffix
-    const nameParts = file.name.split('.');
-    const extension = nameParts.length > 1 ? '.' + nameParts.pop() : '';
-    const baseName = nameParts.join('.');
-    const newName = `${baseName} (1)${extension}`;
-    actualFile = new File([file], newName, { type: file.type });
+    // Generate a unique filename by incrementing a counter
+    // If a conflicting filename was provided, extract its counter and increment
+    let counter = 1;
+    
+    // Extract base name and extension
+    let baseName = file.name;
+    let extension = '';
+    const lastDotIndex = file.name.lastIndexOf('.');
+    if (lastDotIndex > 0) {
+      baseName = file.name.substring(0, lastDotIndex);
+      extension = file.name.substring(lastDotIndex);
+    }
+    
+    // Check if baseName ends with (number) and extract counter
+    const counterMatch = baseName.match(/\((\d+)\)$/);
+    if (counterMatch) {
+      // Remove the (number) from baseName
+      baseName = baseName.substring(0, baseName.lastIndexOf('(')).trim();
+      keepBothCounter = parseInt(counterMatch[1]) + 1;
+      counter = keepBothCounter;
+    } else if (conflictFileName) {
+      // If no counter in current name but conflictFileName provided, extract from it
+      const conflictBase = conflictFileName.replace(/\.[^/.]+$/, '');
+      const conflictCounterMatch = conflictBase.match(/\((\d+)\)$/);
+      if (conflictCounterMatch) {
+        keepBothCounter = parseInt(conflictCounterMatch[1]) + 1;
+        counter = keepBothCounter;
+      } else {
+        keepBothCounter = 1;
+      }
+    }
+    
+    // Generate candidate name with the calculated counter
+    const candidateName = `${baseName} (${counter})${extension}`;
+    
+    actualFile = new File([file], candidateName, { type: file.type });
+  } else if (conflictResolution === 'replace') {
+    // For replace, the backend will handle deletion
   }
 
   // ENCRYPT FILENAME - ZERO-KNOWLEDGE METADATA
@@ -380,9 +420,6 @@ async function initializeUploadSession(
     if (!filenameSalt) {
       throw new Error('Missing filename salt after encryption');
     }
-    
-    console.log(`Filename encrypted successfully: ${encryptedFilename.substring(0, 30)}...`);
-    console.log(`Filename salt: ${filenameSalt}`);
   } catch (error) {
     console.error('CRITICAL: Filename encryption failed:', error);
     throw new Error(`Failed to encrypt filename: ${error instanceof Error ? error.message : String(error)}`);
@@ -467,27 +504,29 @@ async function initializeUploadSession(
     kyberCiphertext: uint8ArrayToHex(kyberCiphertext), // Kyber encapsulation ciphertext
     kyberPublicKey: keys.keypairs.kyberPublicKey,
     nameHmac: filenameHmac,  // Add filename HMAC for duplicate detection
-    forceReplace: conflictResolution === 'replace'  // Add force replace flag
+    forceReplace: conflictResolution === 'replace',  // Add force replace flag
+    existingFileIdToDelete: existingFileIdToDelete,  // Pass the file ID to delete
+    isKeepBothAttempt: isKeepBothAttempt === true  // Flag for keepBoth retry
   });
 
-  if (!response.success) {
+    if (!response.success) {
     // Check if this is a conflict error (409)
     if (response.error && (response.error.includes('already exists') || response.error.includes('409') || response.error === 'A file with this name already exists in the destination folder')) {
       // Throw a special conflict error that can be caught by the UI
       const conflictError = new Error('FILE_CONFLICT');
       (conflictError as any).conflictInfo = {
         type: 'file',
-        name: file.name,
+        name: actualFile.name,
         existingPath: folderId ? `Folder ${folderId}` : 'My Files',
         newPath: folderId ? `Folder ${folderId}` : 'My Files',
-        folderId: folderId
+        folderId: folderId,
+        existingFileId: response.data?.existingFileId, // Get existing file ID from backend response
+        isKeepBothConflict: response.data?.isKeepBothConflict === true // Flag for retry handling
       };
       throw conflictError;
     }
     throw new Error('Failed to initialize upload session: ' + (response.error || 'Unknown error'));
-  }
-
-  // Extract upload URLs from presigned array
+  }  // Extract upload URLs from presigned array
   // The response.data contains the nested object with presigned array
   const uploadUrls = response.data?.presigned?.map(item => item.putUrl);
 
