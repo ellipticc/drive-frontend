@@ -30,7 +30,7 @@ import { UploadManager, UploadTask } from "@/components/upload-manager";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { PreviewModal } from "@/components/previews";
 import { useCurrentFolder } from "@/components/current-folder-context";
-import { useOnUploadComplete, useOnFileAdded, useOnFileDeleted, useGlobalUpload } from "@/components/global-upload-context";
+import { useOnUploadComplete, useOnFileAdded, useOnFileDeleted, useOnFileReplaced, useGlobalUpload } from "@/components/global-upload-context";
 import { decryptFilename } from "@/lib/crypto";
 import { masterKeyManager } from "@/lib/master-key";
 import { truncateFilename } from "@/lib/utils";
@@ -300,7 +300,6 @@ export const Table01DividerLineSm = ({
 
     // Register for file added events to add files and folders incrementally
     useOnFileAdded(useCallback((fileData: any) => {
-        console.log('📁 useOnFileAdded received:', { id: fileData.id, type: fileData.type, name: fileData.name });
         
         // Check if this is a folder or a file
         if (fileData.type === 'folder') {
@@ -310,18 +309,9 @@ export const Table01DividerLineSm = ({
                 (currentFolderId !== 'root' && fileData.parentId === currentFolderId)
             );
             
-            console.log('🗂️ Folder detected:', { 
-                inCurrentFolder: folderInCurrentFolder, 
-                currentFolderId, 
-                folderParentId: fileData.parentId,
-                plaintext: fileData.name 
-            });
-            
             if (folderInCurrentFolder) {
                 // Use plaintext name directly from callback
                 const displayName = fileData.name || '(Unnamed)';
-                
-                console.log('✅ Adding folder to list:', { id: fileData.id, name: displayName });
                 
                 const newFolder: FileItem = {
                     id: fileData.id,
@@ -393,7 +383,6 @@ export const Table01DividerLineSm = ({
 
     // Register for file deleted events to remove files incrementally
     useOnFileDeleted(useCallback((fileId: string) => {
-        console.log('🗑️ useOnFileDeleted received:', fileId);
         
         // Remove the file from the current file list
         setFiles(prev => prev.filter(file => file.id !== fileId));
@@ -522,6 +511,13 @@ export const Table01DividerLineSm = ({
             setIsLoading(false);
         }
     }, [currentFolderId, apiClient, router]);
+
+    // Register for file replaced events to refresh the file list
+    useOnFileReplaced(useCallback(() => {
+        
+        // Refresh the current folder contents
+        refreshFiles();
+    }, [refreshFiles]));
 
     // Navigate to a folder
     const navigateToFolder = async (folderId: string, folderName: string) => {

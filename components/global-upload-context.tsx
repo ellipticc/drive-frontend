@@ -45,6 +45,10 @@ interface GlobalUploadContextType {
   registerOnFileDeleted: (callback: (fileId: string) => void) => void;
   unregisterOnFileDeleted: (callback: (fileId: string) => void) => void;
 
+  // File replacement callback for refreshing the file list
+  registerOnFileReplaced: (callback: () => void) => void;
+  unregisterOnFileReplaced: (callback: () => void) => void;
+
   // Download state
   downloadProgress: DownloadProgress | null;
   downloadError: string | null;
@@ -101,6 +105,17 @@ export function useOnFileDeleted(callback: (fileId: string) => void) {
   }, [callback, registerOnFileDeleted, unregisterOnFileDeleted]);
 }
 
+export function useOnFileReplaced(callback: () => void) {
+  const { registerOnFileReplaced, unregisterOnFileReplaced } = useGlobalUpload();
+
+  React.useEffect(() => {
+    registerOnFileReplaced(callback);
+    return () => {
+      unregisterOnFileReplaced(callback);
+    };
+  }, [callback, registerOnFileReplaced, unregisterOnFileReplaced]);
+}
+
 interface GlobalUploadProviderProps {
   children: ReactNode;
 }
@@ -139,6 +154,9 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
   
   // File deleted callbacks for incremental updates
   const onFileDeletedCallbacksRef = useRef<Set<(fileId: string) => void>>(new Set());
+  
+  // File replaced callbacks for refreshing the file list
+  const onFileReplacedCallbacksRef = useRef<Set<() => void>>(new Set());
 
   // Initialize upload queue on mount and cleanup on unmount
   useEffect(() => {
@@ -214,9 +232,11 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
               callback(task.result.file);
             });
           }
-          // Trigger file deleted callbacks if a file was replaced - use the task property
+          // Trigger file replaced callbacks if a file was replaced - refresh the file list
           if (task.existingFileIdToDelete) {
-            // File was already removed from UI when replace was chosen, no need to do it again
+            onFileReplacedCallbacksRef.current.forEach(callback => {
+              callback();
+            });
           }
         },
         onError: (task) => {
@@ -344,6 +364,14 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
 
   const unregisterOnFileDeleted = useCallback((callback: (fileId: string) => void) => {
     onFileDeletedCallbacksRef.current.delete(callback);
+  }, []);
+
+  const registerOnFileReplaced = useCallback((callback: () => void) => {
+    onFileReplacedCallbacksRef.current.add(callback);
+  }, []);
+
+  const unregisterOnFileReplaced = useCallback((callback: () => void) => {
+    onFileReplacedCallbacksRef.current.delete(callback);
   }, []);
 
   // Handle file selection
@@ -508,9 +536,11 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
                   callback(task.result.file);
                 });
               }
-              // Trigger file deleted callbacks if a file was replaced - use the task property
+              // Trigger file replaced callbacks if a file was replaced - refresh the file list
               if (task.existingFileIdToDelete) {
-                // File was already removed from UI when replace was chosen, no need to do it again
+                onFileReplacedCallbacksRef.current.forEach(callback => {
+                  callback();
+                });
               }
             },
             onError: (task) => {
@@ -631,6 +661,8 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
     unregisterOnFileAdded,
     registerOnFileDeleted,
     unregisterOnFileDeleted,
+    registerOnFileReplaced,
+    unregisterOnFileReplaced,
     downloadProgress,
     downloadError,
     currentDownloadFile,
