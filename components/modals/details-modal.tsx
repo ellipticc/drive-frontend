@@ -77,6 +77,7 @@ export function DetailsModal({
 
       if (response.success && response.data) {
         setItemDetails(response.data)
+        // Note: No success toast shown when details are loaded
       }
 
       // Auto-verify signature

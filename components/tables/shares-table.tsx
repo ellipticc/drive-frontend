@@ -692,38 +692,78 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                     manifestPublicKeyDilithium: string;
                     algorithmVersion: string;
                     nameHmac: string;
+                    encryptedFilename?: string;
+                    filenameSalt?: string;
+                    encryptedName?: string;
+                    nameSalt?: string;
                 }) => {
                     if (!selectedItemForRename) return;
 
                     try {
                         let response;
-                        if (selectedItemForRename.type === 'file') {
-                            // For files, data should be a string
-                            if (typeof data !== 'string') {
-                                throw new Error('Expected string for file rename');
-                            }
-                            response = await apiClient.renameFile(selectedItemForRename.id, data);
+                        if (typeof data === 'string') {
+                            throw new Error('Expected manifest object for rename');
+                        }
+                        
+                        // Check if this is a file manifest (has encryptedFilename) or folder manifest (has encryptedName)
+                        if ('encryptedFilename' in data && data.encryptedFilename) {
+                            // File manifest
+                            response = await apiClient.renameFile(selectedItemForRename.id, data as unknown as {
+                                encryptedFilename: string;
+                                filenameSalt: string;
+                                manifestHash: string;
+                                manifestCreatedAt: number;
+                                manifestSignatureEd25519: string;
+                                manifestPublicKeyEd25519: string;
+                                manifestSignatureDilithium: string;
+                                manifestPublicKeyDilithium: string;
+                                algorithmVersion: string;
+                                nameHmac: string;
+                            });
+                        } else if ('encryptedName' in data && data.encryptedName) {
+                            // Folder manifest
+                            response = await apiClient.renameFolder(selectedItemForRename.id, data as unknown as {
+                                encryptedName: string;
+                                nameSalt: string;
+                                manifestHash: string;
+                                manifestCreatedAt: number;
+                                manifestSignatureEd25519: string;
+                                manifestPublicKeyEd25519: string;
+                                manifestSignatureDilithium: string;
+                                manifestPublicKeyDilithium: string;
+                                algorithmVersion?: string;
+                                nameHmac: string;
+                            });
                         } else {
-                            // For folders, data should be manifest object
-                            if (typeof data === 'string') {
-                                throw new Error('Expected manifest object for folder rename');
-                            }
-                            response = await apiClient.renameFolder(selectedItemForRename.id, data);
+                            throw new Error('Invalid manifest data: missing encrypted name fields');
                         }
 
                         if (response.success) {
                             toast.success(`${selectedItemForRename.type} renamed successfully`);
                             refreshShares(); // Refresh the shares list
+                            setRenameModalOpen(false);
+                            setSelectedItemForRename(null);
                         } else {
-                            toast.error(`Failed to rename ${selectedItemForRename.type}`);
+                            // Check if this is a 409 conflict error
+                            const isConflict = response.error?.toLowerCase().includes('409') || 
+                                             response.error?.toLowerCase().includes('conflict') ||
+                                             response.error?.toLowerCase().includes('already exists');
+                            
+                            if (isConflict) {
+                                toast.error('A file or folder with this name already exists');
+                                // Keep modal open for user to try a different name
+                            } else {
+                                toast.error(`Failed to rename ${selectedItemForRename.type}`);
+                                setRenameModalOpen(false);
+                                setSelectedItemForRename(null);
+                            }
                         }
                     } catch (error) {
                         // console.error('Rename error:', error);
                         toast.error(`Failed to rename ${selectedItemForRename.type}`);
+                        setRenameModalOpen(false);
+                        setSelectedItemForRename(null);
                     }
-
-                    setRenameModalOpen(false);
-                    setSelectedItemForRename(null);
                 }}
             />
         </>

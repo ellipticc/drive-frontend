@@ -18,7 +18,7 @@ import { toast } from "sonner"
 import { apiClient } from "@/lib/api"
 import { truncateFilename } from "@/lib/utils"
 import { masterKeyManager } from "@/lib/master-key"
-import { decryptFilename } from "@/lib/crypto"
+import { decryptFilename, computeFilenameHmac } from "@/lib/crypto"
 
 interface MoveToFolderModalProps {
   children?: React.ReactNode
@@ -314,7 +314,9 @@ export function MoveToFolderModal({ children, itemId = "", itemName = "item", it
           let response;
 
           if (item.type === 'file') {
-            response = await apiClient.moveFileToFolder(item.id, selectedFolder === 'root' ? null : selectedFolder)
+            // Compute filename HMAC for duplicate detection
+            const nameHmac = await computeFilenameHmac(item.name, selectedFolder === 'root' ? null : selectedFolder)
+            response = await apiClient.moveFileToFolder(item.id, selectedFolder === 'root' ? null : selectedFolder, nameHmac)
           } else {
             response = await apiClient.moveFolder(item.id, selectedFolder === 'root' ? null : selectedFolder)
           }

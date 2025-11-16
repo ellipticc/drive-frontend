@@ -17,6 +17,14 @@ export interface UploadTask {
   abortController?: AbortController;
 }
 
+export interface ConflictInfo {
+  type: 'file';
+  name: string;
+  existingPath: string;
+  newPath: string;
+  folderId: string | null;
+}
+
 export interface UploadManagerProps {
   id: string;  // Add explicit ID parameter
   file: File;
@@ -26,6 +34,7 @@ export interface UploadManagerProps {
   onComplete?: (task: UploadTask) => void;
   onError?: (task: UploadTask) => void;
   onCancel?: (task: UploadTask) => void;
+  onConflict?: (task: UploadTask, conflictInfo: ConflictInfo) => void;
 }
 
 export class UploadManager {
@@ -66,7 +75,8 @@ export class UploadManager {
           this.notifyProgress();
         },
         this.task.abortController.signal, // Pass the abort signal
-        () => this.task.status === 'paused' // Pass isPaused callback
+        () => this.task.status === 'paused', // Pass isPaused callback
+        (this.task as any).conflictResolution // Pass conflict resolution
       );
 
       const result = await this.uploadPromise;
@@ -88,6 +98,8 @@ export class UploadManager {
 
       const isPaused = error instanceof Error && error.message === 'Upload paused';
 
+      const isConflict = error instanceof Error && error.message === 'FILE_CONFLICT';
+
       if (isCancelled) {
         // Upload was cancelled by user
         this.task.status = 'cancelled';
@@ -97,6 +109,11 @@ export class UploadManager {
         // Upload was paused - keep status as 'paused'
         // Don't call any callback, just return and wait for resume
         return;
+      } else if (isConflict) {
+        // File conflict detected - pause upload and notify about conflict
+        this.task.status = 'paused';
+        this.notifyProgress();
+        this.props.onConflict?.(this.task, (error as any).conflictInfo);
       } else {
         // Upload failed with actual error
         this.task.status = 'failed';
@@ -136,9 +153,27 @@ export class UploadManager {
     }
   }
 
-  destroy(): void {
-    this.isDestroyed = true;
-    this.task.abortController?.abort();
+  resolveConflict(resolution: 'replace' | 'keepBoth' | 'skip'): void {
+    if (this.task.status !== 'paused') return;
+
+    if (resolution === 'skip') {
+      this.task.status = 'cancelled';
+      this.notifyProgress();
+      this.props.onCancel?.(this.task);
+      return;
+    }
+
+    // For replace and keepBoth, we need to restart the upload with modified parameters
+    // For now, just restart - we'll handle the resolution in the upload function
+    this.task.status = 'pending';
+    this.task.error = undefined;
+    this.notifyProgress();
+    
+    // Store the resolution for the upload function to use
+    (this.task as any).conflictResolution = resolution;
+    
+    // Restart the upload
+    this.start();
   }
 
   getTask(): UploadTask {

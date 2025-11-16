@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useRef, useCallback, useEffect, ReactNode } from 'react';
 import { UnifiedProgressModal, FileUploadState } from '@/components/modals/unified-progress-modal';
+import { ConflictModal } from '@/components/modals/conflict-modal';
 import { UploadManager } from '@/components/upload-manager';
 import { keyManager } from '@/lib/key-manager';
 import { useCurrentFolder } from '@/components/current-folder-context';
@@ -91,6 +92,10 @@ interface GlobalUploadProviderProps {
 export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
   const [uploads, setUploads] = useState<FileUploadState[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Conflict modal state
+  const [conflictItems, setConflictItems] = useState<any[]>([]);
+  const [isConflictModalOpen, setIsConflictModalOpen] = useState(false);
 
   // Download state
   const [downloadProgress, setDownloadProgress] = useState<DownloadProgress | null>(null);
@@ -199,6 +204,21 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
           updateUploadState(task.id, {
             status: 'cancelled',
           });
+        },
+        onConflict: (task, conflictInfo) => {
+          // Handle file conflict by opening conflict modal
+          const conflictItem = {
+            id: task.id,
+            name: conflictInfo.name,
+            type: conflictInfo.type,
+            existingPath: conflictInfo.existingPath,
+            newPath: conflictInfo.newPath,
+          };
+          setConflictItems([conflictItem]);
+          setIsConflictModalOpen(true);
+          
+          // Store the upload manager for later resolution
+          uploadManagersRef.current.set(task.id, uploadManager);
         },
       });
 
@@ -472,6 +492,21 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
                 status: 'cancelled',
               });
             },
+            onConflict: (task, conflictInfo) => {
+              // Handle file conflict by opening conflict modal
+              const conflictItem = {
+                id: task.id,
+                name: conflictInfo.name,
+                type: conflictInfo.type,
+                existingPath: conflictInfo.existingPath,
+                newPath: conflictInfo.newPath,
+              };
+              setConflictItems([conflictItem]);
+              setIsConflictModalOpen(true);
+              
+              // Store the upload manager for later resolution
+              uploadManagersRef.current.set(task.id, uploadManager);
+            },
           });
 
           uploadManagersRef.current.set(uploadState.id, uploadManager);
@@ -486,6 +521,23 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
         // You might want to add a toast notification here
       });
   }, [addUpload, updateUploadState, openModal]);
+
+  const handleConflictResolution = useCallback((resolutions: Record<string, 'replace' | 'keepBoth' | 'ignore'>) => {
+    // Handle conflict resolution for each item
+    Object.entries(resolutions).forEach(([itemId, resolution]) => {
+      const manager = uploadManagersRef.current.get(itemId);
+      if (manager) {
+        // Map 'ignore' to 'skip' for UploadManager
+        const mappedResolution = resolution === 'ignore' ? 'skip' : resolution;
+        manager.resolveConflict(mappedResolution as 'replace' | 'keepBoth' | 'skip');
+        uploadManagersRef.current.delete(itemId);
+      }
+    });
+    
+    // Close conflict modal
+    setIsConflictModalOpen(false);
+    setConflictItems([]);
+  }, []);
 
   const retryDownload = useCallback(() => {
     if (!currentDownloadFile) return;
@@ -571,6 +623,15 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
         open={isModalOpen}
         onOpenChange={setIsModalOpen}
         onClose={closeModal}
+      />
+
+      {/* Conflict Modal */}
+      <ConflictModal
+        isOpen={isConflictModalOpen}
+        onClose={() => setIsConflictModalOpen(false)}
+        conflicts={conflictItems}
+        onResolve={handleConflictResolution}
+        operation="upload"
       />
     </GlobalUploadContext.Provider>
   );

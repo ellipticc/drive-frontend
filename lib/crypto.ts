@@ -952,3 +952,113 @@ export async function createSignedFolderManifest(
   };
 }
 
+/**
+ * Create a signed file manifest for zero-knowledge file operations (like renaming)
+ * Computes HMAC for duplicate checking, encrypts filename, and signs manifest
+ *
+ * @param filename - Plaintext filename
+ * @param folderId - Parent folder ID (or null for root)
+ * @param privateKeys - User's private keys for signing
+ * @returns Signed manifest data ready for backend submission
+ */
+export async function createSignedFileManifest(
+  filename: string,
+  folderId: string | null,
+  privateKeys: {
+    ed25519PrivateKey: Uint8Array;
+    ed25519PublicKey: string;
+    dilithiumPrivateKey: Uint8Array;
+    dilithiumPublicKey: string;
+  }
+): Promise<{
+  encryptedFilename: string;
+  filenameSalt: string;
+  manifestHash: string;
+  manifestCreatedAt: number;
+  manifestSignatureEd25519: string;
+  manifestPublicKeyEd25519: string;
+  manifestSignatureDilithium: string;
+  manifestPublicKeyDilithium: string;
+  algorithmVersion: string;
+  nameHmac: string;
+}> {
+  // Get master key for encryption and HMAC computation
+  const { masterKeyManager } = await import('./master-key');
+  const masterKey = masterKeyManager.getMasterKey();
+
+  // Encrypt filename for zero-knowledge storage
+  const { encryptedFilename, filenameSalt } = await encryptFilename(filename, masterKey);
+
+  // Compute HMAC for zero-knowledge duplicate checking
+  const normalizedName = filename.toLowerCase().normalize('NFC');
+  const hmacKey = await deriveHKDFKey(masterKey, 'EllipticcDrive-DuplicateCheck-v1', `filename-hmac-key||${folderId || 'root'}`, 32);
+  const nameHmacBytes = await crypto.subtle.sign('HMAC', hmacKey, new TextEncoder().encode(normalizedName));
+  const nameHmac = Array.from(new Uint8Array(nameHmacBytes))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+
+  // Create file manifest for rename operation
+  const manifestCreatedAt = Math.floor(Date.now() / 1000);
+  const manifest = {
+    filename: encryptedFilename, // Use encrypted filename for manifest verification
+    created: manifestCreatedAt,
+    version: '2.0-file-rename',
+    algorithmVersion: 'v3-hybrid-pqc-xchacha20'
+  };
+
+  // Create canonical JSON representation
+  const canonicalJson = createCanonicalManifest(manifest);
+
+  // Compute SHA512 hash of manifest
+  const manifestBytes = new TextEncoder().encode(canonicalJson);
+  const manifestHashBytes = sha512(manifestBytes);
+  const manifestHash = Buffer.from(manifestHashBytes).toString('hex');
+
+  // Sign manifest with Ed25519
+  const ed25519Signature = await signManifest(manifestHashBytes, privateKeys.ed25519PrivateKey);
+
+  // Sign manifest with Dilithium (required for post-quantum security)
+  // IMPORTANT: Make a defensive copy of the private key in case it's being mutated
+  const dilithiumKeyForSigning = new Uint8Array(privateKeys.dilithiumPrivateKey);
+  const dilithiumSignature = await signManifest(manifestHashBytes, dilithiumKeyForSigning);
+
+  return {
+    encryptedFilename,
+    filenameSalt,
+    manifestHash,
+    manifestCreatedAt,
+    manifestSignatureEd25519: ed25519Signature,
+    manifestPublicKeyEd25519: privateKeys.ed25519PublicKey,
+    manifestSignatureDilithium: dilithiumSignature,
+    manifestPublicKeyDilithium: privateKeys.dilithiumPublicKey,
+    algorithmVersion: 'v3-hybrid-pqc-xchacha20',
+    nameHmac
+  };
+}
+
+/**
+ * Compute HMAC for a filename for zero-knowledge duplicate detection
+ * This matches the folder implementation exactly but for files
+ * @param filename - The plaintext filename
+ * @param folderId - The parent folder ID (or null for root)
+ * @returns Promise<string> - The HMAC hex string
+ */
+export async function computeFilenameHmac(filename: string, folderId: string | null = null): Promise<string> {
+  const { masterKeyManager } = await import('./master-key');
+  const masterKey = masterKeyManager.getMasterKey();
+
+  // Normalize filename for consistent HMAC computation
+  const normalizedName = filename.toLowerCase().normalize('NFC');
+  
+  // Derive HMAC key using HKDF - same as folder implementation
+  const hmacKey = await deriveHKDFKey(masterKey, 'EllipticcDrive-DuplicateCheck-v1', `filename-hmac-key||${folderId || 'root'}`, 32);
+  
+  // Compute HMAC using normalized filename
+  const nameHmacBytes = await crypto.subtle.sign('HMAC', hmacKey, new TextEncoder().encode(normalizedName));
+  const nameHmac = Array.from(new Uint8Array(nameHmacBytes))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+
+  return nameHmac;
+}
+

@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { IconFile, IconFolder, IconEdit } from "@tabler/icons-react"
 import { apiClient } from "@/lib/api"
-import { createSignedFolderManifest, decryptUserPrivateKeys } from "@/lib/crypto"
+import { createSignedFolderManifest, createSignedFileManifest, decryptUserPrivateKeys } from "@/lib/crypto"
 import { masterKeyManager } from "@/lib/master-key"
 import { toast } from "sonner"
 import { truncateFilename } from "@/lib/utils"
@@ -33,6 +33,10 @@ interface RenameModalProps {
     manifestPublicKeyDilithium: string;
     algorithmVersion: string;
     nameHmac: string;
+    encryptedFilename?: string;
+    filenameSalt?: string;
+    encryptedName?: string;
+    nameSalt?: string;
   }) => void
   open?: boolean
   onOpenChange?: (open: boolean) => void
@@ -93,7 +97,6 @@ export function RenameModal({
             })
             setUserDataLoaded(true)
           } else {
-            // console.warn('⚠️ Backend is using old encryption format. Folder renaming may fail until backend is updated.')
             setUserData(null)
             setUserDataLoaded(true)
             toast.error("Encryption format not supported. Please update your account.")
@@ -111,16 +114,14 @@ export function RenameModal({
   useEffect(() => {
     if (open) {
       setNewName(itemName)
-      // Fetch user data for folder renaming
-      if (itemType === "folder") {
-        fetchUserData()
-      }
+      // Fetch user data for both file and folder renaming (both need signing now)
+      fetchUserData()
       requestAnimationFrame(() => {
         inputRef.current?.focus()
         inputRef.current?.select()
       })
     }
-  }, [open, itemName, itemType])
+  }, [open, itemName])
 
   const handleRename = async () => {
     if (!newName.trim() || newName.trim() === itemName) {
@@ -130,22 +131,22 @@ export function RenameModal({
 
     setIsLoading(true)
     try {
+      if (!userData) {
+        toast.error("User data not loaded. Please try again.")
+        return
+      }
+
+      // Check if master key is available
+      if (!masterKeyManager.hasMasterKey()) {
+        toast.error("Session expired. Please login again.")
+        return
+      }
+
+      // Decrypt user's private keys using cached master key
+      const privateKeys = await decryptUserPrivateKeys(userData)
+
       if (itemType === "folder") {
         // For folders, create signed manifest
-        if (!userData) {
-          toast.error("User data not loaded. Please try again.")
-          return
-        }
-
-        // Check if master key is available
-        if (!masterKeyManager.hasMasterKey()) {
-          toast.error("Session expired. Please login again.")
-          return
-        }
-
-        // Decrypt user's private keys using cached master key
-        const privateKeys = await decryptUserPrivateKeys(userData)
-
         // Get the parent ID - for renaming, we keep the same parent
         // so we can pass null since the backend will preserve the current parentId
         const parentId = null;
@@ -165,8 +166,24 @@ export function RenameModal({
         // Call the onRename callback with manifest data
         onRename?.(signedManifest)
       } else {
-        // For files, just pass the new name
-        onRename?.(newName.trim())
+        // For files, create signed file manifest
+        // For file renaming, folderId is not needed in the manifest
+        const folderId = null;
+
+        // Create signed file manifest
+        const signedManifest = await createSignedFileManifest(
+          newName.trim(),
+          folderId,
+          {
+            ed25519PrivateKey: privateKeys.ed25519PrivateKey,
+            ed25519PublicKey: privateKeys.ed25519PublicKey,
+            dilithiumPrivateKey: privateKeys.dilithiumPrivateKey,
+            dilithiumPublicKey: privateKeys.dilithiumPublicKey
+          }
+        )
+
+        // Call the onRename callback with manifest data
+        onRename?.(signedManifest)
       }
 
       setOpen(false)

@@ -135,7 +135,19 @@ class ApiClient {
 
       if (!response.ok) {
         console.error('API Error:', { endpoint, status: response.status, error: data.error });
-        throw new Error(data.error || `HTTP ${response.status}`);
+        
+        // Return error response as-is (don't throw) so callers like initializeUploadSession can handle 409 conflicts
+        // The response should already have success: false from the backend
+        if (data.success !== undefined) {
+          return data;  // Return the backend response directly with success: false
+        }
+        
+        // If backend didn't include success field, add it
+        return {
+          success: false,
+          error: data.error || `HTTP ${response.status}`,
+          data: data
+        };
       }
 
       // Handle responses that already have success property
@@ -652,30 +664,31 @@ class ApiClient {
   }
 
   // File operations
-  async renameFile(fileId: string, newFilename: string): Promise<ApiResponse<{ newFilename: string }>> {
-    // Encrypt the new filename for zero-knowledge storage
-    const { encryptFilename } = await import('./crypto');
-    const { masterKeyManager } = await import('./master-key');
-
-    const masterKey = masterKeyManager.getMasterKey();
-    const { encryptedFilename, filenameSalt } = await encryptFilename(newFilename, masterKey);
-
+  async renameFile(fileId: string, data: {
+    encryptedFilename: string;
+    filenameSalt: string;
+    manifestHash: string;
+    manifestCreatedAt: number;
+    manifestSignatureEd25519: string;
+    manifestPublicKeyEd25519: string;
+    manifestSignatureDilithium: string;
+    manifestPublicKeyDilithium: string;
+    algorithmVersion: string;
+    nameHmac: string;
+  }): Promise<ApiResponse<{ newFilename: string }>> {
     return this.request(`/files/${fileId}/rename`, {
       method: 'PUT',
-      body: JSON.stringify({
-        encryptedFilename,
-        filenameSalt
-      }),
+      body: JSON.stringify(data),
     });
   }
 
-  async moveFileToFolder(fileId: string, folderId: string | null): Promise<ApiResponse<{
+  async moveFileToFolder(fileId: string, folderId: string | null, nameHmac?: string): Promise<ApiResponse<{
     fileId: string;
     folderId: string | null;
   }>> {
     return this.request(`/files/${fileId}/move`, {
       method: 'PUT',
-      body: JSON.stringify({ folderId }),
+      body: JSON.stringify({ folderId, nameHmac }),
     });
   }
 
@@ -725,6 +738,8 @@ class ApiClient {
 
   // Folder operations
   async renameFolder(folderId: string, data: {
+    encryptedName: string;
+    nameSalt: string;
     manifestHash: string;
     manifestCreatedAt: number;
     manifestSignatureEd25519: string;
@@ -1111,6 +1126,8 @@ class ApiClient {
     nonceWrapKyber: string;
     kyberCiphertext: string;
     kyberPublicKey: string;
+    nameHmac?: string; // Filename HMAC for zero-knowledge duplicate detection
+    forceReplace?: boolean; // Force replace existing file with same HMAC
   }): Promise<ApiResponse<{
     sessionId: string;
     fileId: string;

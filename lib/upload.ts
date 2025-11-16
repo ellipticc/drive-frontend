@@ -11,7 +11,7 @@
  */
 
 import { apiClient } from './api';
-import { encryptData, uint8ArrayToHex, hexToUint8Array, encryptFilename } from './crypto';
+import { encryptData, uint8ArrayToHex, hexToUint8Array, encryptFilename, computeFilenameHmac } from './crypto';
 import { keyManager } from './key-manager';
 import { masterKeyManager } from './master-key';
 import { createBLAKE3 } from 'hash-wasm';
@@ -103,7 +103,8 @@ export async function uploadEncryptedFile(
   userKeys?: UserKeys,
   onProgress?: (progress: UploadProgress) => void,
   abortSignal?: AbortSignal,
-  isPaused?: () => boolean
+  isPaused?: () => boolean,
+  conflictResolution?: 'replace' | 'keepBoth' | 'skip'
 ): Promise<UploadResult> {
   try {
     // 🔒 STRICT QUOTA ENFORCEMENT: Check storage quota BEFORE starting upload
@@ -119,8 +120,6 @@ export async function uploadEncryptedFile(
       const fileMB = Math.round(file.size / (1024 * 1024));
       throw new Error(`Storage quota exceeded. You have used ${usedMB}MB of ${quotaMB}MB. This file (${fileMB}MB) would exceed your limit.`);
     }
-
-    console.log(`✅ Quota check passed: ${Math.round(file.size / (1024 * 1024))}MB file can be uploaded`);
 
     // Get user keys from KeyManager if not provided
     const keys = userKeys || await keyManager.getUserKeys();
@@ -221,7 +220,7 @@ export async function uploadEncryptedFile(
     }
 
     // Stage 4: Initialize upload session with backend
-    const session = await initializeUploadSession(file, folderId, processedChunks, encryptedChunks, sha256Hash, keys);
+    const session = await initializeUploadSession(file, folderId, processedChunks, encryptedChunks, sha256Hash, keys, conflictResolution);
 
     // Check for abort before uploading chunks
     if (abortSignal?.aborted) {
@@ -259,6 +258,11 @@ export async function uploadEncryptedFile(
     // Check if this was a user cancellation
     if (abortSignal?.aborted) {
       throw new Error('Upload cancelled by user');
+    }
+
+    // Re-throw FILE_CONFLICT errors directly (don't wrap them)
+    if (error instanceof Error && error.message === 'FILE_CONFLICT') {
+      throw error;
     }
 
     // console.error('Upload failed:', error);
@@ -323,7 +327,8 @@ async function initializeUploadSession(
   chunks: ChunkInfo[],
   encryptedChunks: Uint8Array[],
   sha256Hash: string,
-  keys: UserKeys
+  keys: UserKeys,
+  conflictResolution?: 'replace' | 'keepBoth' | 'skip'
 ): Promise<UploadSession> {
   // Compute SHA256 hashes for each encrypted chunk
   const chunkHashes: string[] = [];
@@ -344,6 +349,17 @@ async function initializeUploadSession(
   const fileNoncePrefix = new Uint8Array(16);
   crypto.getRandomValues(fileNoncePrefix);
 
+  // Handle conflict resolution
+  let actualFile = file;
+  if (conflictResolution === 'keepBoth') {
+    // Generate a new filename with suffix
+    const nameParts = file.name.split('.');
+    const extension = nameParts.length > 1 ? '.' + nameParts.pop() : '';
+    const baseName = nameParts.join('.');
+    const newName = `${baseName} (1)${extension}`;
+    actualFile = new File([file], newName, { type: file.type });
+  }
+
   // ENCRYPT FILENAME - ZERO-KNOWLEDGE METADATA
   // Get master key from cache to encrypt filename
   let encryptedFilename: string;
@@ -353,7 +369,7 @@ async function initializeUploadSession(
     const masterKey = masterKeyManager.getMasterKey();
     console.log('Master key retrieved for filename encryption');
     
-    const encrypted = await encryptFilename(file.name, masterKey);
+    const encrypted = await encryptFilename(actualFile.name, masterKey);
     encryptedFilename = encrypted.encryptedFilename;
     filenameSalt = encrypted.filenameSalt;
     
@@ -377,8 +393,8 @@ async function initializeUploadSession(
   const manifestCreatedAt = Math.floor(Date.now() / 1000);
   const canonicalManifest = {
     filename: encryptedFilename, // Use encrypted filename for manifest verification (matches database)
-    size: file.size,
-    mimeType: file.type || 'application/octet-stream',
+    size: actualFile.size,
+    mimeType: actualFile.type || 'application/octet-stream',
     sha256Hash: sha256Hash,
     created: manifestCreatedAt,
     version: '2.0-file',
@@ -416,12 +432,15 @@ async function initializeUploadSession(
   // Encrypt CEK using the Kyber shared secret with XChaCha20-Poly1305
   const { encryptData } = await import('./crypto');
   const cekEncryption = encryptData(keys.cek, kyberSharedSecret);
+
+  // COMPUTE FILENAME HMAC FOR DUPLICATE DETECTION (ZERO-KNOWLEDGE)
+  const filenameHmac = await computeFilenameHmac(actualFile.name, folderId);
   
   const response = await apiClient.initializeUploadSession({
     encryptedFilename: encryptedFilename,
     filenameSalt: filenameSalt,
-    mimetype: file.type || 'application/octet-stream',
-    fileSize: file.size,
+    mimetype: actualFile.type || 'application/octet-stream',
+    fileSize: actualFile.size,
     chunkCount: chunks.length,
     sha256sum: sha256Hash,
     chunks: chunkHashes.map((hash, index) => ({
@@ -446,10 +465,25 @@ async function initializeUploadSession(
     wrappedCekKyber: '', // Classical wrapped CEK (currently using Kyber approach)
     nonceWrapKyber: cekEncryption.nonce, // Nonce for Kyber CEK encryption
     kyberCiphertext: uint8ArrayToHex(kyberCiphertext), // Kyber encapsulation ciphertext
-    kyberPublicKey: keys.keypairs.kyberPublicKey
+    kyberPublicKey: keys.keypairs.kyberPublicKey,
+    nameHmac: filenameHmac,  // Add filename HMAC for duplicate detection
+    forceReplace: conflictResolution === 'replace'  // Add force replace flag
   });
 
   if (!response.success) {
+    // Check if this is a conflict error (409)
+    if (response.error && (response.error.includes('already exists') || response.error.includes('409') || response.error === 'A file with this name already exists in the destination folder')) {
+      // Throw a special conflict error that can be caught by the UI
+      const conflictError = new Error('FILE_CONFLICT');
+      (conflictError as any).conflictInfo = {
+        type: 'file',
+        name: file.name,
+        existingPath: folderId ? `Folder ${folderId}` : 'My Files',
+        newPath: folderId ? `Folder ${folderId}` : 'My Files',
+        folderId: folderId
+      };
+      throw conflictError;
+    }
     throw new Error('Failed to initialize upload session: ' + (response.error || 'Unknown error'));
   }
 
