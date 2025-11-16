@@ -1,4 +1,4 @@
-# EllipticDrive
+# Ellipticc Drive
 
 Zero-knowledge encrypted file storage platform.
 
