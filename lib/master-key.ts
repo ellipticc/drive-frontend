@@ -9,6 +9,23 @@ import { deriveEncryptionKey } from './crypto';
 class MasterKeyManager {
   private static readonly MASTER_KEY_STORAGE_KEY = 'master_key';
   private static readonly ACCOUNT_SALT_STORAGE_KEY = 'account_salt';
+  private storage: Storage | null = null;
+
+  // Set storage type (localStorage or sessionStorage)
+  setStorage(storage: Storage): void {
+    this.storage = storage;
+  }
+
+  // Get current storage, defaulting to localStorage if not set
+  private getStorage(): Storage {
+    if (this.storage) return this.storage;
+    // Default to localStorage, but only access it on client side
+    if (typeof window !== 'undefined') {
+      return localStorage;
+    }
+    // This should never happen in practice, but provide a fallback
+    throw new Error('Storage not available');
+  }
 
   /**
    * Cache an existing master key (for recovery scenarios)
@@ -16,11 +33,11 @@ class MasterKeyManager {
    */
   cacheExistingMasterKey(masterKey: Uint8Array, accountSalt: string): void {
     try {
-      // Store in localStorage as base64 for cross-tab persistence
+      // Store in storage as base64 for persistence
       const binaryString = String.fromCharCode(...masterKey);
       const masterKeyBase64 = btoa(binaryString);
-      localStorage.setItem(MasterKeyManager.MASTER_KEY_STORAGE_KEY, masterKeyBase64);
-      localStorage.setItem(MasterKeyManager.ACCOUNT_SALT_STORAGE_KEY, accountSalt);
+      this.getStorage().setItem(MasterKeyManager.MASTER_KEY_STORAGE_KEY, masterKeyBase64);
+      this.getStorage().setItem(MasterKeyManager.ACCOUNT_SALT_STORAGE_KEY, accountSalt);
 
     } catch (error) {
       // console.error('Failed to cache existing master key:', error);
@@ -33,7 +50,7 @@ class MasterKeyManager {
    * Throws error if master key is not cached (user not logged in properly)
    */
   getMasterKey(): Uint8Array {
-    const masterKeyBase64 = localStorage.getItem(MasterKeyManager.MASTER_KEY_STORAGE_KEY);
+    const masterKeyBase64 = this.getStorage().getItem(MasterKeyManager.MASTER_KEY_STORAGE_KEY);
     if (!masterKeyBase64) {
       throw new Error('Master key not cached. Please login first.');
     }
@@ -47,7 +64,7 @@ class MasterKeyManager {
       }
       return bytes;
     } catch (error) {
-      // console.error('Failed to decode master key from localStorage:', error);
+      // console.error('Failed to decode master key from storage:', error);
       throw new Error('Invalid master key in cache. Please login again.');
     }
   }
@@ -56,15 +73,15 @@ class MasterKeyManager {
    * Check if master key is cached
    */
   hasMasterKey(): boolean {
-    return localStorage.getItem(MasterKeyManager.MASTER_KEY_STORAGE_KEY) !== null;
+    return this.getStorage().getItem(MasterKeyManager.MASTER_KEY_STORAGE_KEY) !== null;
   }
 
   /**
    * Clear cached master key (logout)
    */
   clearMasterKey(): void {
-    localStorage.removeItem(MasterKeyManager.MASTER_KEY_STORAGE_KEY);
-    localStorage.removeItem(MasterKeyManager.ACCOUNT_SALT_STORAGE_KEY);
+    this.getStorage().removeItem(MasterKeyManager.MASTER_KEY_STORAGE_KEY);
+    this.getStorage().removeItem(MasterKeyManager.ACCOUNT_SALT_STORAGE_KEY);
   }
 
   /**
@@ -88,7 +105,7 @@ class MasterKeyManager {
    * Get account salt
    */
   getAccountSalt(): string | null {
-    return localStorage.getItem(MasterKeyManager.ACCOUNT_SALT_STORAGE_KEY);
+    return this.getStorage().getItem(MasterKeyManager.ACCOUNT_SALT_STORAGE_KEY);
   }
 
   /**

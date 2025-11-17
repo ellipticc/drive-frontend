@@ -44,9 +44,26 @@ export interface FileItem {
 
 class ApiClient {
   private baseURL: string;
+  private storage: Storage | null = null;
 
   constructor(baseURL: string) {
     this.baseURL = baseURL;
+  }
+
+  // Set storage type (localStorage or sessionStorage)
+  setStorage(storage: Storage): void {
+    this.storage = storage;
+  }
+
+  // Get current storage, defaulting to localStorage if not set
+  private getStorage(): Storage {
+    if (this.storage) return this.storage;
+    // Default to localStorage, but only access it on client side
+    if (typeof window !== 'undefined') {
+      return localStorage;
+    }
+    // This should never happen in practice, but provide a fallback
+    throw new Error('Storage not available');
   }
 
   private isTokenExpired(token: string): boolean {
@@ -199,8 +216,8 @@ class ApiClient {
   private getToken(): string | null {
     if (typeof window === 'undefined') return null;
 
-    // Try to get from localStorage first
-    const token = localStorage.getItem('auth_token');
+    // Try to get from current storage first
+    const token = this.getStorage().getItem('auth_token');
     if (token) return token;
 
     // Fallback to cookies
@@ -218,7 +235,7 @@ class ApiClient {
   private setToken(token: string): void {
     if (typeof window === 'undefined') return;
 
-    localStorage.setItem('auth_token', token);
+    this.getStorage().setItem('auth_token', token);
     // Also set as httpOnly cookie for security
     document.cookie = `auth_token=${encodeURIComponent(token)}; path=/; secure; samesite=strict`;
   }
@@ -226,7 +243,7 @@ class ApiClient {
   private clearToken(): void {
     if (typeof window === 'undefined') return;
 
-    localStorage.removeItem('auth_token');
+    this.getStorage().removeItem('auth_token');
     document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
   }
 

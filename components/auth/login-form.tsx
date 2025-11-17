@@ -26,6 +26,7 @@ import { keyManager } from "@/lib/key-manager"
 import { Loader2 } from "lucide-react"
 import { SIWELoginButton } from "./siwe-login-button"
 import { GoogleOAuthButton } from "./google-oauth-button"
+import { Switch } from "@/components/ui/switch"
 
 export function LoginForm({
   className,
@@ -39,26 +40,31 @@ export function LoginForm({
     email: "",
     password: ""
   })
+  const [keepSignedIn, setKeepSignedIn] = useState(false)
 
   // Check if user is already authenticated with cached credentials
   useEffect(() => {
     const checkAndRedirect = async () => {
       try {
-        // Check if JWT token exists and is valid
-        const token = localStorage.getItem('auth_token')
-        const masterKey = localStorage.getItem('master_key')
-        const accountSalt = localStorage.getItem('account_salt')
+        // Check if JWT token exists and is valid in either localStorage or sessionStorage
+        const localToken = localStorage.getItem('auth_token')
+        const sessionToken = sessionStorage.getItem('auth_token')
+        const token = localToken || sessionToken
 
-        console.log('Login page auth check:', {
-          hasToken: !!token,
-          hasMasterKey: !!masterKey,
-          hasAccountSalt: !!accountSalt,
-          token: token ? `${token.substring(0, 50)}...` : null,
-          accountSalt: accountSalt ? `${accountSalt.substring(0, 20)}...` : null
-        })
+        const localMasterKey = localStorage.getItem('master_key')
+        const sessionMasterKey = sessionStorage.getItem('master_key')
+        const masterKey = localMasterKey || sessionMasterKey
+
+        const localAccountSalt = localStorage.getItem('account_salt')
+        const sessionAccountSalt = sessionStorage.getItem('account_salt')
+        const accountSalt = localAccountSalt || sessionAccountSalt
 
         if (token && masterKey && accountSalt) {
           console.log('All credentials found! Redirecting to dashboard...')
+          // Determine storage type based on where credentials were found
+          const storage = (sessionToken && sessionMasterKey && sessionAccountSalt) ? sessionStorage : localStorage;
+          apiClient.setStorage(storage);
+          masterKeyManager.setStorage(storage);
           // Token and master key found in cache - user is authenticated
           // Silently redirect to dashboard with loading spinner
           router.push('/')
@@ -102,6 +108,11 @@ export function LoginForm({
 
       const { token, user } = loginResult
 
+      // Set storage type based on keepSignedIn preference
+      const storage = keepSignedIn ? localStorage : sessionStorage;
+      apiClient.setStorage(storage);
+      masterKeyManager.setStorage(storage);
+
       // Store authentication token
       apiClient.setAuthToken(token)
 
@@ -109,13 +120,6 @@ export function LoginForm({
       if (user.crypto_keypairs?.pqcKeypairs) {
         const requiredKeys = ['ed25519', 'x25519', 'kyber', 'dilithium'];
         const missingKeys = requiredKeys.filter(key => !user.crypto_keypairs.pqcKeypairs[key]);
-        
-        console.log('🔐 Login: Validating crypto keypairs:', {
-          ed25519EncryptedPrivateKeyLength: user.crypto_keypairs.pqcKeypairs.ed25519?.encryptedPrivateKey?.length || 0,
-          x25519EncryptedPrivateKeyLength: user.crypto_keypairs.pqcKeypairs.x25519?.encryptedPrivateKey?.length || 0,
-          kyberEncryptedPrivateKeyLength: user.crypto_keypairs.pqcKeypairs.kyber?.encryptedPrivateKey?.length || 0,
-          dilithiumEncryptedPrivateKeyLength: user.crypto_keypairs.pqcKeypairs.dilithium?.encryptedPrivateKey?.length || 0
-        });
         
         if (missingKeys.length > 0) {
           setError(`Missing cryptographic keys: ${missingKeys.join(', ')}`);
@@ -313,6 +317,21 @@ export function LoginForm({
                   value={formData.password}
                   onChange={handleInputChange}
                 />
+              </Field>
+              <Field>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="keep-signed-in"
+                    checked={keepSignedIn}
+                    onCheckedChange={setKeepSignedIn}
+                  />
+                  <FieldLabel htmlFor="keep-signed-in" className="text-sm font-normal">
+                    Keep me signed in
+                  </FieldLabel>
+                </div>
+                <FieldDescription className="text-xs">
+                  Stay logged in across browser sessions. If unchecked, you'll be logged out when you close the tab.
+                </FieldDescription>
               </Field>
               {error && (
                 <FieldDescription className="text-red-500 text-center">
