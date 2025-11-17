@@ -26,8 +26,11 @@ export function GoogleOAuthButton({ context = 'login' }: { context?: 'login' | '
     setError('');
 
     try {
+      // Get referral code from sessionStorage if available
+      const referralCode = sessionStorage.getItem('referral_code');
+      
       // Get the Google OAuth authorization URL from backend via apiClient
-      const response = await apiClient.getGoogleOAuthUrl();
+      const response = await apiClient.getGoogleOAuthUrl(referralCode || undefined);
 
       if (!response.success || !response.data?.authUrl) {
         throw new Error(response.error || 'Failed to initiate Google OAuth');

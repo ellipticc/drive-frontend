@@ -36,7 +36,11 @@ export function SIWELoginButton({ onSuccess, onError, context = 'login' }: SIWEL
 
       // Perform SIWE login
       const siwe = new SIWE(1) // Mainnet
-      const loginResult = await siwe.login()
+      
+      // Get referral code from sessionStorage if available
+      const referralCode = sessionStorage.getItem('referral_code') || undefined;
+      
+      const loginResult = await siwe.login(referralCode)
 
       if (!loginResult.success || !loginResult.token || !loginResult.user) {
         const errorMsg = loginResult.error || "Login failed"

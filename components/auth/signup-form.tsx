@@ -220,9 +220,6 @@ export function SignupForm({
           accountSalt: tempAccountSaltHex,  // Store as HEX, not base64
           pqcKeypairs: keypairs.pqcKeypairs,
           mnemonicHash,  // SHA256(mnemonic) for zero-knowledge verification
-          encryptedMnemonic: '', // Not used - we only send mnemonicHash for zero-knowledge verification
-          mnemonicSalt: '',
-          mnemonicIv: '',
           encryptedRecoveryKey,  // RK encrypted with RKEK(mnemonic)
           recoveryKeyNonce,      // Nonce for decrypting recovery key
           encryptedMasterKey,    // MK encrypted with RK

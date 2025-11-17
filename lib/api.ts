@@ -499,9 +499,6 @@ class ApiClient {
     accountSalt: string;
     pqcKeypairs: any;
     mnemonicHash?: string;    // SHA256(mnemonic) for zero-knowledge verification
-    encryptedMnemonic?: string;
-    mnemonicSalt?: string;
-    mnemonicIv?: string;
     encryptedMasterKey?: string;  // For MetaMask users / recovery
     masterKeySalt?: string;        // For MetaMask users / recovery (can include masterKeyNonce in JSON)
     masterKeyNonce?: string;       // Nonce for encrypting master key with recovery key
@@ -1499,10 +1496,11 @@ class ApiClient {
   }
 
   // OAuth endpoints
-  async getGoogleOAuthUrl(): Promise<ApiResponse<{
+  async getGoogleOAuthUrl(referralCode?: string): Promise<ApiResponse<{
     authUrl: string;
   }>> {
-    return this.request('/auth/oauth/google/url', {
+    const params = referralCode ? `?referralCode=${encodeURIComponent(referralCode)}` : '';
+    return this.request(`/auth/oauth/google/url${params}`, {
       method: 'GET',
     });
   }

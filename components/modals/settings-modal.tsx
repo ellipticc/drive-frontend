@@ -1,11 +1,10 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import React, { useState, useRef, useEffect } from 'react'
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import {
   Shield,
-  Eye,
   RotateCcwKeyIcon,
   ShieldUser
 } from "lucide-react"
@@ -46,6 +45,7 @@ import { useTheme } from "next-themes"
 import { getDiceBearAvatar } from "@/lib/avatar"
 import { useUser } from "@/components/user-context"
 import { getInitials } from "@/components/layout/navigation/nav-user"
+import { useGlobalUpload } from "@/components/global-upload-context"
 
 interface SettingsModalProps {
   children?: React.ReactNode
@@ -72,6 +72,7 @@ export function SettingsModal({
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const nameInputRef = useRef<HTMLInputElement>(null)
+  const { registerOnUploadComplete, unregisterOnUploadComplete } = useGlobalUpload()
 
   // Use external state if provided, otherwise internal state
   const open = externalOpen !== undefined ? externalOpen : internalOpen
@@ -145,14 +146,10 @@ export function SettingsModal({
   const [showRecoveryCodesModal, setShowRecoveryCodesModal] = useState(false)
   const [isLoadingRecoveryCodes, setIsLoadingRecoveryCodes] = useState(false)
 
-  // Recovery phrase state
-  const [showRecoveryPhrase, setShowRecoveryPhrase] = useState(false)
-  const [recoveryPhrase, setRecoveryPhrase] = useState("")
-  const [showMnemonic, setShowMnemonic] = useState(false)
-
   // Referral state
   const [referralCode, setReferralCode] = useState("")
   const [referralLink, setReferralLink] = useState("")
+  const [copiedLink, setCopiedLink] = useState(false)
   const [referralStats, setReferralStats] = useState<{
     totalReferrals: number
     completedReferrals: number
@@ -168,6 +165,22 @@ export function SettingsModal({
       nameInputRef.current.select()
     }
   }, [isEditingName])
+
+  // Register upload completion callback to refresh referral data
+  useEffect(() => {
+    const handleUploadComplete = (uploadId: string, result: any) => {
+      // Refresh referral data when any upload completes
+      if (activeTab === "referrals") {
+        loadReferralData()
+      }
+    }
+
+    registerOnUploadComplete(handleUploadComplete)
+
+    return () => {
+      unregisterOnUploadComplete(handleUploadComplete)
+    }
+  }, [activeTab, registerOnUploadComplete, unregisterOnUploadComplete])
 
   // Load TOTP status when modal opens
   useEffect(() => {
@@ -241,49 +254,27 @@ export function SettingsModal({
     }
   }
 
-  // Handle viewing recovery phrase
-  const handleShowRecoveryPhrase = () => {
-    const mnemonic = localStorage.getItem('recovery_mnemonic')
-    if (mnemonic) {
-      setRecoveryPhrase(mnemonic)
-      setShowRecoveryPhrase(true)
-    } else {
-      toast.error("Recovery phrase not found. Please re-login to generate it.")
-    }
+  // Format date for display
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return '-'
+    const date = new Date(dateString)
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   }
 
-  // Handle exporting recovery phrase as text file
-  const handleExportRecoveryPhrase = () => {
-    if (!recoveryPhrase) {
-      toast.error("Recovery phrase not found")
-      return
-    }
+  // Format time ago for display
+  const formatTimeAgo = (dateString: string | null) => {
+    if (!dateString) return '-'
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+    const diffMins = Math.floor(diffMs / (1000 * 60))
 
-    const element = document.createElement('a')
-    const file = new Blob([`Recovery Phrase\n\n${recoveryPhrase}\n\nKEEP THIS SAFE - Never share with anyone!`], { type: 'text/plain' })
-    const unixTimestamp = Math.floor(Date.now() / 1000)
-    const randomHex = Math.random().toString(16).slice(2, 8) // Random hex for uniqueness
-    element.href = URL.createObjectURL(file)
-    element.download = `recovery-phrase-${randomHex}-${unixTimestamp}.txt`
-    document.body.appendChild(element)
-    element.click()
-    document.body.removeChild(element)
-    toast.success("Recovery phrase exported!")
-  }
-
-  // Handle copying recovery phrase to clipboard
-  const handleCopyRecoveryPhrase = async () => {
-    if (!recoveryPhrase) {
-      toast.error("Recovery phrase not found")
-      return
-    }
-
-    try {
-      await navigator.clipboard.writeText(recoveryPhrase)
-      toast.success("Recovery phrase copied to clipboard!")
-    } catch (error) {
-      toast.error("Failed to copy recovery phrase")
-    }
+    if (diffDays > 0) return `${diffDays}d ago`
+    if (diffHours > 0) return `${diffHours}h ago`
+    if (diffMins > 0) return `${diffMins}m ago`
+    return 'just now'
   }
 
   // Copy referral code to clipboard
@@ -302,10 +293,35 @@ export function SettingsModal({
   const handleCopyReferralLink = async () => {
     try {
       await navigator.clipboard.writeText(referralLink)
+      setCopiedLink(true)
       toast.success("Referral link copied!")
+      setTimeout(() => setCopiedLink(false), 2000)
     } catch (error) {
       toast.error("Failed to copy referral link")
     }
+  }
+
+  // Format storage size for display
+  const formatStorageSize = (bytes: number): string => {
+    if (bytes === 0) return '0MB'
+    
+    const mb = bytes / (1024 * 1024)
+    if (mb < 1024) {
+      return `${Math.round(mb)}MB`
+    } else {
+      const gb = mb / 1024
+      return `${gb.toFixed(1)}GB`
+    }
+  }
+
+  // Extract display name from email (e.g., "john" from "john@doe.com")
+  const getDisplayNameFromEmail = (email: string): string => {
+    if (!email) return 'Unknown'
+    const atIndex = email.indexOf('@')
+    if (atIndex === -1) return email
+    const prefix = email.substring(0, atIndex)
+    // Capitalize first letter
+    return prefix.charAt(0).toUpperCase() + prefix.slice(1)
   }
 
   // Handle avatar click to open file picker
@@ -625,7 +641,7 @@ export function SettingsModal({
 
     setIsDeletingAccount(true)
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://drive.ellipticc.com/api/v1'}/auth/delete`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://drive.ellipticc.com/api/v1'}/auth/delete`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${apiClient.getAuthToken()}`,
@@ -762,7 +778,7 @@ export function SettingsModal({
       ) : (
         children
       )}
-      <DialogContent className="overflow-hidden p-0 md:max-h-[500px] md:max-w-[800px]">
+      <DialogContent className="overflow-hidden p-0 md:max-h-[700px] md:max-w-[1100px]">
         <DialogTitle className="sr-only">Settings</DialogTitle>
         <DialogDescription className="sr-only">
           Customize your settings here.
@@ -791,7 +807,7 @@ export function SettingsModal({
               </SidebarGroup>
             </SidebarContent>
           </Sidebar>
-          <main className="flex h-[480px] flex-1 flex-col overflow-hidden">
+          <main className="flex flex-1 flex-col overflow-hidden">
             <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-6">
               {activeTab === "general" && (
                 <div className="space-y-6">
@@ -1028,26 +1044,6 @@ export function SettingsModal({
                     )}
                   </div>
 
-                  {/* Recovery Phrase Section */}
-                  <div className="flex items-start justify-between border-t pt-6">
-                    <div className="flex items-start gap-3 flex-1">
-                      <IconLock className="h-5 w-5 text-muted-foreground mt-1" />
-                      <div>
-                        <p className="font-medium">Recovery Phrase</p>
-                        <p className="text-sm text-muted-foreground">
-                          View and export your 12-word backup recovery phrase
-                        </p>
-                      </div>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleShowRecoveryPhrase}
-                    >
-                      View & Export
-                    </Button>
-                  </div>
-
                   {/* Session Duration Configuration Section */}
                   <div className="flex items-center justify-between border-t pt-6">
                     <div className="flex items-center gap-3 flex-1">
@@ -1198,56 +1194,72 @@ export function SettingsModal({
                             onClick={handleCopyReferralLink}
                             className="px-3"
                           >
-                            <IconCopy className="h-4 w-4" />
+                            {copiedLink ? (
+                              <IconCheckmark className="h-4 w-4" />
+                            ) : (
+                              <IconCopy className="h-4 w-4" />
+                            )}
                           </Button>
                         </div>
                       </div>
 
-                      {/* Referral Stats */}
-                      {referralStats && (
+                      {/* Referral Stats - Now showing in the title */}
+
+                      {/* Recent Referrals Table */}
+                      {recentReferrals && recentReferrals.length > 0 && (
                         <div className="border-t pt-6 space-y-4">
-                          <h3 className="text-lg font-semibold">Your Referral Stats</h3>
-                          <div className="grid grid-cols-3 gap-4">
-                            <div className="p-4 bg-muted rounded-lg text-center">
-                              <p className="text-2xl font-bold">{referralStats.completedReferrals}</p>
-                              <p className="text-xs text-muted-foreground mt-1">Completed Referrals</p>
-                            </div>
-                            <div className="p-4 bg-muted rounded-lg text-center">
-                              <p className="text-2xl font-bold">{referralStats.totalEarningsMB}</p>
-                              <p className="text-xs text-muted-foreground mt-1">MB Earned</p>
-                            </div>
-                            <div className="p-4 bg-muted rounded-lg text-center">
-                              <p className="text-2xl font-bold">{Math.round((referralStats.totalEarningsMB / 10240) * 100)}%</p>
-                              <p className="text-xs text-muted-foreground mt-1">of 10GB Max</p>
-                            </div>
-                          </div>
-                          <div className="pt-4 text-sm text-muted-foreground">
-                            <p>You have {20 - referralStats.completedReferrals} referral slots remaining.</p>
+                          <h3 className="text-sm font-semibold">Referral History ({formatStorageSize((referralStats?.totalEarningsMB || 0) * 1024 * 1024)} of 10GB free space earned)</h3>
+                          <div className="border rounded-lg overflow-hidden">
+                            <table className="w-full text-sm">
+                              <thead className="bg-muted/50 border-b">
+                                <tr>
+                                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Name</th>
+                                  <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden sm:table-cell">Email</th>
+                                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+                                  <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden xs:table-cell">Date</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y">
+                                {recentReferrals.map((referral) => (
+                                  <tr key={referral.id} className="hover:bg-muted/30 transition-colors">
+                                    <td className="px-4 py-3">
+                                      <p className="font-medium text-sm">{referral.referredUser.name || getDisplayNameFromEmail(referral.referredUser.email)}</p>
+                                    </td>
+                                    <td className="px-4 py-3 hidden sm:table-cell">
+                                      <p className="text-xs text-muted-foreground">{referral.referredUser.email}</p>
+                                    </td>
+                                    <td className="px-4 py-3">
+                                      <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
+                                        referral.status === 'completed'
+                                          ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
+                                          : referral.status === 'pending'
+                                          ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+                                          : 'bg-slate-100 dark:bg-slate-900/30 text-slate-700 dark:text-slate-400'
+                                      }`}>
+                                        {referral.status === 'completed' ? '✓ Completed' : referral.status === 'pending' ? '○ Pending' : 'Cancelled'}
+                                      </span>
+                                    </td>
+                                    <td className="px-4 py-3 hidden xs:table-cell">
+                                      <p className="text-xs text-muted-foreground">
+                                        {referral.status === 'completed' && referral.completedAt
+                                          ? formatTimeAgo(referral.completedAt)
+                                          : formatTimeAgo(referral.createdAt)}
+                                      </p>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
                           </div>
                         </div>
                       )}
 
-                      {/* Recent Referrals */}
-                      {recentReferrals.length > 0 && (
-                        <div className="border-t pt-6 space-y-4">
-                          <h3 className="text-lg font-semibold">Recent Referrals</h3>
-                          <div className="space-y-3 max-h-48 overflow-y-auto">
-                            {recentReferrals.map((referral) => (
-                              <div key={referral.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                                <div className="flex-1 min-w-0">
-                                  <p className="font-medium text-sm truncate">{referral.referredUser.name}</p>
-                                  <p className="text-xs text-muted-foreground truncate">{referral.referredUser.email}</p>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                  <span className={`text-sm font-medium px-2 py-1 rounded text-white ${
-                                    referral.status === 'completed' ? 'bg-green-500' : 'bg-yellow-500'
-                                  }`}>
-                                    {referral.status === 'completed' ? '+500MB' : 'Pending'}
-                                  </span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
+                      {/* Empty Referrals State */}
+                      {recentReferrals.length === 0 && !isLoadingReferrals && (
+                        <div className="border-t pt-6">
+                          <p className="text-sm text-muted-foreground text-center py-8">
+                            No referrals yet. Share your referral link to get started!
+                          </p>
                         </div>
                       )}
                     </>
@@ -1738,66 +1750,6 @@ export function SettingsModal({
                 onClick={() => {
                   setShowRecoveryCodesModal(false)
                   setRecoveryCodes([])
-                }}
-              >
-                Close
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Recovery Phrase Modal */}
-        <Dialog open={showRecoveryPhrase} onOpenChange={setShowRecoveryPhrase}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Your Recovery Phrase</DialogTitle>
-              <DialogDescription>
-                This 12-word phrase can be used to recover your account. Keep it safe and never share it.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
-                <p className="text-sm text-destructive">
-                  <strong>⚠️ Warning:</strong> Anyone with this phrase can access your account. Never share it with anyone.
-                </p>
-              </div>
-              <div className="relative p-4 bg-muted rounded-lg">
-                <div className={`font-mono text-sm leading-relaxed ${!showMnemonic ? 'blur-sm' : ''}`}>
-                  {recoveryPhrase}
-                </div>
-                {!showMnemonic && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowMnemonic(true)}
-                    className="absolute inset-0 w-full h-full flex items-center justify-center hover:bg-black/5"
-                  >
-                    <Eye className="h-4 w-4 mr-2" />
-                    Click to reveal
-                  </Button>
-                )}
-              </div>
-            </div>
-            <DialogFooter className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={handleCopyRecoveryPhrase}
-                className="flex-1"
-              >
-                <IconCopy className="h-4 w-4 mr-2" />
-                Copy
-              </Button>
-              <Button
-                onClick={handleExportRecoveryPhrase}
-                className="flex-1"
-              >
-                Download
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowRecoveryPhrase(false)
-                  setShowMnemonic(false)
                 }}
               >
                 Close

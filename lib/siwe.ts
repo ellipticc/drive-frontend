@@ -179,7 +179,7 @@ export class SIWE {
   /**
    * Perform complete SIWE login flow
    */
-  async login(): Promise<SIWEResponse> {
+  async login(referralCode?: string): Promise<SIWEResponse> {
     try {
       // Step 1: Connect wallet
       const walletAddress = await this.connectWallet();
@@ -196,15 +196,22 @@ export class SIWE {
       const signature = await this.signMessage(formattedMessage);
 
       // Step 5: Verify signature on backend
+      const verifyPayload: any = {
+        walletAddress: walletAddress,
+        message: formattedMessage,
+        signature: signature,
+        nonceId: nonceId
+      };
+
+      // Include referral code if provided
+      if (referralCode) {
+        verifyPayload.referralCode = referralCode;
+      }
+
       const response = await fetch('/api/v1/auth/siwe/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          walletAddress: walletAddress,
-          message: formattedMessage,
-          signature: signature,
-          nonceId: nonceId
-        })
+        body: JSON.stringify(verifyPayload)
       });
 
       if (!response.ok) {
