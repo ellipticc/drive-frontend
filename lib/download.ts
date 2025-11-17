@@ -12,6 +12,7 @@
 import { apiClient } from './api';
 import { decryptData, uint8ArrayToHex, hexToUint8Array, decryptFilename } from './crypto';
 import { keyManager } from './key-manager';
+import { isTorAccess } from './tor-detection';
 
 // Utility function to convert Uint8Array to base64 safely (avoids stack overflow)
 function uint8ArrayToBase64(array: Uint8Array): string {
@@ -205,17 +206,14 @@ async function decryptChunksWithCEK(
 
     if (encryptedChunk.length > expectedSize) {
       const difference = encryptedChunk.length - expectedSize;
-      // console.warn(`⚠️ Chunk ${i} size discrepancy: expected ${expectedSize}, got ${encryptedChunk.length} (${difference} extra bytes)`);
 
       // If the difference is small (likely B2-added content), try to truncate
       if (difference <= 32) { // Allow up to 32 extra bytes for potential B2 metadata
-        processedChunk = encryptedChunk.slice(0, expectedSize);
-        // console.log(`✂️ Truncated chunk ${i} to expected size: ${processedChunk.length} bytes`);
       } else {
-        // console.warn(`⚠️ Large size difference (${difference} bytes), using full response but decryption may fail`);
+        // console.warn(`Large size difference (${difference} bytes), using full response but decryption may fail`);
       }
     } else if (encryptedChunk.length < expectedSize) {
-      // console.warn(`⚠️ Chunk ${i} smaller than expected: expected ${expectedSize}, got ${encryptedChunk.length}`);
+      // console.warn(`Chunk ${i} smaller than expected: expected ${expectedSize}, got ${encryptedChunk.length}`);
     }
 
     // Convert encrypted bytes to base64 string for decryption
@@ -226,11 +224,9 @@ async function decryptChunksWithCEK(
     try {
       decryptedData = decryptData(encryptedBase64, cek, chunkNonce);
     } catch (decryptError) {
-      // console.error(`❌ Decryption failed for chunk ${i}:`, decryptError);
 
       // If decryption failed and we have extra data, try with different truncation strategies
       if (encryptedChunk.length > expectedSize && expectedSize > 16) { // Ensure we have at least the auth tag
-        // console.log(`🔄 Retrying decryption with different truncation for chunk ${i}`);
 
         // Try truncating to expected size minus potential B2 trailer
         for (let offset = 0; offset < Math.min(32, encryptedChunk.length - expectedSize + 1); offset++) {
@@ -238,7 +234,6 @@ async function decryptChunksWithCEK(
             const truncatedChunk = encryptedChunk.slice(0, expectedSize - offset);
             const truncatedBase64 = uint8ArrayToBase64(truncatedChunk);
             decryptedData = decryptData(truncatedBase64, cek, chunkNonce);
-            // console.log(`✅ Decryption succeeded with ${offset} byte offset for chunk ${i}`);
             break;
           } catch (retryError) {
             // Continue trying different offsets
@@ -247,11 +242,9 @@ async function decryptChunksWithCEK(
 
         // If all truncation attempts failed, try with original full data as last resort
         if (!decryptedData) {
-          // console.log(`🔄 Last resort: trying decryption with full B2 response for chunk ${i}`);
           try {
             const fullBase64 = uint8ArrayToBase64(encryptedChunk);
             decryptedData = decryptData(fullBase64, cek, chunkNonce);
-            // console.log(`✅ Decryption succeeded with full B2 data for chunk ${i}`);
           } catch (finalError) {
             throw new Error(`Decryption failed for chunk ${i} after all attempts: ${finalError instanceof Error ? finalError.message : 'Unknown error'}`);
           }
@@ -266,10 +259,8 @@ async function decryptChunksWithCEK(
     }
 
     decryptedChunks.push(decryptedData);
-    // console.log(`🔓 Decrypted chunk ${i} (${processedChunk.length} → ${decryptedData.length} bytes)`);
   }
 
-  // console.log(`✅ Decrypted all ${encryptedChunks.length} chunks`);
   return decryptedChunks;
 }
 
@@ -411,19 +402,15 @@ async function unwrapCEK(encryption: DownloadEncryption, keypairs: any): Promise
     // If it's exactly double length (corrupted hex), try taking first half
     if (kyberCiphertext.length === 2176) { // 2 * 1088
       kyberCiphertext = kyberCiphertext.slice(0, 1088);
-      // console.log('✅ Recovered Kyber ciphertext from double-length corruption');
     } else {
       // Truncate to expected length
       kyberCiphertext = kyberCiphertext.slice(0, 1088);
-      // console.log('⚠️ Truncated corrupted Kyber ciphertext to 1088 bytes');
     }
   } else if (kyberCiphertext.length < 1088) {
-    // console.warn(`⚠️ Kyber ciphertext length ${kyberCiphertext.length} is less than expected 1088 bytes`);
     // Pad with zeros if too short
     const padded = new Uint8Array(1088);
     padded.set(kyberCiphertext);
     kyberCiphertext = padded;
-    // console.log('⚠️ Padded Kyber ciphertext to 1088 bytes');
   }
 
   const wrappedCek = encryption.wrappedCek;
@@ -454,16 +441,15 @@ async function downloadChunksFromB2(
     await semaphore.acquire();
 
     try {
-      // console.log(`📥 Downloading chunk ${getChunkIndex(chunk)} from B2 (${chunk.size} bytes)`);
 
-      const response = await fetch(chunk.getUrl);
+      const response = await fetch(chunk.getUrl, {
+        credentials: 'omit'
+      });
       if (!response.ok) {
         // console.error(`❌ Failed to download chunk ${getChunkIndex(chunk)}: ${response.status} ${response.statusText}`);
         // console.error('Response headers:', Object.fromEntries(response.headers.entries()));
         throw new Error(`Failed to download chunk ${getChunkIndex(chunk)}: ${response.status} ${response.statusText}`);
       }
-
-      // console.log(`📡 Response status: ${response.status}, content-type: ${response.headers.get('content-type')}, content-length: ${response.headers.get('content-length')}`);
 
       let encryptedData = new Uint8Array(await response.arrayBuffer());
 
@@ -507,7 +493,6 @@ async function downloadChunksFromB2(
         timeRemaining: Math.round(timeRemaining)
       });
 
-      // console.log(`✅ Downloaded chunk ${getChunkIndex(chunk)} (${encryptedData.length} bytes)`);
       return encryptedData;
 
     } catch (error) {
@@ -519,7 +504,6 @@ async function downloadChunksFromB2(
   });
 
   const encryptedChunks = await Promise.all(downloadPromises);
-  // console.log(`✅ Downloaded all ${totalChunks} chunks from B2 (${totalBytesDownloaded} bytes total)`);
 
   return encryptedChunks;
 }
@@ -563,12 +547,9 @@ async function decryptChunks(
       // If the difference is small (likely B2-added content), try to truncate
       if (difference <= 32) { // Allow up to 32 extra bytes for potential B2 metadata
         processedChunk = encryptedChunk.slice(0, expectedSize);
-        // console.log(`✂️ Truncated chunk ${i} to expected size: ${processedChunk.length} bytes`);
       } else {
-        // console.warn(`⚠️ Large size difference (${difference} bytes), using full response but decryption may fail`);
       }
     } else if (encryptedChunk.length < expectedSize) {
-      // console.warn(`⚠️ Chunk ${i} smaller than expected: expected ${expectedSize}, got ${encryptedChunk.length}`);
     }
 
     // Convert encrypted bytes to base64 string for decryption
@@ -583,7 +564,6 @@ async function decryptChunks(
 
       // If decryption failed and we have extra data, try with different truncation strategies
       if (encryptedChunk.length > expectedSize && expectedSize > 16) { // Ensure we have at least the auth tag
-        // console.log(`🔄 Retrying decryption with different truncation for chunk ${i}`);
 
         // Try truncating to expected size minus potential B2 trailer
         for (let offset = 0; offset < Math.min(32, encryptedChunk.length - expectedSize + 1); offset++) {
@@ -591,7 +571,6 @@ async function decryptChunks(
             const truncatedChunk = encryptedChunk.slice(0, expectedSize - offset);
             const truncatedBase64 = uint8ArrayToBase64(truncatedChunk);
             decryptedData = decryptData(truncatedBase64, cek, chunkNonce);
-            // console.log(`✅ Decryption succeeded with ${offset} byte offset for chunk ${i}`);
             break;
           } catch (retryError) {
             // Continue trying different offsets
@@ -600,11 +579,9 @@ async function decryptChunks(
 
         // If all truncation attempts failed, try with original full data as last resort
         if (!decryptedData) {
-          // console.log(`🔄 Last resort: trying decryption with full B2 response for chunk ${i}`);
           try {
             const fullBase64 = uint8ArrayToBase64(encryptedChunk);
             decryptedData = decryptData(fullBase64, cek, chunkNonce);
-            // console.log(`✅ Decryption succeeded with full B2 data for chunk ${i}`);
           } catch (finalError) {
             throw new Error(`Decryption failed for chunk ${i} after all attempts: ${finalError instanceof Error ? finalError.message : 'Unknown error'}`);
           }
@@ -619,10 +596,8 @@ async function decryptChunks(
     }
 
     decryptedChunks.push(decryptedData);
-    // console.log(`🔓 Decrypted chunk ${i} (${processedChunk.length} → ${decryptedData.length} bytes)`);
   }
 
-  // console.log(`✅ Decrypted all ${encryptedChunks.length} chunks`);
   return decryptedChunks;
 }
 
@@ -641,7 +616,6 @@ async function assembleFile(decryptedChunks: Uint8Array[], mimetype: string): Pr
   }
 
   const fileBlob = new Blob([fileData], { type: mimetype });
-  // console.log(`📦 Assembled file blob (${fileData.length} bytes, type: ${mimetype})`);
 
   return fileBlob;
 }
@@ -658,7 +632,6 @@ async function verifyFileIntegrity(blob: Blob, expectedSha256: string): Promise<
     throw new Error(`File integrity check failed: expected ${expectedSha256}, got ${actualSha256}`);
   }
 
-  // console.log(`✅ File integrity verified (SHA-256: ${actualSha256})`);
 }
 
 /**
@@ -681,7 +654,6 @@ export async function downloadFileToBrowser(
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 
-  // console.log(`📥 Triggered browser download: ${result.filename} (${result.size} bytes)`);
 }
 
 /**
@@ -848,8 +820,6 @@ export async function downloadFolderAsZip(
 
     onProgress?.({ stage: 'complete', overallProgress: 100 });
 
-    // console.log(`📦 Downloaded folder as ZIP: ${zipFilename} (${allFiles.length} files, ${allFolders.length} folders, ${totalDownloadedBytes} bytes)`);
-
   } catch (error) {
     // console.error('Folder ZIP download failed:', error);
     throw new Error(`Folder download failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -958,8 +928,6 @@ export async function downloadMultipleItemsAsZip(
 
     onProgress?.({ stage: 'complete', overallProgress: 100 });
 
-    // console.log(`📦 Downloaded ${allFiles.length} items as ZIP: ${zipName} (${totalDownloadedBytes} bytes)`);
-
   } catch (error) {
     // console.error('Bulk ZIP download failed:', error);
     throw new Error(`Bulk download failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -1059,8 +1027,6 @@ export async function previewPDFFile(
     setTimeout(() => {
       URL.revokeObjectURL(blobUrl);
     }, 1000);
-
-    // console.log(`Opened PDF preview: ${result.filename} (${result.size} bytes)`);
 
   } catch (error) {
     console.error('PDF preview failed:', error);

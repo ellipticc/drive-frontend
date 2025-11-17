@@ -589,7 +589,8 @@ async function uploadChunksToB2(
         headers: {
           'Content-Type': 'application/octet-stream'
         },
-        signal: abortSignal // Pass abort signal to fetch
+        signal: abortSignal, // Pass abort signal to fetch
+        credentials: 'omit'
       });
       
       if (!response.ok) {

@@ -3,6 +3,8 @@
  * 
  * This utility detects if the application is being accessed through a TOR hidden service
  * and automatically routes API requests through the corresponding TOR backend.
+ * 
+ * Note: B2 storage requests are always made directly to Backblaze, not proxied.
  */
 
 /**
@@ -18,7 +20,6 @@ export function isTorAccess(): boolean {
   const hostname = window.location.hostname;
   return hostname.endsWith('.onion');
 }
-
 /**
  * Gets the appropriate API base URL based on access method (clearnet vs TOR)
  * 
@@ -30,6 +31,8 @@ export function isTorAccess(): boolean {
  * - CORS with `*` and credentials is not allowed
  * - A proxy on the same TOR network can reach the TOR backend directly
  * - By routing through the frontend's Next.js server, requests become same-origin
+ * 
+ * Note: B2 storage requests always go directly to Backblaze, not through this proxy.
  * 
  * @returns {string} The API base URL to use
  */
