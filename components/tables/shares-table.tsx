@@ -183,7 +183,6 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
 
             if (response.success) {
                 // console.log(`${itemType} details:`, response.data);
-                toast.info(`${itemType} details loaded`);
                 setSelectedItemForDetails({ id: itemId, name: itemName, type: itemType });
                 setDetailsModalOpen(true);
             } else {

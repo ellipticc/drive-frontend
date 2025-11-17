@@ -606,7 +606,6 @@ export const Table01DividerLineSm = ({
 
             if (response.success) {
                 // console.log(`${itemType} details:`, response.data);
-                toast.info(`${itemType} details loaded`);
                 // Here you would open a details modal with the information
                 setSelectedItemForDetails({ id: itemId, name: itemName, type: itemType });
                 setDetailsModalOpen(true);
