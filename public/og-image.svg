@@ -1,9 +1,0 @@
-<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="1200" height="630" fill="#000000"/>
-  <text x="600" y="280" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-size="48" font-weight="bold">Ellipticc Drive</text>
-  <text x="600" y="340" text-anchor="middle" fill="#cccccc" font-family="Arial, sans-serif" font-size="24">Secure, Encrypted File Storage</text>
-  <text x="600" y="380" text-anchor="middle" fill="#999999" font-family="Arial, sans-serif" font-size="18">End-to-End Encrypted • Zero-Knowledge Architecture</text>
-  <circle cx="600" cy="450" r="30" fill="#ffffff" opacity="0.1"/>
-  <circle cx="550" cy="450" r="25" fill="#ffffff" opacity="0.15"/>
-  <circle cx="650" cy="450" r="25" fill="#ffffff" opacity="0.15"/>
-</svg>

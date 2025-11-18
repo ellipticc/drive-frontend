@@ -31,7 +31,7 @@ export const metadata: Metadata = {
     template: "%s | Ellipticc Drive"
   },
   description: "Secure, end-to-end encrypted file storage and collaboration platform. Keep your files private with military-grade encryption and zero-knowledge architecture.",
-  keywords: ["encrypted file storage", "secure cloud storage", "zero-knowledge encryption", "privacy-focused", "file sharing", "end-to-end encryption"],
+  keywords: ["encrypted file storage", "secure cloud storage", "zero-knowledge encryption", "privacy-focused", "file sharing", "end-to-end encryption", "secure collaboration", "military-grade security"],
   authors: [{ name: "Ellipticc" }],
   creator: "Ellipticc",
   publisher: "Ellipticc",
@@ -57,23 +57,38 @@ export const metadata: Metadata = {
     locale: 'en_US',
     url: '/',
     title: 'Ellipticc Drive - Secure, Encrypted File Storage',
-    description: 'Secure, end-to-end encrypted file storage and collaboration platform. Keep your files private with military-grade encryption.',
+    description: 'Secure, end-to-end encrypted file storage and collaboration platform. Keep your files private with military-grade encryption and zero-knowledge architecture.',
     siteName: 'Ellipticc Drive',
     images: [
       {
-        url: '/og-image.svg',
+        url: '/og-image.png',
         width: 1200,
         height: 630,
         alt: 'Ellipticc Drive - Secure File Storage',
+        type: 'image/png',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Ellipticc Drive - Secure, Encrypted File Storage',
-    description: 'Secure, end-to-end encrypted file storage and collaboration platform.',
-    images: ['/og-image.svg'],
+    description: 'Secure, end-to-end encrypted file storage and collaboration platform. Keep your files private with military-grade encryption.',
+    images: ['/og-image.png'],
     creator: '@ellipticc',
+    site: '@ellipticc',
+  },
+  other: {
+    'og:image:secure_url': `${process.env.NEXT_PUBLIC_BASE_URL || 'https://ellipticc.com'}/og-image.png`,
+    'og:image:width': '1200',
+    'og:image:height': '630',
+    'og:image:alt': 'Ellipticc Drive - Secure File Storage',
+    'og:type': 'website',
+    'og:site_name': 'Ellipticc Drive',
+    'og:locale': 'en_US',
+    'twitter:image:alt': 'Ellipticc Drive - Secure File Storage',
+    'twitter:card': 'summary_large_image',
+    'twitter:site': '@ellipticc',
+    'twitter:creator': '@ellipticc',
   },
   robots: {
     index: true,
@@ -91,6 +106,7 @@ export const metadata: Metadata = {
   verification: {
     google: process.env.GOOGLE_SITE_VERIFICATION,
   },
+  category: 'technology',
 };
 
 export default function RootLayout({
@@ -130,12 +146,64 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        {/* Primary Meta Tags */}
+        <meta name="title" content="Ellipticc Drive - Secure, Encrypted File Storage" />
+        <meta name="description" content="Secure, end-to-end encrypted file storage and collaboration platform. Keep your files private with military-grade encryption and zero-knowledge architecture." />
+        <meta name="keywords" content="encrypted file storage, secure cloud storage, zero-knowledge encryption, privacy-focused, file sharing, end-to-end encryption, secure collaboration, military-grade security" />
+        <meta name="author" content="Ellipticc" />
+        <meta name="robots" content="index, follow" />
+        <meta name="language" content="English" />
+        <meta name="revisit-after" content="7 days" />
+        <meta name="theme-color" content="#000000" />
+
+        {/* Open Graph / Facebook */}
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content={`${process.env.NEXT_PUBLIC_BASE_URL || 'https://ellipticc.com'}/`} />
+        <meta property="og:title" content="Ellipticc Drive - Secure, Encrypted File Storage" />
+        <meta property="og:description" content="Secure, end-to-end encrypted file storage and collaboration platform. Keep your files private with military-grade encryption and zero-knowledge architecture." />
+        <meta property="og:image" content={`${process.env.NEXT_PUBLIC_BASE_URL || 'https://ellipticc.com'}/og-image.png`} />
+        <meta property="og:image:secure_url" content={`${process.env.NEXT_PUBLIC_BASE_URL || 'https://ellipticc.com'}/og-image.png`} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ellipticc Drive - Secure File Storage" />
+        <meta property="og:image:type" content="image/png" />
+        <meta property="og:site_name" content="Ellipticc Drive" />
+        <meta property="og:locale" content="en_US" />
+
+        {/* Twitter */}
+        <meta property="twitter:card" content="summary_large_image" />
+        <meta property="twitter:url" content={`${process.env.NEXT_PUBLIC_BASE_URL || 'https://ellipticc.com'}/`} />
+        <meta property="twitter:title" content="Ellipticc Drive - Secure, Encrypted File Storage" />
+        <meta property="twitter:description" content="Secure, end-to-end encrypted file storage and collaboration platform. Keep your files private with military-grade encryption." />
+        <meta property="twitter:image" content={`${process.env.NEXT_PUBLIC_BASE_URL || 'https://ellipticc.com'}/og-image.png`} />
+        <meta property="twitter:image:alt" content="Ellipticc Drive - Secure File Storage" />
+        <meta property="twitter:site" content="@ellipticc" />
+        <meta property="twitter:creator" content="@ellipticc" />
+
+        {/* Additional Social Media */}
+        <meta name="twitter:domain" content={process.env.NEXT_PUBLIC_BASE_URL?.replace('https://', '') || 'ellipticc.com'} />
+
+        {/* Security & Performance */}
+        <meta httpEquiv="X-Content-Type-Options" content="nosniff" />
+        <meta httpEquiv="X-Frame-Options" content="DENY" />
+        <meta httpEquiv="X-XSS-Protection" content="1; mode=block" />
+        <meta httpEquiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
+
+        {/* Mobile Optimization */}
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="Ellipticc Drive" />
+
+        {/* Structured Data */}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
             __html: JSON.stringify(structuredData),
           }}
         />
+
         {/* Google Analytics 4 */}
         <script async src="https://www.googletagmanager.com/gtag/js?id=G-NSQ52X2GM3"></script>
         <script
