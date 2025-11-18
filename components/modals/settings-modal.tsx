@@ -1213,7 +1213,7 @@ export function SettingsModal({
                             <table className="w-full text-sm">
                               <thead className="bg-muted/50 border-b">
                                 <tr>
-                                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Name</th>
+                                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">User</th>
                                   <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden sm:table-cell">Email</th>
                                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
                                   <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden xs:table-cell">Date</th>
@@ -1223,10 +1223,23 @@ export function SettingsModal({
                                 {recentReferrals.map((referral) => (
                                   <tr key={referral.id} className="hover:bg-muted/30 transition-colors">
                                     <td className="px-4 py-3">
-                                      <p className="font-medium text-sm">{referral.referredUser.name || getDisplayNameFromEmail(referral.referredUser.email)}</p>
+                                      <div className="flex items-center gap-3">
+                                        <Avatar className="h-8 w-8 flex-shrink-0">
+                                          <AvatarImage
+                                            src={referral.referredUser.avatar_url || getDiceBearAvatar(referral.referredUser.email || referral.referredUser.id, 32)}
+                                            alt={`${referral.referredUser.name || getDisplayNameFromEmail(referral.referredUser.email)}'s avatar`}
+                                          />
+                                          <AvatarFallback className="text-xs">
+                                            {getInitials(referral.referredUser.name || getDisplayNameFromEmail(referral.referredUser.email))}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                        <div className="min-w-0">
+                                          <p className="font-medium text-sm truncate">{referral.referredUser.name || getDisplayNameFromEmail(referral.referredUser.email)}</p>
+                                        </div>
+                                      </div>
                                     </td>
                                     <td className="px-4 py-3 hidden sm:table-cell">
-                                      <p className="text-xs text-muted-foreground">{referral.referredUser.email}</p>
+                                      <p className="text-xs text-muted-foreground truncate">{referral.referredUser.email}</p>
                                     </td>
                                     <td className="px-4 py-3">
                                       <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${

@@ -49,7 +49,7 @@ const staticPlans: TransformedPlan[] = [
     },
     description: 'Perfect for getting started',
     features: [
-      '100 GB Storage',
+      '500 GB Storage',
       'End-to-End Encryption',
       'File Preview',
       'File Sharing',
