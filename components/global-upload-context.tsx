@@ -312,6 +312,25 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
     
     if (!hasActiveUploads) {
       setIsModalOpen(false);
+      // Clear all uploads when closing the modal to provide a clean slate
+      setUploads([]);
+    }
+  }, [uploads]);
+
+  const handleModalOpenChange = useCallback((open: boolean) => {
+    if (!open) {
+      // Modal is being closed - check if we can close and clear uploads
+      const hasActiveUploads = uploads.some(u => 
+        u.status === 'pending' || u.status === 'uploading' || u.status === 'paused'
+      );
+      
+      if (!hasActiveUploads) {
+        setIsModalOpen(false);
+        // Clear all uploads when closing the modal to provide a clean slate
+        setUploads([]);
+      }
+    } else {
+      setIsModalOpen(true);
     }
   }, [uploads]);
 
@@ -732,7 +751,7 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
         onRetryDownload={retryDownload}
         downloadError={downloadError}
         open={isModalOpen}
-        onOpenChange={setIsModalOpen}
+        onOpenChange={handleModalOpenChange}
         onClose={closeModal}
       />
 
