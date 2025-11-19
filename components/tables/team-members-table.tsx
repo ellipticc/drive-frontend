@@ -188,7 +188,7 @@ export const Table01DividerLineSm = ({
         // Build folder path from URL segments
         const buildFolderPathFromUrl = async () => {
             try {
-                let currentPath = [{id: 'root', name: 'My Files'}];
+                const currentPath = [{id: 'root', name: 'My Files'}];
                 let currentId = 'root';
 
                 for (const segment of urlSegments) {
@@ -337,7 +337,7 @@ export const Table01DividerLineSm = ({
             );
             if (fileInCurrentFolder) {
                 // Start with a default display name
-                let displayName = `File ${fileData.id.substring(0, 8)}`; // Default fallback
+                const displayName = `File ${fileData.id.substring(0, 8)}`; // Default fallback
 
                 // Add to beginning of files list immediately with default name
                 const newFile: FileItem = {
@@ -833,18 +833,28 @@ export const Table01DividerLineSm = ({
         e.preventDefault();
         e.stopPropagation();
 
-        // Close any existing context menu first
-        setContextMenu(null);
+        // Single selection: clear all previous selections and select only the right-clicked item
+        if (item) {
+            setSelectedItems(new Set([item.id]));
+        }
 
-        // Small delay to ensure the close happens before opening new one
-        setTimeout(() => {
+        // If context menu is already open, just update its position and target without closing/reopening
+        if (contextMenu?.isOpen) {
             setContextMenu({
                 x: e.clientX,
                 y: e.clientY,
                 isOpen: true,
                 targetItem: item
             });
-        }, 10);
+        } else {
+            // Context menu is not open, open it normally
+            setContextMenu({
+                x: e.clientX,
+                y: e.clientY,
+                isOpen: true,
+                targetItem: item
+            });
+        }
     };
 
     const handleContextMenuClose = () => {
@@ -1947,7 +1957,7 @@ export const Table01DividerLineSm = ({
                 }}
             >
                 <div
-                    className="absolute bg-popover border border-border rounded-md shadow-lg py-1 min-w-48 z-50"
+                    className="absolute bg-popover border border-border rounded-md shadow-lg py-1 min-w-48 z-50 animate-in fade-in-0 zoom-in-95 duration-200 ease-out"
                     style={{
                         left: (() => {
                             const menuWidth = 192; // min-w-48 = 192px
