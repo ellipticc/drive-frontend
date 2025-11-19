@@ -15,6 +15,28 @@ const nextConfig: NextConfig = {
   // Allow access to static files without authentication
   async headers() {
     return [
+      // Add security headers to all routes
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'X-Frame-Options',
+            value: 'DENY'
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff'
+          },
+          {
+            key: 'X-XSS-Protection',
+            value: '1; mode=block'
+          },
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin'
+          }
+        ]
+      },
       {
         source: '/site.webmanifest',
         headers: [

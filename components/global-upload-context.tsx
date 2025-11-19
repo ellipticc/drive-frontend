@@ -162,11 +162,25 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
   useEffect(() => {
     uploadQueueRef.current = getUploadQueue(3); // 3 concurrent uploads
 
+    // Restore modal state when uploads exist
+    setIsModalOpen(uploads.length > 0);
+
     return () => {
       destroyUploadQueue();
       uploadQueueRef.current = null;
     };
   }, []);
+
+  // Keep modal visible if uploads are in progress
+  useEffect(() => {
+    const hasActiveUploads = uploads.some(u => 
+      u.status === 'pending' || u.status === 'uploading' || u.status === 'paused'
+    );
+    
+    if (hasActiveUploads) {
+      setIsModalOpen(true);
+    }
+  }, [uploads]);
 
   const updateUploadState = useCallback((uploadId: string, updates: Partial<FileUploadState>) => {
     setUploads(prev => prev.map(upload =>
@@ -291,8 +305,15 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
   }, []);
 
   const closeModal = useCallback(() => {
-    setIsModalOpen(false);
-  }, []);
+    // Don't allow closing if there are active uploads
+    const hasActiveUploads = uploads.some(u => 
+      u.status === 'pending' || u.status === 'uploading' || u.status === 'paused'
+    );
+    
+    if (!hasActiveUploads) {
+      setIsModalOpen(false);
+    }
+  }, [uploads]);
 
   const cancelUpload = useCallback((uploadId: string) => {
     const manager = uploadManagersRef.current.get(uploadId);

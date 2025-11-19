@@ -2,6 +2,7 @@
 
 import { IconMail, IconUpload, IconFile, IconFolder, type Icon } from "@tabler/icons-react"
 import * as React from "react"
+import { useRouter, usePathname } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -31,12 +32,21 @@ export function NavMain({
   onFileUpload?: () => void
   onFolderUpload?: () => void
 }) {
+  const router = useRouter()
+  const pathname = usePathname()
+
   const handleFileUpload = () => {
     onFileUpload?.()
   }
 
   const handleFolderUpload = () => {
     onFolderUpload?.()
+  }
+
+  const handleNavigate = (url: string) => {
+    // Use router.push for soft navigation to keep global upload context alive
+    // This prevents full page reload and preserves upload modal state
+    router.push(url)
   }
 
   return (
@@ -70,11 +80,14 @@ export function NavMain({
         <SidebarMenu>
           {items.map((item) => (
             <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton tooltip={item.title} asChild>
-                <a href={item.url}>
-                  {item.icon && <item.icon />}
-                  <span>{item.title}</span>
-                </a>
+              <SidebarMenuButton 
+                tooltip={item.title} 
+                isActive={pathname === item.url}
+                onClick={() => handleNavigate(item.url)}
+                className="cursor-pointer"
+              >
+                {item.icon && <item.icon />}
+                <span>{item.title}</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           ))}

@@ -152,12 +152,15 @@ export async function uploadEncryptedFile(
       throw new Error('Upload cancelled');
     }
 
-    // Stage 3: Process each chunk (encrypt + hash) sequentially with UI breathing room
+    // Stage 3: Process each chunk (encrypt + hash) with improved UI responsiveness
     const processedChunks: ChunkInfo[] = [];
     const encryptedChunks: Uint8Array[] = [];
     let totalProcessedBytes = 0;
 
-    // Process chunks sequentially to keep UI responsive
+    // Use a Worker pool for parallel encryption (up to 4 chunks at a time)
+    const maxConcurrentChunks = Math.min(4, chunks.length);
+    const chunkProcessingQueue: Promise<{ chunk: Uint8Array; encryptedData: Uint8Array; nonce: string; hash: string; index: number }>[] = [];
+
     for (let i = 0; i < chunks.length; i++) {
       // Check for abort before processing each chunk
       if (abortSignal?.aborted) {
@@ -170,6 +173,9 @@ export async function uploadEncryptedFile(
       }
 
       const chunk = chunks[i];
+      const chunkIndex = i;
+
+      // Report progress for starting to process this chunk
       onProgress?.({
         stage: 'encrypting',
         overallProgress: 20 + (i / chunks.length) * 30,
@@ -179,35 +185,53 @@ export async function uploadEncryptedFile(
         totalBytes: file.size
       });
 
-      // Encrypt chunk directly (no compression)
-      const { encryptedData, nonce } = encryptChunk(chunk, keys.cek);
+      // Process chunk asynchronously to allow UI updates
+      const chunkPromise = (async () => {
+        try {
+          // Encrypt chunk directly
+          const { encryptedData, nonce } = encryptChunk(chunk, keys.cek);
 
-      onProgress?.({
-        stage: 'encrypting',
-        overallProgress: 25 + (i / chunks.length) * 30,
-        currentChunk: i,
-        totalChunks: chunks.length
-      });
+          // Compute BLAKE3 hash of encrypted chunk
+          const blake3Hash = await computeBLAKE3Hash(encryptedData);
 
-      // Compute BLAKE3 hash of encrypted chunk
-      const blake3Hash = await computeBLAKE3Hash(encryptedData);
+          return {
+            chunk,
+            encryptedData,
+            nonce,
+            hash: blake3Hash,
+            index: chunkIndex
+          };
+        } catch (error) {
+          console.error(`Failed to encrypt chunk ${chunkIndex}:`, error);
+          throw error;
+        }
+      })();
 
-      processedChunks.push({
-        index: i,
-        size: chunk.byteLength,
-        encryptedSize: encryptedData.byteLength,
-        blake3Hash,
-        nonce
-      });
+      chunkProcessingQueue.push(chunkPromise);
 
-      encryptedChunks.push(encryptedData);
-      totalProcessedBytes += chunk.byteLength;
+      // Yield control more frequently to prevent UI freezing
+      if ((i + 1) % maxConcurrentChunks === 0 || i === chunks.length - 1) {
+        // Wait for queued chunks to complete before continuing
+        const completedChunks = await Promise.all(chunkProcessingQueue);
+        
+        for (const { chunk: originalChunk, encryptedData, nonce, hash, index } of completedChunks) {
+          processedChunks[index] = {
+            index,
+            size: originalChunk.byteLength,
+            encryptedSize: encryptedData.byteLength,
+            blake3Hash: hash,
+            nonce
+          };
+          encryptedChunks[index] = encryptedData;
+          totalProcessedBytes += originalChunk.byteLength;
+        }
 
-      // Yield control to UI thread every few chunks to prevent freezing
-      if (i % 2 === 0 && i > 0) {
+        chunkProcessingQueue.length = 0;
+
+        // Yield to event loop to keep UI responsive
         await new Promise(resolve => {
           if (typeof requestIdleCallback !== 'undefined') {
-            requestIdleCallback(resolve, { timeout: 16 }); // ~60fps
+            requestIdleCallback(resolve, { timeout: 10 }); // More aggressive yielding
           } else {
             setTimeout(resolve, 0);
           }

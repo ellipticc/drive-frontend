@@ -156,36 +156,8 @@ export default function RootLayout({
         <meta name="revisit-after" content="7 days" />
         <meta name="theme-color" content="#000000" />
 
-        {/* Open Graph / Facebook */}
-        <meta property="og:type" content="website" />
-        <meta property="og:url" content={`${process.env.NEXT_PUBLIC_BASE_URL || 'https://ellipticc.com'}/`} />
-        <meta property="og:title" content="Ellipticc Drive - Secure, Encrypted File Storage" />
-        <meta property="og:description" content="Secure, end-to-end encrypted file storage and collaboration platform. Keep your files private with military-grade encryption and zero-knowledge architecture." />
-        <meta property="og:image" content={`${process.env.NEXT_PUBLIC_BASE_URL || 'https://ellipticc.com'}/og-image.png`} />
-        <meta property="og:image:secure_url" content={`${process.env.NEXT_PUBLIC_BASE_URL || 'https://ellipticc.com'}/og-image.png`} />
-        <meta property="og:image:width" content="1200" />
-        <meta property="og:image:height" content="630" />
-        <meta property="og:image:alt" content="Ellipticc Drive - Secure File Storage" />
-        <meta property="og:image:type" content="image/png" />
-        <meta property="og:site_name" content="Ellipticc Drive" />
-        <meta property="og:locale" content="en_US" />
-
-        {/* Twitter */}
-        <meta property="twitter:card" content="summary_large_image" />
-        <meta property="twitter:url" content={`${process.env.NEXT_PUBLIC_BASE_URL || 'https://ellipticc.com'}/`} />
-        <meta property="twitter:title" content="Ellipticc Drive - Secure, Encrypted File Storage" />
-        <meta property="twitter:description" content="Secure, end-to-end encrypted file storage and collaboration platform. Keep your files private with military-grade encryption." />
-        <meta property="twitter:image" content={`${process.env.NEXT_PUBLIC_BASE_URL || 'https://ellipticc.com'}/og-image.png`} />
-        <meta property="twitter:image:alt" content="Ellipticc Drive - Secure File Storage" />
-        <meta property="twitter:site" content="@ellipticc" />
-        <meta property="twitter:creator" content="@ellipticc" />
-
-        {/* Additional Social Media */}
-        <meta name="twitter:domain" content={process.env.NEXT_PUBLIC_BASE_URL?.replace('https://', '') || 'ellipticc.com'} />
-
         {/* Security & Performance */}
         <meta httpEquiv="X-Content-Type-Options" content="nosniff" />
-        <meta httpEquiv="X-Frame-Options" content="DENY" />
         <meta httpEquiv="X-XSS-Protection" content="1; mode=block" />
         <meta httpEquiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
 
