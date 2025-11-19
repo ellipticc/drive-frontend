@@ -21,10 +21,11 @@ export function generateIdempotencyKeyForCreate(resourceId: string): string {
 /**
  * Generate idempotency key for non-creation operations
  * Uses UUID v5 (deterministic) so same logical operation always gets same key
+ * Format: operationType:deterministicIntent
  */
 export function generateIdempotencyKey(operationType: string, identifier: string): string {
-  const name = `${operationType}:${identifier}`;
-  return uuidv5(name, IDEMPOTENCY_NAMESPACE);
+  const deterministicIntent = uuidv5(identifier, IDEMPOTENCY_NAMESPACE);
+  return `${operationType}:${deterministicIntent}`;
 }
 
 /**

@@ -432,9 +432,12 @@ class ApiClient {
     email?: string;
     avatar?: string;
   }): Promise<ApiResponse> {
+    const idempotencyKey = generateIdempotencyKey('updateProfile', 'current');
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/auth/profile', {
       method: 'PUT',
       body: JSON.stringify(data),
+      headers,
     });
   }
 
@@ -442,9 +445,12 @@ class ApiClient {
    * Update user's session duration preference
    */
   async updateSessionDuration(sessionDuration: number): Promise<ApiResponse> {
+    const idempotencyKey = generateIdempotencyKey('updateSessionDuration', sessionDuration.toString());
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/auth/session-duration', {
       method: 'POST',
       body: JSON.stringify({ sessionDuration }),
+      headers,
     });
   }
 
@@ -452,9 +458,12 @@ class ApiClient {
    * Initiate email change process - sends OTP to new email
    */
   async initiateEmailChange(newEmail: string): Promise<ApiResponse<{ emailChangeToken: string }>> {
+    const idempotencyKey = generateIdempotencyKey('initiateEmailChange', newEmail);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/auth/email/change/initiate', {
       method: 'POST',
       body: JSON.stringify({ newEmail }),
+      headers,
     });
   }
 
@@ -462,9 +471,12 @@ class ApiClient {
    * Verify email change with OTP
    */
   async verifyEmailChange(emailChangeToken: string, otpCode: string): Promise<ApiResponse> {
+    const idempotencyKey = generateIdempotencyKey('verifyEmailChange', emailChangeToken);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/auth/email/change/verify', {
       method: 'POST',
       body: JSON.stringify({ emailChangeToken, otpCode }),
+      headers,
     });
   }
 
@@ -475,18 +487,24 @@ class ApiClient {
   async changePassword(data: {
     newOpaquePasswordFile: string;  // New OPAQUE registration record from OPAQUE step 3
   }): Promise<ApiResponse> {
+    const idempotencyKey = generateIdempotencyKey('changePassword', 'current');
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/auth/password/change', {
       method: 'POST',
       body: JSON.stringify(data),
+      headers,
     });
   }
 
   async uploadAvatar(formData: FormData): Promise<ApiResponse<{ avatarUrl: string }>> {
+    const idempotencyKey = generateIdempotencyKey('uploadAvatar', 'current');
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/auth/avatar', {
       method: 'POST',
       body: formData,
       headers: {
         // Don't set Content-Type for FormData, let the browser set it with boundary
+        ...headers,
       },
     });
   }
@@ -502,16 +520,22 @@ class ApiClient {
   }
 
   async storePQCKeys(userId: string, pqcKeypairs: any): Promise<ApiResponse> {
+    const idempotencyKey = generateIdempotencyKey('storePQCKeys', userId);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/auth/crypto', {
       method: 'PUT',
       body: JSON.stringify({ userId, pqcKeypairs }),
+      headers,
     });
   }
 
   async storePQCKeysAfterRegistration(userId: string, pqcKeypairs: any): Promise<ApiResponse> {
+    const idempotencyKey = generateIdempotencyKey('storePQCKeysAfterRegistration', userId);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/auth/crypto/setup', {
       method: 'POST',
       body: JSON.stringify({ userId, pqcKeypairs }),
+      headers,
     });
   }
 
@@ -527,9 +551,12 @@ class ApiClient {
     recoveryKeyNonce?: string;     // Nonce for decrypting recovery key
     referralCode?: string;         // Referral code for signup attribution
   }): Promise<ApiResponse> {
+    const idempotencyKey = generateIdempotencyKey('storeCryptoKeypairs', data.userId);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/auth/crypto/setup', {
       method: 'POST',
       body: JSON.stringify(data),
+      headers,
     });
   }
 
@@ -542,6 +569,8 @@ class ApiClient {
     userAgent: string;
     url: string;
   }): Promise<ApiResponse> {
+    const idempotencyKey = generateIdempotencyKey('sendSupportRequest', data.timestamp);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/auth/support', {
       method: 'POST',
       body: JSON.stringify({
@@ -556,6 +585,7 @@ class ApiClient {
           url: data.url
         }
       }),
+      headers,
     });
   }
 
@@ -1164,44 +1194,66 @@ class ApiClient {
   }
 
   async deleteFilePermanently(fileId: string): Promise<ApiResponse<{ message: string }>> {
+    const idempotencyKey = generateIdempotencyKey('deleteFilePermanent', fileId);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/files/trash/delete`, {
       method: 'POST',
       body: JSON.stringify({ fileIds: [fileId] }),
+      headers,
     });
   }
 
   async deleteFilesPermanently(fileIds: string[]): Promise<ApiResponse<{ message: string }>> {
+    const intent = fileIds.sort().join(',');
+    const idempotencyKey = generateIdempotencyKey('deleteFilesPermanent', intent);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/files/trash/delete`, {
       method: 'POST',
       body: JSON.stringify({ fileIds }),
+      headers,
     });
   }
 
   async deleteFolderPermanently(folderId: string): Promise<ApiResponse<{ message: string }>> {
+    const idempotencyKey = generateIdempotencyKey('deleteFolderPermanent', folderId);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/folders/trash`, {
       method: 'DELETE',
       body: JSON.stringify({ folderIds: [folderId] }),
+      headers,
     });
   }
 
   async deleteFoldersPermanently(folderIds: string[]): Promise<ApiResponse<{ message: string }>> {
+    const intent = folderIds.sort().join(',');
+    const idempotencyKey = generateIdempotencyKey('deleteFoldersPermanent', intent);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/folders/trash`, {
       method: 'DELETE',
       body: JSON.stringify({ folderIds }),
+      headers,
     });
   }
 
   async restoreFilesFromTrash(fileIds: string[]): Promise<ApiResponse<{ message: string }>> {
+    const intent = fileIds.sort().join(',');
+    const idempotencyKey = generateIdempotencyKey('restoreFiles', intent);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/files/trash/restore`, {
       method: 'POST',
       body: JSON.stringify({ fileIds }),
+      headers,
     });
   }
 
   async restoreFoldersFromTrash(folderIds: string[]): Promise<ApiResponse<{ message: string }>> {
+    const intent = folderIds.sort().join(',');
+    const idempotencyKey = generateIdempotencyKey('restoreFolders', intent);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/folders/trash/restore`, {
       method: 'PUT',
       body: JSON.stringify({ folderIds }),
+      headers,
     });
   }
 
@@ -1261,9 +1313,14 @@ class ApiClient {
     existingFileId?: string; // ID of the existing file if conflict detected
     isKeepBothConflict?: boolean; // Flag to indicate this is a keepBoth retry scenario
   }>> {
+    const idempotencyKey = data.clientFileId 
+      ? generateIdempotencyKeyForCreate(data.clientFileId)
+      : generateIdempotencyKey('initializeUploadSession', data.sha256sum);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/files/upload/presigned/initialize', {
       method: 'POST',
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
+      headers,
     });
   }
 
@@ -1308,9 +1365,13 @@ class ApiClient {
       error?: string;
     }>;
   }>> {
+    const intent = `${sessionId}:${data.chunks.map(c => c.index).sort().join(',')}`;
+    const idempotencyKey = generateIdempotencyKey('confirmChunkUploads', intent);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/files/upload/presigned/${sessionId}/confirm-batch`, {
       method: 'POST',
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
+      headers,
     });
   }
 
@@ -1477,9 +1538,12 @@ class ApiClient {
   async verifyTOTPLogin(userId: string, token: string, rememberDevice?: boolean): Promise<ApiResponse<{
     deviceToken?: string;
   }>> {
+    const idempotencyKey = generateIdempotencyKey('verifyTOTPLogin', `${userId}:${token.substring(0, 4)}`);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/totp/verify-login', {
       method: 'POST',
       body: JSON.stringify({ userId, token, rememberDevice }),
+      headers,
     });
   }
 
@@ -1551,18 +1615,24 @@ class ApiClient {
   async verifyDeviceToken(deviceToken: string): Promise<ApiResponse<{
     isValidDevice: boolean;
   }>> {
+    const idempotencyKey = generateIdempotencyKey('verifyDeviceToken', deviceToken.substring(0, 8));
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/totp/verify-device', {
       method: 'POST',
       body: JSON.stringify({ deviceToken }),
+      headers,
     });
   }
 
   async verifyRecoveryCode(recoveryCode: string): Promise<ApiResponse<{
     valid: boolean;
   }>> {
+    const idempotencyKey = generateIdempotencyKey('verifyRecoveryCode', recoveryCode.substring(0, 8));
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/totp/verify-recovery', {
       method: 'POST',
       body: JSON.stringify({ recoveryCode }),
+      headers,
     });
   }
 
@@ -1570,27 +1640,36 @@ class ApiClient {
   async initiateRecovery(email: string): Promise<ApiResponse<{
     hasRecovery: boolean;
   }>> {
+    const idempotencyKey = generateIdempotencyKey('initiateRecovery', email);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/recovery/initiate', {
       method: 'POST',
       body: JSON.stringify({ email }),
+      headers,
     });
   }
 
   async checkRecoveryTOTPAvailability(email: string): Promise<ApiResponse<{
     hasTOTP: boolean;
   }>> {
+    const idempotencyKey = generateIdempotencyKey('checkRecoveryTOTPAvailability', email);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/recovery/check-totp', {
       method: 'POST',
       body: JSON.stringify({ email }),
+      headers,
     });
   }
 
   async sendRecoveryOTP(email: string): Promise<ApiResponse<{
     success: boolean;
   }>> {
+    const idempotencyKey = generateIdempotencyKey('sendRecoveryOTP', email);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/recovery/send-otp', {
       method: 'POST',
       body: JSON.stringify({ email }),
+      headers,
     });
   }
 
@@ -1603,9 +1682,12 @@ class ApiClient {
     success: boolean;
     token?: string;
   }>> {
+    const idempotencyKey = generateIdempotencyKey('verifyRecoveryOTP', `${data.email}:${data.method}:${data.code}`);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/recovery/verify-otp', {
       method: 'POST',
       body: JSON.stringify(data),
+      headers,
     });
   }
 
@@ -1621,9 +1703,12 @@ class ApiClient {
     token?: string;
     message?: string;
   }>> {
+    const idempotencyKey = generateIdempotencyKey('resetPasswordWithRecovery', data.email);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/recovery/reset-password', {
       method: 'POST',
       body: JSON.stringify(data),
+      headers,
     });
   }
 
@@ -1664,9 +1749,12 @@ class ApiClient {
     success: boolean;
     message?: string;
   }>> {
+    const idempotencyKey = generateIdempotencyKey('completeOAuthRegistration', 'current');
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/auth/oauth/complete-registration', {
       method: 'POST',
       body: JSON.stringify(data),
+      headers,
     });
   }
 
