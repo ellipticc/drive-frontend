@@ -13,6 +13,7 @@ import { apiClient } from './api';
 import { decryptData, uint8ArrayToHex, hexToUint8Array, decryptFilename } from './crypto';
 import { keyManager } from './key-manager';
 import { isTorAccess } from './tor-detection';
+import { decompressChunk, CompressionAlgorithm } from './compression';
 
 // Utility function to convert Uint8Array to base64 safely (avoids stack overflow)
 function uint8ArrayToBase64(array: Uint8Array): string {
@@ -49,6 +50,11 @@ export interface DownloadChunk {
   sha256: string;
   nonce: string | null;
   getUrl: string;
+  // Compression metadata
+  isCompressed?: boolean;
+  compressionAlgorithm?: string;
+  compressionOriginalSize?: number;
+  compressionCompressedSize?: number;
 }
 
 export interface DownloadManifest {
@@ -181,6 +187,7 @@ export async function downloadEncryptedFileWithCEK(
 
 /**
  * Decrypt downloaded chunks using a pre-unwrapped CEK
+ * Also handles decompression if chunks were compressed before encryption
  */
 async function decryptChunksWithCEK(
   encryptedChunks: Uint8Array[],
@@ -258,7 +265,18 @@ async function decryptChunksWithCEK(
       throw new Error(`Decryption failed for chunk ${i}: no valid decrypted data produced`);
     }
 
-    decryptedChunks.push(decryptedData);
+    // STAGE 3B: Decompress chunk if it was compressed before encryption
+    let finalData = decryptedData;
+    if (chunkInfo.isCompressed && chunkInfo.compressionAlgorithm) {
+      try {
+        const algorithm = chunkInfo.compressionAlgorithm as CompressionAlgorithm;
+        finalData = await decompressChunk(decryptedData, algorithm);
+      } catch (decompressError) {
+        throw new Error(`Decompression failed for chunk ${i} (${chunkInfo.compressionAlgorithm}): ${decompressError instanceof Error ? decompressError.message : 'Unknown error'}`);
+      }
+    }
+
+    decryptedChunks.push(finalData);
   }
 
   return decryptedChunks;
@@ -352,7 +370,12 @@ async function initializeDownloadSession(fileId: string): Promise<DownloadSessio
       size: chunk.size,
       sha256: chunk.sha256,
       nonce: chunk.nonce,
-      getUrl: presignedEntry.getUrl
+      getUrl: presignedEntry.getUrl,
+      // Compression metadata
+      isCompressed: chunk.isCompressed,
+      compressionAlgorithm: chunk.compressionAlgorithm,
+      compressionOriginalSize: chunk.compressionOriginalSize,
+      compressionCompressedSize: chunk.compressionCompressedSize
     };
   });
 
@@ -397,7 +420,6 @@ async function unwrapCEK(encryption: DownloadEncryption, keypairs: any): Promise
   // Handle potentially corrupted Kyber ciphertext (similar to nonce corruption)
   // Kyber768 ciphertext should be 1088 bytes, but corruption might make it longer/shorter
   if (kyberCiphertext.length > 1088) {
-    // console.warn(`⚠️ Kyber ciphertext length ${kyberCiphertext.length} exceeds expected 1088 bytes, attempting to handle corruption`);
 
     // If it's exactly double length (corrupted hex), try taking first half
     if (kyberCiphertext.length === 2176) { // 2 * 1088
@@ -446,8 +468,6 @@ async function downloadChunksFromB2(
         credentials: 'omit'
       });
       if (!response.ok) {
-        // console.error(`❌ Failed to download chunk ${getChunkIndex(chunk)}: ${response.status} ${response.statusText}`);
-        // console.error('Response headers:', Object.fromEntries(response.headers.entries()));
         throw new Error(`Failed to download chunk ${getChunkIndex(chunk)}: ${response.status} ${response.statusText}`);
       }
 
@@ -461,12 +481,10 @@ async function downloadChunksFromB2(
       if (encryptedData.length > chunk.size) {
         // B2 may add checksum trailers or the metadata size might be approximate
         // Use the actual returned size instead of truncating
-        // console.warn(`⚠️ Chunk ${getChunkIndex(chunk)} size difference: metadata says ${chunk.size}, B2 returned ${encryptedData.length}, using actual size`);
         // Don't truncate - use the full response
       } else if (encryptedData.length < chunk.size) {
         // Handle size differences (may occur due to storage optimizations)
         if (encryptedData.length === actualSize && actualSize < chunk.size) {
-          // console.warn(`⚠️ Chunk ${getChunkIndex(chunk)} size difference: metadata says ${chunk.size}, B2 returned ${encryptedData.length}, using actual size`);
           // Don't throw error - use the actual size
         } else {
           throw new Error(`Chunk ${getChunkIndex(chunk)} too small: expected ${chunk.size}, got ${encryptedData.length}`);
@@ -496,7 +514,6 @@ async function downloadChunksFromB2(
       return encryptedData;
 
     } catch (error) {
-      // console.error(`❌ Failed to download chunk ${chunk.chunkIndex}:`, error);
       throw error;
     } finally {
       semaphore.release();
@@ -542,7 +559,6 @@ async function decryptChunks(
 
     if (encryptedChunk.length > expectedSize) {
       const difference = encryptedChunk.length - expectedSize;
-      // console.warn(`⚠️ Chunk ${i} size discrepancy: expected ${expectedSize}, got ${encryptedChunk.length} (${difference} extra bytes)`);
 
       // If the difference is small (likely B2-added content), try to truncate
       if (difference <= 32) { // Allow up to 32 extra bytes for potential B2 metadata
@@ -560,8 +576,6 @@ async function decryptChunks(
     try {
       decryptedData = decryptData(encryptedBase64, cek, chunkNonce);
     } catch (decryptError) {
-      // console.error(`❌ Decryption failed for chunk ${i}:`, decryptError);
-
       // If decryption failed and we have extra data, try with different truncation strategies
       if (encryptedChunk.length > expectedSize && expectedSize > 16) { // Ensure we have at least the auth tag
 
@@ -595,7 +609,18 @@ async function decryptChunks(
       throw new Error(`Decryption failed for chunk ${i}: no valid decrypted data produced`);
     }
 
-    decryptedChunks.push(decryptedData);
+    // STAGE 3B: Decompress chunk if it was compressed before encryption
+    let finalData = decryptedData;
+    if (chunkInfo.isCompressed && chunkInfo.compressionAlgorithm) {
+      try {
+        const algorithm = chunkInfo.compressionAlgorithm as CompressionAlgorithm;
+        finalData = await decompressChunk(decryptedData, algorithm);
+      } catch (decompressError) {
+        throw new Error(`Decompression failed for chunk ${i} (${chunkInfo.compressionAlgorithm}): ${decompressError instanceof Error ? decompressError.message : 'Unknown error'}`);
+      }
+    }
+
+    decryptedChunks.push(finalData);
   }
 
   return decryptedChunks;

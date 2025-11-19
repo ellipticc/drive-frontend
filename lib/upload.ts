@@ -4,7 +4,8 @@
  * This module implements a complete browser-side file upload flow with:
  * - SHA-256 file hashing
  * - File chunking (4-8MB chunks)
- * - XChaCha20-Poly1305 encryption per chunk
+ * - Per-chunk compression with intelligent algorithm selection
+ * - XChaCha20-Poly1305 encryption per chunk (after compression)
  * - BLAKE3 integrity hashing per encrypted chunk
  * - Streaming uploads to Backblaze B2 via presigned URLs
  * - Progress callbacks and resumable uploads
@@ -15,10 +16,11 @@ import { encryptData, uint8ArrayToHex, hexToUint8Array, encryptFilename, compute
 import { keyManager } from './key-manager';
 import { masterKeyManager } from './master-key';
 import { createBLAKE3 } from 'hash-wasm';
+import { compressChunk, CompressionAlgorithm, CompressionMetadata } from './compression';
 
 // Types and interfaces
 export interface UploadProgress {
-  stage: 'hashing' | 'chunking' | 'encrypting' | 'uploading' | 'finalizing';
+  stage: 'hashing' | 'chunking' | 'compressing' | 'encrypting' | 'uploading' | 'finalizing';
   overallProgress: number; // 0-100
   currentChunk?: number;
   totalChunks?: number;
@@ -57,6 +59,12 @@ export interface ChunkInfo {
   encryptedSize: number;
   blake3Hash: string;
   nonce: string;
+  // Compression metadata
+  isCompressed: boolean;
+  compressionAlgorithm: CompressionAlgorithm;
+  compressionOriginalSize: number;
+  compressionCompressedSize: number;
+  compressionRatio: number;
 }
 
 export interface UploadSession {
@@ -159,7 +167,7 @@ export async function uploadEncryptedFile(
 
     // Use a Worker pool for parallel encryption (up to 4 chunks at a time)
     const maxConcurrentChunks = Math.min(4, chunks.length);
-    const chunkProcessingQueue: Promise<{ chunk: Uint8Array; encryptedData: Uint8Array; nonce: string; hash: string; index: number }>[] = [];
+    const chunkProcessingQueue: Promise<{ chunk: Uint8Array; encryptedData: Uint8Array; nonce: string; hash: string; index: number; compression: any }>[] = [];
 
     for (let i = 0; i < chunks.length; i++) {
       // Check for abort before processing each chunk
@@ -188,8 +196,19 @@ export async function uploadEncryptedFile(
       // Process chunk asynchronously to allow UI updates
       const chunkPromise = (async () => {
         try {
-          // Encrypt chunk directly
-          const { encryptedData, nonce } = encryptChunk(chunk, keys.cek);
+          // STAGE 3A: Compress chunk (if beneficial)
+          onProgress?.({
+            stage: 'compressing',
+            overallProgress: 20 + (i / chunks.length) * 10,
+            currentChunk: i,
+            totalChunks: chunks.length
+          });
+
+          const compressionResult = await compressChunk(chunk);
+          const dataToEncrypt = compressionResult.isCompressed ? compressionResult.data : chunk;
+
+          // STAGE 3B: Encrypt compressed (or uncompressed) chunk
+          const { encryptedData, nonce } = encryptChunk(dataToEncrypt, keys.cek);
 
           // Compute BLAKE3 hash of encrypted chunk
           const blake3Hash = await computeBLAKE3Hash(encryptedData);
@@ -199,10 +218,11 @@ export async function uploadEncryptedFile(
             encryptedData,
             nonce,
             hash: blake3Hash,
-            index: chunkIndex
+            index: chunkIndex,
+            compression: compressionResult
           };
         } catch (error) {
-          console.error(`Failed to encrypt chunk ${chunkIndex}:`, error);
+          console.error(`Failed to process chunk ${chunkIndex}:`, error);
           throw error;
         }
       })();
@@ -214,13 +234,18 @@ export async function uploadEncryptedFile(
         // Wait for queued chunks to complete before continuing
         const completedChunks = await Promise.all(chunkProcessingQueue);
         
-        for (const { chunk: originalChunk, encryptedData, nonce, hash, index } of completedChunks) {
+        for (const { chunk: originalChunk, encryptedData, nonce, hash, index, compression } of completedChunks) {
           processedChunks[index] = {
             index,
             size: originalChunk.byteLength,
             encryptedSize: encryptedData.byteLength,
             blake3Hash: hash,
-            nonce
+            nonce,
+            isCompressed: compression.isCompressed,
+            compressionAlgorithm: compression.algorithm,
+            compressionOriginalSize: compression.originalSize,
+            compressionCompressedSize: compression.compressedSize,
+            compressionRatio: compression.ratio
           };
           encryptedChunks[index] = encryptedData;
           totalProcessedBytes += originalChunk.byteLength;
@@ -507,7 +532,13 @@ async function initializeUploadSession(
     chunks: chunkHashes.map((hash, index) => ({
       index,
       sha256: hash,
-      size: chunks[index].encryptedSize
+      size: chunks[index].encryptedSize,
+      // Compression metadata per chunk
+      isCompressed: chunks[index].isCompressed,
+      compressionAlgorithm: chunks[index].compressionAlgorithm,
+      compressionOriginalSize: chunks[index].compressionOriginalSize,
+      compressionCompressedSize: chunks[index].compressionCompressedSize,
+      compressionRatio: chunks[index].compressionRatio
     })),
     encryptionIv: uint8ArrayToHex(encryptionIv),
     encryptionSalt: uint8ArrayToHex(encryptionSalt),
@@ -668,7 +699,13 @@ async function confirmChunkUploads(
     index: chunk.index,
     chunkSize: chunk.encryptedSize,
     sha256Hash: chunkHashes[index],
-    nonce: chunk.nonce
+    nonce: chunk.nonce,
+    // Compression metadata
+    isCompressed: chunk.isCompressed,
+    compressionAlgorithm: chunk.compressionAlgorithm,
+    compressionOriginalSize: chunk.compressionOriginalSize,
+    compressionCompressedSize: chunk.compressionCompressedSize,
+    compressionRatio: chunk.compressionRatio
   }));
 
 
