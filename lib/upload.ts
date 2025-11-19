@@ -117,6 +117,9 @@ export async function uploadEncryptedFile(
   existingFileIdToDelete?: string, // For replace operations
   isKeepBothAttempt?: boolean // Flag to indicate this is a keepBoth retry
 ): Promise<UploadResult> {
+  // Generate fileId once at the start - this will be used as the idempotency key for finalization
+  const fileId = crypto.randomUUID();
+
   try {
     // 🔒 STRICT QUOTA ENFORCEMENT: Check storage quota BEFORE starting upload
     const storageInfo = await apiClient.getUserStorage();
@@ -272,7 +275,7 @@ export async function uploadEncryptedFile(
     }
 
     // Stage 4: Initialize upload session with backend
-    const session = await initializeUploadSession(file, folderId, processedChunks, encryptedChunks, sha256Hash, keys, conflictResolution, conflictFileName, existingFileIdToDelete, isKeepBothAttempt);
+    const session = await initializeUploadSession(file, folderId, processedChunks, encryptedChunks, sha256Hash, keys, conflictResolution, conflictFileName, existingFileIdToDelete, isKeepBothAttempt, fileId);
 
     // Check for abort before uploading chunks
     if (abortSignal?.aborted) {
@@ -300,7 +303,7 @@ export async function uploadEncryptedFile(
     }
 
     // Stage 7: Finalize upload
-    const result = await finalizeUpload(session.sessionId, file, sha256Hash, keys, folderId, session.encryptedFilename, session.filenameSalt, session.manifestCreatedAt);
+    const result = await finalizeUpload(session.sessionId, session.fileId, file, sha256Hash, keys, folderId, session.encryptedFilename, session.filenameSalt, session.manifestCreatedAt);
 
     onProgress?.({ stage: 'finalizing', overallProgress: 100 });
 
@@ -383,7 +386,8 @@ async function initializeUploadSession(
   conflictResolution?: 'replace' | 'keepBoth' | 'skip',
   conflictFileName?: string,
   existingFileIdToDelete?: string,
-  isKeepBothAttempt?: boolean
+  isKeepBothAttempt?: boolean,
+  clientFileId?: string
 ): Promise<UploadSession> {
   // Compute SHA256 hashes for each encrypted chunk
   const chunkHashes: string[] = [];
@@ -561,7 +565,8 @@ async function initializeUploadSession(
     nameHmac: filenameHmac,  // Add filename HMAC for duplicate detection
     forceReplace: conflictResolution === 'replace',  // Add force replace flag
     existingFileIdToDelete: existingFileIdToDelete,  // Pass the file ID to delete
-    isKeepBothAttempt: isKeepBothAttempt === true  // Flag for keepBoth retry
+    isKeepBothAttempt: isKeepBothAttempt === true,  // Flag for keepBoth retry
+    clientFileId: clientFileId  // Pass client-generated fileId for idempotency
   });
 
     if (!response.success) {
@@ -725,6 +730,7 @@ async function confirmChunkUploads(
 }
 async function finalizeUpload(
   sessionId: string,
+  fileId: string,
   file: File,
   sha256Hash: string,
   keys: UserKeys,
@@ -771,7 +777,7 @@ async function finalizeUpload(
     manifestPublicKeyDilithium: keys.keypairs.dilithiumPublicKey,
     manifestCreatedAt: manifestCreatedAtFinal,
     algorithmVersion: 'v3-hybrid-pqc'
-  });
+  }, fileId);
 
   if (!response.success || !response.data) {
     throw new Error('Failed to finalize upload');

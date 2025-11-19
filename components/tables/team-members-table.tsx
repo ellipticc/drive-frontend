@@ -1957,7 +1957,7 @@ export const Table01DividerLineSm = ({
                 }}
             >
                 <div
-                    className="absolute bg-popover border border-border rounded-md shadow-lg py-1 min-w-48 z-50 animate-in fade-in-0 zoom-in-95 duration-200 ease-out"
+                    className="absolute bg-popover border border-border rounded-md shadow-lg py-1 min-w-48 z-50 animate-in fade-in-0 zoom-in-95 duration-200 ease-out pointer-events-auto"
                     style={{
                         left: (() => {
                             const menuWidth = 192; // min-w-48 = 192px

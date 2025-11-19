@@ -1,4 +1,5 @@
 import { getApiBaseUrl } from './tor-detection';
+import { generateIdempotencyKey, addIdempotencyKey, generateIdempotencyKeyForCreate } from './idempotency';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || getApiBaseUrl();
 
@@ -89,13 +90,16 @@ class ApiClient {
       requestUrl = `/api/proxy/v1${endpoint}`;
     }
 
+    // Extract headers separately to avoid them being overwritten by ...options spread
+    const { headers: optionHeaders, ...otherOptions } = options;
+
     const config: RequestInit = {
       headers: {
         'Content-Type': 'application/json',
-        ...options.headers,
+        ...optionHeaders,  // Spread headers from options
       },
       credentials: 'include', // Essential for CORS with TOR and cross-origin requests
-      ...options,
+      ...otherOptions,  // Spread other options WITHOUT headers
     };
 
     // Add authorization header if token exists
@@ -613,6 +617,7 @@ class ApiClient {
     manifestPublicKeyDilithium: string;
     algorithmVersion?: string;
     nameHmac: string;
+    clientFolderId?: string; // Client-generated folderId for idempotency
   }): Promise<ApiResponse<{
     id: string;
     encryptedName: string;
@@ -628,9 +633,15 @@ class ApiClient {
       dilithium: boolean;
     };
   }>> {
+    // Use clientFolderId as idempotency key for duplicate prevention
+    const idempotencyKey = data.clientFolderId 
+      ? generateIdempotencyKeyForCreate(data.clientFolderId)
+      : generateIdempotencyKey('createFolder', data.nameHmac || 'unknown');
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/folders', {
       method: 'POST',
       body: JSON.stringify(data),
+      headers,
     });
   }
 
@@ -699,9 +710,13 @@ class ApiClient {
     algorithmVersion: string;
     nameHmac: string;
   }): Promise<ApiResponse<{ newFilename: string }>> {
+    // Use fileId + nameHmac as unique intent (renaming same file to same name)
+    const idempotencyKey = generateIdempotencyKey('renameFile', `${fileId}:${data.nameHmac}`);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/files/${fileId}/rename`, {
       method: 'PUT',
       body: JSON.stringify(data),
+      headers,
     });
   }
 
@@ -709,30 +724,48 @@ class ApiClient {
     fileId: string;
     folderId: string | null;
   }>> {
+    // Use fileId + target folder as unique intent
+    const targetFolder = folderId || 'root';
+    const intent = nameHmac ? `${fileId}:${targetFolder}:${nameHmac}` : `${fileId}:${targetFolder}`;
+    const idempotencyKey = generateIdempotencyKey('moveFile', intent);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/files/${fileId}/move`, {
       method: 'PUT',
       body: JSON.stringify({ folderId, nameHmac }),
+      headers,
     });
   }
 
   async moveFileToTrash(fileId: string): Promise<ApiResponse<{ message: string }>> {
+    // Use fileId as unique intent (moving same file to trash)
+    const idempotencyKey = generateIdempotencyKey('deleteFile', fileId);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/files/trash`, {
       method: 'POST',
       body: JSON.stringify({ fileIds: [fileId] }),
+      headers,
     });
   }
 
   async restoreFileFromTrash(fileId: string): Promise<ApiResponse<{ message: string }>> {
+    // Use fileId as unique intent (restoring same file)
+    const idempotencyKey = generateIdempotencyKey('restoreFile', fileId);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/files/trash/restore`, {
       method: 'POST',
       body: JSON.stringify({ fileIds: [fileId] }),
+      headers,
     });
   }
 
   async deleteFile(fileId: string): Promise<ApiResponse<{ message: string }>> {
+    // Use fileId as unique intent (permanently deleting same file)
+    const idempotencyKey = generateIdempotencyKey('deleteFilePermanent', fileId);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/files/trash/delete`, {
       method: 'POST',
       body: JSON.stringify({ fileId }),
+      headers,
     });
   }
 
@@ -777,9 +810,13 @@ class ApiClient {
     path: string;
     updatedAt: string;
   }>> {
+    // Use folderId + nameHmac as unique intent
+    const idempotencyKey = generateIdempotencyKey('renameFolder', `${folderId}:${data.nameHmac}`);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/folders/${folderId}/rename`, {
       method: 'PUT',
       body: JSON.stringify(data),
+      headers,
     });
   }
 
@@ -790,30 +827,47 @@ class ApiClient {
     path: string;
     updatedAt: string;
   }>> {
+    // Use folderId + target parent as unique intent
+    const targetParent = parentId || 'root';
+    const idempotencyKey = generateIdempotencyKey('moveFolder', `${folderId}:${targetParent}`);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/folders/${folderId}/move`, {
       method: 'PUT',
       body: JSON.stringify({ parent_id: parentId }),
+      headers,
     });
   }
 
   async moveFolderToTrash(folderId: string): Promise<ApiResponse<{ message: string }>> {
+    // Use folderId as unique intent
+    const idempotencyKey = generateIdempotencyKey('deleteFolder', folderId);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/folders/trash`, {
       method: 'POST',
       body: JSON.stringify({ folderIds: [folderId] }),
+      headers,
     });
   }
 
   async restoreFolderFromTrash(folderId: string): Promise<ApiResponse<{ message: string }>> {
+    // Use folderId as unique intent
+    const idempotencyKey = generateIdempotencyKey('restoreFolder', folderId);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/folders/trash/restore`, {
       method: 'PUT',
       body: JSON.stringify({ folderIds: [folderId] }),
+      headers,
     });
   }
 
   async deleteFolder(folderId: string): Promise<ApiResponse<{ message: string }>> {
+    // Use folderId as unique intent
+    const idempotencyKey = generateIdempotencyKey('deleteFolderPermanent', folderId);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/folders/trash`, {
       method: 'DELETE',
       body: JSON.stringify({ folderIds: [folderId] }),
+      headers,
     });
   }
 
@@ -844,17 +898,21 @@ class ApiClient {
     reused?: boolean;
     sharedFiles?: number;
   }>> {
+    const idempotencyKey = generateIdempotencyKey('createShare', `${data.file_id || data.folder_id || ''}:${data.permissions || 'read'}`);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     if (data.folder_id) {
       // Create folder share
       return this.request('/shares/folder', {
         method: 'POST',
         body: JSON.stringify(data),
+        headers,
       });
     } else {
       // Create file share
       return this.request('/shares', {
         method: 'POST',
         body: JSON.stringify(data),
+        headers,
       });
     }
   }
@@ -900,16 +958,28 @@ class ApiClient {
     movedCount: number;
     requestedCount: number;
   }>> {
+    // Use sorted file IDs as unique intent for bulk operation
+    const intent = fileIds.sort().join(',');
+    const idempotencyKey = generateIdempotencyKey('bulkDeleteFiles', intent);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/files/trash/move', {
       method: 'POST',
       body: JSON.stringify({ fileIds }),
+      headers,
     });
   }
 
   async moveToTrash(folderIds?: string[], fileIds?: string[]): Promise<ApiResponse<{ message: string }>> {
+    // Use sorted IDs as unique intent for bulk operation
+    const folders = (folderIds || []).sort().join(',');
+    const files = (fileIds || []).sort().join(',');
+    const intent = `folders:${folders}|files:${files}`;
+    const idempotencyKey = generateIdempotencyKey('bulkDelete', intent);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/folders/trash', {
       method: 'POST',
       body: JSON.stringify({ folderIds, fileIds }),
+      headers,
     });
   }
 
@@ -929,20 +999,32 @@ class ApiClient {
   }
 
   async trackShareDownload(shareId: string): Promise<ApiResponse<{ success: boolean }>> {
+    // Use shareId as unique intent (tracking download for same share)
+    const idempotencyKey = generateIdempotencyKey('trackShareDownload', shareId);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/shares/${shareId}/download`, {
       method: 'POST',
+      headers,
     });
   }
 
   async disableShare(shareId: string): Promise<ApiResponse<{ success: boolean }>> {
+    // Use shareId as unique intent (disabling same share)
+    const idempotencyKey = generateIdempotencyKey('disableShare', shareId);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/shares/${shareId}`, {
       method: 'DELETE',
+      headers,
     });
   }
 
   async revokeShareForUser(shareId: string, userId: string): Promise<ApiResponse<{ success: boolean }>> {
+    // Use shareId + userId as unique intent
+    const idempotencyKey = generateIdempotencyKey('revokeShare', `${shareId}:${userId}`);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/shares/${shareId}/user/${userId}`, {
       method: 'DELETE',
+      headers,
     });
   }
 
@@ -961,9 +1043,14 @@ class ApiClient {
       failed: number;
     };
   }>> {
+    // Use shareId + sorted recipients as unique intent
+    const intent = `${shareId}:${data.recipients.sort().join(',')}`;
+    const idempotencyKey = generateIdempotencyKey('sendShareEmails', intent);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/shares/${shareId}/send`, {
       method: 'POST',
       body: JSON.stringify(data),
+      headers,
     });
   }
 
@@ -1153,6 +1240,7 @@ class ApiClient {
     forceReplace?: boolean; // Force replace existing file with same HMAC
     existingFileIdToDelete?: string; // File ID to delete when replacing
     isKeepBothAttempt?: boolean; // Flag to indicate this is a keepBoth retry scenario
+    clientFileId?: string; // Client-generated fileId for idempotency
   }): Promise<ApiResponse<{
     sessionId: string;
     fileId: string;
@@ -1187,13 +1275,17 @@ class ApiClient {
     manifestPublicKeyDilithium: string;
     manifestCreatedAt: number;
     algorithmVersion: string;
-  }): Promise<ApiResponse<{
+  }, fileId?: string): Promise<ApiResponse<{
     fileId: string;
     message: string;
   }>> {
+    // Use fileId as idempotency key for duplicate prevention
+    const idempotencyKey = fileId ? generateIdempotencyKeyForCreate(fileId) : undefined;
+    const headers = idempotencyKey ? addIdempotencyKey({}, idempotencyKey) : {};
     return this.request(`/files/upload/presigned/${sessionId}/finalize`, {
       method: 'POST',
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
+      headers
     });
   }
 
@@ -1301,9 +1393,13 @@ class ApiClient {
     sessionId: string;
     url: string;
   }>> {
+    // Use priceId as unique intent (creating checkout for same plan)
+    const idempotencyKey = generateIdempotencyKey('createCheckout', data.priceId);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/billing/create-checkout-session', {
       method: 'POST',
       body: JSON.stringify(data),
+      headers,
     });
   }
 
@@ -1312,9 +1408,13 @@ class ApiClient {
   }): Promise<ApiResponse<{
     url: string;
   }>> {
+    // Use returnUrl as unique intent (creating portal session)
+    const idempotencyKey = generateIdempotencyKey('createPortal', data.returnUrl);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/billing/create-portal-session', {
       method: 'POST',
       body: JSON.stringify(data),
+      headers,
     });
   }
 
@@ -1332,23 +1432,37 @@ class ApiClient {
     qrCode: string;
     recoveryCodes: string[];
   }>> {
+    // Use user ID as unique intent (setting up TOTP for same user)
+    const userId = 'current'; // Could be extracted from auth token if needed
+    const idempotencyKey = generateIdempotencyKey('setupTOTP', userId);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/totp/setup', {
       method: 'POST',
+      headers,
     });
   }
 
   async verifyTOTPSetup(token: string): Promise<ApiResponse<{
     recoveryCodes: string[];
   }>> {
+    // Use token hash as unique intent (verifying same setup)
+    const intent = token.substring(0, 8); // First 8 chars as intent identifier
+    const idempotencyKey = generateIdempotencyKey('verifyTOTPSetup', intent);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/totp/verify', {
       method: 'POST',
       body: JSON.stringify({ token }),
+      headers,
     });
   }
 
   async disableTOTP(token?: string, recoveryCode?: string): Promise<ApiResponse<{
     message: string;
   }>> {
+    // Use user ID as unique intent (disabling TOTP for same user)
+    const userId = 'current';
+    const idempotencyKey = generateIdempotencyKey('disableTOTP', userId);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     const body: any = {};
     if (token) body.token = token;
     if (recoveryCode) body.recoveryCode = recoveryCode;
@@ -1356,6 +1470,7 @@ class ApiClient {
     return this.request('/totp/disable', {
       method: 'DELETE',
       body: JSON.stringify(body),
+      headers,
     });
   }
 

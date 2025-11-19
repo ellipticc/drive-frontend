@@ -67,6 +67,7 @@
     "tailwindcss-animate": "^1.0.7",
     "tailwindcss-react-aria-components": "^2.0.1",
     "tweetsodium": "^0.0.4",
+    "uuid": "^13.0.0",
     "vaul": "^1.1.2",
     "zod": "^4.1.12"
   },
@@ -75,6 +76,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/uuid": "^10.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.0.0",
     "file-loader": "^6.2.0",

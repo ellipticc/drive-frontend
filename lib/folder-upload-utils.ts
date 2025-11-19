@@ -121,6 +121,7 @@ export async function createFolderHierarchy(
 
       // Create folder with encrypted name and signed manifest
       // manifestData contains manifestHash, signatures, and encryptedName/nameSalt
+      const folderId = crypto.randomUUID(); // Generate folderId client-side for idempotency
       const response = await apiClient.createFolder({
         encryptedName: manifestData.encryptedName,
         nameSalt: manifestData.nameSalt,
@@ -132,7 +133,8 @@ export async function createFolderHierarchy(
         manifestSignatureDilithium: manifestData.manifestSignatureDilithium,
         manifestPublicKeyDilithium: manifestData.manifestPublicKeyDilithium,
         algorithmVersion: manifestData.algorithmVersion,
-        nameHmac: manifestData.nameHmac
+        nameHmac: manifestData.nameHmac,
+        clientFolderId: folderId // Pass client-generated folderId for idempotency
       });
 
       if (response.success && response.data?.id) {
