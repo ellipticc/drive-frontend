@@ -51,17 +51,18 @@ export function AuthGuard({ children }: AuthGuardProps) {
     const isTokenValid = SessionManager.isTokenValid();
     
     if (!token || !isTokenValid) {
-      // No token or token expired, redirect to login
+      // No token or token expired, redirect immediately using window.location for instant navigation
       hasCheckedAuthRef.current = true;
       setIsExpired(!token);
-      router.push(isExpired ? "/login?expired=true" : "/login");
-      setIsAuthenticated(false);
+      const redirectUrl = isExpired ? "/login?expired=true" : "/login";
+      window.location.href = redirectUrl;
+      return; // Don't continue with the rest of the effect
     } else {
       // Token exists and is valid, allow access
       hasCheckedAuthRef.current = true;
       setIsAuthenticated(true);
     }
-  }, [pathname, isPublic, router]); // Added router to dependencies
+  }, [pathname, isPublic]); // Removed router from dependencies
 
   // Cleanup on unmount
   useEffect(() => {
@@ -84,6 +85,21 @@ export function AuthGuard({ children }: AuthGuardProps) {
     );
   }
 
+  // If not authenticated and we're on a private route, the useEffect will handle the redirect
+  // This state should be very brief since window.location.href redirects immediately
+  if (!isAuthenticated) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <p className="text-sm text-muted-foreground">
+            Redirecting...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   // Only render children if authenticated
-  return isAuthenticated ? children : null;
+  return children;
 }

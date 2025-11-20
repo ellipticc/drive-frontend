@@ -128,11 +128,42 @@ export class SessionManager {
   /**
    * Clear session and redirect to login
    */
-  static clearSessionAndRedirect() {
+  static async clearSessionAndRedirect() {
+    const token = localStorage.getItem('auth_token');
+    
+    // If we have a token, call logout endpoint to track the logout
+    if (token) {
+      try {
+        await fetch('/api/v1/auth/logout', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+      } catch (error) {
+        // Ignore logout API errors - we still want to clear local session
+        console.warn('Failed to call logout API:', error);
+      }
+    }
+
+    // Clear all session data
     localStorage.removeItem('auth_token');
     localStorage.removeItem('crypto_keypairs');
     localStorage.removeItem('master_key');
     localStorage.removeItem('account_salt');
+    localStorage.removeItem('viewMode');
+    localStorage.removeItem('session_config');
+    
+    // Also clear sessionStorage in case tokens were stored there
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.removeItem('auth_token');
+      sessionStorage.removeItem('crypto_keypairs');
+      sessionStorage.removeItem('master_key');
+      sessionStorage.removeItem('account_salt');
+      sessionStorage.removeItem('viewMode');
+      sessionStorage.removeItem('session_config');
+    }
     
     if (typeof window !== 'undefined') {
       window.location.href = '/login?expired=true';
