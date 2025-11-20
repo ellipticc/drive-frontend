@@ -194,7 +194,35 @@ export const TrashTable = () => {
             if (response.success) {
                 // Remove the item from trash view immediately
                 setTrashItems(prevItems => prevItems.filter(item => item.id !== itemId));
-                toast.success(`${itemType} restored successfully`);
+                
+                // Show toast with undo option
+                toast(`${itemType} restored successfully`, {
+                    action: {
+                        label: "Undo",
+                        onClick: async () => {
+                            try {
+                                let moveBackResponse;
+                                if (itemType === 'file') {
+                                    moveBackResponse = await apiClient.moveFileToTrash(itemId);
+                                } else {
+                                    moveBackResponse = await apiClient.moveFolderToTrash(itemId);
+                                }
+
+                                if (moveBackResponse.success) {
+                                    toast.success(`${itemType} moved back to trash`);
+                                    refreshTrash(); // Refresh to show the item back in trash
+                                } else {
+                                    toast.error(`Failed to move ${itemType} back to trash`);
+                                    refreshTrash(); // Refresh anyway to show current state
+                                }
+                            } catch (error) {
+                                // console.error('Move back to trash error:', error);
+                                toast.error(`Failed to move ${itemType} back to trash`);
+                                refreshTrash(); // Refresh anyway to show current state
+                            }
+                        },
+                    },
+                });
             } else {
                 toast.error(`Failed to restore ${itemType}`);
             }
@@ -254,7 +282,31 @@ export const TrashTable = () => {
             if (allSuccessful) {
                 // Clear trash view immediately
                 setTrashItems([]);
-                toast.success(`All ${trashItems.length} items restored successfully`);
+                
+                // Show toast with undo option
+                toast(`All ${trashItems.length} items restored successfully`, {
+                    action: {
+                        label: "Undo",
+                        onClick: async () => {
+                            try {
+                                // Move all items back to trash
+                                const moveBackResponse = await apiClient.moveToTrash(folderIds, fileIds);
+                                
+                                if (moveBackResponse.success) {
+                                    toast.success(`All items moved back to trash`);
+                                    refreshTrash(); // Refresh to show items back in trash
+                                } else {
+                                    toast.error(`Failed to move items back to trash`);
+                                    refreshTrash(); // Refresh anyway to show current state
+                                }
+                            } catch (error) {
+                                // console.error('Move back to trash error:', error);
+                                toast.error(`Failed to move items back to trash`);
+                                refreshTrash(); // Refresh anyway to show current state
+                            }
+                        },
+                    },
+                });
             } else {
                 // Partial success - refresh to show remaining items
                 await refreshTrash();
@@ -602,7 +654,10 @@ export const TrashTable = () => {
                 itemType={selectedItemForDelete?.type || "file"}
                 open={deleteModalOpen}
                 onOpenChange={setDeleteModalOpen}
-                onItemDeleted={refreshTrash}
+                onItemDeleted={() => {
+                    // Remove the item from trash view immediately (optimistic update)
+                    setTrashItems(prevItems => prevItems.filter(item => item.id !== selectedItemForDelete?.id));
+                }}
                 onStorageFreed={(storageFreed) => updateStorage(-storageFreed)}
             />
 

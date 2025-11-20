@@ -723,7 +723,7 @@ export const Table01DividerLineSm = ({
                     },
                 });
 
-                refreshFiles(); // Refresh to show current state
+                // No need to refreshFiles() here since we already did optimistic updates
             } else {
                 toast.error(`Failed to move items to trash`);
             }
@@ -1934,6 +1934,9 @@ export const Table01DividerLineSm = ({
             open={moveToTrashModalOpen}
             onOpenChange={setMoveToTrashModalOpen}
             onItemMoved={() => {
+                // Remove the item from the current view immediately (optimistic update)
+                setFiles(prevFiles => prevFiles.filter(file => file.id !== selectedItemForMoveToTrash?.id));
+
                 // Clear selection for the moved item
                 if (selectedItemForMoveToTrash?.id) {
                     setSelectedItems(prevSelected => {
@@ -1942,7 +1945,7 @@ export const Table01DividerLineSm = ({
                         return newSelected;
                     });
                 }
-                refreshFiles();
+                // No need to refreshFiles() since we do optimistic updates
             }}
         />
 
