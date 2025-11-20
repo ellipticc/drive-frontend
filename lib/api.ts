@@ -110,9 +110,20 @@ class ApiClient {
         // Token is expired, clear it
         this.clearToken();
         if (typeof window !== 'undefined') {
-          localStorage.removeItem('master_key');
-          localStorage.removeItem('account_salt');
-          localStorage.removeItem('viewMode');
+          // Clear all localStorage
+          localStorage.clear();
+          // Clear all sessionStorage
+          if (typeof sessionStorage !== 'undefined') {
+            sessionStorage.clear();
+          }
+          // Clear all cookies
+          const cookies = document.cookie.split(';');
+          for (const cookie of cookies) {
+            const [name] = cookie.trim().split('=');
+            document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; domain=${window.location.hostname}`;
+            document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; domain=.${window.location.hostname}`;
+            document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+          }
           // Only redirect to login if we're NOT on auth pages
           const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
           const authPages = ['/login', '/signup', '/otp', '/recover', '/recover/otp', '/recover/reset', '/backup', '/totp', '/auth/oauth/callback'];
@@ -146,9 +157,20 @@ class ApiClient {
         // Let components handle the 401 response
         this.clearToken();
         if (typeof window !== 'undefined') {
-          localStorage.removeItem('master_key');
-          localStorage.removeItem('account_salt');
-          localStorage.removeItem('viewMode');
+          // Clear all localStorage
+          localStorage.clear();
+          // Clear all sessionStorage
+          if (typeof sessionStorage !== 'undefined') {
+            sessionStorage.clear();
+          }
+          // Clear all cookies
+          const cookies = document.cookie.split(';');
+          for (const cookie of cookies) {
+            const [name] = cookie.trim().split('=');
+            document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; domain=${window.location.hostname}`;
+            document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; domain=.${window.location.hostname}`;
+            document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+          }
           // Only redirect to login if we're NOT on auth pages
           const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
           const authPages = ['/login', '/signup', '/otp', '/recover', '/recover/otp', '/recover/reset', '/backup', '/totp', '/auth/oauth/callback'];
@@ -412,11 +434,23 @@ class ApiClient {
 
     if (response.success) {
       this.clearToken();
-      // Also clear the master key and user preferences from localStorage
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('master_key');
-        localStorage.removeItem('account_salt');
-        localStorage.removeItem('viewMode');
+      // Clear all localStorage
+      if (typeof localStorage !== 'undefined') {
+        localStorage.clear();
+      }
+      // Clear all sessionStorage
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.clear();
+      }
+      // Clear all cookies
+      if (typeof document !== 'undefined') {
+        const cookies = document.cookie.split(';');
+        for (const cookie of cookies) {
+          const [name] = cookie.trim().split('=');
+          document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; domain=${window.location.hostname}`;
+          document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; domain=.${window.location.hostname}`;
+          document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+        }
       }
     }
 

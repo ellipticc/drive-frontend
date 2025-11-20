@@ -37,6 +37,13 @@ export class SessionManager {
     window.addEventListener('focus', () => {
       this.checkAndRenewToken();
     });
+
+    // Clear sessionStorage when tab is closed (sessionStorage is per-tab)
+    window.addEventListener('beforeunload', () => {
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.clear();
+      }
+    });
   }
 
   /**
@@ -147,22 +154,29 @@ export class SessionManager {
       }
     }
 
-    // Clear all session data
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('crypto_keypairs');
-    localStorage.removeItem('master_key');
-    localStorage.removeItem('account_salt');
-    localStorage.removeItem('viewMode');
-    localStorage.removeItem('session_config');
-    
-    // Also clear sessionStorage in case tokens were stored there
+    // Clear all localStorage
+    if (typeof localStorage !== 'undefined') {
+      localStorage.clear();
+    }
+
+    // Clear all sessionStorage
     if (typeof sessionStorage !== 'undefined') {
-      sessionStorage.removeItem('auth_token');
-      sessionStorage.removeItem('crypto_keypairs');
-      sessionStorage.removeItem('master_key');
-      sessionStorage.removeItem('account_salt');
-      sessionStorage.removeItem('viewMode');
-      sessionStorage.removeItem('session_config');
+      sessionStorage.clear();
+    }
+
+    // Clear all cookies
+    if (typeof document !== 'undefined') {
+      // Get all cookies
+      const cookies = document.cookie.split(';');
+      
+      // Clear each cookie by setting expiry to past date
+      for (const cookie of cookies) {
+        const [name] = cookie.trim().split('=');
+        document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; domain=${window.location.hostname}`;
+        document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; domain=.${window.location.hostname}`;
+        // Also try without domain for localhost/development
+        document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+      }
     }
     
     if (typeof window !== 'undefined') {
