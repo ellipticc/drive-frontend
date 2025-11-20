@@ -1193,7 +1193,7 @@ class ApiClient {
     };
   }
 
-  async deleteFilePermanently(fileId: string): Promise<ApiResponse<{ message: string }>> {
+  async deleteFilePermanently(fileId: string): Promise<ApiResponse<{ message: string; storageFreed: number }>> {
     const idempotencyKey = generateIdempotencyKey('deleteFilePermanent', fileId);
     const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/files/trash/delete`, {
@@ -1203,7 +1203,7 @@ class ApiClient {
     });
   }
 
-  async deleteFilesPermanently(fileIds: string[]): Promise<ApiResponse<{ message: string }>> {
+  async deleteFilesPermanently(fileIds: string[]): Promise<ApiResponse<{ message: string; storageFreed: number }>> {
     const intent = fileIds.sort().join(',');
     const idempotencyKey = generateIdempotencyKey('deleteFilesPermanent', intent);
     const headers = addIdempotencyKey({}, idempotencyKey);
@@ -1214,7 +1214,7 @@ class ApiClient {
     });
   }
 
-  async deleteFolderPermanently(folderId: string): Promise<ApiResponse<{ message: string }>> {
+  async deleteFolderPermanently(folderId: string): Promise<ApiResponse<{ message: string; storageFreed: number }>> {
     const idempotencyKey = generateIdempotencyKey('deleteFolderPermanent', folderId);
     const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/folders/trash`, {
@@ -1224,7 +1224,7 @@ class ApiClient {
     });
   }
 
-  async deleteFoldersPermanently(folderIds: string[]): Promise<ApiResponse<{ message: string }>> {
+  async deleteFoldersPermanently(folderIds: string[]): Promise<ApiResponse<{ message: string; storageFreed: number }>> {
     const intent = folderIds.sort().join(',');
     const idempotencyKey = generateIdempotencyKey('deleteFoldersPermanent', intent);
     const headers = addIdempotencyKey({}, idempotencyKey);

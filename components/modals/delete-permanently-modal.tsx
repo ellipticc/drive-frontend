@@ -24,9 +24,10 @@ interface DeletePermanentlyModalProps {
   open?: boolean
   onOpenChange?: (open: boolean) => void
   onItemDeleted?: () => void
+  onStorageFreed?: (storageFreed: number) => void
 }
 
-export function DeletePermanentlyModal({ children, itemId = "", itemName = "item", itemType = "file", open: externalOpen, onOpenChange: externalOnOpenChange, onItemDeleted }: DeletePermanentlyModalProps) {
+export function DeletePermanentlyModal({ children, itemId = "", itemName = "item", itemType = "file", open: externalOpen, onOpenChange: externalOnOpenChange, onItemDeleted, onStorageFreed }: DeletePermanentlyModalProps) {
   const [internalOpen, setInternalOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
@@ -50,6 +51,11 @@ export function DeletePermanentlyModal({ children, itemId = "", itemName = "item
         toast.success(`${itemType} permanently deleted successfully`)
         setOpen(false)
         onItemDeleted?.()
+        
+        // Update storage instantly if storage was freed
+        if (response.data?.storageFreed && response.data.storageFreed > 0) {
+          onStorageFreed?.(response.data.storageFreed)
+        }
       } else {
         toast.error(`Failed to delete ${itemType}`)
       }

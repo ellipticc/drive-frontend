@@ -25,6 +25,7 @@ interface UserContextType {
   loading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
+  updateStorage: (delta: number) => void;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -173,6 +174,39 @@ export function UserProvider({ children }: { children: ReactNode }) {
     await fetchUser(true); // Force refresh
   };
 
+  const updateStorage = (delta: number) => {
+    setUser(prevUser => {
+      if (!prevUser || !prevUser.storage) return prevUser;
+      
+      const newUsedBytes = Math.max(0, prevUser.storage.used_bytes + delta);
+      const newPercentUsed = (newUsedBytes / prevUser.storage.quota_bytes) * 100;
+      
+      const updatedUser = {
+        ...prevUser,
+        storage: {
+          ...prevUser.storage,
+          used_bytes: newUsedBytes,
+          percent_used: newPercentUsed,
+          used_readable: formatBytes(newUsedBytes),
+        }
+      };
+      
+      // Update cache too
+      saveUserDataToCache(updatedUser);
+      
+      return updatedUser;
+    });
+  };
+
+  // Helper function to format bytes
+  const formatBytes = (bytes: number): string => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+  };
+
   // Listen for custom login event
   useEffect(() => {
     const handleLogin = () => {
@@ -186,7 +220,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <UserContext.Provider value={{ user, loading, error, refetch }}>
+    <UserContext.Provider value={{ user, loading, error, refetch, updateStorage }}>
       {children}
     </UserContext.Provider>
   );

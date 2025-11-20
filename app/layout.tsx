@@ -199,8 +199,8 @@ export default function RootLayout({
           disableTransitionOnChange={false}
         >
           <CurrentFolderProvider>
-            <GlobalUploadProvider>
-              <UserProvider>
+            <UserProvider>
+              <GlobalUploadProvider>
                 <AuthGuard>
                   <ConditionalLayout>{children}</ConditionalLayout>
                 </AuthGuard>
@@ -212,8 +212,8 @@ export default function RootLayout({
                     fontFamily: 'var(--font-geist-sans)',
                   }}
                 />
-              </UserProvider>
-            </GlobalUploadProvider>
+              </GlobalUploadProvider>
+            </UserProvider>
           </CurrentFolderProvider>
         </ThemeProvider>
       </body>

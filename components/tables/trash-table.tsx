@@ -33,6 +33,7 @@ import { isTextTruncated } from "@/lib/tooltip-helper";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { masterKeyManager } from "@/lib/master-key";
 import { decryptFilename } from "@/lib/crypto";
+import { useUser } from "@/components/user-context";
 
 interface TrashItem {
     id: string;
@@ -53,6 +54,7 @@ interface TrashItem {
 }
 
 export const TrashTable = () => {
+    const { updateStorage } = useUser();
     const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({
         column: "deletedAt",
         direction: "descending",
@@ -289,15 +291,33 @@ export const TrashTable = () => {
             const results = await Promise.all(promises);
             const allSuccessful = results.every(result => result.success);
 
+            // Calculate total storage freed
+            let totalStorageFreed = 0;
+            results.forEach(result => {
+                if (result.success && result.data?.storageFreed) {
+                    totalStorageFreed += result.data.storageFreed;
+                }
+            });
+
             if (allSuccessful) {
                 // Clear trash view immediately
                 setTrashItems([]);
                 toast.success(`All ${trashItems.length} items permanently deleted`);
+                
+                // Update storage instantly
+                if (totalStorageFreed > 0) {
+                    updateStorage(-totalStorageFreed);
+                }
             } else {
                 // Partial success - refresh to show remaining items
                 await refreshTrash();
                 const successCount = results.filter(result => result.success).length;
                 toast.success(`${successCount} of ${promises.length} operations completed successfully`);
+                
+                // Still update storage for successful operations
+                if (totalStorageFreed > 0) {
+                    updateStorage(-totalStorageFreed);
+                }
             }
         } catch (error) {
             // console.error('Bulk delete error:', error);
@@ -583,6 +603,7 @@ export const TrashTable = () => {
                 open={deleteModalOpen}
                 onOpenChange={setDeleteModalOpen}
                 onItemDeleted={refreshTrash}
+                onStorageFreed={(storageFreed) => updateStorage(-storageFreed)}
             />
 
             {/* Bulk Delete Confirmation Dialog */}

@@ -145,14 +145,6 @@ export const AppSidebar = React.memo(function AppSidebar({
   const { handleFileUpload, handleFolderUpload } = useGlobalUpload()
   const { user: userData, loading: userLoading } = useUser()
   const [isAuthenticated, setIsAuthenticated] = React.useState(false)
-  const [storage, setStorage] = React.useState<{
-    used_bytes: number;
-    quota_bytes: number;
-    percent_used: number;
-    used_readable: string;
-    quota_readable: string;
-  } | null>(null)
-  const [storageLoading, setStorageLoading] = React.useState(false)
 
   // Check authentication status
   React.useEffect(() => {
@@ -166,27 +158,6 @@ export const AppSidebar = React.memo(function AppSidebar({
     }
     checkAuth()
   }, [])
-
-  // Fetch storage data when authenticated
-  React.useEffect(() => {
-    const fetchStorage = async () => {
-      if (!isAuthenticated) return
-
-      setStorageLoading(true)
-      try {
-        const response = await apiClient.getUserStorage()
-        if (response.success && response.data) {
-          setStorage(response.data)
-        }
-      } catch (error) {
-        console.error("Failed to fetch storage data:", error)
-      } finally {
-        setStorageLoading(false)
-      }
-    }
-
-    fetchStorage()
-  }, [isAuthenticated])
 
   // Don't render if not authenticated
   if (!isAuthenticated) {
@@ -251,17 +222,17 @@ export const AppSidebar = React.memo(function AppSidebar({
             <div className="flex justify-between mb-1">
               <span className="font-medium">Used</span>
               <span className="font-mono text-xs">
-                {storageLoading ? "Loading..." : (storage ? `${storage.used_readable} / ${storage.quota_readable}` : "0 bytes / 10GB")}
+                {userLoading ? "Loading..." : (userData?.storage ? `${userData.storage.used_readable} / ${userData.storage.quota_readable}` : "0 bytes / 10GB")}
               </span>
             </div>
             <div className="w-full bg-muted rounded-full h-2 transition-all duration-300">
               <div 
                 className="bg-primary h-2 rounded-full transition-all duration-300" 
-                style={{ width: storageLoading ? '0%' : (storage ? `${Math.min(storage.percent_used, 100)}%` : '0%') }}
+                style={{ width: userLoading ? '0%' : (userData?.storage ? `${Math.min(userData.storage.percent_used, 100)}%` : '0%') }}
               ></div>
             </div>
             <div className="text-center mt-1 text-xs font-medium">
-              {storageLoading ? "Loading..." : (storage ? `${storage.percent_used.toFixed(1)}% used` : "0.0% used")}
+              {userLoading ? "Loading..." : (userData?.storage ? `${userData.storage.percent_used.toFixed(1)}% used` : "0.0% used")}
             </div>
 
             {/* Get more storage button */}

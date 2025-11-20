@@ -7,6 +7,7 @@ import { UploadManager } from '@/components/upload-manager';
 import { keyManager } from '@/lib/key-manager';
 import { apiClient } from '@/lib/api';
 import { useCurrentFolder } from '@/components/current-folder-context';
+import { useUser } from '@/components/user-context';
 import { downloadFileToBrowser, downloadFolderAsZip, downloadMultipleItemsAsZip, DownloadProgress } from '@/lib/download';
 import { prepareFilesForUpload, CreatedFolder } from '@/lib/folder-upload-utils';
 import { ParallelUploadQueue, getUploadQueue, destroyUploadQueue } from '@/lib/parallel-upload-queue';
@@ -135,6 +136,9 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
 
   // Get current folder from context
   const { currentFolderId } = useCurrentFolder();
+  
+  // Get user context for storage updates
+  const { updateStorage } = useUser();
 
   // File input refs
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -236,6 +240,12 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
             result: task.result,
             progress: task.progress,
           });
+          
+          // Update storage in sidebar immediately (optimistic update)
+          if (task.result && task.result.file && task.result.file.size) {
+            updateStorage(task.result.file.size);
+          }
+          
           // Trigger all registered upload completion callbacks
           onUploadCompleteCallbacksRef.current.forEach(callback => {
             callback(task.id, task.result);
