@@ -48,7 +48,7 @@ export const Table01DividerLineSm = ({
   searchQuery?: string
   onFileUpload?: () => void
   onFolderUpload?: () => void
-  dragDropFiles?: { files: File[], folders: FileList | null }
+  dragDropFiles?: { files: File[], folders: FileList | File[] | null }
   onFileInputRef?: (ref: HTMLInputElement | null) => void
   onFolderInputRef?: (ref: HTMLInputElement | null) => void
   onUploadHandlersReady?: (handlers: { handleFileUpload: () => void; handleFolderUpload: () => void }) => void
@@ -259,9 +259,10 @@ export const Table01DividerLineSm = ({
     };
 
     // Start folder uploads with progress tracking (similar to file uploads but with folder hierarchy)
-    const startFolderUploads = async (files: FileList) => {
-        // Use global upload context
-        startUploadWithFolders(files, currentFolderId === 'root' ? null : currentFolderId);
+    const startFolderUploads = async (files: FileList | File[]) => {
+        // If files is a File[] array (from drag & drop), we need to pass it directly
+        // The startUploadWithFolders can handle both FileList and File[] since File[] has the webkitRelativePath property
+        startUploadWithFolders(files as any, currentFolderId === 'root' ? null : currentFolderId);
     };
 
     // Upload handlers - now using global context

@@ -18,7 +18,8 @@ export default function Home() {
 
   // Drag and drop state - simplified
   const [isDragOverlayVisible, setIsDragOverlayVisible] = useState(false)
-  const [droppedFiles, setDroppedFiles] = useState<{ files: File[], folders: FileList | null } | null>(null)
+  // folders can be FileList (from input) or File[] (from drag & drop) - both preserve webkitRelativePath
+  const [droppedFiles, setDroppedFiles] = useState<{ files: File[], folders: FileList | File[] | null } | null>(null)
 
   // Set page title
   useLayoutEffect(() => {
@@ -52,23 +53,51 @@ export default function Home() {
 
   // Drag and drop handlers - simplified
   const handleDrop = useCallback((files: FileList) => {
-    // Convert FileList to array and separate files and folders
     const fileArray = Array.from(files)
-    const regularFiles = fileArray.filter(file => !file.webkitRelativePath || file.webkitRelativePath === file.name)
-    const folderFiles = fileArray.filter(file => file.webkitRelativePath && file.webkitRelativePath !== file.name)
-
-    // Set dropped files for the table component to handle
-    setDroppedFiles({
-      files: regularFiles,
-      folders: folderFiles.length > 0 ? (() => {
-        // Create a new FileList-like object for folders
-        const dt = new DataTransfer()
-        folderFiles.forEach(file => dt.items.add(file))
-        return dt.files
-      })() : null
+    
+    console.log('=== DRAG DROP START ===');
+    console.log('Total files in FileList:', fileArray.length);
+    fileArray.forEach((f, i) => {
+      console.log(`[${i}] name="${f.name}" size=${f.size} type="${f.type}" relativePath="${(f as any).webkitRelativePath || 'NONE'}"`);
+    });
+    
+    // Filter out directories and suspicious entries
+    const validFiles = fileArray.filter(file => {
+      const relativePath = (file as any).webkitRelativePath || '';
+      
+      // Skip if this looks like a directory:
+      // 1. Has webkitRelativePath that equals the filename (folder, not file in folder)
+      // 2. Has empty name or type (suspicious entries)
+      if (relativePath === file.name && relativePath !== '') {
+        console.log(`FILTERING OUT DIR: name="${file.name}" relativePath="${relativePath}"`);
+        return false; // Skip - this is a directory
+      }
+      if (!file.name || file.name.trim() === '') {
+        console.log(`FILTERING OUT INVALID: empty name`);
+        return false; // Skip - invalid filename
+      }
+      
+      return true;
+    });
+    
+    console.log('After filter, validFiles count:', validFiles.length);
+    
+    const regularFiles = validFiles.filter(file => {
+      const relativePath = (file as any).webkitRelativePath || '';
+      return !relativePath; // Files with no relative path
+    })
+    const folderFiles = validFiles.filter(file => {
+      const relativePath = (file as any).webkitRelativePath || '';
+      return relativePath && relativePath !== file.name; // Files in folders
     })
 
-    // Reset drag state
+    console.log('Separated into:', { regularFilesCount: regularFiles.length, folderFilesCount: folderFiles.length });
+
+    setDroppedFiles({
+      files: regularFiles,
+      folders: folderFiles.length > 0 ? folderFiles : null
+    })
+
     setIsDragOverlayVisible(false)
   }, [])
 

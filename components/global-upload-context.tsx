@@ -21,7 +21,7 @@ interface GlobalUploadContextType {
   handleFileUpload: () => void;
   handleFolderUpload: () => void;
   startUploadWithFiles: (files: File[], folderId: string | null) => void;
-  startUploadWithFolders: (files: FileList, folderId: string | null) => void;
+  startUploadWithFolders: (files: FileList | File[], folderId: string | null) => void;
 
   // Modal controls
   openModal: () => void;
@@ -193,12 +193,23 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
   }, []);
 
   const addUpload = useCallback((file: File) => {
+    // Final defense: reject any suspicious entries
+    if (!file.name || file.name.trim() === '') {
+      throw new Error('Invalid file: missing filename');
+    }
+    
+    // Reject directory entries: those have webkitRelativePath === name
+    const relativePath = (file as any).webkitRelativePath || '';
+    if (relativePath === file.name && relativePath !== '') {
+      throw new Error(`Cannot upload directory "${file.name}". Please select files instead.`);
+    }
+
     const uploadState: FileUploadState = {
       id: `upload-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       file,
       status: 'pending',
       progress: null,
-      currentFilename: file.name, // Initialize with original filename
+      currentFilename: file.name,
     };
 
     setUploads(prev => [...prev, uploadState]);
@@ -526,14 +537,69 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
   }, []);
 
   const startUploadWithFiles = useCallback((files: File[], folderId: string | null) => {
-    files.forEach(file => {
+    // Filter out any suspicious entries that might be directories
+    const validFiles = files.filter(file => {
+      // Check for empty or invalid filenames
+      if (!file.name || file.name.trim() === '') {
+        return false;
+      }
+      
+      const relativePath = (file as any).webkitRelativePath || '';
+      
+      // If relativePath equals filename (and both are non-empty), it's a directory
+      if (relativePath === file.name && relativePath !== '') {
+        return false;
+      }
+      
+      return true;
+    });
+
+    if (validFiles.length === 0) {
+      alert('No valid files to upload. Please select files, not directories.');
+      return;
+    }
+
+    validFiles.forEach(file => {
       const uploadState = addUpload(file);
       startUpload(uploadState);
     });
     openModal();
   }, [addUpload, startUpload, openModal]);
 
-  const startUploadWithFolders = useCallback((files: FileList, folderId: string | null) => {
+  const startUploadWithFolders = useCallback((files: FileList | File[], folderId: string | null) => {
+    // Filter out any suspicious entries before processing
+    const fileArray = Array.from(files);
+    console.log('=== START UPLOAD WITH FOLDERS ===');
+    console.log('Input files count:', fileArray.length);
+    fileArray.forEach((f, i) => {
+      console.log(`[${i}] name="${f.name}" size=${f.size} type="${f.type}" relativePath="${(f as any).webkitRelativePath || 'NONE'}"`);
+    });
+    
+    const validFiles = fileArray.filter(file => {
+      // Check for empty or invalid filenames
+      if (!file.name || file.name.trim() === '') {
+        console.log('FILTERING OUT: empty name');
+        return false;
+      }
+      
+      const relativePath = (file as any).webkitRelativePath || '';
+      
+      // If relativePath equals filename (and both are non-empty), it's a directory
+      if (relativePath === file.name && relativePath !== '') {
+        console.log(`FILTERING OUT DIR: name="${file.name}" relativePath="${relativePath}"`);
+        return false;
+      }
+      
+      return true;
+    });
+
+    console.log('After filter, validFiles count:', validFiles.length);
+
+    if (validFiles.length === 0) {
+      alert('No files were found in the selected folder. Please select a folder with files.');
+      return;
+    }
+
     // Register callback to add folders immediately when they're created
     const onFolderCreated = (folder: CreatedFolder) => {
       
@@ -553,8 +619,17 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
     };
 
     // Process folder structure and create folders as needed
-    prepareFilesForUpload(files, folderId, onFolderCreated)
+    // Pass the filtered validFiles array
+    prepareFilesForUpload(validFiles, folderId, onFolderCreated)
       .then(filesForUpload => {
+        // Check if any files are available
+        if (filesForUpload.length === 0) {
+          console.warn('📁 Upload skipped: Selected folder is empty or contains no accessible files');
+          // Show user-friendly message for empty folders
+          alert('The selected folder is empty. There are no files to upload.');
+          return;
+        }
+
         // Upload each file to its correct folder
         filesForUpload.forEach(({ file, folderId: targetFolderId }) => {
           const uploadState = addUpload(file);
@@ -629,9 +704,9 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
       })
       .catch((error) => {
         console.error('Failed to prepare folder uploads:', error);
-        // Show error toast
-        const message = error instanceof Error ? error.message : 'Failed to create folder structure';
-        // You might want to add a toast notification here
+        // Show error message
+        const errorMessage = error instanceof Error ? error.message : 'Failed to create folder structure';
+        alert(`Upload Failed: ${errorMessage}`);
       });
   }, [addUpload, updateUploadState, openModal]);
 

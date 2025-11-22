@@ -31,20 +31,38 @@ export interface CreatedFolder {
 }
 
 /**
- * Extract folder structure from FileList with webkitRelativePath support
+ * Extract folder structure from FileList or File[] with webkitRelativePath support
  * Groups files by their folder path
+ * NOTE: Empty folders cannot be detected by the File API since it only returns files
  */
-export function extractFolderStructure(files: FileList): FolderStructure {
+export async function extractFolderStructure(files: FileList | File[]): Promise<FolderStructure> {
   const structure: FolderStructure = {};
+  const fileArray = Array.from(files);
+  
+  console.log('=== EXTRACT FOLDER STRUCTURE ===');
+  console.log('Input files count:', fileArray.length);
+  fileArray.forEach((f, i) => {
+    console.log(`[${i}] name="${f.name}" size=${f.size} type="${f.type}" relativePath="${(f as any).webkitRelativePath || 'NONE'}"`);
+  });
 
-  Array.from(files).forEach(file => {
+  // Extract folder structure from files
+  fileArray.forEach((file) => {
     // Get the folder path from webkitRelativePath
     const relativePath = (file as any).webkitRelativePath || '';
+    
+    // CRITICAL: Skip directory entries that don't have webkitRelativePath
+    // or have webkitRelativePath === name (both indicate a directory)
+    if (relativePath === file.name && relativePath !== '') {
+      // This is a directory entry - skip it
+      console.log(`FILTERING OUT DIR: name="${file.name}" relativePath="${relativePath}"`);
+      return;
+    }
     
     if (!relativePath) {
       // Regular file without folder structure
       structure[''] = structure[''] || [];
       structure[''].push(file);
+      console.log(`Added to root: "${file.name}"`);
       return;
     }
 
@@ -53,6 +71,12 @@ export function extractFolderStructure(files: FileList): FolderStructure {
     const folderPath = parts.slice(0, -1).join('/');
     const fileName = parts[parts.length - 1];
 
+    // Skip empty folder names
+    if (!fileName) {
+      console.warn(`Skipping invalid file path: ${relativePath}`);
+      return;
+    }
+
     // Group files by folder
     if (!structure[folderPath]) {
       structure[folderPath] = [];
@@ -60,6 +84,8 @@ export function extractFolderStructure(files: FileList): FolderStructure {
     structure[folderPath].push(file);
   });
 
+  // Allow empty structure (happens when folder is empty - FileList will be empty)
+  // In this case, we just return empty structure and skip upload silently
   return structure;
 }
 
@@ -179,14 +205,25 @@ export function getFolderIdForFile(folderPath: string, folderMap: Map<string, st
  * Prepare files for upload with their correct folder IDs
  * Returns array of {file, folderId} pairs
  * Calls onFolderCreated callback immediately when folders are created
+ * 
+ * NOTE: If the folder is empty, returns empty array (nothing to upload)
+ * Accepts both FileList (from input element) and File[] array (from drag & drop)
  */
 export async function prepareFilesForUpload(
-  files: FileList,
+  files: FileList | File[],
   baseFolderId: string | null = null,
   onFolderCreated?: (folder: CreatedFolder) => void
 ): Promise<Array<{ file: File; folderId: string | null }>> {
-  // Extract folder structure from files
-  const folderStructure = extractFolderStructure(files);
+  // Extract folder structure from files (with validation)
+  const folderStructure = await extractFolderStructure(files);
+
+  // If folder is empty (no files), return empty array
+  // This is normal for empty folders - browsers don't enumerate empty directories
+  if (Object.keys(folderStructure).length === 0 || 
+      Object.values(folderStructure).every(fileArray => fileArray.length === 0)) {
+    console.log('📁 Empty folder detected - no files to upload');
+    return [];
+  }
 
   // Create folder hierarchy and get folder IDs
   const folderMap = await createFolderHierarchy(folderStructure, baseFolderId, onFolderCreated);
@@ -198,7 +235,14 @@ export async function prepareFilesForUpload(
     const folderId = folderMap.get(folderPath) || null;
     folderFiles.forEach(file => {
       filesForUpload.push({ file, folderId });
+      console.log(`QUEUING FOR UPLOAD: "${file.name}" -> folderId=${folderId}`);
     });
+  });
+
+  console.log('=== FINAL UPLOAD QUEUE ===');
+  console.log('Total files to upload:', filesForUpload.length);
+  filesForUpload.forEach((item, i) => {
+    console.log(`[${i}] name="${item.file.name}" folderId=${item.folderId}`);
   });
 
   return filesForUpload;

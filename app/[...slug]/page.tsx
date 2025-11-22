@@ -19,8 +19,9 @@ export default function Home() {
   const folderInputRef = useRef<HTMLInputElement>(null)
 
   // Drag and drop state - simplified
+  // folders can be FileList (from input) or File[] (from drag & drop) - both preserve webkitRelativePath
   const [isDragOverlayVisible, setIsDragOverlayVisible] = useState(false)
-  const [droppedFiles, setDroppedFiles] = useState<{ files: File[], folders: FileList | null } | null>(null)
+  const [droppedFiles, setDroppedFiles] = useState<{ files: File[], folders: FileList | File[] | null } | null>(null)
 
   useEffect(() => {
     document.title = "My Files - Ellipticc Drive"
@@ -50,25 +51,41 @@ export default function Home() {
     initializeKeyManager()
   }, [user])
 
-  // Drag and drop handlers - simplified
+  // Drag and drop handlers
   const handleDrop = useCallback((files: FileList) => {
-    // Convert FileList to array and separate files and folders
     const fileArray = Array.from(files)
-    const regularFiles = fileArray.filter(file => !file.webkitRelativePath || file.webkitRelativePath === file.name)
-    const folderFiles = fileArray.filter(file => file.webkitRelativePath && file.webkitRelativePath !== file.name)
-
-    // Set dropped files for the table component to handle
-    setDroppedFiles({
-      files: regularFiles,
-      folders: folderFiles.length > 0 ? (() => {
-        // Create a new FileList-like object for folders
-        const dt = new DataTransfer()
-        folderFiles.forEach(file => dt.items.add(file))
-        return dt.files
-      })() : null
+    
+    // Filter out directories and suspicious entries
+    const validFiles = fileArray.filter(file => {
+      const relativePath = (file as any).webkitRelativePath || '';
+      
+      // Skip if this looks like a directory:
+      // 1. Has webkitRelativePath that equals the filename (folder, not file in folder)
+      // 2. Has empty name or type (suspicious entries)
+      if (relativePath === file.name && relativePath !== '') {
+        return false; // Skip - this is a directory
+      }
+      if (!file.name || file.name.trim() === '') {
+        return false; // Skip - invalid filename
+      }
+      
+      return true;
+    });
+    
+    const regularFiles = validFiles.filter(file => {
+      const relativePath = (file as any).webkitRelativePath || '';
+      return !relativePath; // Files with no relative path
+    })
+    const folderFiles = validFiles.filter(file => {
+      const relativePath = (file as any).webkitRelativePath || '';
+      return relativePath && relativePath !== file.name; // Files in folders
     })
 
-    // Reset drag state
+    setDroppedFiles({
+      files: regularFiles,
+      folders: folderFiles.length > 0 ? folderFiles : null
+    })
+
     setIsDragOverlayVisible(false)
   }, [])
 

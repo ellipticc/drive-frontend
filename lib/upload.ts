@@ -143,6 +143,21 @@ export async function uploadEncryptedFile(
       throw new Error('Upload cancelled');
     }
 
+    // Validate file accessibility before starting upload
+    try {
+      const testSize = file.size; // Try to access file size
+      if (testSize < 0) {
+        throw new Error('Invalid file size');
+      }
+      
+      // CRITICAL: Always try to read a chunk to ensure it's actually a file, not a directory
+      // Even empty files (size 0) should be readable, but directories will fail
+      const testSlice = file.slice(0, Math.min(1024, Math.max(1, testSize)));
+      await testSlice.arrayBuffer(); // This will fail for directories
+    } catch (error) {
+      throw new Error(`Cannot access file "${file.name}". The file may have been deleted, moved, or this may be a directory that cannot be uploaded directly. ${error instanceof Error ? error.message : ''}`);
+    }
+
     // Stage 1: Compute SHA-256 hash of entire file
     onProgress?.({ stage: 'hashing', overallProgress: 0 });
     const sha256Hash = await computeFileSHA256(file);
@@ -327,27 +342,72 @@ export async function uploadEncryptedFile(
 
 /**
  * Compute SHA-256 hash of entire file using streaming approach
+ * Includes validation for file accessibility
  */
 async function computeFileSHA256(file: File): Promise<string> {
-  const arrayBuffer = await file.arrayBuffer();
-  const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
-  return uint8ArrayToHex(new Uint8Array(hashBuffer));
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+    return uint8ArrayToHex(new Uint8Array(hashBuffer));
+  } catch (error) {
+    throw new Error(`Cannot read file "${file.name}": ${error instanceof Error ? error.message : String(error)}. The file may have been deleted or moved.`);
+  }
 }
 
 /**
  * Split file into chunks of CHUNK_SIZE
+ * Includes retry logic for transient file access errors
  */
 async function splitFileIntoChunks(file: File): Promise<Uint8Array[]> {
   const chunks: Uint8Array[] = [];
   const fileSize = file.size;
+  const MAX_RETRIES = 3;
+  const RETRY_DELAY_MS = 100;
+
+  // Validate file accessibility before starting
+  try {
+    const testChunk = file.slice(0, Math.min(1024, fileSize));
+    await testChunk.arrayBuffer();
+  } catch (error) {
+    throw new Error(`File "${file.name}" is no longer accessible. It may have been deleted or moved during upload.`);
+  }
 
   for (let offset = 0; offset < fileSize; offset += CHUNK_SIZE) {
     const chunkSize = Math.min(CHUNK_SIZE, fileSize - offset);
-    const chunk = file.slice(offset, offset + chunkSize);
+    let lastError: Error | null = null;
 
-    // Convert blob to Uint8Array
-    const arrayBuffer = await chunk.arrayBuffer();
-    chunks.push(new Uint8Array(arrayBuffer));
+    // Retry logic for reading chunks
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      try {
+        const chunk = file.slice(offset, offset + chunkSize);
+
+        // Convert blob to Uint8Array
+        const arrayBuffer = await chunk.arrayBuffer();
+        chunks.push(new Uint8Array(arrayBuffer));
+        break; // Success, move to next chunk
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        
+        // If it's a file accessibility error, give it a moment and retry
+        if (error instanceof Error && (
+          error.message.includes('could not be found') ||
+          error.message.includes('no longer accessible') ||
+          error.message.includes('ENOENT')
+        )) {
+          if (attempt < MAX_RETRIES - 1) {
+            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * (attempt + 1)));
+            continue;
+          }
+        }
+        
+        // For other errors, fail immediately
+        throw new Error(`Failed to read file chunk at offset ${offset}: ${lastError.message}`);
+      }
+    }
+
+    if (lastError && chunks.length === Math.floor(offset / CHUNK_SIZE)) {
+      throw new Error(`Failed to read file "${file.name}" after ${MAX_RETRIES} attempts: ${lastError.message}`);
+    }
   }
 
   return chunks;
