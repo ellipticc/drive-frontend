@@ -93,9 +93,12 @@ class ApiClient {
     // Extract headers separately to avoid them being overwritten by ...options spread
     const { headers: optionHeaders, ...otherOptions } = options;
 
+    // Only set Content-Type if body is not FormData (FormData needs browser to set boundary)
+    const isFormData = otherOptions.body instanceof FormData;
+    
     const config: RequestInit = {
       headers: {
-        'Content-Type': 'application/json',
+        ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
         ...optionHeaders,  // Spread headers from options
       },
       credentials: 'include', // Essential for CORS with TOR and cross-origin requests
