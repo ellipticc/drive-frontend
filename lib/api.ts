@@ -608,7 +608,7 @@ class ApiClient {
   }): Promise<ApiResponse> {
     const idempotencyKey = generateIdempotencyKey('sendSupportRequest', data.timestamp);
     const headers = addIdempotencyKey({}, idempotencyKey);
-    return this.request('/auth/support', {
+    return this.request('/support/request', {
       method: 'POST',
       body: JSON.stringify({
         subject: data.subject,
