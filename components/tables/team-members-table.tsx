@@ -638,6 +638,11 @@ export const Table01DividerLineSm = ({
             }
 
             if (response.success) {
+                // Check if the current folder is being trashed - if so, navigate to parent
+                if (itemType === 'folder' && itemId === currentFolderId) {
+                    navigateToParent();
+                }
+
                 // Remove the item from the current view immediately
                 setFiles(prevFiles => prevFiles.filter(file => file.id !== itemId));
 
@@ -703,6 +708,11 @@ export const Table01DividerLineSm = ({
             const response = await apiClient.moveToTrash(folderIds, fileIds);
 
             if (response.success) {
+                // Check if the current folder is being trashed - if so, navigate to parent
+                if (folderIds.includes(currentFolderId)) {
+                    navigateToParent();
+                }
+
                 // Remove successfully moved items from the current view
                 setFiles(prevFiles => prevFiles.filter(file => 
                     !selectedItemsArray.some(selected => selected.id === file.id)
@@ -736,7 +746,7 @@ export const Table01DividerLineSm = ({
             // console.error('Bulk move to trash error:', error);
             toast.error(`Failed to move items to trash`);
         }
-    }, [selectedItems, apiClient, setFiles, setSelectedItems, toast, refreshFiles]);
+    }, [selectedItems, apiClient, setFiles, setSelectedItems, toast, refreshFiles, currentFolderId, navigateToParent]);
 
     // Handle PDF preview
     const handlePDFPreviewClick = async (itemId: string, itemName: string) => {

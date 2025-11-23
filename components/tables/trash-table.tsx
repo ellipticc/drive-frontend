@@ -138,6 +138,7 @@ export const TrashTable = () => {
                             updatedAt: file.updated_at || file.updatedAt,
                             deletedAt: file.deleted_at || file.deletedAt,
                             sha256Hash: file.sha256_hash || file.sha256Hash,
+                            folderId: file.folder_id || file.folderId,
                         };
                     })
                 );
