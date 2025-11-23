@@ -50,11 +50,11 @@ export async function extractFolderStructure(files: FileList | File[]): Promise<
     // Get the folder path from webkitRelativePath
     const relativePath = (file as any).webkitRelativePath || '';
     
-    // CRITICAL: Skip directory entries that don't have webkitRelativePath
-    // or have webkitRelativePath === name (both indicate a directory)
-    if (relativePath === file.name && relativePath !== '') {
-      // This is a directory entry - skip it
-      console.log(`FILTERING OUT DIR: name="${file.name}" relativePath="${relativePath}"`);
+    // CRITICAL: Skip directory entries
+    // A directory entry has BOTH:
+    // 1. size === 0 AND type === "" (browser-level indication of empty directory)
+    if (file.size === 0 && file.type === '') {
+      console.log(`FILTERING OUT DIR (empty): name="${file.name}" size=0 type=""`);
       return;
     }
     
@@ -71,8 +71,8 @@ export async function extractFolderStructure(files: FileList | File[]): Promise<
     const folderPath = parts.slice(0, -1).join('/');
     const fileName = parts[parts.length - 1];
 
-    // Skip empty folder names
-    if (!fileName) {
+    // Skip empty folder names or invalid paths
+    if (!fileName || fileName.trim() === '') {
       console.warn(`Skipping invalid file path: ${relativePath}`);
       return;
     }
@@ -82,10 +82,17 @@ export async function extractFolderStructure(files: FileList | File[]): Promise<
       structure[folderPath] = [];
     }
     structure[folderPath].push(file);
+    console.log(`Added to folder "${folderPath}": "${file.name}"`);
   });
 
   // Allow empty structure (happens when folder is empty - FileList will be empty)
   // In this case, we just return empty structure and skip upload silently
+  console.log('=== FOLDER STRUCTURE EXTRACTED ===');
+  console.log('Folders:', Object.keys(structure));
+  Object.entries(structure).forEach(([path, files]) => {
+    console.log(`  "${path}": ${files.length} files`);
+  });
+  
   return structure;
 }
 

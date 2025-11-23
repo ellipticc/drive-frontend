@@ -48,6 +48,20 @@ export class UploadManager {
   private currentFilename: string; // Track the current filename being uploaded
 
   constructor(props: UploadManagerProps) {
+    // Validate that this is actually a File object and not an empty directory entry
+    const file = props.file;
+    
+    // ONLY reject truly empty directory entries (size=0, type="")
+    // Allow files with webkitRelativePath (folder contents) and files from drag-drop
+    if (file.size === 0 && file.type === '') {
+      throw new Error(`Cannot upload empty directory: "${file.name}". Directory must contain files.`);
+    }
+    
+    // Validate filename is not empty
+    if (!file.name || file.name.trim() === '') {
+      throw new Error('Cannot upload file: Invalid filename');
+    }
+
     this.props = props;
     this.currentFilename = props.file.name; // Initialize with original filename
     this.task = {

@@ -544,13 +544,12 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
         return false;
       }
       
-      const relativePath = (file as any).webkitRelativePath || '';
-      
-      // If relativePath equals filename (and both are non-empty), it's a directory
-      if (relativePath === file.name && relativePath !== '') {
+      // ONLY reject truly empty directory entries: size=0 AND type=""
+      if (file.size === 0 && file.type === '') {
         return false;
       }
       
+      // All other files (with content) are valid
       return true;
     });
 
@@ -582,14 +581,13 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
         return false;
       }
       
-      const relativePath = (file as any).webkitRelativePath || '';
-      
-      // If relativePath equals filename (and both are non-empty), it's a directory
-      if (relativePath === file.name && relativePath !== '') {
-        console.log(`FILTERING OUT DIR: name="${file.name}" relativePath="${relativePath}"`);
+      // ONLY reject truly empty directory entries: size=0 AND type=""
+      if (file.size === 0 && file.type === '') {
+        console.log(`FILTERING OUT DIR (empty): name="${file.name}" size=${file.size} type="${file.type}"`);
         return false;
       }
       
+      // All other files (with content) are valid
       return true;
     });
 
@@ -627,78 +625,93 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
           console.warn('📁 Upload skipped: Selected folder is empty or contains no accessible files');
           // Show user-friendly message for empty folders
           alert('The selected folder is empty. There are no files to upload.');
+          openModal();
           return;
         }
 
         // Upload each file to its correct folder
         filesForUpload.forEach(({ file, folderId: targetFolderId }) => {
-          const uploadState = addUpload(file);
-          // Store the correct folder ID for this upload
-          const uploadManager = new UploadManager({
-            id: uploadState.id,
-            file: uploadState.file,
-            folderId: targetFolderId,
-            onProgress: (task) => {
-              updateUploadState(task.id, {
-                status: task.status,
-                progress: task.progress,
-                error: task.error,
-              });
-            },
-            onComplete: (task) => {
-              updateUploadState(task.id, {
-                status: 'completed',
-                result: task.result,
-                progress: task.progress,
-              });
-              // Trigger all registered upload completion callbacks
-              onUploadCompleteCallbacksRef.current.forEach(callback => {
-                callback(task.id, task.result);
-              });
-              // Trigger file added callbacks with the file data
-              if (task.result && task.result.file) {
-                onFileAddedCallbacksRef.current.forEach(callback => {
-                  callback(task.result.file);
+          try {
+            const uploadState = addUpload(file);
+            // Store the correct folder ID for this upload
+            const uploadManager = new UploadManager({
+              id: uploadState.id,
+              file: uploadState.file,
+              folderId: targetFolderId,
+              onProgress: (task) => {
+                updateUploadState(task.id, {
+                  status: task.status,
+                  progress: task.progress,
+                  error: task.error,
                 });
-              }
-              // Trigger file replaced callbacks if a file was replaced - refresh the file list
-              if (task.existingFileIdToDelete) {
-                onFileReplacedCallbacksRef.current.forEach(callback => {
-                  callback();
+              },
+              onComplete: (task) => {
+                updateUploadState(task.id, {
+                  status: 'completed',
+                  result: task.result,
+                  progress: task.progress,
                 });
-              }
-            },
-            onError: (task) => {
-              updateUploadState(task.id, {
-                status: 'failed',
-                error: task.error,
-              });
-            },
-            onCancel: (task) => {
-              updateUploadState(task.id, {
-                status: 'cancelled',
-              });
-            },
-            onConflict: (task, conflictInfo) => {
-              // Handle file conflict by opening conflict modal
-              const conflictItem = {
-                id: task.id,
-                name: conflictInfo.name,
-                type: conflictInfo.type,
-                existingPath: conflictInfo.existingPath,
-                newPath: conflictInfo.newPath,
-                existingFileId: conflictInfo.existingFileId, // Store file ID for deletion
-              };
-              setConflictItems([conflictItem]);
-              setIsConflictModalOpen(true);
-              
-              // Store the upload manager for later resolution
-              uploadManagersRef.current.set(task.id, uploadManager);
-            },
-          });
+                // Trigger all registered upload completion callbacks
+                onUploadCompleteCallbacksRef.current.forEach(callback => {
+                  callback(task.id, task.result);
+                });
+                // Trigger file added callbacks with the file data
+                if (task.result && task.result.file) {
+                  onFileAddedCallbacksRef.current.forEach(callback => {
+                    callback(task.result.file);
+                  });
+                }
+                // Trigger file replaced callbacks if a file was replaced - refresh the file list
+                if (task.existingFileIdToDelete) {
+                  onFileReplacedCallbacksRef.current.forEach(callback => {
+                    callback();
+                  });
+                }
+              },
+              onError: (task) => {
+                updateUploadState(task.id, {
+                  status: 'failed',
+                  error: task.error,
+                });
+              },
+              onCancel: (task) => {
+                updateUploadState(task.id, {
+                  status: 'cancelled',
+                });
+              },
+              onConflict: (task, conflictInfo) => {
+                // Handle file conflict by opening conflict modal
+                const conflictItem = {
+                  id: task.id,
+                  name: conflictInfo.name,
+                  type: conflictInfo.type,
+                  existingPath: conflictInfo.existingPath,
+                  newPath: conflictInfo.newPath,
+                  existingFileId: conflictInfo.existingFileId, // Store file ID for deletion
+                };
+                setConflictItems([conflictItem]);
+                setIsConflictModalOpen(true);
+                
+                // Store the upload manager for later resolution
+                uploadManagersRef.current.set(task.id, uploadManager);
+              },
+            });
 
-          uploadManagersRef.current.set(uploadState.id, uploadManager);
-          uploadManager.start();
+            uploadManagersRef.current.set(uploadState.id, uploadManager);
+            uploadManager.start();
+          } catch (error) {
+            console.error('Failed to initialize upload for file:', file.name, error);
+            // Create an error upload state to display the error to the user
+            const uploadState: FileUploadState = {
+              id: `upload-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              file,
+              status: 'failed',
+              progress: null,
+              currentFilename: file.name,
+              error: error instanceof Error ? error.message : 'Failed to upload file',
+            };
+            setUploads(prev => [...prev, uploadState]);
+          }
         });
         openModal();
       })
@@ -707,6 +720,8 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
         // Show error message
         const errorMessage = error instanceof Error ? error.message : 'Failed to create folder structure';
         alert(`Upload Failed: ${errorMessage}`);
+        // Still open modal to show errors
+        openModal();
       });
   }, [addUpload, updateUploadState, openModal]);
 

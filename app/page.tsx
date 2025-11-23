@@ -51,8 +51,8 @@ export default function Home() {
     initializeKeyManager()
   }, [user])
 
-  // Drag and drop handlers - simplified
-  const handleDrop = useCallback((files: FileList) => {
+    // Handle drag and drop files
+    const handleDrop = useCallback((files: FileList) => {
     const fileArray = Array.from(files)
     
     console.log('=== DRAG DROP START ===');
@@ -63,20 +63,19 @@ export default function Home() {
     
     // Filter out directories and suspicious entries
     const validFiles = fileArray.filter(file => {
-      const relativePath = (file as any).webkitRelativePath || '';
-      
-      // Skip if this looks like a directory:
-      // 1. Has webkitRelativePath that equals the filename (folder, not file in folder)
-      // 2. Has empty name or type (suspicious entries)
-      if (relativePath === file.name && relativePath !== '') {
-        console.log(`FILTERING OUT DIR: name="${file.name}" relativePath="${relativePath}"`);
-        return false; // Skip - this is a directory
-      }
+      // Check for empty or invalid filenames first
       if (!file.name || file.name.trim() === '') {
         console.log(`FILTERING OUT INVALID: empty name`);
         return false; // Skip - invalid filename
       }
       
+      // ONLY reject truly empty directory entries: size=0 AND type=""
+      if (file.size === 0 && file.type === '') {
+        console.log(`FILTERING OUT DIR (empty): name="${file.name}" size=${file.size} type="${file.type}"`);
+        return false;
+      }
+      
+      // All other files (with content) are valid
       return true;
     });
     
@@ -88,7 +87,7 @@ export default function Home() {
     })
     const folderFiles = validFiles.filter(file => {
       const relativePath = (file as any).webkitRelativePath || '';
-      return relativePath && relativePath !== file.name; // Files in folders
+      return !!relativePath; // Any files with relative path (folder structure)
     })
 
     console.log('Separated into:', { regularFilesCount: regularFiles.length, folderFilesCount: folderFiles.length });
@@ -160,7 +159,15 @@ export default function Home() {
       <div className="flex flex-1 flex-col">
         <div className="@container/main flex flex-1 flex-col gap-2">
           <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-            <Table01DividerLineSm searchQuery={searchQuery} dragDropFiles={droppedFiles || undefined} />
+            <Table01DividerLineSm 
+              searchQuery={searchQuery} 
+              dragDropFiles={droppedFiles || undefined}
+              onDragDropProcessed={() => {
+                // Reset dropped files after processing
+                console.log('Drop files processed, resetting state');
+                setDroppedFiles(null);
+              }}
+            />
             
             {/* Hidden file inputs */}
             <input

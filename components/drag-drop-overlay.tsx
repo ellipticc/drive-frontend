@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { IconUpload, IconFile, IconFolder } from "@tabler/icons-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,52 +13,110 @@ interface DragDropOverlayProps {
 
 export function DragDropOverlay({ isVisible, onDrop, onDragLeave }: DragDropOverlayProps) {
   const [isHovering, setIsHovering] = useState(false);
+  const [isAnimatingOut, setIsAnimatingOut] = useState(false);
+  const dragLeaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const dragOverCountRef = useRef(0);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-  }, []);
-
-  const handleDragEnter = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsHovering(true);
   }, []);
 
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragOverCountRef.current++;
+    setIsHovering(true);
+    setIsAnimatingOut(false);
+    
+    // Clear any pending drag leave timeout
+    if (dragLeaveTimeoutRef.current) {
+      clearTimeout(dragLeaveTimeoutRef.current);
+      dragLeaveTimeoutRef.current = null;
+    }
+  }, []);
+
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsHovering(false);
+    dragOverCountRef.current--;
+    
+    if (dragOverCountRef.current <= 0) {
+      dragOverCountRef.current = 0;
+      setIsHovering(false);
+      
+      // Debounce the animation out to avoid flickering
+      if (dragLeaveTimeoutRef.current) {
+        clearTimeout(dragLeaveTimeoutRef.current);
+      }
+      dragLeaveTimeoutRef.current = setTimeout(() => {
+        setIsAnimatingOut(true);
+      }, 50);
+    }
   }, []);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
+    dragOverCountRef.current = 0;
     setIsHovering(false);
-    onDragLeave();
+    setIsAnimatingOut(true);
 
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {
       onDrop(files);
     }
+    
+    // Notify parent to close overlay after animation
+    onDragLeave();
   }, [onDrop, onDragLeave]);
 
-  if (!isVisible) return null;
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (dragLeaveTimeoutRef.current) {
+        clearTimeout(dragLeaveTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Handle animation completion
+  useEffect(() => {
+    if (isAnimatingOut && !isVisible) {
+      setIsAnimatingOut(false);
+      dragOverCountRef.current = 0;
+    }
+  }, [isVisible, isAnimatingOut]);
+
+  if (!isVisible && !isAnimatingOut) return null;
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in-0 duration-300"
+      className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-opacity ${
+        isAnimatingOut 
+          ? 'opacity-0 duration-200' 
+          : 'opacity-100 duration-200'
+      }`}
       onDragOver={handleDragOver}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/20 backdrop-blur-sm animate-in fade-in-0 duration-300" />
+      <div className={`absolute inset-0 bg-black/20 backdrop-blur-sm transition-opacity ${
+        isAnimatingOut 
+          ? 'opacity-0 duration-200' 
+          : 'opacity-100 duration-200'
+      }`} />
 
       {/* Modal */}
-      <Card className={`relative max-w-md w-full shadow-2xl border-2 border-dashed transition-all duration-300 animate-in slide-in-from-bottom-4 fade-in-0 duration-500 ${
+      <Card className={`relative max-w-md w-full shadow-2xl border-2 border-dashed transition-all ${
+        isAnimatingOut 
+          ? 'opacity-0 scale-95 duration-200' 
+          : 'opacity-100 scale-100 duration-300'
+      } ${
         isHovering
           ? 'border-primary bg-primary/5 scale-105 shadow-primary/20'
           : 'border-muted-foreground/25 bg-card/95'

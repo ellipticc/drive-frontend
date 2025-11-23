@@ -334,6 +334,13 @@ export function SettingsModal({
     const file = event.target.files?.[0]
     if (!file) return
 
+    console.log('🎨 Avatar file selected:', {
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      lastModified: file.lastModified
+    });
+
     // Validate file type
     if (!file.type.startsWith('image/')) {
       toast.error("Please select an image file")
@@ -351,7 +358,15 @@ export function SettingsModal({
       const formData = new FormData()
       formData.append('file', file)
 
+      console.log('📤 Sending avatar upload request:', {
+        formDataKeys: Array.from(formData.keys()),
+        hasFile: formData.has('file'),
+        fileInFormData: formData.get('file') instanceof File
+      });
+
       const uploadResponse = await apiClient.uploadAvatar(formData)
+
+      console.log('📥 Avatar upload response:', uploadResponse);
 
       if (uploadResponse.success && uploadResponse.data?.avatarUrl) {
         // Update the user's profile with the new avatar URL

@@ -41,6 +41,7 @@ export const Table01DividerLineSm = ({
   onFileUpload,
   onFolderUpload,
   dragDropFiles,
+  onDragDropProcessed,
   onFileInputRef,
   onFolderInputRef,
   onUploadHandlersReady
@@ -49,6 +50,7 @@ export const Table01DividerLineSm = ({
   onFileUpload?: () => void
   onFolderUpload?: () => void
   dragDropFiles?: { files: File[], folders: FileList | File[] | null }
+  onDragDropProcessed?: () => void
   onFileInputRef?: (ref: HTMLInputElement | null) => void
   onFolderInputRef?: (ref: HTMLInputElement | null) => void
   onUploadHandlersReady?: (handlers: { handleFileUpload: () => void; handleFolderUpload: () => void }) => void
@@ -296,8 +298,10 @@ export const Table01DividerLineSm = ({
             if (folders) {
                 startFolderUploads(folders);
             }
+            // Notify parent that we've processed the drag drop files
+            onDragDropProcessed?.();
         }
-    }, [dragDropFiles]);
+    }, [dragDropFiles, onDragDropProcessed]);
 
     // Register for file added events to add files and folders incrementally
     useOnFileAdded(useCallback((fileData: any) => {
