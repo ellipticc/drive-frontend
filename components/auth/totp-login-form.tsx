@@ -25,6 +25,7 @@ import { masterKeyManager } from "@/lib/master-key"
 import { keyManager } from "@/lib/key-manager"
 import { Loader2 } from "lucide-react"
 import { IconCloudLock } from '@tabler/icons-react';
+import { sessionTrackingUtils } from "@/hooks/useSessionTracking"
 
 export function TOTPLoginForm({
   className,
@@ -127,6 +128,15 @@ export function TOTPLoginForm({
           localStorage.removeItem('login_email')
           localStorage.removeItem('login_password')
           localStorage.removeItem('login_user_id')
+
+          // Track login conversion for session analytics
+          const sessionId = sessionTrackingUtils.getSessionId()
+          if (sessionId) {
+            sessionTrackingUtils.trackConversion(sessionId, 'login', userId)
+          }
+
+          // Clear session tracking after successful login
+          sessionTrackingUtils.clearSession()
 
           // Redirect to main page
           window.dispatchEvent(new CustomEvent('user-login'))

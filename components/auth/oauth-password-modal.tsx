@@ -27,6 +27,7 @@ import {
   decryptUserPrivateKeys
 } from '@/lib/crypto';
 import { useRouter } from 'next/navigation';
+import { sessionTrackingUtils } from '@/hooks/useSessionTracking';
 
 interface OAuthPasswordModalProps {
   email: string;
@@ -305,6 +306,15 @@ export function OAuthPasswordModal({
 
       // Dispatch event for global state updates
       window.dispatchEvent(new CustomEvent('user-login'));
+
+      // Track login conversion before redirecting
+      const sessionId = sessionTrackingUtils.getSessionId();
+      if (sessionId) {
+        sessionTrackingUtils.trackConversion(sessionId, 'login', user.id);
+      }
+
+      // Clear session tracking after successful login
+      sessionTrackingUtils.clearSession();
 
       // Navigate to dashboard
       router.push('/');

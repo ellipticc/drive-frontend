@@ -10,6 +10,7 @@ import { masterKeyManager } from "@/lib/master-key"
 import { metamaskAuthService, MetaMaskAuthService } from "@/lib/metamask-auth-service"
 import { keyManager } from "@/lib/key-manager"
 import SIWE from "@/lib/siwe"
+import { sessionTrackingUtils } from "@/hooks/useSessionTracking"
 
 interface SIWELoginButtonProps {
   onSuccess?: (user: any) => void;
@@ -257,6 +258,15 @@ export function SIWELoginButton({ onSuccess, onError, context = 'login' }: SIWEL
 
       // Call success callback
       onSuccess?.(user)
+
+      // Track login conversion for session analytics
+      const sessionId = sessionTrackingUtils.getSessionId()
+      if (sessionId) {
+        sessionTrackingUtils.trackConversion(sessionId, 'login', user.id)
+      }
+
+      // Clear session tracking after successful login
+      sessionTrackingUtils.clearSession()
 
       // Redirect to main drive page
       router.push("/")

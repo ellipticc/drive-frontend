@@ -24,6 +24,7 @@ import { apiClient } from "@/lib/api"
 import { Loader2 } from "lucide-react"
 import { SIWELoginButton } from "./siwe-login-button"
 import { GoogleOAuthButton } from "./google-oauth-button"
+import { useSessionTracking, sessionTrackingUtils } from "@/hooks/useSessionTracking"
 
 export function SignupForm({
   className,
@@ -35,6 +36,7 @@ export function SignupForm({
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
   const [error, setError] = useState("")
   const [referralCode, setReferralCode] = useState<string | null>(null)
+  const sessionTracking = useSessionTracking(true) // Enable session tracking on signup page
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -241,6 +243,15 @@ export function SignupForm({
       // Store email and password for OTP verification
       localStorage.setItem('signup_email', formData.email)
       localStorage.setItem('signup_password', formData.password)
+
+      // 📊 Track signup conversion
+      const sessionId = sessionTrackingUtils.getSessionId()
+      if (sessionId) {
+        console.log('📊 Tracking signup conversion for session:', sessionId)
+        sessionTrackingUtils.trackConversion(sessionId, 'signup', userId)
+          .then(() => console.log('success'))
+          .catch(err => console.error('Failed to track signup conversion:', err))
+      }
 
       // Navigate to OTP verification page (CRITICAL: user must verify email first before backup)
       router.push("/otp")

@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/input-otp"
 import { useEffect, useState } from "react"
 import { apiClient } from "@/lib/api"
+import { sessionTrackingUtils } from "@/hooks/useSessionTracking"
 
 export function OTPForm({ className, ...props }: React.ComponentProps<"div">) {
   const [isLoading, setIsLoading] = useState(false)
@@ -101,11 +102,19 @@ export function OTPForm({ className, ...props }: React.ComponentProps<"div">) {
             console.error('Master key derivation error:', mkError)
             throw new Error(`Failed to derive master key: ${mkError instanceof Error ? mkError.message : 'Unknown error'}`)
           }
+
+          // Track email verification conversion
+          const sessionId = sessionTrackingUtils.getSessionId()
+          if (sessionId) {
+            sessionTrackingUtils.trackConversion(sessionId, 'email_verification', userData.id)
+          }
         }
 
-        // Clear signup data from localStorage
         localStorage.removeItem('signup_email')
         localStorage.removeItem('signup_password')
+
+        // Clear session tracking after successful email verification
+        sessionTrackingUtils.clearSession()
 
         // Redirect to backup page
         window.location.href = "/backup"

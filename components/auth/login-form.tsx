@@ -27,6 +27,7 @@ import { Loader2 } from "lucide-react"
 import { SIWELoginButton } from "./siwe-login-button"
 import { GoogleOAuthButton } from "./google-oauth-button"
 import { Switch } from "@/components/ui/switch"
+import { useSessionTracking, sessionTrackingUtils } from "@/hooks/useSessionTracking"
 
 export function LoginForm({
   className,
@@ -41,6 +42,7 @@ export function LoginForm({
     password: ""
   })
   const [keepSignedIn, setKeepSignedIn] = useState(false)
+  const sessionTracking = useSessionTracking(true) // Enable session tracking on login page
 
   // Check if user is already authenticated with cached credentials
   useEffect(() => {
@@ -231,6 +233,15 @@ export function LoginForm({
       }
 
       // Redirect to main page (for both TOTP disabled users and TOTP enabled users with remembered devices)
+      // Track login conversion before clearing session
+      const sessionId = sessionTrackingUtils.getSessionId()
+      if (sessionId) {
+        sessionTrackingUtils.trackConversion(sessionId, 'login', user.id)
+      }
+
+      // Stop session tracking after successful login
+      sessionTrackingUtils.clearSession()
+
       window.dispatchEvent(new CustomEvent('user-login'));
       router.push("/")
     } catch (err) {
