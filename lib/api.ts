@@ -1373,8 +1373,8 @@ class ApiClient {
     fileId: string;
     message: string;
   }>> {
-    // Use fileId as idempotency key for duplicate prevention
-    const idempotencyKey = fileId ? generateIdempotencyKeyForCreate(fileId) : undefined;
+    // Use fileId with operation prefix as idempotency key to distinguish from initialize
+    const idempotencyKey = fileId ? generateIdempotencyKey('finalizeUpload', fileId) : undefined;
     const headers = idempotencyKey ? addIdempotencyKey({}, idempotencyKey) : {};
     return this.request(`/files/upload/presigned/${sessionId}/finalize`, {
       method: 'POST',
