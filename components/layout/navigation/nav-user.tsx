@@ -33,6 +33,7 @@ import { apiClient } from "@/lib/api"
 import { masterKeyManager } from "@/lib/master-key"
 import { getDiceBearAvatar } from "@/lib/avatar"
 import { SettingsModal } from "@/components/modals/settings-modal"
+import { NotificationsModal } from "@/components/modals/notifications-modal"
 
 // Generate initials from name (e.g., "John Doe" -> "JD", "John" -> "J")
 export function getInitials(name: string): string {
@@ -74,6 +75,7 @@ export function NavUser({
 }) {
   const { isMobile } = useSidebar()
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
   const displayName = getDisplayName(user)
 
   const handleLogout = async () => {
@@ -145,7 +147,7 @@ export function NavUser({
                   <IconCreditCard />
                   Billing
                 </DropdownMenuItem>
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setNotificationsOpen(true)}>
                   <IconNotification />
                   Notifications
                 </DropdownMenuItem>
@@ -160,6 +162,7 @@ export function NavUser({
         </SidebarMenuItem>
       </SidebarMenu>
       <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <NotificationsModal open={notificationsOpen} onOpenChange={setNotificationsOpen} />
     </>
   )
 }

@@ -1834,6 +1834,75 @@ class ApiClient {
     return this.request(`/folders/${folderId}/verify`);
   }
 
+  // Notification endpoints
+  async getNotifications(params?: {
+    limit?: number;
+    offset?: number;
+  }): Promise<ApiResponse<{
+    notifications: Array<{
+      id: string;
+      type: string;
+      title: string;
+      message: string;
+      data: any;
+      read_at: string | null;
+      created_at: string;
+    }>;
+    pagination: {
+      limit: number;
+      offset: number;
+      hasMore: boolean;
+    };
+  }>> {
+    const queryParams = new URLSearchParams();
+    if (params?.limit !== undefined) {
+      queryParams.append('limit', params.limit.toString());
+    }
+    if (params?.offset !== undefined) {
+      queryParams.append('offset', params.offset.toString());
+    }
+
+    const queryString = queryParams.toString();
+    const endpoint = `/notifications${queryString ? `?${queryString}` : ''}`;
+
+    return this.request(endpoint);
+  }
+
+  async getNotificationStats(): Promise<ApiResponse<{
+    total: number;
+    unread: number;
+  }>> {
+    return this.request('/notifications/stats');
+  }
+
+  async markNotificationAsRead(notificationId: string): Promise<ApiResponse<{
+    success: boolean;
+    message: string;
+  }>> {
+    return this.request(`/notifications/${notificationId}/read`, {
+      method: 'PUT',
+    });
+  }
+
+  async markAllNotificationsAsRead(): Promise<ApiResponse<{
+    success: boolean;
+    message: string;
+    markedCount: number;
+  }>> {
+    return this.request('/notifications/read-all', {
+      method: 'PUT',
+    });
+  }
+
+  async deleteNotification(notificationId: string): Promise<ApiResponse<{
+    success: boolean;
+    message: string;
+  }>> {
+    return this.request(`/notifications/${notificationId}`, {
+      method: 'DELETE',
+    });
+  }
+
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);
