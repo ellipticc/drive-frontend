@@ -76,6 +76,9 @@ export class UploadManager {
   async start(): Promise<void> {
     if (this.isDestroyed) return;
 
+    // Abort any previous upload to prevent session ID conflicts
+    this.task.abortController?.abort();
+
     try {
       this.task.status = 'uploading';
       this.task.abortController = new AbortController();
