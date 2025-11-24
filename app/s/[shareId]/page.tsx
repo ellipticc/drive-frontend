@@ -263,6 +263,8 @@ export default function SharedDownloadPage() {
         const sessionUrl = `${ingestBaseUrl}/api/v1/sessions/start`;
         
         const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
+        // SECURITY: Remove hash fragment containing encryption key before sending to analytics
+        const sanitizedUrl = currentUrl.split('#')[0];
         const referrer = typeof document !== 'undefined' ? document.referrer : '';
         
         // Extract UTM parameters from URL if present
@@ -272,7 +274,7 @@ export default function SharedDownloadPage() {
         const utmCampaign = urlParams.get('utm_campaign');
         
         const sessionData: any = {
-          first_landing_url: currentUrl,
+          first_landing_url: sanitizedUrl,
           referrer: referrer || undefined
         };
         
@@ -289,9 +291,9 @@ export default function SharedDownloadPage() {
         
         if (response.ok) {
           const data = await response.json();
-          if (data.data?.session_id) {
+          if (data.session_id) {
             // Store session ID in sessionStorage for use in file downloads
-            sessionStorage.setItem(`share_session_${shareId}`, data.data.session_id);
+            sessionStorage.setItem(`share_session_${shareId}`, data.session_id);
           }
         }
       } catch (err) {
@@ -303,9 +305,7 @@ export default function SharedDownloadPage() {
     if (shareId) {
       initializeIngestSession();
     }
-  }, [shareId]);
-
-  useEffect(() => {
+  }, [shareId]);  useEffect(() => {
     if (shareDetails && passwordVerified) {
       loadManifestAndInitialize();
       // Decrypt filename if it's encrypted
@@ -498,24 +498,20 @@ export default function SharedDownloadPage() {
         setDownloadProgress(progress.overallProgress);
       });
 
-      // Track in main backend for webhooks
-      await apiClient.trackShareDownload(shareId);
-
-      // Track in ingest server for analytics
+      // Track in ingest server RIGHT AFTER download URLs request
       try {
         const sessionId = sessionStorage.getItem(`share_session_${shareId}`);
         if (sessionId) {
-          // Convert to the ingest server endpoint (ingest.ellipticc.com)
           const ingestBaseUrl = process.env.NEXT_PUBLIC_INGEST_URL || 'https://ingest.ellipticc.com';
           await fetch(`${ingestBaseUrl}/api/v1/sessions/convert`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               session_id: sessionId,
-              conversion_event: 'file_download',
+              conversion_event: 'share_download',
               event_data: {
                 fileId,
-                fileName,
+                fileName: '[encrypted]',
                 shareId,
                 timestamp: new Date().toISOString()
               }
@@ -529,6 +525,9 @@ export default function SharedDownloadPage() {
         console.warn('Error tracking ingest session:', ingestError);
         // Don't fail download if ingest tracking fails
       }
+
+      // Track in main backend for webhooks
+      await apiClient.trackShareDownload(shareId);
 
       const url = URL.createObjectURL(result.blob);
       const a = document.createElement('a');
