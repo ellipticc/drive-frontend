@@ -239,10 +239,9 @@ export const AppSidebar = React.memo(function AppSidebar({
             <Button
               variant="outline"
               size="sm"
-              className="w-full mt-3 text-xs transition-all duration-200 hover:bg-primary hover:text-primary-foreground"
+              className="w-full mt-3 text-xs transition-all duration-200 hover:bg-primary hover:text-primary-foreground dark:bg-background dark:text-foreground dark:border-border dark:hover:bg-primary dark:hover:text-primary-foreground"
               onClick={() => {
-                // TODO: Implement storage upgrade logic
-                // console.log('Get more storage clicked');
+                window.location.href = '/billing';
               }}
             >
               Get more storage

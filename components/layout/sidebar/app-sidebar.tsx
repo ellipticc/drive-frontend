@@ -286,7 +286,7 @@ export const AppSidebar = React.memo(function AppSidebar({
             <Button
               variant="outline"
               size="sm"
-              className="w-full mt-3 text-xs transition-all duration-200 hover:bg-primary hover:text-primary-foreground"
+              className="w-full mt-3 text-xs bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground duration-200 ease-linear dark:bg-white dark:text-black dark:hover:bg-gray-200"
               onClick={() => {
                 router.push('/billing')
               }}
