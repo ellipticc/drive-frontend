@@ -255,6 +255,56 @@ export default function SharedDownloadPage() {
     }
   }, [shareId]);
 
+  // Initialize ingest server session for analytics
+  useEffect(() => {
+    const initializeIngestSession = async () => {
+      try {
+        const ingestBaseUrl = process.env.NEXT_PUBLIC_INGEST_URL || 'https://ingest.ellipticc.com';
+        const sessionUrl = `${ingestBaseUrl}/api/v1/sessions/start`;
+        
+        const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
+        const referrer = typeof document !== 'undefined' ? document.referrer : '';
+        
+        // Extract UTM parameters from URL if present
+        const urlParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+        const utmSource = urlParams.get('utm_source');
+        const utmMedium = urlParams.get('utm_medium');
+        const utmCampaign = urlParams.get('utm_campaign');
+        
+        const sessionData: any = {
+          first_landing_url: currentUrl,
+          referrer: referrer || undefined
+        };
+        
+        // Add UTM parameters if present
+        if (utmSource) sessionData.utm_source = utmSource;
+        if (utmMedium) sessionData.utm_medium = utmMedium;
+        if (utmCampaign) sessionData.utm_campaign = utmCampaign;
+        
+        const response = await fetch(sessionUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(sessionData)
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.data?.session_id) {
+            // Store session ID in sessionStorage for use in file downloads
+            sessionStorage.setItem(`share_session_${shareId}`, data.data.session_id);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to initialize ingest server session:', err);
+        // Non-critical error, don't block share access
+      }
+    };
+    
+    if (shareId) {
+      initializeIngestSession();
+    }
+  }, [shareId]);
+
   useEffect(() => {
     if (shareDetails && passwordVerified) {
       loadManifestAndInitialize();
@@ -278,7 +328,9 @@ export default function SharedDownloadPage() {
           shareDetails.nonce_filename,
           shareCek
         );
-        setDecryptedFilename(decrypted);
+        // Sanitize the decrypted filename to remove any control characters
+        const sanitized = decrypted.replace(/[\x00-\x1F\x7F-\x9F]/g, '').trim();
+        setDecryptedFilename(sanitized || '(File)');
       } catch (err) {
         console.warn('Failed to decrypt filename with share CEK:', err);
         // Fallback to generic name
@@ -286,7 +338,9 @@ export default function SharedDownloadPage() {
       }
     } else if (shareDetails.file?.filename) {
       // Fallback to plaintext filename if encrypted version not available
-      setDecryptedFilename(shareDetails.file.filename);
+      // Also sanitize plaintext filenames
+      const sanitized = shareDetails.file.filename.replace(/[\x00-\x1F\x7F-\x9F]/g, '').trim();
+      setDecryptedFilename(sanitized || '(File)');
     } else {
       setDecryptedFilename('(File)');
     }
@@ -444,7 +498,37 @@ export default function SharedDownloadPage() {
         setDownloadProgress(progress.overallProgress);
       });
 
+      // Track in main backend for webhooks
       await apiClient.trackShareDownload(shareId);
+
+      // Track in ingest server for analytics
+      try {
+        const sessionId = sessionStorage.getItem(`share_session_${shareId}`);
+        if (sessionId) {
+          // Convert to the ingest server endpoint (ingest.ellipticc.com)
+          const ingestBaseUrl = process.env.NEXT_PUBLIC_INGEST_URL || 'https://ingest.ellipticc.com';
+          await fetch(`${ingestBaseUrl}/api/v1/sessions/convert`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              session_id: sessionId,
+              conversion_event: 'file_download',
+              event_data: {
+                fileId,
+                fileName,
+                shareId,
+                timestamp: new Date().toISOString()
+              }
+            })
+          }).catch(err => {
+            console.warn('Failed to track conversion in ingest server:', err);
+            // Don't fail download if ingest tracking fails
+          });
+        }
+      } catch (ingestError) {
+        console.warn('Error tracking ingest session:', ingestError);
+        // Don't fail download if ingest tracking fails
+      }
 
       const url = URL.createObjectURL(result.blob);
       const a = document.createElement('a');
@@ -490,7 +574,7 @@ export default function SharedDownloadPage() {
 
   if (loading || checkingSession) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background relative">
         <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="flex h-14 items-center px-4">
             <div className="container flex items-center">
@@ -514,13 +598,38 @@ export default function SharedDownloadPage() {
             <p className="text-muted-foreground">Loading share details...</p>
           </div>
         </div>
+
+        {/* Footer - Always shown at extreme bottom */}
+        <footer className="absolute bottom-0 left-0 right-0 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="flex flex-col items-center gap-3 py-6 px-4 text-sm text-muted-foreground">
+            <div className="flex items-center justify-center gap-6">
+              <a
+                href="/terms-of-service"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-foreground transition-colors"
+              >
+                Terms of Service
+              </a>
+              <span className="text-muted-foreground/50">•</span>
+              <a
+                href="/privacy-policy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-foreground transition-colors"
+              >
+                Privacy Policy
+              </a>
+            </div>
+          </div>
+        </footer>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background relative">
         <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="flex h-14 items-center px-4">
             <div className="container flex items-center">
@@ -603,6 +712,31 @@ export default function SharedDownloadPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Footer - Always shown at extreme bottom */}
+        <footer className="absolute bottom-0 left-0 right-0 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="flex flex-col items-center gap-3 py-6 px-4 text-sm text-muted-foreground">
+            <div className="flex items-center justify-center gap-6">
+              <a
+                href="/terms-of-service"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-foreground transition-colors"
+              >
+                Terms of Service
+              </a>
+              <span className="text-muted-foreground/50">•</span>
+              <a
+                href="/privacy-policy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-foreground transition-colors"
+              >
+                Privacy Policy
+              </a>
+            </div>
+          </div>
+        </footer>
       </div>
     );
   }
@@ -612,7 +746,7 @@ export default function SharedDownloadPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background relative">
       <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="flex h-14 items-center px-4">
           <div className="container flex items-center">
@@ -921,8 +1055,8 @@ export default function SharedDownloadPage() {
         </Card>
       </div>
 
-      {/* Footer - Absolutely positioned at bottom */}
-      <footer className="border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 mt-auto">
+      {/* Footer - Absolutely positioned at extreme bottom */}
+      <footer className="absolute bottom-0 left-0 right-0 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="flex flex-col items-center gap-3 py-6 px-4 text-sm text-muted-foreground">
           <div className="flex items-center justify-center gap-6">
             <a
