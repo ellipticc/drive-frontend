@@ -8,7 +8,15 @@ import {
   IconCheck,
   IconX,
   IconTrash,
-  IconChecks
+  IconChecks,
+  IconShield,
+  IconKey,
+  IconShieldCheck,
+  IconInfoCircle,
+  IconLogin,
+  IconUserCheck,
+  IconFileText,
+  IconCreditCard
 } from "@tabler/icons-react"
 
 import {
@@ -23,6 +31,7 @@ import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { apiClient } from "@/lib/api"
 
 interface Notification {
@@ -139,13 +148,19 @@ export function NotificationsModal({ open, onOpenChange }: NotificationsModalPro
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case 'security_login':
-        return '🔐'
+        return <IconLogin className="h-5 w-5 text-blue-600" />
       case 'security_password_change':
-        return '🔑'
+        return <IconKey className="h-5 w-5 text-orange-600" />
       case 'security_2fa':
-        return '🛡️'
+        return <IconShieldCheck className="h-5 w-5 text-green-600" />
+      case 'billing_payment':
+        return <IconCreditCard className="h-5 w-5 text-purple-600" />
+      case 'file_shared':
+        return <IconFileText className="h-5 w-5 text-indigo-600" />
+      case 'user_registered':
+        return <IconUserCheck className="h-5 w-5 text-emerald-600" />
       default:
-        return '📢'
+        return <IconInfoCircle className="h-5 w-5 text-gray-600" />
     }
   }
 
@@ -223,7 +238,7 @@ export function NotificationsModal({ open, onOpenChange }: NotificationsModalPro
                       : 'bg-background border-border'
                   }`}>
                     <div className="flex items-start gap-3">
-                      <div className="text-2xl">
+                      <div className="flex-shrink-0">
                         {getNotificationIcon(notification.type)}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -248,6 +263,22 @@ export function NotificationsModal({ open, onOpenChange }: NotificationsModalPro
                             )}
                             {notification.data?.userAgent && (
                               <div>Device: {notification.data.userAgent.substring(0, 50)}...</div>
+                            )}
+                            {notification.data?.user && (
+                              <div className="flex items-center gap-2 mt-2">
+                                <Avatar className="h-6 w-6">
+                                  <AvatarImage
+                                    src={notification.data.user.avatar || undefined}
+                                    alt={notification.data.user.name || notification.data.user.email}
+                                  />
+                                  <AvatarFallback className="text-xs">
+                                    {(notification.data.user.name || notification.data.user.email || 'U').charAt(0).toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span className="text-xs">
+                                  {notification.data.user.name || notification.data.user.email}
+                                </span>
+                              </div>
                             )}
                           </div>
                         )}

@@ -1517,11 +1517,12 @@ class ApiClient {
   }
 
   // TOTP endpoints
-  async getTOTPStatus(): Promise<ApiResponse<{
+  async getTOTPStatus(userId?: string): Promise<ApiResponse<{
     enabled: boolean;
     hasRecoveryCodes: boolean;
   }>> {
-    return this.request('/totp/status');
+    const params = userId ? `?userId=${encodeURIComponent(userId)}` : '';
+    return this.request(`/totp/status${params}`);
   }
 
   async setupTOTP(): Promise<ApiResponse<{
@@ -1574,8 +1575,10 @@ class ApiClient {
 
   async verifyTOTPLogin(userId: string, token: string, rememberDevice?: boolean): Promise<ApiResponse<{
     deviceToken?: string;
+    token?: string;
   }>> {
-    const idempotencyKey = generateIdempotencyKey('verifyTOTPLogin', `${userId}:${token.substring(0, 4)}`);
+    // Use a unique timestamp-based key for each TOTP attempt to avoid idempotency caching blocking retries
+    const idempotencyKey = generateIdempotencyKey('verifyTOTPLogin', `${userId}:${Date.now()}`);
     const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/totp/verify-login', {
       method: 'POST',
@@ -1661,14 +1664,18 @@ class ApiClient {
     });
   }
 
-  async verifyRecoveryCode(recoveryCode: string): Promise<ApiResponse<{
+  async verifyRecoveryCode(recoveryCode: string, userId?: string): Promise<ApiResponse<{
     valid: boolean;
+    token?: string;
   }>> {
-    const idempotencyKey = generateIdempotencyKey('verifyRecoveryCode', recoveryCode.substring(0, 8));
+    // Use a unique timestamp-based key for each recovery code attempt to avoid idempotency caching blocking retries
+    const idempotencyKey = generateIdempotencyKey('verifyRecoveryCode', `${Date.now()}`);
     const headers = addIdempotencyKey({}, idempotencyKey);
+    const body: any = { recoveryCode };
+    if (userId) body.userId = userId;
     return this.request('/totp/verify-recovery', {
       method: 'POST',
-      body: JSON.stringify({ recoveryCode }),
+      body: JSON.stringify(body),
       headers,
     });
   }
@@ -1900,6 +1907,32 @@ class ApiClient {
   }>> {
     return this.request(`/notifications/${notificationId}`, {
       method: 'DELETE',
+    });
+  }
+
+  async getNotificationPreferences(): Promise<ApiResponse<{
+    inApp: boolean;
+    email: boolean;
+    login: boolean;
+    fileShare: boolean;
+    billing: boolean;
+  }>> {
+    return this.request('/notifications/preferences');
+  }
+
+  async updateNotificationPreferences(preferences: {
+    inApp: boolean;
+    email: boolean;
+    login: boolean;
+    fileShare: boolean;
+    billing: boolean;
+  }): Promise<ApiResponse<{
+    success: boolean;
+    message: string;
+  }>> {
+    return this.request('/notifications/preferences', {
+      method: 'PUT',
+      body: JSON.stringify(preferences),
     });
   }
 

@@ -66,24 +66,47 @@ export function TOTPRecoveryForm({
     }
 
     try {
-      const response = await apiClient.verifyRecoveryCode(recoveryCode.trim())
+      // Determine which storage was used (sessionStorage for sessionStorage logins, localStorage for localStorage logins)
+      const isSessionStorage = !!sessionStorage.getItem('login_email')
+      const storage = isSessionStorage ? sessionStorage : localStorage
+
+      // Set storage type for API client and master key manager to use correct storage
+      apiClient.setStorage(storage)
+      masterKeyManager.setStorage(storage)
+
+      const response = await apiClient.verifyRecoveryCode(recoveryCode.trim(), userId)
 
       if (response.success) {
+        // Use the TOTP-verified token returned from the server
+        if (response.data?.token) {
+          apiClient.setAuthToken(response.data.token)
+        } else {
+          // Fallback to pending token if no token returned (shouldn't happen)
+          const pendingToken = storage.getItem('pending_auth_token')
+          if (pendingToken) {
+            apiClient.setAuthToken(pendingToken)
+            storage.removeItem('pending_auth_token')
+          }
+        }
         // Get user data and initialize crypto
         const profileResponse = await apiClient.getProfile()
         if (profileResponse.success && profileResponse.data?.user) {
           const userData = profileResponse.data.user
 
           // Derive and cache master key for the session
+          // Note: login_password is still in storage during TOTP flow
           try {
             if (userData.crypto_keypairs?.accountSalt) {
-              const password = localStorage.getItem('login_password')
-              if (password) {
-                await masterKeyManager.deriveAndCacheMasterKey(password, userData.crypto_keypairs.accountSalt)
+              const password = storage.getItem('login_password')
+              if (!password) {
+                console.error('login_password not found in storage during recovery code verification')
+                throw new Error('Password not available for master key derivation. Please log in again.')
               }
+              await masterKeyManager.deriveAndCacheMasterKey(password, userData.crypto_keypairs.accountSalt)
             }
           } catch (keyError) {
-            setError("Failed to initialize cryptographic keys")
+            console.error('Master key derivation error:', keyError)
+            setError(keyError instanceof Error ? keyError.message : "Failed to initialize cryptographic keys")
             return
           }
 
@@ -109,10 +132,11 @@ export function TOTPRecoveryForm({
             }
           }
 
-          // Clear login data from localStorage
-          localStorage.removeItem('login_email')
-          localStorage.removeItem('login_password')
-          localStorage.removeItem('login_user_id')
+          // Clear login data from storage
+          storage.removeItem('login_email')
+          storage.removeItem('login_password')
+          storage.removeItem('login_user_id')
+          storage.removeItem('pending_auth_token')
 
           // Redirect to main page
           window.dispatchEvent(new CustomEvent('user-login'))

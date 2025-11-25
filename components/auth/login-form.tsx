@@ -115,8 +115,8 @@ export function LoginForm({
       apiClient.setStorage(storage);
       masterKeyManager.setStorage(storage);
 
-      // Store authentication token
-      apiClient.setAuthToken(token)
+      // DO NOT store token yet - wait for TOTP check
+      // Token will only be stored if TOTP is not required or passes verification
 
       // Validate crypto keypairs structure
       if (user.crypto_keypairs?.pqcKeypairs) {
@@ -154,17 +154,64 @@ export function LoginForm({
       }
 
       // If login didn't include crypto_keypairs, fetch profile
+      // NOTE: We need to set the token first since getProfile() requires authentication
       let userData = user;
       if (!user.crypto_keypairs?.accountSalt) {
+        // Temporarily set token for fetching profile
+        apiClient.setAuthToken(token)
         const profileResponse = await apiClient.getProfile();
         if (profileResponse.success && profileResponse.data?.user) {
           userData = profileResponse.data.user;
         } else {
+          // Clear token if profile fetch fails
+          apiClient.setAuthToken(null as any)
           setError("Failed to load cryptographic keys");
           return;
         }
       }
 
+      // Check if TOTP is enabled for this user BEFORE deriving master key
+      // This way if we redirect to TOTP, we store password in the appropriate storage
+      const totpStatusResponse = await apiClient.getTOTPStatus(user.id)
+      const isTOTPEnabled = totpStatusResponse.success && totpStatusResponse.data?.enabled;
+      
+      if (isTOTPEnabled) {
+        // Check if device is remembered
+        const deviceToken = localStorage.getItem('totp_device_token')
+        if (deviceToken) {
+          const deviceResponse = await apiClient.verifyDeviceToken(deviceToken)
+          if (deviceResponse.success && deviceResponse.data?.isValidDevice) {
+            // Device is remembered - TOTP is bypassed, continue with normal login flow
+            // Fall through to master key derivation below
+          } else {
+            // Device not remembered or invalid - redirect to TOTP
+            // IMPORTANT: Keep the token set so TOTP form can fetch profile with getProfile()
+            // The pending_auth_token will be used after TOTP verification
+            // Store credentials in the selected storage (localStorage or sessionStorage)
+            storage.setItem('pending_auth_token', token)
+            storage.setItem('login_email', formData.email)
+            storage.setItem('login_password', formData.password)
+            storage.setItem('login_user_id', user.id)
+            // DO NOT clear the token - TOTP form needs it to call getProfile()
+            router.push(`/totp?email=${encodeURIComponent(formData.email)}&userId=${user.id}`)
+            return
+          }
+        } else {
+          // TOTP enabled but no remembered device - redirect to TOTP
+          // IMPORTANT: Keep the token set so TOTP form can fetch profile with getProfile()
+          // The pending_auth_token will be used after TOTP verification
+          // Store credentials in the selected storage (localStorage or sessionStorage)
+          storage.setItem('pending_auth_token', token)
+          storage.setItem('login_email', formData.email)
+          storage.setItem('login_password', formData.password)
+          storage.setItem('login_user_id', user.id)
+          // DO NOT clear the token - TOTP form needs it to call getProfile()
+          router.push(`/totp?email=${encodeURIComponent(formData.email)}&userId=${user.id}`)
+          return
+        }
+      }
+
+      // Only derive master key if not redirecting to TOTP
       // Derive and cache master key for the session
       try {
         if (userData.crypto_keypairs?.accountSalt) {
@@ -205,34 +252,8 @@ export function LoginForm({
         }
       }
 
-      // Check if TOTP is enabled for this user
-      const totpStatusResponse = await apiClient.getTOTPStatus()
-      if (totpStatusResponse.success && totpStatusResponse.data?.enabled) {
-        // Check if device is remembered
-        const deviceToken = localStorage.getItem('totp_device_token')
-        if (deviceToken) {
-          const deviceResponse = await apiClient.verifyDeviceToken(deviceToken)
-          if (deviceResponse.success && deviceResponse.data?.isValidDevice) {
-            // Device is remembered, proceed with login
-          } else {
-            // Device not remembered or invalid, redirect to TOTP
-            localStorage.setItem('login_email', formData.email)
-            localStorage.setItem('login_password', formData.password)
-            localStorage.setItem('login_user_id', user.id)
-            router.push(`/totp?email=${encodeURIComponent(formData.email)}&userId=${user.id}`)
-            return
-          }
-        } else {
-          // TOTP enabled but no remembered device, redirect to TOTP
-          localStorage.setItem('login_email', formData.email)
-          localStorage.setItem('login_password', formData.password)
-          localStorage.setItem('login_user_id', user.id)
-          router.push(`/totp?email=${encodeURIComponent(formData.email)}&userId=${user.id}`)
-          return
-        }
-      }
-
-      // Redirect to main page (for both TOTP disabled users and TOTP enabled users with remembered devices)
+      // Only reach here if TOTP is not enabled or device was remembered
+      // Token and auth should already be set at this point
       // Track login conversion before clearing session
       const sessionId = sessionTrackingUtils.getSessionId()
       if (sessionId) {

@@ -29,6 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
 import {
   Sidebar,
   SidebarContent,
@@ -39,7 +40,7 @@ import {
   SidebarMenuItem,
   SidebarProvider,
 } from "@/components/ui/sidebar"
-import { IconSettings, IconLoader2, IconPencil, IconCheck, IconMail, IconLock, IconLogout, IconTrash, IconUserCog, IconLockSquareRounded, IconGift, IconCopy, IconCheck as IconCheckmark  } from "@tabler/icons-react"
+import { IconSettings, IconLoader2, IconPencil, IconCheck, IconMail, IconLock, IconLogout, IconTrash, IconUserCog, IconLockSquareRounded, IconGift, IconCopy, IconCheck as IconCheckmark, IconBell } from "@tabler/icons-react"
 import { apiClient } from "@/lib/api"
 import { useTheme } from "next-themes"
 import { getDiceBearAvatar } from "@/lib/avatar"
@@ -57,6 +58,7 @@ const data = {
   nav: [
     { name: "General", icon: IconUserCog, id: "general" },
     { name: "Security", icon: IconLockSquareRounded, id: "security" },
+    { name: "Notifications", icon: IconBell, id: "notifications" },
     { name: "Referrals", icon: IconGift, id: "referrals" },
   ],
 }
@@ -159,6 +161,14 @@ export function SettingsModal({
   const [isLoadingReferrals, setIsLoadingReferrals] = useState(false)
   const [copiedCode, setCopiedCode] = useState(false)
 
+  // Notification preferences state
+  const [inAppNotifications, setInAppNotifications] = useState(true)
+  const [emailNotifications, setEmailNotifications] = useState(true)
+  const [loginNotifications, setLoginNotifications] = useState(true)
+  const [fileShareNotifications, setFileShareNotifications] = useState(true)
+  const [billingNotifications, setBillingNotifications] = useState(true)
+  const [isLoadingNotificationPrefs, setIsLoadingNotificationPrefs] = useState(false)
+
   useEffect(() => {
     if (isEditingName && nameInputRef.current) {
       nameInputRef.current.focus()
@@ -187,6 +197,7 @@ export function SettingsModal({
     if (open) {
       loadTOTPStatus()
       loadReferralData()
+      loadNotificationPreferences()
       loadSessionConfig()
     }
   }, [open])
@@ -251,6 +262,54 @@ export function SettingsModal({
       console.error('Failed to load referral data:', error)
     } finally {
       setIsLoadingReferrals(false)
+    }
+  }
+
+  // Load notification preferences
+  const loadNotificationPreferences = async () => {
+    setIsLoadingNotificationPrefs(true)
+    try {
+      const response = await apiClient.getNotificationPreferences()
+      if (response.success && response.data) {
+        setInAppNotifications(response.data.inApp ?? true)
+        setEmailNotifications(response.data.email ?? true)
+        setLoginNotifications(response.data.login ?? true)
+        setFileShareNotifications(response.data.fileShare ?? true)
+        setBillingNotifications(response.data.billing ?? true)
+      }
+    } catch (error) {
+      console.error('Failed to load notification preferences:', error)
+      // Set defaults if API fails
+      setInAppNotifications(true)
+      setEmailNotifications(true)
+      setLoginNotifications(true)
+      setFileShareNotifications(true)
+      setBillingNotifications(true)
+    } finally {
+      setIsLoadingNotificationPrefs(false)
+    }
+  }
+
+  // Save notification preferences
+  const saveNotificationPreferences = async () => {
+    try {
+      const preferences = {
+        inApp: inAppNotifications,
+        email: emailNotifications,
+        login: loginNotifications,
+        fileShare: fileShareNotifications,
+        billing: billingNotifications
+      }
+      
+      const response = await apiClient.updateNotificationPreferences(preferences)
+      if (response.success) {
+        toast.success("Notification preferences updated!")
+      } else {
+        toast.error(response.error || "Failed to update notification preferences")
+      }
+    } catch (error) {
+      console.error('Failed to save notification preferences:', error)
+      toast.error("Failed to update notification preferences")
     }
   }
 
@@ -1143,6 +1202,118 @@ export function SettingsModal({
                         <IconTrash className="h-4 w-4 mr-2" />
                         Delete Account
                       </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === "notifications" && (
+                <div className="space-y-6">
+                  <h2 className="text-xl font-semibold">Notifications</h2>
+
+                  {/* Notification Preferences */}
+                  <div className="space-y-6">
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-semibold">General Preferences</h3>
+                      
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <IconBell className="h-5 w-5 text-muted-foreground" />
+                          <div>
+                            <p className="font-medium">In-App Notifications</p>
+                            <p className="text-sm text-muted-foreground">Receive notifications within the application</p>
+                          </div>
+                        </div>
+                        <Switch
+                          checked={inAppNotifications}
+                          onCheckedChange={(checked) => {
+                            setInAppNotifications(checked)
+                            // Auto-save after a short delay
+                            setTimeout(() => saveNotificationPreferences(), 500)
+                          }}
+                          disabled={isLoadingNotificationPrefs}
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between border-t pt-4">
+                        <div className="flex items-center gap-3">
+                          <IconMail className="h-5 w-5 text-muted-foreground" />
+                          <div>
+                            <p className="font-medium">Email Notifications</p>
+                            <p className="text-sm text-muted-foreground">Receive notifications via email</p>
+                          </div>
+                        </div>
+                        <Switch
+                          checked={emailNotifications}
+                          onCheckedChange={(checked) => {
+                            setEmailNotifications(checked)
+                            // Auto-save after a short delay
+                            setTimeout(() => saveNotificationPreferences(), 500)
+                          }}
+                          disabled={isLoadingNotificationPrefs}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="border-t pt-6 space-y-4">
+                      <h3 className="text-lg font-semibold">Notification Types</h3>
+                      
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Shield className="h-5 w-5 text-muted-foreground" />
+                          <div>
+                            <p className="font-medium">Login Notifications</p>
+                            <p className="text-sm text-muted-foreground">Get notified when someone logs into your account</p>
+                          </div>
+                        </div>
+                        <Switch
+                          checked={loginNotifications}
+                          onCheckedChange={(checked) => {
+                            setLoginNotifications(checked)
+                            // Auto-save after a short delay
+                            setTimeout(() => saveNotificationPreferences(), 500)
+                          }}
+                          disabled={isLoadingNotificationPrefs}
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between border-t pt-4">
+                        <div className="flex items-center gap-3">
+                          <IconUserCog className="h-5 w-5 text-muted-foreground" />
+                          <div>
+                            <p className="font-medium">File Sharing Notifications</p>
+                            <p className="text-sm text-muted-foreground">Get notified when files are shared with you</p>
+                          </div>
+                        </div>
+                        <Switch
+                          checked={fileShareNotifications}
+                          onCheckedChange={(checked) => {
+                            setFileShareNotifications(checked)
+                            // Auto-save after a short delay
+                            setTimeout(() => saveNotificationPreferences(), 500)
+                          }}
+                          disabled={isLoadingNotificationPrefs}
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between border-t pt-4">
+                        <div className="flex items-center gap-3">
+                          <IconGift className="h-5 w-5 text-muted-foreground" />
+                          <div>
+                            <p className="font-medium">Billing Notifications</p>
+                            <p className="text-sm text-muted-foreground">Get notified about billing and payment updates</p>
+                          </div>
+                        </div>
+                        <Switch
+                          checked={billingNotifications}
+                          onCheckedChange={(checked) => {
+                            setBillingNotifications(checked)
+                            // Auto-save after a short delay
+                            setTimeout(() => saveNotificationPreferences(), 500)
+                          }}
+                          disabled={isLoadingNotificationPrefs}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
