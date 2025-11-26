@@ -1764,7 +1764,9 @@ class ApiClient {
     token?: string;
     message?: string;
   }>> {
-    const idempotencyKey = generateIdempotencyKey('resetPasswordWithRecovery', data.email);
+    // CRITICAL: Include newOpaquePasswordFile in idempotency key so each reset attempt has a unique key
+    // If we only use email, the second reset would return cached response from first reset
+    const idempotencyKey = generateIdempotencyKey('resetPasswordWithRecovery', data.email + data.newOpaquePasswordFile.substring(0, 32));
     const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/recovery/reset-password', {
       method: 'POST',
