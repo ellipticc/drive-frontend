@@ -122,6 +122,13 @@ export async function deriveEncryptionKey(password: string, salt: string): Promi
     }
   }
 
+  // SECURITY: Argon2id requires salt to be at least 8 bytes
+  // If salt is shorter, hash it with SHA-256 to expand it to 32 bytes
+  if (saltBytes.length < 8) {
+    const hashBuffer = await crypto.subtle.digest('SHA-256', saltBytes as any);
+    saltBytes = new Uint8Array(hashBuffer);
+  }
+
   const hash = await argon2id({
     password: password,
     salt: saltBytes,

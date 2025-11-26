@@ -52,14 +52,6 @@ export function SignupForm({
         const masterKey = localStorage.getItem('master_key')
         const accountSalt = localStorage.getItem('account_salt')
 
-        console.log('Signup page auth check:', {
-          hasToken: !!token,
-          hasMasterKey: !!masterKey,
-          hasAccountSalt: !!accountSalt,
-          token: token ? `${token.substring(0, 50)}...` : null,
-          accountSalt: accountSalt ? `${accountSalt.substring(0, 20)}...` : null
-        })
-
         if (token && masterKey && accountSalt) {
           console.log('All credentials found! Redirecting to dashboard...')
           // Token and master key found in cache - user is authenticated
@@ -122,7 +114,8 @@ export function SignupForm({
         generateRecoveryKey,
         encryptRecoveryKey,
         encryptMasterKeyWithRecoveryKey,
-        deriveEncryptionKey
+        deriveEncryptionKey,
+        encryptData
       } = await import("@/lib/crypto")
       const { OPAQUE } = await import("@/lib/opaque")
       
@@ -135,14 +128,6 @@ export function SignupForm({
       
       // Generate keypairs using the hex salt
       const keypairs = await generateAllKeypairs(formData.password, tempAccountSaltHex)
-      
-      // Log keypair sizes for debugging
-      console.log('📝 Registration: Generated keypairs:', {
-        ed25519PrivateKeyLength: keypairs.pqcKeypairs.ed25519.encryptedPrivateKey.length,
-        x25519PrivateKeyLength: keypairs.pqcKeypairs.x25519.encryptedPrivateKey.length,
-        kyberPrivateKeyLength: keypairs.pqcKeypairs.kyber.encryptedPrivateKey.length,
-        dilithiumPrivateKeyLength: keypairs.pqcKeypairs.dilithium.encryptedPrivateKey.length
-      })
       
       // The mnemonic is already generated in generateAllKeypairs
       const mnemonic = keypairs.mnemonic
@@ -166,6 +151,11 @@ export function SignupForm({
       const masterKeyEncryption = encryptMasterKeyWithRecoveryKey(masterKey, rk)
       const encryptedMasterKey = masterKeyEncryption.encryptedMasterKey
       const masterKeyNonce = masterKeyEncryption.masterKeyNonce
+      
+      // CRITICAL: Also encrypt Master Key with password-derived key
+      // This allows login with password to decrypt Master Key (password-based path)
+      const newPasswordDerivedKey = await deriveEncryptionKey(formData.password, tempAccountSaltHex)
+      const { encryptedData: encryptedMasterKeyPassword, nonce: masterKeyPasswordNonce } = encryptData(masterKey, newPasswordDerivedKey)
       
       // Prepare master key salt for storage (JSON stringified with the nonce)
       const masterKeySalt = JSON.stringify({
@@ -208,14 +198,6 @@ export function SignupForm({
       try {
         // Retrieve referral code from sessionStorage if it exists
         const referralCode = sessionStorage.getItem('referral_code')
-        console.log('Sending referral code to backend:', referralCode)
-        
-        console.log('📝 Registration: Sending crypto keypairs to backend:', {
-          dilithiumEncryptedPrivateKeyLength: keypairs.pqcKeypairs.dilithium.encryptedPrivateKey.length,
-          kyberEncryptedPrivateKeyLength: keypairs.pqcKeypairs.kyber.encryptedPrivateKey.length,
-          dilithiumEncryptionKeyLength: keypairs.pqcKeypairs.dilithium.encryptionKey.length,
-          dilithiumEncryptionNonceLength: keypairs.pqcKeypairs.dilithium.encryptionNonce.length
-        })
         
         const cryptoSetupResponse = await apiClient.storeCryptoKeypairs({
           userId,
@@ -226,6 +208,8 @@ export function SignupForm({
           recoveryKeyNonce,      // Nonce for decrypting recovery key
           encryptedMasterKey,    // MK encrypted with RK
           masterKeySalt,         // JSON stringified with salt and algorithm
+          encryptedMasterKeyPassword,  // MK encrypted with password-derived key
+          masterKeyPasswordNonce,      // Nonce for password-encrypted MK
           referralCode: referralCode || undefined  // Pass referral code if available
         })
 
@@ -244,13 +228,10 @@ export function SignupForm({
       localStorage.setItem('signup_email', formData.email)
       localStorage.setItem('signup_password', formData.password)
 
-      // 📊 Track signup conversion
+      // Track signup conversion
       const sessionId = sessionTrackingUtils.getSessionId()
       if (sessionId) {
-        console.log('📊 Tracking signup conversion for session:', sessionId)
         sessionTrackingUtils.trackConversion(sessionId, 'signup', userId)
-          .then(() => console.log('success'))
-          .catch(err => console.error('Failed to track signup conversion:', err))
       }
 
       // Navigate to OTP verification page (CRITICAL: user must verify email first before backup)

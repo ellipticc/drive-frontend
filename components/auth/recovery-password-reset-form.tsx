@@ -8,7 +8,7 @@ import { AlertCircle, Loader2 } from "lucide-react"
 import { apiClient } from "@/lib/api"
 import { toast } from "sonner"
 import { OPAQUERegistration } from "@/lib/opaque"
-import { deriveEncryptionKey, uint8ArrayToHex, hexToUint8Array, encryptData } from "@/lib/crypto"
+import { deriveEncryptionKey, uint8ArrayToHex, hexToUint8Array, encryptData, encryptRecoveryKey, encryptMasterKeyWithRecoveryKey, deriveRecoveryKeyEncryptionKey } from "@/lib/crypto"
 import { xchacha20poly1305 } from "@noble/ciphers/chacha.js"
 
 interface RecoveryPasswordResetFormProps {
@@ -76,48 +76,102 @@ export function RecoveryPasswordResetForm({
       const recoveryKeyNonce = userData.recovery_key_nonce
       const encryptedMasterKey = userData.encrypted_master_key
       const masterKeyNonce = userData.master_key_nonce
+      const accountSalt = userData.account_salt
 
       if (!encryptedRecoveryKey || !recoveryKeyNonce || !encryptedMasterKey || !masterKeyNonce) {
         throw new Error("Missing encryption data in user profile")
       }
 
+      // Validate nonce lengths (should be base64 strings that decode to 24 bytes)
+      try {
+        const rkNonceDecoded = atob(recoveryKeyNonce)
+        const mkNonceDecoded = atob(masterKeyNonce)
+        
+        if (rkNonceDecoded.length !== 24) {
+          throw new Error(`Recovery key nonce has wrong length: ${rkNonceDecoded.length} bytes (expected 24)`)
+        }
+        if (mkNonceDecoded.length !== 24) {
+          throw new Error(`Master key nonce has wrong length: ${mkNonceDecoded.length} bytes (expected 24)`)
+        }
+      } catch (nonceError) {
+        console.error('Nonce validation error:', nonceError)
+        throw nonceError
+      }
+
       // Step 2: Derive RKEK from mnemonic (using same algorithm as backend)
       const normalizedMnemonic = mnemonic.trim().toLowerCase()
-      // Derive RKEK using Argon2id with mnemonic as password and "RKEK" as salt
-      const rkekSaltBytes = new TextEncoder().encode("RKEK")
-      const rkekSaltHex = uint8ArrayToHex(rkekSaltBytes)
-      const rkek = await deriveEncryptionKey(normalizedMnemonic, rkekSaltHex)
+      
+      // CRITICAL: Use the same RKEK derivation as signup (SHA256(SHA256(mnemonic)))
+      const rkek = await deriveRecoveryKeyEncryptionKey(normalizedMnemonic)
+      
+      if (!rkek || rkek.length !== 32) {
+        throw new Error(`RKEK derivation failed: expected 32 bytes, got ${rkek?.length || 0}`)
+      }
 
       // Step 3: Decrypt Recovery Key using RKEK
-      const encryptedRKBytes = hexToUint8Array(encryptedRecoveryKey)
-      const rkNonceBytes = hexToUint8Array(recoveryKeyNonce)
+      // Nonces from backend are stored as base64, not hex
+      const encryptedRKBytes = Uint8Array.from(atob(encryptedRecoveryKey), c => c.charCodeAt(0))
+      const rkNonceBytes = Uint8Array.from(atob(recoveryKeyNonce), c => c.charCodeAt(0))
       
-      const recoveryKeyBytes = xchacha20poly1305(rkek, rkNonceBytes).decrypt(encryptedRKBytes)
+      let recoveryKeyBytes: Uint8Array
+      try {
+        recoveryKeyBytes = xchacha20poly1305(rkek, rkNonceBytes).decrypt(encryptedRKBytes)
+      } catch (error) {
+        throw new Error(`Failed to decrypt recovery key: ${error instanceof Error ? error.message : String(error)}`)
+      }
       
       // Step 4: Decrypt Master Key using Recovery Key
-      const encryptedMKBytes = hexToUint8Array(encryptedMasterKey)
-      const mkNonceBytes = hexToUint8Array(masterKeyNonce)
+      // Nonces from backend are stored as base64, not hex
+      const encryptedMKBytes = Uint8Array.from(atob(encryptedMasterKey), c => c.charCodeAt(0))
+      const mkNonceBytes = Uint8Array.from(atob(masterKeyNonce), c => c.charCodeAt(0))
       
-      const masterKeyBytes = xchacha20poly1305(recoveryKeyBytes, mkNonceBytes).decrypt(encryptedMKBytes)
+      let masterKeyBytes: Uint8Array
+      try {
+        masterKeyBytes = xchacha20poly1305(recoveryKeyBytes, mkNonceBytes).decrypt(encryptedMKBytes)
+      } catch (error) {
+        throw new Error(`Failed to decrypt master key: ${error instanceof Error ? error.message : String(error)}`)
+      }
 
       // Step 5: Re-encrypt both keys (with new nonces for freshness)
-      const { encryptedData: reEncryptedRK, nonce: newRKNonce } = encryptData(recoveryKeyBytes, rkek)
-      const { encryptedData: reEncryptedMK, nonce: newMKNonce } = encryptData(masterKeyBytes, recoveryKeyBytes)
+      // Use specialized functions for recovery and master key encryption
+      const reEncryptedRKResult = encryptRecoveryKey(recoveryKeyBytes, rkek)
+      const reEncryptedRK = reEncryptedRKResult.encryptedRecoveryKey
+      const newRKNonce = reEncryptedRKResult.recoveryKeyNonce
+      
+      const reEncryptedMKResult = encryptMasterKeyWithRecoveryKey(masterKeyBytes, recoveryKeyBytes)
+      const reEncryptedMK = reEncryptedMKResult.encryptedMasterKey
+      const newMKNonce = reEncryptedMKResult.masterKeyNonce
 
-      // Step 6: Generate OPAQUE password file client-side
+      // Step 6: Derive new password-based encryption key and re-encrypt Master Key with it
+      // CRITICAL: This allows login with new password to decrypt Master Key
+      // Account salt is retrieved from user data endpoint
+      if (!accountSalt) {
+        throw new Error("Account salt not found. Cannot derive password-based encryption key.")
+      }
+      
+      const newPasswordDerivedKey = await deriveEncryptionKey(formData.newPassword, accountSalt)
+      const { encryptedData: encryptedMasterKeyPassword, nonce: masterKeyPasswordNonce } = encryptData(masterKeyBytes, newPasswordDerivedKey)
+
+      // IMPORTANT: For users who don't have encrypted_master_key_password in DB (old registrations),
+      // we MUST send it now to enable password-based login
+      // This is the FIRST time password-encrypted MK is being stored for these users
+
+      // Step 7: Generate OPAQUE password file client-side
       const opaqueReg = new OPAQUERegistration()
       const { registrationRequest } = await opaqueReg.step1(formData.newPassword)
       const { registrationResponse } = await opaqueReg.step2(email, registrationRequest)
       const { registrationRecord } = await opaqueReg.step3(registrationResponse)
 
-      // Step 7: Send to server
+      // Step 8: Send to server
       const response = await apiClient.resetPasswordWithRecovery({
         email,
         newOpaquePasswordFile: registrationRecord,
         encryptedMasterKey: reEncryptedMK,
         masterKeyNonce: newMKNonce,
         encryptedRecoveryKey: reEncryptedRK,
-        recoveryKeyNonce: newRKNonce
+        recoveryKeyNonce: newRKNonce,
+        encryptedMasterKeyPassword: encryptedMasterKeyPassword,
+        masterKeyPasswordNonce: masterKeyPasswordNonce
       })
 
       if (response.success) {

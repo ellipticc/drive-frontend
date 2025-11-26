@@ -215,12 +215,42 @@ export function LoginForm({
       // Derive and cache master key for the session
       try {
         if (userData.crypto_keypairs?.accountSalt) {
-          // accountSalt is stored as base64 in the backend
-          // deriveEncryptionKey will handle both base64 and hex formats
-          await masterKeyManager.deriveAndCacheMasterKey(
-            formData.password,
-            userData.crypto_keypairs.accountSalt
-          );
+          // Check if user has password-encrypted master key (new path)
+          if (userData.encrypted_master_key_password && userData.master_key_password_nonce) {
+            // NEW PATH: Decrypt password-encrypted Master Key
+            // This is the correct path for users who have gone through password reset or new signup
+            const { deriveEncryptionKey, decryptData } = await import("@/lib/crypto")
+            
+            // Derive password-based encryption key using account salt
+            const passwordDerivedKey = await deriveEncryptionKey(
+              formData.password,
+              userData.crypto_keypairs.accountSalt
+            )
+            
+            // Decrypt the Master Key using password-derived key
+            try {
+              const masterKeyBytes = await decryptData(
+                userData.encrypted_master_key_password,
+                passwordDerivedKey,
+                userData.master_key_password_nonce
+              )
+              
+              // Cache the decrypted master key
+              masterKeyManager.cacheExistingMasterKey(masterKeyBytes, userData.crypto_keypairs.accountSalt)
+            } catch (decryptError) {
+              console.error('Failed to decrypt password-encrypted master key:', decryptError)
+              setError("Incorrect password")
+              return
+            }
+          } else {
+            // LEGACY PATH: Derive Master Key from password (for users without password-encrypted path)
+            // accountSalt is stored as base64 in the backend
+            // deriveEncryptionKey will handle both base64 and hex formats
+            await masterKeyManager.deriveAndCacheMasterKey(
+              formData.password,
+              userData.crypto_keypairs.accountSalt
+            );
+          }
         } else {
           throw new Error('No account salt found in user profile');
         }

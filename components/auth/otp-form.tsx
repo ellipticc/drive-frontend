@@ -85,8 +85,30 @@ export function OTPForm({ className, ...props }: React.ComponentProps<"div">) {
               // Get password from localStorage (stored during signup)
               const password = localStorage.getItem('signup_password')
               if (password) {
-                // Derive master key using account salt
-                await masterKeyManager.deriveAndCacheMasterKey(password, userData.crypto_keypairs.accountSalt)
+                // Check if user has password-encrypted master key (new users from updated signup)
+                if (userData.encrypted_master_key_password && userData.master_key_password_nonce) {
+                  // NEW PATH: Decrypt password-encrypted Master Key
+                  const { deriveEncryptionKey, decryptData } = await import("@/lib/crypto")
+                  
+                  // Derive password-based encryption key using account salt
+                  const passwordDerivedKey = await deriveEncryptionKey(
+                    password,
+                    userData.crypto_keypairs.accountSalt
+                  )
+                  
+                  // Decrypt the Master Key using password-derived key
+                  const masterKeyBytes = await decryptData(
+                    userData.encrypted_master_key_password,
+                    passwordDerivedKey,
+                    userData.master_key_password_nonce
+                  )
+                  
+                  // Cache the decrypted master key
+                  masterKeyManager.cacheExistingMasterKey(masterKeyBytes, userData.crypto_keypairs.accountSalt)
+                } else {
+                  // LEGACY PATH: Derive master key using account salt
+                  await masterKeyManager.deriveAndCacheMasterKey(password, userData.crypto_keypairs.accountSalt)
+                }
                 
                 // Initialize keyManager with user data
                 // This will use the derived master key to decrypt and cache the keypairs

@@ -599,6 +599,8 @@ class ApiClient {
     masterKeyNonce?: string;       // Nonce for encrypting master key with recovery key
     encryptedRecoveryKey?: string; // RK encrypted with RKEK(mnemonic)
     recoveryKeyNonce?: string;     // Nonce for decrypting recovery key
+    encryptedMasterKeyPassword?: string;  // MK encrypted with password-derived key (for login)
+    masterKeyPasswordNonce?: string;      // Nonce for password-encrypted MK
     referralCode?: string;         // Referral code for signup attribution
   }): Promise<ApiResponse> {
     const idempotencyKey = generateIdempotencyKey('storeCryptoKeypairs', data.userId);
@@ -1755,6 +1757,8 @@ class ApiClient {
     masterKeyNonce: string;
     encryptedRecoveryKey: string;
     recoveryKeyNonce: string;
+    encryptedMasterKeyPassword?: string;
+    masterKeyPasswordNonce?: string;
   }): Promise<ApiResponse<{
     success: boolean;
     token?: string;
