@@ -241,9 +241,14 @@ export function SettingsModal({
       const response = await apiClient.getTOTPStatus()
       if (response.success && response.data) {
         setTotpEnabled(response.data.enabled)
+      } else if (response.error) {
+        // Log error but don't crash - default to disabled
+        console.warn('Failed to load TOTP status:', response.error)
+        setTotpEnabled(false)
       }
     } catch (error) {
       console.error('Failed to load TOTP status:', error)
+      setTotpEnabled(false)
     }
   }
 
@@ -257,9 +262,20 @@ export function SettingsModal({
         setReferralLink(response.data.referralLink)
         setReferralStats(response.data.statistics)
         setRecentReferrals(response.data.recentReferrals || [])
+      } else if (response.error) {
+        // Log error but don't crash - set empty defaults
+        console.warn('Failed to load referral data:', response.error)
+        setReferralCode('')
+        setReferralLink('')
+        setReferralStats(null)
+        setRecentReferrals([])
       }
     } catch (error) {
       console.error('Failed to load referral data:', error)
+      setReferralCode('')
+      setReferralLink('')
+      setReferralStats(null)
+      setRecentReferrals([])
     } finally {
       setIsLoadingReferrals(false)
     }

@@ -67,14 +67,68 @@ class ApiClient {
     throw new Error('Storage not available');
   }
 
+  private clearAllAuthData(): void {
+    if (typeof window === 'undefined') return;
+
+    // Clear token
+    this.clearToken();
+    
+    // Clear all localStorage
+    if (typeof localStorage !== 'undefined') {
+      localStorage.clear();
+    }
+    
+    // Clear all sessionStorage
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.clear();
+    }
+    
+    // Clear auth cookies
+    if (typeof document !== 'undefined') {
+      const cookies = document.cookie.split(';');
+      for (const cookie of cookies) {
+        const [name] = cookie.trim().split('=');
+        document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; domain=${window.location.hostname}`;
+        document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; domain=.${window.location.hostname}`;
+        document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+      }
+    }
+  }
+
+  private shouldRedirectToLogin(): boolean {
+    if (typeof window === 'undefined') return false;
+    
+    const pathname = window.location.pathname;
+    const authPages = ['/login', '/signup', '/otp', '/recover', '/recover/otp', '/recover/reset', '/backup', '/totp', '/auth/oauth/callback'];
+    return !authPages.some(page => pathname.includes(page)) && !pathname.startsWith('/s/');
+  }
+
   private isTokenExpired(token: string): boolean {
     try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
+      // Validate token structure: should have 3 parts separated by dots
+      const parts = token.split('.');
+      if (parts.length !== 3) {
+        console.warn('Invalid token structure: expected 3 parts (header.payload.signature)');
+        return true;
+      }
+
+      // Decode and parse the payload
+      const payload = JSON.parse(atob(parts[1]));
+      
+      // Check if payload has exp claim
+      if (typeof payload.exp !== 'number') {
+        console.warn('Token missing or invalid exp claim');
+        return true;
+      }
+
       const currentTime = Math.floor(Date.now() / 1000);
       return payload.exp < currentTime;
     } catch (error) {
-      // If we can't decode the token, consider it expired
-      return true;
+      // Log the error for debugging but don't immediately logout
+      console.warn('Token validation error:', error instanceof Error ? error.message : 'Unknown error');
+      // Only consider token expired if we're absolutely sure it's invalid
+      // Return false to allow the request to proceed and let the server handle validation
+      return false;
     }
   }
 
@@ -108,32 +162,13 @@ class ApiClient {
     // Add authorization header if token exists
     const token = this.getToken();
     if (token) {
-      // Check if token is expired
+      // Check if token is definitely expired (don't clear on validation errors)
       if (this.isTokenExpired(token)) {
-        // Token is expired, clear it
-        this.clearToken();
-        if (typeof window !== 'undefined') {
-          // Clear all localStorage
-          localStorage.clear();
-          // Clear all sessionStorage
-          if (typeof sessionStorage !== 'undefined') {
-            sessionStorage.clear();
-          }
-          // Clear all cookies
-          const cookies = document.cookie.split(';');
-          for (const cookie of cookies) {
-            const [name] = cookie.trim().split('=');
-            document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; domain=${window.location.hostname}`;
-            document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; domain=.${window.location.hostname}`;
-            document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
-          }
-          // Only redirect to login if we're NOT on auth pages
-          const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
-          const authPages = ['/login', '/signup', '/otp', '/recover', '/recover/otp', '/recover/reset', '/backup', '/totp', '/auth/oauth/callback'];
-          const isAuthPage = authPages.some(page => pathname.includes(page)) || pathname.startsWith('/s/');
-          if (!isAuthPage) {
-            window.location.href = '/login';
-          }
+        // Token is definitely expired based on exp claim
+        console.log('Token is expired, clearing auth data');
+        this.clearAllAuthData();
+        if (this.shouldRedirectToLogin()) {
+          window.location.href = '/login';
         }
         return {
           success: false,
@@ -154,37 +189,15 @@ class ApiClient {
       
       const data = await response.json();
 
-      // Check for 401 Unauthorized (token expired or invalid)
+      // Check for 401 Unauthorized (token expired or invalid from server)
       if (response.status === 401) {
-        // Clear token but don't redirect automatically
-        // Let components handle the 401 response
-        this.clearToken();
-        if (typeof window !== 'undefined') {
-          // Clear all localStorage
-          localStorage.clear();
-          // Clear all sessionStorage
-          if (typeof sessionStorage !== 'undefined') {
-            sessionStorage.clear();
-          }
-          // Clear all cookies
-          const cookies = document.cookie.split(';');
-          for (const cookie of cookies) {
-            const [name] = cookie.trim().split('=');
-            document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; domain=${window.location.hostname}`;
-            document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; domain=.${window.location.hostname}`;
-            document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
-          }
-          // Only redirect to login if we're NOT on auth pages
-          const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
-          const authPages = ['/login', '/signup', '/otp', '/recover', '/recover/otp', '/recover/reset', '/backup', '/totp', '/auth/oauth/callback'];
-          const isAuthPage = authPages.some(page => pathname.includes(page)) || pathname.startsWith('/s/');
-          if (!isAuthPage) {
-            window.location.href = '/login';
-          }
-        }
+        console.warn('Received 401 from server', { endpoint, error: data.error });
+        // Return 401 error but don't immediately clear everything
+        // Let components decide whether to logout based on context
+        // Only specific components (like AuthGuard) should trigger full logout on 401
         return {
           success: false,
-          error: 'Session expired. Please log in again.',
+          error: data.error || 'Session expired. Please log in again.',
         };
       }
 
