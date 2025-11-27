@@ -1,7 +1,7 @@
 "use client"
 
 import { SiteHeader } from "@/components/layout/header/site-header"
-import { Table01DividerLineSm } from "@/components/tables/team-members-table"
+import { Table01DividerLineSm } from "@/components/tables/files-table"
 
 export default function SharedWithMe() {
   return (

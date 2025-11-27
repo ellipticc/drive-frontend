@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react"
 import { SectionCards } from "@/components/shared/section-cards"
 import { SiteHeader } from "@/components/layout/header/site-header"
-import { Table01DividerLineSm } from "@/components/tables/team-members-table"
+import { Table01DividerLineSm } from "@/components/tables/files-table"
 import { DragDropOverlay } from "@/components/drag-drop-overlay"
 import {
   SidebarInset,

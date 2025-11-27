@@ -1,2 +1,2 @@
 // Table Components
-export { Table01DividerLineSm } from "./team-members-table"
+export { Table01DividerLineSm } from "./files-table"
