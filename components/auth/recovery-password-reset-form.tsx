@@ -8,7 +8,7 @@ import { AlertCircle, Loader2 } from "lucide-react"
 import { apiClient } from "@/lib/api"
 import { toast } from "sonner"
 import { OPAQUERegistration } from "@/lib/opaque"
-import { deriveEncryptionKey, uint8ArrayToHex, hexToUint8Array, encryptData, encryptRecoveryKey, encryptMasterKeyWithRecoveryKey, deriveRecoveryKeyEncryptionKey } from "@/lib/crypto"
+import { deriveEncryptionKey, uint8ArrayToHex, hexToUint8Array, encryptData, encryptRecoveryKey, encryptMasterKeyWithRecoveryKey, deriveRecoveryKeyEncryptionKey, generateMasterKeyVerificationHash } from "@/lib/crypto"
 import { xchacha20poly1305 } from "@noble/ciphers/chacha.js"
 
 interface RecoveryPasswordResetFormProps {
@@ -152,6 +152,10 @@ export function RecoveryPasswordResetForm({
       const newPasswordDerivedKey = await deriveEncryptionKey(formData.newPassword, accountSalt)
       const { encryptedData: encryptedMasterKeyPassword, nonce: masterKeyPasswordNonce } = encryptData(masterKeyBytes, newPasswordDerivedKey)
 
+      // Generate Master Key verification hash for integrity validation
+      // This allows detection of silent decryption failures or data corruption
+      const masterKeyVerificationHash = await generateMasterKeyVerificationHash(masterKeyBytes)
+
       // IMPORTANT: For users who don't have encrypted_master_key_password in DB (old registrations),
       // we MUST send it now to enable password-based login
       // This is the FIRST time password-encrypted MK is being stored for these users
@@ -171,7 +175,8 @@ export function RecoveryPasswordResetForm({
         encryptedRecoveryKey: reEncryptedRK,
         recoveryKeyNonce: newRKNonce,
         encryptedMasterKeyPassword: encryptedMasterKeyPassword,
-        masterKeyPasswordNonce: masterKeyPasswordNonce
+        masterKeyPasswordNonce: masterKeyPasswordNonce,
+        masterKeyVerificationHash: masterKeyVerificationHash
       })
 
       if (response.success) {

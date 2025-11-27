@@ -115,7 +115,8 @@ export function SignupForm({
         encryptRecoveryKey,
         encryptMasterKeyWithRecoveryKey,
         deriveEncryptionKey,
-        encryptData
+        encryptData,
+        generateMasterKeyVerificationHash
       } = await import("@/lib/crypto")
       const { OPAQUE } = await import("@/lib/opaque")
       
@@ -156,6 +157,10 @@ export function SignupForm({
       // This allows login with password to decrypt Master Key (password-based path)
       const newPasswordDerivedKey = await deriveEncryptionKey(formData.password, tempAccountSaltHex)
       const { encryptedData: encryptedMasterKeyPassword, nonce: masterKeyPasswordNonce } = encryptData(masterKey, newPasswordDerivedKey)
+      
+      // Generate Master Key verification hash for integrity validation
+      // This allows detection of silent decryption failures or data corruption
+      const masterKeyVerificationHash = await generateMasterKeyVerificationHash(masterKey)
       
       // Prepare master key salt for storage (JSON stringified with the nonce)
       const masterKeySalt = JSON.stringify({
@@ -204,6 +209,7 @@ export function SignupForm({
           accountSalt: tempAccountSaltHex,  // Store as HEX, not base64
           pqcKeypairs: keypairs.pqcKeypairs,
           mnemonicHash,  // SHA256(mnemonic) for zero-knowledge verification
+          masterKeyVerificationHash,  // HMAC for master key integrity validation
           encryptedRecoveryKey,  // RK encrypted with RKEK(mnemonic)
           recoveryKeyNonce,      // Nonce for decrypting recovery key
           encryptedMasterKey,    // MK encrypted with RK

@@ -594,6 +594,7 @@ class ApiClient {
     accountSalt: string;
     pqcKeypairs: any;
     mnemonicHash?: string;    // SHA256(mnemonic) for zero-knowledge verification
+    masterKeyVerificationHash?: string; // HMAC-SHA256 for master key integrity validation
     encryptedMasterKey?: string;  // For MetaMask users / recovery
     masterKeySalt?: string;        // For MetaMask users / recovery (can include masterKeyNonce in JSON)
     masterKeyNonce?: string;       // Nonce for encrypting master key with recovery key
@@ -1759,6 +1760,7 @@ class ApiClient {
     recoveryKeyNonce: string;
     encryptedMasterKeyPassword?: string;
     masterKeyPasswordNonce?: string;
+    masterKeyVerificationHash?: string;
   }): Promise<ApiResponse<{
     success: boolean;
     token?: string;

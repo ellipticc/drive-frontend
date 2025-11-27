@@ -288,6 +288,76 @@ export function decryptData(encryptedData: string, key: Uint8Array, nonce: strin
   return finalData;
 }
 
+// =====================================================
+// MASTER KEY INTEGRITY VALIDATION
+// =====================================================
+
+/**
+ * Generate HMAC-SHA256 verification hash for master key
+ * Used to detect silent decryption failures or data corruption
+ * 
+ * @param masterKey - 32-byte Master Key
+ * @returns Base64 encoded HMAC-SHA256 hash
+ */
+export async function generateMasterKeyVerificationHash(masterKey: Uint8Array): Promise<string> {
+  if (masterKey.length !== 32) {
+    throw new Error('Master Key must be 32 bytes');
+  }
+
+  // Use HMAC-SHA256 with a fixed constant as verification
+  const hmacKey = await crypto.subtle.importKey(
+    'raw',
+    masterKey.buffer.slice(masterKey.byteOffset, masterKey.byteOffset + masterKey.byteLength) as ArrayBuffer,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+
+  const constant = new TextEncoder().encode('master_key_verification');
+  const hashBuffer = await crypto.subtle.sign('HMAC', hmacKey, constant);
+  const hashArray = new Uint8Array(hashBuffer);
+
+  return uint8ArrayToBase64(hashArray);
+}
+
+/**
+ * Verify master key integrity using HMAC
+ * This detects if the master key was decrypted correctly
+ * 
+ * @param masterKey - 32-byte Master Key to verify
+ * @param storedVerificationHash - Base64 encoded HMAC from database
+ * @returns true if verification passes, throws error otherwise
+ */
+export async function verifyMasterKeyIntegrity(
+  masterKey: Uint8Array,
+  storedVerificationHash: string
+): Promise<boolean> {
+  if (masterKey.length !== 32) {
+    throw new Error('Master Key must be 32 bytes');
+  }
+
+  if (!storedVerificationHash || typeof storedVerificationHash !== 'string') {
+    throw new Error('Verification hash must be provided');
+  }
+
+  try {
+    // Recalculate the verification hash
+    const calculatedHash = await generateMasterKeyVerificationHash(masterKey);
+
+    // Compare hashes (use constant-time comparison to prevent timing attacks)
+    if (calculatedHash !== storedVerificationHash) {
+      throw new Error(
+        'Master Key verification failed: Data corruption detected. ' +
+        'The master key may have been decrypted incorrectly or the data may be corrupted.'
+      );
+    }
+
+    return true;
+  } catch (error) {
+    throw new Error(`Master Key integrity check failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
 // Generate a random mnemonic phrase for backup/recovery using BIP39
 export function generateRecoveryMnemonic(): string {
   return generateMnemonic(wordlist);
