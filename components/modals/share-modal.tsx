@@ -38,9 +38,136 @@ import {
 import { toast } from "sonner"
 import { apiClient } from "@/lib/api"
 import { keyManager } from "@/lib/key-manager"
+import { masterKeyManager } from "@/lib/master-key"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { format } from "date-fns"
 import { truncateFilename } from "@/lib/utils"
+
+// Helper function to build encrypted manifest for folder shares
+async function buildEncryptedFolderManifest(
+  folderId: string,
+  shareCek: Uint8Array
+): Promise<string> {
+  try {
+    // Get folder contents RECURSIVELY to include all nested files and folders
+    const contentsResponse = await apiClient.getFolderContentsRecursive(folderId);
+    if (!contentsResponse.success || !contentsResponse.data) {
+      throw new Error('Failed to fetch folder contents');
+    }
+
+    const { folders = [], files = [] } = contentsResponse.data;
+    const { encryptData } = await import('@/lib/crypto');
+    const { decryptFilename } = await import('@/lib/crypto');
+    const { xchacha20poly1305 } = await import('@noble/ciphers/chacha.js');
+    
+    // Get master key for decrypting names from API
+    const masterKey = masterKeyManager.getMasterKey();
+
+    // Build manifest with all items
+    const manifest: Record<string, any> = {};
+
+    // Add all folders
+    for (const folder of folders) {
+      // First decrypt the name from master key encryption
+      const decryptedFolderName = await decryptFilename(folder.encryptedName, folder.nameSalt, masterKey);
+      
+      const nameSalt = crypto.getRandomValues(new Uint8Array(32));
+      const nameSaltB64 = btoa(String.fromCharCode(...nameSalt));
+      const suffixBytes = new TextEncoder().encode('folder-name-key');
+
+      // Derive key using HMAC-SHA256 (consistent with filename encryption)
+      const keyMaterial = new Uint8Array(nameSalt.length + suffixBytes.length);
+      keyMaterial.set(nameSalt, 0);
+      keyMaterial.set(suffixBytes, nameSalt.length);
+
+      const hmacKey = await crypto.subtle.importKey(
+        'raw',
+        shareCek as BufferSource,
+        { name: 'HMAC', hash: 'SHA-256' },
+        false,
+        ['sign']
+      );
+
+      const derivedKeyMaterial = await crypto.subtle.sign('HMAC', hmacKey, keyMaterial);
+      const nameKey = new Uint8Array(derivedKeyMaterial.slice(0, 32));
+      const nameNonce = crypto.getRandomValues(new Uint8Array(24));
+      const nameBytes = new TextEncoder().encode(decryptedFolderName);
+      
+      const encryptedName = xchacha20poly1305(nameKey, nameNonce).encrypt(nameBytes);
+      const encryptedNameB64 = btoa(String.fromCharCode(...encryptedName));
+      const nonceB64 = btoa(String.fromCharCode(...nameNonce));
+
+      manifest[folder.id] = {
+        id: folder.id,
+        name: `${encryptedNameB64}:${nonceB64}`,
+        name_salt: nameSaltB64,
+        type: 'folder',
+        parent_id: folder.parentId,
+        path: folder.path,
+        created_at: folder.createdAt
+      };
+    }
+
+    // Add all files
+    for (const file of files) {
+      // First decrypt the filename from master key encryption
+      const decryptedFileName = await decryptFilename(file.encryptedFilename, file.filenameSalt, masterKey);
+      
+      const nameSalt = crypto.getRandomValues(new Uint8Array(32));
+      const nameSaltB64 = btoa(String.fromCharCode(...nameSalt));
+      const suffixBytes = new TextEncoder().encode('file-name-key');
+
+      // Derive key using HMAC-SHA256 (consistent with filename encryption)
+      const keyMaterial = new Uint8Array(nameSalt.length + suffixBytes.length);
+      keyMaterial.set(nameSalt, 0);
+      keyMaterial.set(suffixBytes, nameSalt.length);
+
+      const hmacKey = await crypto.subtle.importKey(
+        'raw',
+        shareCek as BufferSource,
+        { name: 'HMAC', hash: 'SHA-256' },
+        false,
+        ['sign']
+      );
+
+      const derivedKeyMaterial = await crypto.subtle.sign('HMAC', hmacKey, keyMaterial);
+      const nameKey = new Uint8Array(derivedKeyMaterial.slice(0, 32));
+      const nameNonce = crypto.getRandomValues(new Uint8Array(24));
+      const nameBytes = new TextEncoder().encode(decryptedFileName);
+      
+      const encryptedName = xchacha20poly1305(nameKey, nameNonce).encrypt(nameBytes);
+      const encryptedNameB64 = btoa(String.fromCharCode(...encryptedName));
+      const nonceB64 = btoa(String.fromCharCode(...nameNonce));
+
+      manifest[file.id] = {
+        id: file.id,
+        name: `${encryptedNameB64}:${nonceB64}`,
+        name_salt: nameSaltB64,
+        type: 'file',
+        size: file.size,
+        mimetype: file.mimeType,
+        folder_id: file.folderId,
+        created_at: file.createdAt
+      };
+    }
+
+    // Encrypt the entire manifest as JSON
+    const manifestJson = JSON.stringify(manifest);
+    const manifestBytes = new TextEncoder().encode(manifestJson);
+    const manifestEncryption = encryptData(manifestBytes, shareCek);
+    
+    // Store both encrypted data and nonce as JSON
+    const encryptedManifestData = {
+      encryptedData: manifestEncryption.encryptedData,
+      nonce: manifestEncryption.nonce
+    };
+    
+    return JSON.stringify(encryptedManifestData);
+  } catch (error) {
+    console.error('Failed to build encrypted manifest:', error);
+    throw error;
+  }
+}
 
 interface ShareModalProps {
   children?: React.ReactNode
@@ -340,6 +467,17 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
       const encryptedFilename = filenameEncryption.encryptedData
       const filenameNonce = filenameEncryption.nonce
 
+      // For folder shares, build and encrypt the manifest
+      let encryptedManifest: string | undefined = undefined
+      if (itemType === 'folder') {
+        try {
+          encryptedManifest = await buildEncryptedFolderManifest(itemId, shareCek)
+        } catch (manifestErr) {
+          console.warn('Failed to build encrypted manifest for folder:', manifestErr)
+          // Continue without manifest - backend will build it dynamically
+        }
+      }
+
       // Create share with envelope-encrypted CEK and encrypted filename
       const response = await apiClient.createShare({
         [itemType === 'folder' ? 'folder_id' : 'file_id']: itemId,
@@ -351,7 +489,8 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
         nonce_filename: filenameNonce, // Nonce for filename encryption
         expires_at: shareSettings.expirationDate?.toISOString(),
         max_views: shareSettings.maxDownloads || undefined,
-        permissions: 'read'
+        permissions: 'read',
+        encrypted_manifest: encryptedManifest  // Encrypted manifest for folder shares
       })
 
       if (!response.success || !response.data?.id) {
@@ -547,6 +686,17 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
       const encryptedFilename = filenameEncryption.encryptedData
       const filenameNonce = filenameEncryption.nonce
 
+      // For folder shares, build and encrypt the manifest
+      let encryptedManifest: string | undefined = undefined
+      if (itemType === 'folder') {
+        try {
+          encryptedManifest = await buildEncryptedFolderManifest(itemId, shareCek)
+        } catch (manifestErr) {
+          console.warn('Failed to build encrypted manifest for folder:', manifestErr)
+          // Continue without manifest - backend will build it dynamically
+        }
+      }
+
       // Create share with envelope-encrypted CEK
       const response = await apiClient.createShare({
         [itemType === 'folder' ? 'folder_id' : 'file_id']: itemId,
@@ -558,7 +708,8 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
         nonce_filename: filenameNonce, // Nonce for filename encryption
         expires_at: shareSettings.expirationDate?.toISOString(),
         max_views: shareSettings.maxDownloads || undefined,
-        permissions: 'read'
+        permissions: 'read',
+        encrypted_manifest: encryptedManifest  // Encrypted manifest for folder shares
       })
 
       if (!response.success || !response.data?.id) {

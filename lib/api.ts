@@ -779,6 +779,37 @@ class ApiClient {
     return this.request(`/folders/${normalizedFolderId}/contents`);
   }
 
+  // Get folder contents recursively (including all nested folders and files)
+  async getFolderContentsRecursive(folderId: string = 'root'): Promise<ApiResponse<{
+    folders: {
+      id: string;
+      encryptedName: string;
+      nameSalt: string;
+      parentId: string | null;
+      path: string;
+      type: string;
+      createdAt: string;
+      updatedAt: string;
+      is_shared: boolean;
+    }[];
+    files: {
+      id: string;
+      encryptedFilename: string;
+      filenameSalt: string;
+      size: number;
+      mimeType: string;
+      folderId: string | null;
+      type: string;
+      createdAt: string;
+      updatedAt: string;
+      sha256Hash: string;
+      is_shared: boolean;
+    }[];
+  }>> {
+    const normalizedFolderId = folderId === 'root' ? 'root' : folderId;
+    return this.request(`/folders/${normalizedFolderId}/contents/recursive`);
+  }
+
   // File operations
   async renameFile(fileId: string, data: {
     encryptedFilename: string;
@@ -974,6 +1005,7 @@ class ApiClient {
     nonce_wrap_kyber?: string;
     encrypted_filename?: string; // Filename encrypted with share CEK
     nonce_filename?: string;  // Nonce for filename encryption
+    encrypted_manifest?: string;  // Encrypted folder manifest (for folder shares)
   }): Promise<ApiResponse<{
     id: string;
     encryption_version?: number;

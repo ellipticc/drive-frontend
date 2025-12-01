@@ -50,6 +50,109 @@ async function decryptShareFilename(encryptedFilename: string, nonce: string, sh
   }
 }
 
+// Helper to decrypt folder/file names in manifest using share CEK
+// Format: encryptedData:nonce (both base64), salt is used to derive a key from share CEK
+async function decryptManifestItemName(encryptedName: string, nameSalt: string, shareCek: Uint8Array): Promise<string> {
+  try {
+    const { xchacha20poly1305 } = await import('@noble/ciphers/chacha.js');
+    
+    // Parse encrypted name format: "encryptedData:nonce" (both in base64)
+    const [encryptedPart, noncePart] = encryptedName.split(':');
+    if (!encryptedPart || !noncePart) {
+      // If not in expected format, might be plaintext or differently formatted
+      return encryptedName;
+    }
+
+    // Decode salt and nonce from base64
+    const decodedSalt = new Uint8Array(atob(nameSalt).split('').map(c => c.charCodeAt(0)));
+    const nameNonce = new Uint8Array(atob(noncePart).split('').map(c => c.charCodeAt(0)));
+    const encryptedBytes = new Uint8Array(atob(encryptedPart).split('').map(c => c.charCodeAt(0)));
+
+    // Derive name-specific key from salt and share CEK using HMAC-SHA256
+    // Match the encryption: HMAC(shareCek, salt + 'folder-name-key' or 'file-name-key')
+    // Try both variants and use the one that works (since we don't know item type at decryption time)
+    let nameKey: Uint8Array | null = null;
+    
+    for (const suffix of ['folder-name-key', 'file-name-key']) {
+      try {
+        const suffixBytes = new TextEncoder().encode(suffix);
+        const keyMaterial = new Uint8Array(decodedSalt.length + suffixBytes.length);
+        keyMaterial.set(decodedSalt, 0);
+        keyMaterial.set(suffixBytes, decodedSalt.length);
+
+        const hmacKey = await crypto.subtle.importKey(
+          'raw',
+          shareCek as BufferSource,
+          { name: 'HMAC', hash: 'SHA-256' },
+          false,
+          ['sign']
+        );
+
+        const derivedKeyMaterial = await crypto.subtle.sign('HMAC', hmacKey, keyMaterial);
+        nameKey = new Uint8Array(derivedKeyMaterial.slice(0, 32));
+        
+        // Try to decrypt with this key
+        const decryptedBytes = xchacha20poly1305(nameKey, nameNonce).decrypt(encryptedBytes);
+        return new TextDecoder().decode(decryptedBytes);
+      } catch (e) {
+        // Try next suffix
+        continue;
+      }
+    }
+
+    // If both attempts failed
+    throw new Error('Could not decrypt with either key variant');
+  } catch (err) {
+    console.warn('Failed to decrypt manifest item name:', err);
+    // Return truncated encrypted name as fallback
+    return encryptedName.substring(0, 30) + '...';
+  }
+}
+
+// Helper to decrypt entire encrypted manifest (pre-encrypted on frontend)
+async function decryptEncryptedManifest(encryptedManifestJson: string, shareCek: Uint8Array): Promise<Record<string, any>> {
+  try {
+    const { decryptData } = await import('@/lib/crypto');
+    
+    // Parse the stored JSON containing encryptedData and nonce
+    const encryptedManifestData = JSON.parse(encryptedManifestJson);
+    const { encryptedData, nonce } = encryptedManifestData;
+    
+    // Decrypt the entire manifest JSON with share CEK
+    const decryptedManifestBytes = decryptData(encryptedData, shareCek, nonce);
+    const manifestJson = new TextDecoder().decode(decryptedManifestBytes);
+    const manifest = JSON.parse(manifestJson);
+    
+    // Now decrypt individual item names using the salt and derived keys
+    const decryptedManifest: Record<string, any> = {};
+    
+    for (const [itemId, item] of Object.entries(manifest)) {
+      const manifestItem = item as any;
+      let decryptedName = manifestItem?.name || itemId;
+      
+      // Try to decrypt the name if it looks encrypted (contains : and has salt)
+      if (manifestItem?.name && typeof manifestItem.name === 'string' && 
+          manifestItem.name.includes(':') && manifestItem.name_salt) {
+        try {
+          decryptedName = await decryptManifestItemName(manifestItem.name, manifestItem.name_salt, shareCek);
+        } catch (decryptErr) {
+          console.warn(`Failed to decrypt name for ${itemId}:`, decryptErr);
+        }
+      }
+      
+      decryptedManifest[itemId] = {
+        ...manifestItem,
+        name: decryptedName
+      };
+    }
+    
+    return decryptedManifest;
+  } catch (err) {
+    console.error('Failed to decrypt encrypted manifest:', err);
+    throw err;
+  }
+}
+
 interface ShareDetails {
   id: string;
   file_id: string;
@@ -70,6 +173,7 @@ interface ShareDetails {
   encryption_version?: number;
   encrypted_filename?: string; // Filename encrypted with share CEK
   nonce_filename?: string; // Nonce for filename encryption
+  encrypted_manifest?: string; // E2EE: pre-encrypted manifest JSON
   file?: {
     id: string;
     filename: string;
@@ -113,6 +217,7 @@ export default function SharedDownloadPage() {
   const [verifyingPassword, setVerifyingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [decryptedFilename, setDecryptedFilename] = useState<string | null>(null);
+  const [decryptedFolderName, setDecryptedFolderName] = useState<string | null>(null);
   const [userSession, setUserSession] = useState<{ id: string; name: string; email: string; avatar: string } | null>(null);
   const [checkingSession, setCheckingSession] = useState(true);
 
@@ -227,17 +332,59 @@ export default function SharedDownloadPage() {
     if (!shareDetails) return;
 
     try {
-      const manifestResponse = await apiClient.getShareManifest(shareId);
-      if (!manifestResponse.success || !manifestResponse.data) {
-        throw new Error('Failed to load folder contents');
+      const shareCek = await getShareCEK();
+      let decryptedManifest: Record<string, ManifestItem> = {};
+
+      // If the share has encrypted_manifest, use it directly (true E2EE)
+      if (shareDetails.encrypted_manifest) {
+        const rawManifest = await decryptEncryptedManifest(shareDetails.encrypted_manifest, shareCek);
+        
+        for (const [itemId, item] of Object.entries(rawManifest)) {
+          decryptedManifest[itemId] = item as ManifestItem;
+        }
+      } else {
+        // Fallback: fetch and decrypt manifest from API (backward compatibility)
+        const manifestResponse = await apiClient.getShareManifest(shareId);
+        if (!manifestResponse.success || !manifestResponse.data) {
+          throw new Error('Failed to load folder contents');
+        }
+
+        const rawManifest = manifestResponse.data as Record<string, any>;
+        
+        // Decrypt all manifest item names using the share CEK
+        for (const [itemId, item] of Object.entries(rawManifest)) {
+          try {
+            let decryptedName = (item as any)?.name || itemId;
+            
+            // Try to decrypt the name if it looks encrypted (contains :)
+            if ((item as any)?.name && typeof (item as any).name === 'string' && (item as any).name.includes(':') && (item as any).name_salt) {
+              try {
+                decryptedName = await decryptManifestItemName((item as any).name, (item as any).name_salt, shareCek);
+              } catch (decryptErr) {
+                console.warn(`Failed to decrypt name for ${itemId}:`, decryptErr);
+                // Keep encrypted name as fallback
+              }
+            }
+            
+            decryptedManifest[itemId] = {
+              ...(item as ManifestItem),
+              name: decryptedName
+            };
+          } catch (err) {
+            console.warn(`Error processing manifest item ${itemId}:`, err);
+            decryptedManifest[itemId] = item as ManifestItem;
+          }
+        }
       }
 
-      setManifest(manifestResponse.data);
+      setManifest(decryptedManifest);
 
       if (shareDetails.is_folder && shareDetails.folder_id) {
         // Initialize folder view
         setCurrentFolderId(shareDetails.folder_id);
-        setBreadcrumbs([{ id: shareDetails.folder_id, name: shareDetails.folder?.name || 'Shared Folder' }]);
+        const folderName = decryptedManifest[shareDetails.folder_id]?.name || shareDetails.folder?.name || 'Shared Folder';
+        setDecryptedFolderName(folderName);
+        setBreadcrumbs([{ id: shareDetails.folder_id, name: folderName }]);
       }
     } catch (err) {
       console.error('Failed to load manifest:', err);
@@ -858,7 +1005,7 @@ export default function SharedDownloadPage() {
                 <div className="flex items-center gap-2">
                   <FolderOpen className="h-6 w-6 text-primary" />
                   <div>
-                    <CardTitle>{shareDetails.folder?.name || 'Shared Folder'}</CardTitle>
+                    <CardTitle>{decryptedFolderName || shareDetails.folder?.name || 'Shared Folder'}</CardTitle>
                     <CardDescription>
                       Shared on {shareDetails.folder?.created_at ? formatDate(shareDetails.folder.created_at) : 'unknown date'}
                     </CardDescription>
