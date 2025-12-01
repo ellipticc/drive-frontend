@@ -72,6 +72,9 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
     // Selection state
     const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
 
+    // View mode state
+    const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
+
     const [shareModalOpen, setShareModalOpen] = useState(false);
     const [selectedItemForShare, setSelectedItemForShare] = useState<{ id: string; name: string; type: "file" | "folder" } | null>(null);
     const [detailsModalOpen, setDetailsModalOpen] = useState(false);
@@ -118,10 +121,10 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                     // Decrypt folder path if it exists and we have salts
                     if (share.folderPath && share.folderPathSalt && masterKey) {
                         try {
-                            const encryptedParts = share.folderPath.split('/');
-                            const saltParts = share.folderPathSalt.split('/');
+                            const encryptedParts = share.folderPath.split('|||').filter((p: string) => p);
+                            const saltParts = share.folderPathSalt.split('|||').filter((p: string) => p);
                             
-                            if (encryptedParts.length === saltParts.length) {
+                            if (encryptedParts.length > 0 && encryptedParts.length === saltParts.length) {
                                 const decryptedParts = [];
                                 for (let i = 0; i < encryptedParts.length; i++) {
                                     if (encryptedParts[i] && saltParts[i]) {
@@ -132,16 +135,20 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                                             console.warn(`Failed to decrypt folder path part ${i} for share ${share.id}:`, partErr);
                                             decryptedParts.push(encryptedParts[i]); // Keep encrypted as fallback
                                         }
-                                    } else if (encryptedParts[i]) {
-                                        decryptedParts.push(encryptedParts[i]); // Keep as-is if no salt
                                     }
                                 }
-                                displayPath = decryptedParts.join('/');
+                                displayPath = decryptedParts.length > 0 ? decryptedParts.join('/') : 'Root';
+                            } else if (encryptedParts.length > 0) {
+                                displayPath = share.folderPath; // Keep encrypted if mismatched lengths
+                            } else {
+                                displayPath = 'Root'; // Empty path means root
                             }
                         } catch (err) {
                             console.warn(`Failed to decrypt folder path for share ${share.id}:`, err);
-                            displayPath = share.folderPath; // Keep encrypted as fallback
+                            displayPath = share.folderPath || 'Root'; // Keep encrypted as fallback
                         }
+                    } else if (!share.folderPath) {
+                        displayPath = 'Root'; // Default to Root if no path
                     }
 
                     return {
@@ -197,6 +204,17 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
     const handleRenameClick = (itemId: string, itemName: string, itemType: "file" | "folder") => {
         setSelectedItemForRename({ id: itemId, name: itemName, type: itemType });
         setRenameModalOpen(true);
+    };
+
+    const handleViewModeChange = (newViewMode: 'table' | 'grid') => {
+        setViewMode(newViewMode);
+        localStorage.setItem('sharesViewMode', newViewMode);
+    };
+
+    const handleShareRoot = () => {
+        // Open share modal for root folder
+        setSelectedItemForShare({ id: 'root', name: 'My Files', type: 'folder' });
+        setShareModalOpen(true);
     };
 
     const handleDownloadClick = async (shareId: string, fileId: string, fileName: string) => {
@@ -418,12 +436,12 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
             // Default state - no selection
             return (
                 <>
-                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
+                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={handleShareRoot}>
                         <IconShare3 className="h-4 w-4" />
                     </Button>
                     <div className="h-5 w-px bg-border mx-1" />
-                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
-                        <IconListDetails className="h-4 w-4" />
+                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleViewModeChange(viewMode === 'table' ? 'grid' : 'table')}>
+                        {viewMode === 'table' ? <IconGrid3x3 className="h-4 w-4" /> : <IconListDetails className="h-4 w-4" />}
                     </Button>
                 </>
             );
@@ -451,11 +469,11 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                     <div className="h-5 w-px bg-border mx-1" />
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
-                                <IconGrid3x3 className="h-4 w-4" />
+                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleViewModeChange(viewMode === 'table' ? 'grid' : 'table')}>
+                                {viewMode === 'table' ? <IconGrid3x3 className="h-4 w-4" /> : <IconListDetails className="h-4 w-4" />}
                             </Button>
                         </TooltipTrigger>
-                        <TooltipContent>Grid view</TooltipContent>
+                        <TooltipContent>{viewMode === 'table' ? 'Grid view' : 'Table view'}</TooltipContent>
                     </Tooltip>
                 </>
             );
@@ -544,6 +562,7 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                     }
                     className="py-1 [&>div>h2]:text-base [&>div>h2]:font-medium h-12 flex-shrink-0 border-0"
                 />
+                {viewMode === 'table' ? (
                 <Table aria-label="Shares" selectionMode="multiple" sortDescriptor={sortDescriptor} onSortChange={setSortDescriptor} selectedKeys={selectedItems} onSelectionChange={(keys) => {
                     if (keys === 'all') {
                         setSelectedItems(new Set(filteredItems.map(item => item.id)));
@@ -659,6 +678,37 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                         )}
                     </Table.Body>
                 </Table>
+            ) : (
+                // Grid View
+                <div className="p-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                        {shares.map((item) => (
+                            <div
+                                key={item.id}
+                                className="group relative bg-card rounded-lg border border-border p-4 hover:bg-muted/50 transition-all duration-200 cursor-pointer"
+                                onClick={() => handleDetailsClick(item.fileId, item.fileName, item.isFolder ? 'folder' : 'file')}
+                            >
+                                <div className="flex flex-col items-center text-center space-y-2">
+                                    <div className="text-2xl">
+                                        {getItemIcon(item)}
+                                    </div>
+                                    <div className="flex-1 min-w-0 w-full">
+                                        <p className="text-sm font-medium truncate" title={item.fileName}>
+                                            {item.fileName}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground truncate" title={item.folderPath}>
+                                            {item.folderPath}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {new Date(item.createdAt).toLocaleDateString()}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
             </TableCard.Root>
 
             <ShareModal

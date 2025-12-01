@@ -53,7 +53,7 @@ interface TrashItem {
     nameSalt?: string;
 }
 
-export const TrashTable = () => {
+export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
     const { updateStorage } = useUser();
     const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({
         column: "deletedAt",
@@ -444,7 +444,14 @@ export const TrashTable = () => {
     };
 
     const sortedItems = useMemo(() => {
-        return trashItems.sort((a, b) => {
+        // Filter items based on search query
+        const filteredItems = searchQuery
+            ? trashItems.filter(item =>
+                item.name.toLowerCase().includes(searchQuery.toLowerCase())
+            )
+            : trashItems;
+
+        return filteredItems.sort((a, b) => {
             const first = a[sortDescriptor.column as keyof TrashItem];
             const second = b[sortDescriptor.column as keyof TrashItem];
 
@@ -473,7 +480,7 @@ export const TrashTable = () => {
 
             return 0;
         });
-    }, [trashItems, sortDescriptor]);
+    }, [trashItems, sortDescriptor, searchQuery]);
 
     if (isLoading) {
         return (

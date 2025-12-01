@@ -47,6 +47,7 @@ export function DetailsModal({
   const [isLoading, setIsLoading] = useState(false)
   const [copiedHashId, setCopiedHashId] = useState<string | null>(null)
   const [decryptedFilename, setDecryptedFilename] = useState<string | null>(null)
+  const [decryptedPath, setDecryptedPath] = useState<string | null>(null)
   const [signatureStatus, setSignatureStatus] = useState<{
     verified: boolean | null
     signerEmail?: string
@@ -90,6 +91,35 @@ export function DetailsModal({
     }
 
     decryptFilenameAsync()
+  }, [itemDetails])
+
+  // Decrypt path when itemDetails changes
+  useEffect(() => {
+    const decryptPathAsync = async () => {
+      // Handle different field names for path
+      const encryptedPath = itemDetails?.encrypted_path || itemDetails?.encryptedPath
+      const pathSalt = itemDetails?.path_salt || itemDetails?.pathSalt
+
+      if (encryptedPath && pathSalt) {
+        try {
+          const { masterKeyManager } = await import('@/lib/master-key')
+          const masterKey = masterKeyManager.getMasterKey()
+          const decrypted = await decryptFilename(
+            encryptedPath,
+            pathSalt,
+            masterKey
+          )
+          setDecryptedPath(decrypted)
+        } catch (error) {
+          console.error('Failed to decrypt path:', error)
+          setDecryptedPath(null)
+        }
+      } else {
+        setDecryptedPath(null)
+      }
+    }
+
+    decryptPathAsync()
   }, [itemDetails])
 
   const loadItemDetailsAndVerify = async () => {
@@ -326,7 +356,7 @@ export function DetailsModal({
                 <div className="flex items-center justify-between py-2">
                   <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">Path</span>
                   <span className="text-xs font-semibold text-slate-900 dark:text-slate-100 max-w-[200px] truncate">
-                    {itemType === "folder" && (itemDetails.parentId === null || itemDetails.parentId === undefined) ? 'Root' : (itemDetails.path || 'Root')}
+                    {itemType === "folder" && (itemDetails.parentId === null || itemDetails.parentId === undefined) ? 'Root' : (decryptedPath || itemDetails.path || 'Root')}
                   </span>
                 </div>
 

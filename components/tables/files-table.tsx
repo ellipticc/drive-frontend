@@ -4,9 +4,9 @@ import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { DotsVertical } from "@untitledui/icons";
 import type { SortDescriptor } from "react-aria-components";
-import { Table, TableCard, TableRowActionsDropdown } from "@/components/application/table/table";
+import { Table, TableCard } from "@/components/application/table/table";
 import { Button } from "@/components/ui/button";
-import { IconFolderPlus, IconUpload, IconFileUpload, IconShare3, IconListDetails, IconDownload, IconFolder, IconEdit, IconInfoCircle, IconTrash, IconPhoto, IconVideo, IconMusic, IconFileText, IconArchive, IconFile, IconHome, IconChevronRight, IconLoader2, IconLink, IconEye } from "@tabler/icons-react";
+import { IconFolderPlus, IconFolderDown, IconFileUpload, IconShare3, IconListDetails, IconDownload, IconFolder, IconEdit, IconInfoCircle, IconTrash, IconPhoto, IconVideo, IconMusic, IconFileText, IconArchive, IconFile, IconHome, IconChevronRight, IconLoader2, IconLink, IconEye } from "@tabler/icons-react";
 import { CreateFolderModal } from "@/components/modals/create-folder-modal";
 import { MoveToFolderModal } from "@/components/modals/move-to-folder-modal";
 import { ShareModal } from "@/components/modals/share-modal";
@@ -22,15 +22,14 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
-import { downloadFileToBrowser, downloadFolderAsZip, downloadMultipleItemsAsZip, DownloadProgress, previewPDFFile } from '@/lib/download';
+import { previewPDFFile } from '@/lib/download';
 import { apiClient, FileItem } from "@/lib/api";
 import { toast } from "sonner";
 import { keyManager } from "@/lib/key-manager";
-import { UploadManager, UploadTask } from "@/components/upload-manager";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { PreviewModal } from "@/components/previews";
 import { useCurrentFolder } from "@/components/current-folder-context";
-import { useOnUploadComplete, useOnFileAdded, useOnFileDeleted, useOnFileReplaced, useGlobalUpload } from "@/components/global-upload-context";
+import { useOnFileAdded, useOnFileDeleted, useOnFileReplaced, useGlobalUpload } from "@/components/global-upload-context";
 import { decryptFilename } from "@/lib/crypto";
 import { masterKeyManager } from "@/lib/master-key";
 import { truncateFilename } from "@/lib/utils";
@@ -42,8 +41,6 @@ export const Table01DividerLineSm = ({
   onFolderUpload,
   dragDropFiles,
   onDragDropProcessed,
-  onFileInputRef,
-  onFolderInputRef,
   onUploadHandlersReady
 }: { 
   searchQuery?: string
@@ -57,7 +54,6 @@ export const Table01DividerLineSm = ({
 }) => {
     const router = useRouter();
     const pathname = usePathname();
-    const searchParams = useSearchParams();
 
     // Global upload context
     const { 
@@ -571,6 +567,16 @@ export const Table01DividerLineSm = ({
             folderInputRef.current?.click();
         }
     }, [onFolderUpload]);
+
+    // Provide upload handlers to parent component
+    useEffect(() => {
+        if (onUploadHandlersReady) {
+            onUploadHandlersReady({
+                handleFileUpload,
+                handleFolderUpload
+            });
+        }
+    }, [onUploadHandlersReady, handleFileUpload, handleFolderUpload]);
 
     const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const selectedFiles = event.target.files;
@@ -1138,7 +1144,7 @@ export const Table01DividerLineSm = ({
                         onClick={handleFolderUpload}
                         title="Upload folder"
                     >
-                        <IconUpload className="h-4 w-4" />
+                        <IconFolderDown className="h-4 w-4" />
                     </Button>
                     <Button
                         size="sm"
@@ -1417,7 +1423,7 @@ export const Table01DividerLineSm = ({
                                     className="h-7 w-7 p-0"
                                     onClick={handleFolderUpload}
                                 >
-                                    <IconUpload className="h-4 w-4" />
+                                    <IconFolderDown className="h-4 w-4" />
                                 </Button>
                                 <Button
                                     size="sm"
@@ -1515,7 +1521,7 @@ export const Table01DividerLineSm = ({
                                     className="h-7 w-7 p-0"
                                     onClick={handleFolderUpload}
                                 >
-                                    <IconUpload className="h-4 w-4" />
+                                    <IconFolderDown className="h-4 w-4" />
                                 </Button>
                                 <Button
                                     size="sm"
@@ -2024,7 +2030,7 @@ export const Table01DividerLineSm = ({
                                 className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
                                 onClick={() => handleContextMenuAction('importFolder')}
                             >
-                                <IconUpload className="h-4 w-4" />
+                                <IconFolderDown className="h-4 w-4" />
                                 Import Folder
                             </button>
                             <div className="h-px bg-border mx-2 my-1" />
