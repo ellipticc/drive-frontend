@@ -608,7 +608,6 @@ async function initializeUploadSession(
     encryptionSalt: uint8ArrayToHex(encryptionSalt),
     dataEncryptionKey: uint8ArrayToHex(keys.cek),
     wrappedCek: cekEncryption.encryptedData, // XChaCha20-Poly1305 encrypted CEK
-    nonceWrapClassical: '', // Reserved for future classical key wrapping
     fileNoncePrefix: uint8ArrayToHex(fileNoncePrefix),
     folderId,
     manifestHash: manifestHashHex, // SHA512 hash of canonical manifest JSON
@@ -618,7 +617,6 @@ async function initializeUploadSession(
     manifestPublicKeyDilithium: keys.keypairs.dilithiumPublicKey,
     manifestCreatedAt, // Pass timestamp to backend for storage and verification
     algorithmVersion: 'v3-hybrid-pqc',
-    wrappedCekKyber: '', // Classical wrapped CEK (currently using Kyber approach)
     nonceWrapKyber: cekEncryption.nonce, // Nonce for Kyber CEK encryption
     kyberCiphertext: uint8ArrayToHex(kyberCiphertext), // Kyber encapsulation ciphertext
     kyberPublicKey: keys.keypairs.kyberPublicKey,

@@ -34,7 +34,6 @@ export interface FileItem {
     wrappedCek: string;
     fileNoncePrefix: string;
     cekNonce: string;
-    nonceWrapClassical: string;
   };
   // Flat properties for backward compatibility
   encryptionIv?: string;
@@ -1327,7 +1326,6 @@ class ApiClient {
     encryptionSalt: string;
     dataEncryptionKey: string;
     wrappedCek: string;
-    nonceWrapClassical?: string;
     fileNoncePrefix: string;
     folderId?: string | null;
     manifestHash: string;
@@ -1337,7 +1335,6 @@ class ApiClient {
     manifestPublicKeyDilithium: string;
     manifestCreatedAt?: number;
     algorithmVersion: string;
-    wrappedCekKyber: string;
     nonceWrapKyber: string;
     kyberCiphertext: string;
     kyberPublicKey: string;

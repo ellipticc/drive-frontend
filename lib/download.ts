@@ -82,7 +82,6 @@ export interface DownloadEncryption {
   cekNonce: string;
   fileNoncePrefix: string;
   sessionSalt: string | null;
-  nonceWrapClassical: string;
   kyberPublicKey?: string;
   kyberWrappedCek?: string;
   kyberCiphertext?: string;

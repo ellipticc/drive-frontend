@@ -222,7 +222,7 @@ export const AppSidebar = React.memo(function AppSidebar({
             <div className="flex justify-between mb-1">
               <span className="font-medium">Used</span>
               <span className="font-mono text-xs">
-                {userLoading ? "Loading..." : (userData?.storage ? `${userData.storage.used_readable} / ${userData.storage.quota_readable}` : "0 bytes / 10GB")}
+                {userLoading ? "Loading..." : (userData?.storage ? `${userData.storage.used_readable} / ${userData.storage.quota_readable}` : "0 bytes / 5GB")}
               </span>
             </div>
             <div className="w-full bg-muted rounded-full h-2 transition-all duration-300">
