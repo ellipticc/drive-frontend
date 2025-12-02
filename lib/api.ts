@@ -24,7 +24,7 @@ export interface FileItem {
   type: 'file' | 'folder';
   createdAt: string;
   updatedAt: string;
-  sha256Hash?: string; // Only for files
+  shaHash?: string; // File hash (SHA256 or SHA512 depending on algorithm)
   sessionSalt?: string;
   is_shared?: boolean; // Whether this file/folder is currently shared
   encryption?: {
@@ -771,7 +771,7 @@ class ApiClient {
       type: string;
       createdAt: string;
       updatedAt: string;
-      sha256Hash: string;
+      shaHash: string;
       is_shared: boolean;
     }[];
   }>> {
@@ -802,7 +802,7 @@ class ApiClient {
       type: string;
       createdAt: string;
       updatedAt: string;
-      sha256Hash: string;
+      shaHash: string;
       is_shared: boolean;
     }[];
   }>> {
@@ -1226,7 +1226,7 @@ class ApiClient {
       filenameSalt: string;
       mimetype: string;
       size: number;
-      sha256Hash: string;
+      shaHash: string;
       chunkCount: number;
       createdAt: string;
       updatedAt: string;
@@ -1348,7 +1348,7 @@ class ApiClient {
     mimetype: string;
     fileSize: number;
     chunkCount: number;
-    sha256sum: string;
+    shaHash: string;
     chunks: Array<{
       index: number;
       sha256: string;
@@ -1397,7 +1397,7 @@ class ApiClient {
   }>> {
     const idempotencyKey = data.clientFileId 
       ? generateIdempotencyKeyForCreate(data.clientFileId)
-      : generateIdempotencyKey('initializeUploadSession', data.sha256sum);
+      : generateIdempotencyKey('initializeUploadSession', data.shaHash);
     const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/files/upload/presigned/initialize', {
       method: 'POST',
@@ -1407,7 +1407,7 @@ class ApiClient {
   }
 
   async finalizeUpload(sessionId: string, data: {
-    finalSha256: string;
+    finalShaHash: string;
     manifestSignature: string;
     manifestPublicKey: string;
     manifestSignatureDilithium: string;
@@ -1432,7 +1432,7 @@ class ApiClient {
     chunks: Array<{
       index: number;
       chunkSize: number;
-      sha256Hash?: string;
+      shaHash?: string;
       nonce?: string;
     }>;
   }): Promise<ApiResponse<{

@@ -424,21 +424,21 @@ export function DetailsModal({
                   </span>
                 </div>
 
-                {/* SHA256 Hash - Only for files */}
-                {itemType === "file" && itemDetails.sha256_hash && (
+                {/* Hash - Only for files */}
+                {itemType === "file" && itemDetails.sha_hash && (
                   <div className="flex items-center justify-between py-2">
-                    <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">SHA256</span>
+                    <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">Hash</span>
                     <div className="flex items-center gap-1">
                       <code className="text-xs font-mono text-slate-700 dark:text-slate-300">
-                        {itemDetails.sha256_hash.substring(0, 16)}...
+                        {itemDetails.sha_hash.substring(0, 16)}...
                       </code>
                       <Button
-                        onClick={() => copyToClipboard(itemDetails.sha256_hash, "sha256")}
+                        onClick={() => copyToClipboard(itemDetails.sha_hash, "hash")}
                         variant="ghost"
                         size="sm"
                         className="h-5 w-5 p-0"
                       >
-                        {copiedHashId === "sha256" ? (
+                        {copiedHashId === "hash" ? (
                           <IconCheck className="h-3 w-3 text-emerald-600" />
                         ) : (
                           <IconCopy className="h-3 w-3 text-slate-500" />

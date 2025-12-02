@@ -353,7 +353,7 @@ export const Table01DividerLineSm = ({
                     type: 'file' as const,
                     createdAt: fileData.createdAt || new Date().toISOString(),
                     updatedAt: fileData.updatedAt || new Date().toISOString(),
-                    sha256Hash: fileData.sha256Hash,
+                    shaHash: fileData.shaHash,
                     is_shared: fileData.is_shared || false
                 };
 
@@ -470,7 +470,7 @@ export const Table01DividerLineSm = ({
                             type: 'file' as const,
                             createdAt: file.createdAt,
                             updatedAt: file.updatedAt,
-                            sha256Hash: file.sha256Hash,
+                            shaHash: file.shaHash,
                             is_shared: file.is_shared || false
                         };
                     })))
@@ -1087,8 +1087,8 @@ export const Table01DividerLineSm = ({
             }
 
             if (sortDescriptor.column === 'checksum') {
-                const firstHash = a.sha256Hash || '';
-                const secondHash = b.sha256Hash || '';
+                const firstHash = a.shaHash || '';
+                const secondHash = b.shaHash || '';
                 let cmp = firstHash.localeCompare(secondHash);
                 if (sortDescriptor.direction === "descending") {
                     cmp *= -1;
@@ -1662,31 +1662,31 @@ export const Table01DividerLineSm = ({
                                 <Table.Cell className="text-right">
                                     {item.type === 'folder' ? (
                                         <span className="text-xs text-muted-foreground font-mono break-all">N/A</span>
-                                    ) : item.sha256Hash ? (
+                                    ) : item.shaHash ? (
                                         <Tooltip>
                                             <TooltipTrigger asChild>
                                                 <button
                                                     className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer font-mono break-all"
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        navigator.clipboard.writeText(item.sha256Hash!);
+                                                        navigator.clipboard.writeText(item.shaHash!);
                                                         setCopiedHashId(item.id);
                                                         setTimeout(() => setCopiedHashId(null), 300);
                                                     }}
                                                 >
-                                                    {item.sha256Hash.substring(0, 5)}...{item.sha256Hash.substring(item.sha256Hash.length - 5)}
+                                                    {item.shaHash.substring(0, 5)}...{item.shaHash.substring(item.shaHash.length - 5)}
                                                 </button>
                                             </TooltipTrigger>
                                             <TooltipContent 
                                                 className="max-w-none whitespace-nowrap font-[var(--font-jetbrains-mono)] font-semibold tracking-wider"
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    navigator.clipboard.writeText(item.sha256Hash!);
+                                                    navigator.clipboard.writeText(item.shaHash!);
                                                     setCopiedHashId(item.id);
                                                     setTimeout(() => setCopiedHashId(null), 500);
                                                 }}
                                             >
-                                                <p className={`text-xs cursor-pointer transition-all duration-300 ${copiedHashId === item.id ? 'animate-pulse bg-primary/20 text-primary scale-105' : ''}`}>{item.sha256Hash}</p>
+                                                <p className={`text-xs cursor-pointer transition-all duration-300 ${copiedHashId === item.id ? 'animate-pulse bg-primary/20 text-primary scale-105' : ''}`}>{item.shaHash}</p>
                                             </TooltipContent>
                                         </Tooltip>
                                     ) : (

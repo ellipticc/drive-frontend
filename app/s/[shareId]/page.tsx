@@ -335,49 +335,70 @@ export default function SharedDownloadPage() {
       const shareCek = await getShareCEK();
       let decryptedManifest: Record<string, ManifestItem> = {};
 
+      // DEBUG: Log what we're trying to load
+      console.log('Loading manifest...', {
+        hasEncryptedManifest: !!shareDetails.encrypted_manifest,
+        isFolderShare: shareDetails.is_folder,
+        folderId: shareDetails.folder_id
+      });
+
       // If the share has encrypted_manifest, use it directly (true E2EE)
       if (shareDetails.encrypted_manifest) {
+        console.log('Using pre-encrypted manifest from share details');
         const rawManifest = await decryptEncryptedManifest(shareDetails.encrypted_manifest, shareCek);
         
         for (const [itemId, item] of Object.entries(rawManifest)) {
           decryptedManifest[itemId] = item as ManifestItem;
         }
-      } else {
-        // Fallback: fetch and decrypt manifest from API (backward compatibility)
+      } else if (shareDetails.is_folder) {
+        // For folder shares without pre-encrypted manifest, fetch from API (backward compatibility)
+        console.log('Fetching manifest from API for folder share...');
         const manifestResponse = await apiClient.getShareManifest(shareId);
-        if (!manifestResponse.success || !manifestResponse.data) {
-          throw new Error('Failed to load folder contents');
-        }
-
-        const rawManifest = manifestResponse.data as Record<string, any>;
         
-        // Decrypt all manifest item names using the share CEK
-        for (const [itemId, item] of Object.entries(rawManifest)) {
-          try {
-            let decryptedName = (item as any)?.name || itemId;
-            
-            // Try to decrypt the name if it looks encrypted (contains :)
-            if ((item as any)?.name && typeof (item as any).name === 'string' && (item as any).name.includes(':') && (item as any).name_salt) {
-              try {
-                decryptedName = await decryptManifestItemName((item as any).name, (item as any).name_salt, shareCek);
-              } catch (decryptErr) {
-                console.warn(`Failed to decrypt name for ${itemId}:`, decryptErr);
-                // Keep encrypted name as fallback
+        if (!manifestResponse.success || !manifestResponse.data) {
+          // If manifest endpoint returns nothing or error, that's OK for file shares
+          if (shareDetails.is_folder) {
+            throw new Error('Failed to load folder contents');
+          }
+          console.warn('ℹNo manifest available (file share)');
+          decryptedManifest = {};
+        } else {
+          const rawManifest = manifestResponse.data as Record<string, any>;
+          console.log(`Received manifest with ${Object.keys(rawManifest).length} items`);
+          
+          // Decrypt all manifest item names using the share CEK
+          for (const [itemId, item] of Object.entries(rawManifest)) {
+            try {
+              let decryptedName = (item as any)?.name || itemId;
+              
+              // Try to decrypt the name if it looks encrypted (contains :)
+              if ((item as any)?.name && typeof (item as any).name === 'string' && (item as any).name.includes(':') && (item as any).name_salt) {
+                try {
+                  decryptedName = await decryptManifestItemName((item as any).name, (item as any).name_salt, shareCek);
+                } catch (decryptErr) {
+                  console.warn(`Failed to decrypt name for ${itemId}:`, decryptErr);
+                  // Keep encrypted name as fallback
+                }
               }
+              
+              decryptedManifest[itemId] = {
+                ...(item as ManifestItem),
+                name: decryptedName
+              };
+            } catch (err) {
+              console.warn(`Error processing manifest item ${itemId}:`, err);
+              decryptedManifest[itemId] = item as ManifestItem;
             }
-            
-            decryptedManifest[itemId] = {
-              ...(item as ManifestItem),
-              name: decryptedName
-            };
-          } catch (err) {
-            console.warn(`Error processing manifest item ${itemId}:`, err);
-            decryptedManifest[itemId] = item as ManifestItem;
           }
         }
+      } else {
+        // For file shares, empty manifest is expected
+        console.log('ℹFile share - no manifest needed');
+        decryptedManifest = {};
       }
 
       setManifest(decryptedManifest);
+      console.log('Manifest loaded successfully', { itemCount: Object.keys(decryptedManifest).length });
 
       if (shareDetails.is_folder && shareDetails.folder_id) {
         // Initialize folder view

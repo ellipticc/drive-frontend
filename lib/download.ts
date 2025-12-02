@@ -47,7 +47,7 @@ export interface DownloadChunk {
   index?: number;
   objectKey: string;
   size: number;
-  sha256: string;
+  shaHash: string;
   nonce: string | null;
   getUrl: string;
   // Compression metadata
@@ -63,12 +63,12 @@ export interface DownloadManifest {
   originalFilename: string;
   size: number;
   mimetype: string;
-  sha256: string;
+  shaHash: string;
   chunkCount: number;
   chunks: Array<{
     index: number;
     size: number;
-    sha256: string;
+    shaHash: string;
     nonce: string | null;
   }>;
   created: number;
@@ -95,7 +95,7 @@ export interface DownloadSession {
   originalFilename: string;
   mimetype: string;
   size: number;
-  sha256: string;
+  shaHash: string;
   chunkCount: number;
   chunks: DownloadChunk[];
   manifest?: DownloadManifest;
@@ -121,7 +121,7 @@ export interface DownloadResult {
   filename: string;
   size: number;
   mimetype: string;
-  sha256: string;
+  shaHash: string;
 }
 
 // Configuration
@@ -165,7 +165,7 @@ export async function downloadEncryptedFileWithCEK(
 
     // Stage 5: Verify integrity
     onProgress?.({ stage: 'verifying', overallProgress: 95 });
-    await verifyFileIntegrity(fileBlob, session.sha256);
+    await verifyFileIntegrity(fileBlob, session.shaHash);
 
     onProgress?.({ stage: 'complete', overallProgress: 100 });
 
@@ -175,7 +175,7 @@ export async function downloadEncryptedFileWithCEK(
       filename: session.originalFilename,
       size: session.size,
       mimetype: session.mimetype,
-      sha256: session.sha256
+      shaHash: session.shaHash
     };
 
   } catch (error) {
@@ -309,7 +309,7 @@ export async function downloadEncryptedFile(
 
     // Stage 5: Verify integrity
     onProgress?.({ stage: 'verifying', overallProgress: 95 });
-    await verifyFileIntegrity(fileBlob, session.sha256);
+    await verifyFileIntegrity(fileBlob, session.shaHash);
 
     onProgress?.({ stage: 'complete', overallProgress: 100 });
 
@@ -319,7 +319,7 @@ export async function downloadEncryptedFile(
       filename: session.originalFilename,
       size: session.size,
       mimetype: session.mimetype,
-      sha256: session.sha256
+      shaHash: session.shaHash
     };
 
   } catch (error) {
@@ -367,7 +367,7 @@ async function initializeDownloadSession(fileId: string): Promise<DownloadSessio
       index: chunk.index, // Keep both for compatibility
       objectKey: presignedEntry.objectKey,
       size: chunk.size,
-      sha256: chunk.sha256,
+      shaHash: chunk.sha256,
       nonce: chunk.nonce,
       getUrl: presignedEntry.getUrl,
       // Compression metadata
@@ -384,7 +384,7 @@ async function initializeDownloadSession(fileId: string): Promise<DownloadSessio
     originalFilename: decryptedFilename,
     mimetype: data.mimetype,
     size: data.size,
-    sha256: data.sha256,
+    shaHash: data.sha256,
     chunkCount: data.chunkCount,
     chunks: mergedChunks,
     manifest: data.manifest,
@@ -645,17 +645,20 @@ async function assembleFile(decryptedChunks: Uint8Array[], mimetype: string): Pr
 }
 
 /**
- * Verify file integrity by computing SHA-256 hash
+ * Verify file integrity by computing SHA hash (256 or 512 based on expected hash length)
  */
-async function verifyFileIntegrity(blob: Blob, expectedSha256: string): Promise<void> {
+async function verifyFileIntegrity(blob: Blob, expectedShaHash: string): Promise<void> {
+  // Determine hash algorithm based on expected hash length
+  const isSha512 = expectedShaHash.length === 128; // SHA512 is 128 hex chars, SHA256 is 64
+  const algorithm = isSha512 ? 'SHA-512' : 'SHA-256';
+
   const arrayBuffer = await blob.arrayBuffer();
-  const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
-  const actualSha256 = uint8ArrayToHex(new Uint8Array(hashBuffer));
+  const hashBuffer = await crypto.subtle.digest(algorithm, arrayBuffer);
+  const actualShaHash = uint8ArrayToHex(new Uint8Array(hashBuffer));
 
-  if (actualSha256 !== expectedSha256) {
-    throw new Error(`File integrity check failed: expected ${expectedSha256}, got ${actualSha256}`);
+  if (actualShaHash !== expectedShaHash) {
+    throw new Error(`File integrity check failed: expected ${expectedShaHash}, got ${actualShaHash}`);
   }
-
 }
 
 /**

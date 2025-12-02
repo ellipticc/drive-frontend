@@ -45,7 +45,7 @@ interface TrashItem {
     createdAt: string;
     updatedAt: string;
     deletedAt: string;
-    sha256Hash?: string;
+    shaHash?: string;
     // Temporary fields for async decryption
     encryptedFilename?: string;
     filenameSalt?: string;
@@ -137,7 +137,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                             createdAt: file.created_at || file.createdAt,
                             updatedAt: file.updated_at || file.updatedAt,
                             deletedAt: file.deleted_at || file.deletedAt,
-                            sha256Hash: file.sha256_hash || file.sha256Hash,
+                            shaHash: file.sha_hash || file.shaHash,
                             folderId: file.folder_id || file.folderId,
                         };
                     })

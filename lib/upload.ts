@@ -47,7 +47,7 @@ export interface FileMetadata {
   filename: string;
   size: number;
   mimeType: string;
-  sha256Hash: string;
+  shaHash: string;
   wrappedCek: string;
   cekNonce: string;
   // PQC wrappers would be added here
@@ -94,7 +94,7 @@ export interface UploadResult {
     type: 'file';
     createdAt: string;
     updatedAt: string;
-    sha256Hash: string;
+    shaHash: string;
     is_shared: boolean;
   };
 }
@@ -158,9 +158,9 @@ export async function uploadEncryptedFile(
       throw new Error(`Cannot access file "${file.name}". The file may have been deleted, moved, or this may be a directory that cannot be uploaded directly. ${error instanceof Error ? error.message : ''}`);
     }
 
-    // Stage 1: Compute SHA-256 hash of entire file
+    // Stage 1: Compute SHA-512 hash of entire file (primary hash algorithm)
     onProgress?.({ stage: 'hashing', overallProgress: 0 });
-    const sha256Hash = await computeFileSHA256(file);
+    const shaHash = await computeFileHash(file); // Only compute SHA-512 for new files
     onProgress?.({ stage: 'hashing', overallProgress: 10 });
 
     // Check for abort after hashing
@@ -290,7 +290,7 @@ export async function uploadEncryptedFile(
     }
 
     // Stage 4: Initialize upload session with backend
-    const session = await initializeUploadSession(file, folderId, processedChunks, encryptedChunks, sha256Hash, keys, conflictResolution, conflictFileName, existingFileIdToDelete, isKeepBothAttempt, fileId);
+    const session = await initializeUploadSession(file, folderId, processedChunks, encryptedChunks, shaHash, keys, conflictResolution, conflictFileName, existingFileIdToDelete, isKeepBothAttempt, fileId);
 
     // Check for abort before uploading chunks
     if (abortSignal?.aborted) {
@@ -318,7 +318,7 @@ export async function uploadEncryptedFile(
     }
 
     // Stage 7: Finalize upload
-    const result = await finalizeUpload(session.sessionId, session.fileId, file, sha256Hash, keys, folderId, session.encryptedFilename, session.filenameSalt, session.manifestCreatedAt);
+    const result = await finalizeUpload(session.sessionId, session.fileId, file, shaHash, keys, folderId, session.encryptedFilename, session.filenameSalt, session.manifestCreatedAt);
 
     onProgress?.({ stage: 'finalizing', overallProgress: 100 });
 
@@ -341,17 +341,54 @@ export async function uploadEncryptedFile(
 }
 
 /**
- * Compute SHA-256 hash of entire file using streaming approach
- * Includes validation for file accessibility
+ * Compute SHA-512 hash of entire file (primary hash algorithm for new files)
+ * SHA-512 provides better security than SHA-256
  */
-async function computeFileSHA256(file: File): Promise<string> {
+async function computeFileHash(file: File): Promise<string> {
   try {
     const arrayBuffer = await file.arrayBuffer();
-    const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
-    return uint8ArrayToHex(new Uint8Array(hashBuffer));
+
+    // Compute SHA-512 (new standard for file integrity)
+    const sha512Buffer = await crypto.subtle.digest('SHA-512', arrayBuffer);
+    const sha512Hash = uint8ArrayToHex(new Uint8Array(sha512Buffer));
+
+    return sha512Hash;
   } catch (error) {
     throw new Error(`Cannot read file "${file.name}": ${error instanceof Error ? error.message : String(error)}. The file may have been deleted or moved.`);
   }
+}
+
+/**
+ * Compute SHA-256 and SHA-512 hashes of entire file
+ * DEPRECATED: Only used for legacy compatibility - new files use computeFileHash()
+ * Kept for backward compatibility with existing code that might need both hashes
+ */
+async function computeFileHashes(file: File): Promise<{ sha256: string; sha512: string }> {
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    
+    // Compute SHA-256 (for backward compatibility)
+    const sha256Buffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+    const sha256Hash = uint8ArrayToHex(new Uint8Array(sha256Buffer));
+    
+    // Compute SHA-512 (new standard)
+    const sha512Buffer = await crypto.subtle.digest('SHA-512', arrayBuffer);
+    const sha512Hash = uint8ArrayToHex(new Uint8Array(sha512Buffer));
+    
+    return { sha256: sha256Hash, sha512: sha512Hash };
+  } catch (error) {
+    throw new Error(`Cannot read file "${file.name}": ${error instanceof Error ? error.message : String(error)}. The file may have been deleted or moved.`);
+  }
+}
+
+/**
+ * Compute SHA-256 hash of entire file
+ * DEPRECATED: Only used for legacy compatibility - new files use computeFileHash() for SHA-512
+ * Kept for backward compatibility with existing code
+ */
+async function computeFileSHA256(file: File): Promise<string> {
+  const { sha256 } = await computeFileHashes(file);
+  return sha256;
 }
 
 /**
@@ -441,7 +478,7 @@ async function initializeUploadSession(
   folderId: string | null,
   chunks: ChunkInfo[],
   encryptedChunks: Uint8Array[],
-  sha256Hash: string,
+  shaHash: string,
   keys: UserKeys,
   conflictResolution?: 'replace' | 'keepBoth' | 'skip',
   conflictFileName?: string,
@@ -545,7 +582,7 @@ async function initializeUploadSession(
     filename: encryptedFilename, // Use encrypted filename for manifest verification (matches database)
     size: actualFile.size,
     mimeType: actualFile.type || 'application/octet-stream',
-    sha256Hash: sha256Hash,
+    shaHash: shaHash,
     created: manifestCreatedAt,
     version: '2.0-file',
     algorithmVersion: 'v3-hybrid-pqc-xchacha20'
@@ -592,7 +629,7 @@ async function initializeUploadSession(
     mimetype: actualFile.type || 'application/octet-stream',
     fileSize: actualFile.size,
     chunkCount: chunks.length,
-    sha256sum: sha256Hash,
+    shaHash: shaHash,
     chunks: chunkHashes.map((hash, index) => ({
       index,
       sha256: hash,
@@ -790,7 +827,7 @@ async function finalizeUpload(
   sessionId: string,
   fileId: string,
   file: File,
-  sha256Hash: string,
+  shaHash: string,
   keys: UserKeys,
   folderId: string | null = null,
   encryptedFilename?: string,
@@ -804,7 +841,7 @@ async function finalizeUpload(
     filename: encryptedFilename, // Use encrypted filename (matches initializeUploadSession)
     size: file.size,
     mimeType: file.type || 'application/octet-stream',
-    sha256Hash,
+    shaHash,
     created: manifestCreatedAtFinal,
     version: '2.0-file',
     algorithmVersion: 'v3-hybrid-pqc-xchacha20'
@@ -828,7 +865,7 @@ async function finalizeUpload(
   const manifestSignatureDilithium = btoa(String.fromCharCode(...new Uint8Array(dilithiumSignature)));
 
   const response = await apiClient.finalizeUpload(sessionId, {
-    finalSha256: sha256Hash,
+    finalShaHash: shaHash,
     manifestSignature,
     manifestPublicKey: keys.keypairs.ed25519PublicKey,
     manifestSignatureDilithium,
@@ -848,7 +885,7 @@ async function finalizeUpload(
       filename: file.name,
       size: file.size,
       mimeType: file.type || 'application/octet-stream',
-      sha256Hash,
+      shaHash,
       wrappedCek: '', // TODO: Implement CEK wrapping
       cekNonce: ''   // TODO: Implement CEK wrapping
     },
@@ -864,7 +901,7 @@ async function finalizeUpload(
       type: 'file' as const,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      sha256Hash,
+      shaHash,
       is_shared: false
     }
   };
