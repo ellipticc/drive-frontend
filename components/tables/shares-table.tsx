@@ -396,29 +396,17 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
 
         try {
             const selectedShares = Array.from(selectedItems);
-            let successCount = 0;
-            let errorCount = 0;
-
-            for (const shareId of selectedShares) {
-                try {
-                    const response = await apiClient.disableShare(shareId);
-                    if (response.success) {
-                        successCount++;
-                    } else {
-                        errorCount++;
-                    }
-                } catch (error) {
-                    // console.error(`Failed to revoke share ${shareId}:`, error);
-                    errorCount++;
-                }
-            }
-
-            if (successCount > 0) {
-                toast.success(`Revoked ${successCount} of ${selectedShares.length} shares`);
+            
+            const response = await apiClient.disableShare(selectedShares);
+            
+            if (response.success) {
+                const revokedCount = response.data?.revokedCount || selectedShares.length;
+                const cascadedFileShares = response.data?.cascadedFileShares || 0;
+                
+                toast.success(`Revoked ${revokedCount} shares${cascadedFileShares > 0 ? ` (${cascadedFileShares} cascaded file shares)` : ''}`);
                 refreshShares(); // Refresh the shares list
-            }
-            if (errorCount > 0) {
-                toast.error(`Failed to revoke ${errorCount} shares`);
+            } else {
+                toast.error('Failed to revoke shares');
             }
 
             // Clear selection after bulk operation

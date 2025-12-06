@@ -1125,13 +1125,16 @@ class ApiClient {
     });
   }
 
-  async disableShare(shareId: string): Promise<ApiResponse<{ success: boolean }>> {
-    // Use shareId as unique intent (disabling same share)
-    const idempotencyKey = generateIdempotencyKey('disableShare', shareId);
+  async disableShare(shareIdOrIds: string | string[]): Promise<ApiResponse<{ success: boolean; revokedCount?: number; cascadedFileShares?: number }>> {
+    const shareIds = Array.isArray(shareIdOrIds) ? shareIdOrIds : [shareIdOrIds];
+    
+    // Use sorted shareIds as unique intent for consistent idempotency
+    const idempotencyKey = generateIdempotencyKey('disableShare', shareIds.sort().join(':'));
     const headers = addIdempotencyKey({}, idempotencyKey);
-    return this.request(`/shares/${shareId}`, {
-      method: 'DELETE',
+    return this.request('/shares/delete', {
+      method: 'POST',
       headers,
+      body: JSON.stringify({ shareIds }),
     });
   }
 
