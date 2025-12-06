@@ -781,30 +781,28 @@ class ApiClient {
 
   // Get folder contents recursively (including all nested folders and files)
   async getFolderContentsRecursive(folderId: string = 'root'): Promise<ApiResponse<{
-    folders: {
+    folder: {
       id: string;
       encryptedName: string;
       nameSalt: string;
-      parentId: string | null;
       path: string;
-      type: string;
-      createdAt: string;
-      updatedAt: string;
-      is_shared: boolean;
-    }[];
-    files: {
+      parentId: string | null;
+      isFolder: boolean;
+      children: any[];
+      files: any[];
+    };
+    allFiles: {
       id: string;
       encryptedFilename: string;
       filenameSalt: string;
       size: number;
-      mimeType: string;
+      mimetype: string;
       folderId: string | null;
-      type: string;
-      createdAt: string;
-      updatedAt: string;
-      shaHash: string;
-      is_shared: boolean;
+      wrappedCek: string;
+      nonceWrap: string;
     }[];
+    totalFiles: number;
+    totalFolders: number;
   }>> {
     const normalizedFolderId = folderId === 'root' ? 'root' : folderId;
     return this.request(`/folders/${normalizedFolderId}/contents/recursive`);
@@ -1005,7 +1003,9 @@ class ApiClient {
     nonce_wrap_kyber?: string;
     encrypted_filename?: string; // Filename encrypted with share CEK
     nonce_filename?: string;  // Nonce for filename encryption
-    encrypted_manifest?: string;  // Encrypted folder manifest (for folder shares)
+    encrypted_foldername?: string; // Folder name encrypted with share CEK
+    nonce_foldername?: string;  // Nonce for folder name encryption
+    encrypted_manifest?: { encryptedData: string; nonce: string } | string;  // Encrypted folder manifest (for folder shares)
   }): Promise<ApiResponse<{
     id: string;
     encryption_version?: number;
@@ -1051,6 +1051,9 @@ class ApiClient {
     encryption_version?: number;
     encrypted_filename?: string; // Filename encrypted with share CEK
     nonce_filename?: string; // Nonce for filename encryption
+    encrypted_foldername?: string; // Folder name encrypted with share CEK
+    nonce_foldername?: string; // Nonce for folder name encryption
+    encrypted_manifest?: { encryptedData: string; nonce: string } | string; // E2EE folder manifest
     file?: {
       id: string;
       filename: string;

@@ -665,7 +665,8 @@ export async function decryptFilename(encryptedFilename: string, filenameSalt: s
     const decryptedBytes = xchacha20poly1305(filenameKey, filenameNonce).decrypt(encryptedBytes);
     const filename = new TextDecoder().decode(decryptedBytes);
 
-    return filename;
+    // Sanitize control characters that can cause display issues
+    return filename.replace(/[\x00-\x1F\x7F-\x9F]/g, '').trim();
   } catch (error) {
     throw new Error(`Failed to decrypt filename: ${error instanceof Error ? error.message : String(error)}`);
   }

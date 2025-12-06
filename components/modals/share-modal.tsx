@@ -44,10 +44,11 @@ import { format } from "date-fns"
 import { truncateFilename } from "@/lib/utils"
 
 // Helper function to build encrypted manifest for folder shares
+// Returns an object (not JSON string) so createShare can serialize it correctly
 async function buildEncryptedFolderManifest(
   folderId: string,
   shareCek: Uint8Array
-): Promise<string> {
+): Promise<{ encryptedData: string; nonce: string }> {
   try {
     // Get folder contents RECURSIVELY to include all nested files and folders
     const contentsResponse = await apiClient.getFolderContentsRecursive(folderId);
@@ -55,7 +56,57 @@ async function buildEncryptedFolderManifest(
       throw new Error('Failed to fetch folder contents');
     }
 
-    const { folders = [], files = [] } = contentsResponse.data;
+    // Parse the response structure: { folder: {...}, allFiles: [...], totalFiles, totalFolders }
+    const { allFiles = [], folder } = contentsResponse.data;
+    
+    // Validate folder data
+    if (!folder) {
+      throw new Error('Invalid folder data: folder is null');
+    }
+    if (folder.encryptedName && !folder.nameSalt) {
+      throw new Error('Invalid folder data: folder has encryptedName but missing nameSalt. Folder structure: ' + JSON.stringify({ id: folder.id, hasEncName: !!folder.encryptedName, hasNameSalt: !!folder.nameSalt }));
+    }
+    
+    // Extract folders from the hierarchical structure
+    const folders: any[] = [];
+    const extractFolders = (folderData: any) => {
+      if (folderData.id !== folderId) { // Don't include root folder in manifest
+        folders.push({
+          id: folderData.id,
+          encryptedName: folderData.encryptedName,
+          nameSalt: folderData.nameSalt, // Now properly included from backend
+          parentId: folderData.parentId,
+          path: folderData.path,
+          createdAt: folderData.created_at || folderData.createdAt,
+          type: 'folder'
+        });
+      }
+      if (folderData.children) {
+        for (const child of folderData.children) {
+          extractFolders(child);
+        }
+      }
+    };;
+    
+    if (folder) {
+      extractFolders(folder);
+    }
+    
+    // Convert allFiles to the expected format
+    const files = allFiles.map((file: any) => ({
+      id: file.id,
+      encryptedFilename: file.encryptedFilename,
+      filenameSalt: file.filenameSalt,
+      size: file.size,
+      mimeType: file.mimetype,
+      folderId: file.folderId,
+      createdAt: file.created_at || file.createdAt,
+      wrappedCek: file.wrappedCek,
+      nonceWrap: file.nonceWrap,
+      kyberCiphertext: file.kyberCiphertext,
+      nonceWrapKyber: file.nonceWrapKyber
+    }));
+
     const { encryptData } = await import('@/lib/crypto');
     const { decryptFilename } = await import('@/lib/crypto');
     const { xchacha20poly1305 } = await import('@noble/ciphers/chacha.js');
@@ -66,10 +117,75 @@ async function buildEncryptedFolderManifest(
     // Build manifest with all items
     const manifest: Record<string, any> = {};
 
-    // Add all folders
-    for (const folder of folders) {
+    // Add root folder (the shared folder itself) to manifest
+    let rootFolderName: string;
+    try {
+      if (!masterKey) {
+        throw new Error('Master key is null or undefined');
+      }
+      rootFolderName = await decryptFilename(folder.encryptedName, folder.nameSalt, masterKey);
+    } catch (error) {
+      console.error('Failed to decrypt root folder name:', {
+        error: error instanceof Error ? error.message : error,
+        stack: error instanceof Error ? error.stack : undefined,
+        folderData: {
+          encryptedName: folder.encryptedName ? `${folder.encryptedName.substring(0, 30)}...` : null,
+          nameSalt: folder.nameSalt ? `${folder.nameSalt.substring(0, 30)}...` : null
+        }
+      });
+      rootFolderName = 'Shared Folder'; // Fallback name
+    }
+    const rootNameSalt = crypto.getRandomValues(new Uint8Array(32));
+    const rootNameSaltB64 = btoa(String.fromCharCode(...rootNameSalt));
+    const rootSuffixBytes = new TextEncoder().encode('folder-name-key');
+    const rootKeyMaterial = new Uint8Array(rootNameSalt.length + rootSuffixBytes.length);
+    rootKeyMaterial.set(rootNameSalt, 0);
+    rootKeyMaterial.set(rootSuffixBytes, rootNameSalt.length);
+    const rootHmacKey = await crypto.subtle.importKey(
+      'raw',
+      shareCek as BufferSource,
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    );
+    const rootDerivedKeyMaterial = await crypto.subtle.sign('HMAC', rootHmacKey, rootKeyMaterial);
+    const rootNameKey = new Uint8Array(rootDerivedKeyMaterial.slice(0, 32));
+    const rootNameNonce = crypto.getRandomValues(new Uint8Array(24));
+    const rootNameBytes = new TextEncoder().encode(rootFolderName);
+    const encryptedRootName = xchacha20poly1305(rootNameKey, rootNameNonce).encrypt(rootNameBytes);
+    const encryptedRootNameB64 = btoa(String.fromCharCode(...encryptedRootName));
+    const rootNonceB64 = btoa(String.fromCharCode(...rootNameNonce));
+    
+    manifest[folderId] = {
+      id: folderId,
+      name: `${encryptedRootNameB64}:${rootNonceB64}`,
+      name_salt: rootNameSaltB64,
+      type: 'folder',
+      parent_id: null,
+      path: folder.path,
+      created_at: (folder as any).created_at || new Date().toISOString()
+    };
+
+    // Add all subfolders
+    for (const subfolder of folders) {
       // First decrypt the name from master key encryption
-      const decryptedFolderName = await decryptFilename(folder.encryptedName, folder.nameSalt, masterKey);
+      let decryptedFolderName: string;
+      try {
+        if (!masterKey) {
+          throw new Error('Master key is null or undefined');
+        }
+        decryptedFolderName = await decryptFilename(subfolder.encryptedName, subfolder.nameSalt, masterKey);
+      } catch (error) {
+        console.error(`Failed to decrypt subfolder ${subfolder.id}:`, {
+          error: error instanceof Error ? error.message : error,
+          stack: error instanceof Error ? error.stack : undefined,
+          folderData: {
+            encryptedName: subfolder.encryptedName ? `${subfolder.encryptedName.substring(0, 30)}...` : null,
+            nameSalt: subfolder.nameSalt ? `${subfolder.nameSalt.substring(0, 30)}...` : null
+          }
+        });
+        decryptedFolderName = `Folder ${subfolder.id}`; // Fallback name
+      }
       
       const nameSalt = crypto.getRandomValues(new Uint8Array(32));
       const nameSaltB64 = btoa(String.fromCharCode(...nameSalt));
@@ -97,21 +213,37 @@ async function buildEncryptedFolderManifest(
       const encryptedNameB64 = btoa(String.fromCharCode(...encryptedName));
       const nonceB64 = btoa(String.fromCharCode(...nameNonce));
 
-      manifest[folder.id] = {
-        id: folder.id,
+      manifest[subfolder.id] = {
+        id: subfolder.id,
         name: `${encryptedNameB64}:${nonceB64}`,
         name_salt: nameSaltB64,
         type: 'folder',
-        parent_id: folder.parentId,
-        path: folder.path,
-        created_at: folder.createdAt
+        parent_id: subfolder.parentId,
+        path: subfolder.path,
+        created_at: (subfolder as any).created_at || new Date().toISOString()
       };
     }
 
     // Add all files
     for (const file of files) {
       // First decrypt the filename from master key encryption
-      const decryptedFileName = await decryptFilename(file.encryptedFilename, file.filenameSalt, masterKey);
+      let decryptedFileName: string;
+      try {
+        if (!masterKey) {
+          throw new Error('Master key is null or undefined');
+        }
+        decryptedFileName = await decryptFilename(file.encryptedFilename, file.filenameSalt, masterKey);
+      } catch (error) {
+        console.error(`Failed to decrypt file ${file.id}:`, {
+          error: error instanceof Error ? error.message : error,
+          stack: error instanceof Error ? error.stack : undefined,
+          fileData: {
+            encryptedFilename: file.encryptedFilename ? `${file.encryptedFilename.substring(0, 30)}...` : null,
+            filenameSalt: file.filenameSalt ? `${file.filenameSalt.substring(0, 30)}...` : null
+          }
+        });
+        decryptedFileName = `File ${file.id}`; // Fallback name
+      }
       
       const nameSalt = crypto.getRandomValues(new Uint8Array(32));
       const nameSaltB64 = btoa(String.fromCharCode(...nameSalt));
@@ -139,30 +271,76 @@ async function buildEncryptedFolderManifest(
       const encryptedNameB64 = btoa(String.fromCharCode(...encryptedName));
       const nonceB64 = btoa(String.fromCharCode(...nameNonce));
 
-      manifest[file.id] = {
-        id: file.id,
-        name: `${encryptedNameB64}:${nonceB64}`,
-        name_salt: nameSaltB64,
-        type: 'file',
-        size: file.size,
-        mimetype: file.mimeType,
-        folder_id: file.folderId,
-        created_at: file.createdAt
-      };
+      // Decrypt the file's CEK using Kyber (same as download) and envelope-encrypt with share CEK
+      try {
+        const { decryptData, hexToUint8Array } = await import('@/lib/crypto');
+        const { ml_kem768 } = await import('@noble/post-quantum/ml-kem.js');
+        
+        // Get user keys for Kyber decryption
+        const userKeys = await keyManager.getUserKeys();
+        
+        // Decapsulate Kyber to get shared secret (same as download process)
+        const kyberCiphertext = hexToUint8Array(file.kyberCiphertext);
+        const sharedSecret = ml_kem768.decapsulate(kyberCiphertext, userKeys.keypairs.kyberPrivateKey);
+        
+        // Decrypt the CEK using Kyber shared secret
+        const fileCek = decryptData(file.wrappedCek, new Uint8Array(sharedSecret), file.nonceWrapKyber);
+        if (!fileCek) {
+          throw new Error(`No CEK returned for file ${file.id}`);
+        }
+        if (!(fileCek instanceof Uint8Array)) {
+          throw new Error(`CEK is not a Uint8Array, got ${typeof fileCek}`);
+        }
+        
+        const envelopeEncryption = encryptData(fileCek, shareCek);
+        const envelopeWrappedCek = envelopeEncryption.encryptedData;
+        const envelopeNonce = envelopeEncryption.nonce;
+
+        manifest[file.id] = {
+          id: file.id,
+          name: `${encryptedNameB64}:${nonceB64}`,
+          name_salt: nameSaltB64,
+          type: 'file',
+          size: file.size,
+          mimetype: file.mimeType,
+          folder_id: file.folderId,
+          created_at: file.createdAt,
+          wrapped_cek: envelopeWrappedCek,
+          nonce_wrap: envelopeNonce
+        };
+      } catch (error) {
+        console.error(`Failed to process file ${file.id} CEK:`, {
+          error: error instanceof Error ? error.message : error,
+          wrappedCek: file.wrappedCek ? `${file.wrappedCek.substring(0, 30)}...` : null,
+          nonceWrap: file.nonceWrap ? `${file.nonceWrap.substring(0, 30)}...` : null
+        });
+        // Still add the file to manifest with fallback
+        manifest[file.id] = {
+          id: file.id,
+          name: `${encryptedNameB64}:${nonceB64}`,
+          name_salt: nameSaltB64,
+          type: 'file',
+          size: file.size,
+          mimetype: file.mimeType,
+          folder_id: file.folderId,
+          created_at: file.createdAt,
+          wrapped_cek: null,
+          nonce_wrap: null
+        };
+      }
     }
 
     // Encrypt the entire manifest as JSON
     const manifestJson = JSON.stringify(manifest);
     const manifestBytes = new TextEncoder().encode(manifestJson);
     const manifestEncryption = encryptData(manifestBytes, shareCek);
-    
-    // Store both encrypted data and nonce as JSON
-    const encryptedManifestData = {
+
+    // Return object (not JSON string) so createShare can serialize it correctly
+    // This prevents double-stringification which was truncating the data
+    return {
       encryptedData: manifestEncryption.encryptedData,
       nonce: manifestEncryption.nonce
     };
-    
-    return JSON.stringify(encryptedManifestData);
   } catch (error) {
     console.error('Failed to build encrypted manifest:', error);
     throw error;
@@ -448,33 +626,57 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
       const { ml_kem768 } = await import('@noble/post-quantum/ml-kem.js')
       const { decryptData, hexToUint8Array } = await import('@/lib/crypto')
 
-      // First, get the Kyber shared secret
-      const kyberCiphertext = hexToUint8Array(itemData.kyber_ciphertext)
-      const sharedSecret = ml_kem768.decapsulate(kyberCiphertext, userKeys.keypairs.kyberPrivateKey)
+      // For folder shares, use share CEK directly (no envelope encryption since multiple files have different CEKs)
+      let wrappedFileCek: string | undefined = undefined
+      let envelopeNonce: string | undefined = undefined
+      if (itemType === 'file') {
+        // For file shares, do envelope encryption
+        // First, get the Kyber shared secret
+        const kyberCiphertext = hexToUint8Array(itemData.kyber_ciphertext)
+        const sharedSecret = ml_kem768.decapsulate(kyberCiphertext, userKeys.keypairs.kyberPrivateKey)
 
-      // Decrypt the file's CEK
-      const fileCek = decryptData(itemData.wrapped_cek, new Uint8Array(sharedSecret), itemData.nonce_wrap_kyber)
+        // Decrypt the file's CEK
+        const fileCek = decryptData(itemData.wrapped_cek, new Uint8Array(sharedSecret), itemData.nonce_wrap_kyber)
 
-      // Now encrypt the file/folder's CEK with the share CEK (envelope encryption)
-      const { encryptData } = await import('@/lib/crypto')
-      const envelopeEncryption = encryptData(fileCek, shareCek)
-      const wrappedFileCek = envelopeEncryption.encryptedData
-      const envelopeNonce = envelopeEncryption.nonce
+        // Now encrypt the file's CEK with the share CEK (envelope encryption)
+        const { encryptData } = await import('@/lib/crypto')
+        const envelopeEncryption = encryptData(fileCek, shareCek)
+        wrappedFileCek = envelopeEncryption.encryptedData
+        envelopeNonce = envelopeEncryption.nonce
+      } else {
+        // For folder shares, use share CEK directly
+        wrappedFileCek = btoa(String.fromCharCode(...shareCek))
+        const nonceBytes = crypto.getRandomValues(new Uint8Array(24))
+        envelopeNonce = btoa(String.fromCharCode(...nonceBytes))
+      }
 
       // Encrypt the filename with the share CEK for E2EE filename decryption on share page
+      const { encryptData } = await import('@/lib/crypto')
       const filenameBytes = new TextEncoder().encode(itemName)
       const filenameEncryption = encryptData(filenameBytes, shareCek)
       const encryptedFilename = filenameEncryption.encryptedData
       const filenameNonce = filenameEncryption.nonce
 
+      // For folder shares, also encrypt the folder name with share CEK
+      let encryptedFoldername: string | undefined = undefined
+      let foldernameNonce: string | undefined = undefined
+      if (itemType === 'folder') {
+        const foldernameBytes = new TextEncoder().encode(itemName)
+        const foldernameEncryption = encryptData(foldernameBytes, shareCek)
+        encryptedFoldername = foldernameEncryption.encryptedData
+        foldernameNonce = foldernameEncryption.nonce
+      }
+
       // For folder shares, build and encrypt the manifest
-      let encryptedManifest: string | undefined = undefined
+      let encryptedManifest: { encryptedData: string; nonce: string } | undefined = undefined
       if (itemType === 'folder') {
         try {
           encryptedManifest = await buildEncryptedFolderManifest(itemId, shareCek)
         } catch (manifestErr) {
-          console.warn('Failed to build encrypted manifest for folder:', manifestErr)
-          // Continue without manifest - backend will build it dynamically
+          console.error('Failed to build encrypted manifest for folder:', manifestErr)
+          // CRITICAL: Don't continue without manifest for folder shares!
+          // This would fall back to unencrypted plaintext manifest
+          throw new Error(`Cannot create folder share without encrypted manifest: ${manifestErr instanceof Error ? manifestErr.message : String(manifestErr)}`)
         }
       }
 
@@ -487,6 +689,8 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
         salt_pw: shareSettings.passwordEnabled ? saltPw : undefined,
         encrypted_filename: encryptedFilename, // Filename encrypted with share CEK
         nonce_filename: filenameNonce, // Nonce for filename encryption
+        encrypted_foldername: encryptedFoldername, // Folder name encrypted with share CEK (for folders)
+        nonce_foldername: foldernameNonce, // Nonce for folder name encryption (for folders)
         expires_at: shareSettings.expirationDate?.toISOString(),
         max_views: shareSettings.maxDownloads || undefined,
         permissions: 'read',
@@ -686,8 +890,18 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
       const encryptedFilename = filenameEncryption.encryptedData
       const filenameNonce = filenameEncryption.nonce
 
+      // For folder shares, also encrypt the folder name with share CEK
+      let encryptedFoldername: string | undefined = undefined
+      let foldernameNonce: string | undefined = undefined
+      if (itemType === 'folder') {
+        const foldernameBytes = new TextEncoder().encode(itemName)
+        const foldernameEncryption = encryptDataForFilename(foldernameBytes, shareCek)
+        encryptedFoldername = foldernameEncryption.encryptedData
+        foldernameNonce = foldernameEncryption.nonce
+      }
+
       // For folder shares, build and encrypt the manifest
-      let encryptedManifest: string | undefined = undefined
+      let encryptedManifest: { encryptedData: string; nonce: string } | undefined = undefined
       if (itemType === 'folder') {
         try {
           encryptedManifest = await buildEncryptedFolderManifest(itemId, shareCek)
@@ -706,6 +920,8 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
         salt_pw: saltPw,
         encrypted_filename: encryptedFilename, // Filename encrypted with share CEK
         nonce_filename: filenameNonce, // Nonce for filename encryption
+        encrypted_foldername: encryptedFoldername, // Folder name encrypted with share CEK (for folders)
+        nonce_foldername: foldernameNonce, // Nonce for folder name encryption (for folders)
         expires_at: shareSettings.expirationDate?.toISOString(),
         max_views: shareSettings.maxDownloads || undefined,
         permissions: 'read',

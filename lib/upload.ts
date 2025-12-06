@@ -644,7 +644,7 @@ async function initializeUploadSession(
     encryptionIv: uint8ArrayToHex(encryptionIv),
     encryptionSalt: uint8ArrayToHex(encryptionSalt),
     dataEncryptionKey: uint8ArrayToHex(keys.cek),
-    wrappedCek: cekEncryption.encryptedData, // XChaCha20-Poly1305 encrypted CEK
+    wrappedCek: cekEncryption.encryptedData, // XChaCha20-Poly1305 encrypted CEK with Kyber
     fileNoncePrefix: uint8ArrayToHex(fileNoncePrefix),
     folderId,
     manifestHash: manifestHashHex, // SHA512 hash of canonical manifest JSON

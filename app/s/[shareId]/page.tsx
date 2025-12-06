@@ -43,16 +43,41 @@ async function decryptShareFilename(encryptedFilename: string, nonce: string, sh
     const cipher = xchacha20poly1305(shareCek, nonceBytes);
     const decryptedBytes = cipher.decrypt(encrypted);
     
-    return new TextDecoder().decode(decryptedBytes);
+    const decrypted = new TextDecoder().decode(decryptedBytes);
+    // Sanitize control characters and any non-printable characters
+    const sanitized = decrypted.replace(/[\x00-\x1F\x7F-\x9F]/g, '').trim();
+    
+    // Additional validation
+    if (sanitized.length === 0 || sanitized.length > 255) {
+      throw new Error('Decrypted filename is empty or too long');
+    }
+    
+    return sanitized;
   } catch (err) {
     console.warn('Failed to decrypt filename:', err);
     throw err;
   }
 }
 
-// Helper to decrypt folder/file names in manifest using share CEK
+// Helper to check if a string looks like encrypted data (base64 format)
+function looksLikeEncryptedName(name: string): boolean {
+  if (!name || typeof name !== 'string' || !name.includes(':')) {
+    return false;
+  }
+  
+  const [encPart, noncePart] = name.split(':');
+  
+  // Check if both parts are valid base64 (encrypted names have this format)
+  try {
+    // Base64 regex check - should only contain [A-Za-z0-9+/=]
+    const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
+    return base64Regex.test(encPart) && base64Regex.test(noncePart);
+  } catch {
+    return false;
+  }
+}
 // Format: encryptedData:nonce (both base64), salt is used to derive a key from share CEK
-async function decryptManifestItemName(encryptedName: string, nameSalt: string, shareCek: Uint8Array): Promise<string> {
+async function decryptManifestItemName(encryptedName: string, nameSalt: string, shareCek: Uint8Array, itemType?: string): Promise<string> {
   try {
     const { xchacha20poly1305 } = await import('@noble/ciphers/chacha.js');
     
@@ -70,10 +95,12 @@ async function decryptManifestItemName(encryptedName: string, nameSalt: string, 
 
     // Derive name-specific key from salt and share CEK using HMAC-SHA256
     // Match the encryption: HMAC(shareCek, salt + 'folder-name-key' or 'file-name-key')
-    // Try both variants and use the one that works (since we don't know item type at decryption time)
-    let nameKey: Uint8Array | null = null;
+    // If item type is known, use only that variant. Otherwise try both.
+    const suffixes = itemType 
+      ? [itemType === 'folder' ? 'folder-name-key' : 'file-name-key']
+      : ['folder-name-key', 'file-name-key'];
     
-    for (const suffix of ['folder-name-key', 'file-name-key']) {
+    for (const suffix of suffixes) {
       try {
         const suffixBytes = new TextEncoder().encode(suffix);
         const keyMaterial = new Uint8Array(decodedSalt.length + suffixBytes.length);
@@ -89,13 +116,25 @@ async function decryptManifestItemName(encryptedName: string, nameSalt: string, 
         );
 
         const derivedKeyMaterial = await crypto.subtle.sign('HMAC', hmacKey, keyMaterial);
-        nameKey = new Uint8Array(derivedKeyMaterial.slice(0, 32));
+        const nameKey = new Uint8Array(derivedKeyMaterial.slice(0, 32));
         
         // Try to decrypt with this key
         const decryptedBytes = xchacha20poly1305(nameKey, nameNonce).decrypt(encryptedBytes);
-        return new TextDecoder().decode(decryptedBytes);
+        const decrypted = new TextDecoder().decode(decryptedBytes);
+        
+        // Sanitize control characters and any non-printable characters that can cause display issues
+        // Remove all control characters (0x00-0x1F, 0x7F-0x9F) and any other problematic chars
+        const sanitized = decrypted.replace(/[\x00-\x1F\x7F-\x9F]/g, '').trim();
+        
+        // Additional check: ensure the result contains only valid characters
+        if (sanitized.length === 0 || sanitized.length > 255) {
+          throw new Error('Decrypted name is empty or too long');
+        }
+        
+        return sanitized;
       } catch (e) {
         // Try next suffix
+        if (itemType) throw e; // If we know the type and it fails, don't try others
         continue;
       }
     }
@@ -103,20 +142,38 @@ async function decryptManifestItemName(encryptedName: string, nameSalt: string, 
     // If both attempts failed
     throw new Error('Could not decrypt with either key variant');
   } catch (err) {
-    console.warn('Failed to decrypt manifest item name:', err);
+    console.error('Failed to decrypt manifest item name:', err);
     // Return truncated encrypted name as fallback
     return encryptedName.substring(0, 30) + '...';
   }
 }
 
 // Helper to decrypt entire encrypted manifest (pre-encrypted on frontend)
-async function decryptEncryptedManifest(encryptedManifestJson: string, shareCek: Uint8Array): Promise<Record<string, any>> {
+async function decryptEncryptedManifest(
+  encryptedManifestData: string | { encryptedData: string; nonce: string },
+  shareCek: Uint8Array
+): Promise<Record<string, any>> {
   try {
     const { decryptData } = await import('@/lib/crypto');
     
-    // Parse the stored JSON containing encryptedData and nonce
-    const encryptedManifestData = JSON.parse(encryptedManifestJson);
-    const { encryptedData, nonce } = encryptedManifestData;
+    // Handle both formats: object (new) or JSON string (legacy)
+    let encryptedData: string;
+    let nonce: string;
+    
+    if (typeof encryptedManifestData === 'string') {
+      // Legacy format: JSON string containing { encryptedData, nonce }
+      const parsed = JSON.parse(encryptedManifestData);
+      encryptedData = parsed.encryptedData;
+      nonce = parsed.nonce;
+    } else {
+      // New format: object directly
+      encryptedData = encryptedManifestData.encryptedData;
+      nonce = encryptedManifestData.nonce;
+    }
+    
+    if (!encryptedData || !nonce) {
+      throw new Error('Invalid encrypted manifest structure - missing encryptedData or nonce');
+    }
     
     // Decrypt the entire manifest JSON with share CEK
     const decryptedManifestBytes = decryptData(encryptedData, shareCek, nonce);
@@ -125,6 +182,7 @@ async function decryptEncryptedManifest(encryptedManifestJson: string, shareCek:
     
     // Now decrypt individual item names using the salt and derived keys
     const decryptedManifest: Record<string, any> = {};
+    let itemCount = 0;
     
     for (const [itemId, item] of Object.entries(manifest)) {
       const manifestItem = item as any;
@@ -140,12 +198,14 @@ async function decryptEncryptedManifest(encryptedManifestJson: string, shareCek:
         }
       }
       
+      // Ensure id is always present
       decryptedManifest[itemId] = {
+        id: itemId, // Ensure id field is set
         ...manifestItem,
         name: decryptedName
       };
+      itemCount++;
     }
-    
     return decryptedManifest;
   } catch (err) {
     console.error('Failed to decrypt encrypted manifest:', err);
@@ -173,7 +233,7 @@ interface ShareDetails {
   encryption_version?: number;
   encrypted_filename?: string; // Filename encrypted with share CEK
   nonce_filename?: string; // Nonce for filename encryption
-  encrypted_manifest?: string; // E2EE: pre-encrypted manifest JSON
+  encrypted_manifest?: { encryptedData: string; nonce: string } | string; // E2EE folder manifest
   file?: {
     id: string;
     filename: string;
@@ -183,7 +243,9 @@ interface ShareDetails {
   };
   folder?: {
     id: string;
-    name: string;
+    name: string; // Master-key encrypted name (for backward compatibility)
+    encrypted_name?: string; // Share-CEK encrypted folder name
+    nonce_name?: string; // Nonce for folder name decryption
     created_at: string;
   };
 }
@@ -197,6 +259,18 @@ interface ManifestItem {
   parent_id?: string | null;
   mimetype?: string;
   folder_id?: string;
+  wrapped_cek?: string; // For files in folder shares
+  nonce_wrap?: string; // For files in folder shares
+}
+
+// Helper: Format date to readable string
+function formatDate(dateString: string): string {
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  } catch {
+    return '-';
+  }
 }
 
 export default function SharedDownloadPage() {
@@ -220,6 +294,7 @@ export default function SharedDownloadPage() {
   const [decryptedFolderName, setDecryptedFolderName] = useState<string | null>(null);
   const [userSession, setUserSession] = useState<{ id: string; name: string; email: string; avatar: string } | null>(null);
   const [checkingSession, setCheckingSession] = useState(true);
+  const [sharePasswordCEK, setSharePasswordCEK] = useState<Uint8Array | null>(null); // Store CEK from password verification
 
   // Helper: Get display name
   const getDisplayName = (user: { name: string; email: string }): string => {
@@ -335,24 +410,33 @@ export default function SharedDownloadPage() {
       const shareCek = await getShareCEK();
       let decryptedManifest: Record<string, ManifestItem> = {};
 
-      // DEBUG: Log what we're trying to load
-      console.log('Loading manifest...', {
-        hasEncryptedManifest: !!shareDetails.encrypted_manifest,
-        isFolderShare: shareDetails.is_folder,
-        folderId: shareDetails.folder_id
-      });
-
       // If the share has encrypted_manifest, use it directly (true E2EE)
       if (shareDetails.encrypted_manifest) {
-        console.log('Using pre-encrypted manifest from share details');
         const rawManifest = await decryptEncryptedManifest(shareDetails.encrypted_manifest, shareCek);
         
         for (const [itemId, item] of Object.entries(rawManifest)) {
-          decryptedManifest[itemId] = item as ManifestItem;
+          const manifestItem = item as any;
+          let decryptedName = manifestItem?.name || itemId;
+          
+          // Try to decrypt the name if it looks encrypted (base64:base64 format with salt)
+          if (manifestItem?.name && typeof manifestItem.name === 'string' && 
+              manifestItem.name_salt && looksLikeEncryptedName(manifestItem.name)) {
+            try {
+              decryptedName = await decryptManifestItemName(manifestItem.name, manifestItem.name_salt, shareCek, manifestItem.type);
+            } catch (decryptErr) {
+              console.warn(`Failed to decrypt name for ${itemId}, keeping fallback:`, decryptErr);
+              // Keep the original (might be base64 but wrong key - use fallback display)
+            }
+          }
+          
+          decryptedManifest[itemId] = {
+            ...(manifestItem as any),
+            id: itemId,
+            name: decryptedName
+          };
         }
       } else if (shareDetails.is_folder) {
         // For folder shares without pre-encrypted manifest, fetch from API (backward compatibility)
-        console.log('Fetching manifest from API for folder share...');
         const manifestResponse = await apiClient.getShareManifest(shareId);
         
         if (!manifestResponse.success || !manifestResponse.data) {
@@ -364,25 +448,29 @@ export default function SharedDownloadPage() {
           decryptedManifest = {};
         } else {
           const rawManifest = manifestResponse.data as Record<string, any>;
-          console.log(`Received manifest with ${Object.keys(rawManifest).length} items`);
           
-          // Decrypt all manifest item names using the share CEK
+          // Decrypt all manifest item names using the share CEK (only if encrypted)
           for (const [itemId, item] of Object.entries(rawManifest)) {
             try {
-              let decryptedName = (item as any)?.name || itemId;
+              const manifestItem = item as any;
+              let decryptedName = manifestItem?.name || itemId;
               
-              // Try to decrypt the name if it looks encrypted (contains :)
-              if ((item as any)?.name && typeof (item as any).name === 'string' && (item as any).name.includes(':') && (item as any).name_salt) {
+              // Only try to decrypt if it looks like encrypted data (base64:base64 format)
+              if (manifestItem?.name && typeof manifestItem.name === 'string' && 
+                  manifestItem.name_salt && looksLikeEncryptedName(manifestItem.name)) {
                 try {
-                  decryptedName = await decryptManifestItemName((item as any).name, (item as any).name_salt, shareCek);
+                  decryptedName = await decryptManifestItemName(manifestItem.name, manifestItem.name_salt, shareCek, manifestItem.type);
                 } catch (decryptErr) {
-                  console.warn(`Failed to decrypt name for ${itemId}:`, decryptErr);
-                  // Keep encrypted name as fallback
+                  // If decryption fails, it might be old plaintext format - keep original
+                  console.warn(`Failed to decrypt name for ${itemId}, using plaintext fallback:`, decryptErr);
+                  decryptedName = manifestItem?.name || itemId;
                 }
               }
+              // If name doesn't look encrypted, keep it as-is (old plaintext format or already decrypted)
               
               decryptedManifest[itemId] = {
-                ...(item as ManifestItem),
+                ...(manifestItem as ManifestItem),
+                id: itemId,
                 name: decryptedName
               };
             } catch (err) {
@@ -393,17 +481,34 @@ export default function SharedDownloadPage() {
         }
       } else {
         // For file shares, empty manifest is expected
-        console.log('ℹFile share - no manifest needed');
         decryptedManifest = {};
       }
 
       setManifest(decryptedManifest);
-      console.log('Manifest loaded successfully', { itemCount: Object.keys(decryptedManifest).length });
 
       if (shareDetails.is_folder && shareDetails.folder_id) {
         // Initialize folder view
         setCurrentFolderId(shareDetails.folder_id);
-        const folderName = decryptedManifest[shareDetails.folder_id]?.name || shareDetails.folder?.name || 'Shared Folder';
+        
+        // Try to decrypt folder name using share-CEK encrypted data first
+        let folderName = 'Shared Folder';
+        if (shareDetails.folder?.encrypted_name && shareDetails.folder?.nonce_name) {
+          try {
+            folderName = await decryptShareFilename(
+              shareDetails.folder.encrypted_name,
+              shareDetails.folder.nonce_name,
+              shareCek
+            );
+          } catch (err) {
+            console.warn('Failed to decrypt folder name with share CEK, trying manifest:', err);
+            // Fallback to manifest or master-key encrypted name
+            folderName = decryptedManifest[shareDetails.folder_id]?.name || shareDetails.folder?.name || 'Shared Folder';
+          }
+        } else {
+          // Fallback to manifest or master-key encrypted name
+          folderName = decryptedManifest[shareDetails.folder_id]?.name || shareDetails.folder?.name || 'Shared Folder';
+        }
+        
         setDecryptedFolderName(folderName);
         setBreadcrumbs([{ id: shareDetails.folder_id, name: folderName }]);
       }
@@ -575,6 +680,8 @@ export default function SharedDownloadPage() {
         throw new Error('Invalid decrypted share key');
       }
 
+      // Store the CEK for later use in manifest decryption
+      setSharePasswordCEK(shareCek);
       setPasswordVerified(true);
     } catch (err) {
       setPasswordError('Incorrect password. Please try again.');
@@ -583,66 +690,34 @@ export default function SharedDownloadPage() {
     }
   };
 
+  // Get Share CEK from URL hash or password-protected wrapper
   const getShareCEK = async (): Promise<Uint8Array> => {
-    if (!shareDetails) throw new Error('Share details not loaded');
+    if (!shareDetails) {
+      throw new Error('Share details not loaded');
+    }
+
+    // If password-protected and already verified, use the stored CEK
+    if (shareDetails.has_password && sharePasswordCEK) {
+      return sharePasswordCEK;
+    }
+
+    // Try to extract from URL hash
+    if (typeof window !== 'undefined') {
+      const urlFragment = window.location.hash.substring(1);
+      if (urlFragment) {
+        try {
+          return new Uint8Array(atob(urlFragment).split('').map(c => c.charCodeAt(0)));
+        } catch (err) {
+          console.warn('Failed to decode CEK from hash:', err);
+        }
+      }
+    }
 
     if (shareDetails.has_password) {
-      if (!shareDetails.salt_pw) {
-        throw new Error('Password data not available');
-      }
-
-      // Parse the salt:nonce:ciphertext format with XChaCha20-Poly1305
-      const parts = shareDetails.salt_pw.split(':');
-      if (parts.length !== 3) {
-        throw new Error('Invalid password data format');
-      }
-
-      const [saltB64, nonceB64, ciphertextB64] = parts;
-
-      // Decode salt, nonce, and ciphertext from base64
-      const salt = new Uint8Array(atob(saltB64).split('').map(c => c.charCodeAt(0)));
-      const nonce = new Uint8Array(atob(nonceB64).split('').map(c => c.charCodeAt(0)));
-      const ciphertext = new Uint8Array(atob(ciphertextB64).split('').map(c => c.charCodeAt(0)));
-
-      // Derive password key using PBKDF2
-      const keyMaterial = await crypto.subtle.importKey(
-        'raw',
-        new TextEncoder().encode(password),
-        'PBKDF2',
-        false,
-        ['deriveKey']
-      );
-      const passwordKey = await crypto.subtle.deriveKey(
-        {
-          name: 'PBKDF2',
-          salt: salt,
-          iterations: 100000,
-          hash: 'SHA-256'
-        },
-        keyMaterial,
-        { name: 'AES-KW' },
-        false,
-        ['unwrapKey']
-      );
-
-      // Export the key to get raw bytes for XChaCha20
-      const keyBytes = new Uint8Array(
-        await crypto.subtle.exportKey('raw', passwordKey)
-      );
-      // Use first 32 bytes for XChaCha20
-      const xchachaKey = keyBytes.slice(0, 32);
-
-      // Decrypt share CEK using XChaCha20-Poly1305
-      const { xchacha20poly1305 } = await import('@noble/ciphers/chacha.js');
-      const shareCekBytes = xchacha20poly1305(xchachaKey, nonce).decrypt(ciphertext);
-      return new Uint8Array(shareCekBytes);
-    } else {
-      const urlFragment = window.location.hash.substring(1);
-      if (!urlFragment) {
-        throw new Error('Share link is missing encryption key. Please use a valid share link.');
-      }
-      return new Uint8Array(atob(urlFragment).split('').map(c => c.charCodeAt(0)));
+      throw new Error('Password verification required');
     }
+
+    throw new Error('Share encryption key not found in URL');
   };
 
   const handleDownloadFile = async (fileId: string, fileName: string) => {
@@ -655,12 +730,20 @@ export default function SharedDownloadPage() {
     try {
       const shareCek = await getShareCEK();
 
-      if (!shareDetails.wrapped_cek || !shareDetails.nonce_wrap) {
-        throw new Error('Share encryption data not available');
-      }
-
+      // For folder shares, get the file's CEK from the manifest
+      // For file shares, use the share's wrapped_cek
+      let fileCek: Uint8Array;
       const { decryptData } = await import('@/lib/crypto');
-      const fileCek = decryptData(shareDetails.wrapped_cek, shareCek, shareDetails.nonce_wrap);
+
+      if (shareDetails.is_folder && manifest[fileId]?.wrapped_cek && manifest[fileId]?.nonce_wrap) {
+        // Folder share: decrypt the file's envelope-encrypted CEK from manifest
+        fileCek = decryptData(manifest[fileId].wrapped_cek, shareCek, manifest[fileId].nonce_wrap);
+      } else if (!shareDetails.is_folder && shareDetails.wrapped_cek && shareDetails.nonce_wrap) {
+        // File share: decrypt the envelope-encrypted CEK from share record
+        fileCek = decryptData(shareDetails.wrapped_cek, shareCek, shareDetails.nonce_wrap);
+      } else {
+        throw new Error('File encryption data not available');
+      }
 
       const result = await downloadEncryptedFileWithCEK(fileId, fileCek, (progress) => {
         setDownloadProgress(progress.overallProgress);
@@ -1022,24 +1105,28 @@ export default function SharedDownloadPage() {
             </>
           ) : shareDetails.is_folder ? (
             <>
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <FolderOpen className="h-6 w-6 text-primary" />
-                  <div>
-                    <CardTitle>{decryptedFolderName || shareDetails.folder?.name || 'Shared Folder'}</CardTitle>
-                    <CardDescription>
-                      Shared on {shareDetails.folder?.created_at ? formatDate(shareDetails.folder.created_at) : 'unknown date'}
-                    </CardDescription>
+              <CardHeader className="border-b">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3 flex-1">
+                    <div className="p-2 rounded-lg bg-muted">
+                      <FolderOpen className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <CardTitle className="text-xl">{decryptedFolderName || shareDetails.folder?.name || 'Shared Folder'}</CardTitle>
+                      <CardDescription>
+                        Shared on {shareDetails.folder?.created_at ? formatDate(shareDetails.folder.created_at) : 'unknown date'}
+                      </CardDescription>
+                    </div>
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Breadcrumbs */}
+              <CardContent className="p-0">
+                {/* Breadcrumbs - Filesystem Style */}
                 {breadcrumbs.length > 0 && (
-                  <div className="flex items-center gap-1 text-sm pb-4 border-b">
+                  <div className="flex items-center gap-1 text-sm px-6 py-3 border-b bg-muted font-mono">
+                    <span className="text-muted-foreground">/</span>
                     {breadcrumbs.map((crumb, index) => (
                       <div key={crumb.id} className="flex items-center gap-1">
-                        {index > 0 && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
                         <button
                           onClick={() => {
                             if (index === 0) {
@@ -1051,10 +1138,11 @@ export default function SharedDownloadPage() {
                               setCurrentFolderId(crumb.id);
                             }
                           }}
-                          className={`hover:underline ${index === breadcrumbs.length - 1 ? 'font-semibold text-foreground' : 'text-primary'}`}
+                          className={`hover:underline px-1 ${index === breadcrumbs.length - 1 ? 'font-semibold text-foreground' : 'text-foreground hover:text-foreground'}`}
                         >
                           {crumb.name}
                         </button>
+                        {index < breadcrumbs.length - 1 && <span className="text-muted-foreground">/</span>}
                       </div>
                     ))}
                   </div>
@@ -1062,82 +1150,109 @@ export default function SharedDownloadPage() {
 
                 {/* Download Progress */}
                 {downloading && (
-                  <div className="space-y-2">
+                  <div className="border-b px-6 py-3 space-y-2">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Downloading...</span>
-                      <span className="font-mono">{downloadProgress}%</span>
+                      <span className="font-mono text-sm">{downloadProgress}%</span>
                     </div>
                     <Progress value={downloadProgress} className="w-full" />
                   </div>
                 )}
 
-                {/* Folder Contents */}
-                {Object.keys(manifest).length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground">Loading folder contents...</p>
-                  </div>
-                ) : currentFolderContents.folders.length === 0 && currentFolderContents.files.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground">This folder is empty</p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {/* Folders */}
-                    {currentFolderContents.folders.map((folder) => (
-                      <button
-                        key={folder.id}
-                        onClick={() => handleNavigateFolder(folder.id, folder.name)}
-                        className="w-full flex items-center justify-between p-3 hover:bg-accent border rounded-lg transition-colors"
-                      >
-                        <div className="flex items-center gap-3 flex-1 text-left">
-                          <FolderOpen className="h-4 w-4 text-blue-500 flex-shrink-0" />
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <p className="text-sm font-medium truncate">{truncateFilename(folder.name)}</p>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              {folder.name}
-                            </TooltipContent>
-                          </Tooltip>
-                        </div>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground ml-2 flex-shrink-0" />
-                      </button>
-                    ))}
+                {/* Folder Contents - Filesystem Table Style */}
+                <div className="divide-y">
+                  {Object.keys(manifest).length === 0 ? (
+                    <div className="text-center py-16 px-6">
+                      <Loader2 className="h-8 w-8 text-muted-foreground mx-auto mb-3 animate-spin" />
+                      <p className="text-muted-foreground">Loading folder contents...</p>
+                    </div>
+                  ) : currentFolderContents.folders.length === 0 && currentFolderContents.files.length === 0 ? (
+                    <div className="text-center py-16 px-6">
+                      <FolderOpen className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
+                      <p className="text-muted-foreground">This folder is empty</p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Table Header */}
+                      <div className="grid grid-cols-12 gap-4 px-6 py-3 bg-muted text-sm font-semibold text-muted-foreground sticky top-0">
+                        <div className="col-span-6">Name</div>
+                        <div className="col-span-3">Modified</div>
+                        <div className="col-span-2 text-right">Size</div>
+                        <div className="col-span-1 text-center">Action</div>
+                      </div>
 
-                    {/* Files */}
-                    {currentFolderContents.files.map((file) => (
-                      <button
-                        key={file.id}
-                        onClick={() => handleDownloadFile(file.id, file.name)}
-                        className="w-full flex items-center justify-between p-3 hover:bg-accent border rounded-lg transition-colors"
-                      >
-                        <div className="flex items-center gap-3 flex-1 text-left min-w-0">
-                          <File className="h-4 w-4 text-gray-500 flex-shrink-0" />
-                          <div className="min-w-0 flex-1">
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <p className="text-sm font-medium truncate">{truncateFilename(file.name)}</p>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                {file.name}
-                              </TooltipContent>
-                            </Tooltip>
-                            {file.size && (
-                              <p className="text-xs text-muted-foreground">{formatFileSize(file.size)}</p>
-                            )}
-                          </div>
-                        </div>
-                        <Download className="h-4 w-4 text-muted-foreground ml-2 flex-shrink-0" />
-                      </button>
-                    ))}
-                  </div>
-                )}
+                      {/* Folders Section */}
+                      {currentFolderContents.folders.length > 0 && (
+                        <>
+                          {currentFolderContents.folders.map((folder) => (
+                            <button
+                              key={folder.id}
+                              onClick={() => handleNavigateFolder(folder.id, folder.name)}
+                              className="w-full grid grid-cols-12 gap-4 px-6 py-3 hover:bg-accent transition-colors items-center group text-left"
+                            >
+                              <div className="col-span-6 flex items-center gap-3 min-w-0">
+                                <FolderOpen className="h-4 w-4 text-muted-foreground flex-shrink-0 group-hover:scale-110 transition-transform" />
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="truncate font-medium text-foreground">{truncateFilename(folder.name)}</span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>{folder.name}</TooltipContent>
+                                </Tooltip>
+                              </div>
+                              <div className="col-span-3 text-sm text-muted-foreground">
+                                {folder.created_at ? formatDate(folder.created_at) : '-'}
+                              </div>
+                              <div className="col-span-2 text-sm text-muted-foreground text-right">-</div>
+                              <div className="col-span-1 flex justify-center">
+                                <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:translate-x-1 transition-transform" />
+                              </div>
+                            </button>
+                          ))}
+                        </>
+                      )}
+
+                      {/* Files Section */}
+                      {currentFolderContents.files.length > 0 && (
+                        <>
+                          {currentFolderContents.files.map((file) => (
+                            <button
+                              key={file.id}
+                              onClick={() => handleDownloadFile(file.id, file.name)}
+                              className="w-full grid grid-cols-12 gap-4 px-6 py-3 hover:bg-accent transition-colors items-center group text-left"
+                            >
+                              <div className="col-span-6 flex items-center gap-3 min-w-0">
+                                <File className="h-4 w-4 text-muted-foreground flex-shrink-0 group-hover:scale-110 transition-transform" />
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="truncate font-medium text-foreground">{truncateFilename(file.name)}</span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>{file.name}</TooltipContent>
+                                </Tooltip>
+                              </div>
+                              <div className="col-span-3 text-sm text-muted-foreground">
+                                {file.created_at ? formatDate(file.created_at) : '-'}
+                              </div>
+                              <div className="col-span-2 text-sm text-muted-foreground text-right font-mono">
+                                {file.size ? formatFileSize(file.size) : '-'}
+                              </div>
+                              <div className="col-span-1 flex justify-center">
+                                <Download className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+                              </div>
+                            </button>
+                          ))}
+                        </>
+                      )}
+                    </>
+                  )}
+                </div>
 
                 {error && (
-                  <Alert>
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
+                  <div className="px-6 py-4">
+                    <Alert>
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                  </div>
                 )}
               </CardContent>
             </>
