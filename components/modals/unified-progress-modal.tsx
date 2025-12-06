@@ -33,6 +33,7 @@ import {
 import { UploadProgress as UploadProgressType } from '@/lib/upload';
 import { DownloadProgress } from '@/lib/download';
 import { truncateFilename } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export interface FileUploadState {
   id: string;
@@ -89,6 +90,7 @@ export function UnifiedProgressModal({
   onOpenChange,
   onClose
 }: UnifiedProgressModalProps) {
+  const isMobile = useIsMobile();
   const [isMinimized, setIsMinimized] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
@@ -285,10 +287,14 @@ export function UnifiedProgressModal({
   return (
     <>
       {/* Floating Progress Modal */}
-      <div className="fixed bottom-4 right-4 z-50 w-[32rem] max-w-lg animate-in slide-in-from-bottom-2 fade-in-0 duration-300">
+      <div className={`fixed z-50 animate-in slide-in-from-bottom-2 fade-in-0 duration-300 ${
+        isMobile
+          ? 'bottom-0 left-0 right-0 w-full h-1/5 rounded-none'
+          : 'bottom-4 right-4 w-[32rem] max-w-lg'
+      }`}>
         <Card className={`shadow-lg border-2 transition-all duration-200 ${
           isMinimized ? 'h-12' : totalActiveItems <= 2 ? 'max-h-80' : 'max-h-[32rem]'
-        }`}>
+        } ${isMobile ? 'h-full rounded-none' : ''}`}>
           {/* Header */}
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 cursor-move">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
