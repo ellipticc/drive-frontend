@@ -47,6 +47,7 @@ import { getDiceBearAvatar } from "@/lib/avatar"
 import { useUser } from "@/components/user-context"
 import { getInitials } from "@/components/layout/navigation/nav-user"
 import { useGlobalUpload } from "@/components/global-upload-context"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 interface SettingsModalProps {
   children?: React.ReactNode
@@ -68,6 +69,7 @@ export function SettingsModal({
   open: externalOpen,
   onOpenChange: externalOnOpenChange,
 }: SettingsModalProps) {
+  const isMobile = useIsMobile();
   const [internalOpen, setInternalOpen] = useState(false)
   const { user, refetch } = useUser()
   const { theme, setTheme } = useTheme()
@@ -868,7 +870,7 @@ export function SettingsModal({
       ) : (
         children
       )}
-      <DialogContent className="overflow-hidden p-0 md:max-h-[700px] md:max-w-[1100px]">
+      <DialogContent className={`${isMobile ? 'w-[90vw] h-[75vh] max-w-none max-h-none overflow-y-auto' : 'md:max-h-[700px] md:max-w-[1100px] overflow-hidden'} p-0`}>
         <DialogTitle className="sr-only">Settings</DialogTitle>
         <DialogDescription className="sr-only">
           Customize your settings here.
@@ -897,8 +899,29 @@ export function SettingsModal({
               </SidebarGroup>
             </SidebarContent>
           </Sidebar>
-          <main className="flex flex-1 flex-col overflow-hidden">
-            <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-6">
+          <main className="flex flex-1 flex-col">
+            {/* Mobile Navigation */}
+            {isMobile && (
+              <div className="border-b border-border p-4 flex-shrink-0">
+                <div className="flex gap-1 overflow-x-auto">
+                  {data.nav.map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => setActiveTab(item.id)}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors ${
+                        activeTab === item.id
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                      }`}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="flex flex-1 flex-col gap-4 p-6 pb-12">
               {activeTab === "general" && (
                 <div className="space-y-6">
                   {/* Profile Section */}

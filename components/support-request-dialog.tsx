@@ -28,12 +28,14 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { apiClient } from "@/lib/api"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 interface SupportRequestDialogProps {
   children?: React.ReactNode
 }
 
 export function SupportRequestDialog({ children }: SupportRequestDialogProps) {
+  const isMobile = useIsMobile();
   const [open, setOpen] = React.useState(false)
   const [isLoading, setIsLoading] = React.useState(false)
   const [formData, setFormData] = React.useState({
@@ -118,19 +120,21 @@ export function SupportRequestDialog({ children }: SupportRequestDialogProps) {
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px] animate-in fade-in-0 zoom-in-95 duration-200">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <IconHelp className="h-5 w-5 text-primary" />
-            Request Support
-          </DialogTitle>
-          <DialogDescription>
-            Need help? We&apos;re here to assist you. Please provide details about your issue.
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className={`${isMobile ? 'w-[90vw] max-w-none h-[75vh] max-h-none overflow-y-auto' : 'sm:max-w-[500px]'} animate-in fade-in-0 zoom-in-95 duration-200`}>
+        <div className="flex flex-col h-full">
+          <DialogHeader className="flex-shrink-0">
+            <DialogTitle className="flex items-center gap-2">
+              <IconHelp className="h-5 w-5 text-primary" />
+              Request Support
+            </DialogTitle>
+            <DialogDescription>
+              Need help? We&apos;re here to assist you. Please provide details about your issue.
+            </DialogDescription>
+          </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <FieldGroup>
+          <form onSubmit={handleSubmit} className="flex flex-col h-full">
+            <div className="flex-1 px-6 py-4">
+              <FieldGroup className="space-y-4">
             <Field>
               <FieldLabel htmlFor="subject">Subject</FieldLabel>
               <Input
@@ -203,37 +207,39 @@ export function SupportRequestDialog({ children }: SupportRequestDialogProps) {
                 Provide as much detail as possible to help us assist you better
               </FieldDescription>
             </Field>
-          </FieldGroup>
+              </FieldGroup>
+            </div>
 
-          <DialogFooter className="gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setOpen(false)}
-              disabled={isLoading}
-              className="transition-all duration-200"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={isLoading || !formData.subject.trim() || !formData.message.trim()}
-              className="transition-all duration-200"
-            >
-              {isLoading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                  Sending...
-                </>
-              ) : (
-                <>
-                  <IconSend className="h-4 w-4 mr-2" />
-                  Send Request
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </form>
+            <DialogFooter className="flex-shrink-0 gap-2 border-t pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setOpen(false)}
+                disabled={isLoading}
+                className="transition-all duration-200"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={isLoading || !formData.subject.trim() || !formData.message.trim()}
+                className="transition-all duration-200"
+              >
+                {isLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <IconSend className="h-4 w-4 mr-2" />
+                    Send Request
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </div>
       </DialogContent>
     </Dialog>
   )

@@ -24,6 +24,7 @@ import { toast } from "sonner"
 import { apiClient } from "@/lib/api"
 import { truncateFilename } from "@/lib/utils"
 import { decryptFilename } from "@/lib/crypto"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 interface DetailsModalProps {
   children?: React.ReactNode
@@ -42,6 +43,7 @@ export function DetailsModal({
   open: externalOpen,
   onOpenChange: externalOnOpenChange
 }: DetailsModalProps) {
+  const isMobile = useIsMobile();
   const [internalOpen, setInternalOpen] = useState(false)
   const [itemDetails, setItemDetails] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -273,14 +275,16 @@ export function DetailsModal({
       ) : (
         children
       )}
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className={`${isMobile ? 'w-[90vw] max-w-none h-[75vh] max-h-none overflow-y-auto' : 'sm:max-w-lg'}`}>
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <IconLoader2 className="h-6 w-6 animate-spin text-slate-400 mr-2" />
             <span className="text-sm text-slate-500">Loading...</span>
           </div>
         ) : itemDetails ? (
-          <div className="space-y-4">
+          <div className="flex flex-col h-full">
+            <div className="flex-1">
+              <div className="space-y-4 p-6 pb-0">
             <DialogHeader className="pb-2">
               <div className="flex items-start gap-3">
                 {itemType === "file" ? (
@@ -448,29 +452,31 @@ export function DetailsModal({
                   </div>
                 )}
               </div>
+              </div>
+            </div>
             </div>
 
-            <Separator />
-
-            {/* Actions */}
-            <div className="flex gap-2 justify-end">
-              <Button
-                onClick={downloadAsJSON}
-                variant="outline"
-                size="sm"
-                className="text-xs h-8"
-              >
-                <IconDownload className="h-3 w-3 mr-1" />
-                Download JSON
-              </Button>
-              <Button
-                onClick={() => setOpen(false)}
-                variant="ghost"
-                size="sm"
-                className="text-xs h-8"
-              >
-                Close
-              </Button>
+            {/* Actions - Fixed at bottom */}
+            <div className="flex-shrink-0 border-t pt-4 mt-4">
+              <div className="flex gap-2 justify-end">
+                <Button
+                  onClick={downloadAsJSON}
+                  variant="outline"
+                  size="sm"
+                  className="text-xs h-8"
+                >
+                  <IconDownload className="h-3 w-3 mr-1" />
+                  Download JSON
+                </Button>
+                <Button
+                  onClick={() => setOpen(false)}
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs h-8"
+                >
+                  Close
+                </Button>
+              </div>
             </div>
           </div>
         ) : (
