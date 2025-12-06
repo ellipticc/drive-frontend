@@ -34,6 +34,7 @@ import { decryptFilename } from "@/lib/crypto";
 import { masterKeyManager } from "@/lib/master-key";
 import { truncateFilename } from "@/lib/utils";
 import { isTextTruncated } from "@/lib/tooltip-helper";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export const Table01DividerLineSm = ({ 
   searchQuery,
@@ -54,6 +55,7 @@ export const Table01DividerLineSm = ({
 }) => {
     const router = useRouter();
     const pathname = usePathname();
+    const isMobile = useIsMobile();
 
     // Global upload context
     const { 
@@ -1611,9 +1613,9 @@ export const Table01DividerLineSm = ({
                 >
                     <Table.Header>
                         <Table.Head id="name" label="Name" isRowHeader allowsSorting className="w-full max-w-1/4" align="left" />
-                        <Table.Head id="modified" label="Modified" allowsSorting align="left" />
-                        <Table.Head id="size" label="Size" allowsSorting align="right" />
-                        <Table.Head id="checksum" label="Checksum" allowsSorting align="right" className="pr-2" />
+                        {!isMobile && <Table.Head id="modified" label="Modified" allowsSorting align="left" />}
+                        {!isMobile && <Table.Head id="size" label="Size" allowsSorting align="right" />}
+                        {!isMobile && <Table.Head id="checksum" label="Checksum" allowsSorting align="right" className="pr-2" />}
                         <Table.Head id="shared" label="" align="center" className="w-8" />
                         <Table.Head id="actions" align="center" />
                     </Table.Header>
@@ -1649,50 +1651,56 @@ export const Table01DividerLineSm = ({
                                         )}
                                     </div>
                                 </Table.Cell>
-                                <Table.Cell className="text-left">
-                                    <span className="text-xs text-muted-foreground font-mono break-all">
-                                        {formatDate(item.createdAt)}
-                                    </span>
-                                </Table.Cell>
-                                <Table.Cell className="text-right">
-                                    <span className="text-xs text-muted-foreground font-mono break-all">
-                                        {item.type === 'folder' ? '--' : formatFileSize(item.size || 0)}
-                                    </span>
-                                </Table.Cell>
-                                <Table.Cell className="text-right">
-                                    {item.type === 'folder' ? (
-                                        <span className="text-xs text-muted-foreground font-mono break-all">N/A</span>
-                                    ) : item.shaHash ? (
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <button
-                                                    className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer font-mono break-all"
+                                {!isMobile && (
+                                    <Table.Cell className="text-left">
+                                        <span className="text-xs text-muted-foreground font-mono break-all">
+                                            {formatDate(item.createdAt)}
+                                        </span>
+                                    </Table.Cell>
+                                )}
+                                {!isMobile && (
+                                    <Table.Cell className="text-right">
+                                        <span className="text-xs text-muted-foreground font-mono break-all">
+                                            {item.type === 'folder' ? '--' : formatFileSize(item.size || 0)}
+                                        </span>
+                                    </Table.Cell>
+                                )}
+                                {!isMobile && (
+                                    <Table.Cell className="text-right">
+                                        {item.type === 'folder' ? (
+                                            <span className="text-xs text-muted-foreground font-mono break-all">N/A</span>
+                                        ) : item.shaHash ? (
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <button
+                                                        className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer font-mono break-all"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            navigator.clipboard.writeText(item.shaHash!);
+                                                            setCopiedHashId(item.id);
+                                                            setTimeout(() => setCopiedHashId(null), 300);
+                                                        }}
+                                                    >
+                                                        {item.shaHash.substring(0, 5)}...{item.shaHash.substring(item.shaHash.length - 5)}
+                                                    </button>
+                                                </TooltipTrigger>
+                                                <TooltipContent 
+                                                    className="max-w-none whitespace-nowrap font-[var(--font-jetbrains-mono)] font-semibold tracking-wider"
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         navigator.clipboard.writeText(item.shaHash!);
                                                         setCopiedHashId(item.id);
-                                                        setTimeout(() => setCopiedHashId(null), 300);
+                                                        setTimeout(() => setCopiedHashId(null), 500);
                                                     }}
                                                 >
-                                                    {item.shaHash.substring(0, 5)}...{item.shaHash.substring(item.shaHash.length - 5)}
-                                                </button>
-                                            </TooltipTrigger>
-                                            <TooltipContent 
-                                                className="max-w-none whitespace-nowrap font-[var(--font-jetbrains-mono)] font-semibold tracking-wider"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    navigator.clipboard.writeText(item.shaHash!);
-                                                    setCopiedHashId(item.id);
-                                                    setTimeout(() => setCopiedHashId(null), 500);
-                                                }}
-                                            >
-                                                <p className={`text-xs cursor-pointer transition-all duration-300 ${copiedHashId === item.id ? 'animate-pulse bg-primary/20 text-primary scale-105' : ''}`}>{item.shaHash}</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    ) : (
-                                        <span className="text-xs text-muted-foreground font-mono break-all">N/A</span>
-                                    )}
-                                </Table.Cell>
+                                                    <p className={`text-xs cursor-pointer transition-all duration-300 ${copiedHashId === item.id ? 'animate-pulse bg-primary/20 text-primary scale-105' : ''}`}>{item.shaHash}</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        ) : (
+                                            <span className="text-xs text-muted-foreground font-mono break-all">N/A</span>
+                                        )}
+                                    </Table.Cell>
+                                )}
                                 <Table.Cell className="px-1 w-8">
                                     {/* Shared icon */}
                                     {item.is_shared ? (
@@ -1715,7 +1723,7 @@ export const Table01DividerLineSm = ({
                                     ) : null}
                                 </Table.Cell>
                                 <Table.Cell className="px-3 w-12">
-                                    <div className="flex justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                    <div className={`flex justify-end gap-0.5 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-200`}>
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
                                                 <Button size="sm" variant="ghost" className="h-8 w-8 p-0">

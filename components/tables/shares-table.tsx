@@ -27,6 +27,7 @@ import { decryptFilename } from "@/lib/crypto";
 import { masterKeyManager } from "@/lib/master-key";
 import { truncateFilename } from "@/lib/utils";
 import { isTextTruncated } from "@/lib/tooltip-helper";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export interface ShareItem {
   id: string;
@@ -59,6 +60,7 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
+    const isMobile = useIsMobile();
 
     const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({
         column: "createdAt",
@@ -560,10 +562,10 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                 }}>
                     <Table.Header>
                         <Table.Head id="fileName" label="Name" isRowHeader allowsSorting className="w-full max-w-1/4" align="left" />
-                        <Table.Head id="folderPath" label="Path" allowsSorting align="left" />
-                        <Table.Head id="createdAt" label="Created at" allowsSorting align="left" />
-                        <Table.Head id="downloads" label="Download Count" allowsSorting align="right" />
-                        <Table.Head id="expiresAt" label="Expires at" allowsSorting align="left" />
+                        {!isMobile && <Table.Head id="folderPath" label="Path" allowsSorting align="left" />}
+                        {!isMobile && <Table.Head id="createdAt" label="Created at" allowsSorting align="left" />}
+                        {!isMobile && <Table.Head id="downloads" label="Download Count" allowsSorting align="right" />}
+                        {!isMobile && <Table.Head id="expiresAt" label="Expires at" allowsSorting align="left" />}
                         <Table.Head id="actions" align="center" />
                     </Table.Header>
 
@@ -596,28 +598,36 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                                         )}
                                     </div>
                                 </Table.Cell>
-                                <Table.Cell className="text-left">
-                                    <span className="text-xs text-muted-foreground font-[var(--font-jetbrains-mono)] font-semibold tracking-wider">
-                                        {item.folderPath || 'Root'}
-                                    </span>
-                                </Table.Cell>
-                                <Table.Cell className="text-left">
-                                    <span className="text-xs text-muted-foreground font-[var(--font-jetbrains-mono)] font-semibold tracking-wider">
-                                        {formatDate(item.createdAt)}
-                                    </span>
-                                </Table.Cell>
-                                <Table.Cell className="text-right">
-                                    <span className="text-xs text-muted-foreground font-[var(--font-jetbrains-mono)] font-semibold">
-                                        {item.downloads}
-                                    </span>
-                                </Table.Cell>
-                                <Table.Cell className="text-left">
-                                    <span className="text-xs text-muted-foreground font-[var(--font-jetbrains-mono)] font-semibold tracking-wider">
-                                        {item.expiresAt ? formatDate(item.expiresAt) : 'Never'}
-                                    </span>
-                                </Table.Cell>
+                                {!isMobile && (
+                                    <Table.Cell className="text-left">
+                                        <span className="text-xs text-muted-foreground font-[var(--font-jetbrains-mono)] font-semibold tracking-wider">
+                                            {item.folderPath || 'Root'}
+                                        </span>
+                                    </Table.Cell>
+                                )}
+                                {!isMobile && (
+                                    <Table.Cell className="text-left">
+                                        <span className="text-xs text-muted-foreground font-[var(--font-jetbrains-mono)] font-semibold tracking-wider">
+                                            {formatDate(item.createdAt)}
+                                        </span>
+                                    </Table.Cell>
+                                )}
+                                {!isMobile && (
+                                    <Table.Cell className="text-right">
+                                        <span className="text-xs text-muted-foreground font-[var(--font-jetbrains-mono)] font-semibold">
+                                            {item.downloads}
+                                        </span>
+                                    </Table.Cell>
+                                )}
+                                {!isMobile && (
+                                    <Table.Cell className="text-left">
+                                        <span className="text-xs text-muted-foreground font-[var(--font-jetbrains-mono)] font-semibold tracking-wider">
+                                            {item.expiresAt ? formatDate(item.expiresAt) : 'Never'}
+                                        </span>
+                                    </Table.Cell>
+                                )}
                                 <Table.Cell className="px-3 w-12">
-                                    <div className="flex justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                    <div className={`flex justify-end gap-0.5 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-200`}>
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
                                                 <Button size="sm" variant="ghost" className="h-8 w-8 p-0">

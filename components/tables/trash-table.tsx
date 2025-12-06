@@ -30,6 +30,7 @@ import { IconLoader2 } from "@tabler/icons-react";
 import { toast } from "sonner";
 import { truncateFilename } from "@/lib/utils";
 import { isTextTruncated } from "@/lib/tooltip-helper";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { masterKeyManager } from "@/lib/master-key";
 import { decryptFilename } from "@/lib/crypto";
@@ -55,6 +56,7 @@ interface TrashItem {
 
 export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
     const { updateStorage } = useUser();
+    const isMobile = useIsMobile();
     const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({
         column: "deletedAt",
         direction: "descending",
@@ -566,8 +568,8 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                     <Table aria-label="Trash" selectionMode="multiple" sortDescriptor={sortDescriptor} onSortChange={setSortDescriptor}>
                         <Table.Header>
                             <Table.Head id="name" label="Name" isRowHeader allowsSorting className="w-full max-w-1/4" />
-                            <Table.Head id="deletedAt" label="Deleted" allowsSorting className="text-right" />
-                            <Table.Head id="size" label="Size" allowsSorting className="text-right" />
+                            {!isMobile && <Table.Head id="deletedAt" label="Deleted" allowsSorting className="text-right" />}
+                            {!isMobile && <Table.Head id="size" label="Size" allowsSorting className="text-right" />}
                             <Table.Head id="actions" />
                         </Table.Header>
 
@@ -600,16 +602,20 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                                             )}
                                         </div>
                                     </Table.Cell>
-                                    <Table.Cell className="text-right h-12">
-                                        <span className="text-sm text-muted-foreground font-medium">
-                                            {formatDate(item.deletedAt)}
-                                        </span>
-                                    </Table.Cell>
-                                    <Table.Cell className="text-right h-12">
-                                        <span className="text-sm text-muted-foreground">
-                                            {item.type === 'folder' ? '--' : formatFileSize(item.size || 0)}
-                                        </span>
-                                    </Table.Cell>
+                                    {!isMobile && (
+                                        <Table.Cell className="text-right h-12">
+                                            <span className="text-sm text-muted-foreground font-medium">
+                                                {formatDate(item.deletedAt)}
+                                            </span>
+                                        </Table.Cell>
+                                    )}
+                                    {!isMobile && (
+                                        <Table.Cell className="text-right h-12">
+                                            <span className="text-sm text-muted-foreground">
+                                                {item.type === 'folder' ? '--' : formatFileSize(item.size || 0)}
+                                            </span>
+                                        </Table.Cell>
+                                    )}
                                     <Table.Cell className="px-3 h-12">
                                         <div className="flex justify-end gap-1 h-full items-center">
                                             <DropdownMenu>
