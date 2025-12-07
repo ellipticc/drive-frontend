@@ -312,56 +312,6 @@ class ApiClient {
   }
 
   // Auth endpoints
-  async registerSRP(data: {
-    email: string;
-    name: string;
-    salt: string;
-    verifier: string;
-    publicKey?: string;
-    encryptedPrivateKey?: string;
-    keyDerivationSalt?: string;
-    pqcKeypairs?: any;
-    algorithmVersion?: string;
-    encryptedMnemonic?: string;
-    mnemonicSalt?: string;
-    mnemonicIv?: string;
-  }): Promise<ApiResponse<{ userId: string; accountSalt: string }>> {
-    return this.request('/auth/register', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async srpChallenge(email: string, A: string): Promise<ApiResponse<{
-    sessionId: string;
-    salt: string;
-    B: string;
-    signature: string;
-    expires_at: number;
-  }>> {
-    return this.request('/auth/login/challenge', {
-      method: 'POST',
-      body: JSON.stringify({ email, A }),
-    });
-  }
-
-  async srpVerify(data: {
-    email: string;
-    clientProof: string;
-    sessionId: string;
-  }): Promise<ApiResponse<{
-    token: string;
-    refreshToken: string;
-    M2: string;
-    user: any;
-    algorithmVersion: string;
-  }>> {
-    return this.request('/auth/login/verify', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
   async loginOPAQUEStart(data: {
     email: string;
     clientLogin1: string;
