@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { apiClient } from "@/lib/api";
 import { SessionManager } from "@/lib/session-manager";
+import { getOAuthSetupState, isIncompleteOAuthToken } from "@/lib/oauth-validation";
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -46,21 +47,37 @@ export function AuthGuard({ children }: AuthGuardProps) {
       return;
     }
 
+    // CRITICAL: Check if user is in the middle of OAuth setup
+    // If so, redirect them back to complete it instead of allowing access to other routes
+    const oauthSetupState = getOAuthSetupState();
+    if (oauthSetupState.inProgress) {
+      // User has an incomplete OAuth flow, redirect back to callback page
+      hasCheckedAuthRef.current = true;
+      window.location.href = '/auth/oauth/callback';
+      return;
+    }
+
     // For private routes, check if token exists and is valid
     const token = apiClient.getAuthToken();
     const isTokenValid = SessionManager.isTokenValid();
     
-    if (!token || !isTokenValid) {
-      // No token or token expired, redirect immediately using window.location for instant navigation
+    // CRITICAL: If token exists, also check that it's not an incomplete OAuth token
+    // An incomplete OAuth token has account_salt not yet set on backend
+    if (token && isTokenValid && !isIncompleteOAuthToken()) {
+      // Token exists, is valid, and is not from incomplete OAuth
+      hasCheckedAuthRef.current = true;
+      setIsAuthenticated(true);
+      return;
+    }
+    
+    if (!token || !isTokenValid || isIncompleteOAuthToken()) {
+      // No token or token expired or incomplete OAuth token
+      // Redirect immediately using window.location for instant navigation
       hasCheckedAuthRef.current = true;
       setIsExpired(!token);
       const redirectUrl = isExpired ? "/login?expired=true" : "/login";
       window.location.href = redirectUrl;
-      return; // Don't continue with the rest of the effect
-    } else {
-      // Token exists and is valid, allow access
-      hasCheckedAuthRef.current = true;
-      setIsAuthenticated(true);
+      return;
     }
   }, [pathname, isPublic]); // Removed router from dependencies
 

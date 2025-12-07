@@ -23,6 +23,47 @@ export default function OAuthCallbackPage() {
   } | null>(null);
 
   useEffect(() => {
+    // Cleanup function to clear OAuth session token if user leaves without completing setup
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // If OAuth setup is in progress and user tries to leave, warn them
+      if (oauthData && sessionStorage.getItem('oauth_setup_in_progress') === 'true') {
+        // Show browser warning dialog
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+      }
+      
+      // Clear the temporary OAuth token when user actually closes or leaves page
+      if (!oauthData || !window.location.href.includes('/auth/oauth/callback')) {
+        sessionStorage.removeItem('oauth_temp_token');
+        sessionStorage.removeItem('oauth_setup_in_progress');
+        apiClient.clearAuthToken();
+      }
+    };
+
+    const handlePopState = (e: PopStateEvent) => {
+      // If user uses back button during OAuth setup, warn them
+      if (sessionStorage.getItem('oauth_setup_in_progress') === 'true') {
+        // Clear OAuth state when leaving
+        sessionStorage.removeItem('oauth_temp_token');
+        sessionStorage.removeItem('oauth_setup_in_progress');
+        apiClient.clearAuthToken();
+        
+        // Redirect to login page
+        router.push('/login');
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [oauthData, router]);
+
+  useEffect(() => {
     const handleCallback = async () => {
       try {
         const code = searchParams.get('code');
@@ -48,8 +89,19 @@ export default function OAuthCallbackPage() {
 
         const data = response.data;
 
-        // Store the JWT token in localStorage (needed for API calls during password setup)
-        apiClient.setAuthToken(data.token);
+        // IMPORTANT: Clear any existing auth tokens before starting OAuth flow
+        // This prevents old tokens from bypassing the password verification
+        localStorage.removeItem('auth');
+        apiClient.clearAuthToken();
+
+        // IMPORTANT: Use temporary sessionStorage token instead of localStorage
+        // This token is only valid for the OAuth password setup flow
+        // It will be cleared if user navigates away without completing setup
+        sessionStorage.setItem('oauth_temp_token', data.token);
+        sessionStorage.setItem('oauth_setup_in_progress', 'true');
+        sessionStorage.setItem('oauth_user_id', data.user.id);
+        // NOTE: Do NOT call apiClient.setAuthToken() during OAuth setup
+        // This prevents the token from being stored in localStorage and bypassing password verification
 
         // Check if user already has password set up
         const hasAccountSalt = data.user.has_account_salt;

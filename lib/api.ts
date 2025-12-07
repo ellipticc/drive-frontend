@@ -257,9 +257,30 @@ class ApiClient {
   private getToken(): string | null {
     if (typeof window === 'undefined') return null;
 
-    // Try to get from current storage first
-    const token = this.getStorage().getItem('auth_token');
-    if (token) return token;
+    // CRITICAL: During OAuth setup, use the temporary sessionStorage token
+    // This allows API calls to work during password verification without storing in localStorage
+    if (sessionStorage.getItem('oauth_setup_in_progress') === 'true') {
+      const oauthToken = sessionStorage.getItem('oauth_temp_token');
+      if (oauthToken) return oauthToken;
+    }
+
+    // Try to get from current storage first - check both 'auth_token' and 'auth' formats
+    const storage = this.getStorage();
+
+    // First try the standard 'auth_token' format (used by regular login)
+    const authToken = storage.getItem('auth_token');
+    if (authToken) return authToken;
+
+    // Then try the 'auth' object format (used by OAuth completion)
+    const authData = storage.getItem('auth');
+    if (authData) {
+      try {
+        const parsed = JSON.parse(authData);
+        if (parsed.accessToken) return parsed.accessToken;
+      } catch (e) {
+        // Invalid JSON, ignore
+      }
+    }
 
     // Fallback to cookies
     const cookies = document.cookie.split(';');
@@ -284,7 +305,9 @@ class ApiClient {
   private clearToken(): void {
     if (typeof window === 'undefined') return;
 
-    this.getStorage().removeItem('auth_token');
+    const storage = this.getStorage();
+    storage.removeItem('auth_token');
+    storage.removeItem('auth'); // Also clear OAuth-style auth object
     document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
   }
 
@@ -648,6 +671,11 @@ class ApiClient {
 
   // Get current authentication token
   getAuthToken(): string | null {
+    // CRITICAL: During OAuth setup, don't return any token to prevent bypass
+    // This ensures users must complete password verification before gaining access
+    if (typeof window !== 'undefined' && sessionStorage.getItem('oauth_setup_in_progress') === 'true') {
+      return null;
+    }
     return this.getToken();
   }
 

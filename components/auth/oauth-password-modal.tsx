@@ -145,7 +145,7 @@ export function OAuthPasswordModal({
       const encryptedRecoveryKey = recoveryKeyEncryption.encryptedRecoveryKey;
       const recoveryKeyNonce = recoveryKeyEncryption.recoveryKeyNonce;
 
-      // CRITICAL: Use the SAME salt that was used to encrypt the keypairs
+      // Use the SAME salt that was used to encrypt the keypairs
       // This ensures the master key used for decryption matches the one used for encryption
       const accountSalt = allKeypairs.keyDerivationSalt;
       console.log('OAuth Setup - accountSalt:', { length: accountSalt.length, format: accountSalt.substring(0, 20) + '...' });
@@ -217,6 +217,25 @@ export function OAuthPasswordModal({
 
       if (response.success) {
         console.log('OAuth Setup - backend registration complete, redirecting to dashboard');
+        
+        // Get the token from sessionStorage (not from apiClient.getAuthToken() which returns null during OAuth setup)
+        const token = sessionStorage.getItem('oauth_temp_token');
+        
+        // Store token in localStorage BEFORE clearing OAuth setup flags
+        // This ensures AuthGuard can see the token after the page reloads
+        if (token) {
+          // Store in standard auth_token format that AuthGuard expects
+          localStorage.setItem('auth_token', token);
+          // Also set via apiClient so it can find the token
+          apiClient.setAuthToken(token);
+        }
+        
+        // Clear OAuth setup state - registration is complete
+        // Do this AFTER storing the token so AuthGuard won't reject it
+        sessionStorage.removeItem('oauth_temp_token');
+        sessionStorage.removeItem('oauth_setup_in_progress');
+        sessionStorage.removeItem('oauth_user_id');
+        
         // Redirect to dashboard directly (no backup page for OAuth users)
         router.push('/');
       } else {
@@ -266,7 +285,7 @@ export function OAuthPasswordModal({
       
       console.log('OAuth Login - Master key derived');
 
-      // CRITICAL: Validate that the derived master key can actually decrypt the user's data
+      // Validate that the derived master key can actually decrypt the user's data
       // This is a client-side UX check to prevent users from unknowingly using the wrong password
       console.log('OAuth Login - Validating password by testing decryption...');
       try {
@@ -315,6 +334,24 @@ export function OAuthPasswordModal({
 
       // Clear session tracking after successful login
       sessionTrackingUtils.clearSession();
+      
+      // Get the token before clearing OAuth setup state
+      const token = sessionStorage.getItem('oauth_temp_token');
+
+      // Store token in localStorage BEFORE clearing OAuth setup flags
+      // This ensures AuthGuard can see the token after password verification
+      if (token) {
+        // Store in standard auth_token format that AuthGuard expects
+        localStorage.setItem('auth_token', token);
+        // Also set via apiClient so it can find the token
+        apiClient.setAuthToken(token);
+      }
+
+      // Clear OAuth setup state - login is complete
+      // Do this AFTER storing the token so AuthGuard won't reject it
+      sessionStorage.removeItem('oauth_temp_token');
+      sessionStorage.removeItem('oauth_setup_in_progress');
+      sessionStorage.removeItem('oauth_user_id');
 
       // Navigate to dashboard
       router.push('/');
