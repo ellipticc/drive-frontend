@@ -2,7 +2,6 @@ import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { DownloadProgress } from '@/lib/download';
-import { PdfPreview } from './pdf-preview';
 import { AudioPreview } from './audio-preview';
 import { VideoPreview } from './video-preview';
 import { TextPreview } from './text-preview';
@@ -63,11 +62,6 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
       return 'max-w-5xl w-full h-[85vh]';
     }
 
-    // PDF files - large size for document viewing
-    if (mimeType.includes('pdf')) {
-      return 'max-w-6xl w-full h-[90vh]';
-    }
-
     // Text files - medium size for code/text reading
     if (mimeType.startsWith('text/') ||
         mimeType.includes('javascript') ||
@@ -93,20 +87,6 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
     }
 
     const { id, name, mimeType } = file;
-
-    // PDF files
-    if (mimeType.includes('pdf')) {
-      return (
-        <PdfPreview
-          fileId={id}
-          filename={name}
-          onProgress={handleProgress}
-          onError={handleError}
-          isLoading={isLoading}
-          setIsLoading={setIsLoading}
-        />
-      );
-    }
 
     // Audio files
     if (mimeType.startsWith('audio/')) {
@@ -205,8 +185,7 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
     if (!file || file.type !== 'file' || !file.mimeType) return false;
 
     const mimeType = file.mimeType;
-    return mimeType.includes('pdf') ||
-           mimeType.startsWith('audio/') ||
+    return mimeType.startsWith('audio/') ||
            mimeType.startsWith('video/') ||
            mimeType.startsWith('image/') ||
            mimeType.startsWith('text/') ||

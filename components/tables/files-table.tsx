@@ -22,7 +22,6 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
-import { previewPDFFile } from '@/lib/download';
 import { apiClient, FileItem } from "@/lib/api";
 import { toast } from "sonner";
 import { keyManager } from "@/lib/key-manager";
@@ -66,6 +65,7 @@ export const Table01DividerLineSm = ({
       startFileDownload,
       startFolderDownload,
       startBulkDownload,
+      startPdfPreview,
       cancelUpload,
       pauseUpload,
       resumeUpload,
@@ -84,6 +84,15 @@ export const Table01DividerLineSm = ({
     const [files, setFiles] = useState<FileItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    // Create a memoized map for efficient file lookups
+    const filesMap = useMemo(() => {
+        const map = new Map<string, FileItem>();
+        files.forEach(file => map.set(file.id, file));
+        return map;
+    }, [files]);
+
+
 
     // Folder navigation state
     const [currentFolderId, setCurrentFolderId] = useState<string>('root');
@@ -124,6 +133,39 @@ export const Table01DividerLineSm = ({
     // Preview modal state
     const [previewModalOpen, setPreviewModalOpen] = useState(false);
     const [selectedItemForPreview, setSelectedItemForPreview] = useState<{ id: string; name: string; mimeType?: string } | null>(null);
+
+    // Handle unified file preview
+    const handlePreviewClick = useCallback(async (itemId: string, itemName: string, mimeType?: string) => {
+        if (!mimeType || !canPreviewFile(mimeType)) {
+            toast.error('This file type cannot be previewed');
+            return;
+        }
+
+        // Special handling for PDFs - use unified progress modal and auto-open in new tab
+        if (mimeType.includes('pdf')) {
+            const item = filesMap.get(itemId);
+            if (!item || !item.size) {
+                toast.error('File information not available');
+                return;
+            }
+
+            await startPdfPreview(itemId, itemName, item.size);
+            return;
+        }
+
+        // For all other file types, use the modal preview
+        // Prevent multiple preview modals
+        if (previewModalOpen) {
+            setPreviewModalOpen(false);
+            setTimeout(() => {
+                setSelectedItemForPreview({ id: itemId, name: itemName, mimeType });
+                setPreviewModalOpen(true);
+            }, 100);
+        } else {
+            setSelectedItemForPreview({ id: itemId, name: itemName, mimeType });
+            setPreviewModalOpen(true);
+        }
+    }, [previewModalOpen, setPreviewModalOpen, setSelectedItemForPreview, toast, filesMap, startPdfPreview]);
 
     // Folder upload state
     const [selectedFolderFiles, setSelectedFolderFiles] = useState<FileList | null>(null);
@@ -756,25 +798,6 @@ export const Table01DividerLineSm = ({
         }
     }, [selectedItems, apiClient, setFiles, setSelectedItems, toast, refreshFiles, currentFolderId, navigateToParent]);
 
-    // Handle PDF preview
-    const handlePDFPreviewClick = async (itemId: string, itemName: string) => {
-        try {
-            // Get user keys
-            const userKeys = await keyManager.getUserKeys();
-
-            // Start PDF preview with progress tracking
-            await previewPDFFile(itemId, userKeys, (progress) => {
-                // Progress is handled by the preview function
-            });
-
-            toast.success('PDF preview opened successfully');
-
-        } catch (error) {
-            console.error('PDF preview error:', error);
-            toast.error('PDF preview failed');
-        }
-    };
-
     // Check if a file can be previewed
     const canPreviewFile = (mimeType: string): boolean => {
         if (!mimeType) return false;
@@ -792,25 +815,7 @@ export const Table01DividerLineSm = ({
         );
     };
 
-    // Handle unified file preview
-    const handlePreviewClick = useCallback(async (itemId: string, itemName: string, mimeType?: string) => {
-        if (!mimeType || !canPreviewFile(mimeType)) {
-            toast.error('This file type cannot be previewed');
-            return;
-        }
 
-        // Prevent multiple preview modals
-        if (previewModalOpen) {
-            setPreviewModalOpen(false);
-            setTimeout(() => {
-                setSelectedItemForPreview({ id: itemId, name: itemName, mimeType });
-                setPreviewModalOpen(true);
-            }, 100);
-        } else {
-            setSelectedItemForPreview({ id: itemId, name: itemName, mimeType });
-            setPreviewModalOpen(true);
-        }
-    }, [previewModalOpen, setPreviewModalOpen, setSelectedItemForPreview, toast]);
 
     // Handle file download (single item or folder)
     const handleDownloadClick = async (itemId: string, itemName: string, itemType: "file" | "folder") => {
@@ -824,6 +829,7 @@ export const Table01DividerLineSm = ({
             toast.success('Download completed successfully');
         }
     };
+
 
     // Handle bulk download of selected items
     const handleBulkDownload = useCallback(async () => {
@@ -1114,12 +1120,7 @@ export const Table01DividerLineSm = ({
         );
     }, [sortedItems, searchQuery]);
 
-    // Create a memoized map for efficient file lookups
-    const filesMap = useMemo(() => {
-        const map = new Map<string, FileItem>();
-        files.forEach(file => map.set(file.id, file));
-        return map;
-    }, [files]);
+
 
     const renderHeaderIcons = useMemo(() => {
         const hasSelection = selectedItems.size > 0;

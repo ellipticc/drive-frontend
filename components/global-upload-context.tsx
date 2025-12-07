@@ -8,7 +8,7 @@ import { keyManager } from '@/lib/key-manager';
 import { apiClient } from '@/lib/api';
 import { useCurrentFolder } from '@/components/current-folder-context';
 import { useUser } from '@/components/user-context';
-import { downloadFileToBrowser, downloadFolderAsZip, downloadMultipleItemsAsZip, DownloadProgress } from '@/lib/download';
+import { downloadFileToBrowser, downloadFolderAsZip, downloadMultipleItemsAsZip, downloadEncryptedFile, DownloadProgress } from '@/lib/download';
 import { prepareFilesForUpload, CreatedFolder } from '@/lib/folder-upload-utils';
 import { ParallelUploadQueue, getUploadQueue, destroyUploadQueue } from '@/lib/parallel-upload-queue';
 
@@ -59,6 +59,7 @@ interface GlobalUploadContextType {
   startFileDownload: (fileId: string, fileName: string) => Promise<void>;
   startFolderDownload: (folderId: string, folderName: string) => Promise<void>;
   startBulkDownload: (items: Array<{ id: string; name: string; type: 'file' | 'folder' }>) => Promise<void>;
+  startPdfPreview: (fileId: string, fileName: string, fileSize: number) => Promise<void>;
   cancelDownload: () => void;
   retryDownload: () => void;
 }
@@ -527,6 +528,70 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
     }
   }, []);
 
+  const startPdfPreview = useCallback(async (fileId: string, fileName: string, fileSize: number) => {
+    try {
+      setDownloadError(null);
+      setCurrentDownloadFile({ id: fileId, name: fileName, type: 'file' });
+      setIsModalOpen(true);
+
+      const userKeys = await keyManager.getUserKeys();
+
+      // Download the file to memory (not to disk)
+      const result = await downloadEncryptedFile(fileId, userKeys, (progress) => {
+        setDownloadProgress(progress);
+      });
+
+      // Verify it's actually a PDF
+      if (!result.mimetype.includes('pdf')) {
+        throw new Error('File is not a PDF');
+      }
+
+      // Create blob URL and open in new tab
+      const blobUrl = URL.createObjectURL(result.blob);
+
+      // Check if mobile device for standalone page approach
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+      if (isMobile) {
+        // Create standalone HTML page for mobile browsers
+        const htmlContent = `
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <title>${fileName}</title>
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <style>
+                body { margin: 0; padding: 0; background: #f5f5f5; }
+                embed { width: 100vw; height: 100vh; }
+              </style>
+            </head>
+            <body>
+              <embed src="${blobUrl}" type="application/pdf" width="100%" height="100%" title="${fileName}">
+            </body>
+          </html>
+        `;
+
+        const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
+        const htmlUrl = URL.createObjectURL(htmlBlob);
+        window.open(htmlUrl, '_blank');
+
+        // Clean up HTML URL after delay
+        setTimeout(() => URL.revokeObjectURL(htmlUrl), 1000);
+      } else {
+        // Open PDF directly in new tab for desktop
+        window.open(blobUrl, '_blank');
+      }
+
+      // Clean up blob URL after delay
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+
+      // Keep modal open to show completion - user can manually close
+    } catch (error) {
+      console.error('PDF preview error:', error);
+      setDownloadError(error instanceof Error ? error.message : 'PDF preview failed');
+    }
+  }, []);
+
   const cancelDownload = useCallback(() => {
     // Note: The download functions don't have built-in cancellation
     // This would need to be implemented in the download functions themselves
@@ -809,6 +874,7 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
     startFileDownload,
     startFolderDownload,
     startBulkDownload,
+    startPdfPreview,
     cancelDownload,
     retryDownload,
   };
