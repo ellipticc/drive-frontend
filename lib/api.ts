@@ -1512,6 +1512,48 @@ class ApiClient {
     return this.request('/billing/subscription');
   }
 
+  async cancelSubscription(): Promise<ApiResponse<{
+    success: boolean;
+    message: string;
+    cancelledAt?: number;
+  }>> {
+    return this.request('/billing/subscription', {
+      method: 'DELETE'
+    });
+  }
+
+  async getSubscriptionHistory(): Promise<ApiResponse<{
+    history: Array<{
+      id: string;
+      status: string;
+      planName: string;
+      amount: number;
+      currency: string;
+      interval: string;
+      currentPeriodStart: number;
+      currentPeriodEnd: number;
+      cancelAtPeriodEnd: boolean;
+      canceledAt: number | null;
+      created: number;
+      endedAt: number | null;
+    }>;
+    invoices: Array<{
+      id: string;
+      number: string;
+      status: string;
+      amount: number;
+      currency: string;
+      created: number;
+      dueDate: number | null;
+      paidAt: number | null;
+      invoicePdf: string;
+      hostedInvoiceUrl: string;
+      subscriptionId: string | null;
+    }>;
+  }>> {
+    return this.request('/billing/history');
+  }
+
   async createCheckoutSession(data: {
     priceId: string;
     successUrl: string;

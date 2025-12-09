@@ -40,7 +40,7 @@ import {
   SidebarMenuItem,
   SidebarProvider,
 } from "@/components/ui/sidebar"
-import { IconSettings, IconLoader2, IconPencil, IconCheck, IconMail, IconLock, IconLogout, IconTrash, IconUserCog, IconLockSquareRounded, IconGift, IconCopy, IconCheck as IconCheckmark, IconBell } from "@tabler/icons-react"
+import { IconSettings, IconLoader2, IconPencil, IconCheck, IconMail, IconLock, IconLogout, IconTrash, IconUserCog, IconLockSquareRounded, IconGift, IconCopy, IconCheck as IconCheckmark, IconBell, IconCoin } from "@tabler/icons-react"
 import { apiClient } from "@/lib/api"
 import { useTheme } from "next-themes"
 import { getDiceBearAvatar } from "@/lib/avatar"
@@ -59,6 +59,7 @@ const data = {
   nav: [
     { name: "General", icon: IconUserCog, id: "general" },
     { name: "Security", icon: IconLockSquareRounded, id: "security" },
+    { name: "Billing", icon: IconCoin, id: "billing" },
     { name: "Notifications", icon: IconBell, id: "notifications" },
     { name: "Referrals", icon: IconGift, id: "referrals" },
   ],
@@ -166,6 +167,15 @@ export function SettingsModal({
   const [isLoadingReferrals, setIsLoadingReferrals] = useState(false)
   const [copiedCode, setCopiedCode] = useState(false)
 
+  // Billing state
+  const [subscription, setSubscription] = useState<any>(null)
+  const [billingUsage, setBillingUsage] = useState<any>(null)
+  const [pricingPlans, setPricingPlans] = useState<any[]>([])
+  const [isLoadingBilling, setIsLoadingBilling] = useState(false)
+  const [isCancellingSubscription, setIsCancellingSubscription] = useState(false)
+  const [subscriptionHistory, setSubscriptionHistory] = useState<any>(null)
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false)
+
   // Notification preferences state
   const [inAppNotifications, setInAppNotifications] = useState(true)
   const [emailNotifications, setEmailNotifications] = useState(true)
@@ -188,6 +198,11 @@ export function SettingsModal({
       if (activeTab === "referrals") {
         loadReferralData()
       }
+      // Refresh billing data when any upload completes (for usage updates)
+      if (activeTab === "billing") {
+        loadBillingData()
+        loadSubscriptionHistory()
+      }
     }
 
     registerOnUploadComplete(handleUploadComplete)
@@ -204,6 +219,8 @@ export function SettingsModal({
       loadReferralData()
       loadNotificationPreferences()
       loadSessionConfig()
+      loadBillingData()
+      loadSubscriptionHistory()
     }
   }, [open])
 
@@ -285,6 +302,55 @@ export function SettingsModal({
       setRecentReferrals([])
     } finally {
       setIsLoadingReferrals(false)
+    }
+  }
+
+  // Load billing data
+  const loadBillingData = async () => {
+    setIsLoadingBilling(true)
+    try {
+      // Load subscription status
+      const subscriptionResponse = await apiClient.getSubscriptionStatus()
+      if (subscriptionResponse.success && subscriptionResponse.data) {
+        setSubscription(subscriptionResponse.data.subscription)
+        setBillingUsage(subscriptionResponse.data.usage)
+      } else {
+        setSubscription(null)
+        setBillingUsage(null)
+      }
+
+      // Load pricing plans
+      const plansResponse = await apiClient.getPricingPlans()
+      if (plansResponse.success && plansResponse.data) {
+        setPricingPlans(plansResponse.data.plans || [])
+      } else {
+        setPricingPlans([])
+      }
+    } catch (error) {
+      console.error('Failed to load billing data:', error)
+      setSubscription(null)
+      setBillingUsage(null)
+      setPricingPlans([])
+    } finally {
+      setIsLoadingBilling(false)
+    }
+  }
+
+  // Load subscription history
+  const loadSubscriptionHistory = async () => {
+    setIsLoadingHistory(true)
+    try {
+      const response = await apiClient.getSubscriptionHistory()
+      if (response.success && response.data) {
+        setSubscriptionHistory(response.data)
+      } else {
+        setSubscriptionHistory(null)
+      }
+    } catch (error) {
+      console.error('Failed to load subscription history:', error)
+      setSubscriptionHistory(null)
+    } finally {
+      setIsLoadingHistory(false)
     }
   }
 
@@ -380,6 +446,38 @@ export function SettingsModal({
       setTimeout(() => setCopiedLink(false), 2000)
     } catch (error) {
       toast.error("Failed to copy referral link")
+    }
+  }
+
+  // Cancel subscription
+  const handleCancelSubscription = async () => {
+    if (!subscription) return
+
+    const confirmed = window.confirm(
+      'Are you sure you want to cancel your subscription?\n\n' +
+      '• You will retain access to your current plan until the end of your billing period\n' +
+      '• No future charges will be made\n' +
+      '• You can reactivate your subscription at any time before it expires\n\n' +
+      'Continue with cancellation?'
+    )
+
+    if (!confirmed) return
+
+    setIsCancellingSubscription(true)
+    try {
+      const response = await apiClient.cancelSubscription()
+      if (response.success) {
+        toast.success('Subscription cancelled successfully. You will retain access until the end of your billing period.')
+        // Reload billing data
+        await loadBillingData()
+      } else {
+        toast.error(response.error || 'Failed to cancel subscription')
+      }
+    } catch (error) {
+      console.error('Cancel subscription error:', error)
+      toast.error('Failed to cancel subscription')
+    } finally {
+      setIsCancellingSubscription(false)
     }
   }
 
@@ -1505,6 +1603,296 @@ export function SettingsModal({
                           </p>
                         </div>
                       )}
+                    </>
+                  )}
+                </div>
+              )}
+
+              {activeTab === "billing" && (
+                <div className="space-y-6">
+                  <h2 className="text-xl font-semibold">Billing & Subscription</h2>
+
+                  {/* Current Plan Section */}
+                  {isLoadingBilling ? (
+                    <div className="flex justify-center py-6">
+                      <IconLoader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : (
+                    <>
+                      <div className="space-y-4">
+                        <div className="p-4 border rounded-lg">
+                          <h3 className="font-medium mb-2">Current Plan</h3>
+                          {subscription ? (
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm text-muted-foreground">Plan:</span>
+                                <span className="font-medium">{subscription.plan.name}</span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm text-muted-foreground">Status:</span>
+                                <span className={`text-sm font-medium ${
+                                  subscription.status === 'active'
+                                    ? 'text-green-600'
+                                    : subscription.status === 'trialing'
+                                    ? 'text-blue-600'
+                                    : subscription.status === 'past_due'
+                                    ? 'text-red-600'
+                                    : 'text-gray-600'
+                                }`}>
+                                  {subscription.status === 'active' ? 'Active' :
+                                   subscription.status === 'trialing' ? 'Trial' :
+                                   subscription.status === 'past_due' ? 'Past Due' :
+                                   subscription.status}
+                                </span>
+                              </div>
+                              {subscription.cancelAtPeriodEnd && (
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm text-muted-foreground">Cancellation:</span>
+                                  <span className="text-sm text-red-600">Cancels {new Date(subscription.currentPeriodEnd * 1000).toLocaleDateString()}</span>
+                                </div>
+                              )}
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm text-muted-foreground">Next billing:</span>
+                                <span className="text-sm">{new Date(subscription.currentPeriodEnd * 1000).toLocaleDateString()}</span>
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">Free Plan (5GB storage)</p>
+                          )}
+                        </div>
+
+                        {/* Storage Usage */}
+                        {billingUsage && (
+                          <div className="p-4 border rounded-lg">
+                            <h3 className="font-medium mb-2">Storage Usage</h3>
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm text-muted-foreground">Used:</span>
+                                <span className="font-medium">{formatStorageSize(billingUsage.usedBytes)}</span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm text-muted-foreground">Limit:</span>
+                                <span className="font-medium">{formatStorageSize(billingUsage.quotaBytes)}</span>
+                              </div>
+                              <div className="w-full bg-gray-200 rounded-full h-2">
+                                <div
+                                  className={`h-2 rounded-full ${
+                                    billingUsage.percentUsed > 90
+                                      ? 'bg-red-500'
+                                      : billingUsage.percentUsed > 75
+                                      ? 'bg-yellow-500'
+                                      : 'bg-green-500'
+                                  }`}
+                                  style={{ width: `${Math.min(billingUsage.percentUsed, 100)}%` }}
+                                ></div>
+                              </div>
+                              <p className="text-xs text-muted-foreground text-center">
+                                {billingUsage.percentUsed.toFixed(1)}% used
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Action Buttons */}
+                        <div className="flex gap-3">
+                          {subscription && !subscription.cancelAtPeriodEnd ? (
+                            <Button
+                              variant="destructive"
+                              onClick={handleCancelSubscription}
+                              disabled={isCancellingSubscription}
+                              className="flex-1"
+                            >
+                              {isCancellingSubscription ? (
+                                <>
+                                  <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
+                                  Cancelling...
+                                </>
+                              ) : (
+                                'Cancel Subscription'
+                              )}
+                            </Button>
+                          ) : subscription?.cancelAtPeriodEnd ? (
+                            <div className="flex-1 p-3 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                              <p className="text-sm text-yellow-800 dark:text-yellow-200 text-center">
+                                Subscription will be cancelled on {new Date(subscription.currentPeriodEnd * 1000).toLocaleDateString()}
+                              </p>
+                            </div>
+                          ) : null}
+
+                          <Button
+                            onClick={() => window.location.href = '/billing'}
+                            className="flex-1"
+                          >
+                            {subscription ? 'Change Plan' : 'Upgrade Plan'}
+                          </Button>
+                        </div>
+
+                        {/* Warning for cancellation */}
+                        {subscription && !subscription.cancelAtPeriodEnd && (
+                          <div className="p-3 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                            <p className="text-xs text-yellow-800 dark:text-yellow-200">
+                              <strong>Important:</strong> You cannot cancel your subscription if you're using more than 5GB of storage. Please reduce your usage before cancelling.
+                            </p>
+                            <p className="text-xs text-yellow-800 dark:text-yellow-200 mt-1">
+                              When cancelled, you'll keep access until the end of your billing period with no future charges.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Subscription History */}
+                      <div className="border-t pt-6 space-y-4">
+                        <h3 className="text-lg font-semibold">Subscription History</h3>
+                        
+                        {isLoadingHistory ? (
+                          <div className="flex justify-center py-6">
+                            <IconLoader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                          </div>
+                        ) : subscriptionHistory ? (
+                          <>
+                            {/* Subscription History Table */}
+                            {subscriptionHistory.history && subscriptionHistory.history.length > 0 && (
+                              <div className="space-y-4">
+                                <h4 className="text-sm font-medium">Subscriptions</h4>
+                                <div className="border rounded-lg overflow-hidden">
+                                  <table className="w-full text-sm">
+                                    <thead className="bg-muted/50 border-b">
+                                      <tr>
+                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Plan</th>
+                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Period</th>
+                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Amount</th>
+                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Created</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y">
+                                      {subscriptionHistory.history.map((sub: any) => (
+                                        <tr key={sub.id} className="hover:bg-muted/30 transition-colors">
+                                          <td className="px-4 py-3">
+                                            <div>
+                                              <p className="font-medium">{sub.planName}</p>
+                                              <p className="text-xs text-muted-foreground">{sub.interval}</p>
+                                            </div>
+                                          </td>
+                                          <td className="px-4 py-3">
+                                            <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
+                                              sub.status === 'active'
+                                                ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
+                                                : sub.status === 'canceled'
+                                                ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                                                : sub.status === 'past_due'
+                                                ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
+                                                : 'bg-slate-100 dark:bg-slate-900/30 text-slate-700 dark:text-slate-400'
+                                            }`}>
+                                              {sub.status === 'active' ? 'Active' :
+                                               sub.status === 'canceled' ? 'Cancelled' :
+                                               sub.status === 'past_due' ? 'Past Due' :
+                                               sub.status}
+                                              {sub.cancelAtPeriodEnd && ' (Cancelling)'}
+                                            </span>
+                                          </td>
+                                          <td className="px-4 py-3">
+                                            <div className="text-xs">
+                                              <p>{new Date(sub.currentPeriodStart * 1000).toLocaleDateString()}</p>
+                                              <p className="text-muted-foreground">to {new Date(sub.currentPeriodEnd * 1000).toLocaleDateString()}</p>
+                                            </div>
+                                          </td>
+                                          <td className="px-4 py-3">
+                                            <p className="font-medium">${(sub.amount / 100).toFixed(2)}</p>
+                                            <p className="text-xs text-muted-foreground">{sub.currency.toUpperCase()}</p>
+                                          </td>
+                                          <td className="px-4 py-3">
+                                            <p className="text-xs">{new Date(sub.created * 1000).toLocaleDateString()}</p>
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Invoices Table */}
+                            {subscriptionHistory.invoices && subscriptionHistory.invoices.length > 0 && (
+                              <div className="space-y-4">
+                                <h4 className="text-sm font-medium">Invoices</h4>
+                                <div className="border rounded-lg overflow-hidden">
+                                  <table className="w-full text-sm">
+                                    <thead className="bg-muted/50 border-b">
+                                      <tr>
+                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Invoice</th>
+                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Amount</th>
+                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Date</th>
+                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Actions</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y">
+                                      {subscriptionHistory.invoices.map((invoice: any) => (
+                                        <tr key={invoice.id} className="hover:bg-muted/30 transition-colors">
+                                          <td className="px-4 py-3">
+                                            <div>
+                                              <p className="font-medium">{invoice.number || `Invoice ${invoice.id.slice(-8)}`}</p>
+                                              {invoice.subscriptionId && (
+                                                <p className="text-xs text-muted-foreground">Sub: {invoice.subscriptionId.slice(-8)}</p>
+                                              )}
+                                            </div>
+                                          </td>
+                                          <td className="px-4 py-3">
+                                            <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
+                                              invoice.status === 'paid'
+                                                ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
+                                                : invoice.status === 'open'
+                                                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                                                : invoice.status === 'void'
+                                                ? 'bg-gray-100 dark:bg-gray-900/30 text-gray-700 dark:text-gray-400'
+                                                : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                                            }`}>
+                                              {invoice.status === 'paid' ? 'Paid' :
+                                               invoice.status === 'open' ? 'Open' :
+                                               invoice.status === 'void' ? 'Void' :
+                                               invoice.status}
+                                            </span>
+                                          </td>
+                                          <td className="px-4 py-3">
+                                            <p className="font-medium">${(invoice.amount / 100).toFixed(2)}</p>
+                                            <p className="text-xs text-muted-foreground">{invoice.currency.toUpperCase()}</p>
+                                          </td>
+                                          <td className="px-4 py-3">
+                                            <p className="text-xs">{new Date(invoice.created * 1000).toLocaleDateString()}</p>
+                                          </td>
+                                          <td className="px-4 py-3">
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              onClick={() => window.open(invoice.invoicePdf, '_blank')}
+                                              className="text-xs"
+                                            >
+                                              Download PDF
+                                            </Button>
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Empty State */}
+                            {(!subscriptionHistory.history || subscriptionHistory.history.length === 0) && 
+                             (!subscriptionHistory.invoices || subscriptionHistory.invoices.length === 0) && (
+                              <div className="text-center py-8">
+                                <p className="text-sm text-muted-foreground">No subscription history available</p>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <div className="text-center py-8">
+                            <p className="text-sm text-muted-foreground">Unable to load subscription history</p>
+                          </div>
+                        )}
+                      </div>
                     </>
                   )}
                 </div>
