@@ -155,9 +155,12 @@ export function SettingsModal({
   const [referralLink, setReferralLink] = useState("")
   const [copiedLink, setCopiedLink] = useState(false)
   const [referralStats, setReferralStats] = useState<{
-    totalReferrals: number
     completedReferrals: number
-    totalEarningsMB: number
+    pendingReferrals: string
+    totalEarningsMB: string
+    currentBonusMB: number
+    maxBonusMB: number
+    maxReferrals: number
   } | null>(null)
   const [recentReferrals, setRecentReferrals] = useState<any[]>([])
   const [isLoadingReferrals, setIsLoadingReferrals] = useState(false)
@@ -261,8 +264,10 @@ export function SettingsModal({
       const response = await apiClient.getReferralInfo()
       if (response.success && response.data) {
         setReferralCode(response.data.referralCode)
-        setReferralLink(response.data.referralLink)
-        setReferralStats(response.data.statistics)
+        // Generate referral link from code
+        const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
+        setReferralLink(`${baseUrl}/register?ref=${response.data.referralCode}`)
+        setReferralStats(response.data.stats)
         setRecentReferrals(response.data.recentReferrals || [])
       } else if (response.error) {
         // Log error but don't crash - set empty defaults
@@ -1433,7 +1438,7 @@ export function SettingsModal({
                       {/* Recent Referrals Table */}
                       {recentReferrals && recentReferrals.length > 0 && (
                         <div className="border-t pt-6 space-y-4">
-                          <h3 className="text-sm font-semibold">Referral History ({formatStorageSize((referralStats?.totalEarningsMB || 0) * 1024 * 1024)} of 10GB free space earned)</h3>
+                          <h3 className="text-sm font-semibold">Referral History ({formatStorageSize((Number(referralStats?.totalEarningsMB) || 0) * 1024 * 1024)} of 10GB free space earned)</h3>
                           <div className="border rounded-lg overflow-hidden">
                             <table className="w-full text-sm">
                               <thead className="bg-muted/50 border-b">
@@ -1446,25 +1451,25 @@ export function SettingsModal({
                               </thead>
                               <tbody className="divide-y">
                                 {recentReferrals.map((referral) => (
-                                  <tr key={referral.id} className="hover:bg-muted/30 transition-colors">
+                                  <tr key={referral.referred_user_id} className="hover:bg-muted/30 transition-colors">
                                     <td className="px-4 py-3">
                                       <div className="flex items-center gap-3">
                                         <Avatar className="h-8 w-8 flex-shrink-0">
                                           <AvatarImage
-                                            src={referral.referredUser.avatar_url || getDiceBearAvatar(referral.referredUser.email || referral.referredUser.id, 32)}
-                                            alt={`${referral.referredUser.name || getDisplayNameFromEmail(referral.referredUser.email)}'s avatar`}
+                                            src={referral.avatar_url || getDiceBearAvatar(referral.referred_user_id, 32)}
+                                            alt={`${referral.referred_name || getDisplayNameFromEmail(referral.referred_email)}'s avatar`}
                                           />
                                           <AvatarFallback className="text-xs">
-                                            {getInitials(referral.referredUser.name || getDisplayNameFromEmail(referral.referredUser.email))}
+                                            {getInitials(referral.referred_name || getDisplayNameFromEmail(referral.referred_email))}
                                           </AvatarFallback>
                                         </Avatar>
                                         <div className="min-w-0">
-                                          <p className="font-medium text-sm truncate">{referral.referredUser.name || getDisplayNameFromEmail(referral.referredUser.email)}</p>
+                                          <p className="font-medium text-sm truncate">{referral.referred_name || getDisplayNameFromEmail(referral.referred_email)}</p>
                                         </div>
                                       </div>
                                     </td>
                                     <td className="px-4 py-3 hidden sm:table-cell">
-                                      <p className="text-xs text-muted-foreground truncate">{referral.referredUser.email}</p>
+                                      <p className="text-xs text-muted-foreground truncate">{referral.referred_email}</p>
                                     </td>
                                     <td className="px-4 py-3">
                                       <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
@@ -1479,9 +1484,9 @@ export function SettingsModal({
                                     </td>
                                     <td className="px-4 py-3 hidden xs:table-cell">
                                       <p className="text-xs text-muted-foreground">
-                                        {referral.status === 'completed' && referral.completedAt
-                                          ? formatTimeAgo(referral.completedAt)
-                                          : formatTimeAgo(referral.createdAt)}
+                                        {referral.status === 'completed' && referral.completed_at
+                                          ? formatTimeAgo(referral.completed_at)
+                                          : formatTimeAgo(referral.created_at)}
                                       </p>
                                     </td>
                                   </tr>

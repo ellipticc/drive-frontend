@@ -1619,24 +1619,22 @@ class ApiClient {
   // Referral endpoints
   async getReferralInfo(): Promise<ApiResponse<{
     referralCode: string;
-    referralLink: string;
-    statistics: {
-      totalReferrals: number;
+    stats: {
       completedReferrals: number;
-      totalEarningsMB: number;
-      totalEarningsBytes: number;
+      pendingReferrals: string;
+      totalEarningsMB: string;
+      currentBonusMB: number;
+      maxBonusMB: number;
+      maxReferrals: number;
     };
     recentReferrals: Array<{
-      id: string;
-      referredUser: {
-        id: string;
-        name: string;
-        email: string;
-      };
+      referred_user_id: string;
+      referred_name: string;
+      referred_email: string;
+      avatar_url: string;
       status: string;
-      earningsMB: number;
-      createdAt: string;
-      completedAt: string | null;
+      created_at: string;
+      completed_at: string | null;
     }>;
   }>> {
     return this.request('/referrals/info');
