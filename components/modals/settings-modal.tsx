@@ -19,6 +19,17 @@ import {
   DialogFooter,
   DialogHeader,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -40,7 +51,7 @@ import {
   SidebarMenuItem,
   SidebarProvider,
 } from "@/components/ui/sidebar"
-import { IconSettings, IconLoader2, IconPencil, IconCheck, IconMail, IconLock, IconLogout, IconTrash, IconUserCog, IconLockSquareRounded, IconGift, IconCopy, IconCheck as IconCheckmark, IconBell, IconCoin } from "@tabler/icons-react"
+import { IconSettings, IconLoader2, IconPencil, IconCheck, IconMail, IconLock, IconLogout, IconTrash, IconUserCog, IconLockSquareRounded, IconGift, IconCopy, IconCheck as IconCheckmark, IconBell, IconCoin, IconInfoCircle } from "@tabler/icons-react"
 import { apiClient } from "@/lib/api"
 import { useTheme } from "next-themes"
 import { getDiceBearAvatar } from "@/lib/avatar"
@@ -172,6 +183,7 @@ export function SettingsModal({
   const [billingUsage, setBillingUsage] = useState<any>(null)
   const [pricingPlans, setPricingPlans] = useState<any[]>([])
   const [isLoadingBilling, setIsLoadingBilling] = useState(false)
+  const [showCancelDialog, setShowCancelDialog] = useState(false)
   const [isCancellingSubscription, setIsCancellingSubscription] = useState(false)
   const [subscriptionHistory, setSubscriptionHistory] = useState<any>(null)
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
@@ -453,16 +465,6 @@ export function SettingsModal({
   const handleCancelSubscription = async () => {
     if (!subscription) return
 
-    const confirmed = window.confirm(
-      'Are you sure you want to cancel your subscription?\n\n' +
-      '• You will retain access to your current plan until the end of your billing period\n' +
-      '• No future charges will be made\n' +
-      '• You can reactivate your subscription at any time before it expires\n\n' +
-      'Continue with cancellation?'
-    )
-
-    if (!confirmed) return
-
     setIsCancellingSubscription(true)
     try {
       const response = await apiClient.cancelSubscription()
@@ -478,6 +480,7 @@ export function SettingsModal({
       toast.error('Failed to cancel subscription')
     } finally {
       setIsCancellingSubscription(false)
+      setShowCancelDialog(false)
     }
   }
 
@@ -1024,7 +1027,7 @@ export function SettingsModal({
                 </div>
               </div>
             )}
-            <div className="flex flex-1 flex-col gap-4 p-6 pb-12">
+            <div className="flex flex-1 flex-col gap-4 p-6 pb-12 overflow-y-auto">
               {activeTab === "general" && (
                 <div className="space-y-6">
                   {/* Profile Section */}
@@ -1621,43 +1624,63 @@ export function SettingsModal({
                     <>
                       <div className="space-y-4">
                         <div className="p-4 border rounded-lg">
-                          <h3 className="font-medium mb-2">Current Plan</h3>
+                          <h3 className="font-medium mb-3">Current Plan</h3>
                           {subscription ? (
-                            <div className="space-y-2">
+                            <div className="space-y-3">
                               <div className="flex items-center justify-between">
                                 <span className="text-sm text-muted-foreground">Plan:</span>
-                                <span className="font-medium">{subscription.plan.name}</span>
+                                <span className="font-medium">{subscription.plan?.name || 'Unknown Plan'}</span>
                               </div>
                               <div className="flex items-center justify-between">
                                 <span className="text-sm text-muted-foreground">Status:</span>
-                                <span className={`text-sm font-medium ${
+                                <span className={`text-sm font-medium px-2 py-1 rounded-full ${
                                   subscription.status === 'active'
-                                    ? 'text-green-600'
+                                    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                                     : subscription.status === 'trialing'
-                                    ? 'text-blue-600'
+                                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
                                     : subscription.status === 'past_due'
-                                    ? 'text-red-600'
-                                    : 'text-gray-600'
+                                    ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                                    : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
                                 }`}>
                                   {subscription.status === 'active' ? 'Active' :
                                    subscription.status === 'trialing' ? 'Trial' :
                                    subscription.status === 'past_due' ? 'Past Due' :
-                                   subscription.status}
+                                   subscription.status || 'Unknown'}
                                 </span>
                               </div>
-                              {subscription.cancelAtPeriodEnd && (
+                              {subscription.cancelAtPeriodEnd !== 0 && subscription.cancelAtPeriodEnd !== '0' && Boolean(subscription.cancelAtPeriodEnd) && (
                                 <div className="flex items-center justify-between">
                                   <span className="text-sm text-muted-foreground">Cancellation:</span>
-                                  <span className="text-sm text-red-600">Cancels {new Date(subscription.currentPeriodEnd * 1000).toLocaleDateString()}</span>
+                                  <span className="text-sm text-red-600 font-medium">
+                                    {subscription.currentPeriodEnd
+                                      ? `Cancels ${new Date(subscription.currentPeriodEnd).toLocaleDateString()}`
+                                      : 'Scheduled for cancellation'
+                                    }
+                                  </span>
                                 </div>
                               )}
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm text-muted-foreground">Next billing:</span>
-                                <span className="text-sm">{new Date(subscription.currentPeriodEnd * 1000).toLocaleDateString()}</span>
-                              </div>
+                              {!subscription.cancelAtPeriodEnd && subscription.currentPeriodEnd && (
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm text-muted-foreground">Next billing:</span>
+                                  <span className="text-sm font-medium">
+                                    {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
+                                  </span>
+                                </div>
+                              )}
+                              {subscription.plan?.interval && subscription.plan.interval !== 0 && subscription.plan.interval !== '0' && (
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm text-muted-foreground">Billing cycle:</span>
+                                  <span className="text-sm font-medium capitalize">
+                                    {subscription.plan.interval}
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           ) : (
-                            <p className="text-sm text-muted-foreground">Free Plan (5GB storage)</p>
+                            <div className="text-center py-4">
+                              <p className="text-sm text-muted-foreground mb-2">Free Plan</p>
+                              <p className="text-xs text-muted-foreground">5GB storage included</p>
+                            </div>
                           )}
                         </div>
 
@@ -1696,25 +1719,52 @@ export function SettingsModal({
                         {/* Action Buttons */}
                         <div className="flex gap-3">
                           {subscription && !subscription.cancelAtPeriodEnd ? (
-                            <Button
-                              variant="destructive"
-                              onClick={handleCancelSubscription}
-                              disabled={isCancellingSubscription}
-                              className="flex-1"
-                            >
-                              {isCancellingSubscription ? (
-                                <>
-                                  <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
-                                  Cancelling...
-                                </>
-                              ) : (
-                                'Cancel Subscription'
-                              )}
-                            </Button>
+                            <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="destructive"
+                                  disabled={isCancellingSubscription}
+                                  className="flex-1"
+                                >
+                                  Cancel Subscription
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Cancel Subscription</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to cancel your subscription?
+                                    <br /><br />
+                                    • You will retain access to your current plan until the end of your billing period
+                                    <br />
+                                    • No future charges will be made
+                                    <br />
+                                    • You can reactivate your subscription at any time before it expires
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Keep Subscription</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={handleCancelSubscription}
+                                    disabled={isCancellingSubscription}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    {isCancellingSubscription ? (
+                                      <>
+                                        <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
+                                        Cancelling...
+                                      </>
+                                    ) : (
+                                      'Cancel Subscription'
+                                    )}
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
                           ) : subscription?.cancelAtPeriodEnd ? (
                             <div className="flex-1 p-3 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
                               <p className="text-sm text-yellow-800 dark:text-yellow-200 text-center">
-                                Subscription will be cancelled on {new Date(subscription.currentPeriodEnd * 1000).toLocaleDateString()}
+                                Subscription will be cancelled on {subscription.currentPeriodEnd ? new Date(subscription.currentPeriodEnd * 1000).toLocaleDateString() : 'the end of billing period'}
                               </p>
                             </div>
                           ) : null}
@@ -1727,22 +1777,41 @@ export function SettingsModal({
                           </Button>
                         </div>
 
-                        {/* Warning for cancellation */}
+                        {/* Important Information */}
                         {subscription && !subscription.cancelAtPeriodEnd && (
-                          <div className="p-3 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-                            <p className="text-xs text-yellow-800 dark:text-yellow-200">
-                              <strong>Important:</strong> You cannot cancel your subscription if you're using more than 5GB of storage. Please reduce your usage before cancelling.
-                            </p>
-                            <p className="text-xs text-yellow-800 dark:text-yellow-200 mt-1">
-                              When cancelled, you'll keep access until the end of your billing period with no future charges.
-                            </p>
+                          <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                            <h4 className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-2 flex items-center gap-2">
+                              <IconInfoCircle className="w-4 h-4" />
+                              Important Information
+                            </h4>
+                            <ul className="text-xs text-blue-700 dark:text-blue-300 space-y-1">
+                              <li>• You cannot cancel your subscription if you're using more than 5GB of storage</li>
+                              <li>• When cancelled, you'll keep access until the end of your billing period</li>
+                              <li>• No future charges will be made after cancellation</li>
+                              <li>• You can reactivate your subscription at any time before it expires</li>
+                            </ul>
                           </div>
                         )}
                       </div>
 
                       {/* Subscription History */}
-                      <div className="border-t pt-6 space-y-4">
-                        <h3 className="text-lg font-semibold">Subscription History</h3>
+                      <div className="border-t pt-6 space-y-6">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-lg font-semibold">Billing History</h3>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={loadSubscriptionHistory}
+                            disabled={isLoadingHistory}
+                          >
+                            {isLoadingHistory ? (
+                              <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
+                            ) : (
+                              <IconLoader2 className="h-4 w-4 mr-2" />
+                            )}
+                            Refresh
+                          </Button>
+                        </div>
                         
                         {isLoadingHistory ? (
                           <div className="flex justify-center py-6">
@@ -1753,61 +1822,60 @@ export function SettingsModal({
                             {/* Subscription History Table */}
                             {subscriptionHistory.history && subscriptionHistory.history.length > 0 && (
                               <div className="space-y-4">
-                                <h4 className="text-sm font-medium">Subscriptions</h4>
-                                <div className="border rounded-lg overflow-hidden">
-                                  <table className="w-full text-sm">
-                                    <thead className="bg-muted/50 border-b">
-                                      <tr>
-                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Plan</th>
-                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
-                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Period</th>
-                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Amount</th>
-                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Created</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody className="divide-y">
-                                      {subscriptionHistory.history.map((sub: any) => (
-                                        <tr key={sub.id} className="hover:bg-muted/30 transition-colors">
-                                          <td className="px-4 py-3">
-                                            <div>
-                                              <p className="font-medium">{sub.planName}</p>
-                                              <p className="text-xs text-muted-foreground">{sub.interval}</p>
-                                            </div>
-                                          </td>
-                                          <td className="px-4 py-3">
-                                            <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
-                                              sub.status === 'active'
-                                                ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
-                                                : sub.status === 'canceled'
-                                                ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                                                : sub.status === 'past_due'
-                                                ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
-                                                : 'bg-slate-100 dark:bg-slate-900/30 text-slate-700 dark:text-slate-400'
-                                            }`}>
-                                              {sub.status === 'active' ? 'Active' :
-                                               sub.status === 'canceled' ? 'Cancelled' :
-                                               sub.status === 'past_due' ? 'Past Due' :
-                                               sub.status}
-                                              {sub.cancelAtPeriodEnd && ' (Cancelling)'}
-                                            </span>
-                                          </td>
-                                          <td className="px-4 py-3">
-                                            <div className="text-xs">
-                                              <p>{new Date(sub.currentPeriodStart * 1000).toLocaleDateString()}</p>
-                                              <p className="text-muted-foreground">to {new Date(sub.currentPeriodEnd * 1000).toLocaleDateString()}</p>
-                                            </div>
-                                          </td>
-                                          <td className="px-4 py-3">
-                                            <p className="font-medium">${(sub.amount / 100).toFixed(2)}</p>
-                                            <p className="text-xs text-muted-foreground">{sub.currency.toUpperCase()}</p>
-                                          </td>
-                                          <td className="px-4 py-3">
-                                            <p className="text-xs">{new Date(sub.created * 1000).toLocaleDateString()}</p>
-                                          </td>
+                                <h4 className="text-sm font-medium text-muted-foreground">Subscriptions</h4>
+                                <div className="border rounded-lg overflow-hidden bg-card">
+                                  <div className="overflow-x-auto">
+                                    <table className="w-full text-sm">
+                                      <thead className="bg-muted/50 border-b">
+                                        <tr>
+                                          <th className="text-left px-4 py-3 font-medium text-muted-foreground min-w-[120px]">Plan</th>
+                                          <th className="text-left px-4 py-3 font-medium text-muted-foreground min-w-[80px]">Status</th>
+                                          <th className="text-left px-4 py-3 font-medium text-muted-foreground min-w-[80px]">Billing</th>
+                                          <th className="text-left px-4 py-3 font-medium text-muted-foreground min-w-[80px]">Amount</th>
+                                          <th className="text-left px-4 py-3 font-medium text-muted-foreground min-w-[100px]">Created</th>
                                         </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
+                                      </thead>
+                                      <tbody className="divide-y">
+                                        {subscriptionHistory.history.map((sub: any) => (
+                                          <tr key={sub.id} className="hover:bg-muted/30 transition-colors">
+                                            <td className="px-4 py-3">
+                                              <div>
+                                                <p className="font-medium">{sub.planName}</p>
+                                                <p className="text-xs text-muted-foreground capitalize">{sub.interval}ly</p>
+                                              </div>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                              <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
+                                                sub.status === 'active'
+                                                  ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
+                                                  : sub.status === 'canceled'
+                                                  ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                                                  : sub.status === 'past_due'
+                                                  ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
+                                                  : 'bg-slate-100 dark:bg-slate-900/30 text-slate-700 dark:text-slate-400'
+                                              }`}>
+                                                {sub.status === 'active' ? 'Active' :
+                                                 sub.status === 'canceled' ? 'Cancelled' :
+                                                 sub.status === 'past_due' ? 'Past Due' :
+                                                 sub.status}
+                                                {sub.cancelAtPeriodEnd && ' (Cancelling)'}
+                                              </span>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                              <p className="text-xs capitalize">{sub.interval}ly</p>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                              <p className="font-medium">${sub.amount.toFixed(2)}</p>
+                                              <p className="text-xs text-muted-foreground">{sub.currency.toUpperCase()}</p>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                              <p className="text-xs">{new Date(sub.created * 1000).toLocaleDateString()}</p>
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
                                 </div>
                               </div>
                             )}
@@ -1815,66 +1883,80 @@ export function SettingsModal({
                             {/* Invoices Table */}
                             {subscriptionHistory.invoices && subscriptionHistory.invoices.length > 0 && (
                               <div className="space-y-4">
-                                <h4 className="text-sm font-medium">Invoices</h4>
-                                <div className="border rounded-lg overflow-hidden">
-                                  <table className="w-full text-sm">
-                                    <thead className="bg-muted/50 border-b">
-                                      <tr>
-                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Invoice</th>
-                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
-                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Amount</th>
-                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Date</th>
-                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Actions</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody className="divide-y">
-                                      {subscriptionHistory.invoices.map((invoice: any) => (
-                                        <tr key={invoice.id} className="hover:bg-muted/30 transition-colors">
-                                          <td className="px-4 py-3">
-                                            <div>
-                                              <p className="font-medium">{invoice.number || `Invoice ${invoice.id.slice(-8)}`}</p>
-                                              {invoice.subscriptionId && (
-                                                <p className="text-xs text-muted-foreground">Sub: {invoice.subscriptionId.slice(-8)}</p>
-                                              )}
-                                            </div>
-                                          </td>
-                                          <td className="px-4 py-3">
-                                            <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
-                                              invoice.status === 'paid'
-                                                ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
-                                                : invoice.status === 'open'
-                                                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
-                                                : invoice.status === 'void'
-                                                ? 'bg-gray-100 dark:bg-gray-900/30 text-gray-700 dark:text-gray-400'
-                                                : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                                            }`}>
-                                              {invoice.status === 'paid' ? 'Paid' :
-                                               invoice.status === 'open' ? 'Open' :
-                                               invoice.status === 'void' ? 'Void' :
-                                               invoice.status}
-                                            </span>
-                                          </td>
-                                          <td className="px-4 py-3">
-                                            <p className="font-medium">${(invoice.amount / 100).toFixed(2)}</p>
-                                            <p className="text-xs text-muted-foreground">{invoice.currency.toUpperCase()}</p>
-                                          </td>
-                                          <td className="px-4 py-3">
-                                            <p className="text-xs">{new Date(invoice.created * 1000).toLocaleDateString()}</p>
-                                          </td>
-                                          <td className="px-4 py-3">
-                                            <Button
-                                              size="sm"
-                                              variant="outline"
-                                              onClick={() => window.open(invoice.invoicePdf, '_blank')}
-                                              className="text-xs"
-                                            >
-                                              Download PDF
-                                            </Button>
-                                          </td>
+                                <h4 className="text-sm font-medium text-muted-foreground">Invoices</h4>
+                                <div className="border rounded-lg overflow-hidden bg-card">
+                                  <div className="overflow-x-auto">
+                                    <table className="w-full text-sm">
+                                      <thead className="bg-muted/50 border-b">
+                                        <tr>
+                                          <th className="text-left px-4 py-3 font-medium text-muted-foreground min-w-[140px]">Invoice</th>
+                                          <th className="text-left px-4 py-3 font-medium text-muted-foreground min-w-[80px]">Status</th>
+                                          <th className="text-left px-4 py-3 font-medium text-muted-foreground min-w-[80px]">Amount</th>
+                                          <th className="text-left px-4 py-3 font-medium text-muted-foreground min-w-[100px]">Date</th>
+                                          <th className="text-left px-4 py-3 font-medium text-muted-foreground min-w-[120px]">Actions</th>
                                         </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
+                                      </thead>
+                                      <tbody className="divide-y">
+                                        {subscriptionHistory.invoices.map((invoice: any) => (
+                                          <tr key={invoice.id} className="hover:bg-muted/30 transition-colors">
+                                            <td className="px-4 py-3">
+                                              <div>
+                                                <p className="font-medium">{invoice.number || `Invoice ${invoice.id.slice(-8)}`}</p>
+                                                {invoice.subscriptionId && (
+                                                  <p className="text-xs text-muted-foreground">Sub: {invoice.subscriptionId.slice(-8)}</p>
+                                                )}
+                                              </div>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                              <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
+                                                invoice.status === 'paid'
+                                                  ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
+                                                  : invoice.status === 'open'
+                                                  ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                                                  : invoice.status === 'void'
+                                                  ? 'bg-gray-100 dark:bg-gray-900/30 text-gray-700 dark:text-gray-400'
+                                                  : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                                              }`}>
+                                                {invoice.status === 'paid' ? 'Paid' :
+                                                 invoice.status === 'open' ? 'Open' :
+                                                 invoice.status === 'void' ? 'Void' :
+                                                 invoice.status}
+                                              </span>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                              <p className="font-medium">${invoice.amount.toFixed(2)}</p>
+                                              <p className="text-xs text-muted-foreground">{invoice.currency.toUpperCase()}</p>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                              <p className="text-xs">{new Date(invoice.created * 1000).toLocaleDateString()}</p>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                              <div className="flex gap-2">
+                                                <Button
+                                                  size="sm"
+                                                  variant="outline"
+                                                  onClick={() => window.open(invoice.invoicePdf, '_blank')}
+                                                  className="text-xs"
+                                                >
+                                                  PDF
+                                                </Button>
+                                                {invoice.hostedInvoiceUrl && (
+                                                  <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() => window.open(invoice.hostedInvoiceUrl, '_blank')}
+                                                    className="text-xs"
+                                                  >
+                                                    View
+                                                  </Button>
+                                                )}
+                                              </div>
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
                                 </div>
                               </div>
                             )}
@@ -1882,14 +1964,29 @@ export function SettingsModal({
                             {/* Empty State */}
                             {(!subscriptionHistory.history || subscriptionHistory.history.length === 0) && 
                              (!subscriptionHistory.invoices || subscriptionHistory.invoices.length === 0) && (
-                              <div className="text-center py-8">
-                                <p className="text-sm text-muted-foreground">No subscription history available</p>
+                              <div className="text-center py-12">
+                                <div className="mx-auto w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-4">
+                                  <IconCoin className="w-6 h-6 text-muted-foreground" />
+                                </div>
+                                <h3 className="text-sm font-medium text-foreground mb-1">No billing history yet</h3>
+                                <p className="text-sm text-muted-foreground">Your invoices and subscription details will appear here</p>
                               </div>
                             )}
                           </>
                         ) : (
-                          <div className="text-center py-8">
-                            <p className="text-sm text-muted-foreground">Unable to load subscription history</p>
+                          <div className="text-center py-12">
+                            <div className="mx-auto w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-4">
+                              <IconLoader2 className="w-6 h-6 text-muted-foreground" />
+                            </div>
+                            <h3 className="text-sm font-medium text-foreground mb-1">Unable to load billing history</h3>
+                            <p className="text-sm text-muted-foreground mb-4">Please try again or contact support if the issue persists</p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={loadSubscriptionHistory}
+                            >
+                              Try Again
+                            </Button>
                           </div>
                         )}
                       </div>
