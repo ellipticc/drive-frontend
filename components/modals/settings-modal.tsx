@@ -391,18 +391,25 @@ export function SettingsModal({
     }
   }
 
-  // Save notification preferences
-  const saveNotificationPreferences = async () => {
+  // Save notification preferences immediately with provided values (prevents stale closure)
+  const saveNotificationPreferences = async (preferences?: {
+    inApp?: boolean;
+    email?: boolean;
+    login?: boolean;
+    fileShare?: boolean;
+    billing?: boolean;
+  }) => {
     try {
-      const preferences = {
-        inApp: inAppNotifications,
-        email: emailNotifications,
-        login: loginNotifications,
-        fileShare: fileShareNotifications,
-        billing: billingNotifications
+      // Use provided values or fall back to current state
+      const preferencesToSave = {
+        inApp: preferences?.inApp ?? inAppNotifications,
+        email: preferences?.email ?? emailNotifications,
+        login: preferences?.login ?? loginNotifications,
+        fileShare: preferences?.fileShare ?? fileShareNotifications,
+        billing: preferences?.billing ?? billingNotifications
       }
       
-      const response = await apiClient.updateNotificationPreferences(preferences)
+      const response = await apiClient.updateNotificationPreferences(preferencesToSave)
       if (response.success) {
         toast.success("Notification preferences updated!")
       } else {
@@ -1373,8 +1380,7 @@ export function SettingsModal({
                           checked={inAppNotifications}
                           onCheckedChange={(checked) => {
                             setInAppNotifications(checked)
-                            // Auto-save after a short delay
-                            setTimeout(() => saveNotificationPreferences(), 500)
+                            saveNotificationPreferences({ inApp: checked })
                           }}
                           disabled={isLoadingNotificationPrefs}
                         />
@@ -1392,8 +1398,7 @@ export function SettingsModal({
                           checked={emailNotifications}
                           onCheckedChange={(checked) => {
                             setEmailNotifications(checked)
-                            // Auto-save after a short delay
-                            setTimeout(() => saveNotificationPreferences(), 500)
+                            saveNotificationPreferences({ email: checked })
                           }}
                           disabled={isLoadingNotificationPrefs}
                         />
@@ -1415,8 +1420,7 @@ export function SettingsModal({
                           checked={loginNotifications}
                           onCheckedChange={(checked) => {
                             setLoginNotifications(checked)
-                            // Auto-save after a short delay
-                            setTimeout(() => saveNotificationPreferences(), 500)
+                            saveNotificationPreferences({ login: checked })
                           }}
                           disabled={isLoadingNotificationPrefs}
                         />
@@ -1434,8 +1438,7 @@ export function SettingsModal({
                           checked={fileShareNotifications}
                           onCheckedChange={(checked) => {
                             setFileShareNotifications(checked)
-                            // Auto-save after a short delay
-                            setTimeout(() => saveNotificationPreferences(), 500)
+                            saveNotificationPreferences({ fileShare: checked })
                           }}
                           disabled={isLoadingNotificationPrefs}
                         />
@@ -1453,8 +1456,7 @@ export function SettingsModal({
                           checked={billingNotifications}
                           onCheckedChange={(checked) => {
                             setBillingNotifications(checked)
-                            // Auto-save after a short delay
-                            setTimeout(() => saveNotificationPreferences(), 500)
+                            saveNotificationPreferences({ billing: checked })
                           }}
                           disabled={isLoadingNotificationPrefs}
                         />
@@ -1677,9 +1679,21 @@ export function SettingsModal({
                               )}
                             </div>
                           ) : (
-                            <div className="text-center py-4">
-                              <p className="text-sm text-muted-foreground mb-2">Free Plan</p>
-                              <p className="text-xs text-muted-foreground">5GB storage included</p>
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm text-muted-foreground">Plan:</span>
+                                <span className="font-medium">Free Plan</span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm text-muted-foreground">Status:</span>
+                                <span className={`text-sm font-medium px-2 py-1 rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200`}>
+                                  Active
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm text-muted-foreground">Storage:</span>
+                                <span className="text-sm font-medium">5GB included</span>
+                              </div>
                             </div>
                           )}
                         </div>
@@ -1798,19 +1812,21 @@ export function SettingsModal({
                       <div className="border-t pt-6 space-y-6">
                         <div className="flex items-center justify-between">
                           <h3 className="text-lg font-semibold">Billing History</h3>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={loadSubscriptionHistory}
-                            disabled={isLoadingHistory}
-                          >
-                            {isLoadingHistory ? (
-                              <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
-                            ) : (
-                              <IconLoader2 className="h-4 w-4 mr-2" />
-                            )}
-                            Refresh
-                          </Button>
+                          {subscriptionHistory && (subscriptionHistory.history?.length > 0 || subscriptionHistory.invoices?.length > 0) && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={loadSubscriptionHistory}
+                              disabled={isLoadingHistory}
+                            >
+                              {isLoadingHistory ? (
+                                <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
+                              ) : (
+                                <IconLoader2 className="h-4 w-4 mr-2" />
+                              )}
+                              Refresh
+                            </Button>
+                          )}
                         </div>
                         
                         {isLoadingHistory ? (
@@ -1965,9 +1981,6 @@ export function SettingsModal({
                             {(!subscriptionHistory.history || subscriptionHistory.history.length === 0) && 
                              (!subscriptionHistory.invoices || subscriptionHistory.invoices.length === 0) && (
                               <div className="text-center py-12">
-                                <div className="mx-auto w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-4">
-                                  <IconCoin className="w-6 h-6 text-muted-foreground" />
-                                </div>
                                 <h3 className="text-sm font-medium text-foreground mb-1">No billing history yet</h3>
                                 <p className="text-sm text-muted-foreground">Your invoices and subscription details will appear here</p>
                               </div>
