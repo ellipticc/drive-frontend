@@ -51,7 +51,7 @@ import {
   SidebarMenuItem,
   SidebarProvider,
 } from "@/components/ui/sidebar"
-import { IconSettings, IconLoader2, IconPencil, IconCheck, IconMail, IconLock, IconLogout, IconTrash, IconUserCog, IconLockSquareRounded, IconGift, IconCopy, IconCheck as IconCheckmark, IconBell, IconCoin, IconInfoCircle } from "@tabler/icons-react"
+import { IconSettings, IconLoader2, IconPencil, IconCheck, IconMail, IconLock, IconLogout, IconTrash, IconUserCog, IconLockSquareRounded, IconGift, IconCopy, IconCheck as IconCheckmark, IconBell, IconCoin, IconInfoCircle, IconRefresh } from "@tabler/icons-react"
 import { apiClient } from "@/lib/api"
 import { useTheme } from "next-themes"
 import { getDiceBearAvatar } from "@/lib/avatar"
@@ -1072,7 +1072,7 @@ export function SettingsModal({
       ) : (
         children
       )}
-      <DialogContent className={`${isMobile ? 'w-[90vw] h-[75vh] max-w-none max-h-none overflow-y-auto' : 'md:max-h-[700px] md:max-w-[1100px] overflow-hidden'} p-0`}>
+      <DialogContent className={`${isMobile ? 'w-[90vw] h-[75vh] max-w-none max-h-none overflow-y-auto' : `md:max-h-[700px] md:max-w-[1100px] ${activeTab === 'billing' || activeTab === 'referrals' ? 'overflow-y-auto' : 'overflow-hidden'}`} p-0`}>
         <DialogTitle className="sr-only">Settings</DialogTitle>
         <DialogDescription className="sr-only">
           Customize your settings here.
@@ -1576,6 +1576,8 @@ export function SettingsModal({
                     </div>
                   </div>
 
+                  <div className="flex-1 overflow-y-auto pr-4 space-y-4">
+
                   {/* Referral Code Section */}
                   {isLoadingReferrals ? (
                     <div className="flex justify-center py-6">
@@ -1636,19 +1638,19 @@ export function SettingsModal({
                         <div className="border-t pt-6 space-y-4">
                           <h3 className="text-sm font-semibold">Referral History ({formatStorageSize((Number(referralStats?.totalEarningsMB) || 0) * 1024 * 1024)} of 10GB free space earned)</h3>
                           <div className="border rounded-lg overflow-hidden">
-                            <table className="w-full text-sm">
+                            <table className="w-full text-sm font-mono">
                               <thead className="bg-muted/50 border-b">
                                 <tr>
-                                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">User</th>
-                                  <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden sm:table-cell">Email</th>
-                                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
-                                  <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden xs:table-cell">Date</th>
+                                  <th className="text-left px-4 py-3 font-medium text-muted-foreground min-w-[160px]">User</th>
+                                  <th className="text-left px-4 py-3 font-medium text-muted-foreground min-w-[160px] hidden sm:table-cell">Email</th>
+                                  <th className="text-center px-4 py-3 font-medium text-muted-foreground min-w-[120px]">Status</th>
+                                  <th className="text-center px-4 py-3 font-medium text-muted-foreground min-w-[120px] hidden xs:table-cell">Date</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y">
                                 {recentReferrals.map((referral) => (
                                   <tr key={referral.referred_user_id} className="hover:bg-muted/30 transition-colors">
-                                    <td className="px-4 py-3">
+                                    <td className="px-4 py-3 min-w-[160px]">
                                       <div className="flex items-center gap-3">
                                         <Avatar className="h-8 w-8 flex-shrink-0">
                                           <AvatarImage
@@ -1668,10 +1670,10 @@ export function SettingsModal({
                                         </div>
                                       </div>
                                     </td>
-                                    <td className="px-4 py-3 hidden sm:table-cell">
+                                    <td className="px-4 py-3 min-w-[160px] hidden sm:table-cell">
                                       <p className="text-xs text-muted-foreground truncate">{referral.referred_email}</p>
                                     </td>
-                                    <td className="px-4 py-3">
+                                    <td className="px-4 py-3 text-center min-w-[120px]">
                                       <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
                                         referral.status === 'completed'
                                           ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
@@ -1682,7 +1684,7 @@ export function SettingsModal({
                                         {referral.status === 'completed' ? '✓ Completed' : referral.status === 'pending' ? '○ Pending' : 'Cancelled'}
                                       </span>
                                     </td>
-                                    <td className="px-4 py-3 hidden xs:table-cell">
+                                    <td className="px-4 py-3 text-center min-w-[120px] hidden xs:table-cell">
                                       <p className="text-xs text-muted-foreground">
                                         {referral.status === 'completed' && referral.completed_at
                                           ? formatTimeAgo(referral.completed_at)
@@ -1707,6 +1709,7 @@ export function SettingsModal({
                       )}
                     </>
                   )}
+                  </div>
                 </div>
               )}
 
@@ -1919,7 +1922,7 @@ export function SettingsModal({
                               {isLoadingHistory ? (
                                 <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
                               ) : (
-                                <IconLoader2 className="h-4 w-4 mr-2" />
+                                <IconRefresh className="h-4 w-4 mr-2" />
                               )}
                               Refresh
                             </Button>
@@ -1936,28 +1939,28 @@ export function SettingsModal({
                             {subscriptionHistory.history && subscriptionHistory.history.length > 0 && (
                               <div className="space-y-4">
                                 <h4 className="text-sm font-medium text-muted-foreground">Subscriptions</h4>
-                                <div className="border rounded-lg overflow-hidden bg-card">
-                                  <div className="overflow-x-auto">
-                                    <table className="w-full text-sm">
+                                <div className="border rounded-lg overflow-hidden bg-card max-h-80">
+                                  <div className="overflow-x-auto overflow-y-auto h-full">
+                                    <table className="w-full text-sm font-mono">
                                       <thead className="bg-muted/50 border-b">
                                         <tr>
-                                          <th className="text-left px-4 py-3 font-medium text-muted-foreground min-w-[120px]">Plan</th>
-                                          <th className="text-left px-4 py-3 font-medium text-muted-foreground min-w-[80px]">Status</th>
-                                          <th className="text-left px-4 py-3 font-medium text-muted-foreground min-w-[80px]">Billing</th>
-                                          <th className="text-left px-4 py-3 font-medium text-muted-foreground min-w-[80px]">Amount</th>
-                                          <th className="text-left px-4 py-3 font-medium text-muted-foreground min-w-[100px]">Created</th>
+                                          <th className="text-left px-4 py-3 font-medium text-muted-foreground min-w-[160px]">Plan</th>
+                                          <th className="text-center px-4 py-3 font-medium text-muted-foreground min-w-[120px]">Status</th>
+                                          <th className="text-right px-4 py-3 font-medium text-muted-foreground min-w-[120px]">Amount</th>
+                                          <th className="text-center px-4 py-3 font-medium text-muted-foreground min-w-[120px]">Billing</th>
+                                          <th className="text-center px-4 py-3 font-medium text-muted-foreground min-w-[120px]">Created</th>
                                         </tr>
                                       </thead>
                                       <tbody className="divide-y">
                                         {subscriptionHistory.history.map((sub: any) => (
                                           <tr key={sub.id} className="hover:bg-muted/30 transition-colors">
-                                            <td className="px-4 py-3">
+                                            <td className="px-4 py-3 min-w-[160px]">
                                               <div>
                                                 <p className="font-medium">{sub.planName}</p>
                                                 <p className="text-xs text-muted-foreground capitalize">{sub.interval}ly</p>
                                               </div>
                                             </td>
-                                            <td className="px-4 py-3">
+                                            <td className="px-4 py-3 text-center min-w-[120px]">
                                               <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
                                                 sub.status === 'active'
                                                   ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
@@ -1974,14 +1977,14 @@ export function SettingsModal({
                                                 {sub.cancelAtPeriodEnd && ' (Cancelling)'}
                                               </span>
                                             </td>
-                                            <td className="px-4 py-3">
-                                              <p className="text-xs capitalize">{sub.interval}ly</p>
-                                            </td>
-                                            <td className="px-4 py-3">
+                                            <td className="px-4 py-3 text-right min-w-[120px]">
                                               <p className="font-medium">${sub.amount.toFixed(2)}</p>
                                               <p className="text-xs text-muted-foreground">{sub.currency.toUpperCase()}</p>
                                             </td>
-                                            <td className="px-4 py-3">
+                                            <td className="px-4 py-3 text-center min-w-[120px]">
+                                              <p className="text-xs capitalize">{sub.interval}ly</p>
+                                            </td>
+                                            <td className="px-4 py-3 text-center min-w-[120px]">
                                               <p className="text-xs">{new Date(sub.created * 1000).toLocaleDateString()}</p>
                                             </td>
                                           </tr>
@@ -1997,22 +2000,22 @@ export function SettingsModal({
                             {subscriptionHistory.invoices && subscriptionHistory.invoices.length > 0 && (
                               <div className="space-y-4">
                                 <h4 className="text-sm font-medium text-muted-foreground">Invoices</h4>
-                                <div className="border rounded-lg overflow-hidden bg-card">
-                                  <div className="overflow-x-auto">
-                                    <table className="w-full text-sm">
+                                <div className="border rounded-lg overflow-hidden bg-card max-h-80">
+                                  <div className="overflow-x-auto overflow-y-auto h-full">
+                                    <table className="w-full text-sm font-mono">
                                       <thead className="bg-muted/50 border-b">
                                         <tr>
-                                          <th className="text-left px-4 py-3 font-medium text-muted-foreground min-w-[140px]">Invoice</th>
-                                          <th className="text-left px-4 py-3 font-medium text-muted-foreground min-w-[80px]">Status</th>
-                                          <th className="text-left px-4 py-3 font-medium text-muted-foreground min-w-[80px]">Amount</th>
-                                          <th className="text-left px-4 py-3 font-medium text-muted-foreground min-w-[100px]">Date</th>
-                                          <th className="text-left px-4 py-3 font-medium text-muted-foreground min-w-[120px]">Actions</th>
+                                          <th className="text-left px-4 py-3 font-medium text-muted-foreground min-w-[160px]">Invoice</th>
+                                          <th className="text-center px-4 py-3 font-medium text-muted-foreground min-w-[120px]">Status</th>
+                                          <th className="text-right px-4 py-3 font-medium text-muted-foreground min-w-[120px]">Amount</th>
+                                          <th className="text-center px-4 py-3 font-medium text-muted-foreground min-w-[120px]">Date</th>
+                                          <th className="text-center px-4 py-3 font-medium text-muted-foreground min-w-[120px]">Actions</th>
                                         </tr>
                                       </thead>
                                       <tbody className="divide-y">
                                         {subscriptionHistory.invoices.map((invoice: any) => (
                                           <tr key={invoice.id} className="hover:bg-muted/30 transition-colors">
-                                            <td className="px-4 py-3">
+                                            <td className="px-4 py-3 min-w-[160px]">
                                               <div>
                                                 <p className="font-medium">{invoice.number || `Invoice ${invoice.id.slice(-8)}`}</p>
                                                 {invoice.subscriptionId && (
@@ -2020,7 +2023,7 @@ export function SettingsModal({
                                                 )}
                                               </div>
                                             </td>
-                                            <td className="px-4 py-3">
+                                            <td className="px-4 py-3 text-center min-w-[120px]">
                                               <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
                                                 invoice.status === 'paid'
                                                   ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
@@ -2036,33 +2039,23 @@ export function SettingsModal({
                                                  invoice.status}
                                               </span>
                                             </td>
-                                            <td className="px-4 py-3">
+                                            <td className="px-4 py-3 text-right min-w-[120px]">
                                               <p className="font-medium">${invoice.amount.toFixed(2)}</p>
                                               <p className="text-xs text-muted-foreground">{invoice.currency.toUpperCase()}</p>
                                             </td>
-                                            <td className="px-4 py-3">
+                                            <td className="px-4 py-3 text-center min-w-[120px]">
                                               <p className="text-xs">{new Date(invoice.created * 1000).toLocaleDateString()}</p>
                                             </td>
-                                            <td className="px-4 py-3">
-                                              <div className="flex gap-2">
+                                            <td className="px-4 py-3 text-center min-w-[120px]">
+                                              <div className="flex gap-2 justify-center">
                                                 <Button
                                                   size="sm"
                                                   variant="outline"
                                                   onClick={() => window.open(invoice.invoicePdf, '_blank')}
                                                   className="text-xs"
                                                 >
-                                                  PDF
+                                                  Download
                                                 </Button>
-                                                {invoice.hostedInvoiceUrl && (
-                                                  <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    onClick={() => window.open(invoice.hostedInvoiceUrl, '_blank')}
-                                                    className="text-xs"
-                                                  >
-                                                    View
-                                                  </Button>
-                                                )}
                                               </div>
                                             </td>
                                           </tr>
