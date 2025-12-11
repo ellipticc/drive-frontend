@@ -589,10 +589,10 @@ export function UnifiedProgressModal({
                           Cancel
                         </Button>
                       )}
-                      {downloadProgress?.stage === 'complete' && onCancelDownload && (
+                      {downloadProgress?.stage === 'complete' && (
                         <Button
                           size="sm"
-                          onClick={onCancelDownload}
+                          onClick={handleCloseAttempt}
                           className="h-6 text-xs px-2"
                         >
                           <IconCheck className="h-3 w-3 mr-1" />
@@ -649,7 +649,7 @@ export function UnifiedProgressModal({
                   {allUploadsCompleted && (!hasDownload || downloadCompleted) && (
                     <Button
                       size="sm"
-                      onClick={() => onOpenChange(false)}
+                      onClick={handleCloseAttempt}
                       className="h-7 text-xs"
                     >
                       Done
