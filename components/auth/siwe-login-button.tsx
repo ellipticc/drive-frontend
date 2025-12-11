@@ -131,7 +131,9 @@ export function SIWELoginButton({ onSuccess, onError, context = 'login' }: SIWEL
           }),
           // Store encrypted recovery key components
           encryptedRecoveryKey,
-          recoveryKeyNonce
+          recoveryKeyNonce,
+          // Pass referral code if available
+          referralCode: referralCode || undefined
         })
 
         if (!storeResponse.success) {
