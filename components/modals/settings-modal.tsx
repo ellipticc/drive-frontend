@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import {
@@ -64,6 +64,7 @@ interface SettingsModalProps {
   children?: React.ReactNode
   open?: boolean
   onOpenChange?: (open: boolean) => void
+  initialTab?: string
 }
 
 const data = {
@@ -80,6 +81,7 @@ export function SettingsModal({
   children,
   open: externalOpen,
   onOpenChange: externalOnOpenChange,
+  initialTab,
 }: SettingsModalProps) {
   const isMobile = useIsMobile();
   const [internalOpen, setInternalOpen] = useState(false)
@@ -94,20 +96,63 @@ export function SettingsModal({
   const open = externalOpen !== undefined ? externalOpen : internalOpen
   const setOpen = externalOnOpenChange || setInternalOpen
 
-  // Handle modal open/close with URL hash
+  // Handle tab changes and update URL
+  const handleTabChange = (tabId: string) => {
+    setActiveTab(tabId)
+    // Update URL hash
+    const tabPath = tabId.charAt(0).toUpperCase() + tabId.slice(1)
+    window.history.replaceState(null, '', `#settings/${tabPath}`)
+  }
+
+  // Handle modal open/close
   const handleOpenChange = (newOpen: boolean) => {
+    // Only update the state if provided
     const finalSetOpen = externalOnOpenChange || setInternalOpen
     finalSetOpen(newOpen)
-    if (newOpen) {
-      // Add #settings to URL when opening
-      window.history.replaceState(null, '', '#settings')
-    } else {
-      // Remove #settings from URL when closing
-      const url = new URL(window.location.href)
-      url.hash = ''
-      window.history.replaceState(null, '', url.pathname + url.search)
-    }
   }
+
+// Handle hash changes to open modal and navigate to correct tab
+  const handleHashChange = useCallback(() => {
+    const hash = window.location.hash
+    if (hash.startsWith('#settings')) {
+      // Only open modal if it's not already open
+      const finalSetOpen = externalOnOpenChange || setInternalOpen
+      if (!open) {
+        finalSetOpen(true)
+      }
+
+      // Navigate to the correct tab
+      if (hash.includes('/')) {
+        const tabFromHash = hash.replace('#settings/', '').toLowerCase()
+        // Find the matching tab ID
+        const matchingTab = data.nav.find(tab =>
+          tab.name.toLowerCase() === tabFromHash || tab.id === tabFromHash
+        )
+        if (matchingTab) {
+          setActiveTab(matchingTab.id)
+        } else {
+          // If no matching tab found, default to first tab
+          setActiveTab(data.nav[0].id)
+        }
+      } else {
+        // No tab specified, default to first tab
+        setActiveTab(data.nav[0].id)
+      }
+    } else if (hash === '') {
+      // Close modal when hash is cleared
+      const finalSetOpen = externalOnOpenChange || setInternalOpen
+      finalSetOpen(false)
+    }
+  }, [open, externalOnOpenChange])
+
+  useEffect(() => {
+    // Check initial hash on mount
+    handleHashChange()
+
+    // Listen for hash changes
+    window.addEventListener('hashchange', handleHashChange)
+    return () => window.removeEventListener('hashchange', handleHashChange)
+  }, [handleHashChange])
 
   // State management
   const [displayName, setDisplayName] = useState("")
@@ -117,8 +162,27 @@ export function SettingsModal({
   const [isSavingName, setIsSavingName] = useState(false)
   const [dateTimePreference, setDateTimePreference] = useState("24h")
 
-  // Tab state
-  const [activeTab, setActiveTab] = useState("general")
+  // Tab state - initialize from URL hash or initialTab prop
+  const [activeTab, setActiveTab] = useState(() => {
+    // Check URL hash first
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash
+      if (hash.startsWith('#settings/')) {
+        const tabFromHash = hash.replace('#settings/', '')
+        // Capitalize first letter to match our tab IDs
+        return tabFromHash.charAt(0).toUpperCase() + tabFromHash.slice(1).toLowerCase()
+      }
+    }
+    // Fall back to initialTab prop or default
+    return initialTab || "general"
+  })
+
+  // Update activeTab when initialTab prop changes
+  useEffect(() => {
+    if (initialTab && !window.location.hash.startsWith('#settings/')) {
+      setActiveTab(initialTab)
+    }
+  }, [initialTab])
 
   // Security state
   const [currentEmail, setCurrentEmail] = useState("")
@@ -161,6 +225,9 @@ export function SettingsModal({
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([])
   const [showRecoveryCodesModal, setShowRecoveryCodesModal] = useState(false)
   const [isLoadingRecoveryCodes, setIsLoadingRecoveryCodes] = useState(false)
+  
+  // Track which data has been loaded to prevent duplicate fetches
+  const loadedRef = React.useRef(false)
 
   // Referral state
   const [referralCode, setReferralCode] = useState("")
@@ -184,9 +251,12 @@ export function SettingsModal({
   const [pricingPlans, setPricingPlans] = useState<any[]>([])
   const [isLoadingBilling, setIsLoadingBilling] = useState(false)
   const [showCancelDialog, setShowCancelDialog] = useState(false)
+  const [showCancelReasonDialog, setShowCancelReasonDialog] = useState(false)
   const [isCancellingSubscription, setIsCancellingSubscription] = useState(false)
   const [subscriptionHistory, setSubscriptionHistory] = useState<any>(null)
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
+  const [cancelReason, setCancelReason] = useState<string>("")
+  const [cancelReasonDetails, setCancelReasonDetails] = useState<string>("")
 
   // Notification preferences state
   const [inAppNotifications, setInAppNotifications] = useState(true)
@@ -224,15 +294,23 @@ export function SettingsModal({
     }
   }, [activeTab, registerOnUploadComplete, unregisterOnUploadComplete])
 
-  // Load TOTP status when modal opens
+  // Load data when modal opens (only once per session)
   useEffect(() => {
-    if (open) {
+    if (open && !loadedRef.current) {
+      loadedRef.current = true
       loadTOTPStatus()
       loadReferralData()
       loadNotificationPreferences()
       loadSessionConfig()
       loadBillingData()
       loadSubscriptionHistory()
+    }
+  }, [open])
+
+  // Reset loaded state when modal closes
+  useEffect(() => {
+    if (!open) {
+      loadedRef.current = false
     }
   }, [open])
 
@@ -470,15 +548,17 @@ export function SettingsModal({
 
   // Cancel subscription
   const handleCancelSubscription = async () => {
-    if (!subscription) return
-
     setIsCancellingSubscription(true)
     try {
+      // Cancel the subscription first
       const response = await apiClient.cancelSubscription()
       if (response.success) {
         toast.success('Subscription cancelled successfully. You will retain access until the end of your billing period.')
         // Reload billing data
         await loadBillingData()
+        // Now show the cancellation reason dialog
+        setShowCancelDialog(false)
+        setShowCancelReasonDialog(true)
       } else {
         toast.error(response.error || 'Failed to cancel subscription')
       }
@@ -487,7 +567,37 @@ export function SettingsModal({
       toast.error('Failed to cancel subscription')
     } finally {
       setIsCancellingSubscription(false)
-      setShowCancelDialog(false)
+    }
+  }
+
+  // Submit cancellation reason (subscription already cancelled)
+  const handleConfirmCancelSubscription = async () => {
+    if (!cancelReason.trim()) {
+      toast.error('Please select a reason for cancellation')
+      return
+    }
+
+    setIsCancellingSubscription(true)
+    try {
+      // Send cancellation reason to backend (will webhook to Discord)
+      const cancelResponse = await apiClient.cancelSubscriptionWithReason({
+        reason: cancelReason,
+        details: cancelReasonDetails
+      })
+
+      if (cancelResponse.success) {
+        toast.success('Thank you for your feedback!')
+      } else {
+        toast.error(cancelResponse.error || 'Failed to submit feedback')
+      }
+    } catch (error) {
+      console.error('Submit cancellation reason error:', error)
+      toast.error('Failed to submit feedback')
+    } finally {
+      setIsCancellingSubscription(false)
+      setShowCancelReasonDialog(false)
+      setCancelReason("")
+      setCancelReasonDetails("")
     }
   }
 
@@ -524,13 +634,6 @@ export function SettingsModal({
     const file = event.target.files?.[0]
     if (!file) return
 
-    console.log('🎨 Avatar file selected:', {
-      name: file.name,
-      type: file.type,
-      size: file.size,
-      lastModified: file.lastModified
-    });
-
     // Validate file type
     if (!file.type.startsWith('image/')) {
       toast.error("Please select an image file")
@@ -548,15 +651,7 @@ export function SettingsModal({
       const formData = new FormData()
       formData.append('file', file)
 
-      console.log('📤 Sending avatar upload request:', {
-        formDataKeys: Array.from(formData.keys()),
-        hasFile: formData.has('file'),
-        fileInFormData: formData.get('file') instanceof File
-      });
-
       const uploadResponse = await apiClient.uploadAvatar(formData)
-
-      console.log('📥 Avatar upload response:', uploadResponse);
 
       if (uploadResponse.success && uploadResponse.data?.avatarUrl) {
         // Update the user's profile with the new avatar URL
@@ -879,13 +974,7 @@ export function SettingsModal({
     setIsLoadingTOTP(true)
     try {
       const response = await apiClient.setupTOTP()
-      console.log('TOTP Setup Response:', response)
       if (response.success && response.data) {
-        console.log('Setting TOTP state:', {
-          secret: response.data.secret,
-          totpUri: response.data.totpUri,
-          qrCode: response.data.qrCode ? 'present' : 'missing'
-        })
         setTotpSecret(response.data.secret)
         setTotpUri(response.data.totpUri)
         setTotpQrCode(response.data.qrCode)
@@ -1000,7 +1089,7 @@ export function SettingsModal({
                           asChild
                           isActive={activeTab === item.id}
                         >
-                          <button onClick={() => setActiveTab(item.id)}>
+                          <button onClick={() => handleTabChange(item.id)}>
                             <item.icon />
                             <span>{item.name}</span>
                           </button>
@@ -1020,7 +1109,7 @@ export function SettingsModal({
                   {data.nav.map((item) => (
                     <button
                       key={item.id}
-                      onClick={() => setActiveTab(item.id)}
+                      onClick={() => handleTabChange(item.id)}
                       className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors ${
                         activeTab === item.id
                           ? 'bg-primary text-primary-foreground'
@@ -1050,6 +1139,10 @@ export function SettingsModal({
                           <AvatarImage
                             src={user?.avatar || getDiceBearAvatar(user?.id || "user")}
                             alt="Profile"
+                            onError={(e) => {
+                              // Prevent favicon.ico fallback request
+                              (e.target as HTMLImageElement).src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+                            }}
                           />
                           <AvatarFallback className="text-base">
                             {getInitials(displayName || "User")}
@@ -1561,6 +1654,10 @@ export function SettingsModal({
                                           <AvatarImage
                                             src={referral.avatar_url || getDiceBearAvatar(referral.referred_user_id, 32)}
                                             alt={`${referral.referred_name || getDisplayNameFromEmail(referral.referred_email)}'s avatar`}
+                                            onError={(e) => {
+                                              // Prevent favicon.ico fallback request
+                                              (e.target as HTMLImageElement).src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+                                            }}
                                           />
                                           <AvatarFallback className="text-xs">
                                             {getInitials(referral.referred_name || getDisplayNameFromEmail(referral.referred_email))}
@@ -2269,7 +2366,15 @@ export function SettingsModal({
             <div className="space-y-4">
               {totpQrCode && (
                 <div className="flex justify-center">
-                  <img src={totpQrCode} alt="TOTP QR Code" className="max-w-full h-auto" />
+                  <img 
+                    src={totpQrCode} 
+                    alt="TOTP QR Code" 
+                    className="max-w-full h-auto"
+                    onError={(e) => {
+                      // Prevent favicon.ico fallback request by setting transparent pixel
+                      (e.target as HTMLImageElement).src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+                    }}
+                  />
                 </div>
               )}
               {totpSecret && (
@@ -2494,6 +2599,88 @@ export function SettingsModal({
                 }}
               >
                 Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Cancellation Reason Dialog */}
+        <Dialog open={showCancelReasonDialog} onOpenChange={setShowCancelReasonDialog}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Help us improve</DialogTitle>
+              <DialogDescription>
+                Your subscription has been cancelled. Your feedback helps us improve our service.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Cancellation Reason</Label>
+                <div className="space-y-2">
+                  {[
+                    { value: 'too_expensive', label: 'Too expensive' },
+                    { value: 'not_enough_storage', label: 'Not enough storage' },
+                    { value: 'switching_services', label: 'Switching to another service' },
+                    { value: 'not_using_features', label: 'Not using the features' },
+                    { value: 'performance_issues', label: 'Performance issues' },
+                    { value: 'other', label: 'Other' }
+                  ].map((option) => (
+                    <div key={option.value} className="flex items-center">
+                      <input
+                        id={`reason-${option.value}`}
+                        type="radio"
+                        name="cancelReason"
+                        value={option.value}
+                        checked={cancelReason === option.value}
+                        onChange={(e) => setCancelReason(e.target.value)}
+                        className="h-4 w-4 border-gray-300 text-primary focus:ring-primary"
+                      />
+                      <label htmlFor={`reason-${option.value}`} className="ml-3 block text-sm font-medium">
+                        {option.label}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {cancelReason && (
+                <div className="space-y-2">
+                  <Label htmlFor="reason-details" className="text-sm font-medium">
+                    Additional Details (Optional)
+                  </Label>
+                  <textarea
+                    id="reason-details"
+                    value={cancelReasonDetails}
+                    onChange={(e) => setCancelReasonDetails(e.target.value)}
+                    placeholder="Help us understand better..."
+                    className="w-full h-24 p-2 border border-input rounded-md bg-background text-foreground resize-none text-sm"
+                  />
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowCancelReasonDialog(false)
+                  setCancelReason("")
+                  setCancelReasonDetails("")
+                }}
+              >
+                Skip Feedback
+              </Button>
+              <Button
+                onClick={handleConfirmCancelSubscription}
+                disabled={isCancellingSubscription || !cancelReason.trim()}
+              >
+                {isCancellingSubscription ? (
+                  <>
+                    <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
+                    Submitting...
+                  </>
+                ) : (
+                  'Submit Feedback'
+                )}
               </Button>
             </DialogFooter>
           </DialogContent>

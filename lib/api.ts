@@ -1522,6 +1522,16 @@ class ApiClient {
     });
   }
 
+  async cancelSubscriptionWithReason(data: {
+    reason: string;
+    details: string;
+  }): Promise<ApiResponse<{ success: boolean; message: string }>> {
+    return this.request('/billing/subscription/cancel-reason', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
   async getSubscriptionHistory(): Promise<ApiResponse<{
     history: Array<{
       id: string;

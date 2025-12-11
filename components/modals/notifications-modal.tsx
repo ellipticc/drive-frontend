@@ -33,6 +33,7 @@ import { Separator } from "@/components/ui/separator"
 import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { apiClient } from "@/lib/api"
+import { useNotifications } from "@/hooks/use-notifications"
 
 interface Notification {
   id: string
@@ -54,7 +55,7 @@ export function NotificationsModal({ open, onOpenChange }: NotificationsModalPro
   const [loading, setLoading] = useState(false)
   const [markingRead, setMarkingRead] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
-  const [stats, setStats] = useState({ total: 0, unread: 0 })
+  const { stats, fetchStats, markAsRead: markAsReadGlobal, markAllAsRead: markAllAsReadGlobal, deleteNotification: deleteNotificationGlobal } = useNotifications()
 
   // Helper function to safely format dates
   const formatNotificationDate = (dateString: string) => {
@@ -75,10 +76,8 @@ export function NotificationsModal({ open, onOpenChange }: NotificationsModalPro
       const response = await apiClient.getNotifications()
       if (response.success && response.data) {
         setNotifications(response.data.notifications)
-        // Note: stats API might need to be called separately or included in the response
-        // For now, we'll calculate stats from the notifications
-        const unreadCount = response.data.notifications.filter(n => !n.read_at).length
-        setStats({ total: response.data.notifications.length, unread: unreadCount })
+        // Note: fetchStats() is called on component mount, so we don't need to call it here again
+        // to avoid double API calls
       }
     } catch (error) {
       console.error('Failed to fetch notifications:', error)
@@ -90,7 +89,7 @@ export function NotificationsModal({ open, onOpenChange }: NotificationsModalPro
   const markAsRead = async (notificationId: string) => {
     try {
       setMarkingRead(notificationId)
-      await apiClient.markNotificationAsRead(notificationId)
+      await markAsReadGlobal(notificationId)
 
       // Update local state
       setNotifications(prev =>
@@ -98,7 +97,6 @@ export function NotificationsModal({ open, onOpenChange }: NotificationsModalPro
           n.id === notificationId ? { ...n, read_at: new Date().toISOString() } : n
         )
       )
-      setStats(prev => ({ ...prev, unread: Math.max(0, prev.unread - 1) }))
     } catch (error) {
       console.error('Failed to mark notification as read:', error)
     } finally {
@@ -109,11 +107,10 @@ export function NotificationsModal({ open, onOpenChange }: NotificationsModalPro
   const markAllAsRead = async () => {
     try {
       setLoading(true)
-      await apiClient.markAllNotificationsAsRead()
+      await markAllAsReadGlobal()
 
       // Update local state
       setNotifications(prev => prev.map(n => ({ ...n, read_at: new Date().toISOString() })))
-      setStats(prev => ({ ...prev, unread: 0 }))
     } catch (error) {
       console.error('Failed to mark all notifications as read:', error)
     } finally {
@@ -124,14 +121,13 @@ export function NotificationsModal({ open, onOpenChange }: NotificationsModalPro
   const deleteNotification = async (notificationId: string) => {
     try {
       setDeleting(notificationId)
-      await apiClient.deleteNotification(notificationId)
+      const notification = notifications.find(n => n.id === notificationId)
+      const wasUnread = notification ? !notification.read_at : false
+
+      await deleteNotificationGlobal(notificationId, wasUnread)
 
       // Update local state
       setNotifications(prev => prev.filter(n => n.id !== notificationId))
-      setStats(prev => ({
-        total: prev.total - 1,
-        unread: prev.unread - (!notifications.find(n => n.id === notificationId)?.read_at ? 1 : 0)
-      }))
     } catch (error) {
       console.error('Failed to delete notification:', error)
     } finally {

@@ -1,11 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import React, { useState } from "react"
 import {
   IconCreditCard,
   IconDotsVertical,
   IconLogout,
-  IconNotification,
+  IconBellRinging,
   IconSettings
 } from "@tabler/icons-react"
 
@@ -34,6 +34,14 @@ import { masterKeyManager } from "@/lib/master-key"
 import { getDiceBearAvatar } from "@/lib/avatar"
 import { SettingsModal } from "@/components/modals/settings-modal"
 import { NotificationsModal } from "@/components/modals/notifications-modal"
+import { useNotifications } from "@/hooks/use-notifications"
+
+// Notification dot component for indicating unread notifications
+function NotificationDot() {
+  return (
+    <div className="absolute -top-1 -right-1 h-3 w-3 bg-blue-500 rounded-full border-2 border-background" />
+  )
+}
 
 // Generate initials from name (e.g., "John Doe" -> "JD", "John" -> "J")
 export function getInitials(name: string): string {
@@ -74,9 +82,18 @@ export function NavUser({
   }
 }) {
   const { isMobile } = useSidebar()
-  const [settingsOpen, setSettingsOpen] = useState(false)
-  const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = React.useState(false)
+  const [notificationsOpen, setNotificationsOpen] = React.useState(false)
+  const { hasUnread } = useNotifications()
   const displayName = getDisplayName(user)
+
+  const handleSettingsOpenChange = (open: boolean) => {
+    setSettingsOpen(open)
+    // Clear URL hash when closing from nav-user - use location.hash to trigger hashchange
+    if (!open) {
+      window.location.hash = ''
+    }
+  }
 
   const handleLogout = async () => {
     try {
@@ -102,12 +119,15 @@ export function NavUser({
             <DropdownMenuTrigger asChild>
               <SidebarMenuButton
                 size="lg"
-                className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground relative"
               >
-                <Avatar className="h-8 w-8 rounded-lg">
-                  <AvatarImage src={user.avatar || getDiceBearAvatar(user.id)} alt={displayName} />
-                  <AvatarFallback className="rounded-lg">{getInitials(displayName)}</AvatarFallback>
-                </Avatar>
+                <div className="relative">
+                  <Avatar className="h-8 w-8 rounded-lg">
+                    <AvatarImage src={user.avatar || getDiceBearAvatar(user.id)} alt={displayName} />
+                    <AvatarFallback className="rounded-lg">{getInitials(displayName)}</AvatarFallback>
+                  </Avatar>
+                  {hasUnread && <NotificationDot />}
+                </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">{displayName}</span>
                   <span className="text-muted-foreground truncate text-xs">
@@ -139,16 +159,23 @@ export function NavUser({
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
-                <DropdownMenuItem onClick={() => setSettingsOpen(true)}>
+                <DropdownMenuItem onClick={() => {
+                  window.location.hash = '#settings/General'
+                }}>
                   <IconSettings />
                   Settings
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => window.location.href = '/billing'}>
+                <DropdownMenuItem onClick={() => {
+                  window.location.hash = '#settings/Billing'
+                }}>
                   <IconCreditCard />
                   Billing
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setNotificationsOpen(true)}>
-                  <IconNotification />
+                  <div className="relative">
+                    <IconBellRinging />
+                    {hasUnread && <NotificationDot />}
+                  </div>
                   Notifications
                 </DropdownMenuItem>
               </DropdownMenuGroup>
@@ -161,7 +188,7 @@ export function NavUser({
           </DropdownMenu>
         </SidebarMenuItem>
       </SidebarMenu>
-      <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <SettingsModal open={settingsOpen} onOpenChange={handleSettingsOpenChange} />
       <NotificationsModal open={notificationsOpen} onOpenChange={setNotificationsOpen} />
     </>
   )

@@ -11,7 +11,6 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { SupportRequestDialog } from "@/components/support-request-dialog"
-import { SettingsModal } from "@/components/modals/settings-modal"
 
 export function NavSecondary({
   items,
@@ -23,7 +22,6 @@ export function NavSecondary({
     icon: Icon
   }[]
 } & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
-  const [settingsOpen, setSettingsOpen] = React.useState(false)
 
   return (
     <SidebarGroup {...props}>
@@ -39,7 +37,7 @@ export function NavSecondary({
                   </SidebarMenuButton>
                 </SupportRequestDialog>
               ) : item.title === "Settings" ? (
-                <SidebarMenuButton onClick={() => setSettingsOpen(true)}>
+                <SidebarMenuButton onClick={() => window.location.hash = '#settings/General'}>
                   <item.icon />
                   <span>{item.title}</span>
                 </SidebarMenuButton>
@@ -55,10 +53,6 @@ export function NavSecondary({
           ))}
         </SidebarMenu>
       </SidebarGroupContent>
-      <SettingsModal
-        open={settingsOpen}
-        onOpenChange={setSettingsOpen}
-      />
     </SidebarGroup>
   )
 }
