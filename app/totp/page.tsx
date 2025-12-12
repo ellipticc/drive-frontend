@@ -20,9 +20,7 @@ export default function TOTPLoginPage() {
         </div>
         <div className="flex w-full max-w-sm flex-col gap-6">
           <a href="/login" className="flex items-center gap-2 self-center font-medium">
-            <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
-              <IconCaretLeftRightFilled className="!size-5" />
-            </div>
+            <IconCaretLeftRightFilled className="!size-5" />
             <span className="text-base font-mono break-all">ellipticc</span>
           </a>
           <TOTPLoginForm />

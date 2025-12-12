@@ -3,13 +3,6 @@
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import {
   Field,
   FieldDescription,
   FieldGroup,
@@ -26,7 +19,7 @@ import { SIWELoginButton } from "./siwe-login-button"
 import { GoogleOAuthButton } from "./google-oauth-button"
 import { useSessionTracking, sessionTrackingUtils } from "@/hooks/useSessionTracking"
 
-export function SignupForm({
+export function SignupFormAuth({
   className,
   ...props
 }: React.ComponentProps<"div">) {
@@ -254,122 +247,116 @@ export function SignupForm({
   if (isCheckingAuth) {
     return (
       <div className={cn("flex flex-col gap-6", className)} {...props}>
-        <Card>
-          <CardHeader className="text-center">
-            <CardTitle className="text-xl">Checking Authentication</CardTitle>
-            <CardDescription>
-              Please wait while we verify your session...
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex justify-center items-center py-8">
-            <div className="flex flex-col items-center gap-4">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm text-muted-foreground">Loading your dashboard...</p>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex flex-col items-center gap-1 text-center">
+          <h1 className="text-2xl font-bold">Checking Authentication</h1>
+          <p className="text-muted-foreground text-sm text-balance">
+            Please wait while we verify your session...
+          </p>
+        </div>
+        <div className="flex justify-center items-center py-8">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Loading your dashboard...</p>
+          </div>
+        </div>
       </div>
     )
   }
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <Card>
-        <CardHeader className="text-center">
-          <CardTitle className="text-xl">Create your account</CardTitle>
-          <CardDescription>
-            Enter your email below to create your account
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit}>
-            <FieldGroup>
+      <form onSubmit={handleSubmit} className="w-full">
+        <FieldGroup>
+          <div className="flex flex-col items-center gap-1 text-center">
+            <h1 className="text-2xl font-bold">Create your account</h1>
+            <p className="text-muted-foreground text-sm text-balance">
+              Enter your email below to create your account
+            </p>
+          </div>
+          <Field>
+            <SIWELoginButton context="register" />
+          </Field>
+          <Field className="-mt-4">
+            <GoogleOAuthButton context="register" />
+          </Field>
+          <FieldSeparator>
+            Or continue with email
+          </FieldSeparator>
+          <Field>
+            <FieldLabel htmlFor="email">Email</FieldLabel>
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              placeholder="john@doe.com"
+              required
+              autoComplete="username"
+              value={formData.email}
+              onChange={handleInputChange}
+            />
+          </Field>
+          <Field>
+            <Field className="grid grid-cols-2 gap-4">
               <Field>
-                <SIWELoginButton context="register" />
-              </Field>
-              <Field className="-mt-4">
-                <GoogleOAuthButton context="register" />
-              </Field>
-              <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
-                Or continue with email
-              </FieldSeparator>
-              <Field>
-                <FieldLabel htmlFor="email">Email</FieldLabel>
+                <FieldLabel htmlFor="password">Password</FieldLabel>
                 <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  placeholder="john@doe.com"
+                  id="password"
+                  name="password"
+                  type="password"
+                  placeholder="••••••••"
                   required
-                  autoComplete="username"
-                  value={formData.email}
+                  autoComplete="new-password"
+                  value={formData.password}
                   onChange={handleInputChange}
                 />
               </Field>
               <Field>
-                <Field className="grid grid-cols-2 gap-4">
-                  <Field>
-                    <FieldLabel htmlFor="password">Password</FieldLabel>
-                    <Input
-                      id="password"
-                      name="password"
-                      type="password"
-                      placeholder="••••••••"
-                      required
-                      autoComplete="new-password"
-                      value={formData.password}
-                      onChange={handleInputChange}
-                    />
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="confirmPassword">
-                      Confirm Password
-                    </FieldLabel>
-                    <Input
-                      id="confirmPassword"
-                      name="confirmPassword"
-                      type="password"
-                      placeholder="••••••••"
-                      required
-                      autoComplete="new-password"
-                      value={formData.confirmPassword}
-                      onChange={handleInputChange}
-                    />
-                  </Field>
-                </Field>
-                <FieldDescription>
-                  Must be at least 8 characters long.
-                </FieldDescription>
+                <FieldLabel htmlFor="confirmPassword">
+                  Confirm Password
+                </FieldLabel>
+                <Input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type="password"
+                  placeholder="••••••••"
+                  required
+                  autoComplete="new-password"
+                  value={formData.confirmPassword}
+                  onChange={handleInputChange}
+                />
               </Field>
-              {error && (
-                <FieldDescription className="text-red-500 text-center">
-                  {error}
-                </FieldDescription>
-              )}
-              <Field>
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading && <Loader2 className="animate-spin" />}
-                  {isLoading ? "Creating Account..." : "Create Account"}
-                </Button>
-                <FieldDescription className="text-center">
-                  Already have an account? <Link href="/login" className="underline underline-offset-4 hover:underline">Sign in</Link>
-                </FieldDescription>
-              </Field>
-            </FieldGroup>
-          </form>
-        </CardContent>
-      </Card>
-      <FieldDescription className="px-6 text-center">
-        By clicking continue, you agree to our{" "}
-        <Link href="/terms-of-service" className="underline underline-offset-4 hover:underline">
-          Terms of Service
-        </Link>{" "}
-        and{" "}
-        <Link href="/privacy-policy" className="underline underline-offset-4 hover:underline">
-          Privacy Policy
-        </Link>
-        .
-      </FieldDescription>
+            </Field>
+            <FieldDescription>
+              Must be at least 8 characters long.
+            </FieldDescription>
+          </Field>
+          {error && (
+            <FieldDescription className="text-red-500 text-center">
+              {error}
+            </FieldDescription>
+          )}
+          <Field>
+            <Button type="submit" disabled={isLoading} className="w-full">
+              {isLoading && <Loader2 className="animate-spin" />}
+              {isLoading ? "Creating Account..." : "Create Account"}
+            </Button>
+            <FieldDescription className="text-center">
+              Already have an account? <Link href="/login" className="underline underline-offset-4 hover:underline">Sign in</Link>
+            </FieldDescription>
+          </Field>
+          <FieldDescription className="text-center text-xs">
+            By clicking continue, you agree to our{" "}
+            <Link href="/terms-of-service" className="underline underline-offset-4 hover:underline">
+              Terms of Service
+            </Link>{" "}
+            and{" "}
+            <Link href="/privacy-policy" className="underline underline-offset-4 hover:underline">
+              Privacy Policy
+            </Link>
+            .
+          </FieldDescription>
+        </FieldGroup>
+      </form>
     </div>
   )
 }

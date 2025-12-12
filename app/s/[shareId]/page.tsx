@@ -829,7 +829,7 @@ export default function SharedDownloadPage() {
           <div className="flex h-14 items-center px-4">
             <div className="container flex items-center">
               <a href="/" className="flex items-center gap-2 font-medium">
-                <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
+                <div className="flex size-6 items-center justify-center rounded-md">
                   <IconCaretLeftRightFilled className="!size-5" />
                 </div>
                 <span className="text-base font-mono">ellipticc</span>
@@ -884,7 +884,7 @@ export default function SharedDownloadPage() {
           <div className="flex h-14 items-center px-4">
             <div className="container flex items-center">
               <a href="/" className="flex items-center gap-2 font-medium">
-                <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
+                <div className="flex size-6 items-center justify-center rounded-md">
                   <IconCaretLeftRightFilled className="!size-5" />
                 </div>
                 <span className="text-base font-mono">ellipticc</span>
@@ -1001,7 +1001,7 @@ export default function SharedDownloadPage() {
         <div className="flex h-14 items-center px-4">
           <div className="container flex items-center">
             <a href="/" className="flex items-center gap-2 font-medium">
-              <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
+              <div className="flex size-6 items-center justify-center rounded-md">
                 <IconCaretLeftRightFilled className="!size-5" />
               </div>
               <span className="text-base font-mono">ellipticc</span>

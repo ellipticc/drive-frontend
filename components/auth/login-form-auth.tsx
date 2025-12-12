@@ -3,13 +3,6 @@
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import {
   Field,
   FieldDescription,
   FieldGroup,
@@ -17,6 +10,7 @@ import {
   FieldSeparator,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { Switch } from "@/components/ui/switch"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
@@ -26,10 +20,9 @@ import { keyManager } from "@/lib/key-manager"
 import { Loader2 } from "lucide-react"
 import { SIWELoginButton } from "./siwe-login-button"
 import { GoogleOAuthButton } from "./google-oauth-button"
-import { Switch } from "@/components/ui/switch"
 import { useSessionTracking, sessionTrackingUtils } from "@/hooks/useSessionTracking"
 
-export function LoginForm({
+export function LoginFormAuth({
   className,
   ...props
 }: React.ComponentProps<"div">) {
@@ -181,13 +174,8 @@ export function LoginForm({
         if (deviceToken) {
           const deviceResponse = await apiClient.verifyDeviceToken(deviceToken)
           if (deviceResponse.success && deviceResponse.data?.isValidDevice) {
-            // Device is remembered - TOTP is bypassed, continue with normal login flow
             // Fall through to master key derivation below
           } else {
-            // Device not remembered or invalid - redirect to TOTP
-            // IMPORTANT: Keep the token set so TOTP form can fetch profile with getProfile()
-            // The pending_auth_token will be used after TOTP verification
-            // Store credentials in the selected storage (localStorage or sessionStorage)
             storage.setItem('pending_auth_token', token)
             storage.setItem('login_email', formData.email)
             storage.setItem('login_password', formData.password)
@@ -197,10 +185,6 @@ export function LoginForm({
             return
           }
         } else {
-          // TOTP enabled but no remembered device - redirect to TOTP
-          // IMPORTANT: Keep the token set so TOTP form can fetch profile with getProfile()
-          // The pending_auth_token will be used after TOTP verification
-          // Store credentials in the selected storage (localStorage or sessionStorage)
           storage.setItem('pending_auth_token', token)
           storage.setItem('login_email', formData.email)
           storage.setItem('login_password', formData.password)
@@ -217,8 +201,6 @@ export function LoginForm({
         if (userData.crypto_keypairs?.accountSalt) {
           // Check if user has password-encrypted master key (new path)
           if (userData.encrypted_master_key_password && userData.master_key_password_nonce) {
-            // NEW PATH: Decrypt password-encrypted Master Key
-            // This is the correct path for users who have gone through password reset or new signup
             const { deriveEncryptionKey, decryptData } = await import("@/lib/crypto")
             
             // Derive password-based encryption key using account salt
@@ -243,9 +225,6 @@ export function LoginForm({
               return
             }
           } else {
-            // LEGACY PATH: Derive Master Key from password (for users without password-encrypted path)
-            // accountSalt is stored as base64 in the backend
-            // deriveEncryptionKey will handle both base64 and hex formats
             await masterKeyManager.deriveAndCacheMasterKey(
               formData.password,
               userData.crypto_keypairs.accountSalt
@@ -307,123 +286,117 @@ export function LoginForm({
   if (isCheckingAuth) {
     return (
       <div className={cn("flex flex-col gap-6", className)} {...props}>
-        <Card>
-          <CardHeader className="text-center">
-            <CardTitle className="text-xl">Checking Authentication</CardTitle>
-            <CardDescription>
-              Please wait while we verify your session...
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex justify-center items-center py-8">
-            <div className="flex flex-col items-center gap-4">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm text-muted-foreground">Loading your dashboard...</p>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex flex-col items-center gap-1 text-center">
+          <h1 className="text-2xl font-bold">Checking Authentication</h1>
+          <p className="text-muted-foreground text-sm text-balance">
+            Please wait while we verify your session...
+          </p>
+        </div>
+        <div className="flex justify-center items-center py-8">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Loading your dashboard...</p>
+          </div>
+        </div>
       </div>
     )
   }
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <Card>
-        <CardHeader className="text-center">
-          <CardTitle className="text-xl">Welcome back</CardTitle>
-          <CardDescription>
-            Login with your email and password
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit}>
-            <FieldGroup>
-              <Field>
-                <SIWELoginButton />
-              </Field>
-              <Field className="-mt-4">
-                <GoogleOAuthButton />
-              </Field>
-              <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
-                Or continue with email
-              </FieldSeparator>
-              <Field>
-                <FieldLabel htmlFor="email">Email</FieldLabel>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  placeholder="john@doe.com"
-                  required
-                  autoComplete="username"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                />
-              </Field>
-              <Field>
-                <div className="flex items-center">
-                  <FieldLabel htmlFor="password">Password</FieldLabel>
-                  <Link
-                    href="/recover"
-                    className="ml-auto text-sm underline-offset-4 hover:underline"
-                  >
-                    Forgot your password?
-                  </Link>
-                </div>
-                <Input
-                  id="password"
-                  name="password"
-                  type="password"
-                  placeholder="••••••••"
-                  required
-                  autoComplete="current-password"
-                  value={formData.password}
-                  onChange={handleInputChange}
-                />
-              </Field>
-              <Field>
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="keep-signed-in"
-                    checked={keepSignedIn}
-                    onCheckedChange={setKeepSignedIn}
-                  />
-                  <FieldLabel htmlFor="keep-signed-in" className="text-sm font-normal">
-                    Keep me signed in
-                  </FieldLabel>
-                </div>
-                <FieldDescription className="text-xs">
-                  Stay logged in across browser sessions. If unchecked, you'll be logged out when you close the tab.
-                </FieldDescription>
-              </Field>
-              {error && (
-                <FieldDescription className="text-red-500 text-center">
-                  {error}
-                </FieldDescription>
-              )}
-              <Field>
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading && <Loader2 className="animate-spin" />}
-                  {isLoading ? "Signing in..." : "Login"}
-                </Button>
-                <FieldDescription className="text-center">
-                  Don&apos;t have an account? <Link href="/signup" className="underline underline-offset-4 hover:underline">Sign up</Link>
-                </FieldDescription>
-              </Field>
-            </FieldGroup>
-          </form>
-        </CardContent>
-      </Card>
-      <FieldDescription className="px-6 text-center">
-        By clicking continue, you agree to our{" "}
-        <Link href="/terms-of-service" className="underline underline-offset-4 hover:underline">
-          Terms of Service
-        </Link>{" "}
-        and{" "}
-        <Link href="/privacy-policy" className="underline underline-offset-4 hover:underline">
-          Privacy Policy
-        </Link>
-        .
-      </FieldDescription>
+      <form onSubmit={handleSubmit} className="w-full">
+        <FieldGroup>
+          <div className="flex flex-col items-center gap-1 text-center">
+            <h1 className="text-2xl font-bold">Welcome back</h1>
+            <p className="text-muted-foreground text-sm text-balance">
+              Login with your email and password
+            </p>
+          </div>
+          <Field>
+            <SIWELoginButton />
+          </Field>
+          <Field className="-mt-4">
+            <GoogleOAuthButton />
+          </Field>
+          <FieldSeparator>
+            Or continue with email
+          </FieldSeparator>
+          <Field>
+            <FieldLabel htmlFor="email">Email</FieldLabel>
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              placeholder="john@doe.com"
+              required
+              autoComplete="username"
+              value={formData.email}
+              onChange={handleInputChange}
+            />
+          </Field>
+          <Field>
+            <div className="flex items-center">
+              <FieldLabel htmlFor="password">Password</FieldLabel>
+              <Link
+                href="/recover"
+                className="ml-auto text-sm underline-offset-4 hover:underline"
+              >
+                Forgot your password?
+              </Link>
+            </div>
+            <Input
+              id="password"
+              name="password"
+              type="password"
+              placeholder="••••••••"
+              required
+              autoComplete="current-password"
+              value={formData.password}
+              onChange={handleInputChange}
+            />
+          </Field>
+          <Field>
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="keep-signed-in"
+                checked={keepSignedIn}
+                onCheckedChange={setKeepSignedIn}
+              />
+              <FieldLabel htmlFor="keep-signed-in" className="text-sm font-normal">
+                Keep me signed in
+              </FieldLabel>
+            </div>
+            <FieldDescription className="text-xs">
+              Stay logged in across browser sessions. If unchecked, you'll be logged out when you close the tab.
+            </FieldDescription>
+          </Field>
+          {error && (
+            <FieldDescription className="text-red-500 text-center">
+              {error}
+            </FieldDescription>
+          )}
+          <Field>
+            <Button type="submit" disabled={isLoading} className="w-full">
+              {isLoading && <Loader2 className="animate-spin" />}
+              {isLoading ? "Signing in..." : "Login"}
+            </Button>
+            <FieldDescription className="text-center">
+              Don&apos;t have an account? <Link href="/signup" className="underline underline-offset-4 hover:underline">Sign up</Link>
+            </FieldDescription>
+          </Field>
+          <FieldDescription className="text-center text-xs">
+            By clicking continue, you agree to our{" "}
+            <Link href="/terms-of-service" className="underline underline-offset-4 hover:underline">
+              Terms of Service
+            </Link>{" "}
+            and{" "}
+            <Link href="/privacy-policy" className="underline underline-offset-4 hover:underline">
+              Privacy Policy
+            </Link>
+            .
+          </FieldDescription>
+        </FieldGroup>
+      </form>
     </div>
   )
 }

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { IconArrowLeft } from "@tabler/icons-react"
+import { IconArrowLeft, IconCaretLeftRightFilled } from "@tabler/icons-react"
 
 export function PrivacyPolicyContent() {
   const router = useRouter()
@@ -11,7 +11,7 @@ export function PrivacyPolicyContent() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex h-14 items-center justify-between px-4 md:px-6">
+        <div className="flex h-14 items-center px-4 md:px-6">
           <div className="flex items-center gap-2">
             <button
               onClick={() => router.back()}
@@ -21,7 +21,17 @@ export function PrivacyPolicyContent() {
               Back
             </button>
           </div>
-          <ThemeToggle />
+          <div className="flex-1 flex justify-center">
+            <a href="/" className="flex items-center gap-2 font-medium">
+              <div className="flex size-6 items-center justify-center rounded-md">
+                <IconCaretLeftRightFilled className="!size-5" />
+              </div>
+              <span className="text-base font-mono">ellipticc</span>
+            </a>
+          </div>
+          <div className="flex items-center">
+            <ThemeToggle />
+          </div>
         </div>
       </header>
 
