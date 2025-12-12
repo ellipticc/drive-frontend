@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { downloadEncryptedFile, DownloadProgress } from '@/lib/download';
 import { keyManager } from '@/lib/key-manager';
+import { Loader2 } from 'lucide-react';
 
 interface AudioPreviewProps {
   fileId: string;
@@ -87,7 +88,7 @@ export const AudioPreview: React.FC<AudioPreviewProps> = ({
     return (
       <div className="flex items-center justify-center h-full min-h-[300px]">
         <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <Loader2 className="h-8 w-8 animate-spin mx-auto" />
           <p className="text-sm text-muted-foreground">Loading audio...</p>
         </div>
       </div>

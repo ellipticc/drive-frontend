@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { formatDistanceToNow } from "date-fns"
+import { Loader2 } from "lucide-react"
 import {
   IconBell,
   IconBellRinging,
@@ -292,7 +293,7 @@ export function NotificationsModal({ open, onOpenChange }: NotificationsModalPro
                                 className="h-8 px-2"
                               >
                                 {markingRead === notification.id ? (
-                                  <div className="w-4 h-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                                  <Loader2 className="w-4 h-4 animate-spin" />
                                 ) : (
                                   <IconCheck className="h-4 w-4" />
                                 )}
@@ -306,7 +307,7 @@ export function NotificationsModal({ open, onOpenChange }: NotificationsModalPro
                               className="h-8 px-2 text-destructive hover:text-destructive"
                             >
                               {deleting === notification.id ? (
-                                <div className="w-4 h-4 animate-spin rounded-full border-2 border-destructive border-t-transparent" />
+                                <Loader2 className="w-4 h-4 animate-spin" />
                               ) : (
                                 <IconTrash className="h-4 w-4" />
                               )}

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import { apiClient } from "@/lib/api";
 import { SessionManager } from "@/lib/session-manager";
 import { getOAuthSetupState, isIncompleteOAuthToken } from "@/lib/oauth-validation";
@@ -97,7 +98,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
   if (isAuthenticated === null) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
   }
@@ -108,7 +109,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <Loader2 className="h-8 w-8 animate-spin" />
           <p className="text-sm text-muted-foreground">
             Redirecting...
           </p>

@@ -1,5 +1,6 @@
 import * as React from "react"
 import { IconHelp, IconSend } from "@tabler/icons-react"
+import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -227,7 +228,7 @@ export function SupportRequestDialog({ children }: SupportRequestDialogProps) {
               >
                 {isLoading ? (
                   <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
                     Sending...
                   </>
                 ) : (
