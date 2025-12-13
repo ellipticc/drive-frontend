@@ -26,11 +26,11 @@ export default function SignupPage() {
           </div>
         </div>
       </div>
-      <div className="bg-muted relative hidden lg:flex lg:flex-col lg:items-center lg:justify-center">
+      <div className="bg-muted relative hidden lg:block overflow-hidden">
         <img
           src="/register.png"
           alt="Image"
-          className="h-full w-full object-cover"
+          className="absolute inset-0 h-full w-full object-cover"
         />
       </div>
     </div>

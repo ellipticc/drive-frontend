@@ -12,11 +12,11 @@ export default function LoginPage() {
   return (
     <div className="grid h-svh lg:grid-cols-[45fr_55fr] overflow-hidden">
       {/* Image on left side */}
-      <div className="bg-muted relative hidden lg:flex lg:flex-col lg:items-center lg:justify-center order-first lg:order-first">
+      <div className="bg-muted relative hidden lg:block overflow-hidden">
         <img
           src="/login.png"
           alt="Image"
-          className="h-full w-full object-cover"
+          className="absolute inset-0 h-full w-full object-cover"
         />
       </div>
       {/* Form on right side */}
