@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { PasswordInput } from "@/components/ui/password-input"
 import { AlertCircle, Loader2 } from "lucide-react"
 import { apiClient } from "@/lib/api"
 import { toast } from "sonner"
@@ -198,10 +199,9 @@ export function RecoveryPasswordResetForm({
       <FieldGroup>
         <Field>
           <FieldLabel htmlFor="newPassword">New Password</FieldLabel>
-          <Input
+          <PasswordInput
             id="newPassword"
             name="newPassword"
-            type="password"
             placeholder="••••••••"
             required
             autoComplete="new-password"
@@ -213,10 +213,9 @@ export function RecoveryPasswordResetForm({
 
         <Field>
           <FieldLabel htmlFor="confirmPassword">Confirm Password</FieldLabel>
-          <Input
+          <PasswordInput
             id="confirmPassword"
             name="confirmPassword"
-            type="password"
             placeholder="••••••••"
             required
             autoComplete="new-password"

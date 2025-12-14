@@ -10,6 +10,7 @@ import {
   FieldSeparator,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { PasswordInput } from "@/components/ui/password-input"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useState, useEffect } from "react"
@@ -299,10 +300,9 @@ export function SignupFormAuth({
             <Field className="grid grid-cols-2 gap-4">
               <Field>
                 <FieldLabel htmlFor="password">Password</FieldLabel>
-                <Input
+                <PasswordInput
                   id="password"
                   name="password"
-                  type="password"
                   placeholder="••••••••"
                   required
                   autoComplete="new-password"
@@ -314,10 +314,9 @@ export function SignupFormAuth({
                 <FieldLabel htmlFor="confirmPassword">
                   Confirm Password
                 </FieldLabel>
-                <Input
+                <PasswordInput
                   id="confirmPassword"
                   name="confirmPassword"
-                  type="password"
                   placeholder="••••••••"
                   required
                   autoComplete="new-password"

@@ -31,6 +31,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Input } from "@/components/ui/input"
+import { PasswordInput } from "@/components/ui/password-input"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -2133,9 +2134,8 @@ export function SettingsModal({
               </div>
               <div>
                 <Label htmlFor="modal-email-password">Current Password</Label>
-                <Input
+                <PasswordInput
                   id="modal-email-password"
-                  type="password"
                   value={emailPassword}
                   onChange={(e) => setEmailPassword(e.target.value)}
                   placeholder="Enter your current password"
@@ -2215,9 +2215,8 @@ export function SettingsModal({
             <div className="space-y-4">
               <div>
                 <Label htmlFor="modal-current-password">Current Password</Label>
-                <Input
+                <PasswordInput
                   id="modal-current-password"
-                  type="password"
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
                   placeholder="Enter your current password"
@@ -2225,9 +2224,8 @@ export function SettingsModal({
               </div>
               <div>
                 <Label htmlFor="modal-new-password">New Password</Label>
-                <Input
+                <PasswordInput
                   id="modal-new-password"
-                  type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="Enter your new password"
@@ -2235,9 +2233,8 @@ export function SettingsModal({
               </div>
               <div>
                 <Label htmlFor="modal-confirm-password">Confirm New Password</Label>
-                <Input
+                <PasswordInput
                   id="modal-confirm-password"
-                  type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Confirm your new password"
