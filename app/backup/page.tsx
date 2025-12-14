@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Copy, Eye, EyeOff, AlertTriangle, Download } from "lucide-react"
+import { IconCaretLeftRightFilled } from "@tabler/icons-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { FieldDescription } from "@/components/ui/field"
 
@@ -80,7 +81,11 @@ export default function BackupPage() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="absolute top-4 right-4">
+      <div className="absolute top-4 right-4 flex items-center gap-4">
+        <a href="#" className="flex items-center gap-2 font-medium no-underline border-none bg-transparent hover:bg-transparent focus:outline-none">
+          <IconCaretLeftRightFilled className="!size-5" />
+          <span className="text-base font-mono break-all">ellipticc</span>
+        </a>
         <ThemeToggle />
       </div>
       
