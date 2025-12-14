@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { apiClient } from "@/lib/api";
+import { masterKeyManager } from "@/lib/master-key";
 
 interface UserData {
   id: string;
@@ -147,6 +148,29 @@ export function UserProvider({ children }: { children: ReactNode }) {
       if (response.success && response.data?.user) {
         console.log('UserProvider: Successfully fetched fresh user profile');
         const userData = response.data.user;
+        
+        // Validate master key matches current account salt from server
+        if (userData.crypto_keypairs?.accountSalt) {
+          const serverAccountSalt = userData.crypto_keypairs.accountSalt;
+          const isValidMasterKey = masterKeyManager.validateMasterKeyForSalt(serverAccountSalt);
+          
+          if (!isValidMasterKey) {
+            console.warn('UserProvider: Cached master key does not match server account salt - salt may have changed due to TOTP toggle');
+            console.log('UserProvider: Master key salt mismatch - stored:', masterKeyManager.getAccountSalt(), 'server:', serverAccountSalt);
+            
+            // Don't try to re-derive here - the key needs to come from a fresh login
+            // Clear stale master key from both storages
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('master_key');
+              localStorage.removeItem('account_salt');
+              sessionStorage.removeItem('master_key');
+              sessionStorage.removeItem('account_salt');
+            }
+            console.warn('UserProvider: Cleared stale master key - user will need to login again');
+            // Don't fail completely, just warn - file decryption will fail gracefully
+          }
+        }
+        
         setUser(userData);
         setHasFetched(true);
         // Cache the user data

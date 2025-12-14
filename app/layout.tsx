@@ -199,24 +199,24 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange={false}
         >
-          <CurrentFolderProvider>
-            <UserProvider>
-              <GlobalUploadProvider>
-                <AuthGuard>
+          <AuthGuard>
+            <CurrentFolderProvider>
+              <UserProvider>
+                <GlobalUploadProvider>
                   <SessionPingProvider />
                   <ConditionalLayout>{children}</ConditionalLayout>
-                </AuthGuard>
-                <Toaster
-                  position="bottom-right"
-                  richColors
-                  duration={5000}
-                  style={{
-                    fontFamily: 'var(--font-geist-sans)',
-                  }}
-                />
-              </GlobalUploadProvider>
-            </UserProvider>
-          </CurrentFolderProvider>
+                  <Toaster
+                    position="bottom-right"
+                    richColors
+                    duration={5000}
+                    style={{
+                      fontFamily: 'var(--font-geist-sans)',
+                    }}
+                  />
+                </GlobalUploadProvider>
+              </UserProvider>
+            </CurrentFolderProvider>
+          </AuthGuard>
         </ThemeProvider>
       </body>
     </html>

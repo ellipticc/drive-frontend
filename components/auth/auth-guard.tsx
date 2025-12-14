@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { apiClient } from "@/lib/api";
+import { masterKeyManager } from "@/lib/master-key";
 import { SessionManager } from "@/lib/session-manager";
 import { getOAuthSetupState, isIncompleteOAuthToken } from "@/lib/oauth-validation";
 
@@ -66,6 +67,14 @@ export function AuthGuard({ children }: AuthGuardProps) {
     // An incomplete OAuth token has account_salt not yet set on backend
     if (token && isTokenValid && !isIncompleteOAuthToken()) {
       // Token exists, is valid, and is not from incomplete OAuth
+      // Initialize master key manager storage for all authenticated routes
+      // This ensures correct storage type is used for decryption operations throughout the app
+      const localToken = localStorage.getItem('auth_token');
+      const sessionToken = sessionStorage.getItem('auth_token');
+      const isSessionStorage = !!sessionToken && !localToken;
+      const storage = isSessionStorage ? sessionStorage : localStorage;
+      masterKeyManager.setStorage(storage);
+      
       hasCheckedAuthRef.current = true;
       setIsAuthenticated(true);
       return;

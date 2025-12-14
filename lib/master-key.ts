@@ -16,14 +16,25 @@ class MasterKeyManager {
     this.storage = storage;
   }
 
-  // Get current storage, defaulting to localStorage if not set
+  // Get current storage, auto-detecting based on where master key is stored
   private getStorage(): Storage {
     if (this.storage) return this.storage;
-    // Default to localStorage, but only access it on client side
+    
+    // Auto-detect storage type based on where master key exists
     if (typeof window !== 'undefined') {
+      // Check sessionStorage first, then localStorage
+      if (sessionStorage.getItem(MasterKeyManager.MASTER_KEY_STORAGE_KEY)) {
+        this.storage = sessionStorage;
+        return sessionStorage;
+      } else if (localStorage.getItem(MasterKeyManager.MASTER_KEY_STORAGE_KEY)) {
+        this.storage = localStorage;
+        return localStorage;
+      }
+      // Default to localStorage if neither has the key
       return localStorage;
     }
-    // This should never happen in practice, but provide a fallback
+    
+    // Fallback for server-side
     throw new Error('Storage not available');
   }
 
@@ -36,8 +47,18 @@ class MasterKeyManager {
       // Store in storage as base64 for persistence
       const binaryString = String.fromCharCode(...masterKey);
       const masterKeyBase64 = btoa(binaryString);
-      this.getStorage().setItem(MasterKeyManager.MASTER_KEY_STORAGE_KEY, masterKeyBase64);
-      this.getStorage().setItem(MasterKeyManager.ACCOUNT_SALT_STORAGE_KEY, accountSalt);
+      const targetStorage = this.getStorage();
+      
+      // Before caching new key, clear it from the OTHER storage to prevent conflicts
+      // This is critical during TOTP flow when storage type changes
+      if (typeof window !== 'undefined') {
+        const otherStorage = targetStorage === sessionStorage ? localStorage : sessionStorage;
+        otherStorage.removeItem(MasterKeyManager.MASTER_KEY_STORAGE_KEY);
+        otherStorage.removeItem(MasterKeyManager.ACCOUNT_SALT_STORAGE_KEY);
+      }
+      
+      targetStorage.setItem(MasterKeyManager.MASTER_KEY_STORAGE_KEY, masterKeyBase64);
+      targetStorage.setItem(MasterKeyManager.ACCOUNT_SALT_STORAGE_KEY, accountSalt);
 
     } catch (error) {
       // console.error('Failed to cache existing master key:', error);
@@ -109,11 +130,42 @@ class MasterKeyManager {
   }
 
   /**
+   * Validate that cached master key matches the given account salt
+   * Returns true if valid, false if mismatched or missing
+   */
+  validateMasterKeyForSalt(accountSalt: string): boolean {
+    const cachedSalt = this.getAccountSalt();
+    if (!cachedSalt || !accountSalt) {
+      return false;
+    }
+    // Check if cached salt matches the server salt
+    return cachedSalt === accountSalt;
+  }
+
+  /**
    * Derive and cache master key from password and account salt
    * This is used during normal login when we need to derive the master key from credentials
+   * 
+   * CRITICAL: If the account salt has changed, this will
+   * automatically clear stale keys from both storages and cache the new key
    */
   async deriveAndCacheMasterKey(password: string, accountSalt: string): Promise<void> {
     try {
+      // Check if there's a stale master key with a different salt
+      const currentSalt = this.getAccountSalt();
+      if (currentSalt && currentSalt !== accountSalt) {
+        // Account salt changed - this happens when TOTP is enabled/disabled
+        // Clear stale keys from BOTH storages
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem(MasterKeyManager.MASTER_KEY_STORAGE_KEY);
+          localStorage.removeItem(MasterKeyManager.ACCOUNT_SALT_STORAGE_KEY);
+          sessionStorage.removeItem(MasterKeyManager.MASTER_KEY_STORAGE_KEY);
+          sessionStorage.removeItem(MasterKeyManager.ACCOUNT_SALT_STORAGE_KEY);
+        }
+        // Reset storage detection so new key will be cached
+        this.storage = null;
+      }
+
       // Derive master key from password and account salt
       const masterKey = await deriveEncryptionKey(password, accountSalt);
       
