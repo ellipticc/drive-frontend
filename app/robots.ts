@@ -12,7 +12,6 @@ export default function robots(): MetadataRoute.Robots {
         '/auth/',
         '/backup/',
         '/billing/',
-        '/debug/',
         '/otp/',
         '/recover/',
         '/shared/',
