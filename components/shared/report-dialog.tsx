@@ -1,0 +1,234 @@
+"use client"
+
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
+import { Flag, Loader2 } from "lucide-react"
+import { apiClient } from "@/lib/api"
+import { toast } from "sonner"
+
+const REPORT_TYPES = [
+  {
+    value: "inappropriate_content",
+    label: "Inappropriate Content",
+    description: "Content that is offensive, explicit, or violates community standards"
+  },
+  {
+    value: "copyright_violation",
+    label: "Copyright Violation",
+    description: "Content that infringes on intellectual property rights"
+  },
+  {
+    value: "spam_misleading",
+    label: "Spam or Misleading",
+    description: "Unsolicited content or intentionally deceptive information"
+  },
+  {
+    value: "malware_security",
+    label: "Malware or Security Risk",
+    description: "Content that may harm devices or compromise security"
+  },
+  {
+    value: "child_exploitation",
+    label: "Child Exploitation",
+    description: "Content involving the exploitation of minors"
+  },
+  {
+    value: "terrorism_extremism",
+    label: "Terrorism or Extremism",
+    description: "Content promoting violence, terrorism, or extremist ideologies"
+  },
+  {
+    value: "violent_content",
+    label: "Violent Content",
+    description: "Content depicting extreme violence or harm"
+  },
+  {
+    value: "harassment",
+    label: "Harassment",
+    description: "Content intended to harass, intimidate, or bully"
+  },
+  {
+    value: "other",
+    label: "Other",
+    description: "Other concerns not covered above"
+  }
+]
+
+interface ReportDialogProps {
+  shareId: string
+  trigger?: React.ReactNode
+  onReportSuccess?: () => void
+}
+
+export function ReportDialog({ shareId, trigger, onReportSuccess }: ReportDialogProps) {
+  const [open, setOpen] = useState(false)
+  const [reportType, setReportType] = useState("")
+  const [description, setDescription] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const handleSubmit = async () => {
+    if (!reportType) {
+      toast.error("Report type required", {
+        description: "Please select a report type before submitting."
+      })
+      return
+    }
+
+    setIsSubmitting(true)
+
+    try {
+      const response = await apiClient.reportShare(shareId, {
+        reportType,
+        description: description.trim() || undefined
+      })
+
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to submit report')
+      }
+
+      const data = response.data
+
+      if (data && data.autoDeactivated) {
+        toast.success("Report submitted and share deactivated", {
+          description: "Thank you for your report. This share has been automatically deactivated due to multiple reports."
+        })
+      } else {
+        toast.success("Report submitted", {
+          description: "Thank you for your report. Our team will review it shortly."
+        })
+      }
+
+      // Reset form and close dialog
+      setReportType("")
+      setDescription("")
+      setOpen(false)
+
+      // Call success callback to refresh page data
+      if (onReportSuccess) {
+        onReportSuccess()
+      }
+
+    } catch (error: any) {
+      console.error('Report submission error:', error)
+      toast.error("Failed to submit report", {
+        description: error.message || "An error occurred while submitting your report. Please try again."
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const selectedReportType = REPORT_TYPES.find(type => type.value === reportType)
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        {trigger || (
+          <Button
+            variant="outline"
+            size="sm"
+            className="fixed bottom-4 right-4 z-50 shadow-lg hover:shadow-xl transition-shadow"
+          >
+            <Flag className="h-4 w-4 mr-2" />
+            Report
+          </Button>
+        )}
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Flag className="h-5 w-5" />
+            Report Shared Content
+          </DialogTitle>
+          <DialogDescription>
+            Help us keep our platform safe by reporting content that violates our community guidelines.
+            All reports are anonymous and reviewed by our moderation team.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="report-type">Report Type *</Label>
+            <Select value={reportType} onValueChange={setReportType}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a report type" />
+              </SelectTrigger>
+              <SelectContent>
+                {REPORT_TYPES.map((type) => (
+                  <SelectItem key={type.value} value={type.value}>
+                    {type.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedReportType && (
+              <p className="text-sm text-muted-foreground">
+                {selectedReportType.description}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="description">Additional Details (Optional)</Label>
+            <Textarea
+              id="description"
+              placeholder="Provide any additional context or details about your report..."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+              className="resize-none"
+            />
+            <p className="text-xs text-muted-foreground">
+              Maximum 1000 characters. Please be specific and include any relevant details.
+            </p>
+          </div>
+        </div>
+
+        <DialogFooter className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setOpen(false)}
+            disabled={isSubmitting}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={!reportType || isSubmitting}
+            className="min-w-[100px]"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Submitting...
+              </>
+            ) : (
+              <>
+                <Flag className="h-4 w-4 mr-2" />
+                Submit Report
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}

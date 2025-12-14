@@ -1198,6 +1198,19 @@ class ApiClient {
     return this.request('/shares/received');
   }
 
+  async reportShare(shareId: string, data: {
+    reportType: string;
+    description?: string;
+  }): Promise<ApiResponse<{
+    success: boolean;
+    autoDeactivated?: boolean;
+  }>> {
+    return this.request(`/shares/${shareId}/report`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
   // Trash operations
   async getTrashFiles(params?: {
     page?: number;

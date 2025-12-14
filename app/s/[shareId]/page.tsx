@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { masterKeyManager } from '@/lib/master-key';
 import { getDiceBearAvatar } from '@/lib/avatar';
+import { ReportDialog } from '@/components/shared/report-dialog';
 
 // Helper to decrypt filename using share CEK
 async function decryptShareFilename(encryptedFilename: string, nonce: string, shareCek: Uint8Array): Promise<string> {
@@ -1361,6 +1362,9 @@ export default function SharedDownloadPage() {
           </div>
         </div>
       </footer>
+
+      {/* Report Dialog - Fixed position */}
+      <ReportDialog shareId={shareId} onReportSuccess={() => loadShareDetails()} />
     </div>
   );
 }
