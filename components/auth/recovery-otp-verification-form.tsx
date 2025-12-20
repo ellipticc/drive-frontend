@@ -166,7 +166,7 @@ export function RecoveryOTPVerificationForm({
           <div className="space-y-2 text-center">
             <h2 className="text-xl font-semibold">Verify your identity</h2>
             <p className="text-sm text-muted-foreground">
-              Choose how you'd like to verify your identity
+              Choose how you&apos;d like to verify your identity
             </p>
           </div>
 

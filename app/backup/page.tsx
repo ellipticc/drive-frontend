@@ -18,7 +18,7 @@ import { FieldDescription } from "@/components/ui/field"
 
 export default function BackupPage() {
   const router = useRouter()
-  const [mnemonic, setMnemonic] = useState("")
+  const [mnemonic, setMnemonic] = useState(() => localStorage.getItem('recovery_mnemonic') || "")
   const [showMnemonic, setShowMnemonic] = useState(false)
   const [copied, setCopied] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
@@ -26,9 +26,8 @@ export default function BackupPage() {
   useEffect(() => {
     document.title = "Backup Recovery Phrase - Ellipticc Drive"
     
-    // Get mnemonic from localStorage
-    const storedMnemonic = localStorage.getItem('recovery_mnemonic')
-    if (!storedMnemonic) {
+    // Check if mnemonic was loaded from localStorage
+    if (!mnemonic) {
       // Check if user is authenticated (has auth token)
       const authToken = localStorage.getItem('auth_token')
       if (!authToken) {
@@ -41,8 +40,7 @@ export default function BackupPage() {
       router.push('/')
       return
     }
-    setMnemonic(storedMnemonic)
-  }, [router])
+  }, [router, mnemonic])
 
   const copyToClipboard = async () => {
     try {
@@ -82,10 +80,10 @@ export default function BackupPage() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="absolute top-4 right-4 flex items-center gap-4">
-        <a href="#" className="flex items-center gap-2 font-medium no-underline border-none bg-transparent hover:bg-transparent focus:outline-none">
+        <Link href="/" className="flex items-center gap-2 font-medium no-underline border-none bg-transparent hover:bg-transparent focus:outline-none">
           <IconCaretLeftRightFilled className="!size-5" />
           <span className="text-base font-mono break-all">ellipticc</span>
-        </a>
+        </Link>
         <ThemeToggle />
       </div>
       
@@ -93,7 +91,7 @@ export default function BackupPage() {
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">Save Your Recovery Phrase</CardTitle>
           <CardDescription className="mt-2">
-            Write down these 12 words in order. You'll need them to recover your account.
+            Write down these 12 words in order. You&apos;ll need them to recover your account.
           </CardDescription>
         </CardHeader>
 
@@ -156,7 +154,7 @@ export default function BackupPage() {
               ) : (
                 <div className="text-center text-muted-foreground">
                   <Eye className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">Click "Show" to reveal your phrase</p>
+                  <p className="text-sm">Click &quot;Show&quot; to reveal your phrase</p>
                 </div>
               )}
             </div>

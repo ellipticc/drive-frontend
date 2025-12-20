@@ -39,7 +39,7 @@ export interface CompressionMetadata {
 // Configuration
 const MIN_COMPRESSION_THRESHOLD = 0.92; // Only compress if ratio < 0.92 (8%+ savings)
 const COMPRESSIBILITY_TEST_SIZE = 512 * 1024; // 512KB sample for testing
-let zstdWasm: any = null;
+const zstdWasm: any = null;
 let zstdWasmLoaded = false;
 let zstdWasmError: Error | null = null;
 

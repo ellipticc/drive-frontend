@@ -141,7 +141,7 @@ export function ConflictModal({ isOpen, onClose, conflicts, onResolve, operation
                       Skip this {conflict.type}
                     </div>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Don't {operation} this {conflict.type} and continue with others.
+                      Don&apos;t {operation} this {conflict.type} and continue with others.
                     </p>
                   </div>
                 </label>

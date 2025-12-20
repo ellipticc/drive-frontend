@@ -1,5 +1,6 @@
 import { IconCaretLeftRightFilled } from "@tabler/icons-react"
 import type { Metadata } from "next"
+import Link from "next/link"
 
 import { TOTPRecoveryForm } from "@/components/auth/totp-recovery-form"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -17,10 +18,10 @@ export default function TOTPRecoveryPage() {
           <ThemeToggle />
         </div>
         <div className="flex w-full max-w-sm flex-col gap-6">
-          <a href="/login" className="flex items-center gap-2 self-center font-medium">
+          <Link href="/login" className="flex items-center gap-2 self-center font-medium">
             <IconCaretLeftRightFilled className="!size-5" />
             <span className="text-base font-mono break-all">ellipticc</span>
-          </a>
+          </Link>
           <TOTPRecoveryForm />
         </div>
       </div>

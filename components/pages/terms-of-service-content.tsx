@@ -1,6 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { IconArrowLeft, IconCaretLeftRightFilled } from "@tabler/icons-react"
 
@@ -22,12 +23,12 @@ export function TermsOfServiceContent() {
             </button>
           </div>
           <div className="flex-1 flex justify-center">
-            <a href="/" className="flex items-center gap-2 font-medium">
+            <Link href="/" className="flex items-center gap-2 font-medium">
               <div className="flex size-6 items-center justify-center rounded-md">
                 <IconCaretLeftRightFilled className="!size-5" />
               </div>
               <span className="text-base font-mono">ellipticc</span>
-            </a>
+            </Link>
           </div>
           <div className="flex items-center">
             <ThemeToggle />

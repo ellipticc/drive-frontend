@@ -6,7 +6,6 @@ import {
   IconFolder,
   IconHelp,
   IconCaretLeftRightFilled,
-  IconSearch,
   IconSettings,
   IconTrash,
   IconUsers,
@@ -26,7 +25,6 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
-import { apiClient } from "@/lib/api"
 import { useGlobalUpload } from "@/components/global-upload-context"
 import { useUser } from "@/components/user-context"
 

@@ -26,7 +26,7 @@ export const TextPreview: React.FC<TextPreviewProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let isMounted = true;
+    const isMounted = true;
 
     const loadText = async () => {
       try {

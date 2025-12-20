@@ -144,12 +144,12 @@ export default function OAuthCallbackPage() {
         </div>
         <div className="flex w-full max-w-sm flex-col gap-6">
           <div className="flex flex-col gap-6">
-            <a href="/" className="flex items-center gap-2 self-center font-medium">
+            <Link href="/" className="flex items-center gap-2 self-center font-medium">
               <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
                 <IconCaretLeftRightFilled className="!size-5" />
               </div>
               <span className="text-base font-mono break-all">ellipticc</span>
-            </a>
+            </Link>
             <div className="flex flex-col gap-2">
               <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
               <p className="text-center text-sm text-muted-foreground">Authenticating with Google...</p>
@@ -168,12 +168,12 @@ export default function OAuthCallbackPage() {
         </div>
         <div className="flex w-full max-w-sm flex-col gap-6">
           <div className="flex flex-col gap-6">
-            <a href="/" className="flex items-center gap-2 self-center font-medium">
+            <Link href="/" className="flex items-center gap-2 self-center font-medium">
               <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
                 <IconCaretLeftRightFilled className="!size-5" />
               </div>
               <span className="text-base font-mono break-all">ellipticc</span>
-            </a>
+            </Link>
             <div className="flex flex-col gap-4">
               <div className="flex gap-3">
                 <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
@@ -204,12 +204,12 @@ export default function OAuthCallbackPage() {
           <ThemeToggle />
         </div>
         <div className="flex w-full max-w-sm flex-col gap-6">
-          <a href="/" className="flex items-center gap-2 self-center font-medium">
+          <Link href="/" className="flex items-center gap-2 self-center font-medium">
             <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
               <IconCaretLeftRightFilled className="!size-5" />
             </div>
             <span className="text-base font-mono break-all">ellipticc</span>
-          </a>
+          </Link>
           <OAuthPasswordModal email={oauthData.email} hasAccountSalt={oauthData.hasAccountSalt} />
           <FieldDescription className="text-center text-xs">
             By continuing, you agree to our{" "}

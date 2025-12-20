@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { apiClient } from '@/lib/api';
 import { downloadEncryptedFileWithCEK } from '@/lib/download';
 import { truncateFilename } from '@/lib/utils';
@@ -10,7 +11,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -830,12 +830,12 @@ export default function SharedDownloadPage() {
         <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="flex h-14 items-center px-4">
             <div className="container flex items-center">
-              <a href="/" className="flex items-center gap-2 font-medium">
+              <Link href="/" className="flex items-center gap-2 font-medium">
                 <div className="flex size-6 items-center justify-center rounded-md">
                   <IconCaretLeftRightFilled className="!size-5" />
                 </div>
                 <span className="text-base font-mono">ellipticc</span>
-              </a>
+              </Link>
             </div>
             <div className="flex-1" />
             <div className="flex items-center gap-2 pr-4">
@@ -885,12 +885,12 @@ export default function SharedDownloadPage() {
         <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="flex h-14 items-center px-4">
             <div className="container flex items-center">
-              <a href="/" className="flex items-center gap-2 font-medium">
+              <Link href="/" className="flex items-center gap-2 font-medium">
                 <div className="flex size-6 items-center justify-center rounded-md">
                   <IconCaretLeftRightFilled className="!size-5" />
                 </div>
                 <span className="text-base font-mono">ellipticc</span>
-              </a>
+              </Link>
             </div>
             <div className="flex-1" />
             <div className="flex items-center gap-2 pr-4">
@@ -1002,12 +1002,12 @@ export default function SharedDownloadPage() {
       <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="flex h-14 items-center px-4">
           <div className="container flex items-center">
-            <a href="/" className="flex items-center gap-2 font-medium">
+            <Link href="/" className="flex items-center gap-2 font-medium">
               <div className="flex size-6 items-center justify-center rounded-md">
                 <IconCaretLeftRightFilled className="!size-5" />
               </div>
               <span className="text-base font-mono">ellipticc</span>
-            </a>
+            </Link>
           </div>
           <div className="flex-1" />
           <div className="flex items-center gap-2 pr-4">

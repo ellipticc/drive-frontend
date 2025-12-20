@@ -2,6 +2,7 @@
 
 import { Compass, Home } from "lucide-react";
 import { motion } from "motion/react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -72,22 +73,22 @@ export function NotFoundPage() {
         <EmptyHeader>
           <EmptyTitle className="font-extrabold text-8xl">404</EmptyTitle>
           <EmptyDescription className="text-nowrap">
-            The page you're looking for might have been <br />
-            moved or doesn't exist.
+            The page you&apos;re looking for might have been <br />
+            moved or doesn&apos;t exist.
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
           <div className="flex gap-2">
             <Button asChild>
-              <a href="/">
+              <Link href="/">
                 <Home /> Go Home
-              </a>
+              </Link>
             </Button>
 
             <Button asChild variant="outline">
-              <a href="/">
+              <Link href="/">
                 <Compass /> Explore
-              </a>
+              </Link>
             </Button>
           </div>
         </EmptyContent>

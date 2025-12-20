@@ -220,7 +220,7 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
           </DialogDescription>
           {file && !canPreview(file) && (
             <p className="text-sm text-muted-foreground mt-2">
-              This file type doesn't support preview. You can download it instead.
+              This file type doesn&apos;t support preview. You can download it instead.
             </p>
           )}
         </DialogHeader>

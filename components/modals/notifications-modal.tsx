@@ -222,7 +222,7 @@ export function NotificationsModal({ open, onOpenChange }: NotificationsModalPro
               </EmptyMedia>
               <EmptyTitle>No notifications</EmptyTitle>
               <EmptyDescription>
-                You're all caught up! We'll notify you of important account activity.
+                You&apos;re all caught up! We&apos;ll notify you of important account activity.
               </EmptyDescription>
             </Empty>
           ) : (

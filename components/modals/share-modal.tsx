@@ -979,7 +979,7 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
         <DialogContent className="sm:max-w-lg animate-in fade-in-0 zoom-in-95 duration-200" showCloseButton={false}>
           <DialogHeader className="flex flex-row items-center justify-between">
             <div>
-              <DialogTitle>Share "{truncateFilename(itemName)}"</DialogTitle>
+              <DialogTitle>Share &quot;{truncateFilename(itemName)}&quot;</DialogTitle>
               <DialogDescription>
                 Invite people to view this {itemType}.
               </DialogDescription>
@@ -1182,7 +1182,7 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
             </div>
 
             <div className="text-xs text-muted-foreground">
-              {emails.length} recipient{emails.length !== 1 ? 's' : ''} will receive an invitation to access "{itemName}"
+              {emails.length} recipient{emails.length !== 1 ? 's' : ''} will receive an invitation to access &quot;{itemName}&quot;
             </div>
           </div>
 

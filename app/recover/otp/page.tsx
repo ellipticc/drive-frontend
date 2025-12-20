@@ -12,33 +12,25 @@ import { RecoveryOTPVerificationForm } from "@/components/auth/recovery-otp-veri
 export default function RecoveryOTPPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [email, setEmail] = useState("")
-  const [mnemonicHash, setMnemonicHash] = useState("")
-  const [mnemonic, setMnemonic] = useState("")
+  const [email, setEmail] = useState(() => searchParams.get('email') || "")
+  const [mnemonicHash, setMnemonicHash] = useState(() => searchParams.get('hash') || "")
+  const [mnemonic, setMnemonic] = useState(() => sessionStorage.getItem('recovery_mnemonic') || "")
 
   useEffect(() => {
-    // Get email and hash from URL params
-    const emailParam = searchParams.get('email')
-    const hashParam = searchParams.get('hash')
-
-    if (!emailParam || !hashParam) {
+    // Validate that required params are present
+    if (!email || !mnemonicHash) {
       // Redirect back to recover page if params are missing
       router.push('/recover')
       return
     }
 
-    // Get raw mnemonic from sessionStorage (kept secure, not in URL)
-    const storedMnemonic = sessionStorage.getItem('recovery_mnemonic')
-    if (!storedMnemonic) {
+    // Validate that mnemonic is in sessionStorage
+    if (!mnemonic) {
       // If mnemonic not in session, redirect back
       router.push('/recover')
       return
     }
-
-    setEmail(emailParam)
-    setMnemonicHash(hashParam)
-    setMnemonic(storedMnemonic)
-  }, [searchParams, router])
+  }, [email, mnemonicHash, mnemonic, router])
 
   const handleSuccess = () => {
     // Redirect to password reset page with email and hash
@@ -63,10 +55,10 @@ export default function RecoveryOTPPage() {
         <ThemeToggle />
       </div>
       <div className="flex w-full max-w-sm flex-col gap-6">
-        <a href="/" className="flex items-center gap-2 self-center font-medium">
+        <Link href="/" className="flex items-center gap-2 self-center font-medium">
           <IconCaretLeftRightFilled className="!size-5" />
           <span className="text-base font-mono break-all">ellipticc</span>
-        </a>
+        </Link>
         <RecoveryOTPVerificationForm
           email={email}
           mnemonic={mnemonic}

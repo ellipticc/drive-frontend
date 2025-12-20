@@ -207,7 +207,7 @@ async function decryptChunksWithCEK(
     }
 
     // Handle potential B2 size discrepancies
-    let processedChunk = encryptedChunk;
+    const processedChunk = encryptedChunk;
     const expectedSize = chunkInfo.size;
 
     if (encryptedChunk.length > expectedSize) {
@@ -470,7 +470,7 @@ async function downloadChunksFromB2(
         throw new Error(`Failed to download chunk ${getChunkIndex(chunk)}: ${response.status} ${response.statusText}`);
       }
 
-      let encryptedData = new Uint8Array(await response.arrayBuffer());
+      const encryptedData = new Uint8Array(await response.arrayBuffer());
 
       // Get the actual content length from response headers
       const contentLength = response.headers.get('content-length');

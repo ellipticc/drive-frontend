@@ -4,9 +4,7 @@ import { IconEye, IconEyeOff } from "@tabler/icons-react"
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
 
-interface PasswordInputProps extends React.ComponentProps<"input"> {}
-
-const PasswordInput = React.forwardRef<HTMLInputElement, PasswordInputProps>(
+const PasswordInput = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
   ({ className, ...props }, ref) => {
     const [showPassword, setShowPassword] = React.useState(false)
 

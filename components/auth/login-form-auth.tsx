@@ -367,7 +367,7 @@ export function LoginFormAuth({
               </FieldLabel>
             </div>
             <FieldDescription className="text-xs">
-              Stay logged in across browser sessions. If unchecked, you'll be logged out when you close the tab.
+              Stay logged in across browser sessions. If unchecked, you&apos;ll be logged out when you close the tab.
             </FieldDescription>
           </Field>
           {error && (

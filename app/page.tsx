@@ -8,6 +8,11 @@ import {
   SidebarInset,
 } from "@/components/ui/sidebar"
 import { keyManager } from "@/lib/key-manager"
+
+// Extended File interface to include webkitRelativePath
+interface ExtendedFile extends File {
+  webkitRelativePath?: string;
+}
 import { useUser } from "@/components/user-context"
 
 export default function Home() {
@@ -53,12 +58,12 @@ export default function Home() {
 
     // Handle drag and drop files
     const handleDrop = useCallback((files: FileList) => {
-    const fileArray = Array.from(files)
+    const fileArray = Array.from(files) as ExtendedFile[]
     
     console.log('=== DRAG DROP START ===');
     console.log('Total files in FileList:', fileArray.length);
     fileArray.forEach((f, i) => {
-      console.log(`[${i}] name="${f.name}" size=${f.size} type="${f.type}" relativePath="${(f as any).webkitRelativePath || 'NONE'}"`);
+      console.log(`[${i}] name="${f.name}" size=${f.size} type="${f.type}" relativePath="${f.webkitRelativePath || 'NONE'}"`);
     });
     
     // Filter out directories and suspicious entries
@@ -82,11 +87,11 @@ export default function Home() {
     console.log('After filter, validFiles count:', validFiles.length);
     
     const regularFiles = validFiles.filter(file => {
-      const relativePath = (file as any).webkitRelativePath || '';
+      const relativePath = file.webkitRelativePath || '';
       return !relativePath; // Files with no relative path
     })
     const folderFiles = validFiles.filter(file => {
-      const relativePath = (file as any).webkitRelativePath || '';
+      const relativePath = file.webkitRelativePath || '';
       return !!relativePath; // Any files with relative path (folder structure)
     })
 
@@ -198,7 +203,7 @@ export default function Home() {
               onChange={(e) => {
                 // This will be handled by the table component
                 const tableFolderInput = document.querySelector('input[type="file"][webkitdirectory]') as HTMLInputElement
-                if (tableFolderInput) {
+                if (tableFolderInput && e.target.files) {
                   tableFolderInput.files = e.target.files
                   tableFolderInput.dispatchEvent(new Event('change', { bubbles: true }))
                 }

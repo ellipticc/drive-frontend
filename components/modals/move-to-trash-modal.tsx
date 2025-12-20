@@ -86,7 +86,7 @@ export function MoveToTrashModal({ children, itemId = "", itemName = "item", ite
         </DialogHeader>
         <div className="py-4">
           <p className="text-sm text-muted-foreground">
-            Are you sure you want to move <strong>"{truncateFilename(itemName)}"</strong> to the trash?
+            Are you sure you want to move <strong>&quot;{truncateFilename(itemName)}&quot;</strong> to the trash?
             {itemType === "folder" && " This will also move all files inside this folder."}
           </p>
         </div>

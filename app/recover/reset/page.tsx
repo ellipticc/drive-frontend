@@ -11,33 +11,25 @@ import { RecoveryPasswordResetForm } from "@/components/auth/recovery-password-r
 export default function RecoveryResetPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [email, setEmail] = useState("")
-  const [mnemonic, setMnemonic] = useState("")
-  const [hash, setHash] = useState("")
+  const [email, setEmail] = useState(() => searchParams.get('email') || "")
+  const [mnemonic, setMnemonic] = useState(() => sessionStorage.getItem('recovery_mnemonic') || "")
+  const [hash, setHash] = useState(() => searchParams.get('hash') || "")
 
   useEffect(() => {
-    // Get email and hash from URL params
-    const emailParam = searchParams.get('email')
-    const hashParam = searchParams.get('hash')
-
-    if (!emailParam || !hashParam) {
+    // Validate that required params are present
+    if (!email || !hash) {
       // Redirect back to recover page if params are missing
       router.push('/recover')
       return
     }
 
-    // Get raw mnemonic from sessionStorage (kept secure)
-    const storedMnemonic = sessionStorage.getItem('recovery_mnemonic')
-    if (!storedMnemonic) {
+    // Validate that mnemonic is in sessionStorage
+    if (!mnemonic) {
       // If mnemonic not in session, redirect back
       router.push('/recover')
       return
     }
-
-    setEmail(emailParam)
-    setHash(hashParam)
-    setMnemonic(storedMnemonic)
-  }, [searchParams, router])
+  }, [email, hash, mnemonic, router])
 
   const handleSuccess = () => {
     // Clear recovery session data after successful reset
@@ -64,10 +56,10 @@ export default function RecoveryResetPage() {
         <ThemeToggle />
       </div>
       <div className="flex w-full max-w-sm flex-col gap-6">
-        <a href="/" className="flex items-center gap-2 self-center font-medium">
+        <Link href="/" className="flex items-center gap-2 self-center font-medium">
             <IconCaretLeftRightFilled className="!size-5" />
             <span className="text-base font-mono break-all">ellipticc</span>
-        </a>
+        </Link>
 
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-2 text-center">

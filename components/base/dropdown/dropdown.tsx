@@ -90,9 +90,7 @@ const DropdownItem = ({ label, children, addon, icon: Icon, unstyled, ...props }
     );
 };
 
-interface DropdownMenuProps<T extends object> extends AriaMenuProps<T> {}
-
-const DropdownMenu = <T extends object>(props: DropdownMenuProps<T>) => {
+const DropdownMenu = <T extends object>(props: AriaMenuProps<T>) => {
     return (
         <AriaMenu
             disallowEmptySelection
@@ -105,9 +103,7 @@ const DropdownMenu = <T extends object>(props: DropdownMenuProps<T>) => {
     );
 };
 
-interface DropdownPopoverProps extends AriaPopoverProps {}
-
-const DropdownPopover = (props: DropdownPopoverProps) => {
+const DropdownPopover = (props: AriaPopoverProps) => {
     return (
         <AriaPopover
             placement="bottom right"
