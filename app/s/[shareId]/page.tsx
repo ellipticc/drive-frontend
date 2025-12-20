@@ -1154,9 +1154,9 @@ export default function SharedDownloadPage() {
                   <div className="border-b px-6 py-3 space-y-2">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Downloading...</span>
-                      <span className="font-mono text-sm">{downloadProgress}%</span>
+                      <span className="font-mono text-sm">{Math.round(downloadProgress * 100)}%</span>
                     </div>
-                    <Progress value={downloadProgress} className="w-full" />
+                    <Progress value={downloadProgress * 100} className="w-full" />
                   </div>
                 )}
 
@@ -1301,9 +1301,9 @@ export default function SharedDownloadPage() {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Downloading...</span>
-                      <span className="font-mono">{downloadProgress}%</span>
+                      <span className="font-mono">{Math.round(downloadProgress * 100)}%</span>
                     </div>
-                    <Progress value={downloadProgress} className="w-full" />
+                    <Progress value={downloadProgress * 100} className="w-full" />
                   </div>
                 )}
 
