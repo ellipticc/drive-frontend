@@ -488,6 +488,8 @@ async function downloadChunksFromB2(
   onProgress?: (progress: DownloadProgress) => void
 ): Promise<Uint8Array[]> {
   const totalChunks = chunks.length;
+  const totalDeclaredBytes = chunks.reduce((sum, c) => sum + c.size, 0);
+  const expectedTotalBytes = Math.max(totalDeclaredBytes, chunks.reduce((sum, c) => sum + c.size, 0)); // Use declared sizes as baseline
   let completedChunks = 0;
   let totalBytesDownloaded = 0;
   const startTime = Date.now();
@@ -500,7 +502,6 @@ async function downloadChunksFromB2(
     await semaphore.acquire();
 
     try {
-
       const response = await fetch(chunk.getUrl, {
         credentials: 'omit'
       });
@@ -508,20 +509,59 @@ async function downloadChunksFromB2(
         throw new Error(`Failed to download chunk ${getChunkIndex(chunk)}: ${response.status} ${response.statusText}`);
       }
 
-      const encryptedData = new Uint8Array(await response.arrayBuffer());
-
-      // Get the actual content length from response headers
+      // Get content length for progress tracking
       const contentLength = response.headers.get('content-length');
-      const actualSize = contentLength ? parseInt(contentLength, 10) : encryptedData.length;
+      const expectedChunkSize = contentLength ? parseInt(contentLength, 10) : chunk.size;
+
+      // Use ReadableStream for real-time progress within chunk
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error(`Failed to get reader for chunk ${getChunkIndex(chunk)}`);
+      }
+
+      const chunks: Uint8Array[] = [];
+      let chunkBytesDownloaded = 0;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        chunks.push(value);
+        chunkBytesDownloaded += value.length;
+
+        // Emit progress update for this chunk's download
+        const chunkProgress = expectedChunkSize > 0 ? (chunkBytesDownloaded / expectedChunkSize) * 100 : 100;
+        const overall = 15 + ((completedChunks + chunkProgress / 100) / totalChunks) * 65;
+
+        onProgress?.({
+          stage: 'downloading',
+          overallProgress: Math.min(100, Math.max(0, overall)),
+          currentChunk: completedChunks + 1,
+          totalChunks,
+          bytesDownloaded: totalBytesDownloaded + chunkBytesDownloaded,
+          totalBytes: expectedTotalBytes,
+          chunkProgress: Math.min(100, chunkProgress),
+          downloadSpeed: Math.round((totalBytesDownloaded + chunkBytesDownloaded) / ((Date.now() - startTime) / 1000)),
+          timeRemaining: Math.round((expectedTotalBytes - (totalBytesDownloaded + chunkBytesDownloaded)) / Math.max(1, (totalBytesDownloaded + chunkBytesDownloaded) / ((Date.now() - startTime) / 1000)))
+        });
+      }
+
+      // Combine all chunks into final encrypted data
+      const totalLength = chunks.reduce((sum, c) => sum + c.length, 0);
+      const encryptedData = new Uint8Array(totalLength);
+      let offset = 0;
+      for (const chunk of chunks) {
+        encryptedData.set(chunk, offset);
+        offset += chunk.length;
+      }
 
       // Handle B2 checksum trailers and size mismatches
       if (encryptedData.length > chunk.size) {
         // B2 may add checksum trailers or the metadata size might be approximate
         // Use the actual returned size instead of truncating
-        // Don't truncate - use the full response
       } else if (encryptedData.length < chunk.size) {
         // Handle size differences (may occur due to storage optimizations)
-        if (encryptedData.length === actualSize && actualSize < chunk.size) {
+        if (encryptedData.length === expectedChunkSize && expectedChunkSize < chunk.size) {
           // Don't throw error - use the actual size
         } else {
           throw new Error(`Chunk ${getChunkIndex(chunk)} too small: expected ${chunk.size}, got ${encryptedData.length}`);
@@ -531,18 +571,20 @@ async function downloadChunksFromB2(
       completedChunks++;
       totalBytesDownloaded += encryptedData.length;
 
-      const elapsedTime = (Date.now() - startTime) / 1000; // seconds
-      const downloadSpeed = totalBytesDownloaded / elapsedTime; // bytes per second
-      const remainingBytes = chunks.reduce((sum, c) => sum + c.size, 0) - totalBytesDownloaded;
+      // Final progress update for this chunk completion
+      const elapsedTime = (Date.now() - startTime) / 1000;
+      const downloadSpeed = totalBytesDownloaded / elapsedTime;
+      const remainingBytes = Math.max(expectedTotalBytes - totalBytesDownloaded, 0);
       const timeRemaining = downloadSpeed > 0 ? remainingBytes / downloadSpeed : 0;
 
+      const overall = 15 + (completedChunks / totalChunks) * 65;
       onProgress?.({
         stage: 'downloading',
-        overallProgress: 15 + (completedChunks / totalChunks) * 65, // 15% to 80%
+        overallProgress: Math.min(100, Math.max(0, overall)),
         currentChunk: completedChunks,
         totalChunks,
         bytesDownloaded: totalBytesDownloaded,
-        totalBytes: chunks.reduce((sum, c) => sum + c.size, 0),
+        totalBytes: expectedTotalBytes,
         chunkProgress: 100,
         downloadSpeed: Math.round(downloadSpeed),
         timeRemaining: Math.round(timeRemaining)

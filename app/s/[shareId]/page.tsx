@@ -759,7 +759,8 @@ export default function SharedDownloadPage() {
       }
 
       const result = await downloadEncryptedFileWithCEK(fileId, fileCek, (progress) => {
-        setDownloadProgress(progress.overallProgress);
+        const p = typeof progress.overallProgress === 'number' ? progress.overallProgress : 0;
+        setDownloadProgress(Math.min(100, Math.max(0, p)));
       });
 
       // Track in ingest server RIGHT AFTER download URLs request
@@ -1165,9 +1166,9 @@ export default function SharedDownloadPage() {
                   <div className="border-b px-6 py-3 space-y-2">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Downloading...</span>
-                      <span className="font-mono text-sm">{Math.round(downloadProgress * 100)}%</span>
+                      <span className="font-mono text-sm">{Math.round(downloadProgress)}%</span>
                     </div>
-                    <Progress value={downloadProgress * 100} className="w-full" />
+                    <Progress value={downloadProgress} className="w-full" />
                   </div>
                 )}
 
@@ -1312,9 +1313,9 @@ export default function SharedDownloadPage() {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Downloading...</span>
-                      <span className="font-mono">{Math.round(downloadProgress * 100)}%</span>
+                      <span className="font-mono">{Math.round(downloadProgress)}%</span>
                     </div>
-                    <Progress value={downloadProgress * 100} className="w-full" />
+                    <Progress value={downloadProgress} className="w-full" />
                   </div>
                 )}
 
