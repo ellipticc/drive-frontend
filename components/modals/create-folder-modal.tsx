@@ -18,6 +18,7 @@ import { apiClient, PQCKeypairs } from "@/lib/api"
 import { createSignedFolderManifest, decryptUserPrivateKeys } from "@/lib/crypto"
 import { masterKeyManager } from "@/lib/master-key"
 import { toast } from "sonner"
+import { ConflictModal } from "@/components/modals/conflict-modal"
 
 interface CreateFolderModalProps {
   children?: React.ReactNode
@@ -43,6 +44,10 @@ export function CreateFolderModal({ children, parentId = null, onFolderCreated }
   const [folderName, setFolderName] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [userData, setUserData] = useState<UserData | null>(null)
+
+  // Conflict modal state for create folder
+  const [isConflictOpen, setIsConflictOpen] = useState(false)
+  const [conflictItem, setConflictItem] = useState<{ id: string; name: string; type: 'folder'; existingPath?: string; existingFileId?: string } | null>(null)
 
   // Fetch user data when modal opens
   useEffect(() => {
@@ -130,7 +135,14 @@ export function CreateFolderModal({ children, parentId = null, onFolderCreated }
         setOpen(false)
         onFolderCreated?.()
       } else {
-        toast.error(response.error || "Failed to create folder")
+        const isConflict = response.error?.toLowerCase().includes('409') || response.error?.toLowerCase().includes('conflict') || response.error?.toLowerCase().includes('already exists')
+        if (isConflict) {
+          // Show conflict modal to the user to decide: replace / keep both / ignore
+          setConflictItem({ id: folderName, name: folderName, type: 'folder' })
+          setIsConflictOpen(true)
+        } else {
+          toast.error(response.error || "Failed to create folder")
+        }
       }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : "Unknown error"
@@ -138,6 +150,32 @@ export function CreateFolderModal({ children, parentId = null, onFolderCreated }
       toast.error("Failed to create folder: " + errorMsg)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleCreateConflictResolution = (resolutions: Record<string, 'replace' | 'keepBoth' | 'ignore'>) => {
+    // We only expect a single item here
+    const resolution = Object.values(resolutions)[0]
+    if (!conflictItem) {
+      setIsConflictOpen(false)
+      return
+    }
+
+    if (resolution === 'keepBoth') {
+      // Suggest a unique name by appending (1), (2), ...
+      const base = conflictItem.name
+      let idx = 1
+      let suggested = `${base} (${idx})`
+      // We cannot access the full listing here easily — user can further adjust name
+      setFolderName(suggested)
+      setIsConflictOpen(false)
+    } else if (resolution === 'replace') {
+      // For now, ask user to delete the existing folder manually - backend didn't provide existing id here
+      toast.error('Please delete the existing folder first then try creating again (or use rename to replace).')
+      setIsConflictOpen(false)
+    } else {
+      // ignore
+      setIsConflictOpen(false)
     }
   }
 
@@ -202,6 +240,17 @@ export function CreateFolderModal({ children, parentId = null, onFolderCreated }
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      {/* Conflict modal for create folder */}
+      {conflictItem && (
+        <ConflictModal
+          isOpen={isConflictOpen}
+          onClose={() => setIsConflictOpen(false)}
+          conflicts={[conflictItem as any]}
+          onResolve={handleCreateConflictResolution}
+          operation="upload"
+        />
+      )}
     </Dialog>
   )
 }

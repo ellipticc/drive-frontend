@@ -23,6 +23,7 @@ import { truncateFilename } from "@/lib/utils"
 interface RenameModalProps {
   children?: React.ReactNode
   itemName?: string
+  initialName?: string
   itemType?: "file" | "folder"
   onRename?: (data: string | {
     manifestHash: string;
@@ -37,6 +38,8 @@ interface RenameModalProps {
     filenameSalt?: string;
     encryptedName?: string;
     nameSalt?: string;
+    // Optional helper for frontend UX
+    requestedName?: string;
   }) => void
   open?: boolean
   onOpenChange?: (open: boolean) => void
@@ -58,6 +61,7 @@ interface UserData {
 export function RenameModal({
   children,
   itemName = "example-file.pdf",
+  initialName,
   itemType = "file",
   onRename,
   open: externalOpen,
@@ -119,7 +123,8 @@ export function RenameModal({
   // Automatically focus & select text when modal opens
   useEffect(() => {
     if (open) {
-      setNewName(itemName)
+      const initial = (initialName !== undefined && initialName !== null) ? initialName : itemName
+      setNewName(initial)
       // Fetch user data for both file and folder renaming (both need signing now)
       fetchUserData()
       requestAnimationFrame(() => {
@@ -127,7 +132,7 @@ export function RenameModal({
         inputRef.current?.select()
       })
     }
-  }, [open, itemName])
+  }, [open, itemName, initialName])
 
   const handleRename = async () => {
     if (!newName.trim() || newName.trim() === itemName) {
@@ -169,8 +174,8 @@ export function RenameModal({
           }
         )
 
-        // Call the onRename callback with manifest data
-        onRename?.(signedManifest)
+        // Call the onRename callback with manifest data (include plain requested name for conflict handling)
+        onRename?.({ ...signedManifest, requestedName: newName.trim() })
       } else {
         // For files, create signed file manifest
         // For file renaming, folderId is not needed in the manifest
@@ -188,8 +193,8 @@ export function RenameModal({
           }
         )
 
-        // Call the onRename callback with manifest data
-        onRename?.(signedManifest)
+        // Call the onRename callback with manifest data (include plain requested name for conflict handling)
+        onRename?.({ ...signedManifest, requestedName: newName.trim() })
       }
 
       setOpen(false)

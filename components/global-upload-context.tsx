@@ -6,12 +6,15 @@ import { ConflictModal } from '@/components/modals/conflict-modal';
 import { UploadManager } from '@/components/upload-manager';
 import { keyManager } from '@/lib/key-manager';
 import { apiClient, FileItem } from '@/lib/api';
+import { decryptFilename } from '@/lib/crypto';
+import { masterKeyManager } from '@/lib/master-key';
 import { useCurrentFolder } from '@/components/current-folder-context';
 import { useUser } from '@/components/user-context';
+import { toast } from 'sonner';
 import { downloadFileToBrowser, downloadFolderAsZip, downloadMultipleItemsAsZip, downloadEncryptedFile, DownloadProgress } from '@/lib/download';
 import { UploadResult } from '@/lib/upload';
 export type { UploadResult }; 
-import { prepareFilesForUpload, CreatedFolder } from '@/lib/folder-upload-utils';
+import { prepareFilesForUpload } from '@/lib/folder-upload-utils';
 import { ParallelUploadQueue, getUploadQueue, destroyUploadQueue } from '@/lib/parallel-upload-queue';
 
 
@@ -176,6 +179,11 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
   // File replaced callbacks for refreshing the file list
   const onFileReplacedCallbacksRef = useRef<Set<() => void>>(new Set());
 
+  // Pending folder upload conflict (used when creating folder hierarchy during folder upload)
+  const pendingFolderUploadConflictRef = useRef<null | { files: FileList | File[]; baseFolderId: string | null; conflict: { type?: string; folderPath?: string; folderName?: string; parentFolderId?: string; manifestData?: unknown; responseError?: unknown }; retryCount: number }>(null);
+
+  // Helper: attempt to prepare files for upload (create folders as needed) - used for retries after conflict resolution
+
   // Initialize upload queue on mount and cleanup on unmount
   useEffect(() => {
     uploadQueueRef.current = getUploadQueue(3); // 3 concurrent uploads
@@ -187,7 +195,7 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
       destroyUploadQueue();
       uploadQueueRef.current = null;
     };
-  }, []);
+  }, [uploads.length]);
 
   // Keep modal visible if uploads are in progress
   useEffect(() => {
@@ -327,7 +335,7 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
         error: error instanceof Error ? error.message : 'Upload failed',
       });
     }
-  }, [currentFolderId, updateUploadState]);
+  }, [currentFolderId, updateUploadState, updateStorage]);
 
   const handleFileUpload = useCallback(() => {
     fileInputRef.current?.click();
@@ -370,6 +378,148 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
       setIsModalOpen(true);
     }
   }, [uploads]);
+
+  const attemptPrepare = useCallback(async (
+    filesToPrepare: FileList | File[],
+    baseFolderId: string | null,
+    renameMap?: Record<string, string>,
+    options?: { suppressEmptyAlert?: boolean }
+  ): Promise<boolean> => {
+    try {
+      const filesForUpload = (await prepareFilesForUpload(filesToPrepare, baseFolderId, (folder) => {
+        // Trigger folder added callbacks
+        onFileAddedCallbacksRef.current.forEach(callback => {
+          callback({
+            id: folder.id,
+            name: folder.name,
+            parentId: folder.parentId,
+            path: folder.path,
+            type: 'folder',
+            createdAt: folder.createdAt,
+            updatedAt: folder.updatedAt,
+            is_shared: false
+          });
+        });
+      }, renameMap)) as Array<{ file: File; folderId: string | null }>;
+
+      if (filesForUpload.length === 0) {
+        console.warn('📁 No files to upload after preparation');
+        if (!options?.suppressEmptyAlert) {
+          alert('The selected folder is empty. There are no files to upload.');
+        }
+        return false;
+      }
+
+      // Upload each file to its correct folder
+      filesForUpload.forEach(({ file, folderId: targetFolderId }) => {
+        try {
+          const uploadState = addUpload(file);
+          const uploadManager = new UploadManager({
+            id: uploadState.id,
+            file: uploadState.file,
+            folderId: targetFolderId,
+            onProgress: (task) => {
+              updateUploadState(task.id, {
+                status: task.status,
+                progress: task.progress,
+                error: task.error,
+              });
+            },
+            onComplete: (task) => {
+              updateUploadState(task.id, {
+                status: 'completed',
+                result: task.result,
+                progress: task.progress,
+              });
+              if (task.result) {
+                onUploadCompleteCallbacksRef.current.forEach(callback => {
+                  callback(task.id, task.result as UploadResult);
+                });
+              }
+              if (task.result && task.result.file) {
+                onFileAddedCallbacksRef.current.forEach(callback => {
+                  if (task.result && task.result.file) callback(task.result.file);
+                });
+              }
+              if (task.existingFileIdToDelete) {
+                onFileReplacedCallbacksRef.current.forEach(callback => {
+                  callback();
+                });
+              }
+            },
+            onError: (task) => {
+              updateUploadState(task.id, {
+                status: 'failed',
+                error: task.error,
+              });
+            },
+            onCancel: (task) => {
+              updateUploadState(task.id, {
+                status: 'cancelled',
+              });
+            },
+            onConflict: (task, conflictInfo) => {
+              const conflictItem = {
+                id: task.id,
+                name: conflictInfo.name,
+                type: conflictInfo.type,
+                existingPath: conflictInfo.existingPath,
+                newPath: conflictInfo.newPath,
+                existingFileId: conflictInfo.existingFileId,
+              };
+              setConflictItems([conflictItem]);
+              setIsConflictModalOpen(true);
+              uploadManagersRef.current.set(task.id, uploadManager);
+            },
+          });
+
+          uploadManagersRef.current.set(uploadState.id, uploadManager);
+          uploadManager.start();
+        } catch (error) {
+          console.error('Failed to initialize upload for file:', file.name, error);
+          const uploadState: FileUploadState = {
+            id: `upload-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            file,
+            status: 'failed',
+            progress: null,
+            currentFilename: file.name,
+            error: error instanceof Error ? error.message : 'Failed to upload file',
+          };
+          setUploads(prev => [...prev, uploadState]);
+        }
+      });
+
+      openModal();
+      return true;
+    } catch (error: unknown) {
+      const folderError = error as { type?: string; folderPath?: string; folderName?: string; parentFolderId?: string; manifestData?: unknown; responseError?: unknown };
+      if (folderError && folderError.type === 'folder_conflict') {
+        console.log('Folder upload conflict detected:', folderError.folderPath, folderError.folderName);
+        pendingFolderUploadConflictRef.current = { files: filesToPrepare, baseFolderId, conflict: folderError, retryCount: 0 };
+
+        const conflictItem = {
+          id: folderError.folderPath || folderError.folderName || '',
+          name: folderError.folderName || folderError.folderPath || '',
+          type: 'folder' as const,
+          existingPath: folderError.parentFolderId || '',
+          newPath: '',
+          existingItem: undefined,
+          existingFileId: undefined,
+        };
+
+        setConflictItems([conflictItem]);
+        setIsConflictModalOpen(true);
+        // DO NOT open the upload modal here: there are no uploads yet and showing the progress modal is confusing.
+        return false;
+      }
+
+      console.error('Failed to prepare folder uploads:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create folder structure';
+      alert(`Upload Failed: ${errorMessage}`);
+      openModal();
+      return false;
+    }
+  }, [addUpload, updateUploadState, openModal]);
 
   const cancelUpload = useCallback((uploadId: string) => {
     const manager = uploadManagersRef.current.get(uploadId);
@@ -469,23 +619,7 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
     e.target.value = '';
   }, [addUpload, startUpload, openModal]);
 
-  // Handle folder selection
-  const handleFolderChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
 
-    // Convert FileList to array and start uploads
-    Array.from(files).forEach(file => {
-      const uploadState = addUpload(file);
-      startUpload(uploadState);
-    });
-
-    // Open modal
-    openModal();
-
-    // Clear the input
-    e.target.value = '';
-  }, [addUpload, startUpload, openModal]);
 
   // Download handlers
   const startFileDownload = useCallback(async (fileId: string, fileName: string) => {
@@ -543,7 +677,9 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
     }
   }, []);
 
-  const startPdfPreview = useCallback(async (fileId: string, fileName: string, fileSize: number) => {
+  const startPdfPreview = useCallback(async (fileId: string, fileName: string, _fileSize: number) => {
+    // _fileSize intentionally unused
+    void _fileSize;
     try {
       setDownloadError(null);
       setCurrentDownloadFile({ id: fileId, name: fileName, type: 'file' });
@@ -616,7 +752,9 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
     // Modal stays open until user explicitly closes it
   }, []);
 
-  const startUploadWithFiles = useCallback((files: File[], folderId: string | null) => {
+  const startUploadWithFiles = useCallback((files: File[], _folderId: string | null) => {
+    // _folderId intentionally unused here (uploads go to current folder)
+    void _folderId;
     // Filter out any suspicious entries that might be directories
     const validFiles = files.filter(file => {
       // Check for empty or invalid filenames
@@ -648,22 +786,15 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
   const startUploadWithFolders = useCallback((files: FileList | File[], folderId: string | null) => {
     // Filter out any suspicious entries before processing
     const fileArray = Array.from(files);
-    console.log('=== START UPLOAD WITH FOLDERS ===');
-    console.log('Input files count:', fileArray.length);
-    fileArray.forEach((f, i) => {
-      console.log(`[${i}] name="${f.name}" size=${f.size} type="${f.type}" relativePath="${(f as File & { webkitRelativePath?: string }).webkitRelativePath || 'NONE'}"`);
-    });
     
     const validFiles = fileArray.filter(file => {
       // Check for empty or invalid filenames
       if (!file.name || file.name.trim() === '') {
-        console.log('FILTERING OUT: empty name');
         return false;
       }
       
       // ONLY reject truly empty directory entries: size=0 AND type=""
       if (file.size === 0 && file.type === '') {
-        console.log(`FILTERING OUT DIR (empty): name="${file.name}" size=${file.size} type="${file.type}"`);
         return false;
       }
       
@@ -671,145 +802,28 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
       return true;
     });
 
-    console.log('After filter, validFiles count:', validFiles.length);
-
     if (validFiles.length === 0) {
       alert('No files were found in the selected folder. Please select a folder with files.');
       return;
     }
 
-    // Register callback to add folders immediately when they're created
-    const onFolderCreated = (folder: CreatedFolder) => {
-      
-      // Trigger folder added callbacks
-      onFileAddedCallbacksRef.current.forEach(callback => {
-        callback({
-          id: folder.id,
-          name: folder.name,
-          parentId: folder.parentId,
-          path: folder.path,
-          type: 'folder',
-          createdAt: folder.createdAt,
-          updatedAt: folder.updatedAt,
-          is_shared: false
-        });
-      });
-    };
+    // Kick off folder preparation/upload attempt
+    attemptPrepare(validFiles, folderId);
+  }, [attemptPrepare]);
 
-    // Process folder structure and create folders as needed
-    // Pass the filtered validFiles array
-    prepareFilesForUpload(validFiles, folderId, onFolderCreated)
-      .then(filesForUpload => {
-        // Check if any files are available
-        if (filesForUpload.length === 0) {
-          console.warn('📁 Upload skipped: Selected folder is empty or contains no accessible files');
-          // Show user-friendly message for empty folders
-          alert('The selected folder is empty. There are no files to upload.');
-          openModal();
-          return;
-        }
+  // Handle folder selection from file input - delegate to folder upload flow
+  const handleFolderChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
-        // Upload each file to its correct folder
-        filesForUpload.forEach(({ file, folderId: targetFolderId }) => {
-          try {
-            const uploadState = addUpload(file);
-            // Store the correct folder ID for this upload
-            const uploadManager = new UploadManager({
-              id: uploadState.id,
-              file: uploadState.file,
-              folderId: targetFolderId,
-              onProgress: (task) => {
-                updateUploadState(task.id, {
-                  status: task.status,
-                  progress: task.progress,
-                  error: task.error,
-                });
-              },
-              onComplete: (task) => {
-                updateUploadState(task.id, {
-                  status: 'completed',
-                  result: task.result,
-                  progress: task.progress,
-                });
-                // Trigger all registered upload completion callbacks (only when result exists)
-                if (task.result) {
-                  onUploadCompleteCallbacksRef.current.forEach(callback => {
-                    callback(task.id, task.result as UploadResult);
-                  });
-                }
-                // Trigger file added callbacks with the file data
-                if (task.result && task.result.file) {
-                  onFileAddedCallbacksRef.current.forEach(callback => {
-                    if (task.result && task.result.file) callback(task.result.file);
-                  });
-                }
-                // Trigger file replaced callbacks if a file was replaced - refresh the file list
-                if (task.existingFileIdToDelete) {
-                  onFileReplacedCallbacksRef.current.forEach(callback => {
-                    callback();
-                  });
-                }
-              },
-              onError: (task) => {
-                updateUploadState(task.id, {
-                  status: 'failed',
-                  error: task.error,
-                });
-              },
-              onCancel: (task) => {
-                updateUploadState(task.id, {
-                  status: 'cancelled',
-                });
-              },
-              onConflict: (task, conflictInfo) => {
-                // Handle file conflict by opening conflict modal
-                const conflictItem = {
-                  id: task.id,
-                  name: conflictInfo.name,
-                  type: conflictInfo.type,
-                  existingPath: conflictInfo.existingPath,
-                  newPath: conflictInfo.newPath,
-                  existingFileId: conflictInfo.existingFileId, // Store file ID for deletion
-                };
-                setConflictItems([conflictItem]);
-                setIsConflictModalOpen(true);
-                
-                // Store the upload manager for later resolution
-                uploadManagersRef.current.set(task.id, uploadManager);
-              },
-            });
+    startUploadWithFolders(files, currentFolderId === 'root' ? null : currentFolderId);
+    // Clear input
+    e.target.value = '';
+  }, [startUploadWithFolders, currentFolderId]);
 
-            uploadManagersRef.current.set(uploadState.id, uploadManager);
-            uploadManager.start();
-          } catch (error) {
-            console.error('Failed to initialize upload for file:', file.name, error);
-            // Create an error upload state to display the error to the user
-            const uploadState: FileUploadState = {
-              id: `upload-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-              file,
-              status: 'failed',
-              progress: null,
-              currentFilename: file.name,
-              error: error instanceof Error ? error.message : 'Failed to upload file',
-            };
-            setUploads(prev => [...prev, uploadState]);
-          }
-        });
-        openModal();
-      })
-      .catch((error) => {
-        console.error('Failed to prepare folder uploads:', error);
-        // Show error message
-        const errorMessage = error instanceof Error ? error.message : 'Failed to create folder structure';
-        alert(`Upload Failed: ${errorMessage}`);
-        // Still open modal to show errors
-        openModal();
-      });
-  }, [addUpload, updateUploadState, openModal]);
-
-  const handleConflictResolution = useCallback((resolutions: Record<string, 'replace' | 'keepBoth' | 'ignore'>) => {
+  const handleConflictResolution = useCallback(async (resolutions: Record<string, 'replace' | 'keepBoth' | 'ignore'>) => {
     // Handle conflict resolution for each item
-    Object.entries(resolutions).forEach(async ([itemId, resolution]) => {
+    for (const [itemId, resolution] of Object.entries(resolutions)) {
       const manager = uploadManagersRef.current.get(itemId);
       if (manager) {
         if (resolution === 'replace') {
@@ -839,13 +853,189 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
         const mappedResolution = resolution === 'ignore' ? 'skip' : resolution;
         manager.resolveConflict(mappedResolution as 'replace' | 'keepBoth' | 'skip');
         uploadManagersRef.current.delete(itemId);
+
+        continue; // proceed to next resolution
       }
-    });
+
+      // If no upload manager found, check for pending folder upload conflict
+      if (pendingFolderUploadConflictRef.current) {
+        const pending = pendingFolderUploadConflictRef.current;
+        const conflict = pending.conflict;
+
+        if (conflict && conflict.folderPath === itemId) {
+          try {
+            if (resolution === 'replace') {
+              // Attempt to locate existing folder in parent and delete it
+              const parentId = conflict.parentFolderId || 'root';
+              const contentsResp = await apiClient.getFolderContents(parentId);
+              if (!contentsResp.success) throw new Error(contentsResp.error || 'Failed to list parent folder');
+
+              // Build decrypted folder name map for reliable matching
+              let masterKey: Uint8Array | null = null;
+              try {
+                masterKey = masterKeyManager.getMasterKey();
+              } catch {
+                try {
+                  await keyManager.getUserKeys();
+                  masterKey = masterKeyManager.getMasterKey();
+                } catch {
+                  masterKey = null;
+                }
+              }
+
+              const folders = contentsResp.data?.folders || [];
+              type FolderContentItem = { id?: string; name?: string | undefined; encryptedName?: string; nameSalt?: string };
+              let existing: FolderContentItem | null = null;
+              for (const f of folders) {
+                let displayName = f.name || '';
+                if ((!displayName || displayName.trim() === '') && f.encryptedName && f.nameSalt && masterKey) {
+                  try {
+                    displayName = await decryptFilename(f.encryptedName, f.nameSalt, masterKey);
+                  } catch {
+                    displayName = f.encryptedName || '';
+                  }
+                }
+                if (displayName === conflict.folderName) {
+                  existing = f;
+                  break;
+                }
+              }
+
+              if (existing && existing.id) {
+                const delResp = await apiClient.deleteFolder(existing.id);
+                if (!delResp.success) throw new Error(delResp.error || 'Failed to delete existing folder');
+                
+                // Notify UI of folder deletion
+                const existingId = existing.id;
+                if (existingId) {
+                  onFileDeletedCallbacksRef.current.forEach(callback => {
+                    callback(existingId);
+                  });
+                }
+              } else {
+                throw new Error('Existing folder not found for replace');
+              }
+
+              // Clear pending and close modal first to prevent re-entry
+              pendingFolderUploadConflictRef.current = null;
+              setIsConflictModalOpen(false);
+              setConflictItems([]);
+
+              // Retry the folder upload flow (with a simple retry guard) - reset retryCount since we deleted the conflict
+              const ok = await attemptPrepare(pending.files, pending.baseFolderId, undefined, { suppressEmptyAlert: true });
+              if (ok) {
+                toast.success(`Folder replaced successfully`);
+              } else {
+                throw new Error('Failed to upload folder after replacing existing one');
+              }
+            } else if (resolution === 'keepBoth') {
+              // Propose a unique name in the parent folder and retry with renameMap, with automatic retries if needed
+              const parentId = conflict.parentFolderId || 'root';
+              const contentsResp = await apiClient.getFolderContents(parentId);
+              if (!contentsResp.success) throw new Error(contentsResp.error || 'Failed to list parent folder');
+
+              // Build decrypted folder name set for uniqueness checks
+              let masterKey: Uint8Array | null = null;
+              try {
+                masterKey = masterKeyManager.getMasterKey();
+              } catch {
+                try {
+                  await keyManager.getUserKeys();
+                  masterKey = masterKeyManager.getMasterKey();
+                } catch {
+                  masterKey = null;
+                }
+              }
+
+              const folders = contentsResp.data?.folders || [];
+              const existingNames = new Set<string>();
+              for (const f of folders) {
+                let displayName = f.name || '';
+                if ((!displayName || displayName.trim() === '') && f.encryptedName && f.nameSalt && masterKey) {
+                  try {
+                    displayName = await decryptFilename(f.encryptedName, f.nameSalt, masterKey);
+                  } catch {
+                    displayName = f.encryptedName || '';
+                  }
+                }
+                if (displayName) existingNames.add(displayName);
+              }
+
+              const base = conflict.folderName;
+
+              // Find a unique name
+              let suggested: string | null = null;
+              const maxTries = 100; // Increase max tries
+              for (let idx = 1; idx <= maxTries; idx++) {
+                const candidate = `${base} (${idx})`;
+                if (!existingNames.has(candidate)) {
+                  suggested = candidate;
+                  break;
+                }
+              }
+
+              if (!suggested) {
+                throw new Error('Could not find a unique folder name after 100 attempts');
+              }
+
+              // Clear pending and close modal first to prevent re-entry
+              pendingFolderUploadConflictRef.current = null;
+              setIsConflictModalOpen(false);
+              setConflictItems([]);
+
+              // Attempt upload with the unique name
+              const renameMap = { [conflict.folderPath]: suggested };
+              const ok = await attemptPrepare(pending.files, pending.baseFolderId, renameMap, { suppressEmptyAlert: true });
+              
+              if (ok) {
+                toast.success(`Folder uploaded as "${suggested}"`);
+              } else {
+                throw new Error('Failed to upload folder with unique name');
+              }
+            } else if (resolution === 'ignore') {
+              // Filter out files belonging to the conflicting folder path and continue
+              const folderPathPrefix = conflict.folderPath + '/';
+              const filesArray = Array.from(pending.files as FileList | File[]);
+              const filtered = filesArray.filter((f: File) => {
+                const rel = (f as File & { webkitRelativePath?: string }).webkitRelativePath || '';
+                return !(rel === conflict.folderPath || rel.startsWith(folderPathPrefix));
+              });
+
+              // Clear pending and close modal first to prevent re-entry
+              pendingFolderUploadConflictRef.current = null;
+              setIsConflictModalOpen(false);
+              setConflictItems([]);
+
+              if (filtered.length === 0) {
+                // Nothing left to upload after skipping this folder
+                toast.info('No files left to upload after skipping the conflicting folder');
+                break;
+              }
+
+              // Continue with remaining files
+              const ok = await attemptPrepare(filtered as File[], pending.baseFolderId, undefined, { suppressEmptyAlert: true });
+              if (ok) {
+                toast.success('Remaining files uploaded successfully');
+              } else {
+                // Only show error if there was actually an error, not if folder was empty
+                if (filtered.length > 0) {
+                  toast.error('Failed to continue upload after skipping conflicting folder');
+                }
+              }
+            }
+          } catch (err) {
+            console.error('Failed to resolve folder upload conflict:', err);
+            toast.error(err instanceof Error ? err.message : 'Failed to resolve conflict');
+            pendingFolderUploadConflictRef.current = null;
+          }
+        }
+      }
+    }
     
     // Close conflict modal
     setIsConflictModalOpen(false);
     setConflictItems([]);
-  }, [conflictItems]);
+  }, [conflictItems, attemptPrepare]);
 
   const retryDownload = useCallback(() => {
     if (!currentDownloadFile) return;

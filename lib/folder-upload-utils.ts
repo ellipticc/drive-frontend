@@ -107,7 +107,8 @@ export async function extractFolderStructure(files: FileList | File[]): Promise<
 export async function createFolderHierarchy(
   folderStructure: FolderStructure,
   baseFolderId: string | null = null,
-  onFolderCreated?: (folder: CreatedFolder) => void
+  onFolderCreated?: (folder: CreatedFolder) => void,
+  renameMap?: Record<string, string>
 ): Promise<Map<string, string | null>> {
   const folderMap = new Map<string, string | null>();
   
@@ -192,6 +193,26 @@ export async function createFolderHierarchy(
         console.log(`✅ Created folder: ${folderPath} (ID: ${response.data.id})`);
       } else {
         console.error(`❌ Failed to create folder: ${folderPath}`, response.error);
+
+        // Detect conflict-like responses and throw a structured conflict error
+        const isConflict = response.error && (
+          response.error.toLowerCase().includes('already exists') ||
+          response.error.toLowerCase().includes('409') ||
+          response.error.toLowerCase().includes('a folder with this name') ||
+          response.error.toLowerCase().includes('conflict')
+        );
+
+        if (isConflict) {
+          const conflictError: any = new Error('Folder conflict')
+          conflictError.type = 'folder_conflict'
+          conflictError.folderPath = folderPath
+          conflictError.folderName = folderName
+          conflictError.parentFolderId = parentFolderId
+          conflictError.manifestData = manifestData
+          conflictError.responseError = response.error
+          throw conflictError
+        }
+
         throw new Error(`Failed to create folder: ${folderPath}`);
       }
     } catch (error) {
@@ -221,7 +242,8 @@ export function getFolderIdForFile(folderPath: string, folderMap: Map<string, st
 export async function prepareFilesForUpload(
   files: FileList | File[],
   baseFolderId: string | null = null,
-  onFolderCreated?: (folder: CreatedFolder) => void
+  onFolderCreated?: (folder: CreatedFolder) => void,
+  renameMap?: Record<string, string>
 ): Promise<Array<{ file: File; folderId: string | null }>> {
   // Extract folder structure from files (with validation)
   const folderStructure = await extractFolderStructure(files);
@@ -235,7 +257,7 @@ export async function prepareFilesForUpload(
   }
 
   // Create folder hierarchy and get folder IDs
-  const folderMap = await createFolderHierarchy(folderStructure, baseFolderId, onFolderCreated);
+  const folderMap = await createFolderHierarchy(folderStructure, baseFolderId, onFolderCreated, renameMap);
 
   // Prepare files with their folder IDs
   const filesForUpload: Array<{ file: File; folderId: string | null }> = [];

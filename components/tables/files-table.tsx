@@ -14,6 +14,7 @@ import { SharePickerModal } from "@/components/modals/share-picker-modal";
 import { DetailsModal } from "@/components/modals/details-modal";
 import { MoveToTrashModal } from "@/components/modals/move-to-trash-modal";
 import { RenameModal } from "@/components/modals/rename-modal";
+import { ConflictModal } from "@/components/modals/conflict-modal";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -120,6 +121,13 @@ export const Table01DividerLineSm = ({
     }, [currentFolderId, setGlobalCurrentFolderId]);
     const [renameModalOpen, setRenameModalOpen] = useState(false);
     const [selectedItemForRename, setSelectedItemForRename] = useState<{ id: string; name: string; type: "file" | "folder" } | null>(null);
+
+    // Rename conflict state
+    const [renameConflictOpen, setRenameConflictOpen] = useState(false);
+    const [renameConflictItems, setRenameConflictItems] = useState<Array<{ id: string; name: string; type: 'file' | 'folder'; existingPath: string; newPath: string; existingItem?: FileItem; existingFileId?: string }>>([]);
+    const [pendingRenameManifest, setPendingRenameManifest] = useState<any>(null);
+    const [renameModalInitialName, setRenameModalInitialName] = useState<string | undefined>(undefined);
+
     const [shareModalOpen, setShareModalOpen] = useState(false);
     const [selectedItemForShare, setSelectedItemForShare] = useState<{ id: string; name: string; type: "file" | "folder" } | null>(null);
     const [sharePickerModalOpen, setSharePickerModalOpen] = useState(false);
@@ -1014,8 +1022,30 @@ export const Table01DividerLineSm = ({
                                  response.error?.toLowerCase().includes('already exists');
                 
                 if (isConflict) {
-                    toast.error('A file or folder with this name already exists');
-                    // Keep modal open for user to try a different name
+                    // If it's a folder rename conflict, show conflict modal with details
+                    if (selectedItemForRename?.type === 'folder') {
+                        const requestedName = (data as any)?.requestedName || '';
+                        // Try to locate the existing folder in the current listing
+                        const existingFolder = files.find(f => f.type === 'folder' && f.name === requestedName);
+
+                        const conflictItem = {
+                            id: selectedItemForRename.id,
+                            name: requestedName,
+                            type: 'folder' as const,
+                            existingPath: existingFolder?.path || '',
+                            newPath: '',
+                            existingItem: existingFolder,
+                            existingFileId: existingFolder?.id,
+                        };
+
+                        setPendingRenameManifest(data);
+                        setRenameConflictItems([conflictItem]);
+                        setRenameConflictOpen(true);
+                        // Keep rename modal open so user can adjust if they chose to ignore
+                    } else {
+                        // For files keep the current behavior
+                        toast.error('A file or folder with this name already exists');
+                    }
                 } else {
                     toast.error(`Failed to rename ${selectedItemForRename.type}`);
                     setRenameModalOpen(false);
@@ -1028,6 +1058,67 @@ export const Table01DividerLineSm = ({
             setRenameModalOpen(false);
             setSelectedItemForRename(null);
         }
+    };
+
+    // Handle rename conflict resolutions
+    const handleRenameConflictResolution = async (resolutions: Record<string, 'replace' | 'keepBoth' | 'ignore'>) => {
+        for (const [itemId, resolution] of Object.entries(resolutions)) {
+            const conflict = renameConflictItems.find(c => c.id === itemId);
+            if (!conflict) continue;
+
+            if (resolution === 'replace') {
+                if (!conflict.existingFileId) {
+                    toast.error('Failed to locate existing folder to replace');
+                    continue;
+                }
+
+                // Delete existing folder (soft delete)
+                const delResp = await apiClient.deleteFolder(conflict.existingFileId);
+                if (!delResp.success) {
+                    toast.error(delResp.error || 'Failed to delete existing folder');
+                    continue;
+                }
+
+                // Retry rename using pending manifest
+                if (!pendingRenameManifest) {
+                    toast.error('Pending rename data not available');
+                    continue;
+                }
+
+                const response = await apiClient.renameFolder(conflict.id, pendingRenameManifest);
+                if (response.success) {
+                    toast.success('Folder renamed successfully');
+                    // Close modals and refresh
+                    setRenameConflictOpen(false);
+                    setRenameModalOpen(false);
+                    setSelectedItemForRename(null);
+                    refreshFiles();
+                } else {
+                    toast.error(response.error || 'Failed to rename folder after replacing existing one');
+                }
+            } else if (resolution === 'keepBoth') {
+                // Suggest a unique name and reopen rename modal pre-filled with it
+                const base = conflict.name;
+                let idx = 1;
+                const exists = (name: string) => files.some(f => f.type === 'folder' && f.name === name);
+                let suggested = `${base} (${idx})`;
+                while (exists(suggested)) {
+                    idx += 1;
+                    suggested = `${base} (${idx})`;
+                }
+
+                setRenameConflictOpen(false);
+                setRenameModalOpen(true);
+                setRenameModalInitialName(suggested);
+            } else if (resolution === 'ignore') {
+                // Just close conflict modal and leave rename modal open for user to try a different name
+                setRenameConflictOpen(false);
+            }
+        }
+
+        // Clear pending state
+        setPendingRenameManifest(null);
+        setRenameConflictItems([]);
     };
 
     // Format file size
@@ -1914,10 +2005,23 @@ export const Table01DividerLineSm = ({
 
         <RenameModal
             itemName={selectedItemForRename?.name || ""}
+            initialName={renameModalInitialName}
             itemType={selectedItemForRename?.type || "file"}
             open={renameModalOpen}
-            onOpenChange={setRenameModalOpen}
+            onOpenChange={(open) => {
+                setRenameModalOpen(open);
+                if (!open) setRenameModalInitialName(undefined);
+            }}
             onRename={handleRename}
+        />
+
+        {/* Conflict modal for rename actions */}
+        <ConflictModal
+            isOpen={renameConflictOpen}
+            onClose={() => setRenameConflictOpen(false)}
+            conflicts={renameConflictItems}
+            onResolve={handleRenameConflictResolution}
+            operation="rename"
         />
 
         <ShareModal

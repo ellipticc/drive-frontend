@@ -21,7 +21,7 @@ interface ConflictModalProps {
   onClose: () => void
   conflicts: ConflictItem[]
   onResolve: (resolutions: Record<string, 'replace' | 'keepBoth' | 'ignore'>) => void
-  operation: 'upload' | 'move'
+  operation: 'upload' | 'move' | 'rename'
 }
 
 export function ConflictModal({ isOpen, onClose, conflicts, onResolve, operation }: ConflictModalProps) {
@@ -64,11 +64,11 @@ export function ConflictModal({ isOpen, onClose, conflicts, onResolve, operation
   }
 
   const getTitle = () => {
+    const opLabel = operation === 'upload' ? 'Upload' : operation === 'move' ? 'Move' : 'Rename'
     if (conflicts.length === 1) {
-      const conflict = conflicts[0]
-      return `${operation === 'upload' ? 'Upload' : 'Move'} Conflict`
+      return `${opLabel} Conflict`
     }
-    return `${operation === 'upload' ? 'Upload' : 'Move'} Conflicts (${conflicts.length})`
+    return `${opLabel} Conflicts (${conflicts.length})`
   }
 
   const getDescription = () => {

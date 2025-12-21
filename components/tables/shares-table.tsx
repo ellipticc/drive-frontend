@@ -58,6 +58,7 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
     const [renameModalOpen, setRenameModalOpen] = useState(false);
     const [selectedItemForRename, setSelectedItemForRename] = useState<{ id: string; name: string; type: "file" | "folder" } | null>(null);
 
+
     // Load shares on component mount
     useEffect(() => {
         refreshShares();
@@ -787,6 +788,8 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                     }
                 }}
             />
+
+
         </>
     );
 };
