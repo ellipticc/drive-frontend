@@ -182,8 +182,13 @@ export function SignupFormAuth({
       // Get account salt and user ID from registration response
       const { userId, token } = registrationResult
 
+      if (!userId) {
+        setError("Registration failed: missing user ID")
+        return
+      }
+
       // Store authentication token
-      apiClient.setAuthToken(token)
+      apiClient.setAuthToken(token ?? null)
 
       // Store email and password for future use (OTP, master key derivation, etc.)
       localStorage.setItem('signup_email', formData.email)

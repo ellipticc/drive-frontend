@@ -18,6 +18,9 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const folderInputRef = useRef<HTMLInputElement>(null)
 
+  // Helper to access non-standard webkitRelativePath on File objects safely
+  const getRelativePath = (f: File) => (f as unknown as { webkitRelativePath?: string }).webkitRelativePath || ''
+
   // Drag and drop state - simplified
   // folders can be FileList (from input) or File[] (from drag & drop) - both preserve webkitRelativePath
   const [isDragOverlayVisible, setIsDragOverlayVisible] = useState(false)
@@ -57,7 +60,7 @@ export default function Home() {
     
     // Filter out directories and suspicious entries
     const validFiles = fileArray.filter(file => {
-      const relativePath = (file as any).webkitRelativePath || '';
+      const relativePath = getRelativePath(file);
       
       // Skip if this looks like a directory:
       // 1. Has webkitRelativePath that equals the filename (folder, not file in folder)
@@ -73,11 +76,11 @@ export default function Home() {
     });
     
     const regularFiles = validFiles.filter(file => {
-      const relativePath = (file as any).webkitRelativePath || '';
+      const relativePath = getRelativePath(file);
       return !relativePath; // Files with no relative path
     })
     const folderFiles = validFiles.filter(file => {
-      const relativePath = (file as any).webkitRelativePath || '';
+      const relativePath = getRelativePath(file);
       return relativePath && relativePath !== file.name; // Files in folders
     })
 
@@ -188,7 +191,7 @@ export default function Home() {
                   tableFolderInput.dispatchEvent(new Event('change', { bubbles: true }))
                 }
               }}
-              {...({ webkitdirectory: "" } as any)}
+              {...({ webkitdirectory: "" } as React.InputHTMLAttributes<HTMLInputElement> & { webkitdirectory?: string })}
             />
           </div>
         </div>

@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { downloadEncryptedFileWithCEK, downloadEncryptedFile } from '@/lib/download';
-import { apiClient } from "@/lib/api";
+import { apiClient, ShareItem } from "@/lib/api";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { decryptFilename } from "@/lib/crypto";
@@ -29,32 +29,6 @@ import { truncateFilename } from "@/lib/utils";
 import { isTextTruncated } from "@/lib/tooltip-helper";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-export interface ShareItem {
-  id: string;
-  fileId: string;
-  fileName: string;
-  fileSize: number;
-  createdAt: string;
-  expiresAt?: string;
-  permissions: string;
-  revoked: boolean;
-  linkSecret?: string;
-  views: number;
-  maxViews?: number;
-  downloads: number;
-  folderPath: string;
-  folderPathSalt: string;
-  isFolder: boolean;
-  recipients: Array<{
-    id: string;
-    userId?: string;
-    email?: string;
-    name?: string;
-    status: string;
-    createdAt: string;
-    revokedAt?: string;
-  }>;
-}
 
 export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
     const router = useRouter();
@@ -107,7 +81,7 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                 }
 
                 // Decrypt filenames and folder paths in shares
-                const sharesWithDecryptedNames = await Promise.all(response.data.map(async (share: any) => {
+                const sharesWithDecryptedNames = await Promise.all(response.data.map(async (share: ShareItem) => {
                     let displayName = share.fileName || '';
                     let displayPath = share.folderPath || '';
 

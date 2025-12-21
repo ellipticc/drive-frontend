@@ -122,7 +122,7 @@ async function handleApiProxy(request: NextRequest, slug: string[]) {
     }
 
     // Get request body for non-GET requests
-    let body: any = undefined;
+    let body: string | undefined = undefined;
     if (request.method !== 'GET' && request.method !== 'HEAD') {
       try {
         const contentType = request.headers.get('content-type');

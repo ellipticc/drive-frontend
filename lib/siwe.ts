@@ -3,6 +3,30 @@
  * Handles wallet connection, message signing, and authentication
  */
 
+// Declare Ethereum provider type
+declare global {
+  interface Window {
+    ethereum?: {
+      request: (args: {
+        method: string
+        params?: unknown[]
+      }) => Promise<unknown>
+    }
+  }
+}
+
+interface EthereumError extends Error {
+  code?: number;
+}
+
+interface SIWEVerifyPayload {
+  walletAddress: string;
+  message: string;
+  signature: string;
+  nonceId: string;
+  referralCode?: string;
+}
+
 interface SIWEResponse {
   success: boolean;
   message?: string;
@@ -34,8 +58,8 @@ interface SIWEMessage {
 }
 
 export class SIWE {
-  private provider: any;
-  private signer: any;
+  private provider: unknown;
+  private signer: unknown;
   private chainId: number = 1; // Mainnet by default
   private connectedAddress: string = '';
 
@@ -47,7 +71,7 @@ export class SIWE {
    * Check if MetaMask or compatible wallet is installed
    */
   static isWalletInstalled(): boolean {
-    return typeof window !== 'undefined' && typeof (window as any).ethereum !== 'undefined';
+    return typeof window !== 'undefined' && typeof (window as Window & { ethereum?: unknown }).ethereum !== 'undefined';
   }
 
   /**
@@ -59,18 +83,18 @@ export class SIWE {
     }
 
     try {
-      const accounts = await (window as any).ethereum.request({
+      const accounts = await window.ethereum!.request({
         method: 'eth_requestAccounts'
       });
 
-      if (!accounts || accounts.length === 0) {
+      if (!accounts || !Array.isArray(accounts) || accounts.length === 0) {
         throw new Error('No wallet accounts available');
       }
 
-      this.connectedAddress = accounts[0].toLowerCase();
+      this.connectedAddress = (accounts[0] as string).toLowerCase();
       return this.connectedAddress;
     } catch (error) {
-      if ((error as any).code === 4001) {
+      if ((error as EthereumError).code === 4001) {
         throw new Error('User rejected wallet connection');
       }
       throw error;
@@ -162,14 +186,14 @@ export class SIWE {
     }
 
     try {
-      const signature = await (window as any).ethereum.request({
+      const signature = await window.ethereum!.request({
         method: 'personal_sign',
         params: [message, this.connectedAddress]
       });
 
-      return signature;
+      return signature as string;
     } catch (error) {
-      if ((error as any).code === 4001) {
+      if ((error as EthereumError).code === 4001) {
         throw new Error('User rejected signature request');
       }
       throw error;
@@ -196,7 +220,7 @@ export class SIWE {
       const signature = await this.signMessage(formattedMessage);
 
       // Step 5: Verify signature on backend
-      const verifyPayload: any = {
+      const verifyPayload: SIWEVerifyPayload = {
         walletAddress: walletAddress,
         message: formattedMessage,
         signature: signature,
@@ -237,11 +261,11 @@ export class SIWE {
     }
 
     try {
-      const chainId = await (window as any).ethereum.request({
+      const chainId = await window.ethereum!.request({
         method: 'eth_chainId'
       });
 
-      const currentChainId = parseInt(chainId, 16);
+      const currentChainId = parseInt(chainId as string, 16);
       return currentChainId === expectedChainId;
     } catch (error) {
       console.error('Failed to verify chain:', error);
@@ -258,7 +282,7 @@ export class SIWE {
     }
 
     try {
-      await (window as any).ethereum.request({
+      await window.ethereum!.request({
         method: 'wallet_switchEthereumChain',
         params: [{ chainId: `0x${chainId.toString(16)}` }]
       });

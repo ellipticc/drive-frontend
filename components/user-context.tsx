@@ -17,8 +17,12 @@ interface UserData {
     used_readable: string;
     quota_readable: string;
   };
-  crypto_keypairs?: any;
-  [key: string]: any;
+  crypto_keypairs?: {
+    accountSalt?: string;
+    [key: string]: unknown;
+  };
+  // Optional authentication method (e.g., 'wallet')
+  authMethod?: string;
 }
 
 interface UserContextType {

@@ -21,8 +21,32 @@ import {
   IconCheck,
 } from "@tabler/icons-react"
 import { toast } from "sonner"
-import { apiClient } from "@/lib/api"
+import { apiClient, FileInfo, FolderInfo } from "@/lib/api"
 import { truncateFilename } from "@/lib/utils"
+
+interface ItemDetails {
+  filename?: string;
+  encryptedFilename?: string;
+  // Legacy snake_case aliases
+  encrypted_filename?: string;
+  filename_salt?: string;
+  nameSalt?: string;
+  parentId?: string | null;
+  path?: string;
+  encrypted_path?: string;
+  encryptedPath?: string;
+  path_salt?: string;
+  pathSalt?: string;
+  created_at?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  updated_at?: string;
+  mimetype?: string;
+  size?: number;
+  is_shared?: boolean;
+  sha_hash?: string;
+  shaHash?: string;
+}
 import { decryptFilename } from "@/lib/crypto"
 import { useIsMobile } from "@/hooks/use-mobile"
 
@@ -45,7 +69,7 @@ export function DetailsModal({
 }: DetailsModalProps) {
   const isMobile = useIsMobile();
   const [internalOpen, setInternalOpen] = useState(false)
-  const [itemDetails, setItemDetails] = useState<any>(null)
+  const [itemDetails, setItemDetails] = useState<ItemDetails | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [copiedHashId, setCopiedHashId] = useState<string | null>(null)
   const [decryptedFilename, setDecryptedFilename] = useState<string | null>(null)
@@ -70,7 +94,7 @@ export function DetailsModal({
   useEffect(() => {
     const decryptFilenameAsync = async () => {
       // Handle different field names for files vs folders
-      const encryptedName = itemDetails?.encrypted_filename || itemDetails?.encryptedName
+const encryptedName = itemDetails?.encrypted_filename || itemDetails?.encryptedFilename
       const filenameSalt = itemDetails?.filename_salt || itemDetails?.nameSalt
 
       if (encryptedName && filenameSalt) {
@@ -139,8 +163,9 @@ export function DetailsModal({
 
       if (response.success && response.data) {
         // Handle nested data structure for files and folders
-        const details = itemType === "file" ? response.data.file : response.data.folder || response.data
-        setItemDetails(details)
+        const dataObj = response.data as { file?: FileInfo; folder?: FolderInfo };
+        const details = itemType === "file" ? (dataObj.file as ItemDetails | undefined) : (dataObj.folder as ItemDetails | undefined) || (response.data as ItemDetails)
+        setItemDetails(details as ItemDetails | null)
         // Note: No success toast shown when details are loaded
       }
 
@@ -437,7 +462,7 @@ export function DetailsModal({
                         {itemDetails.sha_hash.substring(0, 16)}...
                       </code>
                       <Button
-                        onClick={() => copyToClipboard(itemDetails.sha_hash, "hash")}
+                        onClick={() => itemDetails?.sha_hash && copyToClipboard(itemDetails.sha_hash, "hash")}
                         variant="ghost"
                         size="sm"
                         className="h-5 w-5 p-0"

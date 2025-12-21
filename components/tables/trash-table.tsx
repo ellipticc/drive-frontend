@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { IconFolder, IconInfoCircle, IconTrash as IconTrashAlt } from "@tabler/icons-react";
 import { IconPhoto, IconVideo, IconMusic, IconFileText, IconArchive, IconFile } from "@tabler/icons-react";
-import { apiClient } from "@/lib/api";
+import { apiClient, FileContentItem, FolderContentItem } from "@/lib/api";
 import { IconLoader2 } from "@tabler/icons-react";
 import { toast } from "sonner";
 import { truncateFilename } from "@/lib/utils";
@@ -116,7 +116,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
 
                 // Decrypt files synchronously since we have master key
                 const decryptedFiles = await Promise.all(
-                    (filesResponse.data?.files || []).map(async (file: any) => {
+                    ((filesResponse.data?.files || []) as unknown as FileContentItem[]).map(async (file: FileContentItem) => {
                         let decryptedName = '(Unnamed file)';
                         
                         // Try to decrypt filename if encrypted data is available
@@ -138,7 +138,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                             type: 'file' as const,
                             createdAt: file.created_at || file.createdAt,
                             updatedAt: file.updated_at || file.updatedAt,
-                            deletedAt: file.deleted_at || file.deletedAt,
+                            deletedAt: file.deleted_at || file.deletedAt || '' || '',
                             shaHash: file.sha_hash || file.shaHash,
                             folderId: file.folder_id || file.folderId,
                         };
@@ -147,7 +147,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
 
                 // Decrypt folders synchronously since we have master key
                 const decryptedFolders = await Promise.all(
-                    (foldersResponse.data || []).map(async (folder: any) => {
+                    ((foldersResponse.data || []) as FolderContentItem[]).map(async (folder: FolderContentItem) => {
                         let decryptedName = '(Unnamed folder)';
                         
                         // Try to decrypt folder name if encrypted data is available
@@ -166,7 +166,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                             type: 'folder' as const,
                             createdAt: folder.createdAt,
                             updatedAt: folder.updatedAt,
-                            deletedAt: folder.deletedAt,
+                            deletedAt: folder.deletedAt || '',
                         };
                     })
                 );

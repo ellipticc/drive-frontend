@@ -185,7 +185,7 @@ export async function uploadEncryptedFile(
 
     // Use a Worker pool for parallel encryption (up to 4 chunks at a time)
     const maxConcurrentChunks = Math.min(4, chunks.length);
-    const chunkProcessingQueue: Promise<{ chunk: Uint8Array; encryptedData: Uint8Array; nonce: string; hash: string; index: number; compression: any }>[] = [];
+    const chunkProcessingQueue: Promise<{ chunk: Uint8Array; encryptedData: Uint8Array; nonce: string; hash: string; index: number; compression: CompressionMetadata }>[] = [];
 
     for (let i = 0; i < chunks.length; i++) {
       // Check for abort before processing each chunk
@@ -668,8 +668,18 @@ async function initializeUploadSession(
     // Check if this is a conflict error (409)
     if (response.error && (response.error.includes('already exists') || response.error.includes('409') || response.error === 'A file with this name already exists in the destination folder')) {
       // Throw a special conflict error that can be caught by the UI
-      const conflictError = new Error('FILE_CONFLICT');
-      (conflictError as any).conflictInfo = {
+      interface ConflictInfo {
+        type: 'file' | 'folder';
+        name: string;
+        existingPath: string;
+        newPath: string;
+        folderId: string | null;
+        existingFileId?: string;
+        isKeepBothConflict?: boolean;
+      }
+
+      const conflictError = new Error('FILE_CONFLICT') as Error & { conflictInfo?: ConflictInfo };
+      conflictError.conflictInfo = {
         type: 'file',
         name: actualFile.name,
         existingPath: folderId ? `Folder ${folderId}` : 'My Files',

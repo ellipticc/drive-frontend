@@ -14,6 +14,7 @@ import { IconFolder, IconFile, IconPhoto, IconVideo, IconMusic, IconFileText, Ic
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 import { apiClient } from "@/lib/api"
+import type { FolderContentItem, FileContentItem } from "@/lib/api"
 import { decryptFilename } from "@/lib/crypto"
 import { masterKeyManager } from "@/lib/master-key"
 import { truncateFilename } from "@/lib/utils"
@@ -87,22 +88,28 @@ export function SharePickerModal({ open, onOpenChange, onFileSelected }: SharePi
 
       if (response.success && response.data) {
         // Filter out folders that are in trash
-        const activeFolders = (response.data.folders || []).filter((folder: any) =>
-          !folder.path.includes('/trash')
-        )
+        const activeFolders = ((response.data.folders || []) as FolderContentItem[]).filter(folder => typeof folder.path === 'string' && !(folder.path.includes('/trash')))
 
         // Decrypt folder names and build folder tree with only root level folders initially
         const rootFolders: Folder[] = await Promise.all(activeFolders
-          .map(async (folder: any) => {
-            const decryptedName = await decryptFolderName(folder.encryptedName, folder.nameSalt);
+          .map(async (folder) => {
+            const f = folder as FolderContentItem;
+            const decryptedName = await decryptFolderName(f.encryptedName, f.nameSalt);
             return {
-              ...folder,
+              id: f.id,
+              encryptedName: f.encryptedName,
+              nameSalt: f.nameSalt,
               decryptedName: decryptedName,
               isExpanded: false,
               level: 0,
               children: [], // Start with empty children, load lazily
               hasExploredChildren: false, // Haven't tried to load children yet
-              type: 'folder'
+              parentId: f.parentId,
+              path: f.path,
+              type: 'folder',
+              createdAt: f.createdAt,
+              updatedAt: f.updatedAt,
+              is_shared: !!f.is_shared
             }
           })
         )
@@ -127,23 +134,24 @@ export function SharePickerModal({ open, onOpenChange, onFileSelected }: SharePi
         setFolders([rootFolder])
 
         // Set root level files - use Promise.all since decryptFilename is async
-        const rootFiles: FileItem[] = await Promise.all((response.data.files || []).map(async (file: any) => {
+        const rootFiles: FileItem[] = await Promise.all(((response.data.files || []) as FileContentItem[]).map(async (file) => {
+          const f = file as FileContentItem;
           let displayName = '';
           
           // Always try to decrypt if we have the encrypted name and salt
-          if (file.encryptedFilename && file.filenameSalt) {
+          if (f.encryptedFilename && f.filenameSalt) {
             try {
               if (masterKeyManager.hasMasterKey()) {
                 const masterKey = masterKeyManager.getMasterKey();
-                displayName = await decryptFilename(file.encryptedFilename, file.filenameSalt, masterKey);
+                displayName = await decryptFilename(f.encryptedFilename as string, f.filenameSalt as string, masterKey);
               } else {
                 // No master key, use encrypted name as fallback
-                displayName = file.encryptedFilename;
+                displayName = f.encryptedFilename as string;
               }
             } catch (err) {
-              console.warn(`Failed to decrypt filename for file ${file.id}:`, err);
+              console.warn(`Failed to decrypt filename for file ${(f.id as string) || 'unknown'}:`, err);
               // Keep encrypted name as fallback
-              displayName = file.encryptedFilename;
+              displayName = f.encryptedFilename as string;
             }
           }
           
@@ -153,12 +161,12 @@ export function SharePickerModal({ open, onOpenChange, onFileSelected }: SharePi
           }
 
           return {
-            id: file.id,
+            id: f.id as string,
             name: displayName,
             type: 'file' as const,
-            mimeType: file.mimeType,
-            size: file.size,
-            is_shared: file.is_shared || false
+            mimeType: f.mimeType as string | undefined,
+            size: f.size as number | undefined,
+            is_shared: !!f.is_shared
           }
         }))
 
@@ -195,38 +203,46 @@ export function SharePickerModal({ open, onOpenChange, onFileSelected }: SharePi
           const response = await apiClient.getFolderContents(folder.id)
 
           if (response.success && response.data) {
-            const subfolders = await Promise.all((response.data.folders || []).map(async (subfolder: any) => {
-              const decryptedName = await decryptFolderName(subfolder.encryptedName, subfolder.nameSalt);
+            const subfolders = await Promise.all(((response.data.folders || []) as FolderContentItem[]).map(async (subfolder) => {
+              const sf = subfolder as FolderContentItem;
+              const decryptedName = await decryptFolderName(sf.encryptedName, sf.nameSalt);
               return {
-                ...subfolder,
+                id: sf.id,
+                encryptedName: sf.encryptedName,
+                nameSalt: sf.nameSalt,
                 decryptedName: decryptedName,
                 parentId: folder.id,
                 isExpanded: false,
                 level: (folder.level || 0) + 1,
                 children: [],
                 hasExploredChildren: false,
-                type: 'folder'
+                type: 'folder',
+                path: sf.path,
+                createdAt: sf.createdAt,
+                updatedAt: sf.updatedAt,
+                is_shared: !!sf.is_shared
               }
             }))
 
             // Store files for this folder - use Promise.all since decryptFilename is async
-            const folderFilesData: FileItem[] = await Promise.all((response.data.files || []).map(async (file: any) => {
+            const folderFilesData: FileItem[] = await Promise.all(((response.data.files || []) as FileContentItem[]).map(async (file) => {
+              const f = file as FileContentItem;
               let displayName = '';
-              
+               
               // Always try to decrypt if we have the encrypted name and salt
-              if (file.encryptedFilename && file.filenameSalt) {
+              if (f.encryptedFilename && f.filenameSalt) {
                 try {
                   if (masterKeyManager.hasMasterKey()) {
                     const masterKey = masterKeyManager.getMasterKey();
-                    displayName = await decryptFilename(file.encryptedFilename, file.filenameSalt, masterKey);
+                    displayName = await decryptFilename(f.encryptedFilename as string, f.filenameSalt as string, masterKey);
                   } else {
                     // No master key, use encrypted name as fallback
-                    displayName = file.encryptedFilename;
+                    displayName = f.encryptedFilename as string;
                   }
                 } catch (err) {
-                  console.warn(`Failed to decrypt filename for file ${file.id}:`, err);
+                  console.warn(`Failed to decrypt filename for file ${(f.id as string) || 'unknown'}:`, err);
                   // Keep encrypted name as fallback
-                  displayName = file.encryptedFilename;
+                  displayName = f.encryptedFilename as string;
                 }
               }
               
@@ -236,12 +252,12 @@ export function SharePickerModal({ open, onOpenChange, onFileSelected }: SharePi
               }
 
               return {
-                id: file.id,
+                id: f.id as string,
                 name: displayName,
                 type: 'file' as const,
-                mimeType: file.mimeType,
-                size: file.size,
-                is_shared: file.is_shared || false
+                mimeType: f.mimeType as string | undefined,
+                size: f.size as number | undefined,
+                is_shared: !!f.is_shared
               }
             }))
 

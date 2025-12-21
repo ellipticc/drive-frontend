@@ -125,7 +125,7 @@ export async function deriveEncryptionKey(password: string, salt: string): Promi
   // SECURITY: Argon2id requires salt to be at least 8 bytes
   // If salt is shorter, hash it with SHA-256 to expand it to 32 bytes
   if (saltBytes.length < 8) {
-    const hashBuffer = await crypto.subtle.digest('SHA-256', saltBytes as any);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', saltBytes.buffer as ArrayBuffer);
     saltBytes = new Uint8Array(hashBuffer);
   }
 
@@ -150,7 +150,7 @@ function uint8ArrayToBase64(array: Uint8Array): string {
 
   for (let i = 0; i < array.length; i += chunkSize) {
     const chunk = array.slice(i, i + chunkSize);
-    result += String.fromCharCode.apply(null, chunk as any);
+    result += String.fromCharCode(...Array.from(chunk));
   }
 
   return btoa(result);
@@ -464,18 +464,20 @@ export async function generateAllKeypairs(password: string, providedSalt?: strin
 }
 
 // Decrypt user's PQC private keys using cached master key
-export async function decryptUserPrivateKeys(
-  userData: {
-    crypto_keypairs?: {
-      accountSalt: string;
-      pqcKeypairs?: {
-        kyber: { publicKey: string; encryptedPrivateKey: string; privateKeyNonce: string; encryptionKey: string; encryptionNonce: string };
-        x25519: { publicKey: string; encryptedPrivateKey: string; privateKeyNonce: string; encryptionKey: string; encryptionNonce: string };
-        dilithium: { publicKey: string; encryptedPrivateKey: string; privateKeyNonce: string; encryptionKey: string; encryptionNonce: string };
-        ed25519: { publicKey: string; encryptedPrivateKey: string; privateKeyNonce: string; encryptionKey: string; encryptionNonce: string };
-      };
+export type UserCryptoData = {
+  crypto_keypairs?: {
+    accountSalt?: string | null;
+    pqcKeypairs?: {
+      kyber: { publicKey: string; encryptedPrivateKey: string; privateKeyNonce: string; encryptionKey: string; encryptionNonce: string };
+      x25519: { publicKey: string; encryptedPrivateKey: string; privateKeyNonce: string; encryptionKey: string; encryptionNonce: string };
+      dilithium: { publicKey: string; encryptedPrivateKey: string; privateKeyNonce: string; encryptionKey: string; encryptionNonce: string };
+      ed25519: { publicKey: string; encryptedPrivateKey: string; privateKeyNonce: string; encryptionKey: string; encryptionNonce: string };
     };
-  }
+  };
+};
+
+export async function decryptUserPrivateKeys(
+  userData: UserCryptoData
 ): Promise<{
   ed25519PrivateKey: Uint8Array;
   ed25519PublicKey: string;
@@ -918,7 +920,7 @@ function uint8ArrayToBase64Url(array: Uint8Array): string {
  * @param manifest - The manifest object to canonicalize
  * @returns The canonical JSON string
  */
-function createCanonicalManifest(manifest: any): string {
+function createCanonicalManifest(manifest: Record<string, unknown> | unknown[]): string {
   // Use JSON.stringify with consistent property ordering
   // Keys are already in consistent order in the manifest object
   return JSON.stringify(manifest);

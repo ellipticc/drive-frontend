@@ -3,7 +3,7 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { DotsVertical } from "@untitledui/icons";
-import type { SortDescriptor } from "react-aria-components";
+import type { SortDescriptor, Selection } from "react-aria-components";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Button } from "@/components/ui/button";
 import { IconFolderPlus, IconFolderDown, IconFileUpload, IconShare3, IconListDetails, IconDownload, IconFolder, IconEdit, IconInfoCircle, IconTrash, IconPhoto, IconVideo, IconMusic, IconFileText, IconArchive, IconFile, IconHome, IconChevronRight, IconLoader2, IconLink, IconEye } from "@tabler/icons-react";
@@ -22,7 +22,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
-import { apiClient, FileItem } from "@/lib/api";
+import { apiClient, FileItem, FolderContentItem, FileContentItem } from "@/lib/api";
 import { toast } from "sonner";
 import { keyManager } from "@/lib/key-manager";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -304,7 +304,7 @@ export const Table01DividerLineSm = ({
     const startFolderUploads = async (files: FileList | File[]) => {
         // If files is a File[] array (from drag & drop), we need to pass it directly
         // The startUploadWithFolders can handle both FileList and File[] since File[] has the webkitRelativePath property
-        startUploadWithFolders(files as any, currentFolderId === 'root' ? null : currentFolderId);
+        startUploadWithFolders(files, currentFolderId === 'root' ? null : currentFolderId);
     };
 
     // Upload handlers - now using global context
@@ -344,7 +344,7 @@ export const Table01DividerLineSm = ({
     }, [dragDropFiles, onDragDropProcessed]);
 
     // Register for file added events to add files and folders incrementally
-    useOnFileAdded(useCallback((fileData: any) => {
+    useOnFileAdded(useCallback((fileData: FileItem) => {
         
         // Check if this is a folder or a file
         if (fileData.type === 'folder') {
@@ -409,7 +409,7 @@ export const Table01DividerLineSm = ({
                     (async () => {
                         try {
                             const masterKey = masterKeyManager.getMasterKey();
-                            const decryptedName = await decryptFilename(fileData.encryptedFilename, fileData.filenameSalt, masterKey);
+                            const decryptedName = await decryptFilename(fileData.encryptedFilename!, fileData.filenameSalt!, masterKey);
                             // Update the file with the decrypted name
                             setFiles(prev => prev.map(file =>
                                 file.id === fileData.id
@@ -451,7 +451,7 @@ export const Table01DividerLineSm = ({
 
                 // Combine folders and files into a single array
                 const combinedItems: FileItem[] = [
-                    ...(await Promise.all((response.data.folders || []).map(async (folder: any) => {
+                    ...(await Promise.all((response.data.folders || []).map(async (folder: FolderContentItem) => {
                         // Use plaintext name if available, only decrypt if necessary
                         let displayName = folder.name || '';
                         
@@ -482,9 +482,9 @@ export const Table01DividerLineSm = ({
                             is_shared: folder.is_shared || false
                         };
                     }))),
-                    ...(await Promise.all((response.data.files || []).map(async (file: any) => {
+                    ...(await Promise.all((response.data.files || []).map(async (file: FileContentItem) => {
                         // Use plaintext name if available, only decrypt if necessary
-                        let displayName = file.name || '';
+                        let displayName = file.filename || '';
                         
                         // Only decrypt if plaintext name is not available
                         if (!displayName && file.encryptedFilename && file.filenameSalt && masterKey) {
@@ -1311,7 +1311,7 @@ export const Table01DividerLineSm = ({
     }, [selectedItems, filesMap, viewMode, currentFolderId, refreshFiles, handleFolderUpload, handleFileUpload, handleBulkDownload, handlePreviewClick, handleShareClick, handleBulkMoveToTrash, handleViewModeChange, handleRenameClick, handleDetailsClick, setSharePickerModalOpen, setSelectedItemsForMoveToFolder, setMoveToFolderModalOpen]);
 
     // Memoize the onSelectionChange callback to prevent unnecessary re-renders
-    const handleTableSelectionChange = useCallback((keys: any) => {
+    const handleTableSelectionChange = useCallback((keys: Selection) => {
         if (keys === 'all') {
             const allIds = filteredItems.map(item => item.id);
             setSelectedItems(prev => {
@@ -1602,7 +1602,7 @@ export const Table01DividerLineSm = ({
                             multiple
                             className="hidden"
                             onChange={handleFolderSelect}
-                            {...({ webkitdirectory: "" } as any)}
+                            {...({ webkitdirectory: "" } as React.InputHTMLAttributes<HTMLInputElement>)}
                         />
                     </div>
                 }

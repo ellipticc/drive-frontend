@@ -58,7 +58,7 @@ export function TermsOfServiceContent() {
             <section className="space-y-4">
               <h2 className="text-2xl font-semibold">1. Acceptance of Terms</h2>
               <p className="text-base leading-relaxed">
-                By accessing and using this website and service (the "Service"), you agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, please do not use the Service. We reserve the right to modify these Terms at any time. Your continued use of the Service following the posting of revised Terms means that you accept and agree to the changes.
+                By accessing and using this website and service (the &quot;Service&quot;), you agree to be bound by these Terms of Service (&quot;Terms&quot;). If you do not agree to these Terms, please do not use the Service. We reserve the right to modify these Terms at any time. Your continued use of the Service following the posting of revised Terms means that you accept and agree to the changes.
               </p>
             </section>
 
@@ -119,13 +119,13 @@ export function TermsOfServiceContent() {
                     <li>Disruption of the normal flow of dialogue or operations within the Service</li>
                     <li>Obtaining unauthorized access to confidential information or systems</li>
                     <li>Intentionally or unintentionally violating any laws, rules, or regulations applicable to the Service</li>
-                    <li>Attempting to reverse-engineer, decrypt, or bypass the Service's security measures</li>
+                    <li>Attempting to reverse-engineer, decrypt, or bypass the security measures of the Service</li>
                   </ul>
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold mb-2">4.2 Content Responsibility</h3>
                   <p className="text-base leading-relaxed">
-                    You are solely responsible for the content you upload, store, and share through the Service. You represent and warrant that you own or have the necessary rights to all content you upload and that your content does not violate any laws, regulations, or third-party intellectual property rights. You agree not to upload illegal content, malware, or material that infringes on others' rights.
+                    You are solely responsible for the content you upload, store, and share through the Service. You represent and warrant that you own or have the necessary rights to all content you upload and that your content does not violate any laws, regulations, or third-party intellectual property rights. You agree not to upload illegal content, malware, or material that infringes on others&apos; rights.
                   </p>
                 </div>
               </div>
@@ -192,7 +192,7 @@ export function TermsOfServiceContent() {
             <section className="space-y-4">
               <h2 className="text-2xl font-semibold">9. Limitation of Liability</h2>
               <p className="text-base leading-relaxed">
-                The Service is provided "as is" and "as available" without warranties of any kind. We disclaim all warranties, including implied warranties of merchantability and fitness for a particular purpose. We do not guarantee that the Service will be error-free or uninterrupted.
+                The Service is provided &quot;as is&quot; and &quot;as available&quot; without warranties of any kind. We disclaim all warranties, including implied warranties of merchantability and fitness for a particular purpose. We do not guarantee that the Service will be error-free or uninterrupted.
               </p>
               <p className="text-base leading-relaxed">
                 To the fullest extent permitted by law, Ellipticc shall not be liable for indirect, incidental, special, consequential, or punitive damages, or for any matter beyond our reasonable control, including data loss caused by your loss of passwords or encryption keys. Our total liability shall not exceed the amount you have paid to us in the 12 months preceding the claim.
@@ -258,7 +258,7 @@ export function TermsOfServiceContent() {
                 These Terms are governed by the laws of Delaware, United States, without regard to conflicts of law principles. Any disputes arising from or related to these Terms or the Service shall be resolved through binding arbitration administered by JAMS (Judicial Arbitration and Mediation Services) in accordance with its Comprehensive Arbitration Rules & Procedures, rather than in court.
               </p>
               <p className="text-base leading-relaxed">
-                The arbitration shall take place in Wilmington, Delaware. Each party shall bear its own costs and attorneys' fees, unless the arbitrator determines otherwise. You waive the right to trial by jury and the right to participate in class action litigation.
+                The arbitration shall take place in Wilmington, Delaware. Each party shall bear its own costs and attorneys&apos; fees, unless the arbitrator determines otherwise. You waive the right to trial by jury and the right to participate in class action litigation.
               </p>
             </section>
 

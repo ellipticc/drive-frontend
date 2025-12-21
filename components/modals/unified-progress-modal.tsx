@@ -3,7 +3,7 @@
  * Combines UploadProgressModal and DownloadProgressManager functionality
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -30,7 +30,7 @@ import {
   IconSquare,
   IconMinimize
 } from "@tabler/icons-react";
-import { UploadProgress as UploadProgressType } from '@/lib/upload';
+import { UploadProgress as UploadProgressType, UploadResult } from '@/lib/upload';
 import { DownloadProgress } from '@/lib/download';
 import { truncateFilename } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -41,7 +41,7 @@ export interface FileUploadState {
   status: 'pending' | 'uploading' | 'paused' | 'completed' | 'failed' | 'cancelled';
   progress: UploadProgressType | null;
   error?: string;
-  result?: any;
+  result?: UploadResult;
   currentFilename?: string; // Current filename being uploaded (may be incremented for keepBoth)
   existingFileIdToDelete?: string; // ID of file to delete if this is a replace operation
 }
@@ -94,13 +94,21 @@ export function UnifiedProgressModal({
   const [isMinimized, setIsMinimized] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
-  const [downloadStartTime] = useState(Date.now());
+  const downloadStartTimeRef = useRef<number | null>(null);
 
   // Auto-expand failed uploads
   useEffect(() => {
     const failedUploads = uploads.filter(u => u.status === 'failed').map(u => u.id);
-    setExpandedItems(prev => new Set([...prev, ...failedUploads]));
+    // Defer state update to avoid calling setState synchronously inside effect
+    requestAnimationFrame(() => setExpandedItems(prev => new Set([...prev, ...failedUploads])));
   }, [uploads]);
+
+  // Initialize download start time
+  useEffect(() => {
+    if ((downloadProgress || downloadError) && downloadStartTimeRef.current === null) {
+      downloadStartTimeRef.current = Date.now();
+    }
+  }, [downloadProgress, downloadError]);
 
   // Handle download completion
   useEffect(() => {
@@ -274,8 +282,22 @@ export function UnifiedProgressModal({
   // Note: Modal no longer auto-closes to allow user to see completion status
   // User can manually close it when ready. Modal persists across navigation.
 
-  // Calculate elapsed time for download
-  const downloadElapsedTime = Math.round((Date.now() - downloadStartTime) / 1000);
+  // Track current time for elapsed calculations (updated every second)
+  const [now, setNow] = React.useState(() => Date.now());
+  React.useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Download elapsed time tracked in state (avoid reading ref during render)
+  const [downloadElapsedTime, setDownloadElapsedTime] = React.useState<number>(0);
+  React.useEffect(() => {
+    if (downloadStartTimeRef.current) {
+      setDownloadElapsedTime(Math.round((now - downloadStartTimeRef.current) / 1000));
+    } else {
+      setDownloadElapsedTime(0);
+    }
+  }, [now, downloadProgress?.stage, downloadProgress?.overallProgress]);
 
   const totalActiveItems = uploads.length + (hasDownload ? 1 : 0);
   const completedItems = completedUploads + (downloadCompleted ? 1 : 0);

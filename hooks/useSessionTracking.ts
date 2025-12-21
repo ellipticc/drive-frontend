@@ -252,12 +252,19 @@ export function useSessionTracking(enabled: boolean = true): SessionData {
   // Expose tracking functions via window object for global access
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      (window as any).__sessionTracking = {
+      const sessionObj: {
+        trackConversion: typeof trackConversion;
+        stopTracking: typeof stopTracking;
+        getSessionId: typeof getSessionId;
+        sessionData: SessionData;
+      } = {
         trackConversion,
         stopTracking,
         getSessionId,
         sessionData
       };
+
+      (window as unknown as { __sessionTracking?: typeof sessionObj }).__sessionTracking = sessionObj;
     }
   }, [trackConversion, stopTracking, getSessionId, sessionData]);
 

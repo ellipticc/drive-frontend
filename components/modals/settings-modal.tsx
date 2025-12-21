@@ -53,12 +53,12 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar"
 import { IconSettings, IconLoader2, IconPencil, IconCheck, IconMail, IconLock, IconLogout, IconTrash, IconUserCog, IconLockSquareRounded, IconGift, IconCopy, IconCheck as IconCheckmark, IconBell, IconCoin, IconInfoCircle, IconRefresh } from "@tabler/icons-react"
-import { apiClient } from "@/lib/api"
+import { apiClient, Referral, Subscription, BillingUsage, PricingPlan, SubscriptionHistory } from "@/lib/api"
 import { useTheme } from "next-themes"
 import { getDiceBearAvatar } from "@/lib/avatar"
 import { useUser } from "@/components/user-context"
 import { getInitials } from "@/components/layout/navigation/nav-user"
-import { useGlobalUpload } from "@/components/global-upload-context"
+import { useGlobalUpload, UploadResult } from "@/components/global-upload-context"
 import { useIsMobile } from "@/hooks/use-mobile"
 
 interface SettingsModalProps {
@@ -242,19 +242,19 @@ export function SettingsModal({
     maxBonusMB: number
     maxReferrals: number
   } | null>(null)
-  const [recentReferrals, setRecentReferrals] = useState<any[]>([])
+  const [recentReferrals, setRecentReferrals] = useState<Referral[]>([])
   const [isLoadingReferrals, setIsLoadingReferrals] = useState(false)
   const [copiedCode, setCopiedCode] = useState(false)
 
   // Billing state
-  const [subscription, setSubscription] = useState<any>(null)
-  const [billingUsage, setBillingUsage] = useState<any>(null)
-  const [pricingPlans, setPricingPlans] = useState<any[]>([])
+  const [subscription, setSubscription] = useState<Subscription | null>(null)
+  const [billingUsage, setBillingUsage] = useState<BillingUsage | null>(null)
+  const [pricingPlans, setPricingPlans] = useState<PricingPlan[]>([])
   const [isLoadingBilling, setIsLoadingBilling] = useState(false)
   const [showCancelDialog, setShowCancelDialog] = useState(false)
   const [showCancelReasonDialog, setShowCancelReasonDialog] = useState(false)
   const [isCancellingSubscription, setIsCancellingSubscription] = useState(false)
-  const [subscriptionHistory, setSubscriptionHistory] = useState<any>(null)
+  const [subscriptionHistory, setSubscriptionHistory] = useState<SubscriptionHistory | null>(null)
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
   const [cancelReason, setCancelReason] = useState<string>("")
   const [cancelReasonDetails, setCancelReasonDetails] = useState<string>("")
@@ -276,7 +276,7 @@ export function SettingsModal({
 
   // Register upload completion callback to refresh referral data
   useEffect(() => {
-    const handleUploadComplete = (uploadId: string, result: any) => {
+    const handleUploadComplete = (uploadId: string, result: UploadResult) => {
       // Refresh referral data when any upload completes
       if (activeTab === "referrals") {
         loadReferralData()
@@ -1751,7 +1751,7 @@ export function SettingsModal({
                                    subscription.status || 'Unknown'}
                                 </span>
                               </div>
-                              {subscription.cancelAtPeriodEnd !== 0 && subscription.cancelAtPeriodEnd !== '0' && Boolean(subscription.cancelAtPeriodEnd) && (
+                              {subscription.cancelAtPeriodEnd && (
                                 <div className="flex items-center justify-between">
                                   <span className="text-sm text-muted-foreground">Cancellation:</span>
                                   <span className="text-sm text-red-600 font-medium">
@@ -1900,8 +1900,8 @@ export function SettingsModal({
                               Important Information
                             </h4>
                             <ul className="text-xs text-blue-700 dark:text-blue-300 space-y-1">
-                              <li>• You cannot cancel your subscription if you're using more than 5GB of storage</li>
-                              <li>• When cancelled, you'll keep access until the end of your billing period</li>
+                              <li>• You cannot cancel your subscription if you&apos;re using more than 5GB of storage</li>
+                              <li>• When cancelled, you&apos;ll keep access until the end of your billing period</li>
                               <li>• No future charges will be made after cancellation</li>
                               <li>• You can reactivate your subscription at any time before it expires</li>
                             </ul>
@@ -1953,7 +1953,7 @@ export function SettingsModal({
                                         </tr>
                                       </thead>
                                       <tbody className="divide-y">
-                                        {subscriptionHistory.history.map((sub: any) => (
+                                        {subscriptionHistory.history.map((sub: SubscriptionHistory['history'][0]) => (
                                           <tr key={sub.id} className="hover:bg-muted/30 transition-colors">
                                             <td className="px-4 py-3 min-w-[160px]">
                                               <div>
@@ -2014,7 +2014,7 @@ export function SettingsModal({
                                         </tr>
                                       </thead>
                                       <tbody className="divide-y">
-                                        {subscriptionHistory.invoices.map((invoice: any) => (
+                                        {subscriptionHistory.invoices.map((invoice: SubscriptionHistory['invoices'][0]) => (
                                           <tr key={invoice.id} className="hover:bg-muted/30 transition-colors">
                                             <td className="px-4 py-3 min-w-[160px]">
                                               <div>
@@ -2108,7 +2108,7 @@ export function SettingsModal({
             <DialogHeader>
               <DialogTitle>Change Email Address</DialogTitle>
               <DialogDescription>
-                Update your email address. You'll need to verify the new email.
+                Update your email address. You&apos;ll need to verify the new email.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
@@ -2209,7 +2209,7 @@ export function SettingsModal({
             <DialogHeader>
               <DialogTitle>Change Password</DialogTitle>
               <DialogDescription>
-                Update your password. Make sure it's strong and secure.
+                Update your password. Make sure it&apos;s strong and secure.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
@@ -2309,7 +2309,7 @@ export function SettingsModal({
             <div className="space-y-4">
               <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
                 <p className="text-sm font-medium text-destructive mb-2">
-                  Type "DELETE" to confirm
+                  Type &quot;DELETE&quot; to confirm
                 </p>
                 <Input
                   value={deleteConfirmation}
@@ -2483,7 +2483,7 @@ export function SettingsModal({
             <DialogHeader>
               <DialogTitle>Verify Your New Email</DialogTitle>
               <DialogDescription>
-                We've sent a 6-digit code to your new email address. Please enter it to complete the email change.
+                We&apos;ve sent a 6-digit code to your new email address. Please enter it to complete the email change.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">

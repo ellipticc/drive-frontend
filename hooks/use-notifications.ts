@@ -3,6 +3,16 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import { apiClient } from "@/lib/api"
 
+interface Notification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  data: unknown;
+  read_at: string | null;
+  created_at: string;
+}
+
 interface NotificationStats {
   total: number
   unread: number
@@ -27,7 +37,7 @@ export function useNotifications() {
       setLoading(true)
       const response = await apiClient.getNotifications()
       if (response.success && response.data) {
-        const unreadCount = response.data.notifications.filter((n: any) => !n.read_at).length
+        const unreadCount = response.data.notifications.filter((n: Notification) => !n.read_at).length
         setStats({ total: response.data.notifications.length, unread: unreadCount })
         setHasFetched(true)
       }

@@ -12,8 +12,13 @@ import { keyManager } from "@/lib/key-manager"
 import SIWE from "@/lib/siwe"
 import { sessionTrackingUtils } from "@/hooks/useSessionTracking"
 
+interface User {
+  id: string;
+  [key: string]: unknown; // Allow additional properties for flexibility
+}
+
 interface SIWELoginButtonProps {
-  onSuccess?: (user: any) => void;
+  onSuccess?: (user: User) => void;
   onError?: (error: string) => void;
   context?: 'login' | 'register';
 }
@@ -236,9 +241,11 @@ export function SIWELoginButton({ onSuccess, onError, context = 'login' }: SIWEL
 
             // STEP 5: Cache master key for session
             const { masterKeyManager } = await import("@/lib/master-key")
+            const accountSalt = userData.crypto_keypairs?.accountSalt
+            if (!accountSalt) throw new Error('No account salt found')
             await masterKeyManager.deriveAndCacheMasterKey(
               masterKeyHex,
-              userData.crypto_keypairs.accountSalt
+              accountSalt
             )
           } catch (keyError) {
             console.error('Failed to restore master key for returning MetaMask user:', keyError)

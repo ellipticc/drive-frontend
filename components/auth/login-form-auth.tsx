@@ -14,6 +14,7 @@ import { PasswordInput } from "@/components/ui/password-input"
 import { Switch } from "@/components/ui/switch"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import type { UserData } from '@/lib/api'
 import { useState, useEffect } from "react"
 import { apiClient } from "@/lib/api"
 import { masterKeyManager } from "@/lib/master-key"
@@ -103,6 +104,7 @@ export function LoginFormAuth({
       }
 
       const { token, user } = loginResult
+      const userObj = user as unknown as UserData
 
       // Set storage type based on keepSignedIn preference
       const storage = keepSignedIn ? localStorage : sessionStorage;
@@ -113,9 +115,9 @@ export function LoginFormAuth({
       // Token will only be stored if TOTP is not required or passes verification
 
       // Validate crypto keypairs structure
-      if (user.crypto_keypairs?.pqcKeypairs) {
-        const requiredKeys = ['ed25519', 'x25519', 'kyber', 'dilithium'];
-        const missingKeys = requiredKeys.filter(key => !user.crypto_keypairs.pqcKeypairs[key]);
+      if (userObj.crypto_keypairs?.pqcKeypairs) {
+        const requiredKeys = ['ed25519', 'x25519', 'kyber', 'dilithium'] as const;
+        const missingKeys = requiredKeys.filter(key => !(userObj.crypto_keypairs!.pqcKeypairs as unknown as Record<string, unknown>)[key as string]);
         
         if (missingKeys.length > 0) {
           setError(`Missing cryptographic keys: ${missingKeys.join(', ')}`);
@@ -124,12 +126,17 @@ export function LoginFormAuth({
 
         // Validate each keypair has required fields
         for (const keyType of requiredKeys) {
-          const keypair = user.crypto_keypairs.pqcKeypairs[keyType];
+          const keypair = (userObj.crypto_keypairs!.pqcKeypairs as unknown as Record<string, unknown>)[keyType as string] as Record<string, unknown> | undefined;
+          if (!keypair) {
+            setError(`Invalid ${String(keyType)} keypair structure`);
+            return;
+          }
+
           const requiredFields = ['publicKey', 'encryptedPrivateKey', 'privateKeyNonce', 'encryptionKey', 'encryptionNonce'];
-          const missingFields = requiredFields.filter(field => !keypair[field]);
+          const missingFields = requiredFields.filter(field => !(keypair[field]));
           
           if (missingFields.length > 0) {
-            setError(`Invalid ${keyType} keypair structure`);
+            setError(`Invalid ${String(keyType)} keypair structure`);
             return;
           }
 
@@ -138,10 +145,14 @@ export function LoginFormAuth({
             encryptionKey: 200,
             encryptionNonce: 100
           };
-          
-          if (keypair.encryptedPrivateKey?.length > maxLengths.encryptedPrivateKey || 
-              keypair.encryptionKey?.length > maxLengths.encryptionKey || 
-              keypair.encryptionNonce?.length > maxLengths.encryptionNonce) {
+
+          const encPriv = keypair.encryptedPrivateKey as string | undefined;
+          const encKey = keypair.encryptionKey as string | undefined;
+          const encNonce = keypair.encryptionNonce as string | undefined;
+
+          if ((encPriv && encPriv.length > maxLengths.encryptedPrivateKey) || 
+              (encKey && encKey.length > maxLengths.encryptionKey) || 
+              (encNonce && encNonce.length > maxLengths.encryptionNonce)) {
             keyManager.forceClearStorage();
           }
         }
@@ -149,16 +160,16 @@ export function LoginFormAuth({
 
       // If login didn't include crypto_keypairs, fetch profile
       // NOTE: We need to set the token first since getProfile() requires authentication
-      let userData = user;
-      if (!user.crypto_keypairs?.accountSalt) {
+      let userData: UserData | Record<string, unknown> = userObj;
+      if (!userObj.crypto_keypairs?.accountSalt) {
         // Temporarily set token for fetching profile
-        apiClient.setAuthToken(token)
+        apiClient.setAuthToken(token ?? null)
         const profileResponse = await apiClient.getProfile();
         if (profileResponse.success && profileResponse.data?.user) {
-          userData = profileResponse.data.user;
+          userData = profileResponse.data.user as UserData;
         } else {
           // Clear token if profile fetch fails
-          apiClient.setAuthToken(null as any)
+          apiClient.setAuthToken(null)
           setError("Failed to load cryptographic keys");
           return;
         }
@@ -166,7 +177,7 @@ export function LoginFormAuth({
 
       // Check if TOTP is enabled for this user BEFORE deriving master key
       // This way if we redirect to TOTP, we store password in the appropriate storage
-      const totpStatusResponse = await apiClient.getTOTPStatus(user.id)
+      const totpStatusResponse = await apiClient.getTOTPStatus(userObj.id as string)
       const isTOTPEnabled = totpStatusResponse.success && totpStatusResponse.data?.enabled;
       
       if (isTOTPEnabled) {
@@ -177,21 +188,23 @@ export function LoginFormAuth({
           if (deviceResponse.success && deviceResponse.data?.isValidDevice) {
             // Fall through to master key derivation below
           } else {
-            storage.setItem('pending_auth_token', token)
+            if (token) if (token) storage.setItem('pending_auth_token', token)
             storage.setItem('login_email', formData.email)
             storage.setItem('login_password', formData.password)
-            storage.setItem('login_user_id', user.id)
+            storage.setItem('login_user_id', String(userObj.id))
             // DO NOT clear the token - TOTP form needs it to call getProfile()
-            router.push(`/totp?email=${encodeURIComponent(formData.email)}&userId=${user.id}`)
+            router.push(`/totp?email=${encodeURIComponent(formData.email)}&userId=${userObj.id}`)
             return
           }
         } else {
-          storage.setItem('pending_auth_token', token)
-          storage.setItem('login_email', formData.email)
-          storage.setItem('login_password', formData.password)
-          storage.setItem('login_user_id', user.id)
+          if (token) {
+            storage.setItem('pending_auth_token', token)
+            storage.setItem('login_email', formData.email)
+            storage.setItem('login_password', formData.password)
+            storage.setItem('login_user_id', String(userObj.id))
+          }
           // DO NOT clear the token - TOTP form needs it to call getProfile()
-          router.push(`/totp?email=${encodeURIComponent(formData.email)}&userId=${user.id}`)
+          router.push(`/totp?email=${encodeURIComponent(formData.email)}&userId=${userObj.id}`)
           return
         }
       }
@@ -199,37 +212,44 @@ export function LoginFormAuth({
       // Only derive master key if not redirecting to TOTP
       // Derive and cache master key for the session
       try {
-        if (userData.crypto_keypairs?.accountSalt) {
+        const ud = userData as UserData;
+        if (ud.crypto_keypairs?.accountSalt) {
           // Check if user has password-encrypted master key (new path)
-          if (userData.encrypted_master_key_password && userData.master_key_password_nonce) {
+          if (ud.encrypted_master_key_password && ud.master_key_password_nonce) {
             const { deriveEncryptionKey, decryptData } = await import("@/lib/crypto")
             
             // Derive password-based encryption key using account salt
             const passwordDerivedKey = await deriveEncryptionKey(
               formData.password,
-              userData.crypto_keypairs.accountSalt
+              ud.crypto_keypairs.accountSalt as string
             )
             
             // Decrypt the Master Key using password-derived key
             try {
               const masterKeyBytes = await decryptData(
-                userData.encrypted_master_key_password,
+                ud.encrypted_master_key_password,
                 passwordDerivedKey,
-                userData.master_key_password_nonce
+                ud.master_key_password_nonce
               )
               
               // Cache the decrypted master key
-              masterKeyManager.cacheExistingMasterKey(masterKeyBytes, userData.crypto_keypairs.accountSalt)
+              if (ud.crypto_keypairs?.accountSalt) {
+                masterKeyManager.cacheExistingMasterKey(masterKeyBytes, ud.crypto_keypairs.accountSalt as string)
+              }
             } catch (decryptError) {
               console.error('Failed to decrypt password-encrypted master key:', decryptError)
               setError("Incorrect password")
               return
             }
           } else {
-            await masterKeyManager.deriveAndCacheMasterKey(
-              formData.password,
-              userData.crypto_keypairs.accountSalt
-            );
+            if (ud.crypto_keypairs?.accountSalt) {
+              await masterKeyManager.deriveAndCacheMasterKey(
+                formData.password,
+                ud.crypto_keypairs.accountSalt as string
+              );
+            } else {
+              throw new Error('Missing account salt');
+            }
           }
         } else {
           throw new Error('No account salt found in user profile');
@@ -242,7 +262,7 @@ export function LoginFormAuth({
 
       // Initialize KeyManager with user data
       try {
-        await keyManager.initialize(userData);
+        await keyManager.initialize(userData as UserData);
       } catch (keyManagerError) {
         if (keyManagerError instanceof Error && 
             (keyManagerError.message.includes('Corrupted') || 
@@ -251,7 +271,7 @@ export function LoginFormAuth({
           keyManager.forceClearStorage();
           
           try {
-            await keyManager.initialize(userData);
+            await keyManager.initialize(userData as UserData);
           } catch (retryError) {
             setError("Failed to initialize key management system. Please try logging out and back in.");
             return;
@@ -267,7 +287,7 @@ export function LoginFormAuth({
       // Track login conversion before clearing session
       const sessionId = sessionTrackingUtils.getSessionId()
       if (sessionId) {
-        sessionTrackingUtils.trackConversion(sessionId, 'login', user.id)
+        sessionTrackingUtils.trackConversion(sessionId, 'login', userObj.id as string)
       }
 
       // Stop session tracking after successful login

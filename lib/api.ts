@@ -3,11 +3,152 @@ import { generateIdempotencyKey, addIdempotencyKey, generateIdempotencyKeyForCre
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || getApiBaseUrl();
 
-export interface ApiResponse<T = any> {
+export interface UserData {
+  id: string;
+  name: string;
+  email: string;
+  avatar?: string;
+  // Legacy or API-provided snake_case fields
+  account_salt?: string;
+  encrypted_master_key_password?: string;
+  master_key_password_nonce?: string;
+  encryptedMasterKey?: string;
+  masterKeySalt?: string;
+  sessionDuration?: number;
+  authMethod?: string;
+
+  storage?: {
+    used_bytes: number;
+    quota_bytes: number;
+    percent_used: number;
+    used_readable: string;
+    quota_readable: string;
+  };
+  crypto_keypairs?: {
+    accountSalt?: string;
+    pqcKeypairs?: PQCKeypairs;
+    [key: string]: unknown;
+  };
+} 
+
+export interface FolderTreeItem {
+  id: string;
+  encryptedName: string;
+  nameSalt: string;
+  path: string;
+  parentId: string | null;
+  isFolder: boolean;
+  children: FolderTreeItem[];
+  files: FileTreeItem[];
+}
+
+export interface FileTreeItem {
+  id: string;
+  encryptedFilename: string;
+  filenameSalt: string;
+  size: number;
+  mimetype: string;
+  folderId: string | null;
+  wrappedCek: string;
+  nonceWrap: string;
+}
+
+export interface FileInfo {
+  id: string;
+  name: string;
+  size: number;
+  mimeType: string;
+  createdAt: string;
+  updatedAt: string;
+  shaHash: string;
+  folderId: string | null;
+  is_shared: boolean;
+  encryption?: {
+    iv: string;
+    salt: string;
+    wrappedCek: string;
+    fileNoncePrefix: string;
+    cekNonce: string;
+  };
+}
+
+export interface FolderInfo {
+  id: string;
+  name: string;
+  encryptedName?: string;
+  nameSalt?: string;
+  path: string;
+  parentId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  is_shared: boolean;
+} 
+
+export interface DownloadUrlsResponse {
+  fileId: string;
+  storageKey: string;
+  originalFilename: string;
+  filenameSalt?: string;
+  mimetype: string;
+  size: number;
+  sha256: string;
+  chunkCount: number;
+  chunks: Array<{
+    index: number;
+    size: number;
+    sha256: string;
+    nonce: string | null;
+  }>;
+  presigned: Array<{
+    chunkIndex: number;
+    objectKey: string;
+    size: number;
+    sha256: string;
+    nonce: string | null;
+    getUrl: string;
+  }>;
+  manifest?: unknown;
+  signatures?: unknown;
+  encryption?: unknown;
+  storageType: string;
+}
+
+export interface ApiResponse<T = unknown> {
   success: boolean;
   message?: string;
   error?: string;
   data?: T;
+}
+
+export interface PQCKeypairs {
+  kyber: {
+    publicKey: string;
+    encryptedPrivateKey: string;
+    privateKeyNonce: string;
+    encryptionKey: string;
+    encryptionNonce: string;
+  };
+  x25519: {
+    publicKey: string;
+    encryptedPrivateKey: string;
+    privateKeyNonce: string;
+    encryptionKey: string;
+    encryptionNonce: string;
+  };
+  dilithium: {
+    publicKey: string;
+    encryptedPrivateKey: string;
+    privateKeyNonce: string;
+    encryptionKey: string;
+    encryptionNonce: string;
+  };
+  ed25519: {
+    publicKey: string;
+    encryptedPrivateKey: string;
+    privateKeyNonce: string;
+    encryptionKey: string;
+    encryptionNonce: string;
+  };
 }
 
 export interface FileItem {
@@ -40,6 +181,147 @@ export interface FileItem {
   encryptionSalt?: string;
   wrappedCek?: string;
   fileNoncePrefix?: string;
+} 
+
+export interface FolderContentItem {
+  id: string;
+  name?: string;
+  encryptedName: string;
+  nameSalt: string;
+  parentId: string | null;
+  path: string;
+  type: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt?: string;
+  is_shared: boolean;
+} 
+
+export interface FileContentItem {
+  id: string;
+  filename?: string; // Optional human-readable filename
+  encryptedFilename: string;
+  filenameSalt: string;
+  // Legacy snake_case aliases
+  mimeType?: string;
+  mimetype?: string;
+  folderId: string | null;
+  // Legacy snake_case aliases
+  folder_id?: string;
+  type: string;
+  createdAt: string;
+  created_at?: string;
+  updatedAt: string;
+  updated_at?: string;
+  deletedAt?: string;
+  deleted_at?: string;
+  size?: number;
+  shaHash: string;
+  sha_hash?: string;
+  is_shared: boolean;
+} 
+
+export interface ShareItem {
+  id: string;
+  fileId: string;
+  fileName: string;
+  fileSize: number;
+  createdAt: string;
+  expiresAt?: string;
+  permissions: string;
+  revoked: boolean;
+  linkSecret?: string;
+  views: number;
+  maxViews?: number;
+  downloads: number;
+  folderPath: string;
+  isFolder: boolean;
+  encryptedFilename?: string;
+  filenameSalt?: string;
+  folderPathSalt?: string;
+  recipients: Array<{
+    id: string;
+    userId?: string;
+    email?: string;
+    name?: string;
+    status: string;
+    createdAt: string;
+    revokedAt?: string;
+  }>;
+}
+
+export interface Referral {
+  referred_user_id: string;
+  referred_name: string;
+  referred_email: string;
+  avatar_url: string;
+  status: string;
+  created_at: string;
+  completed_at: string | null;
+}
+
+export interface Subscription {
+  id: string;
+  status: string;
+  currentPeriodStart: number;
+  currentPeriodEnd: number;
+  cancelAtPeriodEnd: boolean;
+  plan: {
+    id: string;
+    name: string;
+    storageQuota: number;
+    // Optional interval (e.g., 'monthly', 'yearly')
+    interval?: string | number | null;
+  };
+}
+
+export interface BillingUsage {
+  usedBytes: number;
+  quotaBytes: number;
+  percentUsed: number;
+}
+
+export interface PricingPlan {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  currency: string;
+  interval: string;
+  storageQuota: number;
+  features: string[];
+  stripePriceId: string;
+  popular?: boolean;
+}
+
+export interface SubscriptionHistory {
+  history: Array<{
+    id: string;
+    status: string;
+    planName: string;
+    amount: number;
+    currency: string;
+    interval: string;
+    currentPeriodStart: number;
+    currentPeriodEnd: number;
+    cancelAtPeriodEnd: boolean;
+    canceledAt: number | null;
+    created: number;
+    endedAt: number | null;
+  }>;
+  invoices: Array<{
+    id: string;
+    number: string;
+    status: string;
+    amount: number;
+    currency: string;
+    created: number;
+    dueDate: number | null;
+    paidAt: number | null;
+    invoicePdf: string;
+    hostedInvoiceUrl: string;
+    subscriptionId: string | null;
+  }>;
 }
 
 class ApiClient {
@@ -335,7 +617,7 @@ class ApiClient {
     token: string;
     refreshToken: string;
     serverProof: string;
-    user: any;
+    user: UserData;
   }>> {
     return this.request('/auth/login/finish', {
       method: 'POST',
@@ -368,7 +650,7 @@ class ApiClient {
     userId: string;
     accountSalt: string;
     token: string;
-    user: any;
+    user: UserData;
   }>> {
     return this.request('/auth/register/continue', {
       method: 'POST',
@@ -386,7 +668,7 @@ class ApiClient {
   async verifyOTP(email: string, otp: string): Promise<ApiResponse<{
     token: string;
     refreshToken: string;
-    user: any;
+    user: UserData;
     recoveryChallenge: string;
   }>> {
     return this.request('/auth/otp/verify', {
@@ -445,7 +727,7 @@ class ApiClient {
     return response;
   }
 
-  async getProfile(): Promise<ApiResponse<{ user: any }>> {
+  async getProfile(): Promise<ApiResponse<{ user: UserData }>> {
     return this.request('/auth/me');
   }
 
@@ -541,7 +823,7 @@ class ApiClient {
     return this.request('/auth/storage');
   }
 
-  async storePQCKeys(userId: string, pqcKeypairs: any): Promise<ApiResponse> {
+  async storePQCKeys(userId: string, pqcKeypairs: PQCKeypairs): Promise<ApiResponse> {
     const idempotencyKey = generateIdempotencyKey('storePQCKeys', userId);
     const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/auth/crypto', {
@@ -551,7 +833,7 @@ class ApiClient {
     });
   }
 
-  async storePQCKeysAfterRegistration(userId: string, pqcKeypairs: any): Promise<ApiResponse> {
+  async storePQCKeysAfterRegistration(userId: string, pqcKeypairs: PQCKeypairs): Promise<ApiResponse> {
     const idempotencyKey = generateIdempotencyKey('storePQCKeysAfterRegistration', userId);
     const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/auth/crypto/setup', {
@@ -564,7 +846,7 @@ class ApiClient {
   async storeCryptoKeypairs(data: {
     userId: string;
     accountSalt: string;
-    pqcKeypairs: any;
+    pqcKeypairs: PQCKeypairs;
     mnemonicHash?: string;    // SHA256(mnemonic) for zero-knowledge verification
     masterKeyVerificationHash?: string; // HMAC-SHA256 for master key integrity validation
     encryptedMasterKey?: string;  // For MetaMask users / recovery
@@ -614,9 +896,13 @@ class ApiClient {
     });
   }
 
-  // Store authentication token
-  setAuthToken(token: string): void {
-    this.setToken(token);
+  // Store or clear authentication token
+  setAuthToken(token: string | null): void {
+    if (token === null) {
+      this.clearToken();
+    } else {
+      this.setToken(token);
+    }
   }
 
   // Get current authentication token
@@ -728,30 +1014,8 @@ class ApiClient {
 
   // Get folder contents (both files and folders)
   async getFolderContents(folderId: string = 'root'): Promise<ApiResponse<{
-    folders: {
-      id: string;
-      encryptedName: string;
-      nameSalt: string;
-      parentId: string | null;
-      path: string;
-      type: string;
-      createdAt: string;
-      updatedAt: string;
-      is_shared: boolean;
-    }[];
-    files: {
-      id: string;
-      encryptedFilename: string;
-      filenameSalt: string;
-      size: number;
-      mimeType: string;
-      folderId: string | null;
-      type: string;
-      createdAt: string;
-      updatedAt: string;
-      shaHash: string;
-      is_shared: boolean;
-    }[];
+    folders: FolderContentItem[];
+    files: FileContentItem[];
   }>> {
     const normalizedFolderId = folderId === 'root' ? 'root' : folderId;
     return this.request(`/folders/${normalizedFolderId}/contents`);
@@ -759,26 +1023,8 @@ class ApiClient {
 
   // Get folder contents recursively (including all nested folders and files)
   async getFolderContentsRecursive(folderId: string = 'root'): Promise<ApiResponse<{
-    folder: {
-      id: string;
-      encryptedName: string;
-      nameSalt: string;
-      path: string;
-      parentId: string | null;
-      isFolder: boolean;
-      children: any[];
-      files: any[];
-    };
-    allFiles: {
-      id: string;
-      encryptedFilename: string;
-      filenameSalt: string;
-      size: number;
-      mimetype: string;
-      folderId: string | null;
-      wrappedCek: string;
-      nonceWrap: string;
-    }[];
+    folder: FolderTreeItem;
+    allFiles: FileTreeItem[];
     totalFiles: number;
     totalFolders: number;
   }>> {
@@ -877,7 +1123,7 @@ class ApiClient {
     };
   }
 
-  async getFileInfo(fileId: string): Promise<ApiResponse<any>> {
+  async getFileInfo(fileId: string): Promise<ApiResponse<FileInfo>> {
     return this.request(`/files/${fileId}/info`);
   }
 
@@ -960,7 +1206,7 @@ class ApiClient {
     });
   }
 
-  async getFolderInfo(folderId: string): Promise<ApiResponse<any>> {
+  async getFolderInfo(folderId: string): Promise<ApiResponse<FolderInfo>> {
     return this.request(`/folders/${folderId}`);
   }
 
@@ -1089,7 +1335,7 @@ class ApiClient {
     return this.request(`/shares/${shareId}/keywrap`);
   }
 
-  async getShareManifest(shareId: string): Promise<ApiResponse<any>> {
+  async getShareManifest(shareId: string): Promise<ApiResponse<unknown>> {
     return this.request(`/shares/${shareId}/manifest`);
   }
 
@@ -1152,31 +1398,7 @@ class ApiClient {
     });
   }
 
-  async getMyShares(): Promise<ApiResponse<{
-    id: string;
-    fileId: string;
-    fileName: string;
-    fileSize: number;
-    createdAt: string;
-    expiresAt?: string;
-    permissions: string;
-    revoked: boolean;
-    linkSecret?: string;
-    views: number;
-    maxViews?: number;
-    downloads: number;
-    folderPath: string;
-    isFolder: boolean;
-    recipients: Array<{
-      id: string;
-      userId?: string;
-      email?: string;
-      name?: string;
-      status: string;
-      createdAt: string;
-      revokedAt?: string;
-    }>;
-  }[]>> {
+  async getMyShares(): Promise<ApiResponse<ShareItem[]>> {
     return this.request('/shares/mine');
   }
 
@@ -1260,12 +1482,13 @@ class ApiClient {
     updatedAt: string;
     deletedAt: string;
   }[]>> {
-    const response = await this.request('/folders/trash/list') as any;
+    const response = await this.request('/folders/trash/list');
     // The backend returns {folders: [...], files: [...]}, but we only want folders
-    if (response.success && response.data && response.data.folders) {
+    if (response.success && response.data && (response.data as { folders?: unknown[] }).folders) {
+      const folders = (response.data as { folders?: { id: string; encryptedName: string; nameSalt: string; parentId: string | null; path: string; createdAt: string; updatedAt: string; deletedAt: string; }[] }).folders || [];
       return {
         success: true,
-        data: response.data.folders
+        data: folders
       };
     }
     return {
@@ -1454,34 +1677,7 @@ class ApiClient {
     });
   }
 
-  async getDownloadUrls(fileId: string): Promise<ApiResponse<{
-    fileId: string;
-    storageKey: string;
-    originalFilename: string;
-    filenameSalt?: string;
-    mimetype: string;
-    size: number;
-    sha256: string;
-    chunkCount: number;
-    chunks: Array<{
-      index: number;
-      size: number;
-      sha256: string;
-      nonce: string | null;
-    }>;
-    presigned: Array<{
-      chunkIndex: number;
-      objectKey: string;
-      size: number;
-      sha256: string;
-      nonce: string | null;
-      getUrl: string;
-    }>;
-    manifest?: any;
-    signatures?: any;
-    encryption?: any;
-    storageType: string;
-  }>> {
+  async getDownloadUrls(fileId: string): Promise<ApiResponse<DownloadUrlsResponse>> {
     return this.request(`/files/download/${fileId}/urls`);
   }
 
@@ -1656,7 +1852,7 @@ class ApiClient {
     const userId = 'current';
     const idempotencyKey = generateIdempotencyKey('disableTOTP', userId);
     const headers = addIdempotencyKey({}, idempotencyKey);
-    const body: any = {};
+    const body: { token?: string; recoveryCode?: string } = {};
     if (token) body.token = token;
     if (recoveryCode) body.recoveryCode = recoveryCode;
 
@@ -1763,7 +1959,7 @@ class ApiClient {
     // Use a unique timestamp-based key for each recovery code attempt to avoid idempotency caching blocking retries
     const idempotencyKey = generateIdempotencyKey('verifyRecoveryCode', `${Date.now()}`);
     const headers = addIdempotencyKey({}, idempotencyKey);
-    const body: any = { recoveryCode };
+    const body: { recoveryCode: string; userId?: string } = { recoveryCode };
     if (userId) body.userId = userId;
     return this.request('/totp/verify-recovery', {
       method: 'POST',
@@ -1878,7 +2074,7 @@ class ApiClient {
 
   async completeOAuthRegistration(data: {
     accountSalt: string;
-    pqcKeypairs?: any;
+    pqcKeypairs?: PQCKeypairs;
     mnemonicHash?: string;
     encryptedRecoveryKey?: string;
     recoveryKeyNonce?: string;
@@ -1914,7 +2110,7 @@ class ApiClient {
       ed25519: boolean;
       dilithium: boolean;
     };
-    signedData?: any;
+    signedData?: unknown;
   }>> {
     return this.request(`/files/${fileId}/verify`);
   }
@@ -1948,7 +2144,7 @@ class ApiClient {
       type: string;
       title: string;
       message: string;
-      data: any;
+      data: unknown;
       read_at: string | null;
       created_at: string;
     }>;

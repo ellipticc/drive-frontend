@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useLayoutEffect, useState, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { apiClient } from "@/lib/api";
@@ -24,17 +24,15 @@ export function AuthGuard({ children }: AuthGuardProps) {
   const publicRoutes = ['/login', '/signup', '/register', '/otp', '/recover', '/backup', '/totp', '/totp/recovery', '/auth/oauth/callback', '/terms-of-service', '/privacy-policy'];
   const isPublic = publicRoutes.includes(pathname) || pathname.startsWith('/s/');
 
-  useEffect(() => {
-    // Mark as hydrated immediately
-    setIsHydrated(true);
-
-    // Initialize session management
+  useLayoutEffect(() => {
+    // Initialize session management (synchronous setup doesn't change React state)
     SessionManager.initializeSessionManagement();
 
     // Check if this is a redirect from token expiry
     const params = new URLSearchParams(window.location.search);
     if (params.get('expired') === 'true') {
-      setIsExpired(true);
+      // Defer state update to avoid synchronous setState inside effect
+      requestAnimationFrame(() => setIsExpired(true));
     }
 
     // Skip if we've already checked auth to prevent infinite loops
@@ -44,7 +42,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
 
     // Check if current path is public (including share links)
     if (isPublic) {
-      setIsAuthenticated(true);
+      requestAnimationFrame(() => setIsAuthenticated(true));
       hasCheckedAuthRef.current = true;
       return;
     }
@@ -76,7 +74,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
       masterKeyManager.setStorage(storage);
       
       hasCheckedAuthRef.current = true;
-      setIsAuthenticated(true);
+      requestAnimationFrame(() => setIsAuthenticated(true));
       return;
     }
     
@@ -84,12 +82,19 @@ export function AuthGuard({ children }: AuthGuardProps) {
       // No token or token expired or incomplete OAuth token
       // Redirect immediately using window.location for instant navigation
       hasCheckedAuthRef.current = true;
-      setIsExpired(!token);
-      const redirectUrl = isExpired ? "/login?expired=true" : "/login";
+      const expiredFlag = !token;
+      requestAnimationFrame(() => setIsExpired(expiredFlag));
+      const redirectUrl = expiredFlag ? "/login?expired=true" : "/login";
       window.location.href = redirectUrl;
       return;
     }
   }, [pathname, isPublic]); // Removed router from dependencies
+
+  // Mark as hydrated after mount to avoid calling setState synchronously inside layout effect
+  useEffect(() => {
+    // Defer hydration flag to next frame to avoid synchronous setState inside effect
+    requestAnimationFrame(() => setIsHydrated(true));
+  }, []);
 
   // Cleanup on unmount
   useEffect(() => {

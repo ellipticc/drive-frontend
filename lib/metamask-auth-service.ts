@@ -35,8 +35,8 @@ declare global {
     ethereum?: {
       request: (args: {
         method: string
-        params?: any[]
-      }) => Promise<any>
+        params?: unknown[]
+      }) => Promise<unknown>
     }
   }
 }
@@ -64,7 +64,7 @@ class MetaMaskAuthService {
   static isMetaMaskInstalled(): boolean {
     return (
       typeof window !== 'undefined' &&
-      typeof (window as any).ethereum !== 'undefined'
+      typeof (window as Window & { ethereum?: unknown }).ethereum !== 'undefined'
     )
   }
 
@@ -77,15 +77,15 @@ class MetaMaskAuthService {
     }
 
     try {
-      const accounts = await (window as any).ethereum.request({
+      const accounts = await window.ethereum!.request({
         method: 'eth_accounts'
       })
 
-      if (!accounts || accounts.length === 0) {
+      if (!accounts || !Array.isArray(accounts) || accounts.length === 0) {
         throw new Error('No connected wallet')
       }
 
-      return accounts[0].toLowerCase()
+      return (accounts[0] as string).toLowerCase()
     } catch (error) {
       console.error('Error getting connected wallet:', error)
       throw error
@@ -101,15 +101,15 @@ class MetaMaskAuthService {
     }
 
     try {
-      const accounts = await (window as any).ethereum.request({
+      const accounts = await window.ethereum!.request({
         method: 'eth_requestAccounts'
       })
 
-      if (!accounts || accounts.length === 0) {
+      if (!accounts || !Array.isArray(accounts) || accounts.length === 0) {
         throw new Error('User denied account access')
       }
 
-      return accounts[0].toLowerCase()
+      return (accounts[0] as string).toLowerCase()
     } catch (error) {
       console.error('Error requesting account access:', error)
       throw error
@@ -165,10 +165,10 @@ Challenge: ${challengeSaltHex}`
       console.log('Challenge message for signing:', challengeMessage)
 
       // Ask wallet to sign the challenge (deterministic - same challenge always produces same signature)
-      const signature = await (window as any).ethereum.request({
+      const signature = await window.ethereum!.request({
         method: 'personal_sign',
         params: [challengeMessage, walletAddress]
-      })
+      }) as string
 
       if (!signature) {
         throw new Error('Failed to sign challenge message')
@@ -249,15 +249,15 @@ Challenge: ${challengeSaltHex}`
     }
 
     try {
-      const accounts = await (window as any).ethereum.request({
+      const accounts = await window.ethereum!.request({
         method: 'eth_accounts'
       })
 
-      if (!accounts || accounts.length === 0) {
+      if (!accounts || !Array.isArray(accounts) || accounts.length === 0) {
         throw new Error('No connected wallet')
       }
 
-      const walletAddress = accounts[0].toLowerCase()
+      const walletAddress = (accounts[0] as string).toLowerCase()
 
       // Determine which challenge salt to use based on version
       let actualChallengeSalt: string
@@ -291,10 +291,10 @@ Challenge: ${actualChallengeSalt}`
       console.log('Challenge message for signing:', challengeMessage)
 
       // Ask wallet to sign the challenge
-      const signature = await (window as any).ethereum.request({
+      const signature = await window.ethereum!.request({
         method: 'personal_sign',
         params: [challengeMessage, walletAddress]
-      })
+      }) as string
 
       if (!signature) {
         throw new Error('Failed to sign challenge message')

@@ -38,7 +38,7 @@ export async function hashWithArgon2(
   // SECURITY: Argon2id requires salt to be at least 8 bytes
   // If salt is shorter, hash it with SHA-256 to expand it to 32 bytes
   if (saltBytes.length < 8) {
-    const hashBuffer = await crypto.subtle.digest('SHA-256', saltBytes as any)
+    const hashBuffer = await crypto.subtle.digest('SHA-256', saltBytes.buffer as ArrayBuffer)
     saltBytes = new Uint8Array(hashBuffer)
   }
 

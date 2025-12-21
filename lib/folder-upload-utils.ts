@@ -41,14 +41,16 @@ export async function extractFolderStructure(files: FileList | File[]): Promise<
   
   console.log('=== EXTRACT FOLDER STRUCTURE ===');
   console.log('Input files count:', fileArray.length);
+  const getRelativePath = (file: File) => (file as unknown as { webkitRelativePath?: string }).webkitRelativePath || '';
+
   fileArray.forEach((f, i) => {
-    console.log(`[${i}] name="${f.name}" size=${f.size} type="${f.type}" relativePath="${(f as any).webkitRelativePath || 'NONE'}"`);
+    console.log(`[${i}] name="${f.name}" size=${f.size} type="${f.type}" relativePath="${getRelativePath(f) || 'NONE'}"`);
   });
 
   // Extract folder structure from files
   fileArray.forEach((file) => {
     // Get the folder path from webkitRelativePath
-    const relativePath = (file as any).webkitRelativePath || '';
+    const relativePath = getRelativePath(file);
     
     // CRITICAL: Skip directory entries
     // A directory entry has BOTH:

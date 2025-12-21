@@ -174,27 +174,35 @@ export function OAuthPasswordModal({
       console.log('OAuth Setup - OPAQUE password file generated');
 
       // Convert signup format to OAuth backend format
-      const pqcKeypairs = {
-        kyberPublicKey: allKeypairs.pqcKeypairs.kyber.publicKey,
-        kyberPrivateKeyEncrypted: allKeypairs.pqcKeypairs.kyber.encryptedPrivateKey,
-        kyberEncryptionKey: allKeypairs.pqcKeypairs.kyber.encryptionKey,
-        kyberEncryptionNonce: allKeypairs.pqcKeypairs.kyber.encryptionNonce,
-        kyberPrivateKeyNonce: allKeypairs.pqcKeypairs.kyber.privateKeyNonce,
-        x25519PublicKey: allKeypairs.pqcKeypairs.x25519.publicKey,
-        x25519PrivateKeyEncrypted: allKeypairs.pqcKeypairs.x25519.encryptedPrivateKey,
-        x25519EncryptionKey: allKeypairs.pqcKeypairs.x25519.encryptionKey,
-        x25519EncryptionNonce: allKeypairs.pqcKeypairs.x25519.encryptionNonce,
-        x25519PrivateKeyNonce: allKeypairs.pqcKeypairs.x25519.privateKeyNonce,
-        dilithiumPublicKey: allKeypairs.pqcKeypairs.dilithium.publicKey,
-        dilithiumPrivateKeyEncrypted: allKeypairs.pqcKeypairs.dilithium.encryptedPrivateKey,
-        dilithiumEncryptionKey: allKeypairs.pqcKeypairs.dilithium.encryptionKey,
-        dilithiumEncryptionNonce: allKeypairs.pqcKeypairs.dilithium.encryptionNonce,
-        dilithiumPrivateKeyNonce: allKeypairs.pqcKeypairs.dilithium.privateKeyNonce,
-        ed25519PublicKey: allKeypairs.pqcKeypairs.ed25519.publicKey,
-        ed25519PrivateKeyEncrypted: allKeypairs.pqcKeypairs.ed25519.encryptedPrivateKey,
-        ed25519EncryptionKey: allKeypairs.pqcKeypairs.ed25519.encryptionKey,
-        ed25519EncryptionNonce: allKeypairs.pqcKeypairs.ed25519.encryptionNonce,
-        ed25519PrivateKeyNonce: allKeypairs.pqcKeypairs.ed25519.privateKeyNonce,
+      const pqcKeypairsPayload = {
+        kyber: {
+          publicKey: allKeypairs.pqcKeypairs.kyber.publicKey,
+          encryptedPrivateKey: allKeypairs.pqcKeypairs.kyber.encryptedPrivateKey,
+          encryptionKey: allKeypairs.pqcKeypairs.kyber.encryptionKey,
+          encryptionNonce: allKeypairs.pqcKeypairs.kyber.encryptionNonce,
+          privateKeyNonce: allKeypairs.pqcKeypairs.kyber.privateKeyNonce
+        },
+        x25519: {
+          publicKey: allKeypairs.pqcKeypairs.x25519.publicKey,
+          encryptedPrivateKey: allKeypairs.pqcKeypairs.x25519.encryptedPrivateKey,
+          encryptionKey: allKeypairs.pqcKeypairs.x25519.encryptionKey,
+          encryptionNonce: allKeypairs.pqcKeypairs.x25519.encryptionNonce,
+          privateKeyNonce: allKeypairs.pqcKeypairs.x25519.privateKeyNonce
+        },
+        dilithium: {
+          publicKey: allKeypairs.pqcKeypairs.dilithium.publicKey,
+          encryptedPrivateKey: allKeypairs.pqcKeypairs.dilithium.encryptedPrivateKey,
+          encryptionKey: allKeypairs.pqcKeypairs.dilithium.encryptionKey,
+          encryptionNonce: allKeypairs.pqcKeypairs.dilithium.encryptionNonce,
+          privateKeyNonce: allKeypairs.pqcKeypairs.dilithium.privateKeyNonce
+        },
+        ed25519: {
+          publicKey: allKeypairs.pqcKeypairs.ed25519.publicKey,
+          encryptedPrivateKey: allKeypairs.pqcKeypairs.ed25519.encryptedPrivateKey,
+          encryptionKey: allKeypairs.pqcKeypairs.ed25519.encryptionKey,
+          encryptionNonce: allKeypairs.pqcKeypairs.ed25519.encryptionNonce,
+          privateKeyNonce: allKeypairs.pqcKeypairs.ed25519.privateKeyNonce
+        }
       };
 
       console.log('🔐 OAuth Setup - sending to backend with accountSalt format:', typeof accountSalt);
@@ -202,7 +210,7 @@ export function OAuthPasswordModal({
       // Call backend to complete OAuth registration
       const response = await apiClient.completeOAuthRegistration({
         accountSalt,
-        pqcKeypairs,
+        pqcKeypairs: pqcKeypairsPayload,
         mnemonicHash,
         encryptedRecoveryKey,
         recoveryKeyNonce,
@@ -294,7 +302,7 @@ export function OAuthPasswordModal({
         
         // Attempt to decrypt one of the user's private keys to validate the password
         // This will throw an error if the password is incorrect
-        await decryptUserPrivateKeys(user);
+        await decryptUserPrivateKeys(user as Parameters<typeof decryptUserPrivateKeys>[0]);
         
         console.log('OAuth Login - Password validation successful! Decryption works.');
       } catch (validationError) {

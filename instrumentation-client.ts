@@ -63,9 +63,9 @@ if (process.env.NODE_ENV === 'production' && process.env.NEXT_PUBLIC_SENTRY_DSN)
     setUser: noop,
     setTag: noop,
     setContext: noop,
-    withScope: (fn: any) => fn(),
+    withScope: (fn: (...args: unknown[]) => unknown) => fn(),
     startTransaction: () => ({ finish: noop }),
-    configureScope: (fn: any) => fn(),
+    configureScope: (fn: (...args: unknown[]) => unknown) => fn(),
   };
 
   // Replace Sentry with no-op in development

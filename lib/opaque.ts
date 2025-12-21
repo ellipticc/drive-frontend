@@ -4,7 +4,9 @@ import { getApiBaseUrl, isTorAccess } from './tor-detection';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || getApiBaseUrl();
 
-async function apiCall(endpoint: string, data: any): Promise<any> {
+type ApiJson = Record<string, unknown>;
+
+async function apiCall(endpoint: string, data: unknown): Promise<ApiJson> {
   // Build the request URL, handling proxy paths for TOR
   // /api/proxy + /auth/login -> /api/proxy/v1/auth/login
   let requestUrl = `${API_BASE_URL}${endpoint}`;
@@ -18,14 +20,29 @@ async function apiCall(endpoint: string, data: any): Promise<any> {
     body: JSON.stringify(data),
     credentials: 'include',
   });
-  const result = await response.json();
-  if (!response.ok) throw new Error(result.error || `HTTP ${response.status}`);
+  const result = (await response.json()) as ApiJson;
+  if (!response.ok) throw new Error((result.error as string) || `HTTP ${response.status}`);
   return result;
 }
 
+export type OpaqueLoginResult = {
+  success: boolean;
+  token?: string;
+  user?: Record<string, unknown>;
+  signature?: string;
+  error?: string;
+}
+
+export type OpaqueRegistrationResult = {
+  success: boolean;
+  userId?: string;
+  token?: string;
+  error?: string;
+};
+
 export class OPAQUERegistration {
   private password: string = '';
-  private clientRegistrationState: any = null;
+  private clientRegistrationState: string | null = null;
 
   async step1(password: string): Promise<{ registrationRequest: string }> {
     this.password = password;
@@ -40,10 +57,11 @@ export class OPAQUERegistration {
 
   async step2(email: string, registrationRequest: string): Promise<{ registrationResponse: string }> {
     const response = await apiCall('/auth/opaque/register/process', { email, registrationRequest });
-    return { registrationResponse: response.registrationResponse };
+    return { registrationResponse: String(response.registrationResponse) };
   }
 
   async step3(registrationResponse: string): Promise<{ registrationRecord: string }> {
+    if (!this.clientRegistrationState) throw new Error('Client registration state is missing');
     const { registrationRecord } = opaque.client.finishRegistration({
       clientRegistrationState: this.clientRegistrationState,
       registrationResponse,
@@ -56,17 +74,17 @@ export class OPAQUERegistration {
     return { registrationRecord: regRecBase64 };
   }
 
-  async step4(email: string, name: string, registrationRecord: string, options?: any): Promise<any> {
+  async step4(email: string, name: string, registrationRecord: string, options?: unknown): Promise<OpaqueRegistrationResult> {
     const response = await apiCall('/auth/opaque/register/finish', {
-      email, name, registrationRecord, ...options
+      email, name, registrationRecord, ...(options || {})
     });
-    return response;
+    return response as OpaqueRegistrationResult;
   }
 }
 
 export class OPAQUELogin {
   private password: string = '';
-  private clientLoginState: any = null;
+  private clientLoginState: string | null = null;
 
   async step1(password: string): Promise<{ startLoginRequest: string }> {
     this.password = password;
@@ -81,10 +99,11 @@ export class OPAQUELogin {
 
   async step2(email: string, startLoginRequest: string): Promise<{ loginResponse: string; sessionId: string }> {
     const response = await apiCall('/auth/opaque/login/process', { email, startLoginRequest });
-    return { loginResponse: response.loginResponse, sessionId: response.sessionId };
+    return { loginResponse: String(response.loginResponse), sessionId: String(response.sessionId) };
   }
 
   async step3(loginResponse: string): Promise<{ finishLoginRequest: string; sessionKey: string }> {
+    if (!this.clientLoginState) throw new Error('Client login state is missing');
     const result = opaque.client.finishLogin({
       clientLoginState: this.clientLoginState,
       loginResponse,
@@ -107,14 +126,14 @@ export class OPAQUELogin {
     };
   }
 
-  async step4(email: string, finishLoginRequest: string, sessionId: string): Promise<any> {
+  async step4(email: string, finishLoginRequest: string, sessionId: string): Promise<OpaqueLoginResult> {
     const response = await apiCall('/auth/opaque/login/finish', { email, finishLoginRequest, sessionId });
-    return response;
+    return response as OpaqueLoginResult;
   }
 }
 
 export class OPAQUE {
-  static async register(password: string, email: string, name: string, options?: any): Promise<any> {
+  static async register(password: string, email: string, name: string, options?: unknown): Promise<OpaqueRegistrationResult> {
     const reg = new OPAQUERegistration();
     const { registrationRequest } = await reg.step1(password);
     const { registrationResponse } = await reg.step2(email, registrationRequest);
@@ -122,7 +141,7 @@ export class OPAQUE {
     return await reg.step4(email, name, registrationRecord, options);
   }
 
-  static async login(password: string, email: string): Promise<any> {
+  static async login(password: string, email: string): Promise<OpaqueLoginResult> {
     const login = new OPAQUELogin();
     const { startLoginRequest } = await login.step1(password);
     const { loginResponse, sessionId } = await login.step2(email, startLoginRequest);
@@ -131,4 +150,4 @@ export class OPAQUE {
   }
 }
 
-export default OPAQUE;
+export default OPAQUE; 

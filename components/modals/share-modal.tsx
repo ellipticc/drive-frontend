@@ -44,6 +44,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns"
 import { truncateFilename } from "@/lib/utils"
 
+import type { FileTreeItem, FolderTreeItem, FileInfo, FolderInfo } from '@/lib/api'
+
 // Helper function to build encrypted manifest for folder shares
 // Returns an object (not JSON string) so createShare can serialize it correctly
 async function buildEncryptedFolderManifest(
@@ -69,8 +71,8 @@ async function buildEncryptedFolderManifest(
     }
     
     // Extract folders from the hierarchical structure
-    const folders: any[] = [];
-    const extractFolders = (folderData: any) => {
+    const folders: FolderTreeItem[] = [];
+    const extractFolders = (folderData: FolderTreeItem) => {
       if (folderData.id !== folderId) { // Don't include root folder in manifest
         folders.push({
           id: folderData.id,
@@ -78,35 +80,38 @@ async function buildEncryptedFolderManifest(
           nameSalt: folderData.nameSalt, // Now properly included from backend
           parentId: folderData.parentId,
           path: folderData.path,
-          createdAt: folderData.created_at || folderData.createdAt,
+          createdAt: (folderData as unknown as Record<string, unknown>).created_at as string || (folderData as unknown as Record<string, unknown>).createdAt as string || new Date().toISOString(),
           type: 'folder'
-        });
+        } as unknown as FolderTreeItem);
       }
-      if (folderData.children) {
+      if (Array.isArray(folderData.children)) {
         for (const child of folderData.children) {
           extractFolders(child);
         }
       }
-    };;
+    };
     
     if (folder) {
-      extractFolders(folder);
+      extractFolders(folder as FolderTreeItem);
     }
     
     // Convert allFiles to the expected format
-    const files = allFiles.map((file: any) => ({
-      id: file.id,
-      encryptedFilename: file.encryptedFilename,
-      filenameSalt: file.filenameSalt,
-      size: file.size,
-      mimeType: file.mimetype,
-      folderId: file.folderId,
-      createdAt: file.created_at || file.createdAt,
-      wrappedCek: file.wrappedCek,
-      nonceWrap: file.nonceWrap,
-      kyberCiphertext: file.kyberCiphertext,
-      nonceWrapKyber: file.nonceWrapKyber
-    }));
+    const files = (allFiles as FileTreeItem[]).map((file) => {
+      const raw = file as unknown as Record<string, unknown>;
+      return {
+        id: file.id,
+        encryptedFilename: file.encryptedFilename,
+        filenameSalt: file.filenameSalt,
+        size: file.size,
+        mimeType: file.mimetype,
+        folderId: file.folderId,
+        createdAt: raw.created_at as string || raw.createdAt as string || new Date().toISOString(),
+        wrappedCek: file.wrappedCek,
+        nonceWrap: file.nonceWrap,
+        kyberCiphertext: (raw.kyber_ciphertext as string | undefined) || (raw.kyberCiphertext as string | undefined) || undefined,
+        nonceWrapKyber: (raw.nonce_wrap_kyber as string | undefined) || (raw.nonceWrapKyber as string | undefined) || undefined
+      };
+    });
 
     const { encryptData } = await import('@/lib/crypto');
     const { decryptFilename } = await import('@/lib/crypto');
@@ -116,7 +121,7 @@ async function buildEncryptedFolderManifest(
     const masterKey = masterKeyManager.getMasterKey();
 
     // Build manifest with all items
-    const manifest: Record<string, any> = {};
+    const manifest: Record<string, Record<string, unknown>> = {};
 
     // Add root folder (the shared folder itself) to manifest
     let rootFolderName: string;
@@ -164,7 +169,7 @@ async function buildEncryptedFolderManifest(
       type: 'folder',
       parent_id: null,
       path: folder.path,
-      created_at: (folder as any).created_at || new Date().toISOString()
+      created_at: (folder as unknown as Record<string, unknown>).created_at as string || new Date().toISOString()
     };
 
     // Add all subfolders
@@ -175,14 +180,18 @@ async function buildEncryptedFolderManifest(
         if (!masterKey) {
           throw new Error('Master key is null or undefined');
         }
-        decryptedFolderName = await decryptFilename(subfolder.encryptedName, subfolder.nameSalt, masterKey);
+        if (subfolder.encryptedName && subfolder.nameSalt) {
+          decryptedFolderName = await decryptFilename(subfolder.encryptedName, subfolder.nameSalt, masterKey);
+        } else {
+          decryptedFolderName = `Folder ${subfolder.id}`;
+        }
       } catch (error) {
         console.error(`Failed to decrypt subfolder ${subfolder.id}:`, {
           error: error instanceof Error ? error.message : error,
           stack: error instanceof Error ? error.stack : undefined,
           folderData: {
-            encryptedName: subfolder.encryptedName ? `${subfolder.encryptedName.substring(0, 30)}...` : null,
-            nameSalt: subfolder.nameSalt ? `${subfolder.nameSalt.substring(0, 30)}...` : null
+            encryptedName: subfolder.encryptedName ? `${String(subfolder.encryptedName).substring(0, 30)}...` : null,
+            nameSalt: subfolder.nameSalt ? `${String(subfolder.nameSalt).substring(0, 30)}...` : null
           }
         });
         decryptedFolderName = `Folder ${subfolder.id}`; // Fallback name
@@ -221,7 +230,7 @@ async function buildEncryptedFolderManifest(
         type: 'folder',
         parent_id: subfolder.parentId,
         path: subfolder.path,
-        created_at: (subfolder as any).created_at || new Date().toISOString()
+        created_at: (subfolder as unknown as Record<string, unknown>).created_at as string || new Date().toISOString()
       };
     }
 
@@ -233,14 +242,18 @@ async function buildEncryptedFolderManifest(
         if (!masterKey) {
           throw new Error('Master key is null or undefined');
         }
-        decryptedFileName = await decryptFilename(file.encryptedFilename, file.filenameSalt, masterKey);
+        if (file.encryptedFilename && file.filenameSalt) {
+          decryptedFileName = await decryptFilename(file.encryptedFilename, file.filenameSalt, masterKey);
+        } else {
+          decryptedFileName = `File ${file.id}`;
+        }
       } catch (error) {
         console.error(`Failed to decrypt file ${file.id}:`, {
           error: error instanceof Error ? error.message : error,
           stack: error instanceof Error ? error.stack : undefined,
           fileData: {
-            encryptedFilename: file.encryptedFilename ? `${file.encryptedFilename.substring(0, 30)}...` : null,
-            filenameSalt: file.filenameSalt ? `${file.filenameSalt.substring(0, 30)}...` : null
+            encryptedFilename: file.encryptedFilename ? `${String(file.encryptedFilename).substring(0, 30)}...` : null,
+            filenameSalt: file.filenameSalt ? `${String(file.filenameSalt).substring(0, 30)}...` : null
           }
         });
         decryptedFileName = `File ${file.id}`; // Fallback name
@@ -281,11 +294,14 @@ async function buildEncryptedFolderManifest(
         const userKeys = await keyManager.getUserKeys();
         
         // Decapsulate Kyber to get shared secret (same as download process)
-        const kyberCiphertext = hexToUint8Array(file.kyberCiphertext);
+        const fileMeta = file as unknown as Record<string, unknown>;
+        if (!fileMeta.kyberCiphertext) throw new Error(`Missing kyber ciphertext for file ${file.id}`)
+        const kyberCiphertext = hexToUint8Array(fileMeta.kyberCiphertext as string);
         const sharedSecret = ml_kem768.decapsulate(kyberCiphertext, userKeys.keypairs.kyberPrivateKey);
         
         // Decrypt the CEK using Kyber shared secret
-        const fileCek = decryptData(file.wrappedCek, new Uint8Array(sharedSecret), file.nonceWrapKyber);
+        if (!fileMeta.wrappedCek || !fileMeta.nonceWrapKyber) throw new Error(`Missing wrapped CEK or nonce for file ${file.id}`)
+        const fileCek = decryptData(fileMeta.wrappedCek as string, new Uint8Array(sharedSecret), fileMeta.nonceWrapKyber as string);
         if (!fileCek) {
           throw new Error(`No CEK returned for file ${file.id}`);
         }
@@ -615,8 +631,10 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
         throw new Error(`Failed to get ${itemType} encryption info`)
       }
 
-      const itemData = infoResponse.data[itemType === 'folder' ? 'folder' : 'file'] || infoResponse.data
-      if (!itemData.wrapped_cek || !itemData.nonce_wrap_kyber) {
+      const dataObj = infoResponse.data as { file?: FileInfo; folder?: FolderInfo };
+      const rawItemData = itemType === 'folder' ? dataObj.folder : dataObj.file;
+      const itemData = rawItemData as unknown as Record<string, unknown> | undefined;
+      if (!itemData || !itemData.wrapped_cek || !itemData.nonce_wrap_kyber) {
         throw new Error(`${itemType} encryption info not available`)
       }
 
@@ -633,11 +651,11 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
       if (itemType === 'file') {
         // For file shares, do envelope encryption
         // First, get the Kyber shared secret
-        const kyberCiphertext = hexToUint8Array(itemData.kyber_ciphertext)
+        const kyberCiphertext = hexToUint8Array(String(itemData.kyber_ciphertext))
         const sharedSecret = ml_kem768.decapsulate(kyberCiphertext, userKeys.keypairs.kyberPrivateKey)
 
         // Decrypt the file's CEK
-        const fileCek = decryptData(itemData.wrapped_cek, new Uint8Array(sharedSecret), itemData.nonce_wrap_kyber)
+        const fileCek = decryptData(String(itemData.wrapped_cek), new Uint8Array(sharedSecret), String(itemData.nonce_wrap_kyber))
 
         // Now encrypt the file's CEK with the share CEK (envelope encryption)
         const { encryptData } = await import('@/lib/crypto')
@@ -809,8 +827,9 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
           throw new Error(`Failed to get file encryption info`)
         }
 
-        const itemData = infoResponse.data.file || infoResponse.data
-        if (!itemData.wrapped_cek || !itemData.nonce_wrap_kyber) {
+        const dataObj = infoResponse.data as { file?: FileInfo; folder?: FolderInfo };
+        const itemData = dataObj.file as unknown as Record<string, unknown> | undefined;
+        if (!itemData || !itemData.wrapped_cek || !itemData.nonce_wrap_kyber) {
           throw new Error(`File encryption info not available`)
         }
 
@@ -822,11 +841,11 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
         const { decryptData, hexToUint8Array } = await import('@/lib/crypto')
 
         // First, get the Kyber shared secret
-        const kyberCiphertext = hexToUint8Array(itemData.kyber_ciphertext)
+        const kyberCiphertext = hexToUint8Array(String(itemData.kyber_ciphertext))
         const sharedSecret = ml_kem768.decapsulate(kyberCiphertext, userKeys.keypairs.kyberPrivateKey)
 
         // Decrypt the file's CEK
-        const fileCek = decryptData(itemData.wrapped_cek, new Uint8Array(sharedSecret), itemData.nonce_wrap_kyber)
+        const fileCek = decryptData(String(itemData.wrapped_cek), new Uint8Array(sharedSecret), String(itemData.nonce_wrap_kyber))
 
         // Now encrypt the file's CEK with the share CEK (envelope encryption)
         const { encryptData } = await import('@/lib/crypto')
@@ -962,7 +981,7 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
     }
   }
 
-  const handleSettingsChange = (key: keyof ShareSettings, value: any) => {
+  function handleSettingsChange<K extends keyof ShareSettings>(key: K, value: ShareSettings[K]) {
     setShareSettings(prev => ({ ...prev, [key]: value }))
   }
 

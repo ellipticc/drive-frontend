@@ -6,6 +6,14 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { uploadEncryptedFile, UploadProgress, UserKeys } from '@/lib/upload';
 import { keyManager } from '@/lib/key-manager';
+import { FileItem } from '@/lib/api';
+import { CreatedFolder } from '@/lib/folder-upload-utils';
+
+interface UploadError extends Error {
+  conflictInfo?: ConflictInfo;
+}
+
+import { UploadResult } from '@/lib/upload';
 
 export interface UploadTask {
   id: string;
@@ -13,20 +21,24 @@ export interface UploadTask {
   status: 'pending' | 'uploading' | 'paused' | 'completed' | 'failed' | 'cancelled';
   progress: UploadProgress | null;
   error?: string;
-  result?: any;
+  result?: UploadResult;
   abortController?: AbortController;
   currentFilename?: string; // Current filename being uploaded (may be incremented for keepBoth)
   existingFileIdToDelete?: string; // ID of file to delete if this is a replace operation
+  conflictResolution?: 'replace' | 'keepBoth' | 'skip';
+  conflictFileName?: string;
+  isKeepBothAttempt?: boolean;
 }
 
 export interface ConflictInfo {
+  isKeepBothConflict?: boolean;
   type: 'file';
   name: string;
   existingPath: string;
   newPath: string;
   folderId: string | null;
   existingFileId?: string; // ID of the existing file for deletion if replacing
-}
+} 
 
 export interface UploadManagerProps {
   id: string;  // Add explicit ID parameter
@@ -43,7 +55,7 @@ export interface UploadManagerProps {
 export class UploadManager {
   private task: UploadTask;
   private props: UploadManagerProps;
-  private uploadPromise?: Promise<any>;
+  private uploadPromise?: Promise<UploadResult>;
   private isDestroyed = false;
   private currentFilename: string; // Track the current filename being uploaded
 
@@ -99,10 +111,10 @@ export class UploadManager {
         },
         this.task.abortController.signal, // Pass the abort signal
         () => this.task.status === 'paused', // Pass isPaused callback
-        (this.task as any).conflictResolution, // Pass conflict resolution
-        (this.task as any).conflictFileName, // Pass conflicting filename for counter extraction
-        (this.task as any).existingFileIdToDelete, // Pass file ID to delete for replace
-        (this.task as any).isKeepBothAttempt // Pass flag to indicate this is a keepBoth retry
+        this.task.conflictResolution, // Pass conflict resolution
+        this.task.conflictFileName, // Pass conflicting filename for counter extraction
+        this.task.existingFileIdToDelete, // Pass file ID to delete for replace
+        this.task.isKeepBothAttempt // Pass flag to indicate this is a keepBoth retry
       );
 
       const result = await this.uploadPromise;
@@ -112,8 +124,8 @@ export class UploadManager {
       this.task.status = 'completed';
       this.task.result = result;
       // Preserve existingFileIdToDelete in the task for deletion callbacks
-      if ((this.task as any).existingFileIdToDelete) {
-        this.task.existingFileIdToDelete = (this.task as any).existingFileIdToDelete;
+      if (this.task.existingFileIdToDelete) {
+        this.task.existingFileIdToDelete = this.task.existingFileIdToDelete;
       }
       this.notifyProgress();
       this.props.onComplete?.(this.task);
@@ -141,20 +153,20 @@ export class UploadManager {
         return;
       } else if (isConflict) {
         // File conflict detected
-        const conflictInfo = (error as any).conflictInfo;
+        const conflictInfo = (error as UploadError).conflictInfo;
         
         // If this is a keepBoth conflict, auto-retry with next number
-        if (conflictInfo?.isKeepBothConflict && (this.task as any).conflictResolution === 'keepBoth') {
+        if (conflictInfo?.isKeepBothConflict && this.task.conflictResolution === 'keepBoth') {
           
           // Update the conflict filename to the incremented one we just tried
-          (this.task as any).conflictFileName = conflictInfo.name;
+          this.task.conflictFileName = conflictInfo.name;
           
           // Update our current filename tracking
           this.currentFilename = conflictInfo.name;
           this.task.currentFilename = conflictInfo.name;
           
           // Mark as keepBoth attempt so backend knows to expect a numbered filename
-          (this.task as any).isKeepBothAttempt = true;
+          this.task.isKeepBothAttempt = true;
           
           // Keep status as paused but immediately restart with next number
           this.task.status = 'paused';
@@ -172,7 +184,9 @@ export class UploadManager {
           // Regular conflict - pause and notify user
           this.task.status = 'paused';
           this.notifyProgress();
-          this.props.onConflict?.(this.task, conflictInfo);
+          if (conflictInfo) {
+            this.props.onConflict?.(this.task, conflictInfo);
+          }
         }
       } else {
         // Upload failed with actual error
@@ -213,6 +227,15 @@ export class UploadManager {
     }
   }
 
+  // Public helpers to mutate conflict-related fields (used by callers managing conflicts)
+  setExistingFileIdToDelete(id?: string): void {
+    this.task.existingFileIdToDelete = id;
+  }
+
+  setConflictFileName(name?: string): void {
+    this.task.conflictFileName = name;
+  }
+
   resolveConflict(resolution: 'replace' | 'keepBoth' | 'skip'): void {
     if (this.task.status !== 'paused') return;
 
@@ -232,7 +255,7 @@ export class UploadManager {
     this.notifyProgress();
     
     // Store the resolution for the upload function to use
-    (this.task as any).conflictResolution = resolution;
+    this.task.conflictResolution = resolution;
     
     // Restart the upload
     this.start();

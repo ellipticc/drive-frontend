@@ -3,7 +3,8 @@
  * Manages CEK generation and access to PQC keypairs
  */
 
-import { decryptUserPrivateKeys } from './crypto';
+import { decryptUserPrivateKeys, UserCryptoData } from './crypto';
+import type { UserData } from './api';
 import { masterKeyManager } from './master-key';
 
 export interface UserKeypairs {
@@ -24,7 +25,7 @@ export interface UserKeys {
 
 class KeyManager {
   private cachedKeys: UserKeys | null = null;
-  private userData: any = null;
+  private userData: UserCryptoData | null = null;
   private readonly STORAGE_KEY = 'user_crypto_data';
 
   constructor() {
@@ -35,7 +36,7 @@ class KeyManager {
   /**
    * Initialize KeyManager with user data from login
    */
-  async initialize(userData: any): Promise<void> {
+  async initialize(userData: UserData | UserCryptoData): Promise<void> {
     // Handle Google OAuth users in setup phase (incomplete pqcKeypairs)
     if (!userData?.crypto_keypairs?.pqcKeypairs) {
       // For users with no pqcKeypairs (e.g., Google OAuth in setup phase), 
@@ -60,16 +61,17 @@ class KeyManager {
       throw new Error('Invalid user data: missing crypto keypairs');
     }
 
-    const requiredKeys = ['ed25519', 'x25519', 'kyber', 'dilithium'];
+    const requiredKeys = ['ed25519', 'x25519', 'kyber', 'dilithium'] as const;
     for (const keyType of requiredKeys) {
-      const keypair = userData.crypto_keypairs.pqcKeypairs[keyType];
+      const keypair = userData.crypto_keypairs.pqcKeypairs[keyType as typeof requiredKeys[number]];
       if (!keypair) {
         throw new Error(`Missing ${keyType} keypair in user data`);
       }
 
       const requiredFields = ['publicKey', 'encryptedPrivateKey', 'privateKeyNonce', 'encryptionKey', 'encryptionNonce'];
       for (const field of requiredFields) {
-        if (!keypair[field]) {
+        const value = (keypair as unknown as Record<string, unknown>)[field];
+        if (!value) {
           throw new Error(`Missing ${field} in ${keyType} keypair`);
         }
 
@@ -80,13 +82,13 @@ class KeyManager {
         // - Ed25519/X25519 private keys: ~32 bytes → ~44 base64 chars
         // - Public keys: Kyber ~1568 bytes → ~2088 base64 chars, Dilithium ~1952 bytes → ~2603 base64 chars
         // - But actual keys may be hex encoded: Kyber ~3136 chars, Dilithium ~3904 chars
-        if (typeof keypair[field] === 'string') {
+        if (typeof value === 'string') {
           const maxLength = field === 'encryptedPrivateKey' ? 6000 :  // Increased for PQC keys
                            field === 'publicKey' ? 5000 :             // Increased for PQC public keys (hex encoded)
                            field === 'encryptionKey' ? 200 : 
                            field === 'encryptionNonce' ? 100 : 1000;
-          if (keypair[field].length > maxLength) {
-            // console.error(`Suspiciously long ${field} in ${keyType} keypair: ${keypair[field].length} characters (max: ${maxLength})`);
+          if ((value as string).length > maxLength) {
+            // console.error(`Suspiciously long ${field} in ${keyType} keypair: ${(value as string).length} characters (max: ${maxLength})`);
             throw new Error(`Corrupted ${field} data in ${keyType} keypair`);
           }
         }
@@ -119,14 +121,14 @@ class KeyManager {
         
         // Validate stored data structure and content
         if (parsedData?.crypto_keypairs?.pqcKeypairs) {
-          const requiredKeys = ['ed25519', 'x25519', 'kyber', 'dilithium'];
+          const requiredKeys = ['ed25519', 'x25519', 'kyber', 'dilithium'] as const;
           const hasAllKeys = requiredKeys.every(key => parsedData.crypto_keypairs.pqcKeypairs[key]);
           
           if (hasAllKeys) {
             // Validate data lengths to prevent restoring corrupted data
             let isValid = true;
             for (const keyType of requiredKeys) {
-              const keypair = parsedData.crypto_keypairs.pqcKeypairs[keyType];
+              const keypair = parsedData.crypto_keypairs.pqcKeypairs[keyType as typeof requiredKeys[number]];
               if (keypair) {
                 const requiredFields = ['publicKey', 'encryptedPrivateKey', 'privateKeyNonce', 'encryptionKey', 'encryptionNonce'];
                 for (const field of requiredFields) {

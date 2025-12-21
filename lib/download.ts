@@ -11,8 +11,7 @@
 
 import { apiClient } from './api';
 import { decryptData, uint8ArrayToHex, hexToUint8Array, decryptFilename } from './crypto';
-import { keyManager } from './key-manager';
-import { isTorAccess } from './tor-detection';
+import { keyManager, UserKeys, UserKeypairs } from './key-manager';
 import { decompressChunk, CompressionAlgorithm } from './compression';
 
 // Utility function to convert Uint8Array to base64 safely (avoids stack overflow)
@@ -23,7 +22,8 @@ function uint8ArrayToBase64(array: Uint8Array): string {
 
   for (let i = 0; i < array.length; i += chunkSize) {
     const chunk = array.slice(i, i + chunkSize);
-    result += String.fromCharCode.apply(null, chunk as any);
+    // Use Array.from + spread to get a number[] without casting to `any`
+    result += String.fromCharCode(...Array.from(chunk));
   }
 
   return btoa(result);
@@ -86,7 +86,46 @@ export interface DownloadEncryption {
   kyberWrappedCek?: string;
   kyberCiphertext?: string;
   nonceWrapKyber?: string;
-  argon2idParams?: any;
+  argon2idParams?: {
+    time: number;
+    mem: number;
+    parallelism: number;
+    hashLen: number;
+  };
+}
+
+// Response shape returned by the backend for download initialization
+export interface DownloadUrlsResponse {
+  fileId: string;
+  storageKey: string;
+  originalFilename: string;
+  filenameSalt?: string;
+  mimetype: string;
+  size: number;
+  sha256: string;
+  chunkCount: number;
+  chunks: Array<{
+    index: number;
+    size: number;
+    sha256: string;
+    nonce?: string | null;
+    isCompressed?: boolean;
+    compressionAlgorithm?: CompressionAlgorithm;
+    compressionOriginalSize?: number;
+    compressionCompressedSize?: number;
+  }>;
+  presigned?: Array<{
+    chunkIndex: number;
+    getUrl: string;
+    objectKey: string;
+  }>;
+  manifest?: DownloadManifest;
+  signatures?: {
+    ed25519?: { alg: string; signedAt: number | null; signature: string };
+    dilithium?: { alg: string; signedAt: number | null; signature: string };
+  };
+  encryption?: DownloadEncryption;
+  storageType: string;
 }
 
 export interface DownloadSession {
@@ -125,7 +164,7 @@ export interface DownloadResult {
 }
 
 // Configuration
-const CHUNK_SIZE = 4 * 1024 * 1024; // 4MB chunks (matches upload)
+// const CHUNK_SIZE = 4 * 1024 * 1024; // 4MB chunks (matches upload) - removed unused constant
 
 /**
  * Get the chunk index from a chunk object (handles both chunkIndex and index properties)
@@ -241,7 +280,7 @@ async function decryptChunksWithCEK(
             const truncatedBase64 = uint8ArrayToBase64(truncatedChunk);
             decryptedData = decryptData(truncatedBase64, cek, chunkNonce);
             break;
-          } catch (retryError) {
+          } catch {
             // Continue trying different offsets
           }
         }
@@ -283,7 +322,7 @@ async function decryptChunksWithCEK(
 
 export async function downloadEncryptedFile(
   fileId: string,
-  userKeys?: any,
+  userKeys?: UserKeys,
   onProgress?: (progress: DownloadProgress) => void
 ): Promise<DownloadResult> {
   try {
@@ -338,7 +377,7 @@ async function initializeDownloadSession(fileId: string): Promise<DownloadSessio
     throw new Error('Failed to initialize download session');
   }
 
-  const data = response.data;
+  const data = response.data as DownloadUrlsResponse; // Cast to known response shape
 
   // Decrypt the filename if it's encrypted
   let decryptedFilename = data.originalFilename;
@@ -355,9 +394,9 @@ async function initializeDownloadSession(fileId: string): Promise<DownloadSessio
   }
 
   // Merge chunks metadata with presigned URLs
-  const mergedChunks: DownloadChunk[] = data.chunks.map((chunk: any) => {
+  const mergedChunks: DownloadChunk[] = data.chunks.map((chunk: DownloadUrlsResponse['chunks'][0]) => {
     // Find the corresponding presigned URL entry
-    const presignedEntry = data.presigned?.find((p: any) => p.chunkIndex === chunk.index);
+    const presignedEntry = data.presigned?.find((p) => p.chunkIndex === chunk.index);
     if (!presignedEntry) {
       throw new Error(`No presigned URL found for chunk ${chunk.index}`);
     }
@@ -368,7 +407,7 @@ async function initializeDownloadSession(fileId: string): Promise<DownloadSessio
       objectKey: presignedEntry.objectKey,
       size: chunk.size,
       shaHash: chunk.sha256,
-      nonce: chunk.nonce,
+      nonce: chunk.nonce ?? null,
       getUrl: presignedEntry.getUrl,
       // Compression metadata
       isCompressed: chunk.isCompressed,
@@ -397,9 +436,8 @@ async function initializeDownloadSession(fileId: string): Promise<DownloadSessio
 /**
  * Unwrap the Content Encryption Key (CEK) using Kyber decapsulation
  */
-async function unwrapCEK(encryption: DownloadEncryption, keypairs: any): Promise<Uint8Array> {
+async function unwrapCEK(encryption: DownloadEncryption, keypairs: UserKeypairs): Promise<Uint8Array> {
   const { ml_kem768 } = await import('@noble/post-quantum/ml-kem.js');
-  const { decryptData } = await import('./crypto');
 
   if (!encryption.kyberCiphertext) {
     throw new Error('No Kyber ciphertext available for CEK unwrapping');
@@ -458,7 +496,7 @@ async function downloadChunksFromB2(
   const concurrencyLimit = 3; // Download up to 3 chunks simultaneously
   const semaphore = new Semaphore(concurrencyLimit);
 
-  const downloadPromises = chunks.map(async (chunk, index) => {
+  const downloadPromises = chunks.map(async (chunk) => {
     await semaphore.acquire();
 
     try {
@@ -530,7 +568,7 @@ async function downloadChunksFromB2(
 async function decryptChunks(
   encryptedChunks: Uint8Array[],
   session: DownloadSession,
-  keypairs: any
+  keypairs: UserKeypairs
 ): Promise<Uint8Array[]> {
   if (!session.encryption) {
     throw new Error('No encryption metadata available for decryption');
@@ -585,7 +623,7 @@ async function decryptChunks(
             const truncatedBase64 = uint8ArrayToBase64(truncatedChunk);
             decryptedData = decryptData(truncatedBase64, cek, chunkNonce);
             break;
-          } catch (retryError) {
+          } catch {
             // Continue trying different offsets
           }
         }
@@ -666,7 +704,7 @@ async function verifyFileIntegrity(blob: Blob, expectedShaHash: string): Promise
  */
 export async function downloadFileToBrowser(
   fileId: string,
-  userKeys?: any,
+  userKeys?: UserKeys,
   onProgress?: (progress: DownloadProgress) => void
 ): Promise<void> {
   const result = await downloadEncryptedFile(fileId, userKeys, onProgress);
@@ -686,7 +724,7 @@ export async function downloadFileToBrowser(
 /**
  * Recursively get all files and folders in a folder and subfolders
  */
-export async function getRecursiveFolderContents(folderId: string, basePath: string = '', userKeys?: any): Promise<{
+export async function getRecursiveFolderContents(folderId: string, basePath: string = '', userKeys?: UserKeys): Promise<{
   files: Array<{fileId: string, relativePath: string, filename: string}>,
   folders: Array<{folderId: string, relativePath: string, folderName: string}>
 }> {
@@ -769,7 +807,7 @@ export async function getRecursiveFolderContents(folderId: string, basePath: str
 export async function downloadFolderAsZip(
   folderId: string,
   folderName: string,
-  userKeys?: any,
+  userKeys?: UserKeys,
   onProgress?: (progress: DownloadProgress) => void
 ): Promise<void> {
   try {
@@ -795,7 +833,7 @@ export async function downloadFolderAsZip(
       try {
         const session = await initializeDownloadSession(file.fileId);
         totalBytes += session.size;
-      } catch (error) {
+      } catch {
         // console.warn(`Failed to get size for file ${file.filename}:`, error);
       }
     }
@@ -858,7 +896,7 @@ export async function downloadFolderAsZip(
  */
 export async function downloadMultipleItemsAsZip(
   items: Array<{id: string, name: string, type: "file" | "folder"}>,
-  userKeys?: any,
+  userKeys?: UserKeys,
   onProgress?: (progress: DownloadProgress) => void
 ): Promise<void> {
   try {
@@ -904,7 +942,7 @@ export async function downloadMultipleItemsAsZip(
       try {
         const session = await initializeDownloadSession(file.fileId);
         totalBytes += session.size;
-      } catch (error) {
+      } catch {
         // console.warn(`Failed to get size for file ${file.filename}:`, error);
       }
     }
@@ -1012,11 +1050,13 @@ async function createZipFromFilesAndFolders(
 
   // Create ZIP
   return new Promise((resolve, reject) => {
-    zip(zipData, { level: 0 }, (err: any, data: any) => {
+    zip(zipData, { level: 0 }, (err: Error | null, data?: Uint8Array) => {
       if (err) {
         reject(err);
       } else {
-        resolve(new Blob([data], { type: 'application/zip' }));
+        // `data` is a Uint8Array from fflate
+        // Use .slice() to create a concrete Uint8Array backed by an ArrayBuffer so Blob accepts it
+        resolve(new Blob([data!.slice()], { type: 'application/zip' }));
       }
     });
   });

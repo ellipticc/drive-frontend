@@ -9,6 +9,7 @@ import type {
     RowProps as AriaRowProps,
     TableHeaderProps as AriaTableHeaderProps,
     TableProps as AriaTableProps,
+    Selection,
 } from "react-aria-components";
 import {
     Cell as AriaCell,
@@ -114,12 +115,16 @@ interface TableRootProps extends AriaTableProps, Omit<ComponentPropsWithRef<"tab
 const TableRoot = ({ className, size = "md", onSelectionChange, ...props }: TableRootProps) => {
     const context = useContext(TableContext);
     const [hasSelection, setHasSelection] = useState(false);
-    const tableRef = useRef<any>(null);
+    const tableRef = useRef<React.ComponentRef<typeof AriaTable>>(null);
+
+    // Narrowed type for tableRef.state.selectionManager
+    type SelectionManagerLike = { selectedKeys?: { size?: number }; subscribe?: (cb: () => void) => () => void };
+    type TableWithState = { state?: { selectionManager?: SelectionManagerLike } };
 
     useEffect(() => {
         if (tableRef.current) {
             const updateSelection = () => {
-                const selectionSize = tableRef.current?.state?.selectionManager?.selectedKeys?.size ?? 0;
+                const selectionSize = (tableRef.current as TableWithState).state?.selectionManager?.selectedKeys?.size ?? 0;
                 setHasSelection(selectionSize > 0);
             };
 
@@ -127,7 +132,7 @@ const TableRoot = ({ className, size = "md", onSelectionChange, ...props }: Tabl
             updateSelection();
 
             // Try to subscribe to changes if available
-            const selectionManager = tableRef.current?.state?.selectionManager;
+            const selectionManager = (tableRef.current as TableWithState).state?.selectionManager;
             if (selectionManager && typeof selectionManager.subscribe === 'function') {
                 const unsubscribe = selectionManager.subscribe(updateSelection);
                 return unsubscribe;
@@ -135,12 +140,13 @@ const TableRoot = ({ className, size = "md", onSelectionChange, ...props }: Tabl
         }
     }, []);
 
-    const handleSelectionChange = (keys: any) => {
-        setHasSelection(keys.size > 0);
+    const handleSelectionChange = (keys: Selection) => {
+        const size = (keys as unknown as { size?: number }).size ?? 0;
+        setHasSelection(size > 0);
         if (onSelectionChange) {
             onSelectionChange(keys);
         }
-    };
+    }; 
 
     return (
         <TableContext.Provider value={{ size: context?.size ?? size, hasSelection }}>

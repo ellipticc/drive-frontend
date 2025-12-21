@@ -176,10 +176,10 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
   // Reset loading state when file changes
   useEffect(() => {
     if (file) {
-      setIsLoading(false);
-      setDownloadProgress(null);
+      // Defer state update to avoid calling setState synchronously inside effect
+      requestAnimationFrame(() => setDownloadProgress(null));
     }
-  }, [file?.id, setIsLoading]);
+  }, [file?.id]);
 
   const canPreview = (file: FileItem | null): boolean => {
     if (!file || file.type !== 'file' || !file.mimeType) return false;

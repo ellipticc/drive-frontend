@@ -39,7 +39,12 @@ export interface CompressionMetadata {
 // Configuration
 const MIN_COMPRESSION_THRESHOLD = 0.92; // Only compress if ratio < 0.92 (8%+ savings)
 const COMPRESSIBILITY_TEST_SIZE = 512 * 1024; // 512KB sample for testing
-const zstdWasm: any = null;
+type ZstdWasm = {
+  compress(data: Uint8Array, level?: number): Uint8Array | number[];
+  decompress(data: Uint8Array | number[]): Uint8Array | number[];
+};
+
+const zstdWasm: ZstdWasm | null = null;
 let zstdWasmLoaded = false;
 let zstdWasmError: Error | null = null;
 
@@ -122,7 +127,7 @@ function hasNativeCompressionStream(): boolean {
 
   try {
     // Test if CompressionStream exists and supports zstd
-    const CompressionStreamClass = (window as any).CompressionStream;
+    const CompressionStreamClass = (window as unknown as { CompressionStream?: new (...args: unknown[]) => unknown }).CompressionStream;
     if (CompressionStreamClass) {
       const testStream = new CompressionStreamClass('zstd');
       if (testStream) {
@@ -141,7 +146,26 @@ function hasNativeCompressionStream(): boolean {
  */
 async function compressWithNativeZstd(data: Uint8Array): Promise<Uint8Array> {
   try {
-    const stream = new (window as any).CompressionStream('zstd');
+    const CompressionStreamClass = (window as unknown as { CompressionStream?: new (...args: unknown[]) => unknown }).CompressionStream;
+    if (!CompressionStreamClass) {
+      throw new Error('Native CompressionStream not available');
+    }
+
+    type CompressionStreamLike = {
+      writable: {
+        getWriter(): {
+          write(chunk: Uint8Array): Promise<void>;
+          close(): Promise<void>;
+        };
+      };
+      readable: {
+        getReader(): {
+          read(): Promise<{ value?: Uint8Array; done?: boolean }>;
+        };
+      };
+    };
+
+    const stream = new CompressionStreamClass('zstd') as unknown as CompressionStreamLike;
     const writer = stream.writable.getWriter();
     const reader = stream.readable.getReader();
 
@@ -209,7 +233,26 @@ async function compressWithGzip(data: Uint8Array): Promise<Uint8Array> {
  */
 async function decompressWithNativeZstd(data: Uint8Array): Promise<Uint8Array> {
   try {
-    const stream = new (window as any).DecompressionStream('zstd');
+    const DecompressionStreamClass = (window as unknown as { DecompressionStream?: new (...args: unknown[]) => unknown }).DecompressionStream;
+    if (!DecompressionStreamClass) {
+      throw new Error('Native DecompressionStream not available');
+    }
+
+    type DecompressionStreamLike = {
+      writable: {
+        getWriter(): {
+          write(chunk: Uint8Array): Promise<void>;
+          close(): Promise<void>;
+        };
+      };
+      readable: {
+        getReader(): {
+          read(): Promise<{ value?: Uint8Array; done?: boolean }>;
+        };
+      };
+    };
+
+    const stream = new DecompressionStreamClass('zstd') as unknown as DecompressionStreamLike;
     const writer = stream.writable.getWriter();
     const reader = stream.readable.getReader();
 

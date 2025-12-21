@@ -58,7 +58,7 @@ export function PrivacyPolicyContent() {
             <section className="space-y-4">
               <h2 className="text-2xl font-semibold">1. Introduction</h2>
               <p className="text-base leading-relaxed">
-                Ellipticc ("we," "us," "our," or "Company") is an end-to-end encrypted (E2EE), post-quantum cryptography (PQC), zero-knowledge cloud storage service. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our website and services.
+                Ellipticc (&quot;we,&quot; &quot;us,&quot; &quot;our,&quot; or &quot;Company&quot;) is an end-to-end encrypted (E2EE), post-quantum cryptography (PQC), zero-knowledge cloud storage service. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our website and services.
               </p>
               <p className="text-base leading-relaxed">
                 <strong>Key Privacy Principle:</strong> We are designed to have zero knowledge of your file contents, filenames, or encryption keys. All encryption and decryption occur exclusively on your device, and we cannot access or decrypt any of your data, even if legally required.
@@ -81,7 +81,7 @@ export function PrivacyPolicyContent() {
                 <div>
                   <h3 className="text-lg font-semibold mb-2">2.2 User-Generated Content (Zero Knowledge)</h3>
                   <p className="text-base leading-relaxed">
-                    You can upload files, documents, folders, and other content to the Service. However, <strong>Ellipticc has zero access to your content.</strong> Here's why:
+                    You can upload files, documents, folders, and other content to the Service. However, <strong>Ellipticc has zero access to your content.</strong> Here&apos;s why:
                   </p>
                   <ul className="list-disc list-inside space-y-2 mt-3 text-base">
                     <li><strong>All encryption occurs on your device</strong> before any data is transmitted to our servers.</li>
@@ -266,7 +266,7 @@ export function PrivacyPolicyContent() {
 
             {/* Section 8 */}
             <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">8. Children's Privacy</h2>
+              <h2 className="text-2xl font-semibold">8. Children&apos;s Privacy</h2>
               <p className="text-base leading-relaxed">
                 The Service is not intended for children under 13. We do not knowingly collect personal information from children under 13. If we learn that we have collected information from a child under 13, we will promptly delete such information.
               </p>

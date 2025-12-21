@@ -5,12 +5,25 @@ import { UnifiedProgressModal, FileUploadState } from '@/components/modals/unifi
 import { ConflictModal } from '@/components/modals/conflict-modal';
 import { UploadManager } from '@/components/upload-manager';
 import { keyManager } from '@/lib/key-manager';
-import { apiClient } from '@/lib/api';
+import { apiClient, FileItem } from '@/lib/api';
 import { useCurrentFolder } from '@/components/current-folder-context';
 import { useUser } from '@/components/user-context';
 import { downloadFileToBrowser, downloadFolderAsZip, downloadMultipleItemsAsZip, downloadEncryptedFile, DownloadProgress } from '@/lib/download';
+import { UploadResult } from '@/lib/upload';
+export type { UploadResult }; 
 import { prepareFilesForUpload, CreatedFolder } from '@/lib/folder-upload-utils';
 import { ParallelUploadQueue, getUploadQueue, destroyUploadQueue } from '@/lib/parallel-upload-queue';
+
+
+interface ConflictItem {
+  id: string;
+  name: string;
+  type: 'file' | 'folder';
+  existingPath: string;
+  newPath: string;
+  existingItem?: FileItem;
+  existingFileId?: string;
+}
 
 interface GlobalUploadContextType {
   // Upload state
@@ -35,12 +48,12 @@ interface GlobalUploadContextType {
   cancelAllUploads: () => void;
 
   // Upload completion callback registration
-  registerOnUploadComplete: (callback: (uploadId: string, result: any) => void) => void;
-  unregisterOnUploadComplete: (callback: (uploadId: string, result: any) => void) => void;
+  registerOnUploadComplete: (callback: (uploadId: string, result: UploadResult) => void) => void;
+  unregisterOnUploadComplete: (callback: (uploadId: string, result: UploadResult) => void) => void;
 
   // File addition callback for incremental updates
-  registerOnFileAdded: (callback: (file: any) => void) => void;
-  unregisterOnFileAdded: (callback: (file: any) => void) => void;
+  registerOnFileAdded: (callback: (file: FileItem) => void) => void;
+  unregisterOnFileAdded: (callback: (file: FileItem) => void) => void;
 
   // File deletion callback for incremental updates
   registerOnFileDeleted: (callback: (fileId: string) => void) => void;
@@ -74,7 +87,7 @@ export function useGlobalUpload() {
   return context;
 }
 
-export function useOnUploadComplete(callback: (uploadId: string, result: any) => void) {
+export function useOnUploadComplete(callback: (uploadId: string, result: UploadResult) => void) {
   const { registerOnUploadComplete, unregisterOnUploadComplete } = useGlobalUpload();
 
   React.useEffect(() => {
@@ -85,7 +98,7 @@ export function useOnUploadComplete(callback: (uploadId: string, result: any) =>
   }, [callback, registerOnUploadComplete, unregisterOnUploadComplete]);
 }
 
-export function useOnFileAdded(callback: (file: any) => void) {
+export function useOnFileAdded(callback: (file: FileItem) => void) {
   const { registerOnFileAdded, unregisterOnFileAdded } = useGlobalUpload();
 
   React.useEffect(() => {
@@ -127,7 +140,7 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Conflict modal state
-  const [conflictItems, setConflictItems] = useState<any[]>([]);
+  const [conflictItems, setConflictItems] = useState<ConflictItem[]>([]);
   const [isConflictModalOpen, setIsConflictModalOpen] = useState(false);
 
   // Download state
@@ -152,10 +165,10 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
   const uploadQueueRef = useRef<ParallelUploadQueue | null>(null);
 
   // Upload completion callbacks
-  const onUploadCompleteCallbacksRef = useRef<Set<(uploadId: string, result: any) => void>>(new Set());
+  const onUploadCompleteCallbacksRef = useRef<Set<(uploadId: string, result: UploadResult) => void>>(new Set());
   
   // File added callbacks for incremental updates
-  const onFileAddedCallbacksRef = useRef<Set<(file: any) => void>>(new Set());
+  const onFileAddedCallbacksRef = useRef<Set<(file: FileItem) => void>>(new Set());
   
   // File deleted callbacks for incremental updates
   const onFileDeletedCallbacksRef = useRef<Set<(fileId: string) => void>>(new Set());
@@ -200,7 +213,7 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
     }
     
     // Reject directory entries: those have webkitRelativePath === name
-    const relativePath = (file as any).webkitRelativePath || '';
+    const relativePath = (file as File & { webkitRelativePath?: string }).webkitRelativePath || '';
     if (relativePath === file.name && relativePath !== '') {
       throw new Error(`Cannot upload directory "${file.name}". Please select files instead.`);
     }
@@ -258,14 +271,16 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
             updateStorage(task.result.file.size);
           }
           
-          // Trigger all registered upload completion callbacks
-          onUploadCompleteCallbacksRef.current.forEach(callback => {
-            callback(task.id, task.result);
-          });
+          // Trigger all registered upload completion callbacks (only when result exists)
+          if (task.result) {
+            onUploadCompleteCallbacksRef.current.forEach(callback => {
+              callback(task.id, task.result as UploadResult);
+            });
+          }
           // Trigger file added callbacks with the file data
           if (task.result && task.result.file) {
             onFileAddedCallbacksRef.current.forEach(callback => {
-              callback(task.result.file);
+              if (task.result && task.result.file) callback(task.result.file);
             });
           }
           // Trigger file replaced callbacks if a file was replaced - refresh the file list
@@ -404,19 +419,19 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
     })));
   }, []);
 
-  const registerOnUploadComplete = useCallback((callback: (uploadId: string, result: any) => void) => {
+  const registerOnUploadComplete = useCallback((callback: (uploadId: string, result: UploadResult) => void) => {
     onUploadCompleteCallbacksRef.current.add(callback);
   }, []);
 
-  const unregisterOnUploadComplete = useCallback((callback: (uploadId: string, result: any) => void) => {
+  const unregisterOnUploadComplete = useCallback((callback: (uploadId: string, result: UploadResult) => void) => {
     onUploadCompleteCallbacksRef.current.delete(callback);
   }, []);
 
-  const registerOnFileAdded = useCallback((callback: (file: any) => void) => {
+  const registerOnFileAdded = useCallback((callback: (file: FileItem) => void) => {
     onFileAddedCallbacksRef.current.add(callback);
   }, []);
 
-  const unregisterOnFileAdded = useCallback((callback: (file: any) => void) => {
+  const unregisterOnFileAdded = useCallback((callback: (file: FileItem) => void) => {
     onFileAddedCallbacksRef.current.delete(callback);
   }, []);
 
@@ -636,7 +651,7 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
     console.log('=== START UPLOAD WITH FOLDERS ===');
     console.log('Input files count:', fileArray.length);
     fileArray.forEach((f, i) => {
-      console.log(`[${i}] name="${f.name}" size=${f.size} type="${f.type}" relativePath="${(f as any).webkitRelativePath || 'NONE'}"`);
+      console.log(`[${i}] name="${f.name}" size=${f.size} type="${f.type}" relativePath="${(f as File & { webkitRelativePath?: string }).webkitRelativePath || 'NONE'}"`);
     });
     
     const validFiles = fileArray.filter(file => {
@@ -716,14 +731,16 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
                   result: task.result,
                   progress: task.progress,
                 });
-                // Trigger all registered upload completion callbacks
-                onUploadCompleteCallbacksRef.current.forEach(callback => {
-                  callback(task.id, task.result);
-                });
+                // Trigger all registered upload completion callbacks (only when result exists)
+                if (task.result) {
+                  onUploadCompleteCallbacksRef.current.forEach(callback => {
+                    callback(task.id, task.result as UploadResult);
+                  });
+                }
                 // Trigger file added callbacks with the file data
                 if (task.result && task.result.file) {
                   onFileAddedCallbacksRef.current.forEach(callback => {
-                    callback(task.result.file);
+                    if (task.result && task.result.file) callback(task.result.file);
                   });
                 }
                 // Trigger file replaced callbacks if a file was replaced - refresh the file list
@@ -798,23 +815,23 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
         if (resolution === 'replace') {
           // For replace, pass the existing file ID to the upload manager
           // The backend will handle deletion atomically when initializing the upload
-          const conflictItem = conflictItems.find(item => item.id === itemId) as any;
+          const conflictItem = conflictItems.find(item => item.id === itemId);
           if (conflictItem?.existingFileId) {
             // Store the existing file ID for the upload manager to pass to uploadEncryptedFile
-            (manager as any).task.existingFileIdToDelete = conflictItem.existingFileId;
+            manager.setExistingFileIdToDelete(conflictItem.existingFileId);
             
             // Immediately remove the old file from the UI
             onFileDeletedCallbacksRef.current.forEach(callback => {
-              callback(conflictItem.existingFileId);
+              callback(conflictItem.existingFileId!);
             });
           } else {
           }
         } else if (resolution === 'keepBoth') {
           // For keepBoth, pass the conflicting filename to extract counter info
-          const conflictItem = conflictItems.find(item => item.id === itemId) as any;
+          const conflictItem = conflictItems.find(item => item.id === itemId);
           if (conflictItem?.name) {
             // Store the conflict filename for the upload manager to pass to uploadEncryptedFile
-            (manager as any).task.conflictFileName = conflictItem.name;
+            manager.setConflictFileName(conflictItem.name);
           }
         }
         
@@ -898,7 +915,7 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
         multiple
         className="hidden"
         onChange={handleFolderChange}
-        {...({ webkitdirectory: "" } as any)}
+        {...({ webkitdirectory: "" } as React.InputHTMLAttributes<HTMLInputElement> & { webkitdirectory?: string })}
       />
 
       {/* Global Progress Modal */}

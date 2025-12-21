@@ -41,7 +41,7 @@ interface Notification {
   type: string
   title: string
   message: string
-  data?: any
+  data?: Record<string, unknown>
   read_at: string | null
   created_at: string
 }
@@ -76,7 +76,8 @@ export function NotificationsModal({ open, onOpenChange }: NotificationsModalPro
       setLoading(true)
       const response = await apiClient.getNotifications()
       if (response.success && response.data) {
-        setNotifications(response.data.notifications)
+        const notifs = (response.data.notifications || []) as unknown as Notification[];
+        setNotifications(notifs)
         // Note: fetchStats() is called on component mount, so we don't need to call it here again
         // to avoid double API calls
       }
@@ -142,6 +143,8 @@ export function NotificationsModal({ open, onOpenChange }: NotificationsModalPro
     }
   }, [open])
 
+  type BadgeVariant = 'default' | 'secondary' | 'destructive' | 'outline';
+
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case 'security_login':
@@ -161,7 +164,7 @@ export function NotificationsModal({ open, onOpenChange }: NotificationsModalPro
     }
   }
 
-  const getNotificationColor = (type: string) => {
+  const getNotificationColor = (type: string): BadgeVariant => {
     switch (type) {
       case 'security_login':
         return 'destructive'
@@ -243,7 +246,7 @@ export function NotificationsModal({ open, onOpenChange }: NotificationsModalPro
                           <h4 className="font-medium text-sm">
                             {notification.title}
                           </h4>
-                          <Badge variant={getNotificationColor(notification.type) as any} className="text-xs">
+                          <Badge variant={getNotificationColor(notification.type)} className="text-xs">
                             {notification.type.replace('security_', '').replace('_', ' ')}
                           </Badge>
                           {!notification.read_at && (
@@ -253,32 +256,36 @@ export function NotificationsModal({ open, onOpenChange }: NotificationsModalPro
                         <p className="text-sm text-muted-foreground mb-2">
                           {notification.message}
                         </p>
-                        {notification.data && (
-                          <div className="text-xs text-muted-foreground space-y-1">
-                            {notification.data?.ipAddress && (
-                              <div>IP: {notification.data.ipAddress}</div>
-                            )}
-                            {notification.data?.userAgent && (
-                              <div>Device: {notification.data.userAgent.substring(0, 50)}...</div>
-                            )}
-                            {notification.data?.user && (
-                              <div className="flex items-center gap-2 mt-2">
-                                <Avatar className="h-6 w-6">
-                                  <AvatarImage
-                                    src={notification.data.user.avatar || undefined}
-                                    alt={notification.data.user.name || notification.data.user.email}
-                                  />
-                                  <AvatarFallback className="text-xs">
-                                    {(notification.data.user.name || notification.data.user.email || 'U').charAt(0).toUpperCase()}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <span className="text-xs">
-                                  {notification.data.user.name || notification.data.user.email}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        )}
+                        {notification.data && (() => {
+                          const data = notification.data as Record<string, unknown> | undefined;
+                          const user = data?.user as { avatar?: string; name?: string; email?: string } | undefined;
+                          return (
+                            <div className="text-xs text-muted-foreground space-y-1">
+                              {typeof data?.ipAddress === 'string' && (
+                                <div>IP: {String(data.ipAddress)}</div>
+                              )}
+                              {typeof data?.userAgent === 'string' && (
+                                <div>Device: {String(data.userAgent).substring(0, 50)}...</div>
+                              )}
+                              {user && (
+                                <div className="flex items-center gap-2 mt-2">
+                                  <Avatar className="h-6 w-6">
+                                    <AvatarImage
+                                      src={user.avatar || undefined}
+                                      alt={user.name || user.email}
+                                    />
+                                    <AvatarFallback className="text-xs">
+                                      {(user.name || user.email || 'U').charAt(0).toUpperCase()}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <span className="text-xs">
+                                    {user.name || user.email}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })()}
                         <div className="flex items-center justify-between mt-2">
                           <span className="text-xs text-muted-foreground">
                             {formatNotificationDate(notification.created_at)}

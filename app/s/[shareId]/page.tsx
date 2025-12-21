@@ -154,7 +154,7 @@ async function decryptManifestItemName(encryptedName: string, nameSalt: string, 
 async function decryptEncryptedManifest(
   encryptedManifestData: string | { encryptedData: string; nonce: string },
   shareCek: Uint8Array
-): Promise<Record<string, any>> {
+): Promise<Record<string, unknown>> {
   try {
     const { decryptData } = await import('@/lib/crypto');
     
@@ -183,29 +183,33 @@ async function decryptEncryptedManifest(
     const manifest = JSON.parse(manifestJson);
     
     // Now decrypt individual item names using the salt and derived keys
-    const decryptedManifest: Record<string, any> = {};
+    const decryptedManifest: Record<string, Record<string, unknown>> = {};
     let itemCount = 0;
     
     for (const [itemId, item] of Object.entries(manifest)) {
-      const manifestItem = item as any;
-      let decryptedName = manifestItem?.name || itemId;
-      
+      const manifestItem = item as Record<string, unknown>;
+      let decryptedName = itemId;
+
+      // Try to get a plaintext name if available and a string
+      if (typeof manifestItem.name === 'string') {
+        decryptedName = manifestItem.name as string;
+      }
+
       // Try to decrypt the name if it looks encrypted (contains : and has salt)
-      if (manifestItem?.name && typeof manifestItem.name === 'string' && 
-          manifestItem.name.includes(':') && manifestItem.name_salt) {
+      if (typeof manifestItem.name === 'string' && (manifestItem.name as string).includes(':') && manifestItem.name_salt) {
         try {
-          decryptedName = await decryptManifestItemName(manifestItem.name, manifestItem.name_salt, shareCek);
+          decryptedName = await decryptManifestItemName(manifestItem.name as string, manifestItem.name_salt as string, shareCek);
         } catch (decryptErr) {
           console.warn(`Failed to decrypt name for ${itemId}:`, decryptErr);
         }
       }
-      
+
       // Ensure id is always present
       decryptedManifest[itemId] = {
         id: itemId, // Ensure id field is set
         ...manifestItem,
         name: decryptedName
-      };
+      } as Record<string, unknown>;
       itemCount++;
     }
     return decryptedManifest;
@@ -417,14 +421,18 @@ export default function SharedDownloadPage() {
         const rawManifest = await decryptEncryptedManifest(shareDetails.encrypted_manifest, shareCek);
         
         for (const [itemId, item] of Object.entries(rawManifest)) {
-          const manifestItem = item as any;
-          let decryptedName = manifestItem?.name || itemId;
-          
+          const manifestItem = item as Record<string, unknown>;
+          let decryptedName = itemId;
+
+          // Get plaintext name if present
+          if (typeof manifestItem.name === 'string') {
+            decryptedName = manifestItem.name as string;
+          }
+
           // Try to decrypt the name if it looks encrypted (base64:base64 format with salt)
-          if (manifestItem?.name && typeof manifestItem.name === 'string' && 
-              manifestItem.name_salt && looksLikeEncryptedName(manifestItem.name)) {
+          if (typeof manifestItem.name === 'string' && manifestItem.name_salt && looksLikeEncryptedName(manifestItem.name)) {
             try {
-              decryptedName = await decryptManifestItemName(manifestItem.name, manifestItem.name_salt, shareCek, manifestItem.type);
+              decryptedName = await decryptManifestItemName(manifestItem.name as string, manifestItem.name_salt as string, shareCek, manifestItem.type as string);
             } catch (decryptErr) {
               console.warn(`Failed to decrypt name for ${itemId}, keeping fallback:`, decryptErr);
               // Keep the original (might be base64 but wrong key - use fallback display)
@@ -432,10 +440,10 @@ export default function SharedDownloadPage() {
           }
           
           decryptedManifest[itemId] = {
-            ...(manifestItem as any),
+            ...(manifestItem as Record<string, unknown>),
             id: itemId,
             name: decryptedName
-          };
+          } as ManifestItem;
         }
       } else if (shareDetails.is_folder) {
         // For folder shares without pre-encrypted manifest, fetch from API (backward compatibility)
@@ -449,32 +457,35 @@ export default function SharedDownloadPage() {
           console.warn('ℹNo manifest available (file share)');
           decryptedManifest = {};
         } else {
-          const rawManifest = manifestResponse.data as Record<string, any>;
+          const rawManifest = manifestResponse.data as Record<string, unknown>;
           
           // Decrypt all manifest item names using the share CEK (only if encrypted)
           for (const [itemId, item] of Object.entries(rawManifest)) {
             try {
-              const manifestItem = item as any;
-              let decryptedName = manifestItem?.name || itemId;
-              
+              const manifestItem = item as Record<string, unknown>;
+              let decryptedName = itemId;
+
+              if (typeof manifestItem.name === 'string') {
+                decryptedName = manifestItem.name as string;
+              }
+
               // Only try to decrypt if it looks like encrypted data (base64:base64 format)
-              if (manifestItem?.name && typeof manifestItem.name === 'string' && 
-                  manifestItem.name_salt && looksLikeEncryptedName(manifestItem.name)) {
+              if (typeof manifestItem.name === 'string' && manifestItem.name_salt && looksLikeEncryptedName(manifestItem.name)) {
                 try {
-                  decryptedName = await decryptManifestItemName(manifestItem.name, manifestItem.name_salt, shareCek, manifestItem.type);
+                  decryptedName = await decryptManifestItemName(manifestItem.name as string, manifestItem.name_salt as string, shareCek, manifestItem.type as string);
                 } catch (decryptErr) {
                   // If decryption fails, it might be old plaintext format - keep original
                   console.warn(`Failed to decrypt name for ${itemId}, using plaintext fallback:`, decryptErr);
-                  decryptedName = manifestItem?.name || itemId;
+                  decryptedName = manifestItem.name as string || itemId;
                 }
               }
               // If name doesn't look encrypted, keep it as-is (old plaintext format or already decrypted)
-              
+
               decryptedManifest[itemId] = {
-                ...(manifestItem as ManifestItem),
+                ...(manifestItem as Record<string, unknown>),
                 id: itemId,
                 name: decryptedName
-              };
+              } as ManifestItem;
             } catch (err) {
               console.warn(`Error processing manifest item ${itemId}:`, err);
               decryptedManifest[itemId] = item as ManifestItem;
@@ -548,7 +559,7 @@ export default function SharedDownloadPage() {
         const utmMedium = urlParams.get('utm_medium');
         const utmCampaign = urlParams.get('utm_campaign');
         
-        const sessionData: any = {
+        const sessionData: { first_landing_url: string; referrer?: string; utm_source?: string; utm_medium?: string; utm_campaign?: string } = {
           first_landing_url: sanitizedUrl,
           referrer: referrer || undefined
         };

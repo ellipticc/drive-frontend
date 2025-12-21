@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { IconUpload, IconFile, IconFolder } from "@tabler/icons-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -83,10 +83,13 @@ export function DragDropOverlay({ isVisible, onDrop, onDragLeave }: DragDropOver
   }, []);
 
   // Handle animation completion
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (isAnimatingOut && !isVisible) {
-      setIsAnimatingOut(false);
-      dragOverCountRef.current = 0;
+      // Defer state update to avoid synchronous setState inside effect
+      requestAnimationFrame(() => {
+        setIsAnimatingOut(false);
+        dragOverCountRef.current = 0;
+      });
     }
   }, [isVisible, isAnimatingOut]);
 

@@ -11,8 +11,8 @@ import { keyManager } from "@/lib/key-manager"
 
 // Extended File interface to include webkitRelativePath
 interface ExtendedFile extends File {
-  webkitRelativePath?: string;
-}
+  webkitRelativePath: string;
+} 
 import { useUser } from "@/components/user-context"
 
 export default function Home() {
@@ -208,7 +208,7 @@ export default function Home() {
                   tableFolderInput.dispatchEvent(new Event('change', { bubbles: true }))
                 }
               }}
-              {...({ webkitdirectory: "" } as any)}
+              {...({ webkitdirectory: "" } as React.InputHTMLAttributes<HTMLInputElement> & { webkitdirectory?: string })}
             />
           </div>
         </div>

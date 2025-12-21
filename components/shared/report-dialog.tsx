@@ -126,10 +126,11 @@ export function ReportDialog({ shareId, trigger, onReportSuccess }: ReportDialog
         onReportSuccess()
       }
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Report submission error:', error)
+      const errorMessage = error instanceof Error ? error.message : "An error occurred while submitting your report. Please try again."
       toast.error("Failed to submit report", {
-        description: error.message || "An error occurred while submitting your report. Please try again."
+        description: errorMessage
       })
     } finally {
       setIsSubmitting(false)

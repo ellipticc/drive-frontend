@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { IconFile, IconFolder, IconEdit } from "@tabler/icons-react"
-import { apiClient } from "@/lib/api"
+import { apiClient, PQCKeypairs } from "@/lib/api"
 import { createSignedFolderManifest, createSignedFileManifest, decryptUserPrivateKeys } from "@/lib/crypto"
 import { masterKeyManager } from "@/lib/master-key"
 import { toast } from "sonner"
@@ -80,27 +80,33 @@ export function RenameModal({
     try {
       const response = await apiClient.getProfile()
       if (response.success && response.data?.user?.crypto_keypairs) {
-        const cryptoKeys = response.data.user.crypto_keypairs
-        if (cryptoKeys.pqcKeypairs) {
-          // Check if we have the new encryption scheme data
-          const hasNewFormat = cryptoKeys.pqcKeypairs.kyber.encryptionKey &&
-                              cryptoKeys.pqcKeypairs.kyber.encryptionNonce &&
-                              cryptoKeys.pqcKeypairs.kyber.privateKeyNonce
+        const cryptoKeys = response.data.user.crypto_keypairs as { accountSalt?: string; pqcKeypairs?: PQCKeypairs }
+        // Check for both accountSalt and pqcKeypairs
+        if (!cryptoKeys.pqcKeypairs || !cryptoKeys.accountSalt) {
+          toast.error("Please complete your account setup before renaming. Check your email for setup instructions.")
+          setUserData(null)
+          setUserDataLoaded(true)
+          return
+        }
 
-          if (hasNewFormat) {
-            setUserData({
-              id: response.data.user.id,
-              crypto_keypairs: {
-                accountSalt: cryptoKeys.accountSalt,
-                pqcKeypairs: cryptoKeys.pqcKeypairs
-              }
-            })
-            setUserDataLoaded(true)
-          } else {
-            setUserData(null)
-            setUserDataLoaded(true)
-            toast.error("Encryption format not supported. Please update your account.")
-          }
+        // Check if we have the new encryption scheme data
+        const hasNewFormat = cryptoKeys.pqcKeypairs.kyber.encryptionKey &&
+                            cryptoKeys.pqcKeypairs.kyber.encryptionNonce &&
+                            cryptoKeys.pqcKeypairs.kyber.privateKeyNonce
+
+        if (hasNewFormat) {
+          setUserData({
+            id: response.data.user.id,
+            crypto_keypairs: {
+              accountSalt: cryptoKeys.accountSalt,
+              pqcKeypairs: cryptoKeys.pqcKeypairs
+            }
+          })
+          setUserDataLoaded(true)
+        } else {
+          setUserData(null)
+          setUserDataLoaded(true)
+          toast.error("Encryption format not supported. Please update your account.")
         }
       }
     } catch (error) {

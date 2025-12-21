@@ -24,11 +24,16 @@ interface ChunkProcessingResult {
 }
 
 // Initialize BLAKE3 hasher once
-let blake3Hasher: any = null;
+interface Blake3Hasher {
+  update(data: Uint8Array): void;
+  digest(): Uint8Array | number[];
+}
+
+let blake3Hasher: Blake3Hasher | null = null;
 
 async function initializeBlake3() {
   if (!blake3Hasher) {
-    blake3Hasher = await createBLAKE3();
+    blake3Hasher = await createBLAKE3() as unknown as Blake3Hasher;
   }
 }
 
@@ -37,6 +42,7 @@ async function initializeBlake3() {
  */
 async function computeBLAKE3Hash(data: Uint8Array): Promise<string> {
   await initializeBlake3();
+  if (!blake3Hasher) throw new Error('BLAKE3 hasher not available');
   blake3Hasher.update(data);
   const hashArray = blake3Hasher.digest();
   return uint8ArrayToHex(new Uint8Array(hashArray));
@@ -91,5 +97,5 @@ self.onmessage = async (event: MessageEvent<ChunkProcessingJob>) => {
   const result = await processChunk(event.data);
   
   // Send result back to main thread with transferable ArrayBuffer
-  (self as any).postMessage(result, [result.encryptedData]);
+  (self as unknown as { postMessage: (data: unknown, transfer?: Transferable[]) => void }).postMessage(result, [result.encryptedData]);
 };

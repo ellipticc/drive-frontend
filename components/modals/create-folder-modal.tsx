@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { IconFolderPlus } from "@tabler/icons-react"
-import { apiClient } from "@/lib/api"
+import { apiClient, PQCKeypairs } from "@/lib/api"
 import { createSignedFolderManifest, decryptUserPrivateKeys } from "@/lib/crypto"
 import { masterKeyManager } from "@/lib/master-key"
 import { toast } from "sonner"
@@ -55,7 +55,7 @@ export function CreateFolderModal({ children, parentId = null, onFolderCreated }
     try {
       const response = await apiClient.getProfile()
       if (response.success && response.data?.user?.crypto_keypairs) {
-        const cryptoKeys = response.data.user.crypto_keypairs
+        const cryptoKeys = response.data.user.crypto_keypairs as { accountSalt?: string; pqcKeypairs?: PQCKeypairs }
         
         // Check if user has incomplete crypto data (e.g., Google OAuth in setup phase)
         if (!cryptoKeys.pqcKeypairs || !cryptoKeys.accountSalt) {
