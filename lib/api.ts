@@ -151,6 +151,33 @@ export interface PQCKeypairs {
   };
 }
 
+// Flat format for OAuth backend (with prefixed field names)
+export interface OAuthPQCKeypairs {
+  kyberPublicKey: string;
+  kyberPrivateKeyEncrypted: string;
+  kyberPrivateKeyNonce: string;
+  kyberEncryptionKey: string;
+  kyberEncryptionNonce: string;
+  
+  x25519PublicKey: string;
+  x25519PrivateKeyEncrypted: string;
+  x25519PrivateKeyNonce: string;
+  x25519EncryptionKey: string;
+  x25519EncryptionNonce: string;
+  
+  dilithiumPublicKey: string;
+  dilithiumPrivateKeyEncrypted: string;
+  dilithiumPrivateKeyNonce: string;
+  dilithiumEncryptionKey: string;
+  dilithiumEncryptionNonce: string;
+  
+  ed25519PublicKey: string;
+  ed25519PrivateKeyEncrypted: string;
+  ed25519PrivateKeyNonce: string;
+  ed25519EncryptionKey: string;
+  ed25519EncryptionNonce: string;
+}
+
 export interface FileItem {
   id: string;
   name: string; // Display name (decrypted filename for files, plain name for folders)
@@ -2107,7 +2134,7 @@ class ApiClient {
 
   async completeOAuthRegistration(data: {
     accountSalt: string;
-    pqcKeypairs?: PQCKeypairs;
+    pqcKeypairs?: OAuthPQCKeypairs;
     mnemonicHash?: string;
     encryptedRecoveryKey?: string;
     recoveryKeyNonce?: string;

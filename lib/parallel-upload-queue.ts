@@ -31,7 +31,8 @@ export class ParallelUploadQueue {
     if (typeof window !== 'undefined' && typeof Worker !== 'undefined') {
       try {
         this.worker = new Worker(new URL('./workers/upload-worker.ts', import.meta.url), {
-          type: 'module'
+          type: 'module',
+          name: 'upload-worker'
         });
         console.log('Upload worker initialized');
       } catch (error) {

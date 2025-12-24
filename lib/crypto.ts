@@ -494,6 +494,24 @@ export async function decryptUserPrivateKeys(
 
   const pqcKeypairs = userData.crypto_keypairs.pqcKeypairs;
 
+  // Validate that all required encrypted private keys are present and non-empty
+  const requiredKeyTypes = ['ed25519', 'dilithium', 'x25519', 'kyber'] as const;
+  for (const keyType of requiredKeyTypes) {
+    const keypair = pqcKeypairs[keyType as typeof requiredKeyTypes[number]];
+    if (!keypair) {
+      throw new Error(`Missing ${keyType} keypair in user data. User setup may be incomplete.`);
+    }
+    if (!keypair.encryptedPrivateKey || keypair.encryptedPrivateKey === '') {
+      throw new Error(`Missing encrypted ${keyType} private key. User setup may be incomplete.`);
+    }
+    if (!keypair.encryptionKey || keypair.encryptionKey === '') {
+      throw new Error(`Missing ${keyType} encryption key. User setup may be incomplete.`);
+    }
+    if (!keypair.encryptionNonce || keypair.encryptionNonce === '') {
+      throw new Error(`Missing ${keyType} encryption nonce. User setup may be incomplete.`);
+    }
+  }
+
   // Import master key manager dynamically to avoid circular dependencies
   const { masterKeyManager } = await import('./master-key');
 

@@ -175,34 +175,33 @@ export function OAuthPasswordModal({
 
       // Convert signup format to OAuth backend format
       const pqcKeypairsPayload = {
-        kyber: {
-          publicKey: allKeypairs.pqcKeypairs.kyber.publicKey,
-          encryptedPrivateKey: allKeypairs.pqcKeypairs.kyber.encryptedPrivateKey,
-          encryptionKey: allKeypairs.pqcKeypairs.kyber.encryptionKey,
-          encryptionNonce: allKeypairs.pqcKeypairs.kyber.encryptionNonce,
-          privateKeyNonce: allKeypairs.pqcKeypairs.kyber.privateKeyNonce
-        },
-        x25519: {
-          publicKey: allKeypairs.pqcKeypairs.x25519.publicKey,
-          encryptedPrivateKey: allKeypairs.pqcKeypairs.x25519.encryptedPrivateKey,
-          encryptionKey: allKeypairs.pqcKeypairs.x25519.encryptionKey,
-          encryptionNonce: allKeypairs.pqcKeypairs.x25519.encryptionNonce,
-          privateKeyNonce: allKeypairs.pqcKeypairs.x25519.privateKeyNonce
-        },
-        dilithium: {
-          publicKey: allKeypairs.pqcKeypairs.dilithium.publicKey,
-          encryptedPrivateKey: allKeypairs.pqcKeypairs.dilithium.encryptedPrivateKey,
-          encryptionKey: allKeypairs.pqcKeypairs.dilithium.encryptionKey,
-          encryptionNonce: allKeypairs.pqcKeypairs.dilithium.encryptionNonce,
-          privateKeyNonce: allKeypairs.pqcKeypairs.dilithium.privateKeyNonce
-        },
-        ed25519: {
-          publicKey: allKeypairs.pqcKeypairs.ed25519.publicKey,
-          encryptedPrivateKey: allKeypairs.pqcKeypairs.ed25519.encryptedPrivateKey,
-          encryptionKey: allKeypairs.pqcKeypairs.ed25519.encryptionKey,
-          encryptionNonce: allKeypairs.pqcKeypairs.ed25519.encryptionNonce,
-          privateKeyNonce: allKeypairs.pqcKeypairs.ed25519.privateKeyNonce
-        }
+        // Kyber keypair
+        kyberPublicKey: allKeypairs.pqcKeypairs.kyber.publicKey,
+        kyberPrivateKeyEncrypted: allKeypairs.pqcKeypairs.kyber.encryptedPrivateKey,
+        kyberEncryptionKey: allKeypairs.pqcKeypairs.kyber.encryptionKey,
+        kyberEncryptionNonce: allKeypairs.pqcKeypairs.kyber.encryptionNonce,
+        kyberPrivateKeyNonce: allKeypairs.pqcKeypairs.kyber.privateKeyNonce,
+        
+        // X25519 keypair
+        x25519PublicKey: allKeypairs.pqcKeypairs.x25519.publicKey,
+        x25519PrivateKeyEncrypted: allKeypairs.pqcKeypairs.x25519.encryptedPrivateKey,
+        x25519EncryptionKey: allKeypairs.pqcKeypairs.x25519.encryptionKey,
+        x25519EncryptionNonce: allKeypairs.pqcKeypairs.x25519.encryptionNonce,
+        x25519PrivateKeyNonce: allKeypairs.pqcKeypairs.x25519.privateKeyNonce,
+        
+        // Dilithium keypair
+        dilithiumPublicKey: allKeypairs.pqcKeypairs.dilithium.publicKey,
+        dilithiumPrivateKeyEncrypted: allKeypairs.pqcKeypairs.dilithium.encryptedPrivateKey,
+        dilithiumEncryptionKey: allKeypairs.pqcKeypairs.dilithium.encryptionKey,
+        dilithiumEncryptionNonce: allKeypairs.pqcKeypairs.dilithium.encryptionNonce,
+        dilithiumPrivateKeyNonce: allKeypairs.pqcKeypairs.dilithium.privateKeyNonce,
+        
+        // Ed25519 keypair
+        ed25519PublicKey: allKeypairs.pqcKeypairs.ed25519.publicKey,
+        ed25519PrivateKeyEncrypted: allKeypairs.pqcKeypairs.ed25519.encryptedPrivateKey,
+        ed25519EncryptionKey: allKeypairs.pqcKeypairs.ed25519.encryptionKey,
+        ed25519EncryptionNonce: allKeypairs.pqcKeypairs.ed25519.encryptionNonce,
+        ed25519PrivateKeyNonce: allKeypairs.pqcKeypairs.ed25519.privateKeyNonce
       };
 
       console.log('🔐 OAuth Setup - sending to backend with accountSalt format:', typeof accountSalt);
@@ -272,6 +271,8 @@ export function OAuthPasswordModal({
       // Get account_salt - it might be at user.account_salt or inside crypto_keypairs
       const accountSalt = user.account_salt || user.crypto_keypairs?.accountSalt;
       
+      // Log the full structure for debugging
+      const pqcKeypairs = user.crypto_keypairs?.pqcKeypairs;
       console.log('OAuth Existing User Login - Full Response:', {
         hasUser: !!user,
         userKeys: user ? Object.keys(user) : [],
@@ -279,12 +280,37 @@ export function OAuthPasswordModal({
         account_salt_type: typeof accountSalt,
         account_salt_length: accountSalt?.length,
         account_salt_substring: accountSalt?.substring(0, 20),
-        hasCryptoKeypairs: !!user.crypto_keypairs
+        hasCryptoKeypairs: !!user.crypto_keypairs,
+        hasPqcKeypairs: !!pqcKeypairs,
+        pqcKeypairsKeys: pqcKeypairs ? Object.keys(pqcKeypairs) : [],
+        hasEd25519: !!pqcKeypairs?.ed25519,
+        ed25519Keys: pqcKeypairs?.ed25519 ? Object.keys(pqcKeypairs.ed25519) : [],
       });
 
       if (!accountSalt) {
         console.error('account_salt is missing from profile response!');
         setError('Account salt not found. Please complete password setup again.');
+        return;
+      }
+
+      // Check if user has complete crypto keypairs with encrypted private keys
+      if (!pqcKeypairs || !pqcKeypairs.ed25519) {
+        console.error('User does not have PQC keypairs or ed25519 data');
+        setError('Your account setup is incomplete. Please complete the password setup process.');
+        return;
+      }
+
+      // Check if we have the full encryption metadata needed for decryption
+      const ed25519 = pqcKeypairs.ed25519;
+      if (!ed25519.encryptedPrivateKey || !ed25519.encryptionKey || !ed25519.encryptionNonce) {
+        console.error('User PQC keypairs are incomplete - missing encryption metadata', {
+          hasEncryptedPrivateKey: !!ed25519.encryptedPrivateKey,
+          hasEncryptionKey: !!ed25519.encryptionKey,
+          hasEncryptionNonce: !!ed25519.encryptionNonce,
+          hasPrivateKeyNonce: !!ed25519.privateKeyNonce,
+          ed25519Keys: Object.keys(ed25519)
+        });
+        setError('Your account setup is incomplete. Please complete the password setup process.');
         return;
       }
 

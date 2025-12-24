@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { apiClient } from "@/lib/api";
+import { keyManager } from "@/lib/key-manager";
 import { masterKeyManager } from "@/lib/master-key";
 
 interface UserData {
@@ -152,6 +153,16 @@ export function UserProvider({ children }: { children: ReactNode }) {
       if (response.success && response.data?.user) {
         console.log('UserProvider: Successfully fetched fresh user profile');
         const userData = response.data.user;
+        
+        // Initialize KeyManager with user's crypto data (critical for uploads and file access)
+        try {
+          await keyManager.initialize(userData);
+          console.log('UserProvider: KeyManager initialized with user crypto data');
+        } catch (error) {
+          console.warn('UserProvider: Failed to initialize KeyManager:', error);
+          // For OAuth users in setup phase or incomplete data, this is expected
+          // They will complete setup before attempting uploads
+        }
         
         // Validate master key matches current account salt from server
         if (userData.crypto_keypairs?.accountSalt) {
