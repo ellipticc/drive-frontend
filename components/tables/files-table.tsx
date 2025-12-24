@@ -125,7 +125,21 @@ export const Table01DividerLineSm = ({
     // Rename conflict state
     const [renameConflictOpen, setRenameConflictOpen] = useState(false);
     const [renameConflictItems, setRenameConflictItems] = useState<Array<{ id: string; name: string; type: 'file' | 'folder'; existingPath: string; newPath: string; existingItem?: FileItem; existingFileId?: string }>>([]);
-    const [pendingRenameManifest, setPendingRenameManifest] = useState<any>(null);
+    const [pendingRenameManifest, setPendingRenameManifest] = useState<{
+      manifestHash: string;
+      manifestCreatedAt: number;
+      manifestSignatureEd25519: string;
+      manifestPublicKeyEd25519: string;
+      manifestSignatureDilithium: string;
+      manifestPublicKeyDilithium: string;
+      algorithmVersion: string;
+      nameHmac: string;
+      encryptedFilename?: string;
+      filenameSalt?: string;
+      encryptedName?: string;
+      nameSalt?: string;
+      requestedName?: string;
+    } | null>(null);
     const [renameModalInitialName, setRenameModalInitialName] = useState<string | undefined>(undefined);
 
     const [shareModalOpen, setShareModalOpen] = useState(false);
@@ -955,7 +969,7 @@ export const Table01DividerLineSm = ({
         handleContextMenuClose();
     };
 
-    const handleRename = async (data: string | {
+    const handleRename = async (data: string | ({
       manifestHash: string;
       manifestCreatedAt: number;
       manifestSignatureEd25519: string;
@@ -968,7 +982,8 @@ export const Table01DividerLineSm = ({
       filenameSalt?: string;
       encryptedName?: string;
       nameSalt?: string;
-    }) => {
+      requestedName?: string;
+    })) => {
         if (!selectedItemForRename) return;
 
         try {
@@ -1024,7 +1039,7 @@ export const Table01DividerLineSm = ({
                 if (isConflict) {
                     // If it's a folder rename conflict, show conflict modal with details
                     if (selectedItemForRename?.type === 'folder') {
-                        const requestedName = (data as any)?.requestedName || '';
+                        const requestedName = data?.requestedName || '';
                         // Try to locate the existing folder in the current listing
                         const existingFolder = files.find(f => f.type === 'folder' && f.name === requestedName);
 
@@ -1085,7 +1100,18 @@ export const Table01DividerLineSm = ({
                     continue;
                 }
 
-                const response = await apiClient.renameFolder(conflict.id, pendingRenameManifest);
+                const response = await apiClient.renameFolder(conflict.id, pendingRenameManifest as {
+                    encryptedName: string;
+                    nameSalt: string;
+                    manifestHash: string;
+                    manifestCreatedAt: number;
+                    manifestSignatureEd25519: string;
+                    manifestPublicKeyEd25519: string;
+                    manifestSignatureDilithium: string;
+                    manifestPublicKeyDilithium: string;
+                    algorithmVersion: string;
+                    nameHmac: string;
+                });
                 if (response.success) {
                     toast.success('Folder renamed successfully');
                     // Close modals and refresh

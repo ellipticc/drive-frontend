@@ -30,6 +30,15 @@ export interface CreatedFolder {
   updatedAt: string;
 }
 
+export interface FolderConflictError extends Error {
+  type: 'folder_conflict';
+  folderPath: string;
+  folderName: string;
+  parentFolderId: string | null;
+  manifestData: unknown;
+  responseError: string;
+}
+
 /**
  * Extract folder structure from FileList or File[] with webkitRelativePath support
  * Groups files by their folder path
@@ -203,14 +212,14 @@ export async function createFolderHierarchy(
         );
 
         if (isConflict) {
-          const conflictError: any = new Error('Folder conflict')
-          conflictError.type = 'folder_conflict'
-          conflictError.folderPath = folderPath
-          conflictError.folderName = folderName
-          conflictError.parentFolderId = parentFolderId
-          conflictError.manifestData = manifestData
-          conflictError.responseError = response.error
-          throw conflictError
+          const conflictError: FolderConflictError = new Error('Folder conflict') as FolderConflictError;
+          conflictError.type = 'folder_conflict';
+          conflictError.folderPath = folderPath;
+          conflictError.folderName = folderName;
+          conflictError.parentFolderId = parentFolderId;
+          conflictError.manifestData = manifestData;
+          conflictError.responseError = response.error || 'Unknown error';
+          throw conflictError;
         }
 
         throw new Error(`Failed to create folder: ${folderPath}`);

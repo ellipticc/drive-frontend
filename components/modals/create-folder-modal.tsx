@@ -164,8 +164,8 @@ export function CreateFolderModal({ children, parentId = null, onFolderCreated }
     if (resolution === 'keepBoth') {
       // Suggest a unique name by appending (1), (2), ...
       const base = conflictItem.name
-      let idx = 1
-      let suggested = `${base} (${idx})`
+      const idx = 1
+      const suggested = `${base} (${idx})`
       // We cannot access the full listing here easily — user can further adjust name
       setFolderName(suggested)
       setIsConflictOpen(false)
@@ -246,7 +246,13 @@ export function CreateFolderModal({ children, parentId = null, onFolderCreated }
         <ConflictModal
           isOpen={isConflictOpen}
           onClose={() => setIsConflictOpen(false)}
-          conflicts={[conflictItem as any]}
+          conflicts={[{
+            id: conflictItem.id,
+            name: conflictItem.name,
+            type: conflictItem.type,
+            existingPath: conflictItem.existingPath || `/${conflictItem.name}`,
+            newPath: `/${conflictItem.name}`
+          }]}
           onResolve={handleCreateConflictResolution}
           operation="upload"
         />
