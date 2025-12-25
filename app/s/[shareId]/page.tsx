@@ -38,22 +38,22 @@ import { ReportDialog } from '@/components/shared/report-dialog';
 async function decryptShareFilename(encryptedFilename: string, nonce: string, shareCek: Uint8Array): Promise<string> {
   try {
     const { xchacha20poly1305 } = await import('@noble/ciphers/chacha.js');
-    
+
     const encrypted = new Uint8Array(atob(encryptedFilename).split('').map(c => c.charCodeAt(0)));
     const nonceBytes = new Uint8Array(atob(nonce).split('').map(c => c.charCodeAt(0)));
 
     const cipher = xchacha20poly1305(shareCek, nonceBytes);
     const decryptedBytes = cipher.decrypt(encrypted);
-    
+
     const decrypted = new TextDecoder().decode(decryptedBytes);
     // Sanitize control characters and any non-printable characters
     const sanitized = decrypted.replace(/[\x00-\x1F\x7F-\x9F]/g, '').trim();
-    
+
     // Additional validation
     if (sanitized.length === 0 || sanitized.length > 255) {
       throw new Error('Decrypted filename is empty or too long');
     }
-    
+
     return sanitized;
   } catch (err) {
     console.warn('Failed to decrypt filename:', err);
@@ -66,9 +66,9 @@ function looksLikeEncryptedName(name: string): boolean {
   if (!name || typeof name !== 'string' || !name.includes(':')) {
     return false;
   }
-  
+
   const [encPart, noncePart] = name.split(':');
-  
+
   // Check if both parts are valid base64 (encrypted names have this format)
   try {
     // Base64 regex check - should only contain [A-Za-z0-9+/=]
@@ -82,7 +82,7 @@ function looksLikeEncryptedName(name: string): boolean {
 async function decryptManifestItemName(encryptedName: string, nameSalt: string, shareCek: Uint8Array, itemType?: string): Promise<string> {
   try {
     const { xchacha20poly1305 } = await import('@noble/ciphers/chacha.js');
-    
+
     // Parse encrypted name format: "encryptedData:nonce" (both in base64)
     const [encryptedPart, noncePart] = encryptedName.split(':');
     if (!encryptedPart || !noncePart) {
@@ -98,10 +98,10 @@ async function decryptManifestItemName(encryptedName: string, nameSalt: string, 
     // Derive name-specific key from salt and share CEK using HMAC-SHA256
     // Match the encryption: HMAC(shareCek, salt + 'folder-name-key' or 'file-name-key')
     // If item type is known, use only that variant. Otherwise try both.
-    const suffixes = itemType 
+    const suffixes = itemType
       ? [itemType === 'folder' ? 'folder-name-key' : 'file-name-key']
       : ['folder-name-key', 'file-name-key'];
-    
+
     for (const suffix of suffixes) {
       try {
         const suffixBytes = new TextEncoder().encode(suffix);
@@ -119,20 +119,20 @@ async function decryptManifestItemName(encryptedName: string, nameSalt: string, 
 
         const derivedKeyMaterial = await crypto.subtle.sign('HMAC', hmacKey, keyMaterial);
         const nameKey = new Uint8Array(derivedKeyMaterial.slice(0, 32));
-        
+
         // Try to decrypt with this key
         const decryptedBytes = xchacha20poly1305(nameKey, nameNonce).decrypt(encryptedBytes);
         const decrypted = new TextDecoder().decode(decryptedBytes);
-        
+
         // Sanitize control characters and any non-printable characters that can cause display issues
         // Remove all control characters (0x00-0x1F, 0x7F-0x9F) and any other problematic chars
         const sanitized = decrypted.replace(/[\x00-\x1F\x7F-\x9F]/g, '').trim();
-        
+
         // Additional check: ensure the result contains only valid characters
         if (sanitized.length === 0 || sanitized.length > 255) {
           throw new Error('Decrypted name is empty or too long');
         }
-        
+
         return sanitized;
       } catch (e) {
         // Try next suffix
@@ -157,11 +157,11 @@ async function decryptEncryptedManifest(
 ): Promise<Record<string, unknown>> {
   try {
     const { decryptData } = await import('@/lib/crypto');
-    
+
     // Handle both formats: object (new) or JSON string (legacy)
     let encryptedData: string;
     let nonce: string;
-    
+
     if (typeof encryptedManifestData === 'string') {
       // Legacy format: JSON string containing { encryptedData, nonce }
       const parsed = JSON.parse(encryptedManifestData);
@@ -172,19 +172,19 @@ async function decryptEncryptedManifest(
       encryptedData = encryptedManifestData.encryptedData;
       nonce = encryptedManifestData.nonce;
     }
-    
+
     if (!encryptedData || !nonce) {
       throw new Error('Invalid encrypted manifest structure - missing encryptedData or nonce');
     }
-    
+
     // Decrypt the entire manifest JSON with share CEK
     const decryptedManifestBytes = decryptData(encryptedData, shareCek, nonce);
     const manifestJson = new TextDecoder().decode(decryptedManifestBytes);
     const manifest = JSON.parse(manifestJson);
-    
+
     // Now decrypt individual item names using the salt and derived keys
     const decryptedManifest: Record<string, Record<string, unknown>> = {};
-    
+
     for (const [itemId, item] of Object.entries(manifest)) {
       const manifestItem = item as Record<string, unknown>;
       let decryptedName = itemId;
@@ -208,7 +208,7 @@ async function decryptEncryptedManifest(
         id: itemId, // Ensure id field is set
         ...manifestItem,
         name: decryptedName
-      } as Record<string, unknown>; 
+      } as Record<string, unknown>;
     }
     return decryptedManifest;
   } catch (err) {
@@ -317,8 +317,11 @@ export default function SharedDownloadPage() {
 
       if (share.has_password) {
         setPasswordVerified(false);
+        // Stop loading here to show password prompt
+        setLoading(false);
       } else {
         setPasswordVerified(true);
+        // Loading continues until manifest is loaded
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load share details');
@@ -410,7 +413,7 @@ export default function SharedDownloadPage() {
       // If the share has encrypted_manifest, use it directly (true E2EE)
       if (shareDetails.encrypted_manifest) {
         const rawManifest = await decryptEncryptedManifest(shareDetails.encrypted_manifest, shareCek);
-        
+
         for (const [itemId, item] of Object.entries(rawManifest)) {
           const manifestItem = item as Record<string, unknown>;
           let decryptedName = itemId;
@@ -429,7 +432,7 @@ export default function SharedDownloadPage() {
               // Keep the original (might be base64 but wrong key - use fallback display)
             }
           }
-          
+
           decryptedManifest[itemId] = {
             ...(manifestItem as Record<string, unknown>),
             id: itemId,
@@ -439,7 +442,7 @@ export default function SharedDownloadPage() {
       } else if (shareDetails.is_folder) {
         // For folder shares without pre-encrypted manifest, fetch from API (backward compatibility)
         const manifestResponse = await apiClient.getShareManifest(shareId);
-        
+
         if (!manifestResponse.success || !manifestResponse.data) {
           // If manifest endpoint returns nothing or error, that's OK for file shares
           if (shareDetails.is_folder) {
@@ -449,7 +452,7 @@ export default function SharedDownloadPage() {
           decryptedManifest = {};
         } else {
           const rawManifest = manifestResponse.data as Record<string, unknown>;
-          
+
           // Decrypt all manifest item names using the share CEK (only if encrypted)
           for (const [itemId, item] of Object.entries(rawManifest)) {
             try {
@@ -493,7 +496,7 @@ export default function SharedDownloadPage() {
       if (shareDetails.is_folder && shareDetails.folder_id) {
         // Initialize folder view
         setCurrentFolderId(shareDetails.folder_id);
-        
+
         // Try to decrypt folder name using share-CEK encrypted data first
         let folderName = 'Shared Folder';
         if (shareDetails.folder?.encrypted_name && shareDetails.folder?.nonce_name) {
@@ -512,7 +515,7 @@ export default function SharedDownloadPage() {
           // Fallback to manifest or master-key encrypted name
           folderName = decryptedManifest[shareDetails.folder_id]?.name || shareDetails.folder?.name || 'Shared Folder';
         }
-        
+
         setDecryptedFolderName(folderName);
         setBreadcrumbs([{ id: shareDetails.folder_id, name: folderName }]);
       }
@@ -538,34 +541,34 @@ export default function SharedDownloadPage() {
       try {
         const ingestBaseUrl = process.env.NEXT_PUBLIC_INGEST_URL || 'https://ingest.ellipticc.com';
         const sessionUrl = `${ingestBaseUrl}/api/v1/sessions/start`;
-        
+
         const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
         // SECURITY: Remove hash fragment containing encryption key before sending to analytics
         const sanitizedUrl = currentUrl.split('#')[0];
         const referrer = typeof document !== 'undefined' ? document.referrer : '';
-        
+
         // Extract UTM parameters from URL if present
         const urlParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
         const utmSource = urlParams.get('utm_source');
         const utmMedium = urlParams.get('utm_medium');
         const utmCampaign = urlParams.get('utm_campaign');
-        
+
         const sessionData: { first_landing_url: string; referrer?: string; utm_source?: string; utm_medium?: string; utm_campaign?: string } = {
           first_landing_url: sanitizedUrl,
           referrer: referrer || undefined
         };
-        
+
         // Add UTM parameters if present
         if (utmSource) sessionData.utm_source = utmSource;
         if (utmMedium) sessionData.utm_medium = utmMedium;
         if (utmCampaign) sessionData.utm_campaign = utmCampaign;
-        
+
         const response = await fetch(sessionUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(sessionData)
         });
-        
+
         if (response.ok) {
           const data = await response.json();
           if (data.session_id) {
@@ -578,11 +581,11 @@ export default function SharedDownloadPage() {
         // Non-critical error, don't block share access
       }
     };
-    
+
     if (shareId) {
       initializeIngestSession();
     }
-  }, [shareId]);  useEffect(() => {
+  }, [shareId]); useEffect(() => {
     if (shareDetails && passwordVerified) {
       // Load manifest
       loadManifestAndInitialize();
@@ -649,14 +652,15 @@ export default function SharedDownloadPage() {
       const ciphertext = new Uint8Array(atob(ciphertextB64).split('').map(c => c.charCodeAt(0)));
 
       // Derive password key using PBKDF2
+      // Derive raw bits from password using PBKDF2 (256 bits) and import AES-KW key for unwrap
       const keyMaterial = await crypto.subtle.importKey(
         'raw',
         new TextEncoder().encode(password),
         'PBKDF2',
         false,
-        ['deriveKey']
+        ['deriveBits']
       );
-      const passwordKey = await crypto.subtle.deriveKey(
+      const derivedBits = await crypto.subtle.deriveBits(
         {
           name: 'PBKDF2',
           salt: salt,
@@ -664,17 +668,12 @@ export default function SharedDownloadPage() {
           hash: 'SHA-256'
         },
         keyMaterial,
-        { name: 'AES-KW' },
-        false,
-        ['unwrapKey']
+        256
       );
+      const derivedBytes = new Uint8Array(derivedBits);
 
-      // Export the key to get raw bytes for XChaCha20
-      const keyBytes = new Uint8Array(
-        await crypto.subtle.exportKey('raw', passwordKey)
-      );
       // Use first 32 bytes for XChaCha20
-      const xchachaKey = keyBytes.slice(0, 32);
+      const xchachaKey = derivedBytes.slice(0, 32);
 
       // Decrypt share CEK using XChaCha20-Poly1305
       const { xchacha20poly1305 } = await import('@noble/ciphers/chacha.js');

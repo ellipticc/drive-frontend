@@ -29,14 +29,15 @@ import {
   IconCalendar,
   IconDownload,
   IconLink,
-  IconSend
+  IconSend,
+  IconClockHour8
 } from "@tabler/icons-react"
 import { toast } from "sonner"
 import { apiClient } from "@/lib/api"
 import { keyManager } from "@/lib/key-manager"
 import { masterKeyManager } from "@/lib/master-key"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { format } from "date-fns"
+import { format, startOfToday } from "date-fns"
 import { truncateFilename } from "@/lib/utils"
 
 import type { FileTreeItem, FolderTreeItem, FileInfo, FolderInfo } from '@/lib/api'
@@ -56,7 +57,7 @@ async function buildEncryptedFolderManifest(
 
     // Parse the response structure: { folder: {...}, allFiles: [...], totalFiles, totalFolders }
     const { allFiles = [], folder } = contentsResponse.data;
-    
+
     // Validate folder data
     if (!folder) {
       throw new Error('Invalid folder data: folder is null');
@@ -64,7 +65,7 @@ async function buildEncryptedFolderManifest(
     if (folder.encryptedName && !folder.nameSalt) {
       throw new Error('Invalid folder data: folder has encryptedName but missing nameSalt. Folder structure: ' + JSON.stringify({ id: folder.id, hasEncName: !!folder.encryptedName, hasNameSalt: !!folder.nameSalt }));
     }
-    
+
     // Extract folders from the hierarchical structure
     const folders: FolderTreeItem[] = [];
     const extractFolders = (folderData: FolderTreeItem) => {
@@ -85,11 +86,11 @@ async function buildEncryptedFolderManifest(
         }
       }
     };
-    
+
     if (folder) {
       extractFolders(folder as FolderTreeItem);
     }
-    
+
     // Convert allFiles to the expected format
     const files = (allFiles as FileTreeItem[]).map((file) => {
       const raw = file as unknown as Record<string, unknown>;
@@ -111,7 +112,7 @@ async function buildEncryptedFolderManifest(
     const { encryptData } = await import('@/lib/crypto');
     const { decryptFilename } = await import('@/lib/crypto');
     const { xchacha20poly1305 } = await import('@noble/ciphers/chacha.js');
-    
+
     // Get master key for decrypting names from API
     const masterKey = masterKeyManager.getMasterKey();
 
@@ -156,7 +157,7 @@ async function buildEncryptedFolderManifest(
     const encryptedRootName = xchacha20poly1305(rootNameKey, rootNameNonce).encrypt(rootNameBytes);
     const encryptedRootNameB64 = btoa(String.fromCharCode(...encryptedRootName));
     const rootNonceB64 = btoa(String.fromCharCode(...rootNameNonce));
-    
+
     manifest[folderId] = {
       id: folderId,
       name: `${encryptedRootNameB64}:${rootNonceB64}`,
@@ -191,7 +192,7 @@ async function buildEncryptedFolderManifest(
         });
         decryptedFolderName = `Folder ${subfolder.id}`; // Fallback name
       }
-      
+
       const nameSalt = crypto.getRandomValues(new Uint8Array(32));
       const nameSaltB64 = btoa(String.fromCharCode(...nameSalt));
       const suffixBytes = new TextEncoder().encode('folder-name-key');
@@ -213,7 +214,7 @@ async function buildEncryptedFolderManifest(
       const nameKey = new Uint8Array(derivedKeyMaterial.slice(0, 32));
       const nameNonce = crypto.getRandomValues(new Uint8Array(24));
       const nameBytes = new TextEncoder().encode(decryptedFolderName);
-      
+
       const encryptedName = xchacha20poly1305(nameKey, nameNonce).encrypt(nameBytes);
       const encryptedNameB64 = btoa(String.fromCharCode(...encryptedName));
       const nonceB64 = btoa(String.fromCharCode(...nameNonce));
@@ -253,7 +254,7 @@ async function buildEncryptedFolderManifest(
         });
         decryptedFileName = `File ${file.id}`; // Fallback name
       }
-      
+
       const nameSalt = crypto.getRandomValues(new Uint8Array(32));
       const nameSaltB64 = btoa(String.fromCharCode(...nameSalt));
       const suffixBytes = new TextEncoder().encode('file-name-key');
@@ -275,7 +276,7 @@ async function buildEncryptedFolderManifest(
       const nameKey = new Uint8Array(derivedKeyMaterial.slice(0, 32));
       const nameNonce = crypto.getRandomValues(new Uint8Array(24));
       const nameBytes = new TextEncoder().encode(decryptedFileName);
-      
+
       const encryptedName = xchacha20poly1305(nameKey, nameNonce).encrypt(nameBytes);
       const encryptedNameB64 = btoa(String.fromCharCode(...encryptedName));
       const nonceB64 = btoa(String.fromCharCode(...nameNonce));
@@ -284,16 +285,16 @@ async function buildEncryptedFolderManifest(
       try {
         const { decryptData, hexToUint8Array } = await import('@/lib/crypto');
         const { ml_kem768 } = await import('@noble/post-quantum/ml-kem.js');
-        
+
         // Get user keys for Kyber decryption
         const userKeys = await keyManager.getUserKeys();
-        
+
         // Decapsulate Kyber to get shared secret (same as download process)
         const fileMeta = file as unknown as Record<string, unknown>;
         if (!fileMeta.kyberCiphertext) throw new Error(`Missing kyber ciphertext for file ${file.id}`)
         const kyberCiphertext = hexToUint8Array(fileMeta.kyberCiphertext as string);
         const sharedSecret = ml_kem768.decapsulate(kyberCiphertext, userKeys.keypairs.kyberPrivateKey);
-        
+
         // Decrypt the CEK using Kyber shared secret
         if (!fileMeta.wrappedCek || !fileMeta.nonceWrapKyber) throw new Error(`Missing wrapped CEK or nonce for file ${file.id}`)
         const fileCek = decryptData(fileMeta.wrappedCek as string, new Uint8Array(sharedSecret), fileMeta.nonceWrapKyber as string);
@@ -303,7 +304,7 @@ async function buildEncryptedFolderManifest(
         if (!(fileCek instanceof Uint8Array)) {
           throw new Error(`CEK is not a Uint8Array, got ${typeof fileCek}`);
         }
-        
+
         const envelopeEncryption = encryptData(fileCek, shareCek);
         const envelopeWrappedCek = envelopeEncryption.encryptedData;
         const envelopeNonce = envelopeEncryption.nonce;
@@ -483,8 +484,12 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
             const shareCekHex = btoa(String.fromCharCode(...shareCek))
 
             // Show existing share link with deterministically derived CEK in fragment
-            const shareUrl = `https://drive.ellipticc.com/s/${existingShare.id}#${shareCekHex}`
-            setShareLink(shareUrl)
+            // SECURITY: ONLY include CEK if no password is set
+            const finalShareUrl = existingShare.has_password
+              ? `https://drive.ellipticc.com/s/${existingShare.id}`
+              : `https://drive.ellipticc.com/s/${existingShare.id}#${shareCekHex}`
+
+            setShareLink(finalShareUrl)
           }
         } else {
 
@@ -579,15 +584,15 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
         const salt = crypto.getRandomValues(new Uint8Array(32))
         const saltB64 = btoa(String.fromCharCode(...salt))
 
-        // Derive key from password using PBKDF2
+        // Derive raw bits from password using PBKDF2 (256 bits)
         const keyMaterial = await crypto.subtle.importKey(
           'raw',
           new TextEncoder().encode(shareSettings.password),
           'PBKDF2',
           false,
-          ['deriveKey']
+          ['deriveBits']
         )
-        const passwordKey = await crypto.subtle.deriveKey(
+        const derivedBits = await crypto.subtle.deriveBits(
           {
             name: 'PBKDF2',
             salt: salt,
@@ -595,20 +600,25 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
             hash: 'SHA-256'
           },
           keyMaterial,
-          { name: 'AES-KW' },
+          256
+        )
+        const derivedBytes = new Uint8Array(derivedBits)
+
+        // Import AES-KW key for wrapping from derived bytes (non-extractable)
+        const passwordKey = await crypto.subtle.importKey(
+          'raw',
+          derivedBytes.buffer,
+          { name: 'AES-KW', length: 256 },
           false,
           ['wrapKey']
         )
+        void passwordKey;
 
-        // Encrypt share CEK with password-derived key using XChaCha20-Poly1305
-        const { xchacha20poly1305 } = await import('@noble/ciphers/chacha.js')
-        const encryptionKey = new Uint8Array(
-          await crypto.subtle.exportKey('raw', passwordKey)
-        )
-        // Ensure we have exactly 32 bytes for XChaCha20
-        const xchachaKey = encryptionKey.slice(0, 32)
+        // Use derived bytes directly for XChaCha20 key (first 32 bytes)
+        const xchachaKey = derivedBytes.slice(0, 32)
         const nonce = crypto.getRandomValues(new Uint8Array(24))
 
+        const { xchacha20poly1305 } = await import('@noble/ciphers/chacha.js')
         const xchaCiphertext = xchacha20poly1305(xchachaKey, nonce).encrypt(shareCek)
         const nonceB64 = btoa(String.fromCharCode(...nonce))
         const ciphertextB64 = btoa(String.fromCharCode(...xchaCiphertext))
@@ -621,10 +631,10 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
       }
 
       // Get the file/folder's wrapped CEK from the database and unwrap it
-      const infoResponse = itemType === 'folder' 
+      const infoResponse = itemType === 'folder'
         ? await apiClient.getFolderInfo(itemId)
         : await apiClient.getFileInfo(itemId)
-      
+
       if (!infoResponse.success || !infoResponse.data) {
         throw new Error(`Failed to get ${itemType} encryption info`)
       }
@@ -782,8 +792,12 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
           const shareCekHex = btoa(String.fromCharCode(...shareCek))
 
           // Show existing share link with deterministically derived CEK in fragment
-          const shareUrl = `https://drive.ellipticc.com/s/${existingShare.id}#${shareCekHex}`
-          setShareLink(shareUrl)
+          // SECURITY: ONLY include CEK if no password is set
+          const finalShareUrl = existingShare.has_password
+            ? `https://drive.ellipticc.com/s/${existingShare.id}`
+            : `https://drive.ellipticc.com/s/${existingShare.id}#${shareCekHex}`
+
+          setShareLink(finalShareUrl)
           setExistingShareId(existingShare.id)
           toast.success("Using existing share link")
           setIsLoading(false)
@@ -820,7 +834,7 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
       } else {
         // For file sharing, get the file's wrapped CEK from the database and unwrap it
         const infoResponse = await apiClient.getFileInfo(itemId)
-        
+
         if (!infoResponse.success || !infoResponse.data) {
           throw new Error(`Failed to get file encryption info`)
         }
@@ -860,15 +874,15 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
         const salt = crypto.getRandomValues(new Uint8Array(32))
         const saltB64 = btoa(String.fromCharCode(...salt))
 
-        // Derive key from password using PBKDF2
+        // Derive raw bits from password using PBKDF2 (256 bits)
         const keyMaterial = await crypto.subtle.importKey(
           'raw',
           new TextEncoder().encode(shareSettings.password),
           'PBKDF2',
           false,
-          ['deriveKey']
+          ['deriveBits']
         )
-        const passwordKey = await crypto.subtle.deriveKey(
+        const derivedBits = await crypto.subtle.deriveBits(
           {
             name: 'PBKDF2',
             salt: salt,
@@ -876,20 +890,25 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
             hash: 'SHA-256'
           },
           keyMaterial,
-          { name: 'AES-KW' },
+          256
+        )
+        const derivedBytes = new Uint8Array(derivedBits)
+
+        // Import AES-KW key for wrapping from derived bytes (non-extractable)
+        const passwordKey = await crypto.subtle.importKey(
+          'raw',
+          derivedBytes.buffer,
+          { name: 'AES-KW', length: 256 },
           false,
           ['wrapKey']
         )
+        void passwordKey;
 
-        // Encrypt share CEK with password-derived key using XChaCha20-Poly1305
-        const { xchacha20poly1305 } = await import('@noble/ciphers/chacha.js')
-        const encryptionKey = new Uint8Array(
-          await crypto.subtle.exportKey('raw', passwordKey)
-        )
-        // Ensure we have exactly 32 bytes for XChaCha20
-        const xchachaKey = encryptionKey.slice(0, 32)
+        // Use derived bytes directly for XChaCha20 key (first 32 bytes)
+        const xchachaKey = derivedBytes.slice(0, 32)
         const nonce = crypto.getRandomValues(new Uint8Array(24))
 
+        const { xchacha20poly1305 } = await import('@noble/ciphers/chacha.js')
         const xchaCiphertext = xchacha20poly1305(xchachaKey, nonce).encrypt(shareCek)
         const nonceB64 = btoa(String.fromCharCode(...nonce))
         const ciphertextB64 = btoa(String.fromCharCode(...xchaCiphertext))
@@ -962,7 +981,8 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
 
     } catch (error) {
       console.error("Failed to create public link:", error)
-      toast.error("Failed to create public link")
+      const message = error instanceof Error ? error.message : String(error)
+      toast.error(message || "Failed to create public link")
     } finally {
       setIsLoading(false)
     }
@@ -981,6 +1001,14 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
   }
 
   function handleSettingsChange<K extends keyof ShareSettings>(key: K, value: ShareSettings[K]) {
+    // Prevent selecting expiration dates in the past
+    if (key === 'expirationDate' && value instanceof Date) {
+      if (value < new Date()) {
+        toast.error('Expiration date cannot be in the past')
+        return
+      }
+    }
+
     setShareSettings(prev => ({ ...prev, [key]: value }))
   }
 
@@ -1251,12 +1279,27 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
                 </Label>
               </div>
               {shareSettings.passwordEnabled && (
-                <PasswordInput
-                  value={shareSettings.password}
-                  onChange={(e) => handleSettingsChange('password', e.target.value)}
-                  placeholder="Enter password"
-                  className="text-sm animate-in slide-in-from-top-2 duration-200"
-                />
+                <form
+                  className="w-full"
+                  onSubmit={(e) => { e.preventDefault(); /* Prevent form submission */ }}
+                  autoComplete="off"
+                >
+                  {/* [DOM] Password forms should have (optionally hidden) username fields for accessibility */}
+                  <input
+                    type="text"
+                    name="username"
+                    autoComplete="username"
+                    className="hidden"
+                    readOnly
+                  />
+                  <PasswordInput
+                    value={shareSettings.password}
+                    onChange={(e) => handleSettingsChange('password', e.target.value)}
+                    placeholder="Enter password"
+                    className="text-sm animate-in slide-in-from-top-2 duration-200"
+                    autoComplete="new-password"
+                  />
+                </form>
               )}
             </div>
 
@@ -1268,25 +1311,68 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
                 <IconCalendar className="h-4 w-4 text-muted-foreground" />
                 <Label className="text-sm font-medium">Expiration</Label>
               </div>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start text-left font-normal"
-                  >
-                    <IconCalendar className="mr-2 h-4 w-4" />
-                    {shareSettings.expirationDate ? format(shareSettings.expirationDate, "PPP") : "No expiration"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={shareSettings.expirationDate}
-                    onSelect={(date) => handleSettingsChange('expirationDate', date)}
-                    initialFocus
+              <div className="flex gap-2">
+                {/* Date Picker (Left) */}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="flex-1 justify-start text-left font-normal"
+                    >
+                      <IconCalendar className="mr-2 h-4 w-4" />
+                      {shareSettings.expirationDate ? format(shareSettings.expirationDate, "PPP") : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={shareSettings.expirationDate}
+                      onSelect={(date) => {
+                        if (date) {
+                          // Preserve existing time or default to end of day? User requested precise time, so current time or 00:00?
+                          // Let's keep existing logic: current time or 00:00 if new
+                          const current = shareSettings.expirationDate || new Date();
+                          date.setHours(current.getHours());
+                          date.setMinutes(current.getMinutes());
+                          date.setSeconds(current.getSeconds());
+                          handleSettingsChange('expirationDate', date);
+                        } else {
+                          handleSettingsChange('expirationDate', undefined);
+                        }
+                      }}
+                      disabled={{ before: startOfToday() }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+
+                {/* Time Picker (Right) */}
+                <div className="relative w-32 shrink-0">
+                  <div className="text-muted-foreground pointer-events-none absolute inset-y-0 left-0 flex items-center justify-center pl-3 peer-disabled:opacity-50">
+                    <IconClockHour8 className="size-4" />
+                  </div>
+                  <Input
+                    type="time"
+                    id="time-picker"
+                    step="1"
+                    disabled={!shareSettings.expirationDate}
+                    value={shareSettings.expirationDate ? format(shareSettings.expirationDate, "HH:mm:ss") : ""}
+                    onChange={(e) => {
+                      const timeParts = e.target.value.split(':');
+                      if (timeParts.length >= 2 && shareSettings.expirationDate) {
+                        const newDate = new Date(shareSettings.expirationDate);
+                        newDate.setHours(parseInt(timeParts[0]));
+                        newDate.setMinutes(parseInt(timeParts[1]));
+                        if (timeParts.length === 3) {
+                          newDate.setSeconds(parseInt(timeParts[2]));
+                        }
+                        handleSettingsChange('expirationDate', newDate);
+                      }
+                    }}
+                    className="peer bg-background appearance-none pl-9 [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none w-full"
                   />
-                </PopoverContent>
-              </Popover>
+                </div>
+              </div>
               <p className="text-xs text-muted-foreground">
                 Leave empty for no expiration
               </p>
@@ -1323,7 +1409,7 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
             </Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>
+      </Dialog >
     </>
   )
 }

@@ -28,7 +28,7 @@ export interface UserData {
     pqcKeypairs?: PQCKeypairs;
     [key: string]: unknown;
   };
-} 
+}
 
 export interface FolderTreeItem {
   id: string;
@@ -81,7 +81,7 @@ export interface FolderInfo {
   createdAt: string;
   updatedAt: string;
   is_shared: boolean;
-} 
+}
 
 export interface DownloadUrlsResponse {
   fileId: string;
@@ -157,19 +157,19 @@ export interface OAuthPQCKeypairs {
   kyberPrivateKeyNonce: string;
   kyberEncryptionKey: string;
   kyberEncryptionNonce: string;
-  
+
   x25519PublicKey: string;
   x25519PrivateKeyEncrypted: string;
   x25519PrivateKeyNonce: string;
   x25519EncryptionKey: string;
   x25519EncryptionNonce: string;
-  
+
   dilithiumPublicKey: string;
   dilithiumPrivateKeyEncrypted: string;
   dilithiumPrivateKeyNonce: string;
   dilithiumEncryptionKey: string;
   dilithiumEncryptionNonce: string;
-  
+
   ed25519PublicKey: string;
   ed25519PrivateKeyEncrypted: string;
   ed25519PrivateKeyNonce: string;
@@ -207,7 +207,7 @@ export interface FileItem {
   encryptionSalt?: string;
   wrappedCek?: string;
   fileNoncePrefix?: string;
-} 
+}
 
 export interface FolderContentItem {
   id: string;
@@ -221,7 +221,7 @@ export interface FolderContentItem {
   updatedAt: string;
   deletedAt?: string;
   is_shared: boolean;
-} 
+}
 
 export interface FileContentItem {
   id: string;
@@ -245,7 +245,7 @@ export interface FileContentItem {
   shaHash: string;
   sha_hash?: string;
   is_shared: boolean;
-} 
+}
 
 export interface ShareItem {
   id: string;
@@ -274,6 +274,7 @@ export interface ShareItem {
     createdAt: string;
     revokedAt?: string;
   }>;
+  has_password: boolean;
 }
 
 export interface Referral {
@@ -379,17 +380,17 @@ class ApiClient {
 
     // Clear token
     this.clearToken();
-    
+
     // Clear all localStorage
     if (typeof localStorage !== 'undefined') {
       localStorage.clear();
     }
-    
+
     // Clear all sessionStorage
     if (typeof sessionStorage !== 'undefined') {
       sessionStorage.clear();
     }
-    
+
     // Clear auth cookies
     if (typeof document !== 'undefined') {
       const cookies = document.cookie.split(';');
@@ -404,7 +405,7 @@ class ApiClient {
 
   private shouldRedirectToLogin(): boolean {
     if (typeof window === 'undefined') return false;
-    
+
     const pathname = window.location.pathname;
     const authPages = ['/login', '/signup', '/otp', '/recover', '/recover/otp', '/recover/reset', '/backup', '/totp', '/auth/oauth/callback'];
     return !authPages.some(page => pathname.includes(page)) && !pathname.startsWith('/s/');
@@ -421,7 +422,7 @@ class ApiClient {
 
       // Decode and parse the payload
       const payload = JSON.parse(atob(parts[1]));
-      
+
       // Check if payload has exp claim
       if (typeof payload.exp !== 'number') {
         console.warn('Token missing or invalid exp claim');
@@ -451,7 +452,7 @@ class ApiClient {
 
     // Only set Content-Type if body is not FormData (FormData needs browser to set boundary)
     const isFormData = otherOptions.body instanceof FormData;
-    
+
     const config: RequestInit = {
       headers: {
         ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
@@ -491,7 +492,7 @@ class ApiClient {
       if (!response.ok) {
         try {
           const responseText = await response.clone().text();
-          
+
           // Common Cloudflare error signatures
           const cloudflareSignatures = [
             'Just a moment...',
@@ -503,11 +504,11 @@ class ApiClient {
             'cf-ray',
             'cf-cache-status'
           ];
-          
+
           const isCloudflareError = cloudflareSignatures.some(signature =>
             responseText.toLowerCase().includes(signature.toLowerCase())
           );
-          
+
           if (isCloudflareError) {
             return {
               success: false,
@@ -519,7 +520,7 @@ class ApiClient {
           console.warn('Could not read response text for Cloudflare detection:', textError);
         }
       }
-      
+
       const data = await response.json();
 
       // Check for 401 Unauthorized (token expired or invalid from server)
@@ -536,13 +537,13 @@ class ApiClient {
 
       if (!response.ok) {
         console.error('API Error:', { endpoint, status: response.status, error: data.error });
-        
+
         // Return error response as-is (don't throw) so callers like initializeUploadSession can handle 409 conflicts
         // The response should already have success: false from the backend
         if (data.success !== undefined) {
           return data;  // Return the backend response directly with success: false
         }
-        
+
         // If backend didn't include success field, add it
         return {
           success: false,
@@ -556,7 +557,7 @@ class ApiClient {
       // Others return: { success: true, sessionId: ..., presigned: ... } (needs wrapping)
       if (data.success !== undefined) {
         const { success, error, ...responseData } = data;
-        
+
         // If already has 'data' property (like from /auth/me), return as-is
         if (responseData.data !== undefined) {
           return {
@@ -565,7 +566,7 @@ class ApiClient {
             data: responseData.data,
           };
         }
-        
+
         // Otherwise wrap other properties as data (like presigned upload responses)
         return {
           success,
@@ -573,7 +574,7 @@ class ApiClient {
           data: responseData,
         };
       }
-      
+
       // Otherwise wrap raw response in ApiResponse format
       return {
         success: true,
@@ -1032,7 +1033,7 @@ class ApiClient {
     };
   }>> {
     // Use clientFolderId as idempotency key for duplicate prevention
-    const idempotencyKey = data.clientFolderId 
+    const idempotencyKey = data.clientFolderId
       ? generateIdempotencyKeyForCreate(data.clientFolderId)
       : generateIdempotencyKey('createFolder', data.nameHmac || 'unknown');
     const headers = addIdempotencyKey({}, idempotencyKey);
@@ -1288,7 +1289,10 @@ class ApiClient {
     reused?: boolean;
     sharedFiles?: number;
   }>> {
-    const idempotencyKey = generateIdempotencyKey('createShare', `${data.file_id || data.folder_id || ''}:${data.permissions || 'read'}`);
+    // Add random nonce/timestamp to ensure we can create multiple shares for the same file/settings
+    // This fixes the "caches sometimes and doesn't work" issue
+    const uniqueIntent = `${data.file_id || data.folder_id || ''}:${data.permissions || 'read'}:${Date.now()}`;
+    const idempotencyKey = generateIdempotencyKey('createShare', uniqueIntent);
     const headers = addIdempotencyKey({}, idempotencyKey);
     if (data.folder_id) {
       // Create folder share
@@ -1403,7 +1407,7 @@ class ApiClient {
 
   async disableShare(shareIdOrIds: string | string[]): Promise<ApiResponse<{ success: boolean; revokedCount?: number; cascadedFileShares?: number }>> {
     const shareIds = Array.isArray(shareIdOrIds) ? shareIdOrIds : [shareIdOrIds];
-    
+
     // Use sorted shareIds as unique intent for consistent idempotency
     const idempotencyKey = generateIdempotencyKey('disableShare', shareIds.sort().join(':'));
     const headers = addIdempotencyKey({}, idempotencyKey);
@@ -1667,7 +1671,7 @@ class ApiClient {
     existingFileId?: string; // ID of the existing file if conflict detected
     isKeepBothConflict?: boolean; // Flag to indicate this is a keepBoth retry scenario
   }>> {
-    const idempotencyKey = data.clientFileId 
+    const idempotencyKey = data.clientFileId
       ? generateIdempotencyKeyForCreate(data.clientFileId)
       : generateIdempotencyKey('initializeUploadSession', data.shaHash);
     const headers = addIdempotencyKey({}, idempotencyKey);
