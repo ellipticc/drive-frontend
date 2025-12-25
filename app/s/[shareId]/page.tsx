@@ -834,7 +834,7 @@ export default function SharedDownloadPage() {
         <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="flex h-14 items-center px-4">
             <div className="container flex items-center">
-              <Link href="/" className="flex items-center gap-2 font-medium">
+              <Link href="https://ellipticc.com?utm_source=share_download&utm_medium=referral&utm_campaign=share_page" className="flex items-center gap-2 font-medium">
                 <div className="flex size-6 items-center justify-center rounded-md">
                   <IconCaretLeftRightFilled className="!size-5" />
                 </div>
@@ -889,7 +889,7 @@ export default function SharedDownloadPage() {
         <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="flex h-14 items-center px-4">
             <div className="container flex items-center">
-              <Link href="/" className="flex items-center gap-2 font-medium">
+              <Link href="https://ellipticc.com?utm_source=share_download&utm_medium=referral&utm_campaign=share_page" className="flex items-center gap-2 font-medium">
                 <div className="flex size-6 items-center justify-center rounded-md">
                   <IconCaretLeftRightFilled className="!size-5" />
                 </div>
@@ -1006,7 +1006,7 @@ export default function SharedDownloadPage() {
       <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="flex h-14 items-center px-4">
           <div className="container flex items-center">
-            <Link href="/" className="flex items-center gap-2 font-medium">
+            <Link href="https://ellipticc.com?utm_source=share_download&utm_medium=referral&utm_campaign=share_page" className="flex items-center gap-2 font-medium">
               <div className="flex size-6 items-center justify-center rounded-md">
                 <IconCaretLeftRightFilled className="!size-5" />
               </div>
