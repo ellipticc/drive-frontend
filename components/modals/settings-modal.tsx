@@ -47,12 +47,13 @@ import {
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
 } from "@/components/ui/sidebar"
-import { IconSettings, IconLoader2, IconPencil, IconCheck, IconMail, IconLock, IconLogout, IconTrash, IconUserCog, IconLockSquareRounded, IconGift, IconCopy, IconCheck as IconCheckmark, IconBell, IconCoin, IconInfoCircle, IconRefresh } from "@tabler/icons-react"
+import { IconSettings, IconLoader2, IconPencil, IconCheck, IconMail, IconLock, IconLogout, IconTrash, IconUserCog, IconLockSquareRounded, IconGift, IconCopy, IconCheck as IconCheckmark, IconBell, IconCoin, IconInfoCircle, IconRefresh, IconX } from "@tabler/icons-react"
 import { apiClient, Referral, Subscription, BillingUsage, PricingPlan, SubscriptionHistory } from "@/lib/api"
 import { useTheme } from "next-themes"
 import { getDiceBearAvatar } from "@/lib/avatar"
@@ -110,7 +111,7 @@ export function SettingsModal({
     finalSetOpen(newOpen)
   }
 
-// Handle hash changes to open modal and navigate to correct tab
+  // Handle hash changes to open modal and navigate to correct tab
   const handleHashChange = useCallback(() => {
     const hash = window.location.hash
     if (hash.startsWith('#settings')) {
@@ -213,14 +214,14 @@ export function SettingsModal({
   const [disableRecoveryCode, setDisableRecoveryCode] = useState("")
   const [isVerifyingTOTP, setIsVerifyingTOTP] = useState(false)
   const [isDisablingTOTP, setIsDisablingTOTP] = useState(false)
-  
+
   // Session management state
   const [sessionExpiry, setSessionExpiry] = useState("3600")
-  
+
   // Recovery codes state
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([])
   const [showRecoveryCodesModal, setShowRecoveryCodesModal] = useState(false)
-  
+
   // Track which data has been loaded to prevent duplicate fetches
   const loadedRef = React.useRef(false)
 
@@ -482,7 +483,7 @@ export function SettingsModal({
         fileShare: preferences?.fileShare ?? fileShareNotifications,
         billing: preferences?.billing ?? billingNotifications
       }
-      
+
       const response = await apiClient.updateNotificationPreferences(preferencesToSave)
       if (response.success) {
         toast.success("Notification preferences updated!")
@@ -597,7 +598,7 @@ export function SettingsModal({
   // Format storage size for display
   const formatStorageSize = (bytes: number): string => {
     if (bytes === 0) return '0MB'
-    
+
     const mb = bytes / (1024 * 1024)
     if (mb < 1024) {
       return `${Math.round(mb)}MB`
@@ -756,18 +757,18 @@ export function SettingsModal({
 
       if (response.success) {
         toast.success("Email changed successfully! Please log in again with your new email address.")
-        
+
         // Clear session storage
         sessionStorage.removeItem('emailChangeToken')
         sessionStorage.removeItem('newEmail')
-        
+
         // Close OTP modal
         setShowEmailOTPModal(false)
         setEmailOTPCode("")
-        
+
         // Log out the user to force re-login with new email
         await completeLogout()
-        
+
         // Redirect to login page
         window.location.href = '/login'
       } else {
@@ -995,13 +996,24 @@ export function SettingsModal({
       ) : (
         children
       )}
-      <DialogContent className={`${isMobile ? 'w-[90vw] h-[75vh] max-w-none max-h-none overflow-y-auto' : `md:max-h-[700px] md:max-w-[1100px] ${activeTab === 'billing' || activeTab === 'referrals' ? 'overflow-y-auto' : 'overflow-hidden'}`} p-0`}>
+      <DialogContent showCloseButton={false} className={`${isMobile ? 'w-[90vw] h-[75vh] max-w-none max-h-none overflow-y-auto' : 'md:h-[700px] md:max-w-[1100px] overflow-hidden'} p-0`}>
         <DialogTitle className="sr-only">Settings</DialogTitle>
         <DialogDescription className="sr-only">
           Customize your settings here.
         </DialogDescription>
-        <SidebarProvider className="items-start">
-          <Sidebar collapsible="none" className="hidden md:flex">
+        <SidebarProvider className="items-start h-full min-h-0">
+          <Sidebar collapsible="none" className="hidden md:flex flex-none w-56 h-full border-r">
+            <SidebarHeader className="p-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => handleOpenChange(false)}
+                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                aria-label="Close settings"
+              >
+                <IconX className="h-5 w-5" />
+              </Button>
+            </SidebarHeader>
             <SidebarContent>
               <SidebarGroup>
                 <SidebarGroupContent>
@@ -1024,20 +1036,19 @@ export function SettingsModal({
               </SidebarGroup>
             </SidebarContent>
           </Sidebar>
-          <main className="flex flex-1 flex-col">
+          <main className="flex flex-1 flex-col h-full relative">
             {/* Mobile Navigation */}
             {isMobile && (
-              <div className="border-b border-border p-4 flex-shrink-0">
+              <div className="border-b border-border p-4 flex-shrink-0 sticky top-0 bg-background">
                 <div className="flex gap-1 overflow-x-auto">
                   {data.nav.map((item) => (
                     <button
                       key={item.id}
                       onClick={() => handleTabChange(item.id)}
-                      className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors ${
-                        activeTab === item.id
-                          ? 'bg-primary text-primary-foreground'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                      }`}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors ${activeTab === item.id
+                        ? 'bg-primary text-primary-foreground'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                        }`}
                     >
                       <item.icon className="h-4 w-4" />
                       <span>{item.name}</span>
@@ -1046,7 +1057,7 @@ export function SettingsModal({
                 </div>
               </div>
             )}
-            <div className="flex flex-1 flex-col gap-4 p-6 pb-12 overflow-y-auto">
+            <div className="flex flex-1 flex-col gap-4 p-6 pb-20 overflow-y-auto scroll-smooth">
               {activeTab === "general" && (
                 <div className="space-y-6">
                   {/* Profile Section */}
@@ -1297,12 +1308,12 @@ export function SettingsModal({
                         </p>
                       </div>
                     </div>
-                    <Select 
-                      value={sessionExpiry} 
+                    <Select
+                      value={sessionExpiry}
                       onValueChange={async (value) => {
                         setSessionExpiry(value);
                         const sessionDuration = parseInt(value);
-                        
+
                         // Save to localStorage for immediate frontend use
                         const sessionConfig = {
                           sessionExpiry: sessionDuration,
@@ -1383,7 +1394,7 @@ export function SettingsModal({
                   <div className="space-y-6">
                     <div className="space-y-4">
                       <h3 className="text-lg font-semibold">General Preferences</h3>
-                      
+
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <IconBell className="h-5 w-5 text-muted-foreground" />
@@ -1423,7 +1434,7 @@ export function SettingsModal({
 
                     <div className="border-t pt-6 space-y-4">
                       <h3 className="text-lg font-semibold">Notification Types</h3>
-                      
+
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <Shield className="h-5 w-5 text-muted-foreground" />
@@ -1501,137 +1512,136 @@ export function SettingsModal({
 
                   <div className="flex-1 overflow-y-auto pr-4 space-y-4">
 
-                  {/* Referral Code Section */}
-                  {isLoadingReferrals ? (
-                    <div className="flex justify-center py-6">
-                      <IconLoader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                    </div>
-                  ) : (
-                    <>
-                      <div className="space-y-4">
-                        <Label className="text-sm font-medium">Your Referral Code</Label>
-                        <div className="flex items-center gap-2">
-                          <code className="flex-1 p-3 bg-muted rounded font-mono text-sm border border-border">
-                            {referralCode}
-                          </code>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={handleCopyReferralCode}
-                            className="px-3"
-                          >
-                            {copiedCode ? (
-                              <IconCheckmark className="h-4 w-4" />
-                            ) : (
-                              <IconCopy className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
+                    {/* Referral Code Section */}
+                    {isLoadingReferrals ? (
+                      <div className="flex justify-center py-6">
+                        <IconLoader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                       </div>
-
-                      {/* Referral Link Section */}
-                      <div className="space-y-4">
-                        <Label className="text-sm font-medium">Your Referral Link</Label>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="text"
-                            value={referralLink}
-                            readOnly
-                            className="flex-1 p-2 text-sm bg-muted rounded border border-border text-muted-foreground truncate"
-                          />
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={handleCopyReferralLink}
-                            className="px-3"
-                          >
-                            {copiedLink ? (
-                              <IconCheckmark className="h-4 w-4" />
-                            ) : (
-                              <IconCopy className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-
-                      {/* Referral Stats - Now showing in the title */}
-
-                      {/* Recent Referrals Table */}
-                      {recentReferrals && recentReferrals.length > 0 && (
-                        <div className="border-t pt-6 space-y-4">
-                          <h3 className="text-sm font-semibold">Referral History ({formatStorageSize((Number(referralStats?.totalEarningsMB) || 0) * 1024 * 1024)} of 10GB free space earned)</h3>
-                          <div className="border rounded-lg overflow-hidden">
-                            <table className="w-full text-sm font-mono">
-                              <thead className="bg-muted/50 border-b">
-                                <tr>
-                                  <th className="text-left px-4 py-3 font-medium text-muted-foreground min-w-[160px]">User</th>
-                                  <th className="text-left px-4 py-3 font-medium text-muted-foreground min-w-[160px] hidden sm:table-cell">Email</th>
-                                  <th className="text-center px-4 py-3 font-medium text-muted-foreground min-w-[120px]">Status</th>
-                                  <th className="text-center px-4 py-3 font-medium text-muted-foreground min-w-[120px] hidden xs:table-cell">Date</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y">
-                                {recentReferrals.map((referral) => (
-                                  <tr key={referral.referred_user_id} className="hover:bg-muted/30 transition-colors">
-                                    <td className="px-4 py-3 min-w-[160px]">
-                                      <div className="flex items-center gap-3">
-                                        <Avatar className="h-8 w-8 flex-shrink-0">
-                                          <AvatarImage
-                                            src={referral.avatar_url || getDiceBearAvatar(referral.referred_user_id, 32)}
-                                            alt={`${referral.referred_name || getDisplayNameFromEmail(referral.referred_email)}'s avatar`}
-                                            onError={(e) => {
-                                              // Prevent favicon.ico fallback request
-                                              (e.target as HTMLImageElement).src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
-                                            }}
-                                          />
-                                          <AvatarFallback className="text-xs">
-                                            {getInitials(referral.referred_name || getDisplayNameFromEmail(referral.referred_email))}
-                                          </AvatarFallback>
-                                        </Avatar>
-                                        <div className="min-w-0">
-                                          <p className="font-medium text-sm truncate">{referral.referred_name || getDisplayNameFromEmail(referral.referred_email)}</p>
-                                        </div>
-                                      </div>
-                                    </td>
-                                    <td className="px-4 py-3 min-w-[160px] hidden sm:table-cell">
-                                      <p className="text-xs text-muted-foreground truncate">{referral.referred_email}</p>
-                                    </td>
-                                    <td className="px-4 py-3 text-center min-w-[120px]">
-                                      <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
-                                        referral.status === 'completed'
-                                          ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
-                                          : referral.status === 'pending'
-                                          ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
-                                          : 'bg-slate-100 dark:bg-slate-900/30 text-slate-700 dark:text-slate-400'
-                                      }`}>
-                                        {referral.status === 'completed' ? '✓ Completed' : referral.status === 'pending' ? '○ Pending' : 'Cancelled'}
-                                      </span>
-                                    </td>
-                                    <td className="px-4 py-3 text-center min-w-[120px] hidden xs:table-cell">
-                                      <p className="text-xs text-muted-foreground">
-                                        {referral.status === 'completed' && referral.completed_at
-                                          ? formatTimeAgo(referral.completed_at)
-                                          : formatTimeAgo(referral.created_at)}
-                                      </p>
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
+                    ) : (
+                      <>
+                        <div className="space-y-4">
+                          <Label className="text-sm font-medium">Your Referral Code</Label>
+                          <div className="flex items-center gap-2">
+                            <code className="flex-1 p-3 bg-muted rounded font-mono text-sm border border-border">
+                              {referralCode}
+                            </code>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={handleCopyReferralCode}
+                              className="px-3"
+                            >
+                              {copiedCode ? (
+                                <IconCheckmark className="h-4 w-4" />
+                              ) : (
+                                <IconCopy className="h-4 w-4" />
+                              )}
+                            </Button>
                           </div>
                         </div>
-                      )}
 
-                      {/* Empty Referrals State */}
-                      {recentReferrals.length === 0 && !isLoadingReferrals && (
-                        <div className="border-t pt-6">
-                          <p className="text-sm text-muted-foreground text-center py-8">
-                            No referrals yet. Share your referral link to get started!
-                          </p>
+                        {/* Referral Link Section */}
+                        <div className="space-y-4">
+                          <Label className="text-sm font-medium">Your Referral Link</Label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={referralLink}
+                              readOnly
+                              className="flex-1 p-2 text-sm bg-muted rounded border border-border text-muted-foreground truncate"
+                            />
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={handleCopyReferralLink}
+                              className="px-3"
+                            >
+                              {copiedLink ? (
+                                <IconCheckmark className="h-4 w-4" />
+                              ) : (
+                                <IconCopy className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
                         </div>
-                      )}
-                    </>
-                  )}
+
+                        {/* Referral Stats - Now showing in the title */}
+
+                        {/* Recent Referrals Table */}
+                        {recentReferrals && recentReferrals.length > 0 && (
+                          <div className="border-t pt-6 space-y-4">
+                            <h3 className="text-sm font-semibold">Referral History ({formatStorageSize((Number(referralStats?.totalEarningsMB) || 0) * 1024 * 1024)} of 10GB free space earned)</h3>
+                            <div className="border rounded-lg overflow-hidden">
+                              <table className="w-full text-sm font-mono">
+                                <thead className="bg-muted/50 border-b">
+                                  <tr>
+                                    <th className="text-left px-4 py-3 font-medium text-muted-foreground min-w-[160px]">User</th>
+                                    <th className="text-left px-4 py-3 font-medium text-muted-foreground min-w-[160px] hidden sm:table-cell">Email</th>
+                                    <th className="text-center px-4 py-3 font-medium text-muted-foreground min-w-[120px]">Status</th>
+                                    <th className="text-center px-4 py-3 font-medium text-muted-foreground min-w-[120px] hidden xs:table-cell">Date</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y">
+                                  {recentReferrals.map((referral) => (
+                                    <tr key={referral.referred_user_id} className="hover:bg-muted/30 transition-colors">
+                                      <td className="px-4 py-3 min-w-[160px]">
+                                        <div className="flex items-center gap-3">
+                                          <Avatar className="h-8 w-8 flex-shrink-0">
+                                            <AvatarImage
+                                              src={referral.avatar_url || getDiceBearAvatar(referral.referred_user_id, 32)}
+                                              alt={`${referral.referred_name || getDisplayNameFromEmail(referral.referred_email)}'s avatar`}
+                                              onError={(e) => {
+                                                // Prevent favicon.ico fallback request
+                                                (e.target as HTMLImageElement).src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+                                              }}
+                                            />
+                                            <AvatarFallback className="text-xs">
+                                              {getInitials(referral.referred_name || getDisplayNameFromEmail(referral.referred_email))}
+                                            </AvatarFallback>
+                                          </Avatar>
+                                          <div className="min-w-0">
+                                            <p className="font-medium text-sm truncate">{referral.referred_name || getDisplayNameFromEmail(referral.referred_email)}</p>
+                                          </div>
+                                        </div>
+                                      </td>
+                                      <td className="px-4 py-3 min-w-[160px] hidden sm:table-cell">
+                                        <p className="text-xs text-muted-foreground truncate">{referral.referred_email}</p>
+                                      </td>
+                                      <td className="px-4 py-3 text-center min-w-[120px]">
+                                        <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${referral.status === 'completed'
+                                          ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
+                                          : referral.status === 'pending'
+                                            ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+                                            : 'bg-slate-100 dark:bg-slate-900/30 text-slate-700 dark:text-slate-400'
+                                          }`}>
+                                          {referral.status === 'completed' ? '✓ Completed' : referral.status === 'pending' ? '○ Pending' : 'Cancelled'}
+                                        </span>
+                                      </td>
+                                      <td className="px-4 py-3 text-center min-w-[120px] hidden xs:table-cell">
+                                        <p className="text-xs text-muted-foreground">
+                                          {referral.status === 'completed' && referral.completed_at
+                                            ? formatTimeAgo(referral.completed_at)
+                                            : formatTimeAgo(referral.created_at)}
+                                        </p>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Empty Referrals State */}
+                        {recentReferrals.length === 0 && !isLoadingReferrals && (
+                          <div className="border-t pt-6">
+                            <p className="text-sm text-muted-foreground text-center py-8">
+                              No referrals yet. Share your referral link to get started!
+                            </p>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
                 </div>
               )}
@@ -1658,19 +1668,18 @@ export function SettingsModal({
                               </div>
                               <div className="flex items-center justify-between">
                                 <span className="text-sm text-muted-foreground">Status:</span>
-                                <span className={`text-sm font-medium px-2 py-1 rounded-full ${
-                                  subscription.status === 'active'
-                                    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                                    : subscription.status === 'trialing'
+                                <span className={`text-sm font-medium px-2 py-1 rounded-full ${subscription.status === 'active'
+                                  ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                  : subscription.status === 'trialing'
                                     ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
                                     : subscription.status === 'past_due'
-                                    ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                                    : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
-                                }`}>
+                                      ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                                      : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+                                  }`}>
                                   {subscription.status === 'active' ? 'Active' :
-                                   subscription.status === 'trialing' ? 'Trial' :
-                                   subscription.status === 'past_due' ? 'Past Due' :
-                                   subscription.status || 'Unknown'}
+                                    subscription.status === 'trialing' ? 'Trial' :
+                                      subscription.status === 'past_due' ? 'Past Due' :
+                                        subscription.status || 'Unknown'}
                                 </span>
                               </div>
                               {subscription.cancelAtPeriodEnd && (
@@ -1736,13 +1745,12 @@ export function SettingsModal({
                               </div>
                               <div className="w-full bg-gray-200 rounded-full h-2">
                                 <div
-                                  className={`h-2 rounded-full ${
-                                    billingUsage.percentUsed > 90
-                                      ? 'bg-red-500'
-                                      : billingUsage.percentUsed > 75
+                                  className={`h-2 rounded-full ${billingUsage.percentUsed > 90
+                                    ? 'bg-red-500'
+                                    : billingUsage.percentUsed > 75
                                       ? 'bg-yellow-500'
                                       : 'bg-green-500'
-                                  }`}
+                                    }`}
                                   style={{ width: `${Math.min(billingUsage.percentUsed, 100)}%` }}
                                 ></div>
                               </div>
@@ -1851,7 +1859,7 @@ export function SettingsModal({
                             </Button>
                           )}
                         </div>
-                        
+
                         {isLoadingHistory ? (
                           <div className="flex justify-center py-6">
                             <IconLoader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -1884,19 +1892,18 @@ export function SettingsModal({
                                               </div>
                                             </td>
                                             <td className="px-4 py-3 text-center min-w-[120px]">
-                                              <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
-                                                sub.status === 'active'
-                                                  ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
-                                                  : sub.status === 'canceled'
+                                              <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${sub.status === 'active'
+                                                ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
+                                                : sub.status === 'canceled'
                                                   ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
                                                   : sub.status === 'past_due'
-                                                  ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
-                                                  : 'bg-slate-100 dark:bg-slate-900/30 text-slate-700 dark:text-slate-400'
-                                              }`}>
+                                                    ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
+                                                    : 'bg-slate-100 dark:bg-slate-900/30 text-slate-700 dark:text-slate-400'
+                                                }`}>
                                                 {sub.status === 'active' ? 'Active' :
-                                                 sub.status === 'canceled' ? 'Cancelled' :
-                                                 sub.status === 'past_due' ? 'Past Due' :
-                                                 sub.status}
+                                                  sub.status === 'canceled' ? 'Cancelled' :
+                                                    sub.status === 'past_due' ? 'Past Due' :
+                                                      sub.status}
                                                 {sub.cancelAtPeriodEnd && ' (Cancelling)'}
                                               </span>
                                             </td>
@@ -1947,19 +1954,18 @@ export function SettingsModal({
                                               </div>
                                             </td>
                                             <td className="px-4 py-3 text-center min-w-[120px]">
-                                              <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
-                                                invoice.status === 'paid'
-                                                  ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
-                                                  : invoice.status === 'open'
+                                              <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${invoice.status === 'paid'
+                                                ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
+                                                : invoice.status === 'open'
                                                   ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
                                                   : invoice.status === 'void'
-                                                  ? 'bg-gray-100 dark:bg-gray-900/30 text-gray-700 dark:text-gray-400'
-                                                  : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                                              }`}>
+                                                    ? 'bg-gray-100 dark:bg-gray-900/30 text-gray-700 dark:text-gray-400'
+                                                    : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                                                }`}>
                                                 {invoice.status === 'paid' ? 'Paid' :
-                                                 invoice.status === 'open' ? 'Open' :
-                                                 invoice.status === 'void' ? 'Void' :
-                                                 invoice.status}
+                                                  invoice.status === 'open' ? 'Open' :
+                                                    invoice.status === 'void' ? 'Void' :
+                                                      invoice.status}
                                               </span>
                                             </td>
                                             <td className="px-4 py-3 text-right min-w-[120px]">
@@ -1991,13 +1997,13 @@ export function SettingsModal({
                             )}
 
                             {/* Empty State */}
-                            {(!subscriptionHistory.history || subscriptionHistory.history.length === 0) && 
-                             (!subscriptionHistory.invoices || subscriptionHistory.invoices.length === 0) && (
-                              <div className="text-center py-12">
-                                <h3 className="text-sm font-medium text-foreground mb-1">No billing history yet</h3>
-                                <p className="text-sm text-muted-foreground">Your invoices and subscription details will appear here</p>
-                              </div>
-                            )}
+                            {(!subscriptionHistory.history || subscriptionHistory.history.length === 0) &&
+                              (!subscriptionHistory.invoices || subscriptionHistory.invoices.length === 0) && (
+                                <div className="text-center py-12">
+                                  <h3 className="text-sm font-medium text-foreground mb-1">No billing history yet</h3>
+                                  <p className="text-sm text-muted-foreground">Your invoices and subscription details will appear here</p>
+                                </div>
+                              )}
                           </>
                         ) : (
                           <div className="text-center py-12">
@@ -2100,7 +2106,7 @@ export function SettingsModal({
                     // We'll try to complete a login flow to verify the password is correct
                     const { OPAQUELogin } = await import("@/lib/opaque")
                     const passwordVerifier = new OPAQUELogin()
-                    
+
                     try {
                       // Start the login process to validate password
                       const { startLoginRequest } = await passwordVerifier.step1(emailPassword.trim())
@@ -2108,13 +2114,13 @@ export function SettingsModal({
                       const { loginResponse } = await passwordVerifier.step2(user?.email || "", startLoginRequest)
                       // Finish login locally to verify password
                       const result = await passwordVerifier.step3(loginResponse)
-                      
+
                       if (!result) {
                         toast.error("Invalid password")
                         setIsChangingEmail(false)
                         return
                       }
-                      
+
                       console.log("✅ Password validated successfully")
                     } catch (passwordError: unknown) {
                       const errorMsg = passwordError instanceof Error ? passwordError.message : "Password validation failed"
@@ -2126,7 +2132,7 @@ export function SettingsModal({
 
                     // Step 2: Password is valid, now initiate email change (send OTP)
                     const initiateResponse = await apiClient.initiateEmailChange(newEmail.trim())
-                    
+
                     if (!initiateResponse.success) {
                       toast.error(initiateResponse.error || "Failed to initiate email change")
                       setIsChangingEmail(false)
@@ -2141,7 +2147,7 @@ export function SettingsModal({
                     }
 
                     toast.success("OTP sent to your new email address")
-                    
+
                     // Clear the form and open OTP verification modal
                     setShowEmailModal(false)
                     setNewEmail("")
@@ -2202,9 +2208,9 @@ export function SettingsModal({
                   Check your new email for the verification code
                 </p>
               </div>
-              <Button 
-                variant="ghost" 
-                className="w-full text-xs" 
+              <Button
+                variant="ghost"
+                className="w-full text-xs"
                 onClick={handleResendEmailOTP}
                 disabled={isResendingEmailOTP || isVerifyingEmailOTP}
               >
@@ -2269,8 +2275,8 @@ export function SettingsModal({
               </div>
             </div>
             <DialogFooter>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => setShowPasswordModal(false)}
               >
                 Cancel
@@ -2281,7 +2287,7 @@ export function SettingsModal({
                   try {
                     // Reset form
                     setShowPasswordModal(false)
-                    
+
                     // Log out and redirect to reset page
                     await completeLogout()
                     window.location.href = '/reset'
