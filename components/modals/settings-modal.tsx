@@ -193,9 +193,6 @@ export function SettingsModal({
   const [emailOTPCode, setEmailOTPCode] = useState("")
   const [isVerifyingEmailOTP, setIsVerifyingEmailOTP] = useState(false)
   const [isResendingEmailOTP, setIsResendingEmailOTP] = useState(false)
-  const [currentPassword, setCurrentPassword] = useState("")
-  const [newPassword, setNewPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
   const [isChangingPassword, setIsChangingPassword] = useState(false)
   const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
@@ -2108,7 +2105,7 @@ export function SettingsModal({
                       // Start the login process to validate password
                       const { startLoginRequest } = await passwordVerifier.step1(emailPassword.trim())
                       // Get the login response from server
-                      const { loginResponse, sessionId } = await passwordVerifier.step2(user?.email || "", startLoginRequest)
+                      const { loginResponse } = await passwordVerifier.step2(user?.email || "", startLoginRequest)
                       // Finish login locally to verify password
                       const result = await passwordVerifier.step3(loginResponse)
                       
@@ -2283,9 +2280,6 @@ export function SettingsModal({
                   setIsChangingPassword(true)
                   try {
                     // Reset form
-                    setCurrentPassword("")
-                    setNewPassword("")
-                    setConfirmPassword("")
                     setShowPasswordModal(false)
                     
                     // Log out and redirect to reset page
