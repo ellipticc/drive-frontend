@@ -6,8 +6,7 @@ import { Loader2, AlertCircle } from "lucide-react"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { apiClient } from "@/lib/api"
-import { masterKeyManager } from "@/lib/master-key"
-import { metamaskAuthService, MetaMaskAuthService } from "@/lib/metamask-auth-service"
+import { MetaMaskAuthService } from "@/lib/metamask-auth-service"
 import { keyManager } from "@/lib/key-manager"
 import SIWE from "@/lib/siwe"
 import { sessionTrackingUtils } from "@/hooks/useSessionTracking"
@@ -56,7 +55,7 @@ export function SIWELoginButton({ onSuccess, onError, context = 'login' }: SIWEL
         return
       }
 
-      const { token, user, signature } = loginResult
+      const { token, user } = loginResult
       const isNewUser = loginResult.user.isNewUser
 
       // Store authentication token
@@ -117,7 +116,6 @@ export function SIWELoginButton({ onSuccess, onError, context = 'login' }: SIWEL
         
         // Encrypt the Master Key with the Recovery Key (for recovery without password)
         const masterKeyEncryption = encryptMasterKeyWithRecoveryKey(masterKey, rk)
-        const encryptedMasterKeyForRecovery = masterKeyEncryption.encryptedMasterKey
         const masterKeyNonce = masterKeyEncryption.masterKeyNonce
 
         // STEP 7: Store crypto keypairs AND encrypted keys to backend

@@ -21,7 +21,6 @@ import { masterKeyManager } from '@/lib/master-key';
 import { 
   deriveEncryptionKey, 
   encryptMasterKeyWithRecoveryKey, 
-  uint8ArrayToHex,
   deriveRecoveryKeyEncryptionKey,
   generateRecoveryKey,
   encryptRecoveryKey,
@@ -115,6 +114,7 @@ export function OAuthPasswordModal({
         await handleExistingUserLogin();
       }
     } catch (err) {
+      console.error('OAuth password submit error:', err);
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setIsLoading(false);

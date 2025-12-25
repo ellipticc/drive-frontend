@@ -71,9 +71,8 @@ export function useCloudflareErrorHandler(options: CloudflareErrorOptions = {}) 
     return response;
   }, [customMessage, showToast, onError, allowReload]);
 
-  const wrapFetch = useCallback(<T>(
-    fetchPromise: Promise<Response>,
-    context?: string
+  const wrapFetch = useCallback((
+    fetchPromise: Promise<Response>
   ): Promise<Response> => {
     return fetchPromise
       .then(response => handleResponse(response))

@@ -928,7 +928,7 @@ export async function downloadFolderAsZip(
     onProgress?.({ stage: 'complete', overallProgress: 100 });
 
   } catch (error) {
-    // console.error('Folder ZIP download failed:', error);
+    console.error('Folder ZIP download failed:', error);
     throw new Error(`Folder download failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
@@ -1036,7 +1036,7 @@ export async function downloadMultipleItemsAsZip(
     onProgress?.({ stage: 'complete', overallProgress: 100 });
 
   } catch (error) {
-    // console.error('Bulk ZIP download failed:', error);
+    console.error('Bulk ZIP download failed:', error);
     throw new Error(`Bulk download failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }

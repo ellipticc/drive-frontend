@@ -63,12 +63,7 @@ export const Table01DividerLineSm = ({
       startFileDownload,
       startFolderDownload,
       startBulkDownload,
-      startPdfPreview,
-      cancelUpload,
-      pauseUpload,
-      resumeUpload,
-      retryUpload,
-      cancelAllUploads
+      startPdfPreview
     } = useGlobalUpload();
 
     // Current folder context
@@ -296,7 +291,7 @@ export const Table01DividerLineSm = ({
                 // console.log(`Loading contents for folder: ${currentId}`);
                 await refreshFiles(currentId);
             } catch {
-                // console.error('Error parsing URL path:', error);
+                console.error('Error parsing URL path:', error);
                 // On error, redirect to root
                 router.replace('/', { scroll: false });
                 setCurrentFolderId('root');
@@ -663,7 +658,7 @@ export const Table01DividerLineSm = ({
                 toast.error(`Failed to load ${itemType} details`);
             }
         } catch (error) {
-            // console.error('Details error:', error);
+            console.error('Details error:', error);
             toast.error(`Failed to load ${itemType} details`);
         }
     }, [apiClient, toast, setSelectedItemForDetails, setDetailsModalOpen]);
@@ -718,8 +713,8 @@ export const Table01DividerLineSm = ({
                                     toast.error(`Failed to restore ${itemType}`);
                                     refreshFiles(); // Refresh anyway to show current state
                                 }
-                            } catch {
-                                // console.error('Restore error:', error);
+                            } catch (err) {
+                                console.error('Restore error:', err);
                                 toast.error(`Failed to restore ${itemType}`);
                                 refreshFiles(); // Refresh anyway to show current state
                             }
@@ -730,7 +725,7 @@ export const Table01DividerLineSm = ({
                 toast.error(`Failed to move ${itemType} to trash`);
             }
         } catch (error) {
-            // console.error('Move to trash error:', error);
+            console.error('Move to trash error:', error);
             toast.error(`Failed to move ${itemType} to trash`);
         }
     };
@@ -1041,7 +1036,7 @@ export const Table01DividerLineSm = ({
                 }
             }
         } catch (error) {
-            // console.error('Rename error:', error);
+            console.error('Rename error:', error);
             toast.error(`Failed to rename ${selectedItemForRename.type}`);
             setRenameModalOpen(false);
             setSelectedItemForRename(null);

@@ -15,15 +15,12 @@ import { Input } from "@/components/ui/input"
 import { PasswordInput } from "@/components/ui/password-input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
 import { Calendar } from "@/components/ui/calendar"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
-  IconUser,
-  IconMail,
   IconX,
   IconCopy,
   IconCheck,
@@ -32,9 +29,7 @@ import {
   IconCalendar,
   IconDownload,
   IconLink,
-  IconSend,
-  IconPlus,
-  IconMinus
+  IconSend
 } from "@tabler/icons-react"
 import { toast } from "sonner"
 import { apiClient } from "@/lib/api"
@@ -393,7 +388,7 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
   const [shareLink, setShareLink] = useState("")
   const [copied, setCopied] = useState(false)
   const [createPublicLink, setCreatePublicLink] = useState(false)
-  const [existingShareId, setExistingShareId] = useState<string | null>(null)
+
   const [shareSettings, setShareSettings] = useState<ShareSettings>({
     password: "",
     passwordEnabled: false,
@@ -490,10 +485,11 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
             setShareLink(shareUrl)
           }
         } else {
-          setExistingShareId(null)
+
         }
       }
     } catch (error) {
+      console.error('Share modal - checkExistingShare error:', error)
       setExistingShareId(null)
     } finally {
       setIsModalLoading(false)
@@ -745,7 +741,7 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
         toast.error(`Failed to send emails: ${emailResponse.error}`)
       }
     } catch (error) {
-      // console.error("Failed to share item:", error)
+      console.error("Failed to share item:", error)
       toast.error(`Failed to share ${itemType}`)
     } finally {
       setIsLoading(false)
@@ -963,7 +959,7 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
       onShareUpdate?.()
 
     } catch (error) {
-      // console.error("Failed to create public link:", error)
+      console.error("Failed to create public link:", error)
       toast.error("Failed to create public link")
     } finally {
       setIsLoading(false)
@@ -977,6 +973,7 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
       toast.success("Share link copied to clipboard")
       setTimeout(() => setCopied(false), 2000)
     } catch (error) {
+      console.error("Failed to copy link:", error)
       toast.error("Failed to copy link")
     }
   }

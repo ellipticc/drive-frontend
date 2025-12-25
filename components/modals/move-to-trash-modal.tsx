@@ -54,7 +54,7 @@ export function MoveToTrashModal({ children, itemId = "", itemName = "item", ite
         toast.error(`Failed to move ${itemType} to trash`)
       }
     } catch (error) {
-      // console.error("Failed to move item to trash:", error)
+      console.error("Failed to move item to trash:", error)
       toast.error(`Failed to move ${itemType} to trash`)
     } finally {
       setIsLoading(false)

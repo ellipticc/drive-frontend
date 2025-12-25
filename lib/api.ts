@@ -485,9 +485,8 @@ class ApiClient {
     }
 
     try {
-      const startTime = Date.now();
       const response = await fetch(requestUrl, config);
-      
+
       // Check for Cloudflare bot protection errors
       if (!response.ok) {
         try {
@@ -581,7 +580,7 @@ class ApiClient {
         data: data,
       };
     } catch (error) {
-      // console.error('API request failed:', error);
+      console.error('API request failed:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',

@@ -201,7 +201,7 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  webpack: (config, { isServer }) => {
+  webpack: (config) => {
     // Set externals for modules that can't be bundled on server
     config.externals = config.externals || [];
     config.externals.push(
@@ -220,7 +220,7 @@ const nextConfig: NextConfig = {
   turbopack: {},
 };
 
-export default withSentryConfig(nextConfig, {
+const sentryOptions = {
   // For all available options, see:
   // https://www.npmjs.com/package/@sentry/webpack-plugin#options
 
@@ -246,4 +246,6 @@ export default withSentryConfig(nextConfig, {
     },
     automaticVercelMonitors: true,
   },
-} as any);
+};
+
+export default withSentryConfig(nextConfig, sentryOptions as Parameters<typeof withSentryConfig>[1]);

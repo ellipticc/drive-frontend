@@ -272,7 +272,7 @@ interface TableRowProps<T extends object>
 }
 
 const TableRow = <T extends object>({ columns, children, className, highlightSelectedRow = true, ...props }: TableRowProps<T>) => {
-    const { size, hasSelection } = useContext(TableContext);
+    const { size } = useContext(TableContext);
     const { selectionBehavior } = useTableOptions();
 
     return (

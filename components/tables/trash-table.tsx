@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { DotsVertical } from "@untitledui/icons";
 import type { SortDescriptor } from "react-aria-components";
-import { Table, TableCard, TableRowActionsDropdown } from "@/components/application/table/table";
+import { Table, TableCard } from "@/components/application/table/table";
 import { Button } from "@/components/ui/button";
 import { IconRestore, IconTrash } from "@tabler/icons-react";
 import { DeletePermanentlyModal } from "@/components/modals/delete-permanently-modal";
@@ -178,7 +178,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                 setError('Failed to load trash items');
             }
         } catch (err) {
-            // console.error('Error refreshing trash:', err);
+            console.error('Error refreshing trash:', err);
             setError('Failed to load trash items');
         } finally {
             setIsLoading(false);
@@ -219,7 +219,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                                     refreshTrash(); // Refresh anyway to show current state
                                 }
                             } catch (error) {
-                                // console.error('Move back to trash error:', error);
+                                console.error('Move back to trash error:', error);
                                 toast.error(`Failed to move ${itemType} back to trash`);
                                 refreshTrash(); // Refresh anyway to show current state
                             }
@@ -230,7 +230,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                 toast.error(`Failed to restore ${itemType}`);
             }
         } catch (error) {
-            // console.error('Restore error:', error);
+            console.error('Restore error:', error);
             toast.error(`Failed to restore ${itemType}`);
         }
     };
@@ -257,7 +257,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                 toast.error(`Failed to load ${itemType} details`);
             }
         } catch (error) {
-            // console.error('Details error:', error);
+            console.error('Details error:', error);
             toast.error(`Failed to load ${itemType} details`);
         }
     };
@@ -303,7 +303,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                                     refreshTrash(); // Refresh anyway to show current state
                                 }
                             } catch (error) {
-                                // console.error('Move back to trash error:', error);
+                                console.error('Move back to trash error:', error);
                                 toast.error(`Failed to move items back to trash`);
                                 refreshTrash(); // Refresh anyway to show current state
                             }
@@ -317,7 +317,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                 toast.success(`${successCount} of ${promises.length} operations completed successfully`);
             }
         } catch (error) {
-            // console.error('Bulk restore error:', error);
+            console.error('Bulk restore error:', error);
             toast.error('Failed to restore all items');
             await refreshTrash();
         }
@@ -375,7 +375,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                 }
             }
         } catch (error) {
-            // console.error('Bulk delete error:', error);
+            console.error('Bulk delete error:', error);
             toast.error('Failed to delete all items');
             await refreshTrash();
         } finally {
@@ -404,8 +404,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
             hour12: true
         };
 
-        // Add ordinal suffix to day
-        const day = date.getDate();
+        // Add ordinal suffix helper
         const ordinalSuffix = (day: number) => {
             if (day > 3 && day < 21) return 'th';
             switch (day % 10) {
@@ -454,8 +453,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
             : trashItems;
 
         return filteredItems.sort((a, b) => {
-            const first = a[sortDescriptor.column as keyof TrashItem];
-            const second = b[sortDescriptor.column as keyof TrashItem];
+
 
             // Handle different column types
             if (sortDescriptor.column === 'deletedAt') {

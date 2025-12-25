@@ -18,7 +18,7 @@ import { apiClient } from "@/lib/api"
 import { Loader2 } from "lucide-react"
 import { SIWELoginButton } from "./siwe-login-button"
 import { GoogleOAuthButton } from "./google-oauth-button"
-import { useSessionTracking, sessionTrackingUtils } from "@/hooks/useSessionTracking"
+import { sessionTrackingUtils } from "@/hooks/useSessionTracking"
 
 export function SignupFormAuth({
   className,
@@ -29,8 +29,7 @@ export function SignupFormAuth({
   const [isLoading, setIsLoading] = useState(false)
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
   const [error, setError] = useState("")
-  const [referralCode, setReferralCode] = useState<string | null>(null)
-  const sessionTracking = useSessionTracking(true) // Enable session tracking on signup page
+
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -70,8 +69,7 @@ export function SignupFormAuth({
   useEffect(() => {
     const ref = searchParams.get('ref')
     if (ref) {
-      setReferralCode(ref)
-      // Store in localStorage so it persists across redirects
+      // Store referral code in sessionStorage so it persists across redirects
       sessionStorage.setItem('referral_code', ref)
       console.log('Referral code captured:', ref)
     }
@@ -103,7 +101,6 @@ export function SignupFormAuth({
       // Import crypto functions
       const { 
         generateAllKeypairs, 
-        hexToUint8Array,
         deriveRecoveryKeyEncryptionKey,
         generateRecoveryKey,
         encryptRecoveryKey,

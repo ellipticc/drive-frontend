@@ -15,7 +15,6 @@ interface AuthGuardProps {
 export function AuthGuard({ children }: AuthGuardProps) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
-  const [isExpired, setIsExpired] = useState(false);
   const pathname = usePathname();
   const hasCheckedAuthRef = useRef(false);
 
@@ -26,13 +25,6 @@ export function AuthGuard({ children }: AuthGuardProps) {
   useLayoutEffect(() => {
     // Initialize session management (synchronous setup doesn't change React state)
     SessionManager.initializeSessionManagement();
-
-    // Check if this is a redirect from token expiry
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('expired') === 'true') {
-      // Defer state update to avoid synchronous setState inside effect
-      requestAnimationFrame(() => setIsExpired(true));
-    }
 
     // Skip if we've already checked auth to prevent infinite loops
     if (hasCheckedAuthRef.current) {

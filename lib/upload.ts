@@ -335,7 +335,7 @@ export async function uploadEncryptedFile(
       throw error;
     }
 
-    // console.error('Upload failed:', error);
+    console.error('Upload failed:', error);
     throw new Error(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
@@ -358,28 +358,7 @@ async function computeFileHash(file: File): Promise<string> {
   }
 }
 
-/**
- * Compute SHA-256 and SHA-512 hashes of entire file
- * DEPRECATED: Only used for legacy compatibility - new files use computeFileHash()
- * Kept for backward compatibility with existing code that might need both hashes
- */
-async function computeFileHashes(file: File): Promise<{ sha256: string; sha512: string }> {
-  try {
-    const arrayBuffer = await file.arrayBuffer();
-    
-    // Compute SHA-256 (for backward compatibility)
-    const sha256Buffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
-    const sha256Hash = uint8ArrayToHex(new Uint8Array(sha256Buffer));
-    
-    // Compute SHA-512 (new standard)
-    const sha512Buffer = await crypto.subtle.digest('SHA-512', arrayBuffer);
-    const sha512Hash = uint8ArrayToHex(new Uint8Array(sha512Buffer));
-    
-    return { sha256: sha256Hash, sha512: sha512Hash };
-  } catch (error) {
-    throw new Error(`Cannot read file "${file.name}": ${error instanceof Error ? error.message : String(error)}. The file may have been deleted or moved.`);
-  }
-}
+
 
 /**
  * Split file into chunks of CHUNK_SIZE
@@ -750,7 +729,7 @@ async function uploadChunksToB2(
       
       if (!response.ok) {
         const errorText = await response.text();
-        // console.error(`Upload failed for chunk ${index}: ${response.status} - ${errorText}`);
+        console.error(`Upload failed for chunk ${index}: ${response.status} - ${errorText}`);
         throw new Error(`Upload failed for chunk ${index}: ${response.status} - ${errorText}`);
       }
 
@@ -777,7 +756,7 @@ async function uploadChunksToB2(
           throw error;
         }
       }
-      // console.error(`Failed to upload chunk ${index}:`, error);
+      console.error(`Failed to upload chunk ${index}:`, error);
       throw error;
     } finally {
       semaphore.release();

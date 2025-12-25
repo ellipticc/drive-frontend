@@ -29,7 +29,6 @@ export function PreviewDownloadManager({ children }: PreviewDownloadManagerProps
     downloadForPreview,
     retryDownload,
     cancelDownload,
-    isDownloading,
     error,
     progress,
     currentFileId,
@@ -67,7 +66,7 @@ export function PreviewDownloadManager({ children }: PreviewDownloadManagerProps
     setProgressModalOpen(true);
   }, [downloadForPreview]);
 
-  const handleDownloadComplete = useCallback((fileId: string, filename: string, fileSize: number) => {
+  const handleDownloadComplete = useCallback(() => {
     // This is called when the progress modal detects completion
     // The actual preview opening is handled in the onComplete callback above
   }, []);

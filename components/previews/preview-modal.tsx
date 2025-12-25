@@ -6,7 +6,7 @@ import { AudioPreview } from './audio-preview';
 import { VideoPreview } from './video-preview';
 import { TextPreview } from './text-preview';
 import { ImagePreview } from './image-preview';
-import { X, Download, Eye } from 'lucide-react';
+import { Download, Eye } from 'lucide-react';
 
 interface FileItem {
   id: string;

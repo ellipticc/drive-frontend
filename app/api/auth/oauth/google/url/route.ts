@@ -4,9 +4,9 @@
  * Returns the Google OAuth authorization URL
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // Use configured backend URL or default to clearnet backend
     const backendUrl = process.env.NEXT_PUBLIC_API_URL ? process.env.NEXT_PUBLIC_API_URL.replace(/\/api\/v1\/?$/,'') : 'https://drive.ellipticc.com';

@@ -239,7 +239,7 @@ const encryptedName = itemDetails?.encrypted_filename || itemDetails?.encryptedF
       document.body.removeChild(link)
       URL.revokeObjectURL(url)
       toast.success("Downloaded verification details")
-    } catch (error) {
+    } catch {
       toast.error("Failed to download verification details")
     }
   }

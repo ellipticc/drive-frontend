@@ -2,7 +2,6 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { toast } from "sonner"
-import { useRouter } from "next/navigation"
 import Image from "next/image"
 import {
   Shield,
@@ -59,7 +58,7 @@ import { useTheme } from "next-themes"
 import { getDiceBearAvatar } from "@/lib/avatar"
 import { useUser } from "@/components/user-context"
 import { getInitials } from "@/components/layout/navigation/nav-user"
-import { useGlobalUpload, UploadResult } from "@/components/global-upload-context"
+import { useGlobalUpload } from "@/components/global-upload-context"
 import { useIsMobile } from "@/hooks/use-mobile"
 
 interface SettingsModalProps {
@@ -273,7 +272,7 @@ export function SettingsModal({
 
   // Register upload completion callback to refresh referral data
   useEffect(() => {
-    const handleUploadComplete = (uploadId: string, result: UploadResult) => {
+    const handleUploadComplete = () => {
       // Refresh referral data when any upload completes
       if (activeTab === "referrals") {
         loadReferralData()
@@ -339,6 +338,7 @@ export function SettingsModal({
           const config = JSON.parse(stored)
           setSessionExpiry(config.sessionExpiry.toString())
         } catch (e) {
+          console.error('Failed to parse stored session config:', e)
           setSessionExpiry('3600')
         }
       }
@@ -497,12 +497,7 @@ export function SettingsModal({
     }
   }
 
-  // Format date for display
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return '-'
-    const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-  }
+
 
   // Format time ago for display
   const formatTimeAgo = (dateString: string | null) => {
@@ -528,6 +523,7 @@ export function SettingsModal({
       toast.success("Referral code copied!")
       setTimeout(() => setCopiedCode(false), 2000)
     } catch (error) {
+      console.error('Failed to copy referral code:', error)
       toast.error("Failed to copy referral code")
     }
   }
@@ -540,6 +536,7 @@ export function SettingsModal({
       toast.success("Referral link copied!")
       setTimeout(() => setCopiedLink(false), 2000)
     } catch (error) {
+      console.error('Failed to copy referral link:', error)
       toast.error("Failed to copy referral link")
     }
   }
@@ -701,6 +698,7 @@ export function SettingsModal({
         toast.error(response.error || "Failed to update display name")
       }
     } catch (error) {
+      console.error('Failed to update display name:', error)
       toast.error("Failed to update display name")
     } finally {
       setIsSavingName(false)
@@ -739,59 +737,7 @@ export function SettingsModal({
   // Check if current avatar is a DiceBear avatar
   const isDiceBearAvatar = user?.avatar && user.avatar.includes('dicebear-api.com')
 
-  // Handle email change - initiate OTP process
-  const handleChangeEmail = async () => {
-    if (!newEmail.trim() || !confirmEmail.trim()) {
-      toast.error("Please enter and confirm your new email")
-      return
-    }
 
-    if (newEmail !== confirmEmail) {
-      toast.error("Email addresses do not match")
-      return
-    }
-
-    if (newEmail === user?.email) {
-      toast.error("New email must be different from current email")
-      return
-    }
-
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(newEmail)) {
-      toast.error("Please enter a valid email address")
-      return
-    }
-
-    setIsChangingEmail(true)
-    try {
-      // Step 1: Initiate email change - sends OTP to new email
-      const response = await apiClient.initiateEmailChange(newEmail.trim())
-
-      if (response.success && response.data?.emailChangeToken) {
-        // Store the token for OTP verification
-        sessionStorage.setItem('emailChangeToken', response.data.emailChangeToken)
-        sessionStorage.setItem('newEmail', newEmail.trim())
-        
-        toast.success("OTP sent to your new email address. Please check your inbox.")
-        
-        // Close the dialog and show OTP verification modal instead
-        setShowEmailModal(false)
-        setShowEmailOTPModal(true)
-        
-        // Reset form
-        setNewEmail("")
-        setConfirmEmail("")
-      } else {
-        toast.error(response.error || "Failed to initiate email change")
-      }
-    } catch (error) {
-      console.error('Email change initiation error:', error)
-      toast.error("Failed to initiate email change")
-    } finally {
-      setIsChangingEmail(false)
-    }
-  }
 
   // Handle email OTP verification
   const handleVerifyEmailOTP = async () => {
@@ -834,61 +780,6 @@ export function SettingsModal({
     }
   }
 
-  // Handle password change with OPAQUE
-  const handleChangePassword = async () => {
-    if (!newPassword || !confirmPassword) {
-      toast.error("All password fields are required")
-      return
-    }
-
-    if (newPassword !== confirmPassword) {
-      toast.error("New passwords do not match")
-      return
-    }
-
-    if (newPassword.length < 8) {
-      toast.error("New password must be at least 8 characters long")
-      return
-    }
-
-    setIsChangingPassword(true)
-    try {
-      const { OPAQUERegistration } = await import("@/lib/opaque")
-      
-      // OPAQUE Step 1: Client creates registration request
-      const opaqueReg = new OPAQUERegistration()
-      const regStep1 = await opaqueReg.step1(newPassword)
-      
-      // OPAQUE Step 2: Server creates registration response
-      const regStep2 = await opaqueReg.step2(user?.email || "", regStep1.registrationRequest)
-      
-      // OPAQUE Step 3: Client finalizes registration
-      const regStep3 = await opaqueReg.step3(regStep2.registrationResponse)
-      
-      // Step 4: Send new OPAQUE password file to backend
-      const response = await apiClient.changePassword({
-        newOpaquePasswordFile: regStep3.registrationRecord
-      })
-
-      if (response.success) {
-        toast.success("Password changed successfully!")
-        
-        // Reset form
-        setCurrentPassword("")
-        setNewPassword("")
-        setConfirmPassword("")
-        setShowPasswordModal(false)
-      } else {
-        toast.error(response.error || "Failed to change password")
-      }
-    } catch (error) {
-      console.error('Password change error:', error)
-      toast.error("Failed to change password")
-    } finally {
-      setIsChangingPassword(false)
-    }
-  }
-
   // Complete logout with full cleanup
   const completeLogout = async () => {
     try {
@@ -924,6 +815,7 @@ export function SettingsModal({
       // Redirect to login page immediately
       window.location.href = '/login'
     } catch (error) {
+      console.error('Logout error:', error)
       toast.error("Failed to logout")
     } finally {
       setIsLoggingOut(false)
@@ -959,6 +851,7 @@ export function SettingsModal({
         toast.error(data.error || "Failed to delete account")
       }
     } catch (error) {
+      console.error('Delete account error:', error)
       toast.error("Failed to delete account")
     } finally {
       setIsDeletingAccount(false)
@@ -1013,6 +906,7 @@ export function SettingsModal({
         toast.error("Invalid TOTP token")
       }
     } catch (error) {
+      console.error('TOTP verification error:', error)
       toast.error("Failed to verify TOTP token")
     } finally {
       setIsVerifyingTOTP(false)
@@ -1051,6 +945,7 @@ export function SettingsModal({
         toast.error(response.error || "Failed to disable TOTP")
       }
     } catch (error) {
+      console.error('Disable TOTP error:', error)
       toast.error("Failed to disable TOTP")
     } finally {
       setIsDisablingTOTP(false)
@@ -2180,6 +2075,7 @@ export function SettingsModal({
                       toast.error(response.error || "Failed to update email")
                     }
                   } catch (error) {
+                    console.error('Update email error:', error)
                     toast.error("Failed to update email")
                   } finally {
                     setIsChangingEmail(false)
@@ -2274,6 +2170,7 @@ export function SettingsModal({
                     setConfirmPassword("")
                     setShowPasswordModal(false)
                   } catch (error) {
+                    console.error('Password change modal error:', error)
                     toast.error("Failed to change password")
                   } finally {
                     setIsChangingPassword(false)

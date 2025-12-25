@@ -1,13 +1,13 @@
 "use client";
 
-import { useMemo, useState, useRef, useEffect } from "react";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useMemo, useState, useEffect } from "react";
+
 import { DotsVertical } from "@untitledui/icons";
 import type { SortDescriptor } from "react-aria-components";
-import type { Selection } from "react-aria-components";
-import { Table, TableCard, TableRowActionsDropdown } from "@/components/application/table/table";
+
+import { Table, TableCard } from "@/components/application/table/table";
 import { Button } from "@/components/ui/button";
-import { IconShare3, IconListDetails, IconDownload, IconEdit, IconInfoCircle, IconTrash, IconFile, IconFolder, IconHome, IconChevronRight, IconLoader2, IconX, IconGrid3x3 } from "@tabler/icons-react";
+import { IconShare3, IconListDetails, IconDownload, IconInfoCircle, IconFile, IconFolder, IconLoader2, IconX, IconGrid3x3 } from "@tabler/icons-react";
 import { ShareModal } from "@/components/modals/share-modal";
 import { DetailsModal } from "@/components/modals/details-modal";
 import { RenameModal } from "@/components/modals/rename-modal";
@@ -19,7 +19,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
-import { downloadEncryptedFileWithCEK, downloadEncryptedFile } from '@/lib/download';
+import { downloadEncryptedFile } from '@/lib/download';
 import { apiClient, ShareItem } from "@/lib/api";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -31,9 +31,6 @@ import { useIsMobile } from "@/hooks/use-mobile";
 
 
 export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
-    const router = useRouter();
-    const pathname = usePathname();
-    const searchParams = useSearchParams();
     const isMobile = useIsMobile();
 
     const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({
@@ -138,13 +135,13 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                 setShares(sharesWithDecryptedNames);
             } else {
                 const errorMessage = response.error || 'Failed to load shares';
-                // console.error(`Failed to load shares: ${errorMessage}`);
+                console.error(`Failed to load shares: ${errorMessage}`);
                 setError(errorMessage);
             }
         } catch (err) {
-            // console.error('Error refreshing shares:', err);
+            console.error('Error refreshing shares:', err);
             const errorMessage = err instanceof Error ? err.message : 'Failed to load shares';
-            // console.error(`Exception loading shares: ${errorMessage}`);
+            console.error(`Exception loading shares: ${errorMessage}`);
             setError(errorMessage);
         } finally {
             setIsLoading(false);
@@ -173,15 +170,12 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                 toast.error(`Failed to load ${itemType} details`);
             }
         } catch (error) {
-            // console.error('Details error:', error);
+            console.error('Details error:', error);
             toast.error(`Failed to load ${itemType} details`);
         }
     };
 
-    const handleRenameClick = (itemId: string, itemName: string, itemType: "file" | "folder") => {
-        setSelectedItemForRename({ id: itemId, name: itemName, type: itemType });
-        setRenameModalOpen(true);
-    };
+
 
     const handleViewModeChange = (newViewMode: 'table' | 'grid') => {
         setViewMode(newViewMode);
@@ -194,7 +188,7 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
         setShareModalOpen(true);
     };
 
-    const handleDownloadClick = async (shareId: string, fileId: string, fileName: string) => {
+    const handleDownloadClick = async (shareId: string, fileId: string) => {
         try {
             // For owner's shares, download using owner's keys (not share CEK)
             // The share CEK is only in the URL fragment for recipients
@@ -213,7 +207,7 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
             toast.success('Download completed successfully');
 
         } catch (error) {
-            // console.error('Download error:', error);
+            console.error('Download error:', error);
             toast.error('Download failed');
         }
     };
@@ -228,19 +222,13 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                 toast.error('Failed to revoke share');
             }
         } catch (error) {
-            // console.error('Revoke share error:', error);
+            console.error('Revoke share error:', error);
             toast.error('Failed to revoke share');
         }
     };
 
     // Format file size
-    const formatFileSize = (bytes: number): string => {
-        if (bytes === 0) return '0 B';
-        const k = 1024;
-        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-    };
+
 
     // Format date
     const formatDate = (dateString: string): string => {
@@ -267,8 +255,7 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
 
     const sortedItems = useMemo(() => {
         return shares.sort((a, b) => {
-            const first = a[sortDescriptor.column as keyof ShareItem];
-            const second = b[sortDescriptor.column as keyof ShareItem];
+
 
             if (sortDescriptor.column === 'createdAt') {
                 const firstDate = new Date(a.createdAt).getTime();
@@ -348,7 +335,7 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
 
                     successCount++;
                 } catch (error) {
-                    // console.error(`Failed to download ${share.fileName}:`, error);
+                    console.error(`Failed to download ${share.fileName}:`, error);
                     errorCount++;
                 }
             }
@@ -363,7 +350,7 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
             // Clear selection after bulk operation
             setSelectedItems(new Set());
         } catch (error) {
-            // console.error('Bulk download error:', error);
+            console.error('Bulk download error:', error);
             toast.error('Bulk download failed');
         }
     };
@@ -389,7 +376,7 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
             // Clear selection after bulk operation
             setSelectedItems(new Set());
         } catch (error) {
-            // console.error('Bulk revoke error:', error);
+            console.error('Bulk revoke error:', error);
             toast.error('Bulk revoke failed');
         }
     };
@@ -781,7 +768,7 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                             }
                         }
                     } catch (error) {
-                        // console.error('Rename error:', error);
+                        console.error('Rename error:', error);
                         toast.error(`Failed to rename ${selectedItemForRename.type}`);
                         setRenameModalOpen(false);
                         setSelectedItemForRename(null);

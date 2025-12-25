@@ -140,6 +140,7 @@ export function TOTPLoginForm({
               try {
                 await keyManager.initialize(userData)
               } catch (retryError) {
+                console.error('Retry initialization error:', retryError)
                 setError("Failed to initialize key management system. Please try logging out and back in.")
                 return
               }

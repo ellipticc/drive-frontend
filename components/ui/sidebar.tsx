@@ -26,7 +26,6 @@ import {
 } from "@/components/ui/tooltip"
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state"
-const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
 const SIDEBAR_WIDTH = "16rem"
 const SIDEBAR_WIDTH_MOBILE = "18rem"
 const SIDEBAR_WIDTH_ICON = "3rem"
@@ -78,7 +77,7 @@ function SidebarProvider({
         return stored !== null ? stored === 'true' : defaultOpen
       }
     } catch (error) {
-      // console.warn('Failed to read sidebar state from localStorage:', error)
+      console.warn('Failed to read sidebar state from localStorage:', error)
     }
     return defaultOpen
   }, [defaultOpen])
@@ -100,7 +99,7 @@ function SidebarProvider({
       try {
         localStorage.setItem(SIDEBAR_COOKIE_NAME, openState.toString())
       } catch (error) {
-        // console.warn('Failed to save sidebar state to localStorage:', error)
+        console.warn('Failed to save sidebar state to localStorage:', error)
       }
     },
     [setOpenProp, open]

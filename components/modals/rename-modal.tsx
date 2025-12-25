@@ -113,8 +113,7 @@ export function RenameModal({
           toast.error("Encryption format not supported. Please update your account.")
         }
       }
-    } catch (error) {
-      // console.error("Failed to fetch user data:", error)
+    } catch {
       setUserDataLoaded(true)
       toast.error("Failed to load user data")
     }
@@ -198,8 +197,7 @@ export function RenameModal({
       }
 
       setOpen(false)
-    } catch (error) {
-      // console.error("Failed to rename item:", error)
+    } catch {
       toast.error("Failed to rename item. Please try again.")
     } finally {
       setIsLoading(false)

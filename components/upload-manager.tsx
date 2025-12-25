@@ -3,11 +3,8 @@
  * Provides actual upload interruption capabilities with AbortController support
  */
 
-import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { uploadEncryptedFile, UploadProgress, UserKeys } from '@/lib/upload';
+import { uploadEncryptedFile, UploadProgress, UserKeys, UploadResult } from '@/lib/upload';
 import { keyManager } from '@/lib/key-manager';
-import { FileItem } from '@/lib/api';
-import { CreatedFolder } from '@/lib/folder-upload-utils';
 
 interface UploadError extends Error {
   conflictInfo?: ConflictInfo;

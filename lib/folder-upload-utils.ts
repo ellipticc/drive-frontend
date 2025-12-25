@@ -7,7 +7,6 @@
 import { apiClient } from './api';
 import { createSignedFolderManifest } from './crypto';
 import { keyManager } from './key-manager';
-import { masterKeyManager } from './master-key';
 
 export interface FolderStructure {
   [folderPath: string]: File[];

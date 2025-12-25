@@ -21,7 +21,6 @@ interface NotificationStats {
 export function useNotifications() {
   const [stats, setStats] = useState<NotificationStats>({ total: 0, unread: 0 })
   const [loading, setLoading] = useState(false)
-  const [hasFetched, setHasFetched] = useState(false)
   const hasInitiatedFetch = useRef(false)
   const loginEventReceived = useRef(false)
 
@@ -39,7 +38,6 @@ export function useNotifications() {
       if (response.success && response.data) {
         const unreadCount = response.data.notifications.filter((n: Notification) => !n.read_at).length
         setStats({ total: response.data.notifications.length, unread: unreadCount })
-        setHasFetched(true)
       }
     } catch (error) {
       console.error('Failed to fetch notification stats:', error)

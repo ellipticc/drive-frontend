@@ -23,7 +23,6 @@ import {
   IconFile,
   IconUpload,
   IconDownload,
-  IconMinus,
   IconMaximize,
   IconPlayerPause,
   IconPlayerPlay,
@@ -93,7 +92,7 @@ export function UnifiedProgressModal({
   const isMobile = useIsMobile();
   const [isMinimized, setIsMinimized] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
-  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [, setExpandedItems] = useState<Set<string>>(new Set());
   const downloadStartTimeRef = useRef<number | null>(null);
 
   // Auto-expand failed uploads
@@ -117,17 +116,7 @@ export function UnifiedProgressModal({
     }
   }, [downloadProgress?.stage, onDownloadComplete, downloadFilename, downloadFileId, downloadFileSize]);
 
-  const toggleExpanded = (itemId: string) => {
-    setExpandedItems(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(itemId)) {
-        newSet.delete(itemId);
-      } else {
-        newSet.add(itemId);
-      }
-      return newSet;
-    });
-  };
+
 
   const handleCloseAttempt = () => {
     const hasActiveUploads = uploads.some(u =>
@@ -274,7 +263,7 @@ export function UnifiedProgressModal({
   const pausedUploads = uploads.filter(u => u.status === 'paused').length;
 
   const allUploadsCompleted = uploads.length > 0 && uploads.every(u => u.status === 'completed' || u.status === 'cancelled');
-  const hasUploadFailures = failedUploads > 0;
+
   const hasActiveUploads = uploadingCount > 0 || pausedUploads > 0;
   const hasActiveDownload = downloadProgress && downloadProgress.stage !== 'complete' && !downloadError;
   const downloadCompleted = downloadProgress?.stage === 'complete';

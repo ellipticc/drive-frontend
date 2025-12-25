@@ -175,7 +175,7 @@ export function SharePickerModal({ open, onOpenChange, onFileSelected }: SharePi
         toast.error(`Failed to load files: ${response.error}`)
       }
     } catch (error) {
-      // console.error("Failed to fetch folders and files:", error)
+      console.error("Failed to fetch folders and files:", error)
       toast.error("Failed to load files")
     } finally {
       setIsLoadingFolders(false)
@@ -282,7 +282,7 @@ export function SharePickerModal({ open, onOpenChange, onFileSelected }: SharePi
             }))
           }
         } catch (error) {
-          // console.error('Failed to load subfolders:', error)
+          console.error('Failed to load subfolders:', error)
           // Mark as explored and expand anyway
           setFolders(prev => updateFolderInTree(prev, folder.id, {
             isExpanded: true,
@@ -420,7 +420,7 @@ export function SharePickerModal({ open, onOpenChange, onFileSelected }: SharePi
       onFileSelected(selectedItem.id, selectedItem.name, selectedItem.type)
       onOpenChange(false)
     } catch (error) {
-      // console.error("Failed to select item for sharing:", error)
+      console.error("Failed to select item for sharing:", error)
       toast.error("Failed to select item")
     } finally {
       setIsLoading(false)
