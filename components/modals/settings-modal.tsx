@@ -192,6 +192,7 @@ export function SettingsModal({
   const [showEmailOTPModal, setShowEmailOTPModal] = useState(false)
   const [emailOTPCode, setEmailOTPCode] = useState("")
   const [isVerifyingEmailOTP, setIsVerifyingEmailOTP] = useState(false)
+  const [isResendingEmailOTP, setIsResendingEmailOTP] = useState(false)
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
@@ -757,18 +758,21 @@ export function SettingsModal({
       const response = await apiClient.verifyEmailChange(emailChangeToken, emailOTPCode.trim())
 
       if (response.success) {
-        toast.success("Email changed successfully!")
+        toast.success("Email changed successfully! Please log in again with your new email address.")
         
         // Clear session storage
         sessionStorage.removeItem('emailChangeToken')
         sessionStorage.removeItem('newEmail')
         
-        // Refetch user data to update email
-        await refetch()
-        
         // Close OTP modal
         setShowEmailOTPModal(false)
         setEmailOTPCode("")
+        
+        // Log out the user to force re-login with new email
+        await completeLogout()
+        
+        // Redirect to login page
+        window.location.href = '/login'
       } else {
         toast.error(response.error || "Invalid OTP code")
       }
@@ -777,6 +781,35 @@ export function SettingsModal({
       toast.error("Failed to verify OTP")
     } finally {
       setIsVerifyingEmailOTP(false)
+    }
+  }
+
+  // Handle resend email OTP
+  const handleResendEmailOTP = async () => {
+    const newEmail = sessionStorage.getItem('newEmail')
+    if (!newEmail) {
+      toast.error("Email change session expired. Please try again.")
+      return
+    }
+
+    setIsResendingEmailOTP(true)
+    try {
+      const response = await apiClient.initiateEmailChange(newEmail)
+      if (response.success) {
+        const emailChangeToken = response.data?.emailChangeToken
+        if (emailChangeToken) {
+          sessionStorage.setItem('emailChangeToken', emailChangeToken)
+        }
+        toast.success("OTP code resent to your new email address")
+        setEmailOTPCode("")
+      } else {
+        toast.error(response.error || "Failed to resend OTP")
+      }
+    } catch (error) {
+      console.error('Resend email OTP error:', error)
+      toast.error("Failed to resend OTP")
+    } finally {
+      setIsResendingEmailOTP(false)
     }
   }
 
@@ -2000,7 +2033,7 @@ export function SettingsModal({
             <DialogHeader>
               <DialogTitle>Change Email Address</DialogTitle>
               <DialogDescription>
-                Update your email address. You&apos;ll need to verify the new email.
+                Update your email address. You&apos;ll need to verify with your password and confirm the new email via OTP.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
@@ -2012,6 +2045,7 @@ export function SettingsModal({
                   value={newEmail}
                   onChange={(e) => setNewEmail(e.target.value)}
                   placeholder="Enter your new email address"
+                  disabled={isChangingEmail}
                 />
               </div>
               <div>
@@ -2022,6 +2056,7 @@ export function SettingsModal({
                   value={confirmEmail}
                   onChange={(e) => setConfirmEmail(e.target.value)}
                   placeholder="Confirm your new email address"
+                  disabled={isChangingEmail}
                 />
               </div>
               <div>
@@ -2030,8 +2065,12 @@ export function SettingsModal({
                   id="modal-email-password"
                   value={emailPassword}
                   onChange={(e) => setEmailPassword(e.target.value)}
-                  placeholder="Enter your current password"
+                  placeholder="Enter your current password to verify"
+                  disabled={isChangingEmail}
                 />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Your password will be validated client-side only
+                </p>
               </div>
             </div>
             <DialogFooter>
@@ -2040,7 +2079,7 @@ export function SettingsModal({
                 setNewEmail("")
                 setConfirmEmail("")
                 setEmailPassword("")
-              }}>
+              }} disabled={isChangingEmail}>
                 Cancel
               </Button>
               <Button
@@ -2060,23 +2099,63 @@ export function SettingsModal({
 
                   setIsChangingEmail(true)
                   try {
-                    const response = await apiClient.updateUserProfile({
-                      email: newEmail.trim()
-                    })
-
-                    if (response.success) {
-                      setShowEmailModal(false)
-                      setNewEmail("")
-                      setConfirmEmail("")
-                      setEmailPassword("")
-                      await refetch()
-                      toast.success("Email successfully updated.")
-                    } else {
-                      toast.error(response.error || "Failed to update email")
+                    // Step 1: Validate password client-side using OPAQUE
+                    // We'll try to complete a login flow to verify the password is correct
+                    const { OPAQUELogin } = await import("@/lib/opaque")
+                    const passwordVerifier = new OPAQUELogin()
+                    
+                    try {
+                      // Start the login process to validate password
+                      const { startLoginRequest } = await passwordVerifier.step1(emailPassword.trim())
+                      // Get the login response from server
+                      const { loginResponse, sessionId } = await passwordVerifier.step2(user?.email || "", startLoginRequest)
+                      // Finish login locally to verify password
+                      const result = await passwordVerifier.step3(loginResponse)
+                      
+                      if (!result) {
+                        toast.error("Invalid password")
+                        setIsChangingEmail(false)
+                        return
+                      }
+                      
+                      console.log("✅ Password validated successfully")
+                    } catch (passwordError: unknown) {
+                      const errorMsg = passwordError instanceof Error ? passwordError.message : "Password validation failed"
+                      console.error('Password validation error:', errorMsg)
+                      toast.error("Invalid password. Please try again.")
+                      setIsChangingEmail(false)
+                      return
                     }
+
+                    // Step 2: Password is valid, now initiate email change (send OTP)
+                    const initiateResponse = await apiClient.initiateEmailChange(newEmail.trim())
+                    
+                    if (!initiateResponse.success) {
+                      toast.error(initiateResponse.error || "Failed to initiate email change")
+                      setIsChangingEmail(false)
+                      return
+                    }
+
+                    // Step 3: Store the email change token and new email for OTP verification
+                    const emailChangeToken = initiateResponse.data?.emailChangeToken
+                    if (emailChangeToken) {
+                      sessionStorage.setItem('emailChangeToken', emailChangeToken)
+                      sessionStorage.setItem('newEmail', newEmail.trim())
+                    }
+
+                    toast.success("OTP sent to your new email address")
+                    
+                    // Clear the form and open OTP verification modal
+                    setShowEmailModal(false)
+                    setNewEmail("")
+                    setConfirmEmail("")
+                    setEmailPassword("")
+                    setEmailOTPCode("")
+                    setShowEmailOTPModal(true)
+
                   } catch (error) {
-                    console.error('Update email error:', error)
-                    toast.error("Failed to update email")
+                    console.error('Email change error:', error)
+                    toast.error("Failed to initiate email change")
                   } finally {
                     setIsChangingEmail(false)
                   }
@@ -2086,93 +2165,135 @@ export function SettingsModal({
                 {isChangingEmail ? (
                   <>
                     <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
-                    Updating...
+                    Validating...
                   </>
                 ) : (
-                  "Update Email"
+                  "Continue"
                 )}
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
 
-        {/* Password Change Modal */}
-        <Dialog open={showPasswordModal} onOpenChange={setShowPasswordModal}>
+        {/* Email Change OTP Verification Modal */}
+        <Dialog open={showEmailOTPModal} onOpenChange={setShowEmailOTPModal}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Change Password</DialogTitle>
+              <DialogTitle>Verify New Email</DialogTitle>
               <DialogDescription>
-                Update your password. Make sure it&apos;s strong and secure.
+                Enter the verification code sent to your new email address
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <Label htmlFor="modal-current-password">Current Password</Label>
-                <PasswordInput
-                  id="modal-current-password"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  placeholder="Enter your current password"
+                <Label htmlFor="email-otp-code">Verification Code</Label>
+                <Input
+                  id="email-otp-code"
+                  type="text"
+                  value={emailOTPCode}
+                  onChange={(e) => setEmailOTPCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="Enter 6-digit code"
+                  maxLength={6}
+                  disabled={isVerifyingEmailOTP || isResendingEmailOTP}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && emailOTPCode.length === 6) {
+                      handleVerifyEmailOTP()
+                    }
+                  }}
                 />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Check your new email for the verification code
+                </p>
               </div>
-              <div>
-                <Label htmlFor="modal-new-password">New Password</Label>
-                <PasswordInput
-                  id="modal-new-password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Enter your new password"
-                />
-              </div>
-              <div>
-                <Label htmlFor="modal-confirm-password">Confirm New Password</Label>
-                <PasswordInput
-                  id="modal-confirm-password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Confirm your new password"
-                />
-              </div>
+              <Button 
+                variant="ghost" 
+                className="w-full text-xs" 
+                onClick={handleResendEmailOTP}
+                disabled={isResendingEmailOTP || isVerifyingEmailOTP}
+              >
+                {isResendingEmailOTP ? (
+                  <>
+                    <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
+                    Resending...
+                  </>
+                ) : (
+                  "Resend Code"
+                )}
+              </Button>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => {
-                setShowPasswordModal(false)
-                setCurrentPassword("")
-                setNewPassword("")
-                setConfirmPassword("")
-              }}>
+                setShowEmailOTPModal(false)
+                setEmailOTPCode("")
+              }} disabled={isVerifyingEmailOTP || isResendingEmailOTP}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleVerifyEmailOTP}
+                disabled={isVerifyingEmailOTP || isResendingEmailOTP || emailOTPCode.length !== 6}
+              >
+                {isVerifyingEmailOTP ? (
+                  <>
+                    <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
+                    Verifying...
+                  </>
+                ) : (
+                  "Verify Email"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Password Change Modal - Now just shows explanation and options */}
+        <Dialog open={showPasswordModal} onOpenChange={setShowPasswordModal}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Password Reset Required</DialogTitle>
+              <DialogDescription>
+                Password changes require your mnemonic backup
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="p-4 bg-muted/50 border border-border rounded-lg">
+                <h3 className="font-medium text-foreground mb-2">
+                  Account Recovery System
+                </h3>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Password changes are secured with your mnemonic backup from registration. To reset your password, visit the dedicated reset page.
+                </p>
+                <div className="bg-background border border-border rounded p-3 text-xs text-foreground space-y-2 mb-3">
+                  <p><strong>If you have your mnemonic:</strong></p>
+                  <p>✓ Proceed to reset page and use your backup to change your password</p>
+                  <p className="pt-2"><strong>If you lost your mnemonic:</strong></p>
+                  <p>✗ Unfortunately, you cannot reset your password directly</p>
+                  <p>✗ You must create a new account and manually migrate your data</p>
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button 
+                variant="outline" 
+                onClick={() => setShowPasswordModal(false)}
+              >
                 Cancel
               </Button>
               <Button
                 onClick={async () => {
-                  if (!currentPassword || !newPassword || !confirmPassword) {
-                    toast.error("All fields are required")
-                    return
-                  }
-                  if (newPassword !== confirmPassword) {
-                    toast.error("New passwords do not match")
-                    return
-                  }
-                  if (newPassword.length < 8) {
-                    toast.error("New password must be at least 8 characters long")
-                    return
-                  }
-
                   setIsChangingPassword(true)
                   try {
-                    // For OPAQUE, password change is more complex and requires client-side OPAQUE operations
-                    // This is a placeholder - the actual implementation would need to integrate with OPAQUE
-                    toast.error("Password change requires OPAQUE protocol integration. Please use account recovery instead.")
-
                     // Reset form
                     setCurrentPassword("")
                     setNewPassword("")
                     setConfirmPassword("")
                     setShowPasswordModal(false)
+                    
+                    // Log out and redirect to reset page
+                    await completeLogout()
+                    window.location.href = '/reset'
                   } catch (error) {
-                    console.error('Password change modal error:', error)
-                    toast.error("Failed to change password")
-                  } finally {
+                    console.error('Password reset redirect error:', error)
+                    toast.error("Failed to redirect to password reset page")
                     setIsChangingPassword(false)
                   }
                 }}
@@ -2181,10 +2302,10 @@ export function SettingsModal({
                 {isChangingPassword ? (
                   <>
                     <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
-                    Changing...
+                    Redirecting...
                   </>
                 ) : (
-                  "Change Password"
+                  "Go to Reset Page"
                 )}
               </Button>
             </DialogFooter>
