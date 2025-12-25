@@ -1,7 +1,6 @@
-import { getApiBaseUrl } from './tor-detection';
 import { generateIdempotencyKey, addIdempotencyKey, generateIdempotencyKeyForCreate } from './idempotency';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || getApiBaseUrl();
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://drive.ellipticc.com/api/v1';
 
 export interface UserData {
   id: string;
@@ -444,13 +443,8 @@ class ApiClient {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
-    // Build the request URL, handling proxy paths for TOR
-    // /api/proxy + /auth/login -> /api/proxy/v1/auth/login
-    let requestUrl = `${this.baseURL}${endpoint}`;
-    if (this.baseURL === '/api/proxy') {
-      // Using TOR proxy: construct full path including /v1/
-      requestUrl = `/api/proxy/v1${endpoint}`;
-    }
+    // Build the request URL
+    const requestUrl = `${this.baseURL}${endpoint}`;
 
     // Extract headers separately to avoid them being overwritten by ...options spread
     const { headers: optionHeaders, ...otherOptions } = options;
@@ -463,7 +457,7 @@ class ApiClient {
         ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
         ...optionHeaders,  // Spread headers from options
       },
-      credentials: 'include', // Essential for CORS with TOR and cross-origin requests
+      credentials: 'include', // Essential for CORS and credentialed requests
       ...otherOptions,  // Spread other options WITHOUT headers
     };
 
