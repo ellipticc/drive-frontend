@@ -1,5 +1,6 @@
 import { IconCaretLeftRightFilled } from "@tabler/icons-react"
 import type { Metadata } from "next"
+import Image from "next/image"
 
 import { ThemeToggle } from "@/components/theme-toggle"
 import { LoginFormAuth } from "@/components/auth/login-form-auth"
@@ -13,10 +14,11 @@ export default function LoginPage() {
     <div className="grid h-svh lg:grid-cols-[45fr_55fr] overflow-hidden">
       {/* Image on left side */}
       <div className="bg-muted relative hidden lg:block overflow-hidden">
-        <img
+        <Image
           src="/login.png"
           alt="Image"
-          className="absolute inset-0 h-full w-full object-cover"
+          fill
+          className="object-cover"
         />
       </div>
       {/* Form on right side */}

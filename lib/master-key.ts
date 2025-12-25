@@ -60,7 +60,7 @@ class MasterKeyManager {
       targetStorage.setItem(MasterKeyManager.MASTER_KEY_STORAGE_KEY, masterKeyBase64);
       targetStorage.setItem(MasterKeyManager.ACCOUNT_SALT_STORAGE_KEY, accountSalt);
 
-    } catch (error) {
+    } catch {
       // console.error('Failed to cache existing master key:', error);
       throw new Error('Failed to cache master key');
     }
@@ -84,7 +84,7 @@ class MasterKeyManager {
         bytes[i] = binaryString.charCodeAt(i);
       }
       return bytes;
-    } catch (error) {
+    } catch {
       // console.error('Failed to decode master key from storage:', error);
       throw new Error('Invalid master key in cache. Please login again.');
     }
@@ -171,7 +171,7 @@ class MasterKeyManager {
       
       // Cache the derived master key
       this.cacheExistingMasterKey(masterKey, accountSalt);
-    } catch (error) {
+    } catch {
       // console.error('Failed to derive and cache master key:', error);
       throw new Error('Failed to derive master key from password');
     }

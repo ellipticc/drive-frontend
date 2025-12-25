@@ -382,16 +382,6 @@ async function computeFileHashes(file: File): Promise<{ sha256: string; sha512: 
 }
 
 /**
- * Compute SHA-256 hash of entire file
- * DEPRECATED: Only used for legacy compatibility - new files use computeFileHash() for SHA-512
- * Kept for backward compatibility with existing code
- */
-async function computeFileSHA256(file: File): Promise<string> {
-  const { sha256 } = await computeFileHashes(file);
-  return sha256;
-}
-
-/**
  * Split file into chunks of CHUNK_SIZE
  * Includes retry logic for transient file access errors
  */
@@ -405,7 +395,7 @@ async function splitFileIntoChunks(file: File): Promise<Uint8Array[]> {
   try {
     const testChunk = file.slice(0, Math.min(1024, fileSize));
     await testChunk.arrayBuffer();
-  } catch (error) {
+  } catch {
     throw new Error(`File "${file.name}" is no longer accessible. It may have been deleted or moved during upload.`);
   }
 
@@ -827,10 +817,8 @@ async function confirmChunkUploads(
     throw new Error('Failed to confirm chunk uploads');
   }
 
-  const { confirmedChunks, failedChunks, totalChunks } = response.data;
-
-  if (failedChunks > 0) {
-    throw new Error(`${failedChunks} chunks failed confirmation`);
+  if (response.data.failedChunks > 0) {
+    throw new Error(`${response.data.failedChunks} chunks failed confirmation`);
   }
 }
 async function finalizeUpload(

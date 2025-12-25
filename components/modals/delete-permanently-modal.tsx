@@ -59,7 +59,7 @@ export function DeletePermanentlyModal({ children, itemId = "", itemName = "item
       } else {
         toast.error(`Failed to delete ${itemType}`)
       }
-    } catch (error) {
+    } catch {
       // console.error("Failed to delete item permanently:", error)
       toast.error(`Failed to delete ${itemType}`)
     } finally {

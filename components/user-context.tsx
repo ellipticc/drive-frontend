@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { apiClient } from "@/lib/api";
 import { keyManager } from "@/lib/key-manager";
@@ -77,15 +77,6 @@ const getUserDataFromCache = (): UserData | null => {
   }
 };
 
-const clearUserDataCache = () => {
-  try {
-    localStorage.removeItem(USER_DATA_KEY);
-    localStorage.removeItem(USER_DATA_TIMESTAMP_KEY);
-  } catch (error) {
-    console.warn('Failed to clear user data cache:', error);
-  }
-};
-
 export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -97,38 +88,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const skipFetchRoutes = ['/login', '/signup', '/otp', '/recover', '/backup', '/totp', '/totp/recovery', '/auth/oauth/callback'];
   const shouldSkipFetch = skipFetchRoutes.includes(pathname) || pathname.startsWith('/s/');
 
-  const fetchUser = async (forceRefresh = false) => {
-    // Skip fetching for public/auth routes
-    if (shouldSkipFetch) {
-      setLoading(false);
-      return;
-    }
-
-    // If we already have data and don't need to force refresh, use cached data
-    if (!forceRefresh && hasFetched && user !== null) {
-      setLoading(false);
-      return;
-    }
-
-    // Try to load from cache first (unless forcing refresh)
-    if (!forceRefresh) {
-      const cachedUser = getUserDataFromCache();
-      if (cachedUser) {
-        console.log('UserProvider: Loaded user data from cache');
-        setUser(cachedUser);
-        setLoading(false);
-        setHasFetched(true);
-        // Still fetch fresh data in background for next time
-        fetchFreshUserData();
-        return;
-      }
-    }
-
-    // Fetch fresh data
-    await fetchFreshUserData();
-  };
-
-  const fetchFreshUserData = async () => {
+  const fetchFreshUserData = useCallback(async () => {
     // Skip for public/auth routes
     if (shouldSkipFetch) {
       setLoading(false);
@@ -201,12 +161,43 @@ export function UserProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [shouldSkipFetch]);
+
+  const fetchUser = useCallback(async (forceRefresh = false) => {
+    // Skip fetching for public/auth routes
+    if (shouldSkipFetch) {
+      setLoading(false);
+      return;
+    }
+
+    // If we already have data and don't need to force refresh, use cached data
+    if (!forceRefresh && hasFetched && user !== null) {
+      setLoading(false);
+      return;
+    }
+
+    // Try to load from cache first (unless forcing refresh)
+    if (!forceRefresh) {
+      const cachedUser = getUserDataFromCache();
+      if (cachedUser) {
+        console.log('UserProvider: Loaded user data from cache');
+        setUser(cachedUser);
+        setLoading(false);
+        setHasFetched(true);
+        // Still fetch fresh data in background for next time
+        fetchFreshUserData();
+        return;
+      }
+    }
+
+    // Fetch fresh data
+    await fetchFreshUserData();
+  }, [shouldSkipFetch, hasFetched, user, fetchFreshUserData]);
 
   // Fetch user on mount
   useEffect(() => {
     fetchUser();
-  }, [shouldSkipFetch]);
+  }, [fetchUser]);
 
   const refetch = async () => {
     setHasFetched(false);
@@ -256,7 +247,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
     window.addEventListener('user-login', handleLogin);
     return () => window.removeEventListener('user-login', handleLogin);
-  }, []);
+  }, [fetchUser]);
 
   return (
     <UserContext.Provider value={{ user, loading, error, refetch, updateStorage }}>

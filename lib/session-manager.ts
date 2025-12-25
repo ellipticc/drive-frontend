@@ -199,7 +199,7 @@ export class SessionManager {
     if (stored) {
       try {
         return JSON.parse(stored);
-      } catch (e) {
+      } catch {
         // Fall back to defaults if parsing fails
       }
     }
@@ -229,7 +229,7 @@ export class SessionManager {
       const payload = parts[1];
       const decodedPayload = atob(payload);
       return JSON.parse(decodedPayload);
-    } catch (error) {
+    } catch {
       return null;
     }
   }
@@ -247,7 +247,7 @@ export class SessionManager {
 
       const now = Math.floor(Date.now() / 1000);
       return Math.max(0, payload.exp - now);
-    } catch (error) {
+    } catch {
       return null;
     }
   }

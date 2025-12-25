@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button"
 import { Loader2, AlertCircle } from "lucide-react"
-import { useRouter } from 'next/navigation';
 import { apiClient } from '@/lib/api';
 
 /**
@@ -11,7 +10,6 @@ import { apiClient } from '@/lib/api';
  * Initiates the Google OAuth flow
  */
 export function GoogleOAuthButton({ context = 'login' }: { context?: 'login' | 'register' }) {
-  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 

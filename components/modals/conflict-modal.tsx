@@ -95,7 +95,7 @@ export function ConflictModal({ isOpen, onClose, conflicts, onResolve, operation
         </DialogHeader>
 
         <div className="space-y-4">
-          {conflicts.map((conflict, index) => (
+          {conflicts.map((conflict) => (
             <div key={conflict.id} className="border rounded-lg p-4 space-y-3 bg-muted/30">
               <div className="flex items-center gap-2">
                 {conflict.type === 'file' ? <IconFile className="h-4 w-4" /> : <IconFolder className="h-4 w-4" />}

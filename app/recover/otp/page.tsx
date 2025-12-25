@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { IconCaretLeftRightFilled } from "@tabler/icons-react"
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 
 import { FieldDescription } from "@/components/ui/field"
@@ -12,9 +12,9 @@ import { RecoveryOTPVerificationForm } from "@/components/auth/recovery-otp-veri
 export default function RecoveryOTPPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [email, setEmail] = useState(() => searchParams.get('email') || "")
-  const [mnemonicHash, setMnemonicHash] = useState(() => searchParams.get('hash') || "")
-  const [mnemonic, setMnemonic] = useState(() => sessionStorage.getItem('recovery_mnemonic') || "")
+  const email = searchParams.get('email') || ""
+  const mnemonicHash = searchParams.get('hash') || ""
+  const mnemonic = sessionStorage.getItem('recovery_mnemonic') || ""
 
   useEffect(() => {
     // Validate that required params are present

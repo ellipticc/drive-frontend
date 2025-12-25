@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
 import {
   Shield,
   RotateCcwKeyIcon,
@@ -88,14 +89,12 @@ export function SettingsModal({
   const [internalOpen, setInternalOpen] = useState(false)
   const { user, refetch } = useUser()
   const { theme, setTheme } = useTheme()
-  const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const nameInputRef = useRef<HTMLInputElement>(null)
   const { registerOnUploadComplete, unregisterOnUploadComplete } = useGlobalUpload()
 
   // Use external state if provided, otherwise internal state
   const open = externalOpen !== undefined ? externalOpen : internalOpen
-  const setOpen = externalOnOpenChange || setInternalOpen
 
   // Handle tab changes and update URL
   const handleTabChange = (tabId: string) => {
@@ -186,7 +185,6 @@ export function SettingsModal({
   }, [initialTab])
 
   // Security state
-  const [currentEmail, setCurrentEmail] = useState("")
   const [newEmail, setNewEmail] = useState("")
   const [confirmEmail, setConfirmEmail] = useState("")
   const [emailPassword, setEmailPassword] = useState("")
@@ -211,7 +209,7 @@ export function SettingsModal({
   const [showTOTPSetup, setShowTOTPSetup] = useState(false)
   const [showTOTPDisable, setShowTOTPDisable] = useState(false)
   const [totpSecret, setTotpSecret] = useState("")
-  const [totpUri, setTotpUri] = useState("")
+  const [, setTotpUri] = useState("")
   const [totpQrCode, setTotpQrCode] = useState("")
   const [totpToken, setTotpToken] = useState("")
   const [disableToken, setDisableToken] = useState("")
@@ -225,7 +223,6 @@ export function SettingsModal({
   // Recovery codes state
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([])
   const [showRecoveryCodesModal, setShowRecoveryCodesModal] = useState(false)
-  const [isLoadingRecoveryCodes, setIsLoadingRecoveryCodes] = useState(false)
   
   // Track which data has been loaded to prevent duplicate fetches
   const loadedRef = React.useRef(false)
@@ -249,7 +246,7 @@ export function SettingsModal({
   // Billing state
   const [subscription, setSubscription] = useState<Subscription | null>(null)
   const [billingUsage, setBillingUsage] = useState<BillingUsage | null>(null)
-  const [pricingPlans, setPricingPlans] = useState<PricingPlan[]>([])
+  const [, setPricingPlans] = useState<PricingPlan[]>([])
   const [isLoadingBilling, setIsLoadingBilling] = useState(false)
   const [showCancelDialog, setShowCancelDialog] = useState(false)
   const [showCancelReasonDialog, setShowCancelReasonDialog] = useState(false)
@@ -2356,14 +2353,12 @@ export function SettingsModal({
             <div className="space-y-4">
               {totpQrCode && (
                 <div className="flex justify-center">
-                  <img 
-                    src={totpQrCode} 
-                    alt="TOTP QR Code" 
+                  <Image
+                    src={totpQrCode}
+                    alt="TOTP QR Code"
+                    width={200}
+                    height={200}
                     className="max-w-full h-auto"
-                    onError={(e) => {
-                      // Prevent favicon.ico fallback request by setting transparent pixel
-                      (e.target as HTMLImageElement).src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
-                    }}
                   />
                 </div>
               )}

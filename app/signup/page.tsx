@@ -1,5 +1,6 @@
 import { IconCaretLeftRightFilled } from "@tabler/icons-react"
 import type { Metadata } from "next"
+import Image from "next/image"
 
 import { ThemeToggle } from "@/components/theme-toggle"
 import { SignupFormAuth } from "@/components/auth/signup-form-auth"
@@ -27,10 +28,11 @@ export default function SignupPage() {
         </div>
       </div>
       <div className="bg-muted relative hidden lg:block overflow-hidden">
-        <img
+        <Image
           src="/register.png"
           alt="Image"
-          className="absolute inset-0 h-full w-full object-cover"
+          fill
+          className="object-cover"
         />
       </div>
     </div>

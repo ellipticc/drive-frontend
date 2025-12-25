@@ -134,7 +134,7 @@ function hasNativeCompressionStream(): boolean {
         return true;
       }
     }
-  } catch (error) {
+  } catch {
     // zstd not supported
   }
 
@@ -359,7 +359,6 @@ export async function compressChunk(data: Uint8Array): Promise<CompressionResult
     }
 
     const ratio = compressedData.length / data.length;
-    const actualSavings = (1 - ratio) * 100;
 
     return {
       isCompressed: true,

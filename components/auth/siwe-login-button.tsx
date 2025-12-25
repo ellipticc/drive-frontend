@@ -75,8 +75,7 @@ export function SIWELoginButton({ onSuccess, onError, context = 'login' }: SIWEL
         // User approves signing challenge, we derive key from signature
         const encryptedMKData = await MetaMaskAuthService.encryptMasterKeyWithWallet(
           masterKey,
-          user.walletAddress,
-          user.walletAddress  // Not used with signature-derived method, but keep for compatibility
+          user.walletAddress
         )
 
         // STEP 4: Store encrypted master key locally (encrypted, so safe)

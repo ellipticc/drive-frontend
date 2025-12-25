@@ -5,12 +5,9 @@ import { formatDistanceToNow } from "date-fns"
 import { Loader2 } from "lucide-react"
 import {
   IconBell,
-  IconBellRinging,
   IconCheck,
-  IconX,
   IconTrash,
   IconChecks,
-  IconShield,
   IconKey,
   IconShieldCheck,
   IconInfoCircle,
@@ -56,7 +53,7 @@ export function NotificationsModal({ open, onOpenChange }: NotificationsModalPro
   const [loading, setLoading] = useState(false)
   const [markingRead, setMarkingRead] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
-  const { stats, fetchStats, markAsRead: markAsReadGlobal, markAllAsRead: markAllAsReadGlobal, deleteNotification: deleteNotificationGlobal } = useNotifications()
+  const { stats, markAsRead: markAsReadGlobal, markAllAsRead: markAllAsReadGlobal, deleteNotification: deleteNotificationGlobal } = useNotifications()
 
   // Helper function to safely format dates
   const formatNotificationDate = (dateString: string) => {

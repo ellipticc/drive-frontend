@@ -493,7 +493,6 @@ class ApiClient {
     try {
       const startTime = Date.now();
       const response = await fetch(requestUrl, config);
-      const duration = Date.now() - startTime;
       
       // Check for Cloudflare bot protection errors
       if (!response.ok) {
@@ -619,7 +618,7 @@ class ApiClient {
       try {
         const parsed = JSON.parse(authData);
         if (parsed.accessToken) return parsed.accessToken;
-      } catch (e) {
+      } catch {
         // Invalid JSON, ignore
       }
     }

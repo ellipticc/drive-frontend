@@ -164,7 +164,6 @@ export function encryptData(data: Uint8Array, key: Uint8Array): {
   // For very small data (< 16 bytes), pad to ensure encrypted result meets minimum size requirement
   // XChaCha20-Poly1305 adds ~16 bytes of authentication data, so we need to pad small inputs
   let dataToEncrypt = data;
-  let isPadded = false;
 
   if (data.length < 16) {
     // Pad to exactly 16 bytes to ensure encrypted result is >= 16 bytes
@@ -173,7 +172,6 @@ export function encryptData(data: Uint8Array, key: Uint8Array): {
     dataToEncrypt.set(data, 1); // Copy original data
     // Fill remaining with zeros
     dataToEncrypt.fill(0, 1 + data.length);
-    isPadded = true;
   }
 
   // Generate random 24-byte nonce
@@ -519,7 +517,7 @@ export async function decryptUserPrivateKeys(
   let masterKey: Uint8Array;
   try {
     masterKey = masterKeyManager.getMasterKey();
-  } catch (e) {
+  } catch {
     throw new Error('Master key not available. Please login again.');
   }
 
@@ -877,7 +875,7 @@ async function deriveHKDFKey(
   ikm: Uint8Array,
   salt: string,
   info: string,
-  length: number
+  length: number = 32
 ): Promise<CryptoKey> {
   // Convert salt and info to bytes
   const saltBytes = new TextEncoder().encode(salt);
@@ -892,6 +890,9 @@ async function deriveHKDFKey(
     ['deriveKey']
   );
 
+  // Convert desired length in bytes to bits for WebCrypto API
+  const lengthBits = length * 8;
+
   // Derive HMAC key using HKDF
   const derivedKey = await crypto.subtle.deriveKey(
     {
@@ -903,8 +904,9 @@ async function deriveHKDFKey(
     keyMaterial,
     {
       name: 'HMAC',
-      hash: 'SHA-256'
-    },
+      hash: 'SHA-256',
+      length: lengthBits
+    } as HmacKeyGenParams,
     false,
     ['sign']
   );
@@ -917,16 +919,7 @@ async function deriveHKDFKey(
  * @param array - Input bytes
  * @returns base64url encoded string
  */
-function uint8ArrayToBase64Url(array: Uint8Array): string {
-  // First convert to regular base64
-  const base64 = uint8ArrayToBase64(array);
 
-  // Convert to base64url: replace + with -, / with _, remove padding
-  return base64
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=/g, '');
-}
 
 // =====================================================
 // FOLDER MANIFEST CREATION AND SIGNING

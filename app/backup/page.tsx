@@ -18,7 +18,7 @@ import { FieldDescription } from "@/components/ui/field"
 
 export default function BackupPage() {
   const router = useRouter()
-  const [mnemonic, setMnemonic] = useState(() => localStorage.getItem('recovery_mnemonic') || "")
+  const mnemonic = localStorage.getItem('recovery_mnemonic') || ""
   const [showMnemonic, setShowMnemonic] = useState(false)
   const [copied, setCopied] = useState(false)
   const [confirmed, setConfirmed] = useState(false)

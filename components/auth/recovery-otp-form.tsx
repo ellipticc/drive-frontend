@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
+import { FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
 import {
   InputOTP,
   InputOTPGroup,
@@ -14,53 +14,41 @@ import { apiClient } from "@/lib/api"
 
 interface RecoveryOTPFormProps {
   email: string
-  mnemonic: string
   onSuccess: () => void
   onBack: () => void
 }
 
 export function RecoveryOTPForm({
   email,
-  mnemonic,
   onSuccess,
   onBack,
 }: RecoveryOTPFormProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [otp, setOtp] = useState("")
-  const [otpSent, setOtpSent] = useState(false)
   const [resendCountdown, setResendCountdown] = useState(0)
 
-  // Send OTP automatically when component mounts
-  useEffect(() => {
-    sendOTP()
-  }, [email])
-
-  // Countdown for resend button
-  useEffect(() => {
-    if (resendCountdown > 0) {
-      const timer = setTimeout(() => setResendCountdown(resendCountdown - 1), 1000)
-      return () => clearTimeout(timer)
-    }
-  }, [resendCountdown])
-
-  const sendOTP = async () => {
+  const sendOTP = useCallback(async () => {
     try {
       setIsLoading(true)
       const response = await apiClient.sendOTP(email)
       
       if (response.success) {
-        setOtpSent(true)
         setResendCountdown(60)
       } else {
         setError(response.error || "Failed to send verification code")
       }
-    } catch (err) {
+    } catch {
       setError("Failed to send verification code")
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [email])
+
+  // Send OTP automatically when component mounts
+  useEffect(() => {
+    sendOTP()
+  }, [sendOTP])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -85,7 +73,7 @@ export function RecoveryOTPForm({
 
       // OTP verified, proceed to password reset
       onSuccess()
-    } catch (err) {
+    } catch {
       setError("Verification failed. Please try again.")
       setOtp("")
     } finally {

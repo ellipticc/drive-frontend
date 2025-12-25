@@ -5,7 +5,6 @@
 
 import { decryptUserPrivateKeys, UserCryptoData } from './crypto';
 import type { UserData } from './api';
-import { masterKeyManager } from './master-key';
 
 export interface UserKeypairs {
   ed25519PrivateKey: Uint8Array;
@@ -51,7 +50,7 @@ class KeyManager {
         if (typeof window !== 'undefined') {
           try {
             localStorage.setItem(this.STORAGE_KEY, JSON.stringify(userData));
-          } catch (error) {
+          } catch {
             // console.warn('Failed to persist user data to localStorage:', error);
           }
         }
@@ -102,7 +101,7 @@ class KeyManager {
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem(this.STORAGE_KEY, JSON.stringify(userData));
-      } catch (error) {
+      } catch {
         // console.warn('Failed to persist user data to localStorage:', error);
       }
     }
@@ -164,7 +163,7 @@ class KeyManager {
           localStorage.removeItem(this.STORAGE_KEY);
         }
       }
-    } catch (error) {
+    } catch {
       // console.warn('Failed to restore user data from localStorage:', error);
       this.clearKeys();
     }
@@ -216,7 +215,7 @@ class KeyManager {
     if (typeof window !== 'undefined') {
       try {
         localStorage.removeItem(this.STORAGE_KEY);
-      } catch (error) {
+      } catch {
         // console.warn('Failed to clear user data from localStorage:', error);
       }
     }
@@ -230,7 +229,7 @@ class KeyManager {
       try {
         localStorage.removeItem(this.STORAGE_KEY);
         // console.log('🔐 Force cleared corrupted crypto data from localStorage');
-      } catch (error) {
+      } catch {
         // console.warn('Failed to force clear localStorage:', error);
       }
     }

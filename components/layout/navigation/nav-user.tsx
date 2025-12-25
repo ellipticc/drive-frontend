@@ -82,8 +82,8 @@ export function NavUser({
   }
 }) {
   const { isMobile } = useSidebar()
-  const [settingsOpen, setSettingsOpen] = React.useState(false)
-  const [notificationsOpen, setNotificationsOpen] = React.useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
   const { hasUnread } = useNotifications()
   const displayName = getDisplayName(user)
 
@@ -102,7 +102,7 @@ export function NavUser({
       masterKeyManager.completeClearOnLogout()
       // Redirect to login page
       window.location.href = '/login'
-    } catch (error) {
+    } catch {
       // console.error('Logout failed:', error)
       // Even if logout fails on backend, clear local tokens and data, then redirect
       apiClient.clearAuthToken()

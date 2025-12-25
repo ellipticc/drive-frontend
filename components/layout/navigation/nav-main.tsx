@@ -1,10 +1,9 @@
 "use client"
 
-import { IconMail, IconUpload, IconFile, IconFolder, type Icon } from "@tabler/icons-react"
+import { IconUpload, IconFile, IconFolder, type Icon } from "@tabler/icons-react"
 import * as React from "react"
 import { useRouter, usePathname } from "next/navigation"
 
-import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,

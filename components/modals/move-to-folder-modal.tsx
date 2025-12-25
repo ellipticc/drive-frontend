@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
 import {
   Dialog,
   DialogContent,
@@ -144,7 +144,7 @@ export function MoveToFolderModal({ children, itemId = "", itemName = "item", it
       } else {
         toast.error(`Failed to load folders: ${response.error}`)
       }
-    } catch (error) {
+    } catch {
       // console.error("Failed to fetch folders:", error)
       toast.error("Failed to load folders")
     } finally {
@@ -229,7 +229,7 @@ export function MoveToFolderModal({ children, itemId = "", itemName = "item", it
               hasExploredChildren: true
             }))
           }
-        } catch (error) {
+        } catch {
           // console.error('Failed to load subfolders:', error)
           // Mark as explored and expand anyway
           setFolders(prev => updateFolderInTree(prev, folder.id, { 
@@ -331,7 +331,7 @@ export function MoveToFolderModal({ children, itemId = "", itemName = "item", it
             errorCount++
             results.push({ item: item.name, success: false, error: response.error })
           }
-        } catch (error) {
+        } catch {
           errorCount++
           results.push({ item: item.name, success: false, error: 'Network error' })
         }
@@ -351,7 +351,7 @@ export function MoveToFolderModal({ children, itemId = "", itemName = "item", it
       setSelectedFolder(null)
       setOpen(false)
       onItemMoved?.() // Refresh the parent component
-    } catch (error) {
+    } catch {
       // console.error("Failed to move items:", error)
       toast.error(`Failed to move items`)
     } finally {

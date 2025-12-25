@@ -48,7 +48,7 @@ export function addIdempotencyKey(
  * Make a request with idempotency support for creation operations
  * Uses the resource ID directly as the Idempotency-Key
  */
-export async function makeFetchWithIdempotency<T>(
+export async function makeFetchWithIdempotency(
   url: string,
   options: RequestInit,
   resourceId: string

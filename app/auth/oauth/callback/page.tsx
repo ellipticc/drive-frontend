@@ -41,7 +41,7 @@ export default function OAuthCallbackPage() {
       }
     };
 
-    const handlePopState = (e: PopStateEvent) => {
+    const handlePopState = () => {
       // If user uses back button during OAuth setup, warn them
       if (sessionStorage.getItem('oauth_setup_in_progress') === 'true') {
         // Clear OAuth state when leaving

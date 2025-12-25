@@ -132,8 +132,7 @@ class MetaMaskAuthService {
    */
   static async encryptMasterKeyWithWallet(
     masterKey: Uint8Array,
-    walletAddress: string,
-    publicKey: string
+    walletAddress: string
   ): Promise<EncryptedMasterKeyData> {
     if (!this.isMetaMaskInstalled()) {
       throw new Error('MetaMask not installed')

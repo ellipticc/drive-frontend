@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useRef, useEffect, useCallback } from "react";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { DotsVertical } from "@untitledui/icons";
 import type { SortDescriptor, Selection } from "react-aria-components";
 import { Table, TableCard } from "@/components/application/table/table";
@@ -25,7 +25,6 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiClient, FileItem, FolderContentItem, FileContentItem } from "@/lib/api";
 import { toast } from "sonner";
-import { keyManager } from "@/lib/key-manager";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { PreviewModal } from "@/components/previews";
 import { useCurrentFolder } from "@/components/current-folder-context";
@@ -59,8 +58,6 @@ export const Table01DividerLineSm = ({
 
     // Global upload context
     const { 
-      handleFileUpload: globalHandleFileUpload, 
-      handleFolderUpload: globalHandleFolderUpload,
       startUploadWithFiles,
       startUploadWithFolders,
       startFileDownload,
@@ -150,7 +147,7 @@ export const Table01DividerLineSm = ({
     const [moveToFolderModalOpen, setMoveToFolderModalOpen] = useState(false);
     const [selectedItemsForMoveToFolder, setSelectedItemsForMoveToFolder] = useState<Array<{ id: string; name: string; type: "file" | "folder" }>>([]);
     const [moveToTrashModalOpen, setMoveToTrashModalOpen] = useState(false);
-    const [selectedItemForMoveToTrash, setSelectedItemForMoveToTrash] = useState<{ id: string; name: string; type: "file" | "folder" } | null>(null);
+    const [selectedItemForMoveToTrash] = useState<{ id: string; name: string; type: "file" | "folder" } | null>(null);
 
     // Preview modal state
     const [previewModalOpen, setPreviewModalOpen] = useState(false);
@@ -188,9 +185,6 @@ export const Table01DividerLineSm = ({
             setPreviewModalOpen(true);
         }
     }, [previewModalOpen, setPreviewModalOpen, setSelectedItemForPreview, toast, filesMap, startPdfPreview]);
-
-    // Folder upload state
-    const [selectedFolderFiles, setSelectedFolderFiles] = useState<FileList | null>(null);
 
     // Hash copy animation state
     const [copiedHashId, setCopiedHashId] = useState<string | null>(null);
@@ -301,7 +295,7 @@ export const Table01DividerLineSm = ({
                 // Load files for the current folder
                 // console.log(`Loading contents for folder: ${currentId}`);
                 await refreshFiles(currentId);
-            } catch (error) {
+            } catch {
                 // console.error('Error parsing URL path:', error);
                 // On error, redirect to root
                 router.replace('/', { scroll: false });
@@ -327,27 +321,6 @@ export const Table01DividerLineSm = ({
         // If files is a File[] array (from drag & drop), we need to pass it directly
         // The startUploadWithFolders can handle both FileList and File[] since File[] has the webkitRelativePath property
         startUploadWithFolders(files, currentFolderId === 'root' ? null : currentFolderId);
-    };
-
-    // Upload handlers - now using global context
-    const handleCancelUpload = (uploadId: string) => {
-        cancelUpload(uploadId);
-    };
-
-    const handlePauseUpload = (uploadId: string) => {
-        pauseUpload(uploadId);
-    };
-
-    const handleResumeUpload = (uploadId: string) => {
-        resumeUpload(uploadId);
-    };
-
-    const handleRetryUpload = (uploadId: string) => {
-        retryUpload(uploadId);
-    };
-
-    const handleCancelAllUploads = () => {
-        cancelAllUploads();
     };
 
     // Handle drag and drop files
@@ -745,7 +718,7 @@ export const Table01DividerLineSm = ({
                                     toast.error(`Failed to restore ${itemType}`);
                                     refreshFiles(); // Refresh anyway to show current state
                                 }
-                            } catch (error) {
+                            } catch {
                                 // console.error('Restore error:', error);
                                 toast.error(`Failed to restore ${itemType}`);
                                 refreshFiles(); // Refresh anyway to show current state
@@ -814,7 +787,7 @@ export const Table01DividerLineSm = ({
             } else {
                 toast.error(`Failed to move items to trash`);
             }
-        } catch (error) {
+        } catch {
             // console.error('Bulk move to trash error:', error);
             toast.error(`Failed to move items to trash`);
         }
@@ -1185,9 +1158,6 @@ export const Table01DividerLineSm = ({
 
     const sortedItems = useMemo(() => {
         return [...files].sort((a, b) => {
-            const first = a[sortDescriptor.column as keyof FileItem];
-            const second = b[sortDescriptor.column as keyof FileItem];
-
             // Handle different column types
             if (sortDescriptor.column === 'modified') {
                 const firstDate = new Date(a.createdAt).getTime();

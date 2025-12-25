@@ -6,18 +6,11 @@ import { Button } from "@/components/ui/button"
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { apiClient } from "@/lib/api"
-import { toast } from "sonner"
 
-interface RecoverFormProps {
-  onError?: (error: string) => void
-  onSuccess?: () => void
-}
-
-export function RecoverForm({ onError, onSuccess }: RecoverFormProps) {
+export function RecoverForm() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
-  const [step, setStep] = useState<'email-mnemonic'>('email-mnemonic')
   const [formData, setFormData] = useState({
     email: "",
     mnemonic: "",

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { IconCaretLeftRightFilled } from "@tabler/icons-react"
@@ -11,9 +11,9 @@ import { RecoveryPasswordResetForm } from "@/components/auth/recovery-password-r
 export default function RecoveryResetPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [email, setEmail] = useState(() => searchParams.get('email') || "")
-  const [mnemonic, setMnemonic] = useState(() => sessionStorage.getItem('recovery_mnemonic') || "")
-  const [hash, setHash] = useState(() => searchParams.get('hash') || "")
+  const email = searchParams.get('email') || ""
+  const mnemonic = sessionStorage.getItem('recovery_mnemonic') || ""
+  const hash = searchParams.get('hash') || ""
 
   useEffect(() => {
     // Validate that required params are present

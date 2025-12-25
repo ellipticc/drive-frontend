@@ -3,7 +3,6 @@
 import { useState, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { IconUpload, IconFile, IconFolder } from "@tabler/icons-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 
 interface DragDropOverlayProps {
   isVisible: boolean;

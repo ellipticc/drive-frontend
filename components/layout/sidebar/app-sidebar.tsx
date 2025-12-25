@@ -7,7 +7,6 @@ import {
   IconFolder,
   IconHelp,
   IconCaretLeftRightFilled,
-  IconSearch,
   IconSettings,
   IconTrash,
   IconUsers,
@@ -205,7 +204,7 @@ export const AppSidebar = React.memo(function AppSidebar({
           window.location.href = '/login';
           return;
         }
-      } catch (error) {
+      } catch {
         // If we can't decode the token, consider it invalid
         localStorage.removeItem('auth_token');
         localStorage.removeItem('master_key');

@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
+import { FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
 import {
   InputOTP,
   InputOTPGroup,
@@ -37,6 +37,24 @@ export function RecoveryOTPVerificationForm({
   const [hasTOTP, setHasTOTP] = useState(false)
   const [showMethodSelection, setShowMethodSelection] = useState(false)
 
+  const sendRecoveryOTP = useCallback(async () => {
+    try {
+      setIsLoading(true)
+      const response = await apiClient.sendRecoveryOTP(email)
+
+      if (response.success) {
+        setResendCountdown(60)
+      } else {
+        setError(response.error || "Failed to send verification code")
+      }
+    } catch (err) {
+      setError("Failed to send verification code")
+      console.error('Send recovery OTP error:', err)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [email])
+
   // Check if user has TOTP enabled
   useEffect(() => {
     const checkTOTPAvailability = async () => {
@@ -67,33 +85,7 @@ export function RecoveryOTPVerificationForm({
     if (email) {
       checkTOTPAvailability()
     }
-  }, [email])
-
-  // Countdown for resend button
-  useEffect(() => {
-    if (resendCountdown > 0) {
-      const timer = setTimeout(() => setResendCountdown(resendCountdown - 1), 1000)
-      return () => clearTimeout(timer)
-    }
-  }, [resendCountdown])
-
-  const sendRecoveryOTP = async () => {
-    try {
-      setIsLoading(true)
-      const response = await apiClient.sendRecoveryOTP(email)
-
-      if (response.success) {
-        setResendCountdown(60)
-      } else {
-        setError(response.error || "Failed to send verification code")
-      }
-    } catch (err) {
-      setError("Failed to send verification code")
-      console.error('Send recovery OTP error:', err)
-    } finally {
-      setIsLoading(false)
-    }
-  }
+  }, [email, sendRecoveryOTP])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

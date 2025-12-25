@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import { SectionCards } from "@/components/shared/section-cards"
 import { SiteHeader } from "@/components/layout/header/site-header"
 import { Table01DividerLineSm } from "@/components/tables/files-table"
@@ -46,7 +46,7 @@ export default function Home() {
         } else {
           // console.warn('Failed to initialize key manager - user crypto keypairs not available')
         }
-      } catch (error) {
+      } catch {
         // console.error('Failed to initialize key manager:', error)
       }
     }

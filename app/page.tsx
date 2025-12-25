@@ -4,9 +4,6 @@ import { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react
 import { SiteHeader } from "@/components/layout/header/site-header"
 import { Table01DividerLineSm } from "@/components/tables/files-table"
 import { DragDropOverlay } from "@/components/drag-drop-overlay"
-import {
-  SidebarInset,
-} from "@/components/ui/sidebar"
 import { keyManager } from "@/lib/key-manager"
 
 // Extended File interface to include webkitRelativePath
@@ -47,7 +44,7 @@ export default function Home() {
         } else {
           // console.warn('Failed to initialize key manager - user crypto keypairs not available')
         }
-      } catch (error) {
+      } catch {
         // Log but don't throw - allows Google OAuth users in setup phase to view dashboard
         // console.warn('Warning: Failed to initialize key manager:', error)
       }

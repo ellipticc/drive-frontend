@@ -9,7 +9,7 @@ import { AlertCircle, Loader2 } from "lucide-react"
 import { apiClient } from "@/lib/api"
 import { toast } from "sonner"
 import { OPAQUERegistration } from "@/lib/opaque"
-import { deriveEncryptionKey, uint8ArrayToHex, hexToUint8Array, encryptData, encryptRecoveryKey, encryptMasterKeyWithRecoveryKey, deriveRecoveryKeyEncryptionKey, generateMasterKeyVerificationHash } from "@/lib/crypto"
+import { deriveEncryptionKey, encryptData, encryptRecoveryKey, encryptMasterKeyWithRecoveryKey, deriveRecoveryKeyEncryptionKey, generateMasterKeyVerificationHash } from "@/lib/crypto"
 import { xchacha20poly1305 } from "@noble/ciphers/chacha.js"
 
 interface RecoveryPasswordResetFormProps {

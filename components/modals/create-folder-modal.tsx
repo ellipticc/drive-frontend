@@ -91,7 +91,7 @@ export function CreateFolderModal({ children, parentId = null, onFolderCreated }
           }
         }
       }
-    } catch (error) {
+    } catch {
       // console.error("Failed to fetch user data:", error)
       toast.error("Failed to load user data")
     }

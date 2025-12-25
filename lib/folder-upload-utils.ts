@@ -5,7 +5,7 @@
  */
 
 import { apiClient } from './api';
-import { encryptFilename, createSignedFolderManifest, decryptFilename } from './crypto';
+import { createSignedFolderManifest } from './crypto';
 import { keyManager } from './key-manager';
 import { masterKeyManager } from './master-key';
 
@@ -116,8 +116,7 @@ export async function extractFolderStructure(files: FileList | File[]): Promise<
 export async function createFolderHierarchy(
   folderStructure: FolderStructure,
   baseFolderId: string | null = null,
-  onFolderCreated?: (folder: CreatedFolder) => void,
-  renameMap?: Record<string, string>
+  onFolderCreated?: (folder: CreatedFolder) => void
 ): Promise<Map<string, string | null>> {
   const folderMap = new Map<string, string | null>();
   
@@ -129,14 +128,6 @@ export async function createFolderHierarchy(
 
   // Get user keys for encryption and signing
   const userKeys = await keyManager.getUserKeys();
-
-  // Get master key for decryption (for display purposes)
-  let masterKey: Uint8Array | null = null;
-  try {
-    masterKey = masterKeyManager.getMasterKey();
-  } catch (err) {
-    console.warn('Could not retrieve master key for folder name decryption', err);
-  }
 
   // Sort folder paths by depth to create parents before children
   const sortedPaths = Object.keys(folderStructure)
@@ -251,8 +242,7 @@ export function getFolderIdForFile(folderPath: string, folderMap: Map<string, st
 export async function prepareFilesForUpload(
   files: FileList | File[],
   baseFolderId: string | null = null,
-  onFolderCreated?: (folder: CreatedFolder) => void,
-  renameMap?: Record<string, string>
+  onFolderCreated?: (folder: CreatedFolder) => void
 ): Promise<Array<{ file: File; folderId: string | null }>> {
   // Extract folder structure from files (with validation)
   const folderStructure = await extractFolderStructure(files);
@@ -266,7 +256,7 @@ export async function prepareFilesForUpload(
   }
 
   // Create folder hierarchy and get folder IDs
-  const folderMap = await createFolderHierarchy(folderStructure, baseFolderId, onFolderCreated, renameMap);
+  const folderMap = await createFolderHierarchy(folderStructure, baseFolderId, onFolderCreated);
 
   // Prepare files with their folder IDs
   const filesForUpload: Array<{ file: File; folderId: string | null }> = [];

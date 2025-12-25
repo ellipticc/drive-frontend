@@ -400,10 +400,10 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
             is_shared: false
           });
         });
-      }, renameMap)) as Array<{ file: File; folderId: string | null }>;
+      })) as Array<{ file: File; folderId: string | null }>;
 
       if (filesForUpload.length === 0) {
-        console.warn('📁 No files to upload after preparation');
+        console.warn('No files to upload after preparation');
         if (!options?.suppressEmptyAlert) {
           alert('The selected folder is empty. There are no files to upload.');
         }

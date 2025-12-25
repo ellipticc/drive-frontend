@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { JetBrains_Mono } from "next/font/google";
+import Script from "next/script";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
 import { AuthGuard } from "@/components/auth/auth-guard";
@@ -178,17 +179,21 @@ export default function RootLayout({
         />
 
         {/* Google Analytics 4 */}
-        <script async src="https://www.googletagmanager.com/gtag/js?id=G-NSQ52X2GM3"></script>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
-              gtag('js', new Date());
-              gtag('config', 'G-NSQ52X2GM3');
-            `,
-          }}
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-NSQ52X2GM3"
+          strategy="afterInteractive"
         />
+        <Script
+          id="google-analytics"
+          strategy="afterInteractive"
+        >
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-NSQ52X2GM3');
+          `}
+        </Script>
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${jetbrainsMono.variable} antialiased`}

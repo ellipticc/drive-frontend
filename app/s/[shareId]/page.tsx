@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { apiClient } from '@/lib/api';
@@ -184,7 +184,6 @@ async function decryptEncryptedManifest(
     
     // Now decrypt individual item names using the salt and derived keys
     const decryptedManifest: Record<string, Record<string, unknown>> = {};
-    let itemCount = 0;
     
     for (const [itemId, item] of Object.entries(manifest)) {
       const manifestItem = item as Record<string, unknown>;
@@ -209,8 +208,7 @@ async function decryptEncryptedManifest(
         id: itemId, // Ensure id field is set
         ...manifestItem,
         name: decryptedName
-      } as Record<string, unknown>;
-      itemCount++;
+      } as Record<string, unknown>; 
     }
     return decryptedManifest;
   } catch (err) {
@@ -269,15 +267,7 @@ interface ManifestItem {
   nonce_wrap?: string; // For files in folder shares
 }
 
-// Helper: Format date to readable string
-function formatDate(dateString: string): string {
-  try {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  } catch {
-    return '-';
-  }
-}
+
 
 export default function SharedDownloadPage() {
   const params = useParams();
@@ -301,6 +291,40 @@ export default function SharedDownloadPage() {
   const [userSession, setUserSession] = useState<{ id: string; name: string; email: string; avatar: string } | null>(null);
   const [checkingSession, setCheckingSession] = useState(true);
   const [sharePasswordCEK, setSharePasswordCEK] = useState<Uint8Array | null>(null); // Store CEK from password verification
+
+  // Load share details function
+  const loadShareDetails = useCallback(async () => {
+    try {
+      const shareResponse = await apiClient.getShare(shareId);
+      if (!shareResponse.success || !shareResponse.data) {
+        throw new Error('Share not found or expired');
+      }
+
+      const share = shareResponse.data;
+      setShareDetails(share);
+
+      if (share.disabled) {
+        throw new Error('This share link has been disabled');
+      }
+
+      if (share.expires_at && new Date(share.expires_at) < new Date()) {
+        throw new Error('This share link has expired');
+      }
+
+      if (share.max_views && share.views >= share.max_views) {
+        throw new Error('This share link has reached its maximum view limit');
+      }
+
+      if (share.has_password) {
+        setPasswordVerified(false);
+      } else {
+        setPasswordVerified(true);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load share details');
+      setLoading(false);
+    }
+  }, [shareId]);
 
   // Helper: Get display name
   const getDisplayName = (user: { name: string; email: string }): string => {
@@ -347,7 +371,7 @@ export default function SharedDownloadPage() {
     try {
       await apiClient.logout();
       masterKeyManager.completeClearOnLogout();
-    } catch (error) {
+    } catch {
       apiClient.clearAuthToken();
       masterKeyManager.completeClearOnLogout();
     } finally {
@@ -375,39 +399,6 @@ export default function SharedDownloadPage() {
 
     return { folders: folders.sort((a, b) => a.name.localeCompare(b.name)), files: files.sort((a, b) => a.name.localeCompare(b.name)) };
   }, [manifest, currentFolderId]);
-
-  const loadShareDetails = async () => {
-    try {
-      const shareResponse = await apiClient.getShare(shareId);
-      if (!shareResponse.success || !shareResponse.data) {
-        throw new Error('Share not found or expired');
-      }
-
-      const share = shareResponse.data;
-      setShareDetails(share);
-
-      if (share.disabled) {
-        throw new Error('This share link has been disabled');
-      }
-
-      if (share.expires_at && new Date(share.expires_at) < new Date()) {
-        throw new Error('This share link has expired');
-      }
-
-      if (share.max_views && share.views >= share.max_views) {
-        throw new Error('This share link has reached its maximum view limit');
-      }
-
-      if (share.has_password) {
-        setPasswordVerified(false);
-      } else {
-        setPasswordVerified(true);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load share details');
-      setLoading(false);
-    }
-  };
 
   const loadManifestAndInitialize = async () => {
     if (!shareDetails) return;
@@ -539,7 +530,7 @@ export default function SharedDownloadPage() {
     if (shareId) {
       loadShareDetails();
     }
-  }, [shareId]);
+  }, [shareId, loadShareDetails]);
 
   // Initialize ingest server session for analytics
   useEffect(() => {
@@ -593,44 +584,45 @@ export default function SharedDownloadPage() {
     }
   }, [shareId]);  useEffect(() => {
     if (shareDetails && passwordVerified) {
+      // Load manifest
       loadManifestAndInitialize();
+
       // Decrypt filename if it's encrypted
+      const decryptFilenameIfNeeded = async () => {
+        if (!shareDetails) {
+          return;
+        }
+
+        // Try to decrypt encrypted_filename if available
+        if (shareDetails.encrypted_filename && shareDetails.nonce_filename) {
+          try {
+            const shareCek = await getShareCEK();
+            const decrypted = await decryptShareFilename(
+              shareDetails.encrypted_filename,
+              shareDetails.nonce_filename,
+              shareCek
+            );
+            // Sanitize the decrypted filename to remove any control characters
+            const sanitized = decrypted.replace(/[\x00-\x1F\x7F-\x9F]/g, '').trim();
+            setDecryptedFilename(sanitized || '(File)');
+          } catch (err) {
+            console.warn('Failed to decrypt filename with share CEK:', err);
+            // Fallback to generic name
+            setDecryptedFilename('(File)');
+          }
+        } else if (shareDetails.file?.filename) {
+          // Fallback to plaintext filename if encrypted version not available
+          // Also sanitize plaintext filenames
+          const sanitized = shareDetails.file.filename.replace(/[\x00-\x1F\x7F-\x9F]/g, '').trim();
+          setDecryptedFilename(sanitized || '(File)');
+        } else {
+          setDecryptedFilename('(File)');
+        }
+      };
+
       decryptFilenameIfNeeded();
     }
   }, [shareDetails, passwordVerified]);
-
-  // Decrypt filename using share CEK (if needed)
-  const decryptFilenameIfNeeded = async () => {
-    if (!shareDetails) {
-      return;
-    }
-
-    // Try to decrypt encrypted_filename if available
-    if (shareDetails.encrypted_filename && shareDetails.nonce_filename) {
-      try {
-        const shareCek = await getShareCEK();
-        const decrypted = await decryptShareFilename(
-          shareDetails.encrypted_filename,
-          shareDetails.nonce_filename,
-          shareCek
-        );
-        // Sanitize the decrypted filename to remove any control characters
-        const sanitized = decrypted.replace(/[\x00-\x1F\x7F-\x9F]/g, '').trim();
-        setDecryptedFilename(sanitized || '(File)');
-      } catch (err) {
-        console.warn('Failed to decrypt filename with share CEK:', err);
-        // Fallback to generic name
-        setDecryptedFilename('(File)');
-      }
-    } else if (shareDetails.file?.filename) {
-      // Fallback to plaintext filename if encrypted version not available
-      // Also sanitize plaintext filenames
-      const sanitized = shareDetails.file.filename.replace(/[\x00-\x1F\x7F-\x9F]/g, '').trim();
-      setDecryptedFilename(sanitized || '(File)');
-    } else {
-      setDecryptedFilename('(File)');
-    }
-  };
 
   const handleVerifyPassword = async () => {
     if (!shareDetails || !password) return;
@@ -696,7 +688,7 @@ export default function SharedDownloadPage() {
       // Store the CEK for later use in manifest decryption
       setSharePasswordCEK(shareCek);
       setPasswordVerified(true);
-    } catch (err) {
+    } catch {
       setPasswordError('Incorrect password. Please try again.');
     } finally {
       setVerifyingPassword(false);

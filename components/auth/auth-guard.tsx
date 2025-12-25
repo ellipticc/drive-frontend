@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useState, useRef } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { apiClient } from "@/lib/api";
 import { masterKeyManager } from "@/lib/master-key";
@@ -16,7 +16,6 @@ export function AuthGuard({ children }: AuthGuardProps) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
   const [isExpired, setIsExpired] = useState(false);
-  const router = useRouter();
   const pathname = usePathname();
   const hasCheckedAuthRef = useRef(false);
 

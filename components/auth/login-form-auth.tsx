@@ -37,7 +37,7 @@ export function LoginFormAuth({
     password: ""
   })
   const [keepSignedIn, setKeepSignedIn] = useState(false)
-  const sessionTracking = useSessionTracking(true) // Enable session tracking on login page
+  useSessionTracking(true) // Enable session tracking on login page
 
   // Check if user is already authenticated with cached credentials
   useEffect(() => {
@@ -272,7 +272,7 @@ export function LoginFormAuth({
           
           try {
             await keyManager.initialize(userData as UserData);
-          } catch (retryError) {
+          } catch {
             setError("Failed to initialize key management system. Please try logging out and back in.");
             return;
           }
