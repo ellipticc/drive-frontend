@@ -97,7 +97,7 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                         try {
                             const encryptedParts = share.folderPath.split('|||').filter((p: string) => p);
                             const saltParts = share.folderPathSalt.split('|||').filter((p: string) => p);
-                            
+
                             if (encryptedParts.length > 0 && encryptedParts.length === saltParts.length) {
                                 const decryptedParts = [];
                                 for (let i = 0; i < encryptedParts.length; i++) {
@@ -360,13 +360,13 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
 
         try {
             const selectedShares = Array.from(selectedItems);
-            
+
             const response = await apiClient.disableShare(selectedShares);
-            
+
             if (response.success) {
                 const revokedCount = response.data?.revokedCount || selectedShares.length;
                 const cascadedFileShares = response.data?.cascadedFileShares || 0;
-                
+
                 toast.success(`Revoked ${revokedCount} shares${cascadedFileShares > 0 ? ` (${cascadedFileShares} cascaded file shares)` : ''}`);
                 refreshShares(); // Refresh the shares list
             } else {
@@ -515,160 +515,175 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                     className="py-1 [&>div>h2]:text-base [&>div>h2]:font-medium h-12 flex-shrink-0 border-0"
                 />
                 {viewMode === 'table' ? (
-                <Table aria-label="Shares" selectionMode="multiple" sortDescriptor={sortDescriptor} onSortChange={setSortDescriptor} selectedKeys={selectedItems} onSelectionChange={(keys) => {
-                    if (keys === 'all') {
-                        setSelectedItems(new Set(filteredItems.map(item => item.id)));
-                    } else {
-                        setSelectedItems(new Set(Array.from(keys as Set<string>)));
-                    }
-                }}>
-                    <Table.Header>
-                        <Table.Head id="fileName" label="Name" isRowHeader allowsSorting className="w-full max-w-1/4" align="left" />
-                        {!isMobile && <Table.Head id="folderPath" label="Path" allowsSorting align="left" />}
-                        {!isMobile && <Table.Head id="createdAt" label="Created at" allowsSorting align="left" />}
-                        {!isMobile && <Table.Head id="downloads" label="Download Count" allowsSorting align="right" />}
-                        {!isMobile && <Table.Head id="expiresAt" label="Expires at" allowsSorting align="left" />}
-                        <Table.Head id="actions" align="center" />
-                    </Table.Header>
+                    <Table aria-label="Shares" selectionMode="multiple" sortDescriptor={sortDescriptor} onSortChange={setSortDescriptor} selectedKeys={selectedItems} onSelectionChange={(keys) => {
+                        if (keys === 'all') {
+                            setSelectedItems(new Set(filteredItems.map(item => item.id)));
+                        } else {
+                            setSelectedItems(new Set(Array.from(keys as Set<string>)));
+                        }
+                    }}>
+                        <Table.Header>
+                            {selectedItems.size > 0 ? (
+                                <>
+                                    <Table.Head id="fileName" isRowHeader className="w-full max-w-1/4" align="left">
+                                        <span className="text-sm font-bold text-white">{selectedItems.size} selected</span>
+                                    </Table.Head>
+                                    {!isMobile && <Table.Head id="folderPath" align="left" />}
+                                    {!isMobile && <Table.Head id="createdAt" align="left" />}
+                                    {!isMobile && <Table.Head id="downloads" align="right" />}
+                                    {!isMobile && <Table.Head id="expiresAt" align="left" />}
+                                    <Table.Head id="actions" align="center" />
+                                </>
+                            ) : (
+                                <>
+                                    <Table.Head id="fileName" label="Name" isRowHeader allowsSorting className="w-full max-w-1/4" align="left" />
+                                    {!isMobile && <Table.Head id="folderPath" label="Path" allowsSorting align="left" />}
+                                    {!isMobile && <Table.Head id="createdAt" label="Created at" allowsSorting align="left" />}
+                                    {!isMobile && <Table.Head id="downloads" label="Download Count" allowsSorting align="right" />}
+                                    {!isMobile && <Table.Head id="expiresAt" label="Expires at" allowsSorting align="left" />}
+                                    <Table.Head id="actions" align="center" />
+                                </>
+                            )}
+                        </Table.Header>
 
-                    <Table.Body items={filteredItems}>
-                        {(item) => (
-                            <Table.Row
-                                id={item.id}
-                                className="group hover:bg-muted/50 transition-colors duration-150"
-                            >
-                                <Table.Cell className="w-full max-w-1/4">
-                                    <div className="flex items-center gap-2">
-                                        <div className="text-base">
+                        <Table.Body items={filteredItems}>
+                            {(item) => (
+                                <Table.Row
+                                    id={item.id}
+                                    className="group hover:bg-muted/50 transition-colors duration-150"
+                                >
+                                    <Table.Cell className="w-full max-w-1/4">
+                                        <div className="flex items-center gap-2">
+                                            <div className="text-base">
+                                                {getItemIcon(item)}
+                                            </div>
+                                            {isTextTruncated(item.fileName) ? (
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <p className="text-sm font-medium truncate text-foreground">
+                                                            {truncateFilename(item.fileName)}
+                                                        </p>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        {item.fileName}
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            ) : (
+                                                <p className="text-sm font-medium truncate text-foreground">
+                                                    {item.fileName}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </Table.Cell>
+                                    {!isMobile && (
+                                        <Table.Cell className="text-left">
+                                            <span className="text-xs text-muted-foreground font-[var(--font-jetbrains-mono)] font-semibold tracking-wider">
+                                                {item.folderPath || 'Root'}
+                                            </span>
+                                        </Table.Cell>
+                                    )}
+                                    {!isMobile && (
+                                        <Table.Cell className="text-left">
+                                            <span className="text-xs text-muted-foreground font-[var(--font-jetbrains-mono)] font-semibold tracking-wider">
+                                                {formatDate(item.createdAt)}
+                                            </span>
+                                        </Table.Cell>
+                                    )}
+                                    {!isMobile && (
+                                        <Table.Cell className="text-right">
+                                            <span className="text-xs text-muted-foreground font-[var(--font-jetbrains-mono)] font-semibold">
+                                                {item.downloads}
+                                            </span>
+                                        </Table.Cell>
+                                    )}
+                                    {!isMobile && (
+                                        <Table.Cell className="text-left">
+                                            <span className="text-xs text-muted-foreground font-[var(--font-jetbrains-mono)] font-semibold tracking-wider">
+                                                {item.expiresAt ? formatDate(item.expiresAt) : 'Never'}
+                                            </span>
+                                        </Table.Cell>
+                                    )}
+                                    <Table.Cell className="px-3 w-12">
+                                        <div className={`flex justify-end gap-0.5 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-200`}>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                                                        <DotsVertical className="h-4 w-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end" className="w-48">
+                                                    {item.isFolder ? (
+                                                        <>
+                                                            <DropdownMenuItem onClick={() => {
+                                                                // Open folder share in new tab
+                                                                window.open(`/s/${item.id}`, '_blank');
+                                                            }}>
+                                                                <IconShare3 className="h-4 w-4 mr-2" />
+                                                                Open Share
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuSeparator />
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <DropdownMenuItem onClick={() => handleDownloadClick(item.id, item.fileId)}>
+                                                                <IconDownload className="h-4 w-4 mr-2" />
+                                                                Download
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={() => handleShareClick(item.fileId, item.fileName, 'file')}>
+                                                                <IconShare3 className="h-4 w-4 mr-2" />
+                                                                Share
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuSeparator />
+                                                        </>
+                                                    )}
+                                                    <DropdownMenuItem onClick={() => handleDetailsClick(item.fileId, item.fileName, item.isFolder ? 'folder' : 'file')}>
+                                                        <IconInfoCircle className="h-4 w-4 mr-2" />
+                                                        Details
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem onClick={() => handleRevokeShare(item.id)} variant="destructive">
+                                                        <IconX className="h-4 w-4 mr-2" />
+                                                        Revoke share
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </div>
+                                    </Table.Cell>
+                                </Table.Row>
+                            )}
+                        </Table.Body>
+                    </Table>
+                ) : (
+                    // Grid View
+                    <div className="p-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                            {shares.map((item) => (
+                                <div
+                                    key={item.id}
+                                    className="group relative bg-card rounded-lg border border-border p-4 hover:bg-muted/50 transition-all duration-200 cursor-pointer"
+                                    onClick={() => handleDetailsClick(item.fileId, item.fileName, item.isFolder ? 'folder' : 'file')}
+                                >
+                                    <div className="flex flex-col items-center text-center space-y-2">
+                                        <div className="text-2xl">
                                             {getItemIcon(item)}
                                         </div>
-                                        {isTextTruncated(item.fileName) ? (
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <p className="text-sm font-medium truncate text-foreground">
-                                                        {truncateFilename(item.fileName)}
-                                                    </p>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    {item.fileName}
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        ) : (
-                                            <p className="text-sm font-medium truncate text-foreground">
+                                        <div className="flex-1 min-w-0 w-full">
+                                            <p className="text-sm font-medium truncate" title={item.fileName}>
                                                 {item.fileName}
                                             </p>
-                                        )}
-                                    </div>
-                                </Table.Cell>
-                                {!isMobile && (
-                                    <Table.Cell className="text-left">
-                                        <span className="text-xs text-muted-foreground font-[var(--font-jetbrains-mono)] font-semibold tracking-wider">
-                                            {item.folderPath || 'Root'}
-                                        </span>
-                                    </Table.Cell>
-                                )}
-                                {!isMobile && (
-                                    <Table.Cell className="text-left">
-                                        <span className="text-xs text-muted-foreground font-[var(--font-jetbrains-mono)] font-semibold tracking-wider">
-                                            {formatDate(item.createdAt)}
-                                        </span>
-                                    </Table.Cell>
-                                )}
-                                {!isMobile && (
-                                    <Table.Cell className="text-right">
-                                        <span className="text-xs text-muted-foreground font-[var(--font-jetbrains-mono)] font-semibold">
-                                            {item.downloads}
-                                        </span>
-                                    </Table.Cell>
-                                )}
-                                {!isMobile && (
-                                    <Table.Cell className="text-left">
-                                        <span className="text-xs text-muted-foreground font-[var(--font-jetbrains-mono)] font-semibold tracking-wider">
-                                            {item.expiresAt ? formatDate(item.expiresAt) : 'Never'}
-                                        </span>
-                                    </Table.Cell>
-                                )}
-                                <Table.Cell className="px-3 w-12">
-                                    <div className={`flex justify-end gap-0.5 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-200`}>
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
-                                                    <DotsVertical className="h-4 w-4" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end" className="w-48">
-                                                {item.isFolder ? (
-                                                    <>
-                                                        <DropdownMenuItem onClick={() => {
-                                                            // Open folder share in new tab
-                                                            window.open(`/s/${item.id}`, '_blank');
-                                                        }}>
-                                                            <IconShare3 className="h-4 w-4 mr-2" />
-                                                            Open Share
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuSeparator />
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <DropdownMenuItem onClick={() => handleDownloadClick(item.id, item.fileId)}>
-                                                            <IconDownload className="h-4 w-4 mr-2" />
-                                                            Download
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => handleShareClick(item.fileId, item.fileName, 'file')}>
-                                                            <IconShare3 className="h-4 w-4 mr-2" />
-                                                            Share
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuSeparator />
-                                                    </>
-                                                )}
-                                                <DropdownMenuItem onClick={() => handleDetailsClick(item.fileId, item.fileName, item.isFolder ? 'folder' : 'file')}>
-                                                    <IconInfoCircle className="h-4 w-4 mr-2" />
-                                                    Details
-                                                </DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem onClick={() => handleRevokeShare(item.id)} variant="destructive">
-                                                    <IconX className="h-4 w-4 mr-2" />
-                                                    Revoke share
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </div>
-                                </Table.Cell>
-                            </Table.Row>
-                        )}
-                    </Table.Body>
-                </Table>
-            ) : (
-                // Grid View
-                <div className="p-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                        {shares.map((item) => (
-                            <div
-                                key={item.id}
-                                className="group relative bg-card rounded-lg border border-border p-4 hover:bg-muted/50 transition-all duration-200 cursor-pointer"
-                                onClick={() => handleDetailsClick(item.fileId, item.fileName, item.isFolder ? 'folder' : 'file')}
-                            >
-                                <div className="flex flex-col items-center text-center space-y-2">
-                                    <div className="text-2xl">
-                                        {getItemIcon(item)}
-                                    </div>
-                                    <div className="flex-1 min-w-0 w-full">
-                                        <p className="text-sm font-medium truncate" title={item.fileName}>
-                                            {item.fileName}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground truncate" title={item.folderPath}>
-                                            {item.folderPath}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">
-                                            {new Date(item.createdAt).toLocaleDateString()}
-                                        </p>
+                                            <p className="text-xs text-muted-foreground truncate" title={item.folderPath}>
+                                                {item.folderPath}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {new Date(item.createdAt).toLocaleDateString()}
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
-                </div>
-            )}
+                )}
             </TableCard.Root>
 
             <ShareModal
@@ -713,7 +728,7 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                         if (typeof data === 'string') {
                             throw new Error('Expected manifest object for rename');
                         }
-                        
+
                         // Check if this is a file manifest (has encryptedFilename) or folder manifest (has encryptedName)
                         if ('encryptedFilename' in data && data.encryptedFilename) {
                             // File manifest
@@ -754,10 +769,10 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                             setSelectedItemForRename(null);
                         } else {
                             // Check if this is a 409 conflict error
-                            const isConflict = response.error?.toLowerCase().includes('409') || 
-                                             response.error?.toLowerCase().includes('conflict') ||
-                                             response.error?.toLowerCase().includes('already exists');
-                            
+                            const isConflict = response.error?.toLowerCase().includes('409') ||
+                                response.error?.toLowerCase().includes('conflict') ||
+                                response.error?.toLowerCase().includes('already exists');
+
                             if (isConflict) {
                                 toast.error('A file or folder with this name already exists');
                                 // Keep modal open for user to try a different name

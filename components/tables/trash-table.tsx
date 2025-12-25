@@ -66,6 +66,9 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    // Selection state
+    const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [selectedItemForDelete, setSelectedItemForDelete] = useState<{ id: string; name: string; type: "file" | "folder" } | null>(null);
     const [detailsModalOpen, setDetailsModalOpen] = useState(false);
@@ -86,7 +89,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
             // Fetch both trash files and folders
             let filesResponse;
             let foldersResponse;
-            
+
             try {
                 [filesResponse, foldersResponse] = await Promise.all([
                     apiClient.getTrashFiles(),
@@ -118,7 +121,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                 const decryptedFiles = await Promise.all(
                     ((filesResponse.data?.files || []) as unknown as FileContentItem[]).map(async (file: FileContentItem) => {
                         let decryptedName = '(Unnamed file)';
-                        
+
                         // Try to decrypt filename if encrypted data is available
                         if (file.encryptedFilename && file.filenameSalt) {
                             try {
@@ -128,7 +131,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                                 decryptedName = '(Unnamed file)';
                             }
                         }
-                        
+
                         return {
                             id: file.id,
                             name: decryptedName || '(Unnamed file)',
@@ -149,7 +152,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                 const decryptedFolders = await Promise.all(
                     ((foldersResponse.data || []) as FolderContentItem[]).map(async (folder: FolderContentItem) => {
                         let decryptedName = '(Unnamed folder)';
-                        
+
                         // Try to decrypt folder name if encrypted data is available
                         if (folder.encryptedName && folder.nameSalt) {
                             try {
@@ -159,7 +162,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                                 decryptedName = '(Unnamed folder)';
                             }
                         }
-                        
+
                         return {
                             id: folder.id,
                             name: decryptedName || '(Unnamed folder)',
@@ -197,7 +200,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
             if (response.success) {
                 // Remove the item from trash view immediately
                 setTrashItems(prevItems => prevItems.filter(item => item.id !== itemId));
-                
+
                 // Show toast with undo option
                 toast(`${itemType} restored successfully`, {
                     action: {
@@ -285,7 +288,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
             if (allSuccessful) {
                 // Clear trash view immediately
                 setTrashItems([]);
-                
+
                 // Show toast with undo option
                 toast(`All ${trashItems.length} items restored successfully`, {
                     action: {
@@ -294,7 +297,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                             try {
                                 // Move all items back to trash
                                 const moveBackResponse = await apiClient.moveToTrash(folderIds, fileIds);
-                                
+
                                 if (moveBackResponse.success) {
                                     toast.success(`All items moved back to trash`);
                                     refreshTrash(); // Refresh to show items back in trash
@@ -358,7 +361,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                 // Clear trash view immediately
                 setTrashItems([]);
                 toast.success(`All ${trashItems.length} items permanently deleted`);
-                
+
                 // Update storage instantly
                 if (totalStorageFreed > 0) {
                     updateStorage(-totalStorageFreed);
@@ -368,7 +371,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                 await refreshTrash();
                 const successCount = results.filter(result => result.success).length;
                 toast.success(`${successCount} of ${promises.length} operations completed successfully`);
-                
+
                 // Still update storage for successful operations
                 if (totalStorageFreed > 0) {
                     updateStorage(-totalStorageFreed);
@@ -563,88 +566,114 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                         </div>
                     </div>
                 ) : (
-                    <Table aria-label="Trash" selectionMode="multiple" sortDescriptor={sortDescriptor} onSortChange={setSortDescriptor}>
+                    <Table
+                        aria-label="Trash"
+                        selectionMode="multiple"
+                        sortDescriptor={sortDescriptor}
+                        onSortChange={setSortDescriptor}
+                        selectedKeys={selectedItems}
+                        onSelectionChange={(keys) => {
+                            if (keys === 'all') {
+                                setSelectedItems(new Set(sortedItems.map(item => item.id)));
+                            } else {
+                                setSelectedItems(new Set(Array.from(keys as Set<string>)));
+                            }
+                        }}
+                    >
                         <Table.Header>
-                            <Table.Head id="name" label="Name" isRowHeader allowsSorting className="w-full max-w-1/4" />
-                            {!isMobile && <Table.Head id="deletedAt" label="Deleted" allowsSorting className="text-right" />}
-                            {!isMobile && <Table.Head id="size" label="Size" allowsSorting className="text-right" />}
-                            <Table.Head id="actions" />
+                            {selectedItems.size > 0 ? (
+                                <>
+                                    <Table.Head id="name" isRowHeader className="w-full max-w-1/4">
+                                        <span className="text-sm font-bold text-white">{selectedItems.size} selected</span>
+                                    </Table.Head>
+                                    {!isMobile && <Table.Head id="deletedAt" className="text-right" />}
+                                    {!isMobile && <Table.Head id="size" className="text-right" />}
+                                    <Table.Head id="actions" />
+                                </>
+                            ) : (
+                                <>
+                                    <Table.Head id="name" label="Name" isRowHeader allowsSorting className="w-full max-w-1/4" />
+                                    {!isMobile && <Table.Head id="deletedAt" label="Deleted" allowsSorting className="text-right" />}
+                                    {!isMobile && <Table.Head id="size" label="Size" allowsSorting className="text-right" />}
+                                    <Table.Head id="actions" />
+                                </>
+                            )}
                         </Table.Header>
 
                         <Table.Body items={sortedItems}>
                             {(item) => {
                                 return (
-                                <Table.Row id={item.id} className="h-12">
-                                    <Table.Cell className="h-12">
-                                        <div className="flex items-center gap-2 h-full">
-                                            <div className="text-base flex-shrink-0">
-                                                {getFileIcon(item.mimeType || '', item.type)}
+                                    <Table.Row id={item.id} className="h-12">
+                                        <Table.Cell className="h-12">
+                                            <div className="flex items-center gap-2 h-full">
+                                                <div className="text-base flex-shrink-0">
+                                                    {getFileIcon(item.mimeType || '', item.type)}
+                                                </div>
+                                                {isTextTruncated(item.name) ? (
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <p className="text-xs font-medium whitespace-nowrap text-foreground truncate cursor-default flex-1 min-w-0">
+                                                                {truncateFilename(item.name)}
+                                                            </p>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p className="text-xs text-muted-foreground max-w-xs break-words">
+                                                                {item.name}
+                                                            </p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                ) : (
+                                                    <p className="text-xs font-medium whitespace-nowrap text-foreground truncate cursor-default flex-1 min-w-0">
+                                                        {item.name}
+                                                    </p>
+                                                )}
                                             </div>
-                                            {isTextTruncated(item.name) ? (
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <p className="text-xs font-medium whitespace-nowrap text-foreground truncate cursor-default flex-1 min-w-0">
-                                                            {truncateFilename(item.name)}
-                                                        </p>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>
-                                                        <p className="text-xs text-muted-foreground max-w-xs break-words">
-                                                            {item.name}
-                                                        </p>
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                            ) : (
-                                                <p className="text-xs font-medium whitespace-nowrap text-foreground truncate cursor-default flex-1 min-w-0">
-                                                    {item.name}
-                                                </p>
-                                            )}
-                                        </div>
-                                    </Table.Cell>
-                                    {!isMobile && (
-                                        <Table.Cell className="text-right h-12">
-                                            <span className="text-sm text-muted-foreground font-medium">
-                                                {formatDate(item.deletedAt)}
-                                            </span>
                                         </Table.Cell>
-                                    )}
-                                    {!isMobile && (
-                                        <Table.Cell className="text-right h-12">
-                                            <span className="text-sm text-muted-foreground">
-                                                {item.type === 'folder' ? '--' : formatFileSize(item.size || 0)}
-                                            </span>
+                                        {!isMobile && (
+                                            <Table.Cell className="text-right h-12">
+                                                <span className="text-sm text-muted-foreground font-medium">
+                                                    {formatDate(item.deletedAt)}
+                                                </span>
+                                            </Table.Cell>
+                                        )}
+                                        {!isMobile && (
+                                            <Table.Cell className="text-right h-12">
+                                                <span className="text-sm text-muted-foreground">
+                                                    {item.type === 'folder' ? '--' : formatFileSize(item.size || 0)}
+                                                </span>
+                                            </Table.Cell>
+                                        )}
+                                        <Table.Cell className="px-3 h-12">
+                                            <div className="flex justify-end gap-1 h-full items-center">
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                                                            <DotsVertical className="h-4 w-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end" className="w-48">
+                                                        <DropdownMenuItem onClick={() => handleRestoreClick(item.id, item.name, item.type)}>
+                                                            <IconRestore className="h-4 w-4 mr-2" />
+                                                            Restore
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem onClick={() => handleDetailsClick(item.id, item.name, item.type)}>
+                                                            <IconInfoCircle className="h-4 w-4 mr-2" />
+                                                            Details
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem
+                                                            onClick={() => handleDeleteClick(item.id, item.name, item.type)}
+                                                            variant="destructive"
+                                                        >
+                                                            <IconTrashAlt className="h-4 w-4 mr-2" />
+                                                            Delete permanently
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </div>
                                         </Table.Cell>
-                                    )}
-                                    <Table.Cell className="px-3 h-12">
-                                        <div className="flex justify-end gap-1 h-full items-center">
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
-                                                        <DotsVertical className="h-4 w-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end" className="w-48">
-                                                    <DropdownMenuItem onClick={() => handleRestoreClick(item.id, item.name, item.type)}>
-                                                        <IconRestore className="h-4 w-4 mr-2" />
-                                                        Restore
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuItem onClick={() => handleDetailsClick(item.id, item.name, item.type)}>
-                                                        <IconInfoCircle className="h-4 w-4 mr-2" />
-                                                        Details
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuItem
-                                                        onClick={() => handleDeleteClick(item.id, item.name, item.type)}
-                                                        variant="destructive"
-                                                    >
-                                                        <IconTrashAlt className="h-4 w-4 mr-2" />
-                                                        Delete permanently
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </div>
-                                    </Table.Cell>
-                                </Table.Row>
+                                    </Table.Row>
                                 );
                             }}
                         </Table.Body>

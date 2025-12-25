@@ -35,35 +35,35 @@ import { truncateFilename } from "@/lib/utils";
 import { isTextTruncated } from "@/lib/tooltip-helper";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-export const Table01DividerLineSm = ({ 
-  searchQuery,
-  onFileUpload,
-  onFolderUpload,
-  dragDropFiles,
-  onDragDropProcessed,
-  onUploadHandlersReady
-}: { 
-  searchQuery?: string
-  onFileUpload?: () => void
-  onFolderUpload?: () => void
-  dragDropFiles?: { files: File[], folders: FileList | File[] | null }
-  onDragDropProcessed?: () => void
-  onFileInputRef?: (ref: HTMLInputElement | null) => void
-  onFolderInputRef?: (ref: HTMLInputElement | null) => void
-  onUploadHandlersReady?: (handlers: { handleFileUpload: () => void; handleFolderUpload: () => void }) => void
+export const Table01DividerLineSm = ({
+    searchQuery,
+    onFileUpload,
+    onFolderUpload,
+    dragDropFiles,
+    onDragDropProcessed,
+    onUploadHandlersReady
+}: {
+    searchQuery?: string
+    onFileUpload?: () => void
+    onFolderUpload?: () => void
+    dragDropFiles?: { files: File[], folders: FileList | File[] | null }
+    onDragDropProcessed?: () => void
+    onFileInputRef?: (ref: HTMLInputElement | null) => void
+    onFolderInputRef?: (ref: HTMLInputElement | null) => void
+    onUploadHandlersReady?: (handlers: { handleFileUpload: () => void; handleFolderUpload: () => void }) => void
 }) => {
     const router = useRouter();
     const pathname = usePathname();
     const isMobile = useIsMobile();
 
     // Global upload context
-    const { 
-      startUploadWithFiles,
-      startUploadWithFolders,
-      startFileDownload,
-      startFolderDownload,
-      startBulkDownload,
-      startPdfPreview
+    const {
+        startUploadWithFiles,
+        startUploadWithFolders,
+        startFileDownload,
+        startFolderDownload,
+        startBulkDownload,
+        startPdfPreview
     } = useGlobalUpload();
 
     // Current folder context
@@ -89,7 +89,7 @@ export const Table01DividerLineSm = ({
 
     // Folder navigation state
     const [currentFolderId, setCurrentFolderId] = useState<string>('root');
-    const [folderPath, setFolderPath] = useState<Array<{id: string, name: string}>>([{id: 'root', name: 'My Files'}]);
+    const [folderPath, setFolderPath] = useState<Array<{ id: string, name: string }>>([{ id: 'root', name: 'My Files' }]);
     const [isInitialLoad, setIsInitialLoad] = useState(true);
 
     // Selection state
@@ -118,19 +118,19 @@ export const Table01DividerLineSm = ({
     const [renameConflictOpen, setRenameConflictOpen] = useState(false);
     const [renameConflictItems, setRenameConflictItems] = useState<Array<{ id: string; name: string; type: 'file' | 'folder'; existingPath: string; newPath: string; existingItem?: FileItem; existingFileId?: string }>>([]);
     const [pendingRenameManifest, setPendingRenameManifest] = useState<{
-      manifestHash: string;
-      manifestCreatedAt: number;
-      manifestSignatureEd25519: string;
-      manifestPublicKeyEd25519: string;
-      manifestSignatureDilithium: string;
-      manifestPublicKeyDilithium: string;
-      algorithmVersion: string;
-      nameHmac: string;
-      encryptedFilename?: string;
-      filenameSalt?: string;
-      encryptedName?: string;
-      nameSalt?: string;
-      requestedName?: string;
+        manifestHash: string;
+        manifestCreatedAt: number;
+        manifestSignatureEd25519: string;
+        manifestPublicKeyEd25519: string;
+        manifestSignatureDilithium: string;
+        manifestPublicKeyDilithium: string;
+        algorithmVersion: string;
+        nameHmac: string;
+        encryptedFilename?: string;
+        filenameSalt?: string;
+        encryptedName?: string;
+        nameSalt?: string;
+        requestedName?: string;
     } | null>(null);
     const [renameModalInitialName, setRenameModalInitialName] = useState<string | undefined>(undefined);
 
@@ -200,7 +200,7 @@ export const Table01DividerLineSm = ({
     };
 
     // Build URL path from folder path
-    const buildUrlPath = (folderPath: Array<{id: string, name: string}>): string => {
+    const buildUrlPath = (folderPath: Array<{ id: string, name: string }>): string => {
         if (folderPath.length <= 1) return '/';
         return '/' + folderPath.slice(1).map(f => f.id).join('/');
     };
@@ -215,7 +215,7 @@ export const Table01DividerLineSm = ({
     };
 
     // Update URL when folder navigation changes
-    const updateUrl = (newFolderPath: Array<{id: string, name: string}>) => {
+    const updateUrl = (newFolderPath: Array<{ id: string, name: string }>) => {
         const urlPath = buildUrlPath(newFolderPath);
         router.replace(urlPath, { scroll: false });
     };
@@ -231,7 +231,7 @@ export const Table01DividerLineSm = ({
             // Root folder
             // console.log('Loading root folder');
             setCurrentFolderId('root');
-            setFolderPath([{id: 'root', name: 'My Files'}]);
+            setFolderPath([{ id: 'root', name: 'My Files' }]);
             setIsInitialLoad(false);
             // Load files for root folder
             refreshFiles('root');
@@ -241,7 +241,7 @@ export const Table01DividerLineSm = ({
         // Build folder path from URL segments
         const buildFolderPathFromUrl = async () => {
             try {
-                const currentPath = [{id: 'root', name: 'My Files'}];
+                const currentPath = [{ id: 'root', name: 'My Files' }];
                 let currentId = 'root';
 
                 for (const segment of urlSegments) {
@@ -267,14 +267,14 @@ export const Table01DividerLineSm = ({
                         }
 
                         // console.log(`Folder ${segment} found: ${displayName}`);
-                        currentPath.push({id: segment, name: displayName});
+                        currentPath.push({ id: segment, name: displayName });
                         currentId = segment;
                     } else {
                         // Invalid folder ID, redirect to root
                         // console.warn(`Invalid folder ID in URL: ${segment}, response:`, response);
                         router.replace('/', { scroll: false });
                         setCurrentFolderId('root');
-                        setFolderPath([{id: 'root', name: 'My Files'}]);
+                        setFolderPath([{ id: 'root', name: 'My Files' }]);
                         setIsInitialLoad(false);
                         // Load files for root folder
                         await refreshFiles('root');
@@ -295,7 +295,7 @@ export const Table01DividerLineSm = ({
                 // On error, redirect to root
                 router.replace('/', { scroll: false });
                 setCurrentFolderId('root');
-                setFolderPath([{id: 'root', name: 'My Files'}]);
+                setFolderPath([{ id: 'root', name: 'My Files' }]);
                 setIsInitialLoad(false);
                 // Load files for root folder
                 await refreshFiles('root');
@@ -335,7 +335,7 @@ export const Table01DividerLineSm = ({
 
     // Register for file added events to add files and folders incrementally
     useOnFileAdded(useCallback((fileData: FileItem) => {
-        
+
         // Check if this is a folder or a file
         if (fileData.type === 'folder') {
             // Handle folder - it should appear in the current folder view
@@ -343,11 +343,11 @@ export const Table01DividerLineSm = ({
                 (currentFolderId === 'root' && fileData.parentId === null) ||
                 (currentFolderId !== 'root' && fileData.parentId === currentFolderId)
             );
-            
+
             if (folderInCurrentFolder) {
                 // Use plaintext name directly from callback
                 const displayName = fileData.name || '(Unnamed)';
-                
+
                 const newFolder: FileItem = {
                     id: fileData.id,
                     name: displayName,
@@ -358,7 +358,7 @@ export const Table01DividerLineSm = ({
                     updatedAt: fileData.updatedAt || new Date().toISOString(),
                     is_shared: fileData.is_shared || false
                 };
-                
+
                 // Add folder to beginning of list
                 setFiles(prev => [newFolder, ...prev]);
             }
@@ -418,7 +418,7 @@ export const Table01DividerLineSm = ({
 
     // Register for file deleted events to remove files incrementally
     useOnFileDeleted(useCallback((fileId: string) => {
-        
+
         // Remove the file from the current file list
         setFiles(prev => prev.filter(file => file.id !== fileId));
     }, []));
@@ -444,7 +444,7 @@ export const Table01DividerLineSm = ({
                     ...(await Promise.all((response.data.folders || []).map(async (folder: FolderContentItem) => {
                         // Use plaintext name if available, only decrypt if necessary
                         let displayName = folder.name || '';
-                        
+
                         // Only decrypt if plaintext name is not available
                         if (!displayName && folder.encryptedName && folder.nameSalt && masterKey) {
                             try {
@@ -455,7 +455,7 @@ export const Table01DividerLineSm = ({
                                 displayName = folder.encryptedName?.substring(0, 20) + '...' || '(Unnamed)';
                             }
                         }
-                        
+
                         // Final fallback
                         if (!displayName) {
                             displayName = folder.encryptedName || '(Unnamed)';
@@ -475,7 +475,7 @@ export const Table01DividerLineSm = ({
                     ...(await Promise.all((response.data.files || []).map(async (file: FileContentItem) => {
                         // Use plaintext name if available, only decrypt if necessary
                         let displayName = file.filename || '';
-                        
+
                         // Only decrypt if plaintext name is not available
                         if (!displayName && file.encryptedFilename && file.filenameSalt && masterKey) {
                             try {
@@ -486,7 +486,7 @@ export const Table01DividerLineSm = ({
                                 displayName = file.encryptedFilename?.substring(0, 20) + '...' || '(Unnamed)';
                             }
                         }
-                        
+
                         // Final fallback
                         if (!displayName) {
                             displayName = file.encryptedFilename || '(Unnamed)';
@@ -521,7 +521,7 @@ export const Table01DividerLineSm = ({
                     setTimeout(() => {
                         router.replace('/', { scroll: false });
                         setCurrentFolderId('root');
-                        setFolderPath([{id: 'root', name: 'My Files'}]);
+                        setFolderPath([{ id: 'root', name: 'My Files' }]);
                     }, 2000);
                 } else {
                     setError(errorMessage);
@@ -537,7 +537,7 @@ export const Table01DividerLineSm = ({
                 setTimeout(() => {
                     router.replace('/', { scroll: false });
                     setCurrentFolderId('root');
-                    setFolderPath([{id: 'root', name: 'My Files'}]);
+                    setFolderPath([{ id: 'root', name: 'My Files' }]);
                 }, 2000);
             } else {
                 setError(errorMessage);
@@ -549,7 +549,7 @@ export const Table01DividerLineSm = ({
 
     // Register for file replaced events to refresh the file list
     useOnFileReplaced(useCallback(() => {
-        
+
         // Refresh the current folder contents
         refreshFiles();
     }, [refreshFiles]));
@@ -735,7 +735,7 @@ export const Table01DividerLineSm = ({
         const selectedItemsArray = Array.from(selectedItems).map(id => {
             const item = filesMap.get(id);
             return item ? { id: item.id, name: item.name, type: item.type } : null;
-        }).filter(Boolean) as Array<{id: string, name: string, type: "file" | "folder"}>;
+        }).filter(Boolean) as Array<{ id: string, name: string, type: "file" | "folder" }>;
 
         if (selectedItemsArray.length === 0) return;
 
@@ -754,7 +754,7 @@ export const Table01DividerLineSm = ({
                 }
 
                 // Remove successfully moved items from the current view
-                setFiles(prevFiles => prevFiles.filter(file => 
+                setFiles(prevFiles => prevFiles.filter(file =>
                     !selectedItemsArray.some(selected => selected.id === file.id)
                 ));
 
@@ -826,7 +826,7 @@ export const Table01DividerLineSm = ({
         const selectedItemsArray = Array.from(selectedItems).map(id => {
             const item = filesMap.get(id);
             return item ? { id: item.id, name: item.name, type: item.type } : null;
-        }).filter(Boolean) as Array<{id: string, name: string, type: "file" | "folder"}>;
+        }).filter(Boolean) as Array<{ id: string, name: string, type: "file" | "folder" }>;
 
         if (selectedItemsArray.length === 0) return;
 
@@ -938,19 +938,19 @@ export const Table01DividerLineSm = ({
     };
 
     const handleRename = async (data: string | ({
-      manifestHash: string;
-      manifestCreatedAt: number;
-      manifestSignatureEd25519: string;
-      manifestPublicKeyEd25519: string;
-      manifestSignatureDilithium: string;
-      manifestPublicKeyDilithium: string;
-      algorithmVersion: string;
-      nameHmac: string;
-      encryptedFilename?: string;
-      filenameSalt?: string;
-      encryptedName?: string;
-      nameSalt?: string;
-      requestedName?: string;
+        manifestHash: string;
+        manifestCreatedAt: number;
+        manifestSignatureEd25519: string;
+        manifestPublicKeyEd25519: string;
+        manifestSignatureDilithium: string;
+        manifestPublicKeyDilithium: string;
+        algorithmVersion: string;
+        nameHmac: string;
+        encryptedFilename?: string;
+        filenameSalt?: string;
+        encryptedName?: string;
+        nameSalt?: string;
+        requestedName?: string;
     })) => {
         if (!selectedItemForRename) return;
 
@@ -959,7 +959,7 @@ export const Table01DividerLineSm = ({
             if (typeof data === 'string') {
                 throw new Error('Expected manifest object for rename');
             }
-            
+
             // Check if this is a file manifest (has encryptedFilename) or folder manifest (has encryptedName)
             if ('encryptedFilename' in data && data.encryptedFilename) {
                 // File manifest
@@ -1000,10 +1000,10 @@ export const Table01DividerLineSm = ({
                 setSelectedItemForRename(null);
             } else {
                 // Check if this is a 409 conflict error
-                const isConflict = response.error?.toLowerCase().includes('409') || 
-                                 response.error?.toLowerCase().includes('conflict') ||
-                                 response.error?.toLowerCase().includes('already exists');
-                
+                const isConflict = response.error?.toLowerCase().includes('409') ||
+                    response.error?.toLowerCase().includes('conflict') ||
+                    response.error?.toLowerCase().includes('already exists');
+
                 if (isConflict) {
                     // If it's a folder rename conflict, show conflict modal with details
                     if (selectedItemForRename?.type === 'folder') {
@@ -1213,7 +1213,7 @@ export const Table01DividerLineSm = ({
             // Default state - no selection
             return (
                 <>
-                    <CreateFolderModal 
+                    <CreateFolderModal
                         parentId={currentFolderId === 'root' ? null : currentFolderId}
                         onFolderCreated={() => refreshFiles()}
                     >
@@ -1241,9 +1241,9 @@ export const Table01DividerLineSm = ({
                         <IconFileUpload className="h-4 w-4" />
                     </Button>
                     <div className="h-5 w-px bg-border mx-1" />
-                    <Button 
-                        size="sm" 
-                        variant="ghost" 
+                    <Button
+                        size="sm"
+                        variant="ghost"
                         className="h-7 w-7 p-0"
                         onClick={() => {
                             // Open Share Picker Modal when no files are selected
@@ -1253,9 +1253,9 @@ export const Table01DividerLineSm = ({
                     >
                         <IconShare3 className="h-4 w-4" />
                     </Button>
-                    <Button 
-                        size="sm" 
-                        variant="ghost" 
+                    <Button
+                        size="sm"
+                        variant="ghost"
                         className="h-7 w-7 p-0"
                         onClick={() => handleViewModeChange(viewMode === 'table' ? 'grid' : 'table')}
                         title={viewMode === 'table' ? 'Switch to grid view' : 'Switch to table view'}
@@ -1320,7 +1320,7 @@ export const Table01DividerLineSm = ({
                             const selectedItemsArray = Array.from(selectedItems).map(id => {
                                 const item = filesMap.get(id);
                                 return item ? { id: item.id, name: item.name, type: item.type } : null;
-                            }).filter(Boolean) as Array<{id: string, name: string, type: "file" | "folder"}>;
+                            }).filter(Boolean) as Array<{ id: string, name: string, type: "file" | "folder" }>;
 
                             if (selectedItemsArray.length > 0) {
                                 setSelectedItemsForMoveToFolder(selectedItemsArray);
@@ -1378,10 +1378,10 @@ export const Table01DividerLineSm = ({
                         <IconTrash className="h-4 w-4" />
                     </Button>
                     <div className="h-5 w-px bg-border mx-1" />
-                    <Button 
-                        size="sm" 
-                        variant="ghost" 
-                        className="h-7 w-7 p-0" 
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 p-0"
                         onClick={() => handleViewModeChange(viewMode === 'table' ? 'grid' : 'table')}
                         title={viewMode === 'table' ? 'Switch to grid view' : 'Switch to table view'}
                     >
@@ -1478,9 +1478,8 @@ export const Table01DividerLineSm = ({
                                 {index > 0 && <IconChevronRight className="h-3 w-3 text-muted-foreground" />}
                                 <button
                                     onClick={() => navigateToPath(folder.id)}
-                                    className={`hover:text-primary transition-colors ${
-                                        index === folderPath.length - 1 ? 'font-medium text-foreground' : 'text-muted-foreground'
-                                    }`}
+                                    className={`hover:text-primary transition-colors ${index === folderPath.length - 1 ? 'font-medium text-foreground' : 'text-muted-foreground'
+                                        }`}
                                     disabled={index === folderPath.length - 1}
                                     title={folder.name}
                                 >
@@ -1576,9 +1575,8 @@ export const Table01DividerLineSm = ({
                                 {index > 0 && <IconChevronRight className="h-3 w-3 text-muted-foreground" />}
                                 <button
                                     onClick={() => navigateToPath(folder.id)}
-                                    className={`hover:text-primary transition-colors ${
-                                        index === folderPath.length - 1 ? 'font-medium text-foreground' : 'text-muted-foreground'
-                                    }`}
+                                    className={`hover:text-primary transition-colors ${index === folderPath.length - 1 ? 'font-medium text-foreground' : 'text-muted-foreground'
+                                        }`}
                                     disabled={index === folderPath.length - 1}
                                     title={folder.name}
                                 >
@@ -1649,9 +1647,8 @@ export const Table01DividerLineSm = ({
                             {index > 0 && <IconChevronRight className="h-3 w-3 text-muted-foreground" />}
                             <button
                                 onClick={() => navigateToPath(folder.id)}
-                                className={`hover:text-primary transition-colors ${
-                                    index === folderPath.length - 1 ? 'font-medium text-foreground' : 'text-muted-foreground'
-                                }`}
+                                className={`hover:text-primary transition-colors ${index === folderPath.length - 1 ? 'font-medium text-foreground' : 'text-muted-foreground'
+                                    }`}
                                 disabled={index === folderPath.length - 1}
                                 title={folder.name}
                             >
@@ -1663,63 +1660,267 @@ export const Table01DividerLineSm = ({
             </div>
 
             <TableCard.Root size="sm">
-            <TableCard.Header
-                title="My Files"
-                contentTrailing={
-                    <div className="absolute top-1 right-4 md:right-6 flex items-center gap-1">
-                        {renderHeaderIcons}
+                <TableCard.Header
+                    title="My Files"
+                    contentTrailing={
+                        <div className="absolute top-1 right-4 md:right-6 flex items-center gap-1">
+                            {renderHeaderIcons}
 
-                        {/* Hidden file inputs */}
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            multiple
-                            className="hidden"
-                            onChange={handleFileSelect}
-                            accept="*/*"
-                        />
-                        <input
-                            ref={folderInputRef}
-                            type="file"
-                            multiple
-                            className="hidden"
-                            onChange={handleFolderSelect}
-                            {...({ webkitdirectory: "" } as React.InputHTMLAttributes<HTMLInputElement>)}
-                        />
-                    </div>
-                }
-                className="py-1 [&>div>h2]:text-base [&>div>h2]:font-medium h-12 flex-shrink-0 border-0"
-            />
-            {viewMode === 'table' ? (
-                <Table aria-label="Files" selectionMode="multiple" sortDescriptor={sortDescriptor} onSortChange={setSortDescriptor} selectedKeys={selectedItems} onSelectionChange={handleTableSelectionChange}
-                onContextMenu={(e) => handleContextMenu(e)}
-                >
-                    <Table.Header>
-                        <Table.Head id="name" label="Name" isRowHeader allowsSorting className="w-full max-w-1/4" align="left" />
-                        {!isMobile && <Table.Head id="modified" label="Modified" allowsSorting align="left" />}
-                        {!isMobile && <Table.Head id="size" label="Size" allowsSorting align="right" />}
-                        {!isMobile && <Table.Head id="checksum" label="Checksum" allowsSorting align="right" className="pr-2" />}
-                        <Table.Head id="shared" label="" align="center" className="w-8" />
-                        <Table.Head id="actions" align="center" />
-                    </Table.Header>
+                            {/* Hidden file inputs */}
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                multiple
+                                className="hidden"
+                                onChange={handleFileSelect}
+                                accept="*/*"
+                            />
+                            <input
+                                ref={folderInputRef}
+                                type="file"
+                                multiple
+                                className="hidden"
+                                onChange={handleFolderSelect}
+                                {...({ webkitdirectory: "" } as React.InputHTMLAttributes<HTMLInputElement>)}
+                            />
+                        </div>
+                    }
+                    className="py-1 [&>div>h2]:text-base [&>div>h2]:font-medium h-12 flex-shrink-0 border-0"
+                />
+                {viewMode === 'table' ? (
+                    <Table aria-label="Files" selectionMode="multiple" sortDescriptor={sortDescriptor} onSortChange={setSortDescriptor} selectedKeys={selectedItems} onSelectionChange={handleTableSelectionChange}
+                        onContextMenu={(e) => handleContextMenu(e)}
+                    >
+                        <Table.Header>
+                            {selectedItems.size > 0 ? (
+                                <>
+                                    <Table.Head id="name" isRowHeader className="w-full max-w-1/4" align="left">
+                                        <span className="text-sm font-bold text-white">{selectedItems.size} selected</span>
+                                    </Table.Head>
+                                    {!isMobile && <Table.Head id="modified" align="left" />}
+                                    {!isMobile && <Table.Head id="size" align="right" />}
+                                    {!isMobile && <Table.Head id="checksum" align="right" className="pr-2" />}
+                                    <Table.Head id="shared" align="center" className="w-8" />
+                                    <Table.Head id="actions" align="center" />
+                                </>
+                            ) : (
+                                <>
+                                    <Table.Head id="name" label="Name" isRowHeader allowsSorting className="w-full max-w-1/4" align="left" />
+                                    {!isMobile && <Table.Head id="modified" label="Modified" allowsSorting align="left" />}
+                                    {!isMobile && <Table.Head id="size" label="Size" allowsSorting align="right" />}
+                                    {!isMobile && <Table.Head id="checksum" label="Checksum" allowsSorting align="right" className="pr-2" />}
+                                    <Table.Head id="shared" label="" align="center" className="w-8" />
+                                    <Table.Head id="actions" align="center" />
+                                </>
+                            )}
+                        </Table.Header>
 
-                    <Table.Body items={filteredItems}>
-                        {(item) => (
-                            <Table.Row 
-                                id={item.id}
-                                onDoubleClick={item.type === 'folder' ? () => handleFolderDoubleClick(item.id, item.name) : (item.type === 'file' && item.mimeType && canPreviewFile(item.mimeType) ? () => handlePreviewClick(item.id, item.name, item.mimeType) : undefined)}
-                                className="group hover:bg-muted/50 transition-colors duration-150"
-                                onContextMenu={(e) => handleContextMenu(e, item)}
-                            >
-                                <Table.Cell className="w-full max-w-1/4">
-                                    <div className="flex items-center gap-2">
-                                        <div className="text-base">
+                        <Table.Body items={filteredItems}>
+                            {(item) => (
+                                <Table.Row
+                                    id={item.id}
+                                    onDoubleClick={item.type === 'folder' ? () => handleFolderDoubleClick(item.id, item.name) : (item.type === 'file' && item.mimeType && canPreviewFile(item.mimeType) ? () => handlePreviewClick(item.id, item.name, item.mimeType) : undefined)}
+                                    className="group hover:bg-muted/50 transition-colors duration-150"
+                                    onContextMenu={(e) => handleContextMenu(e, item)}
+                                >
+                                    <Table.Cell className="w-full max-w-1/4">
+                                        <div className="flex items-center gap-2">
+                                            <div className="text-base">
+                                                {getFileIcon(item.mimeType || '', item.type)}
+                                            </div>
+                                            {isTextTruncated(item.name) ? (
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <p className="text-sm font-medium whitespace-nowrap text-foreground truncate cursor-default">
+                                                            {truncateFilename(item.name)}
+                                                        </p>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>{item.name}</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            ) : (
+                                                <p className="text-sm font-medium whitespace-nowrap text-foreground truncate cursor-default">
+                                                    {item.name}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </Table.Cell>
+                                    {!isMobile && (
+                                        <Table.Cell className="text-left">
+                                            <span className="text-xs text-muted-foreground font-mono break-all">
+                                                {formatDate(item.createdAt)}
+                                            </span>
+                                        </Table.Cell>
+                                    )}
+                                    {!isMobile && (
+                                        <Table.Cell className="text-right">
+                                            <span className="text-xs text-muted-foreground font-mono break-all">
+                                                {item.type === 'folder' ? '--' : formatFileSize(item.size || 0)}
+                                            </span>
+                                        </Table.Cell>
+                                    )}
+                                    {!isMobile && (
+                                        <Table.Cell className="text-right">
+                                            {item.type === 'folder' ? (
+                                                <span className="text-xs text-muted-foreground font-mono break-all">N/A</span>
+                                            ) : item.shaHash ? (
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <button
+                                                            className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer font-mono break-all"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                navigator.clipboard.writeText(item.shaHash!);
+                                                                setCopiedHashId(item.id);
+                                                                setTimeout(() => setCopiedHashId(null), 300);
+                                                            }}
+                                                        >
+                                                            {item.shaHash.substring(0, 5)}...{item.shaHash.substring(item.shaHash.length - 5)}
+                                                        </button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent
+                                                        className="max-w-none whitespace-nowrap font-[var(--font-jetbrains-mono)] font-semibold tracking-wider"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            navigator.clipboard.writeText(item.shaHash!);
+                                                            setCopiedHashId(item.id);
+                                                            setTimeout(() => setCopiedHashId(null), 500);
+                                                        }}
+                                                    >
+                                                        <p className={`text-xs cursor-pointer transition-all duration-300 ${copiedHashId === item.id ? 'animate-pulse bg-primary/20 text-primary scale-105' : ''}`}>{item.shaHash}</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            ) : (
+                                                <span className="text-xs text-muted-foreground font-mono break-all">N/A</span>
+                                            )}
+                                        </Table.Cell>
+                                    )}
+                                    <Table.Cell className="px-1 w-8">
+                                        {/* Shared icon */}
+                                        {item.is_shared ? (
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleShareClick(item.id, item.name, item.type);
+                                                        }}
+                                                        className="flex items-center justify-center cursor-pointer hover:bg-accent rounded-sm p-1 transition-colors"
+                                                    >
+                                                        <IconShare3 className="h-3.5 w-3.5 text-blue-500 opacity-70 hover:opacity-100 transition-opacity" />
+                                                    </button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>Manage share</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        ) : null}
+                                    </Table.Cell>
+                                    <Table.Cell className="px-3 w-12">
+                                        <div className={`flex justify-end gap-0.5 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-200`}>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                                                        <DotsVertical className="h-4 w-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end" className="w-48">
+                                                    <DropdownMenuItem onClick={() => handleDownloadClick(item.id, item.name, item.type)}>
+                                                        <IconDownload className="h-4 w-4 mr-2" />
+                                                        Download
+                                                    </DropdownMenuItem>
+                                                    {item.type === 'file' && item.mimeType && canPreviewFile(item.mimeType) && (
+                                                        <DropdownMenuItem onClick={() => handlePreviewClick(item.id, item.name, item.mimeType)}>
+                                                            <IconEye className="h-4 w-4 mr-2" />
+                                                            Preview
+                                                        </DropdownMenuItem>
+                                                    )}
+                                                    <DropdownMenuItem onClick={() => handleShareClick(item.id, item.name, item.type)}>
+                                                        <IconShare3 className="h-4 w-4 mr-2" />
+                                                        Share
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem onClick={() => handleMoveToFolderClick(item.id, item.name, item.type)}>
+                                                        <IconFolder className="h-4 w-4 mr-2" />
+                                                        Move to folder
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleRenameClick(item.id, item.name, item.type)}>
+                                                        <IconEdit className="h-4 w-4 mr-2" />
+                                                        Rename
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleDetailsClick(item.id, item.name, item.type)}>
+                                                        <IconInfoCircle className="h-4 w-4 mr-2" />
+                                                        Details
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem onClick={() => handleMoveToTrashClick(item.id, item.name, item.type)} variant="destructive">
+                                                        <IconTrash className="h-4 w-4 mr-2" />
+                                                        Move to trash
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </div>
+                                    </Table.Cell>
+                                </Table.Row>
+                            )}
+                        </Table.Body>
+                    </Table>
+                ) : (
+                    // Grid View
+                    <div className="p-4" onContextMenu={(e) => handleContextMenu(e)}>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-4">
+                            {filteredItems.map((item) => (
+                                <div
+                                    key={item.id}
+                                    className={`group relative bg-card rounded-lg border border-border p-4 hover:bg-muted/50 transition-all duration-200 cursor-pointer ${selectedItems.has(item.id) ? 'ring-2 ring-primary bg-muted' : ''
+                                        }`}
+                                    onClick={() => {
+                                        if (item.type === 'folder') {
+                                            handleFolderDoubleClick(item.id, item.name);
+                                        } else if (item.type === 'file' && item.mimeType && canPreviewFile(item.mimeType)) {
+                                            handlePreviewClick(item.id, item.name, item.mimeType);
+                                        }
+                                    }}
+                                    onDoubleClick={() => {
+                                        if (item.type === 'folder') {
+                                            handleFolderDoubleClick(item.id, item.name);
+                                        } else if (item.type === 'file' && item.mimeType && canPreviewFile(item.mimeType)) {
+                                            handlePreviewClick(item.id, item.name, item.mimeType);
+                                        }
+                                    }}
+                                    onContextMenu={(e) => handleContextMenu(e, item)}
+                                >
+                                    {/* Selection checkbox */}
+                                    <div className="absolute top-2 left-2 z-10">
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedItems.has(item.id)}
+                                            onChange={(e) => {
+                                                e.stopPropagation();
+                                                const newSelected = new Set(selectedItems);
+                                                if (e.target.checked) {
+                                                    newSelected.add(item.id);
+                                                } else {
+                                                    newSelected.delete(item.id);
+                                                }
+                                                setSelectedItems(newSelected);
+                                            }}
+                                            className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
+                                        />
+                                    </div>
+
+                                    {/* File/Folder icon */}
+                                    <div className="flex flex-col items-center gap-3 pt-6">
+                                        <div className="text-4xl">
                                             {getFileIcon(item.mimeType || '', item.type)}
                                         </div>
+
+                                        {/* File name */}
                                         {isTextTruncated(item.name) ? (
                                             <Tooltip>
                                                 <TooltipTrigger asChild>
-                                                    <p className="text-sm font-medium whitespace-nowrap text-foreground truncate cursor-default">
+                                                    <p className="text-sm font-medium text-center text-foreground line-clamp-2 break-words w-full cursor-default">
                                                         {truncateFilename(item.name)}
                                                     </p>
                                                 </TooltipTrigger>
@@ -1728,89 +1929,28 @@ export const Table01DividerLineSm = ({
                                                 </TooltipContent>
                                             </Tooltip>
                                         ) : (
-                                            <p className="text-sm font-medium whitespace-nowrap text-foreground truncate cursor-default">
-                                                {item.name}
+                                            <p className="text-sm font-medium text-center text-foreground line-clamp-2 break-words w-full cursor-default">
+                                                {truncateFilename(item.name)}
                                             </p>
                                         )}
-                                    </div>
-                                </Table.Cell>
-                                {!isMobile && (
-                                    <Table.Cell className="text-left">
-                                        <span className="text-xs text-muted-foreground font-mono break-all">
+
+                                        {/* File size or folder indicator */}
+                                        <p className="text-xs text-muted-foreground text-center">
+                                            {item.type === 'folder' ? 'Folder' : formatFileSize(item.size || 0)}
+                                        </p>
+
+                                        {/* Modified date */}
+                                        <p className="text-xs text-muted-foreground text-center font-[var(--font-jetbrains-mono)] font-semibold tracking-wider">
                                             {formatDate(item.createdAt)}
-                                        </span>
-                                    </Table.Cell>
-                                )}
-                                {!isMobile && (
-                                    <Table.Cell className="text-right">
-                                        <span className="text-xs text-muted-foreground font-mono break-all">
-                                            {item.type === 'folder' ? '--' : formatFileSize(item.size || 0)}
-                                        </span>
-                                    </Table.Cell>
-                                )}
-                                {!isMobile && (
-                                    <Table.Cell className="text-right">
-                                        {item.type === 'folder' ? (
-                                            <span className="text-xs text-muted-foreground font-mono break-all">N/A</span>
-                                        ) : item.shaHash ? (
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <button
-                                                        className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer font-mono break-all"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            navigator.clipboard.writeText(item.shaHash!);
-                                                            setCopiedHashId(item.id);
-                                                            setTimeout(() => setCopiedHashId(null), 300);
-                                                        }}
-                                                    >
-                                                        {item.shaHash.substring(0, 5)}...{item.shaHash.substring(item.shaHash.length - 5)}
-                                                    </button>
-                                                </TooltipTrigger>
-                                                <TooltipContent 
-                                                    className="max-w-none whitespace-nowrap font-[var(--font-jetbrains-mono)] font-semibold tracking-wider"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        navigator.clipboard.writeText(item.shaHash!);
-                                                        setCopiedHashId(item.id);
-                                                        setTimeout(() => setCopiedHashId(null), 500);
-                                                    }}
-                                                >
-                                                    <p className={`text-xs cursor-pointer transition-all duration-300 ${copiedHashId === item.id ? 'animate-pulse bg-primary/20 text-primary scale-105' : ''}`}>{item.shaHash}</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        ) : (
-                                            <span className="text-xs text-muted-foreground font-mono break-all">N/A</span>
-                                        )}
-                                    </Table.Cell>
-                                )}
-                                <Table.Cell className="px-1 w-8">
-                                    {/* Shared icon */}
-                                    {item.is_shared ? (
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleShareClick(item.id, item.name, item.type);
-                                                    }}
-                                                    className="flex items-center justify-center cursor-pointer hover:bg-accent rounded-sm p-1 transition-colors"
-                                                >
-                                                    <IconShare3 className="h-3.5 w-3.5 text-blue-500 opacity-70 hover:opacity-100 transition-opacity" />
-                                                </button>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>Manage share</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    ) : null}
-                                </Table.Cell>
-                                <Table.Cell className="px-3 w-12">
-                                    <div className={`flex justify-end gap-0.5 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-200`}>
+                                        </p>
+                                    </div>
+
+                                    {/* Actions menu */}
+                                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
-                                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
-                                                    <DotsVertical className="h-4 w-4" />
+                                                <Button size="sm" variant="ghost" className="h-6 w-6 p-0 bg-background/80 backdrop-blur-sm">
+                                                    <DotsVertical className="h-3 w-3" />
                                                 </Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end" className="w-48">
@@ -1849,389 +1989,260 @@ export const Table01DividerLineSm = ({
                                             </DropdownMenuContent>
                                         </DropdownMenu>
                                     </div>
-                                </Table.Cell>
-                            </Table.Row>
-                        )}
-                    </Table.Body>
-                </Table>
-            ) : (
-                // Grid View
-                <div className="p-4" onContextMenu={(e) => handleContextMenu(e)}>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-4">
-                        {filteredItems.map((item) => (
-                            <div
-                                key={item.id}
-                                className={`group relative bg-card rounded-lg border border-border p-4 hover:bg-muted/50 transition-all duration-200 cursor-pointer ${
-                                    selectedItems.has(item.id) ? 'ring-2 ring-primary bg-muted' : ''
-                                }`}
-                                onClick={() => {
-                                    if (item.type === 'folder') {
-                                        handleFolderDoubleClick(item.id, item.name);
-                                    } else if (item.type === 'file' && item.mimeType && canPreviewFile(item.mimeType)) {
-                                        handlePreviewClick(item.id, item.name, item.mimeType);
-                                    }
-                                }}
-                                onDoubleClick={() => {
-                                    if (item.type === 'folder') {
-                                        handleFolderDoubleClick(item.id, item.name);
-                                    } else if (item.type === 'file' && item.mimeType && canPreviewFile(item.mimeType)) {
-                                        handlePreviewClick(item.id, item.name, item.mimeType);
-                                    }
-                                }}
-                                onContextMenu={(e) => handleContextMenu(e, item)}
-                            >
-                                {/* Selection checkbox */}
-                                <div className="absolute top-2 left-2 z-10">
-                                    <input
-                                        type="checkbox"
-                                        checked={selectedItems.has(item.id)}
-                                        onChange={(e) => {
-                                            e.stopPropagation();
-                                            const newSelected = new Set(selectedItems);
-                                            if (e.target.checked) {
-                                                newSelected.add(item.id);
-                                            } else {
-                                                newSelected.delete(item.id);
-                                            }
-                                            setSelectedItems(newSelected);
-                                        }}
-                                        className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
-                                    />
                                 </div>
-
-                                {/* File/Folder icon */}
-                                <div className="flex flex-col items-center gap-3 pt-6">
-                                    <div className="text-4xl">
-                                        {getFileIcon(item.mimeType || '', item.type)}
-                                    </div>
-
-                                    {/* File name */}
-                                    {isTextTruncated(item.name) ? (
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <p className="text-sm font-medium text-center text-foreground line-clamp-2 break-words w-full cursor-default">
-                                                    {truncateFilename(item.name)}
-                                                </p>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>{item.name}</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    ) : (
-                                        <p className="text-sm font-medium text-center text-foreground line-clamp-2 break-words w-full cursor-default">
-                                            {truncateFilename(item.name)}
-                                        </p>
-                                    )}
-
-                                    {/* File size or folder indicator */}
-                                    <p className="text-xs text-muted-foreground text-center">
-                                        {item.type === 'folder' ? 'Folder' : formatFileSize(item.size || 0)}
-                                    </p>
-
-                                    {/* Modified date */}
-                                    <p className="text-xs text-muted-foreground text-center font-[var(--font-jetbrains-mono)] font-semibold tracking-wider">
-                                        {formatDate(item.createdAt)}
-                                    </p>
-                                </div>
-
-                                {/* Actions menu */}
-                                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button size="sm" variant="ghost" className="h-6 w-6 p-0 bg-background/80 backdrop-blur-sm">
-                                                <DotsVertical className="h-3 w-3" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end" className="w-48">
-                                            <DropdownMenuItem onClick={() => handleDownloadClick(item.id, item.name, item.type)}>
-                                                <IconDownload className="h-4 w-4 mr-2" />
-                                                Download
-                                            </DropdownMenuItem>
-                                            {item.type === 'file' && item.mimeType && canPreviewFile(item.mimeType) && (
-                                                <DropdownMenuItem onClick={() => handlePreviewClick(item.id, item.name, item.mimeType)}>
-                                                    <IconEye className="h-4 w-4 mr-2" />
-                                                    Preview
-                                                </DropdownMenuItem>
-                                            )}
-                                            <DropdownMenuItem onClick={() => handleShareClick(item.id, item.name, item.type)}>
-                                                <IconShare3 className="h-4 w-4 mr-2" />
-                                                Share
-                                            </DropdownMenuItem>
-                                            <DropdownMenuSeparator />
-                                            <DropdownMenuItem onClick={() => handleMoveToFolderClick(item.id, item.name, item.type)}>
-                                                <IconFolder className="h-4 w-4 mr-2" />
-                                                Move to folder
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => handleRenameClick(item.id, item.name, item.type)}>
-                                                <IconEdit className="h-4 w-4 mr-2" />
-                                                Rename
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => handleDetailsClick(item.id, item.name, item.type)}>
-                                                <IconInfoCircle className="h-4 w-4 mr-2" />
-                                                Details
-                                            </DropdownMenuItem>
-                                            <DropdownMenuSeparator />
-                                            <DropdownMenuItem onClick={() => handleMoveToTrashClick(item.id, item.name, item.type)} variant="destructive">
-                                                <IconTrash className="h-4 w-4 mr-2" />
-                                                Move to trash
-                                            </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-
-                    {filteredItems.length === 0 && (
-                        <div className="flex items-center justify-center py-12">
-                            <div className="text-center">
-                                <IconFile className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                                <p className="text-sm text-muted-foreground">No files found</p>
-                            </div>
+                            ))}
                         </div>
-                    )}
-                </div>
-            )}
-        </TableCard.Root>
 
-        <RenameModal
-            itemName={selectedItemForRename?.name || ""}
-            initialName={renameModalInitialName}
-            itemType={selectedItemForRename?.type || "file"}
-            open={renameModalOpen}
-            onOpenChange={(open) => {
-                setRenameModalOpen(open);
-                if (!open) setRenameModalInitialName(undefined);
-            }}
-            onRename={handleRename}
-        />
+                        {filteredItems.length === 0 && (
+                            <div className="flex items-center justify-center py-12">
+                                <div className="text-center">
+                                    <IconFile className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                                    <p className="text-sm text-muted-foreground">No files found</p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </TableCard.Root>
 
-        {/* Conflict modal for rename actions */}
-        <ConflictModal
-            isOpen={renameConflictOpen}
-            onClose={() => setRenameConflictOpen(false)}
-            conflicts={renameConflictItems}
-            onResolve={handleRenameConflictResolution}
-            operation="rename"
-        />
-
-        <ShareModal
-            itemId={selectedItemForShare?.id || ""}
-            itemName={selectedItemForShare?.name || ""}
-            itemType={selectedItemForShare?.type || "file"}
-            open={shareModalOpen}
-            onOpenChange={setShareModalOpen}
-            onShareUpdate={refreshFiles}
-        />
-
-        <SharePickerModal
-            open={sharePickerModalOpen}
-            onOpenChange={setSharePickerModalOpen}
-            onFileSelected={(fileId, fileName, fileType) => {
-                setSelectedItemForShare({ id: fileId, name: fileName, type: fileType });
-                setShareModalOpen(true);
-                setSharePickerModalOpen(false);
-            }}
-        />
-
-        <DetailsModal
-            itemId={selectedItemForDetails?.id || ""}
-            itemName={selectedItemForDetails?.name || ""}
-            itemType={selectedItemForDetails?.type || "file"}
-            open={detailsModalOpen}
-            onOpenChange={setDetailsModalOpen}
-        />
-
-        <MoveToFolderModal
-            items={selectedItemsForMoveToFolder}
-            open={moveToFolderModalOpen}
-            onOpenChange={setMoveToFolderModalOpen}
-            onItemMoved={() => {
-                setSelectedItems(new Set()); // Clear selection after moving items
-                refreshFiles();
-            }}
-        />
-
-        <MoveToTrashModal
-            itemId={selectedItemForMoveToTrash?.id || ""}
-            itemName={selectedItemForMoveToTrash?.name || ""}
-            itemType={selectedItemForMoveToTrash?.type || "file"}
-            open={moveToTrashModalOpen}
-            onOpenChange={setMoveToTrashModalOpen}
-            onItemMoved={() => {
-                // Remove the item from the current view immediately (optimistic update)
-                setFiles(prevFiles => prevFiles.filter(file => file.id !== selectedItemForMoveToTrash?.id));
-
-                // Clear selection for the moved item
-                if (selectedItemForMoveToTrash?.id) {
-                    setSelectedItems(prevSelected => {
-                        const newSelected = new Set(prevSelected);
-                        newSelected.delete(selectedItemForMoveToTrash.id);
-                        return newSelected;
-                    });
-                }
-                // No need to refreshFiles() since we do optimistic updates
-            }}
-        />
-
-        {/* Context Menu */}
-        {contextMenu?.isOpen && (
-            <div
-                className="fixed inset-0 z-50"
-                onClick={handleContextMenuClose}
-                onContextMenu={(e) => {
-                    e.preventDefault();
-                    handleContextMenuClose();
+            <RenameModal
+                itemName={selectedItemForRename?.name || ""}
+                initialName={renameModalInitialName}
+                itemType={selectedItemForRename?.type || "file"}
+                open={renameModalOpen}
+                onOpenChange={(open) => {
+                    setRenameModalOpen(open);
+                    if (!open) setRenameModalInitialName(undefined);
                 }}
-            >
+                onRename={handleRename}
+            />
+
+            {/* Conflict modal for rename actions */}
+            <ConflictModal
+                isOpen={renameConflictOpen}
+                onClose={() => setRenameConflictOpen(false)}
+                conflicts={renameConflictItems}
+                onResolve={handleRenameConflictResolution}
+                operation="rename"
+            />
+
+            <ShareModal
+                itemId={selectedItemForShare?.id || ""}
+                itemName={selectedItemForShare?.name || ""}
+                itemType={selectedItemForShare?.type || "file"}
+                open={shareModalOpen}
+                onOpenChange={setShareModalOpen}
+                onShareUpdate={refreshFiles}
+            />
+
+            <SharePickerModal
+                open={sharePickerModalOpen}
+                onOpenChange={setSharePickerModalOpen}
+                onFileSelected={(fileId, fileName, fileType) => {
+                    setSelectedItemForShare({ id: fileId, name: fileName, type: fileType });
+                    setShareModalOpen(true);
+                    setSharePickerModalOpen(false);
+                }}
+            />
+
+            <DetailsModal
+                itemId={selectedItemForDetails?.id || ""}
+                itemName={selectedItemForDetails?.name || ""}
+                itemType={selectedItemForDetails?.type || "file"}
+                open={detailsModalOpen}
+                onOpenChange={setDetailsModalOpen}
+            />
+
+            <MoveToFolderModal
+                items={selectedItemsForMoveToFolder}
+                open={moveToFolderModalOpen}
+                onOpenChange={setMoveToFolderModalOpen}
+                onItemMoved={() => {
+                    setSelectedItems(new Set()); // Clear selection after moving items
+                    refreshFiles();
+                }}
+            />
+
+            <MoveToTrashModal
+                itemId={selectedItemForMoveToTrash?.id || ""}
+                itemName={selectedItemForMoveToTrash?.name || ""}
+                itemType={selectedItemForMoveToTrash?.type || "file"}
+                open={moveToTrashModalOpen}
+                onOpenChange={setMoveToTrashModalOpen}
+                onItemMoved={() => {
+                    // Remove the item from the current view immediately (optimistic update)
+                    setFiles(prevFiles => prevFiles.filter(file => file.id !== selectedItemForMoveToTrash?.id));
+
+                    // Clear selection for the moved item
+                    if (selectedItemForMoveToTrash?.id) {
+                        setSelectedItems(prevSelected => {
+                            const newSelected = new Set(prevSelected);
+                            newSelected.delete(selectedItemForMoveToTrash.id);
+                            return newSelected;
+                        });
+                    }
+                    // No need to refreshFiles() since we do optimistic updates
+                }}
+            />
+
+            {/* Context Menu */}
+            {contextMenu?.isOpen && (
                 <div
-                    className="absolute bg-popover border border-border rounded-md shadow-lg py-1 min-w-48 z-50 animate-in fade-in-0 zoom-in-95 duration-200 ease-out pointer-events-auto"
-                    style={{
-                        left: (() => {
-                            const menuWidth = 192; // min-w-48 = 192px
-                            const viewportWidth = window.innerWidth;
-                            const cursorX = contextMenu.x;
-
-                            // If menu would go off-screen to the right, position it to the left of cursor
-                            if (cursorX + menuWidth > viewportWidth) {
-                                return cursorX - menuWidth;
-                            }
-                            return cursorX;
-                        })(),
-                        top: (() => {
-                            const menuHeight = 200; // Approximate height
-                            const viewportHeight = window.innerHeight;
-                            const cursorY = contextMenu.y;
-
-                            // If menu would go off-screen to the bottom, position it above cursor
-                            if (cursorY + menuHeight > viewportHeight) {
-                                return cursorY - menuHeight;
-                            }
-                            return cursorY;
-                        })(),
+                    className="fixed inset-0 z-50"
+                    onClick={handleContextMenuClose}
+                    onContextMenu={(e) => {
+                        e.preventDefault();
+                        handleContextMenuClose();
                     }}
-                    onClick={(e) => e.stopPropagation()}
                 >
-                    {!contextMenu.targetItem ? (
-                        // Context menu for empty space
-                        <>
-                            <button
-                                className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
-                                onClick={() => handleContextMenuAction('createFolder')}
-                            >
-                                <IconFolderPlus className="h-4 w-4" />
-                                Create Folder
-                            </button>
-                            <div className="h-px bg-border mx-2 my-1" />
-                            <button
-                                className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
-                                onClick={() => handleContextMenuAction('importFile')}
-                            >
-                                <IconFileUpload className="h-4 w-4" />
-                                Import File
-                            </button>
-                            <button
-                                className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
-                                onClick={() => handleContextMenuAction('importFolder')}
-                            >
-                                <IconFolderDown className="h-4 w-4" />
-                                Import Folder
-                            </button>
-                            <div className="h-px bg-border mx-2 my-1" />
-                            <button
-                                className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
-                                onClick={() => handleContextMenuAction('share')}
-                            >
-                                <IconShare3 className="h-4 w-4" />
-                                Share
-                            </button>
-                        </>
-                    ) : (
-                        // Context menu for items
-                        <>
-                            <button
-                                className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
-                                onClick={() => handleContextMenuAction('download', contextMenu.targetItem)}
-                            >
-                                <IconDownload className="h-4 w-4" />
-                                Download
-                            </button>
-                            {contextMenu.targetItem?.type === 'file' && contextMenu.targetItem?.mimeType && canPreviewFile(contextMenu.targetItem.mimeType) && (
+                    <div
+                        className="absolute bg-popover border border-border rounded-md shadow-lg py-1 min-w-48 z-50 animate-in fade-in-0 zoom-in-95 duration-200 ease-out pointer-events-auto"
+                        style={{
+                            left: (() => {
+                                const menuWidth = 192; // min-w-48 = 192px
+                                const viewportWidth = window.innerWidth;
+                                const cursorX = contextMenu.x;
+
+                                // If menu would go off-screen to the right, position it to the left of cursor
+                                if (cursorX + menuWidth > viewportWidth) {
+                                    return cursorX - menuWidth;
+                                }
+                                return cursorX;
+                            })(),
+                            top: (() => {
+                                const menuHeight = 200; // Approximate height
+                                const viewportHeight = window.innerHeight;
+                                const cursorY = contextMenu.y;
+
+                                // If menu would go off-screen to the bottom, position it above cursor
+                                if (cursorY + menuHeight > viewportHeight) {
+                                    return cursorY - menuHeight;
+                                }
+                                return cursorY;
+                            })(),
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {!contextMenu.targetItem ? (
+                            // Context menu for empty space
+                            <>
                                 <button
                                     className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
-                                    onClick={() => {
-                                        if (contextMenu.targetItem) {
-                                            handlePreviewClick(contextMenu.targetItem.id, contextMenu.targetItem.name, contextMenu.targetItem.mimeType);
-                                        }
-                                        handleContextMenuClose();
-                                    }}
+                                    onClick={() => handleContextMenuAction('createFolder')}
                                 >
-                                    <IconEye className="h-4 w-4" />
-                                    Preview
+                                    <IconFolderPlus className="h-4 w-4" />
+                                    Create Folder
                                 </button>
-                            )}
-                            {/* TODO: Only show Copy Link if item is shared */}
-                            <button
-                                className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
-                                onClick={() => handleContextMenuAction('copyLink', contextMenu.targetItem)}
-                            >
-                                <IconLink className="h-4 w-4" />
-                                Copy Link
-                            </button>
-                            <button
-                                className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
-                                onClick={() => handleContextMenuAction('share', contextMenu.targetItem)}
-                            >
-                                <IconShare3 className="h-4 w-4" />
-                                Share
-                            </button>
-                            <div className="h-px bg-border mx-2 my-1" />
-                            <button
-                                className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
-                                onClick={() => handleContextMenuAction('moveToFolder', contextMenu.targetItem)}
-                            >
-                                <IconFolder className="h-4 w-4" />
-                                Move to Folder
-                            </button>
-                            <button
-                                className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
-                                onClick={() => handleContextMenuAction('rename', contextMenu.targetItem)}
-                            >
-                                <IconEdit className="h-4 w-4" />
-                                Rename
-                            </button>
-                            <button
-                                className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
-                                onClick={() => handleContextMenuAction('details', contextMenu.targetItem)}
-                            >
-                                <IconInfoCircle className="h-4 w-4" />
-                                Details
-                            </button>
-                            <div className="h-px bg-border mx-2 my-1" />
-                            <button
-                                className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                                onClick={() => handleContextMenuAction('moveToTrash', contextMenu.targetItem)}
-                            >
-                                <IconTrash className="h-4 w-4" />
-                                Move to Trash
-                            </button>
-                        </>
-                    )}
+                                <div className="h-px bg-border mx-2 my-1" />
+                                <button
+                                    className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
+                                    onClick={() => handleContextMenuAction('importFile')}
+                                >
+                                    <IconFileUpload className="h-4 w-4" />
+                                    Import File
+                                </button>
+                                <button
+                                    className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
+                                    onClick={() => handleContextMenuAction('importFolder')}
+                                >
+                                    <IconFolderDown className="h-4 w-4" />
+                                    Import Folder
+                                </button>
+                                <div className="h-px bg-border mx-2 my-1" />
+                                <button
+                                    className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
+                                    onClick={() => handleContextMenuAction('share')}
+                                >
+                                    <IconShare3 className="h-4 w-4" />
+                                    Share
+                                </button>
+                            </>
+                        ) : (
+                            // Context menu for items
+                            <>
+                                <button
+                                    className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
+                                    onClick={() => handleContextMenuAction('download', contextMenu.targetItem)}
+                                >
+                                    <IconDownload className="h-4 w-4" />
+                                    Download
+                                </button>
+                                {contextMenu.targetItem?.type === 'file' && contextMenu.targetItem?.mimeType && canPreviewFile(contextMenu.targetItem.mimeType) && (
+                                    <button
+                                        className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
+                                        onClick={() => {
+                                            if (contextMenu.targetItem) {
+                                                handlePreviewClick(contextMenu.targetItem.id, contextMenu.targetItem.name, contextMenu.targetItem.mimeType);
+                                            }
+                                            handleContextMenuClose();
+                                        }}
+                                    >
+                                        <IconEye className="h-4 w-4" />
+                                        Preview
+                                    </button>
+                                )}
+                                {/* TODO: Only show Copy Link if item is shared */}
+                                <button
+                                    className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
+                                    onClick={() => handleContextMenuAction('copyLink', contextMenu.targetItem)}
+                                >
+                                    <IconLink className="h-4 w-4" />
+                                    Copy Link
+                                </button>
+                                <button
+                                    className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
+                                    onClick={() => handleContextMenuAction('share', contextMenu.targetItem)}
+                                >
+                                    <IconShare3 className="h-4 w-4" />
+                                    Share
+                                </button>
+                                <div className="h-px bg-border mx-2 my-1" />
+                                <button
+                                    className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
+                                    onClick={() => handleContextMenuAction('moveToFolder', contextMenu.targetItem)}
+                                >
+                                    <IconFolder className="h-4 w-4" />
+                                    Move to Folder
+                                </button>
+                                <button
+                                    className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
+                                    onClick={() => handleContextMenuAction('rename', contextMenu.targetItem)}
+                                >
+                                    <IconEdit className="h-4 w-4" />
+                                    Rename
+                                </button>
+                                <button
+                                    className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
+                                    onClick={() => handleContextMenuAction('details', contextMenu.targetItem)}
+                                >
+                                    <IconInfoCircle className="h-4 w-4" />
+                                    Details
+                                </button>
+                                <div className="h-px bg-border mx-2 my-1" />
+                                <button
+                                    className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                                    onClick={() => handleContextMenuAction('moveToTrash', contextMenu.targetItem)}
+                                >
+                                    <IconTrash className="h-4 w-4" />
+                                    Move to Trash
+                                </button>
+                            </>
+                        )}
+                    </div>
                 </div>
-            </div>
-        )}
+            )}
 
-        <PreviewModal
-            file={selectedItemForPreview ? {
-                id: selectedItemForPreview.id,
-                name: selectedItemForPreview.name,
-                type: 'file',
-                mimeType: selectedItemForPreview.mimeType
-            } : null}
-            open={previewModalOpen}
-            onOpenChange={setPreviewModalOpen}
-            onDownload={handleDownloadClick}
-        />
+            <PreviewModal
+                file={selectedItemForPreview ? {
+                    id: selectedItemForPreview.id,
+                    name: selectedItemForPreview.name,
+                    type: 'file',
+                    mimeType: selectedItemForPreview.mimeType
+                } : null}
+                open={previewModalOpen}
+                onOpenChange={setPreviewModalOpen}
+                onDownload={handleDownloadClick}
+            />
         </>
     );
 };
