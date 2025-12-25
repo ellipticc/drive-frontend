@@ -610,7 +610,7 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                                                     </>
                                                 ) : (
                                                     <>
-                                                        <DropdownMenuItem onClick={() => handleDownloadClick(item.id, item.fileId, item.fileName)}>
+                                                        <DropdownMenuItem onClick={() => handleDownloadClick(item.id, item.fileId)}>
                                                             <IconDownload className="h-4 w-4 mr-2" />
                                                             Download
                                                         </DropdownMenuItem>

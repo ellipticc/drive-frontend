@@ -15,6 +15,8 @@ interface AuthGuardProps {
 export function AuthGuard({ children }: AuthGuardProps) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
+  // Used to mark whether a redirect is due to an expired session. We only need the setter here.
+  const [, setIsExpired] = useState(false);
   const pathname = usePathname();
   const hasCheckedAuthRef = useRef(false);
 

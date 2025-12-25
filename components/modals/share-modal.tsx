@@ -388,6 +388,8 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
   const [shareLink, setShareLink] = useState("")
   const [copied, setCopied] = useState(false)
   const [createPublicLink, setCreatePublicLink] = useState(false)
+  // Track existing share id if an active share already exists for this item
+  const [existingShareId, setExistingShareId] = useState<string | null>(null)
 
   const [shareSettings, setShareSettings] = useState<ShareSettings>({
     password: "",

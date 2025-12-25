@@ -94,7 +94,7 @@ export function SupportRequestDialog({ children }: SupportRequestDialogProps) {
           },
         })
       }
-    } catch {
+    } catch (error) {
       console.error('Support request failed:', error)
       toast.error("Failed to send support request. Please try again.", {
         duration: 5000,

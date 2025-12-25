@@ -10,8 +10,6 @@ interface UploadError extends Error {
   conflictInfo?: ConflictInfo;
 }
 
-import { UploadResult } from '@/lib/upload';
-
 export interface UploadTask {
   id: string;
   file: File;
