@@ -523,45 +523,34 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                         }
                     }}>
                         <Table.Header>
-                            {selectedItems.size > 0 ? (
-                                <>
-                                    <Table.Head id="fileName" isRowHeader className="w-full max-w-1/4" align="left">
-                                        <span className="text-sm font-bold text-white">{selectedItems.size} selected</span>
-                                    </Table.Head>
-                                    {!isMobile && <Table.Head id="folderPath" align="left" />}
-                                    {!isMobile && <Table.Head id="createdAt" align="left" />}
-                                    {!isMobile && <Table.Head id="downloads" align="right" />}
-                                    {!isMobile && <Table.Head id="expiresAt" align="left" />}
-                                    <Table.Head id="actions" align="center" />
-                                </>
-                            ) : (
-                                <>
-                                    <Table.Head id="fileName" isRowHeader allowsSorting className="w-full max-w-1/4 pointer-events-none cursor-default" align="left">
-                                        <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto">Name</span>
-                                    </Table.Head>
-                                    {!isMobile && (
-                                        <Table.Head id="folderPath" allowsSorting align="left" className="pointer-events-none cursor-default">
-                                            <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto">Path</span>
-                                        </Table.Head>
-                                    )}
-                                    {!isMobile && (
-                                        <Table.Head id="createdAt" allowsSorting align="left" className="pointer-events-none cursor-default">
-                                            <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto">Created at</span>
-                                        </Table.Head>
-                                    )}
-                                    {!isMobile && (
-                                        <Table.Head id="downloads" allowsSorting align="right" className="pointer-events-none cursor-default">
-                                            <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto">Download Count</span>
-                                        </Table.Head>
-                                    )}
-                                    {!isMobile && (
-                                        <Table.Head id="expiresAt" allowsSorting align="left" className="pointer-events-none cursor-default">
-                                            <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto">Expires at</span>
-                                        </Table.Head>
-                                    )}
-                                    <Table.Head id="actions" align="center" />
-                                </>
+                            <Table.Head id="fileName" isRowHeader allowsSorting className={`w-full max-w-1/4 pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`} align="left">
+                                {selectedItems.size > 0 ? (
+                                    <span className="text-xs font-semibold whitespace-nowrap text-foreground px-1.5 py-1">{selectedItems.size} selected</span>
+                                ) : (
+                                    <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto">Name</span>
+                                )}
+                            </Table.Head>
+                            {!isMobile && (
+                                <Table.Head id="folderPath" allowsSorting align="left" className={`pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
+                                    <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Path</span>
+                                </Table.Head>
                             )}
+                            {!isMobile && (
+                                <Table.Head id="createdAt" allowsSorting align="left" className={`pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
+                                    <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Created at</span>
+                                </Table.Head>
+                            )}
+                            {!isMobile && (
+                                <Table.Head id="downloads" allowsSorting align="right" className={`pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
+                                    <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Download Count</span>
+                                </Table.Head>
+                            )}
+                            {!isMobile && (
+                                <Table.Head id="expiresAt" allowsSorting align="left" className={`pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
+                                    <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Expires at</span>
+                                </Table.Head>
+                            )}
+                            <Table.Head id="actions" align="center" />
                         </Table.Header>
 
                         <Table.Body items={filteredItems}>
