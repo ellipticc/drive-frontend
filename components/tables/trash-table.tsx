@@ -574,7 +574,11 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                         selectedKeys={selectedItems}
                         onSelectionChange={(keys) => {
                             if (keys === 'all') {
-                                setSelectedItems(new Set(sortedItems.map(item => item.id)));
+                                if (selectedItems.size > 0 && selectedItems.size < sortedItems.length) {
+                                    setSelectedItems(new Set());
+                                } else {
+                                    setSelectedItems(new Set(sortedItems.map(item => item.id)));
+                                }
                             } else {
                                 setSelectedItems(new Set(Array.from(keys as Set<string>)));
                             }
@@ -604,8 +608,8 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                         <Table.Body items={sortedItems}>
                             {(item) => {
                                 return (
-                                    <Table.Row id={item.id} className="h-12">
-                                        <Table.Cell className="h-12">
+                                    <Table.Row id={item.id} className="h-12 group hover:bg-muted/50 transition-colors duration-150">
+                                        <Table.Cell className="h-12 w-full max-w-1/4">
                                             <div className="flex items-center gap-2 h-full">
                                                 <div className="text-base flex-shrink-0">
                                                     {getFileIcon(item.mimeType || '', item.type)}
@@ -613,18 +617,18 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                                                 {isTextTruncated(item.name) ? (
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
-                                                            <p className="text-xs font-medium whitespace-nowrap text-foreground truncate cursor-default flex-1 min-w-0">
+                                                            <p className="text-sm font-medium whitespace-nowrap text-foreground truncate cursor-default flex-1 min-w-0">
                                                                 {truncateFilename(item.name)}
                                                             </p>
                                                         </TooltipTrigger>
                                                         <TooltipContent>
-                                                            <p className="text-xs text-muted-foreground max-w-xs break-words">
+                                                            <p className="text-sm text-foreground max-w-xs break-words">
                                                                 {item.name}
                                                             </p>
                                                         </TooltipContent>
                                                     </Tooltip>
                                                 ) : (
-                                                    <p className="text-xs font-medium whitespace-nowrap text-foreground truncate cursor-default flex-1 min-w-0">
+                                                    <p className="text-sm font-medium whitespace-nowrap text-foreground truncate cursor-default flex-1 min-w-0">
                                                         {item.name}
                                                     </p>
                                                 )}
@@ -632,14 +636,21 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                                         </Table.Cell>
                                         {!isMobile && (
                                             <Table.Cell className="text-right h-12">
-                                                <span className="text-sm text-muted-foreground font-medium">
-                                                    {formatDate(item.deletedAt)}
+                                                <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
+                                                    {new Date(item.deletedAt).toLocaleString('en-US', {
+                                                        month: '2-digit',
+                                                        day: '2-digit',
+                                                        year: 'numeric',
+                                                        hour: 'numeric',
+                                                        minute: '2-digit',
+                                                        hour12: true
+                                                    })}
                                                 </span>
                                             </Table.Cell>
                                         )}
                                         {!isMobile && (
                                             <Table.Cell className="text-right h-12">
-                                                <span className="text-sm text-muted-foreground">
+                                                <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
                                                     {item.type === 'folder' ? '--' : formatFileSize(item.size || 0)}
                                                 </span>
                                             </Table.Cell>

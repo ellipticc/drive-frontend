@@ -1495,6 +1495,12 @@ export const Table01DividerLineSm = ({
         if (keys === 'all') {
             const allIds = filteredItems.map(item => item.id);
             setSelectedItems(prev => {
+                // If we have some items selected (Indeterminate) and click check, we want to DESELECT ALL
+                // If we have 0 items selected, we want to SELECT ALL
+                if (prev.size > 0 && prev.size < allIds.length) {
+                    return new Set();
+                }
+
                 if (prev.size === allIds.length && allIds.every(id => prev.has(id))) {
                     return prev; // No change needed
                 }
@@ -1798,17 +1804,17 @@ export const Table01DividerLineSm = ({
                                 )}
                             </Table.Head>
                             {!isMobile && (
-                                <Table.Head id="modified" allowsSorting={selectedItems.size === 0} align="left" className={`${visibleColumns.has('modified') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default`}>
+                                <Table.Head id="modified" allowsSorting={selectedItems.size === 0} align="right" className={`${visibleColumns.has('modified') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} !px-0`}>
                                     <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Modified</span>
                                 </Table.Head>
                             )}
                             {!isMobile && (
-                                <Table.Head id="size" allowsSorting={selectedItems.size === 0} align="right" className={`${visibleColumns.has('size') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default`}>
+                                <Table.Head id="size" allowsSorting={selectedItems.size === 0} align="right" className={`${visibleColumns.has('size') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} !px-0`}>
                                     <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Size</span>
                                 </Table.Head>
                             )}
                             {!isMobile && (
-                                <Table.Head id="checksum" allowsSorting={selectedItems.size === 0} align="right" className={`pr-2 ${visibleColumns.has('checksum') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default`}>
+                                <Table.Head id="checksum" allowsSorting={selectedItems.size === 0} align="right" className={`pr-2 ${visibleColumns.has('checksum') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} !px-0`}>
                                     <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Checksum</span>
                                 </Table.Head>
                             )}
@@ -1848,28 +1854,28 @@ export const Table01DividerLineSm = ({
                                         </div>
                                     </Table.Cell>
                                     {!isMobile && (
-                                        <Table.Cell className={`text-left ${visibleColumns.has('modified') ? '' : '[&>*]:invisible'}`}>
-                                            <span className="text-xs text-muted-foreground font-mono break-all">
+                                        <Table.Cell className={`text-right ${visibleColumns.has('modified') ? '' : '[&>*]:invisible'} !px-0`}>
+                                            <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
                                                 {formatDate(item.createdAt)}
                                             </span>
                                         </Table.Cell>
                                     )}
                                     {!isMobile && (
-                                        <Table.Cell className={`text-right ${visibleColumns.has('size') ? '' : '[&>*]:invisible'}`}>
-                                            <span className="text-xs text-muted-foreground font-mono break-all">
+                                        <Table.Cell className={`text-right ${visibleColumns.has('size') ? '' : '[&>*]:invisible'} !px-0`}>
+                                            <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
                                                 {item.type === 'folder' ? '--' : formatFileSize(item.size || 0)}
                                             </span>
                                         </Table.Cell>
                                     )}
                                     {!isMobile && (
-                                        <Table.Cell className={`text-right ${visibleColumns.has('checksum') ? '' : '[&>*]:invisible'}`}>
+                                        <Table.Cell className={`text-right ${visibleColumns.has('checksum') ? '' : '[&>*]:invisible'} !px-0`}>
                                             {item.type === 'folder' ? (
-                                                <span className="text-xs text-muted-foreground font-mono break-all">N/A</span>
+                                                <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">N/A</span>
                                             ) : item.shaHash ? (
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
                                                         <button
-                                                            className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer font-mono break-all"
+                                                            className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer font-mono whitespace-nowrap"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 navigator.clipboard.writeText(item.shaHash!);

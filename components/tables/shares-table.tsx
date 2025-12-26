@@ -517,13 +517,17 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                 {viewMode === 'table' ? (
                     <Table aria-label="Shares" selectionMode="multiple" sortDescriptor={sortDescriptor} onSortChange={setSortDescriptor} selectedKeys={selectedItems} onSelectionChange={(keys) => {
                         if (keys === 'all') {
-                            setSelectedItems(new Set(filteredItems.map(item => item.id)));
+                            if (selectedItems.size > 0 && selectedItems.size < filteredItems.length) {
+                                setSelectedItems(new Set());
+                            } else {
+                                setSelectedItems(new Set(filteredItems.map(item => item.id)));
+                            }
                         } else {
                             setSelectedItems(new Set(Array.from(keys as Set<string>)));
                         }
                     }}>
                         <Table.Header>
-                            <Table.Head id="fileName" isRowHeader allowsSorting className={`w-full max-w-1/4 pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`} align="left">
+                            <Table.Head id="fileName" isRowHeader allowsSorting className={`w-full pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`} align="left">
                                 {selectedItems.size > 0 ? (
                                     <span className="text-xs font-semibold whitespace-nowrap text-foreground px-1.5 py-1">{selectedItems.size} selected</span>
                                 ) : (
@@ -536,7 +540,7 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                                 </Table.Head>
                             )}
                             {!isMobile && (
-                                <Table.Head id="createdAt" allowsSorting align="left" className={`pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
+                                <Table.Head id="createdAt" allowsSorting align="right" className={`pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
                                     <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Created at</span>
                                 </Table.Head>
                             )}
@@ -546,7 +550,7 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                                 </Table.Head>
                             )}
                             {!isMobile && (
-                                <Table.Head id="expiresAt" allowsSorting align="left" className={`pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
+                                <Table.Head id="expiresAt" allowsSorting align="right" className={`pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
                                     <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Expires at</span>
                                 </Table.Head>
                             )}
@@ -559,7 +563,7 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                                     id={item.id}
                                     className="group hover:bg-muted/50 transition-colors duration-150"
                                 >
-                                    <Table.Cell className="w-full max-w-1/4">
+                                    <Table.Cell className="w-full">
                                         <div className="flex items-center gap-2">
                                             <div className="text-base">
                                                 {getItemIcon(item)}
@@ -584,28 +588,28 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                                     </Table.Cell>
                                     {!isMobile && (
                                         <Table.Cell className="text-left">
-                                            <span className="text-xs text-muted-foreground font-[var(--font-jetbrains-mono)] font-semibold tracking-wider">
+                                            <span className="text-xs text-muted-foreground font-[var(--font-jetbrains-mono)] font-semibold tracking-wider whitespace-nowrap">
                                                 {item.folderPath || 'Root'}
                                             </span>
                                         </Table.Cell>
                                     )}
                                     {!isMobile && (
-                                        <Table.Cell className="text-left">
-                                            <span className="text-xs text-muted-foreground font-[var(--font-jetbrains-mono)] font-semibold tracking-wider">
+                                        <Table.Cell className="text-right">
+                                            <span className="text-xs text-muted-foreground font-[var(--font-jetbrains-mono)] font-semibold tracking-wider whitespace-nowrap">
                                                 {formatDate(item.createdAt)}
                                             </span>
                                         </Table.Cell>
                                     )}
                                     {!isMobile && (
                                         <Table.Cell className="text-right">
-                                            <span className="text-xs text-muted-foreground font-[var(--font-jetbrains-mono)] font-semibold">
+                                            <span className="text-xs text-muted-foreground font-[var(--font-jetbrains-mono)] font-semibold tracking-wider whitespace-nowrap">
                                                 {item.downloads}
                                             </span>
                                         </Table.Cell>
                                     )}
                                     {!isMobile && (
-                                        <Table.Cell className="text-left">
-                                            <span className="text-xs text-muted-foreground font-[var(--font-jetbrains-mono)] font-semibold tracking-wider">
+                                        <Table.Cell className="text-right">
+                                            <span className="text-xs text-muted-foreground font-[var(--font-jetbrains-mono)] font-semibold tracking-wider whitespace-nowrap">
                                                 {item.expiresAt ? formatDate(item.expiresAt) : 'Never'}
                                             </span>
                                         </Table.Cell>
@@ -691,7 +695,7 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                         </div>
                     </div>
                 )}
-            </TableCard.Root>
+            </TableCard.Root >
 
             <ShareModal
                 itemId={selectedItemForShare?.id || ""}
