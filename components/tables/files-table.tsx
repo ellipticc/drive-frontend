@@ -1796,18 +1796,18 @@ export const Table01DividerLineSm = ({
                                         <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer">Name</span>
                                     </Table.Head>
                                     {!isMobile && (
-                                        <Table.Head id="modified" allowsSorting align="left" className={visibleColumns.has('modified') ? '' : '[&>*]:invisible pointer-events-none'}>
-                                            <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer">Modified</span>
+                                        <Table.Head id="modified" allowsSorting align="left" className={`${visibleColumns.has('modified') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default`}>
+                                            <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto">Modified</span>
                                         </Table.Head>
                                     )}
                                     {!isMobile && (
-                                        <Table.Head id="size" allowsSorting align="right" className={visibleColumns.has('size') ? '' : '[&>*]:invisible pointer-events-none'}>
-                                            <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer">Size</span>
+                                        <Table.Head id="size" allowsSorting align="right" className={`${visibleColumns.has('size') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default`}>
+                                            <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto">Size</span>
                                         </Table.Head>
                                     )}
                                     {!isMobile && (
-                                        <Table.Head id="checksum" allowsSorting align="right" className={`pr-2 ${visibleColumns.has('checksum') ? '' : '[&>*]:invisible pointer-events-none'}`}>
-                                            <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer">Checksum</span>
+                                        <Table.Head id="checksum" allowsSorting align="right" className={`pr-2 ${visibleColumns.has('checksum') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default`}>
+                                            <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto">Checksum</span>
                                         </Table.Head>
                                     )}
                                     <Table.Head id="shared" align="center" className={`w-8 ${visibleColumns.has('shared') ? '' : '[&>*]:invisible pointer-events-none'}`} />
@@ -1815,22 +1815,22 @@ export const Table01DividerLineSm = ({
                                 </>
                             ) : (
                                 <>
-                                    <Table.Head id="name" isRowHeader allowsSorting className="w-full max-w-1/4" align="left">
-                                        <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer">Name</span>
+                                    <Table.Head id="name" isRowHeader allowsSorting className="w-full max-w-1/4 pointer-events-none cursor-default" align="left">
+                                        <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto">Name</span>
                                     </Table.Head>
                                     {!isMobile && (
-                                        <Table.Head id="modified" allowsSorting align="left" className={visibleColumns.has('modified') ? '' : '[&>*]:invisible pointer-events-none'}>
-                                            <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer">Modified</span>
+                                        <Table.Head id="modified" allowsSorting align="left" className={`${visibleColumns.has('modified') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default`}>
+                                            <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto">Modified</span>
                                         </Table.Head>
                                     )}
                                     {!isMobile && (
-                                        <Table.Head id="size" allowsSorting align="right" className={visibleColumns.has('size') ? '' : '[&>*]:invisible pointer-events-none'}>
-                                            <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer">Size</span>
+                                        <Table.Head id="size" allowsSorting align="right" className={`${visibleColumns.has('size') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default`}>
+                                            <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto">Size</span>
                                         </Table.Head>
                                     )}
                                     {!isMobile && (
-                                        <Table.Head id="checksum" allowsSorting align="right" className={`pr-2 ${visibleColumns.has('checksum') ? '' : '[&>*]:invisible pointer-events-none'}`}>
-                                            <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer">Checksum</span>
+                                        <Table.Head id="checksum" allowsSorting align="right" className={`pr-2 ${visibleColumns.has('checksum') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default`}>
+                                            <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto">Checksum</span>
                                         </Table.Head>
                                     )}
                                     <Table.Head id="shared" label="" align="center" className={`w-8 ${visibleColumns.has('shared') ? '' : '[&>*]:invisible pointer-events-none'}`} />

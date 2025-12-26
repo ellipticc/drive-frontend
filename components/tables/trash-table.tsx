@@ -592,17 +592,17 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                                 </>
                             ) : (
                                 <>
-                                    <Table.Head id="name" isRowHeader allowsSorting className="w-full max-w-1/4" align="left">
-                                        <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer">Name</span>
+                                    <Table.Head id="name" isRowHeader allowsSorting className="w-full max-w-1/4 pointer-events-none cursor-default" align="left">
+                                        <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto">Name</span>
                                     </Table.Head>
                                     {!isMobile && (
-                                        <Table.Head id="deletedAt" allowsSorting className="text-right" align="right">
-                                            <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer">Deleted</span>
+                                        <Table.Head id="deletedAt" allowsSorting className="text-right pointer-events-none cursor-default" align="right">
+                                            <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto">Deleted</span>
                                         </Table.Head>
                                     )}
                                     {!isMobile && (
-                                        <Table.Head id="size" allowsSorting className="text-right" align="right">
-                                            <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer">Size</span>
+                                        <Table.Head id="size" allowsSorting className="text-right pointer-events-none cursor-default" align="right">
+                                            <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto">Size</span>
                                         </Table.Head>
                                     )}
                                     <Table.Head id="actions" align="center" />
