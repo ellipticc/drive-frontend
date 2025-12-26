@@ -6,7 +6,7 @@ import { DotsVertical } from "@untitledui/icons";
 import type { SortDescriptor, Selection } from "react-aria-components";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Button } from "@/components/ui/button";
-import { IconFolderPlus, IconFolderDown, IconFileUpload, IconShare3, IconListDetails, IconDownload, IconFolder, IconEdit, IconInfoCircle, IconTrash, IconPhoto, IconVideo, IconMusic, IconFileText, IconArchive, IconFile, IconHome, IconChevronRight, IconLoader2, IconLink, IconEye } from "@tabler/icons-react";
+import { IconFolderPlus, IconFolderDown, IconFileUpload, IconShare3, IconListDetails, IconDownload, IconFolder, IconEdit, IconInfoCircle, IconTrash, IconPhoto, IconVideo, IconMusic, IconFileText, IconArchive, IconFile, IconHome, IconChevronRight, IconLoader2, IconLink, IconEye, IconLayoutColumns, IconChevronDown } from "@tabler/icons-react";
 import { CreateFolderModal } from "@/components/modals/create-folder-modal";
 import { MoveToFolderModal } from "@/components/modals/move-to-folder-modal";
 import { ShareModal } from "@/components/modals/share-modal";
@@ -19,6 +19,7 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuCheckboxItem,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -55,6 +56,34 @@ export const Table01DividerLineSm = ({
     const router = useRouter();
     const pathname = usePathname();
     const isMobile = useIsMobile();
+    const STORAGE_KEY = 'files-table-visible-columns';
+
+    // Column visibility state
+    const [visibleColumns, setVisibleColumns] = useState<Set<string>>(new Set(['modified', 'size', 'checksum', 'shared']));
+    const [isPreferencesLoaded, setIsPreferencesLoaded] = useState(false);
+
+    // Load preferences from local storage
+    useEffect(() => {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed)) {
+                    setVisibleColumns(new Set(parsed));
+                }
+            } catch (e) {
+                console.error("Failed to parse visible columns preference", e);
+            }
+        }
+        setIsPreferencesLoaded(true);
+    }, []);
+
+    // Save preferences to local storage
+    useEffect(() => {
+        if (isPreferencesLoaded) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(visibleColumns)));
+        }
+    }, [visibleColumns, isPreferencesLoaded]);
 
     // Global upload context
     const {
@@ -1209,6 +1238,73 @@ export const Table01DividerLineSm = ({
         const selectedCount = selectedItems.size;
         const hasMultipleSelection = selectedCount > 1;
 
+        const customizeColumnsDropdown = !isMobile && viewMode === 'table' ? (
+            <>
+                <div className="h-5 w-px bg-border mx-1" />
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Customize columns">
+                            <IconLayoutColumns className="h-4 w-4" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                        <DropdownMenuCheckboxItem
+                            checked={visibleColumns.has('modified')}
+                            onCheckedChange={(checked) => {
+                                setVisibleColumns(prev => {
+                                    const next = new Set(prev);
+                                    if (checked) next.add('modified');
+                                    else next.delete('modified');
+                                    return next;
+                                });
+                            }}
+                        >
+                            Modified
+                        </DropdownMenuCheckboxItem>
+                        <DropdownMenuCheckboxItem
+                            checked={visibleColumns.has('size')}
+                            onCheckedChange={(checked) => {
+                                setVisibleColumns(prev => {
+                                    const next = new Set(prev);
+                                    if (checked) next.add('size');
+                                    else next.delete('size');
+                                    return next;
+                                });
+                            }}
+                        >
+                            Size
+                        </DropdownMenuCheckboxItem>
+                        <DropdownMenuCheckboxItem
+                            checked={visibleColumns.has('checksum')}
+                            onCheckedChange={(checked) => {
+                                setVisibleColumns(prev => {
+                                    const next = new Set(prev);
+                                    if (checked) next.add('checksum');
+                                    else next.delete('checksum');
+                                    return next;
+                                });
+                            }}
+                        >
+                            Checksum
+                        </DropdownMenuCheckboxItem>
+                        <DropdownMenuCheckboxItem
+                            checked={visibleColumns.has('shared')}
+                            onCheckedChange={(checked) => {
+                                setVisibleColumns(prev => {
+                                    const next = new Set(prev);
+                                    if (checked) next.add('shared');
+                                    else next.delete('shared');
+                                    return next;
+                                });
+                            }}
+                        >
+                            Shared
+                        </DropdownMenuCheckboxItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </>
+        ) : null;
+
         if (!hasSelection) {
             // Default state - no selection
             return (
@@ -1262,6 +1358,7 @@ export const Table01DividerLineSm = ({
                     >
                         <IconListDetails className="h-4 w-4" />
                     </Button>
+                    {customizeColumnsDropdown}
                 </>
             );
         } else {
@@ -1387,10 +1484,11 @@ export const Table01DividerLineSm = ({
                     >
                         <IconListDetails className="h-4 w-4" />
                     </Button>
+                    {customizeColumnsDropdown}
                 </>
             );
         }
-    }, [selectedItems, filesMap, viewMode, currentFolderId, refreshFiles, handleFolderUpload, handleFileUpload, handleBulkDownload, handlePreviewClick, handleShareClick, handleBulkMoveToTrash, handleViewModeChange, handleRenameClick, handleDetailsClick, setSharePickerModalOpen, setSelectedItemsForMoveToFolder, setMoveToFolderModalOpen]);
+    }, [selectedItems, filesMap, viewMode, currentFolderId, refreshFiles, handleFolderUpload, handleFileUpload, handleBulkDownload, handlePreviewClick, handleShareClick, handleBulkMoveToTrash, handleViewModeChange, handleRenameClick, handleDetailsClick, setSharePickerModalOpen, setSelectedItemsForMoveToFolder, setMoveToFolderModalOpen, visibleColumns, isMobile]);
 
     // Memoize the onSelectionChange callback to prevent unnecessary re-renders
     const handleTableSelectionChange = useCallback((keys: Selection) => {
@@ -1697,25 +1795,25 @@ export const Table01DividerLineSm = ({
                                     <Table.Head id="name" isRowHeader className="w-full max-w-1/4" align="left">
                                         <span className="text-sm font-bold text-white">{selectedItems.size} selected</span>
                                     </Table.Head>
-                                    {!isMobile && <Table.Head id="modified" align="left" />}
-                                    {!isMobile && <Table.Head id="size" align="right" />}
-                                    {!isMobile && <Table.Head id="checksum" align="right" className="pr-2" />}
-                                    <Table.Head id="shared" align="center" className="w-8" />
+                                    {!isMobile && <Table.Head id="modified" align="left" className={visibleColumns.has('modified') ? '' : '[&>*]:invisible pointer-events-none'} />}
+                                    {!isMobile && <Table.Head id="size" align="right" className={visibleColumns.has('size') ? '' : '[&>*]:invisible pointer-events-none'} />}
+                                    {!isMobile && <Table.Head id="checksum" align="right" className={`pr-2 ${visibleColumns.has('checksum') ? '' : '[&>*]:invisible pointer-events-none'}`} />}
+                                    <Table.Head id="shared" align="center" className={`w-8 ${visibleColumns.has('shared') ? '' : '[&>*]:invisible pointer-events-none'}`} />
                                     <Table.Head id="actions" align="center" />
                                 </>
                             ) : (
                                 <>
                                     <Table.Head id="name" label="Name" isRowHeader allowsSorting className="w-full max-w-1/4" align="left" />
-                                    {!isMobile && <Table.Head id="modified" label="Modified" allowsSorting align="left" />}
-                                    {!isMobile && <Table.Head id="size" label="Size" allowsSorting align="right" />}
-                                    {!isMobile && <Table.Head id="checksum" label="Checksum" allowsSorting align="right" className="pr-2" />}
-                                    <Table.Head id="shared" label="" align="center" className="w-8" />
+                                    {!isMobile && <Table.Head id="modified" label="Modified" allowsSorting align="left" className={visibleColumns.has('modified') ? '' : '[&>*]:invisible pointer-events-none'} />}
+                                    {!isMobile && <Table.Head id="size" label="Size" allowsSorting align="right" className={visibleColumns.has('size') ? '' : '[&>*]:invisible pointer-events-none'} />}
+                                    {!isMobile && <Table.Head id="checksum" label="Checksum" allowsSorting align="right" className={`pr-2 ${visibleColumns.has('checksum') ? '' : '[&>*]:invisible pointer-events-none'}`} />}
+                                    <Table.Head id="shared" label="" align="center" className={`w-8 ${visibleColumns.has('shared') ? '' : '[&>*]:invisible pointer-events-none'}`} />
                                     <Table.Head id="actions" align="center" />
                                 </>
                             )}
                         </Table.Header>
 
-                        <Table.Body items={filteredItems}>
+                        <Table.Body items={filteredItems} dependencies={[visibleColumns]}>
                             {(item) => (
                                 <Table.Row
                                     id={item.id}
@@ -1747,21 +1845,21 @@ export const Table01DividerLineSm = ({
                                         </div>
                                     </Table.Cell>
                                     {!isMobile && (
-                                        <Table.Cell className="text-left">
+                                        <Table.Cell className={`text-left ${visibleColumns.has('modified') ? '' : '[&>*]:invisible'}`}>
                                             <span className="text-xs text-muted-foreground font-mono break-all">
                                                 {formatDate(item.createdAt)}
                                             </span>
                                         </Table.Cell>
                                     )}
                                     {!isMobile && (
-                                        <Table.Cell className="text-right">
+                                        <Table.Cell className={`text-right ${visibleColumns.has('size') ? '' : '[&>*]:invisible'}`}>
                                             <span className="text-xs text-muted-foreground font-mono break-all">
                                                 {item.type === 'folder' ? '--' : formatFileSize(item.size || 0)}
                                             </span>
                                         </Table.Cell>
                                     )}
                                     {!isMobile && (
-                                        <Table.Cell className="text-right">
+                                        <Table.Cell className={`text-right ${visibleColumns.has('checksum') ? '' : '[&>*]:invisible'}`}>
                                             {item.type === 'folder' ? (
                                                 <span className="text-xs text-muted-foreground font-mono break-all">N/A</span>
                                             ) : item.shaHash ? (
@@ -1796,7 +1894,7 @@ export const Table01DividerLineSm = ({
                                             )}
                                         </Table.Cell>
                                     )}
-                                    <Table.Cell className="px-1 w-8">
+                                    <Table.Cell className={`px-1 w-8 ${visibleColumns.has('shared') ? '' : '[&>*]:invisible'}`}>
                                         {/* Shared icon */}
                                         {item.is_shared ? (
                                             <Tooltip>
