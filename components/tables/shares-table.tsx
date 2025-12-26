@@ -536,11 +536,29 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                                 </>
                             ) : (
                                 <>
-                                    <Table.Head id="fileName" label="Name" isRowHeader allowsSorting className="w-full max-w-1/4" align="left" />
-                                    {!isMobile && <Table.Head id="folderPath" label="Path" allowsSorting align="left" />}
-                                    {!isMobile && <Table.Head id="createdAt" label="Created at" allowsSorting align="left" />}
-                                    {!isMobile && <Table.Head id="downloads" label="Download Count" allowsSorting align="right" />}
-                                    {!isMobile && <Table.Head id="expiresAt" label="Expires at" allowsSorting align="left" />}
+                                    <Table.Head id="fileName" isRowHeader allowsSorting className="w-full max-w-1/4" align="left">
+                                        <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer">Name</span>
+                                    </Table.Head>
+                                    {!isMobile && (
+                                        <Table.Head id="folderPath" allowsSorting align="left">
+                                            <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer">Path</span>
+                                        </Table.Head>
+                                    )}
+                                    {!isMobile && (
+                                        <Table.Head id="createdAt" allowsSorting align="left">
+                                            <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer">Created at</span>
+                                        </Table.Head>
+                                    )}
+                                    {!isMobile && (
+                                        <Table.Head id="downloads" allowsSorting align="right">
+                                            <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer">Download Count</span>
+                                        </Table.Head>
+                                    )}
+                                    {!isMobile && (
+                                        <Table.Head id="expiresAt" allowsSorting align="left">
+                                            <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer">Expires at</span>
+                                        </Table.Head>
+                                    )}
                                     <Table.Head id="actions" align="center" />
                                 </>
                             )}
