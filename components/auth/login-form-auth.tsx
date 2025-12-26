@@ -94,7 +94,7 @@ export function LoginFormAuth({
     try {
       // Dynamically import OPAQUE to ensure it only runs on client
       const { OPAQUE } = await import("@/lib/opaque")
-      
+
       // Execute complete OPAQUE login (all 4 steps)
       const loginResult = await OPAQUE.login(formData.password, formData.email)
 
@@ -118,7 +118,7 @@ export function LoginFormAuth({
       if (userObj.crypto_keypairs?.pqcKeypairs) {
         const requiredKeys = ['ed25519', 'x25519', 'kyber', 'dilithium'] as const;
         const missingKeys = requiredKeys.filter(key => !(userObj.crypto_keypairs!.pqcKeypairs as unknown as Record<string, unknown>)[key as string]);
-        
+
         if (missingKeys.length > 0) {
           setError(`Missing cryptographic keys: ${missingKeys.join(', ')}`);
           return;
@@ -134,7 +134,7 @@ export function LoginFormAuth({
 
           const requiredFields = ['publicKey', 'encryptedPrivateKey', 'privateKeyNonce', 'encryptionKey', 'encryptionNonce'];
           const missingFields = requiredFields.filter(field => !(keypair[field]));
-          
+
           if (missingFields.length > 0) {
             setError(`Invalid ${String(keyType)} keypair structure`);
             return;
@@ -150,9 +150,9 @@ export function LoginFormAuth({
           const encKey = keypair.encryptionKey as string | undefined;
           const encNonce = keypair.encryptionNonce as string | undefined;
 
-          if ((encPriv && encPriv.length > maxLengths.encryptedPrivateKey) || 
-              (encKey && encKey.length > maxLengths.encryptionKey) || 
-              (encNonce && encNonce.length > maxLengths.encryptionNonce)) {
+          if ((encPriv && encPriv.length > maxLengths.encryptedPrivateKey) ||
+            (encKey && encKey.length > maxLengths.encryptionKey) ||
+            (encNonce && encNonce.length > maxLengths.encryptionNonce)) {
             keyManager.forceClearStorage();
           }
         }
@@ -179,7 +179,7 @@ export function LoginFormAuth({
       // This way if we redirect to TOTP, we store password in the appropriate storage
       const totpStatusResponse = await apiClient.getTOTPStatus(userObj.id as string)
       const isTOTPEnabled = totpStatusResponse.success && totpStatusResponse.data?.enabled;
-      
+
       if (isTOTPEnabled) {
         // Check if device is remembered
         const deviceToken = localStorage.getItem('totp_device_token')
@@ -188,7 +188,7 @@ export function LoginFormAuth({
           if (deviceResponse.success && deviceResponse.data?.isValidDevice) {
             // Fall through to master key derivation below
           } else {
-            if (token) if (token) storage.setItem('pending_auth_token', token)
+            if (token) storage.setItem('pending_auth_token', token)
             storage.setItem('login_email', formData.email)
             storage.setItem('login_password', formData.password)
             storage.setItem('login_user_id', String(userObj.id))
@@ -217,13 +217,13 @@ export function LoginFormAuth({
           // Check if user has password-encrypted master key (new path)
           if (ud.encrypted_master_key_password && ud.master_key_password_nonce) {
             const { deriveEncryptionKey, decryptData } = await import("@/lib/crypto")
-            
+
             // Derive password-based encryption key using account salt
             const passwordDerivedKey = await deriveEncryptionKey(
               formData.password,
               ud.crypto_keypairs.accountSalt as string
             )
-            
+
             // Decrypt the Master Key using password-derived key
             try {
               const masterKeyBytes = await decryptData(
@@ -231,7 +231,7 @@ export function LoginFormAuth({
                 passwordDerivedKey,
                 ud.master_key_password_nonce
               )
-              
+
               // Cache the decrypted master key
               if (ud.crypto_keypairs?.accountSalt) {
                 masterKeyManager.cacheExistingMasterKey(masterKeyBytes, ud.crypto_keypairs.accountSalt as string)
@@ -264,12 +264,12 @@ export function LoginFormAuth({
       try {
         await keyManager.initialize(userData as UserData);
       } catch (keyManagerError) {
-        if (keyManagerError instanceof Error && 
-            (keyManagerError.message.includes('Corrupted') || 
-             keyManagerError.message.includes('corrupted') ||
-             keyManagerError.message.includes('Invalid'))) {
+        if (keyManagerError instanceof Error &&
+          (keyManagerError.message.includes('Corrupted') ||
+            keyManagerError.message.includes('corrupted') ||
+            keyManagerError.message.includes('Invalid'))) {
           keyManager.forceClearStorage();
-          
+
           try {
             await keyManager.initialize(userData as UserData);
           } catch {

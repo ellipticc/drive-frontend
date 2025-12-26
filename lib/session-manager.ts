@@ -68,8 +68,9 @@ export class SessionManager {
         this.showExpiryWarning(timeUntilExpiry);
       }
 
-      // If token has expired, attempt auto-renewal
-      if (timeUntilExpiry <= 0) {
+      // If token is about to expire (less than 5 minutes), attempt auto-renewal
+      // We must renew BEFORE expiry because the refresh endpoint requires a valid token
+      if (timeUntilExpiry <= 300) {
         await this.renewTokenWithKeypairs(payload.userId);
       }
     } catch (error) {
@@ -124,7 +125,7 @@ export class SessionManager {
    */
   private static showExpiryWarning(secondsUntilExpiry: number) {
     const minutes = Math.ceil(secondsUntilExpiry / 60);
-    
+
     // Dispatch custom event for UI components to handle
     const event = new CustomEvent('session-expiry-warning', {
       detail: { minutesRemaining: minutes }
@@ -137,7 +138,7 @@ export class SessionManager {
    */
   static async clearSessionAndRedirect() {
     const token = localStorage.getItem('auth_token');
-    
+
     // If we have a token, call logout endpoint to track the logout
     if (token) {
       try {
@@ -154,9 +155,13 @@ export class SessionManager {
       }
     }
 
-    // Clear all localStorage
+    // Clear all localStorage but preserve TOTP device token
     if (typeof localStorage !== 'undefined') {
+      const deviceToken = localStorage.getItem('totp_device_token');
       localStorage.clear();
+      if (deviceToken) {
+        localStorage.setItem('totp_device_token', deviceToken);
+      }
     }
 
     // Clear all sessionStorage
@@ -168,7 +173,7 @@ export class SessionManager {
     if (typeof document !== 'undefined') {
       // Get all cookies
       const cookies = document.cookie.split(';');
-      
+
       // Clear each cookie by setting expiry to past date
       for (const cookie of cookies) {
         const [name] = cookie.trim().split('=');
@@ -178,7 +183,7 @@ export class SessionManager {
         document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
       }
     }
-    
+
     if (typeof window !== 'undefined') {
       window.location.href = '/login?expired=true';
     }
