@@ -1479,6 +1479,7 @@ class ApiClient {
   async reportShare(shareId: string, data: {
     reportType: string;
     description?: string;
+    email?: string;
   }): Promise<ApiResponse<{
     success: boolean;
     autoDeactivated?: boolean;

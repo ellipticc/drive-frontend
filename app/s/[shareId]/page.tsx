@@ -853,31 +853,6 @@ export default function SharedDownloadPage() {
             <p className="text-muted-foreground">Loading share details...</p>
           </div>
         </div>
-
-        {/* Footer - Always shown at extreme bottom */}
-        <footer className="absolute bottom-0 left-0 right-0 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="flex flex-col items-center gap-3 py-6 px-4 text-sm text-muted-foreground">
-            <div className="flex items-center justify-center gap-6">
-              <a
-                href="/terms-of-service"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:text-foreground transition-colors"
-              >
-                Terms of Service
-              </a>
-              <span className="text-muted-foreground/50">•</span>
-              <a
-                href="/privacy-policy"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:text-foreground transition-colors"
-              >
-                Privacy Policy
-              </a>
-            </div>
-          </div>
-        </footer>
       </div>
     );
   }
@@ -968,30 +943,7 @@ export default function SharedDownloadPage() {
           </Card>
         </div>
 
-        {/* Footer - Always shown at extreme bottom */}
-        <footer className="absolute bottom-0 left-0 right-0 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="flex flex-col items-center gap-3 py-6 px-4 text-sm text-muted-foreground">
-            <div className="flex items-center justify-center gap-6">
-              <a
-                href="/terms-of-service"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:text-foreground transition-colors"
-              >
-                Terms of Service
-              </a>
-              <span className="text-muted-foreground/50">•</span>
-              <a
-                href="/privacy-policy"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:text-foreground transition-colors"
-              >
-                Privacy Policy
-              </a>
-            </div>
-          </div>
-        </footer>
+
       </div>
     );
   }
@@ -1341,30 +1293,7 @@ export default function SharedDownloadPage() {
         </Card>
       </div>
 
-      {/* Footer - Absolutely positioned at extreme bottom */}
-      <footer className="absolute bottom-0 left-0 right-0 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex flex-col items-center gap-3 py-6 px-4 text-sm text-muted-foreground">
-          <div className="flex items-center justify-center gap-6">
-            <a
-              href="/terms-of-service"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-foreground transition-colors"
-            >
-              Terms of Service
-            </a>
-            <span className="text-muted-foreground/50">•</span>
-            <a
-              href="/privacy-policy"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-foreground transition-colors"
-            >
-              Privacy Policy
-            </a>
-          </div>
-        </div>
-      </footer>
+
 
       {/* Report Dialog - Fixed position */}
       <ReportDialog shareId={shareId} onReportSuccess={() => loadShareDetails()} />

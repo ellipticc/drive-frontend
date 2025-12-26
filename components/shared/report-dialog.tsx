@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Flag, Loader2 } from "lucide-react"
@@ -82,6 +83,7 @@ export function ReportDialog({ shareId, trigger, onReportSuccess }: ReportDialog
   const [open, setOpen] = useState(false)
   const [reportType, setReportType] = useState("")
   const [description, setDescription] = useState("")
+  const [email, setEmail] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleSubmit = async () => {
@@ -97,7 +99,8 @@ export function ReportDialog({ shareId, trigger, onReportSuccess }: ReportDialog
     try {
       const response = await apiClient.reportShare(shareId, {
         reportType,
-        description: description.trim() || undefined
+        description: description.trim() || undefined,
+        email: email.trim() || undefined
       })
 
       if (!response.success) {
@@ -119,6 +122,7 @@ export function ReportDialog({ shareId, trigger, onReportSuccess }: ReportDialog
       // Reset form and close dialog
       setReportType("")
       setDescription("")
+      setEmail("")
       setOpen(false)
 
       // Call success callback to refresh page data
@@ -144,19 +148,18 @@ export function ReportDialog({ shareId, trigger, onReportSuccess }: ReportDialog
       <DialogTrigger asChild>
         {trigger || (
           <Button
-            variant="outline"
-            size="sm"
-            className="fixed bottom-4 right-4 z-50 shadow-lg hover:shadow-xl transition-shadow"
+            variant="ghost"
+            size="icon"
+            className="fixed bottom-4 right-4 z-50 h-8 w-8 rounded-full opacity-50 hover:opacity-100 transition-all hover:bg-muted/50 text-muted-foreground"
+            title="Report Content"
           >
-            <Flag className="h-4 w-4 mr-2" />
-            Report
+            <Flag className="h-4 w-4" />
           </Button>
         )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Flag className="h-5 w-5" />
             Report Shared Content
           </DialogTitle>
           <DialogDescription>
@@ -185,6 +188,20 @@ export function ReportDialog({ shareId, trigger, onReportSuccess }: ReportDialog
                 {selectedReportType.description}
               </p>
             )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="email">Your Email (Optional)</Label>
+            <Input
+              id="email"
+              placeholder="name@example.com"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              We may contact you if we need more information about this report.
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -223,7 +240,6 @@ export function ReportDialog({ shareId, trigger, onReportSuccess }: ReportDialog
               </>
             ) : (
               <>
-                <Flag className="h-4 w-4 mr-2" />
                 Submit Report
               </>
             )}
