@@ -14,41 +14,30 @@ if (process.env.NODE_ENV === 'production' && process.env.NEXT_PUBLIC_SENTRY_DSN)
   Sentry.init({
     dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
 
-    // Disable performance tracing to reduce noise
-    tracesSampleRate: 0,
+    // Enable 100% performance tracing
+    tracesSampleRate: 1.0,
 
-    // Disable sending user PII (Personally Identifiable Information)
-    sendDefaultPii: false,
+    // Capture all console errors and warnings on server
+    integrations: [
+      Sentry.captureConsoleIntegration({
+        levels: ['error', 'warn'],
+      }),
+    ],
 
-    // Only capture critical events (errors and exceptions)
+    // Capture all events without filtering
     beforeSend(event) {
-      // Drop non-error events
-      if (!event.exception && event.level !== 'error') {
-        return null;
+      // Scrub sensitive headers but keep Session IDs (Cookies)
+      if (event.request && event.request.headers) {
+        delete event.request.headers['Authorization'];
       }
 
-      // Strip sensitive data
-      if (event.request) {
-        delete event.request.headers;
-        delete event.request.cookies;
-        delete event.request.data;
-        delete event.request.query_string;
-      }
-
+      // User anonymization
       if (event.user) {
-        // Keep only anonymized user ID
         event.user = {
           id: event.user.id ? hashUserId(event.user.id) : undefined,
         };
       }
-
       return event;
-    },
-
-    // Only capture error-level breadcrumbs
-    beforeBreadcrumb(breadcrumb) {
-      if (breadcrumb.level !== 'error') return null;
-      return breadcrumb;
     },
   });
 }
