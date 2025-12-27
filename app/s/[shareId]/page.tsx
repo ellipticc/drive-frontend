@@ -41,6 +41,7 @@ import {
   looksLikeEncryptedName,
   decryptManifestItemName
 } from '@/lib/share-crypto';
+import { AudioPreview } from '@/components/previews/audio-preview';
 
 // Helper to decrypt filename using share CEK
 
@@ -482,7 +483,8 @@ export default function SharedDownloadPage() {
   };
 
   // Get Share CEK from URL hash or password-protected wrapper
-  const getShareCEK = async (): Promise<Uint8Array> => {
+  // Get Share CEK from URL hash or password-protected wrapper
+  const getShareCEK = useCallback(async (): Promise<Uint8Array> => {
     if (!shareDetails) {
       throw new Error('Share details not loaded');
     }
@@ -509,7 +511,7 @@ export default function SharedDownloadPage() {
     }
 
     throw new Error('Share encryption key not found in URL');
-  };
+  }, [shareDetails, sharePasswordCEK]);
 
 
 
@@ -1042,42 +1044,54 @@ export default function SharedDownloadPage() {
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent className="flex-1 flex flex-col items-center justify-center gap-8 p-8">
-                <div className="flex flex-col items-center justify-center gap-6 text-center max-w-2xl mx-auto">
-                  <div className="relative">
-                    <File className="h-24 w-24 text-muted-foreground/20 fill-muted/10" strokeWidth={1.5} />
-                    <div className="absolute -bottom-2 -right-2 bg-background rounded-full p-1">
-                      <IconEyeOff className="h-10 w-10 text-muted-foreground/60" strokeWidth={2} />
+              <CardContent className="flex-1 flex flex-col items-center justify-center p-0">
+                {shareDetails.file?.mimetype?.startsWith('audio/') ? (
+                  <AudioPreview
+                    fileId={shareDetails.file_id}
+                    mimeType={shareDetails.file.mimetype}
+                    fileSize={shareDetails.file.size}
+                    fileName={decryptedFilename || shareDetails.file?.filename || 'Audio File'}
+                    shareDetails={shareDetails}
+                    onGetShareCEK={getShareCEK}
+                  />
+                ) : (
+                  <div className="flex-1 flex flex-col items-center justify-center gap-8 p-8 w-full">
+                    <div className="flex flex-col items-center justify-center gap-6 text-center max-w-2xl mx-auto">
+                      <div className="relative">
+                        <File className="h-24 w-24 text-muted-foreground/20 fill-muted/10" strokeWidth={1.5} />
+                        <div className="absolute -bottom-2 -right-2 bg-background rounded-full p-1">
+                          <IconEyeOff className="h-10 w-10 text-muted-foreground/60" strokeWidth={2} />
+                        </div>
+                      </div>
+                      <div className="space-y-4">
+                        <h2 className="text-xl md:text-2xl font-bold tracking-tight text-foreground">
+                          Preview of this file type is not supported
+                        </h2>
+                      </div>
+                      <Button
+                        onClick={() => handleDownloadFile(shareDetails.file_id, decryptedFilename || shareDetails.file?.filename || 'file', 'center')}
+                        disabled={downloading}
+                        className="mt-2 h-10 px-6 font-bold rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground min-w-[150px]"
+                      >
+                        {downloadingType === 'center' ? (
+                          <>
+                            <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Downloading...
+                          </>
+                        ) : (
+                          <>
+                            Download
+                          </>
+                        )}
+                      </Button>
                     </div>
-                  </div>
-                  <div className="space-y-4">
-                    <h2 className="text-xl md:text-2xl font-bold tracking-tight text-foreground">
-                      Preview of this file type is not supported
-                    </h2>
-                    {/* Optional subtext if user wants it, removing for strict match or leaving empty */}
-                  </div>
-                  <Button
-                    onClick={() => handleDownloadFile(shareDetails.file_id, decryptedFilename || shareDetails.file?.filename || 'file', 'center')}
-                    disabled={downloading}
-                    className="mt-2 h-10 px-6 font-bold rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground min-w-[150px]"
-                  >
-                    {downloadingType === 'center' ? (
-                      <>
-                        <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Downloading...
-                      </>
-                    ) : (
-                      <>
-                        Download
-                      </>
-                    )}
-                  </Button>
-                </div>
 
-                {error && (
-                  <Alert variant="destructive" className="max-w-md mt-6 rounded-lg border-2">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription className="text-sm font-medium">{error}</AlertDescription>
-                  </Alert>
+                    {error && (
+                      <Alert variant="destructive" className="max-w-md mt-6 rounded-lg border-2">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription className="text-sm font-medium">{error}</AlertDescription>
+                      </Alert>
+                    )}
+                  </div>
                 )}
               </CardContent>
             </>

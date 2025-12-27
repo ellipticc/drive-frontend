@@ -767,11 +767,11 @@ export async function downloadFileToBrowser(
  * Recursively get all files and folders in a folder and subfolders
  */
 export async function getRecursiveFolderContents(folderId: string, basePath: string = '', userKeys?: UserKeys): Promise<{
-  files: Array<{fileId: string, relativePath: string, filename: string}>,
-  folders: Array<{folderId: string, relativePath: string, folderName: string}>
+  files: Array<{ fileId: string, relativePath: string, filename: string }>,
+  folders: Array<{ folderId: string, relativePath: string, folderName: string }>
 }> {
-  const allFiles: Array<{fileId: string, relativePath: string, filename: string}> = [];
-  const allFolders: Array<{folderId: string, relativePath: string, folderName: string}> = [];
+  const allFiles: Array<{ fileId: string, relativePath: string, filename: string }> = [];
+  const allFolders: Array<{ folderId: string, relativePath: string, folderName: string }> = [];
 
   const response = await apiClient.getFolderContents(folderId);
   if (!response.success || !response.data) {
@@ -865,7 +865,7 @@ export async function downloadFolderAsZip(
     }
 
     // Download all files
-    const downloadedFiles: Array<{relativePath: string, filename: string, blob: Blob}> = [];
+    const downloadedFiles: Array<{ relativePath: string, filename: string, blob: Blob }> = [];
     let completedFiles = 0;
     let totalDownloadedBytes = 0;
     let totalBytes = 0;
@@ -886,7 +886,7 @@ export async function downloadFolderAsZip(
         const fileProgress = progress.overallProgress / allFiles.length;
         const baseProgress = (completedFiles / allFiles.length) * 80; // 10% to 90%
         const currentProgress = 10 + baseProgress + (fileProgress * 80 / allFiles.length);
-        
+
         onProgress?.({
           stage: progress.stage,
           overallProgress: Math.min(currentProgress, 90),
@@ -937,7 +937,7 @@ export async function downloadFolderAsZip(
  * Download multiple items as ZIP with proper naming
  */
 export async function downloadMultipleItemsAsZip(
-  items: Array<{id: string, name: string, type: "file" | "folder"}>,
+  items: Array<{ id: string, name: string, type: "file" | "folder" }>,
   userKeys?: UserKeys,
   onProgress?: (progress: DownloadProgress) => void
 ): Promise<void> {
@@ -949,8 +949,8 @@ export async function downloadMultipleItemsAsZip(
 
     // Get all files and folders recursively from all selected items
     onProgress?.({ stage: 'initializing', overallProgress: 0 });
-    const allFiles: Array<{fileId: string, relativePath: string, filename: string}> = [];
-    const allFolders: Array<{folderId: string, relativePath: string, folderName: string}> = [];
+    const allFiles: Array<{ fileId: string, relativePath: string, filename: string }> = [];
+    const allFolders: Array<{ folderId: string, relativePath: string, folderName: string }> = [];
 
     for (const item of items) {
       if (item.type === 'file') {
@@ -974,7 +974,7 @@ export async function downloadMultipleItemsAsZip(
     onProgress?.({ stage: 'initializing', overallProgress: 10 });
 
     // Download all files
-    const downloadedFiles: Array<{relativePath: string, filename: string, blob: Blob}> = [];
+    const downloadedFiles: Array<{ relativePath: string, filename: string, blob: Blob }> = [];
     let completedFiles = 0;
     let totalDownloadedBytes = 0;
     let totalBytes = 0;
@@ -995,7 +995,7 @@ export async function downloadMultipleItemsAsZip(
         const fileProgress = progress.overallProgress / allFiles.length;
         const baseProgress = (completedFiles / allFiles.length) * 80;
         const currentProgress = 10 + baseProgress + (fileProgress * 80 / allFiles.length);
-        
+
         onProgress?.({
           stage: progress.stage,
           overallProgress: Math.min(currentProgress, 90),
@@ -1045,8 +1045,8 @@ export async function downloadMultipleItemsAsZip(
  * Create ZIP file from array of files and folders with their relative paths
  */
 async function createZipFromFilesAndFolders(
-  files: Array<{relativePath: string, filename: string, blob: Blob}>,
-  folders: Array<{folderId: string, relativePath: string, folderName: string}>,
+  files: Array<{ relativePath: string, filename: string, blob: Blob }>,
+  folders: Array<{ folderId: string, relativePath: string, folderName: string }>,
   folderName: string
 ): Promise<Blob> {
   // Import fflate dynamically
