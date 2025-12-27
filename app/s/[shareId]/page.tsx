@@ -15,7 +15,7 @@ import { PasswordInput } from '@/components/ui/password-input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Loader2, Download, File, AlertCircle, FolderOpen, ChevronRight, Lock } from 'lucide-react';
-import { IconCaretLeftRightFilled, IconLogout } from '@tabler/icons-react';
+import { IconCaretLeftRightFilled, IconLogout, IconLock, IconEyeOff } from '@tabler/icons-react';
 import {
   Avatar,
   AvatarFallback,
@@ -280,7 +280,8 @@ export default function SharedDownloadPage() {
   const [breadcrumbs, setBreadcrumbs] = useState<Array<{ id: string; name: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [downloading, setDownloading] = useState(false);
+  const [downloadingType, setDownloadingType] = useState<'header' | 'center' | null>(null);
+  const downloading = !!downloadingType;
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [password, setPassword] = useState('');
   const [passwordVerified, setPasswordVerified] = useState(false);
@@ -724,10 +725,12 @@ export default function SharedDownloadPage() {
     throw new Error('Share encryption key not found in URL');
   };
 
-  const handleDownloadFile = async (fileId: string, fileName: string) => {
+
+
+  const handleDownloadFile = async (fileId: string, fileName: string, type: 'header' | 'center' = 'center') => {
     if (!shareDetails) return;
 
-    setDownloading(true);
+    setDownloadingType(type);
     setError(null);
     setDownloadProgress(0);
 
@@ -797,7 +800,7 @@ export default function SharedDownloadPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Download failed');
     } finally {
-      setDownloading(false);
+      setDownloadingType(null);
     }
   };
 
@@ -829,10 +832,10 @@ export default function SharedDownloadPage() {
 
   if (loading || checkingSession) {
     return (
-      <div className="min-h-screen bg-background relative">
-        <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="flex h-14 items-center px-4">
-            <div className="container flex items-center">
+      <div className="min-h-screen bg-background relative overflow-hidden flex flex-col">
+        <header className="z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="flex h-14 items-center px-4 relative">
+            <div className="flex items-center">
               <Link href="https://ellipticc.com?utm_source=share_download&utm_medium=referral&utm_campaign=share_page" className="flex items-center gap-2 font-medium">
                 <div className="flex size-6 items-center justify-center rounded-md">
                   <IconCaretLeftRightFilled className="!size-5" />
@@ -840,10 +843,13 @@ export default function SharedDownloadPage() {
                 <span className="text-base font-mono">ellipticc</span>
               </Link>
             </div>
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2">
+              <IconLock className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">End-to-end encrypted</span>
+            </div>
             <div className="flex-1" />
-            <div className="flex items-center gap-2 pr-4">
+            <div className="flex items-center gap-4">
               <ThemeToggle />
-              {/* Loading state has no auth buttons */}
             </div>
           </div>
         </header>
@@ -859,10 +865,10 @@ export default function SharedDownloadPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-background relative">
-        <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="flex h-14 items-center px-4">
-            <div className="container flex items-center">
+      <div className="min-h-screen bg-background relative overflow-hidden flex flex-col">
+        <header className="z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="flex h-14 items-center px-4 relative">
+            <div className="flex items-center">
               <Link href="https://ellipticc.com?utm_source=share_download&utm_medium=referral&utm_campaign=share_page" className="flex items-center gap-2 font-medium">
                 <div className="flex size-6 items-center justify-center rounded-md">
                   <IconCaretLeftRightFilled className="!size-5" />
@@ -870,28 +876,32 @@ export default function SharedDownloadPage() {
                 <span className="text-base font-mono">ellipticc</span>
               </Link>
             </div>
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2">
+              <IconLock className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">End-to-end encrypted</span>
+            </div>
             <div className="flex-1" />
-            <div className="flex items-center gap-2 pr-4">
+            <div className="flex items-center gap-4">
               <ThemeToggle />
               {userSession ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className="flex items-center gap-2 rounded-lg p-1 hover:bg-accent transition-colors">
-                      <Avatar className="h-8 w-8 rounded-lg">
+                    <button className="flex items-center gap-2 rounded-full p-0.5 hover:bg-accent transition-colors">
+                      <Avatar className="h-9 w-9 rounded-full border-2 border-background">
                         <AvatarImage src={userSession.avatar || getDiceBearAvatar(userSession.id)} alt={getDisplayName(userSession)} />
-                        <AvatarFallback className="rounded-lg"></AvatarFallback>
+                        <AvatarFallback className="rounded-full"></AvatarFallback>
                       </Avatar>
                     </button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-56 rounded-lg" side="bottom" align="end" sideOffset={4}>
+                  <DropdownMenuContent className="w-56 rounded-xl" side="bottom" align="end" sideOffset={8}>
                     <DropdownMenuLabel className="p-0 font-normal">
                       <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                        <Avatar className="h-8 w-8 rounded-lg">
+                        <Avatar className="h-9 w-9 rounded-lg">
                           <AvatarImage src={userSession.avatar || getDiceBearAvatar(userSession.id)} alt={getDisplayName(userSession)} />
                           <AvatarFallback className="rounded-lg"></AvatarFallback>
                         </Avatar>
                         <div className="grid flex-1 text-left text-sm leading-tight">
-                          <span className="truncate font-medium">{getDisplayName(userSession)}</span>
+                          <span className="truncate font-semibold">{getDisplayName(userSession)}</span>
                           <span className="text-muted-foreground truncate text-xs">{userSession.email}</span>
                         </div>
                       </div>
@@ -902,21 +912,21 @@ export default function SharedDownloadPage() {
                         Go to Dashboard
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={handleLogout}>
-                        <IconLogout />
+                        <IconLogout className="size-4" />
                         Logout
                       </DropdownMenuItem>
                     </DropdownMenuGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
-                <>
-                  <Button variant="outline" size="sm" onClick={() => window.location.href = '/login'}>
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" size="sm" className="font-semibold" onClick={() => window.location.href = '/login'}>
                     Log In
                   </Button>
-                  <Button size="sm" onClick={() => window.location.href = '/signup'}>
+                  <Button size="sm" className="font-semibold rounded-lg px-4" onClick={() => window.location.href = '/signup'}>
                     Sign Up
                   </Button>
-                </>
+                </div>
               )}
             </div>
           </div>
@@ -953,10 +963,11 @@ export default function SharedDownloadPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background relative">
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex h-14 items-center px-4">
-          <div className="container flex items-center">
+    <div className="h-screen bg-muted/30 relative overflow-hidden flex flex-col">
+      <header className="z-50 bg-transparent">
+        <div className="flex h-14 items-center px-4 relative">
+          {/* Left: Logo */}
+          <div className="flex items-center">
             <Link href="https://ellipticc.com?utm_source=share_download&utm_medium=referral&utm_campaign=share_page" className="flex items-center gap-2 font-medium">
               <div className="flex size-6 items-center justify-center rounded-md">
                 <IconCaretLeftRightFilled className="!size-5" />
@@ -964,28 +975,37 @@ export default function SharedDownloadPage() {
               <span className="text-base font-mono">ellipticc</span>
             </Link>
           </div>
+
+          {/* Center: E2EE Label */}
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2">
+            <IconLock className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">End-to-end encrypted</span>
+          </div>
+
           <div className="flex-1" />
-          <div className="flex items-center gap-2 pr-4">
+
+          {/* Right: Actions */}
+          <div className="flex items-center gap-4">
             <ThemeToggle />
             {userSession ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="flex items-center gap-2 rounded-lg p-1 hover:bg-accent transition-colors">
-                    <Avatar className="h-8 w-8 rounded-lg">
+                  <button className="flex items-center gap-2 rounded-full p-0.5 hover:bg-accent transition-colors">
+                    <Avatar className="h-9 w-9 rounded-full border-2 border-background">
                       <AvatarImage src={userSession.avatar || getDiceBearAvatar(userSession.id)} alt={getDisplayName(userSession)} />
-                      <AvatarFallback className="rounded-lg"></AvatarFallback>
+                      <AvatarFallback className="rounded-full"></AvatarFallback>
                     </Avatar>
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56 rounded-lg" side="bottom" align="end" sideOffset={4}>
+                <DropdownMenuContent className="w-56 rounded-xl" side="bottom" align="end" sideOffset={8}>
                   <DropdownMenuLabel className="p-0 font-normal">
                     <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                      <Avatar className="h-8 w-8 rounded-lg">
+                      <Avatar className="h-9 w-9 rounded-lg">
                         <AvatarImage src={userSession.avatar || getDiceBearAvatar(userSession.id)} alt={getDisplayName(userSession)} />
                         <AvatarFallback className="rounded-lg"></AvatarFallback>
                       </Avatar>
                       <div className="grid flex-1 text-left text-sm leading-tight">
-                        <span className="truncate font-medium">{getDisplayName(userSession)}</span>
+                        <span className="truncate font-semibold">{getDisplayName(userSession)}</span>
                         <span className="text-muted-foreground truncate text-xs">{userSession.email}</span>
                       </div>
                     </div>
@@ -996,28 +1016,28 @@ export default function SharedDownloadPage() {
                       Go to Dashboard
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={handleLogout}>
-                      <IconLogout />
+                      <IconLogout className="size-4" />
                       Logout
                     </DropdownMenuItem>
                   </DropdownMenuGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <>
-                <Button variant="outline" size="sm" onClick={() => window.location.href = '/login'}>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" className="font-semibold" onClick={() => window.location.href = '/login'}>
                   Log In
                 </Button>
-                <Button size="sm" onClick={() => window.location.href = '/signup'}>
+                <Button size="sm" className="font-semibold rounded-lg px-4" onClick={() => window.location.href = '/signup'}>
                   Sign Up
                 </Button>
-              </>
+              </div>
             )}
           </div>
         </div>
       </header>
 
-      <div className="container max-w-4xl mx-auto py-8 px-4 flex-1">
-        <Card>
+      <div className="flex-1 flex items-center justify-center p-2 md:p-4 overflow-hidden">
+        <Card className="w-full max-w-[98vw] lg:max-w-[94vw] h-[calc(100vh-5rem)] flex flex-col shadow-sm border-0 bg-background rounded-xl overflow-hidden">
           {shareDetails.has_password && !passwordVerified ? (
             <>
               <CardHeader className="text-center">
@@ -1214,77 +1234,70 @@ export default function SharedDownloadPage() {
             </>
           ) : (
             <>
-              <CardHeader className="text-center">
-                <File className="h-12 w-12 text-primary mx-auto mb-4" />
-                <CardTitle>File Ready for Download</CardTitle>
-                <CardDescription>A file has been shared with you</CardDescription>
+              <CardHeader className="flex flex-row items-start justify-between space-y-0 px-6 pt-0 pb-0">
+                <div className="flex flex-col gap-1">
+                  <CardTitle className="text-xl md:text-2xl font-bold tracking-tight text-foreground">
+                    {decryptedFilename || shareDetails.file?.filename || 'Encrypted File'}
+                  </CardTitle>
+                  <CardDescription className="text-sm font-medium text-muted-foreground">
+                    {formatFileSize(shareDetails.file?.size || 0)}
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    onClick={() => handleDownloadFile(shareDetails.file_id, decryptedFilename || shareDetails.file?.filename || 'file', 'header')}
+                    disabled={downloading}
+                    variant="outline"
+                    size="sm"
+                    className="h-9 px-4 font-medium"
+                  >
+                    {downloadingType === 'header' ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Downloading...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="mr-2 h-4 w-4" /> Download
+                      </>
+                    )}
+                  </Button>
+                </div>
               </CardHeader>
-              <CardContent className="space-y-6">
-                {shareDetails.file && (
+              <CardContent className="flex-1 flex flex-col items-center justify-center gap-8 p-8">
+                <div className="flex flex-col items-center justify-center gap-6 text-center max-w-2xl mx-auto">
+                  <div className="relative">
+                    <File className="h-24 w-24 text-muted-foreground/20 fill-muted/10" strokeWidth={1.5} />
+                    <div className="absolute -bottom-2 -right-2 bg-background rounded-full p-1">
+                      <IconEyeOff className="h-10 w-10 text-muted-foreground/60" strokeWidth={2} />
+                    </div>
+                  </div>
                   <div className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <span className="text-sm font-medium text-muted-foreground">Filename</span>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <p className="text-sm font-mono break-all">{truncateFilename(decryptedFilename || shareDetails.file.filename)}</p>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            {decryptedFilename || shareDetails.file.filename}
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                      <div className="space-y-1">
-                        <span className="text-sm font-medium text-muted-foreground">Size</span>
-                        <p className="text-sm">{formatFileSize(shareDetails.file.size)}</p>
-                      </div>
-                      <div className="space-y-1">
-                        <span className="text-sm font-medium text-muted-foreground">Uploaded</span>
-                        <p className="text-sm">{formatDate(shareDetails.file.created_at)}</p>
-                      </div>
-                      {shareDetails.expires_at && (
-                        <div className="space-y-1">
-                          <span className="text-sm font-medium text-muted-foreground">Expires</span>
-                          <p className="text-sm">{formatDate(shareDetails.expires_at)}</p>
-                        </div>
-                      )}
-                    </div>
+                    <h2 className="text-xl md:text-2xl font-bold tracking-tight text-foreground">
+                      Preview of this file type is not supported
+                    </h2>
+                    {/* Optional subtext if user wants it, removing for strict match or leaving empty */}
                   </div>
-                )}
-
-                {downloading && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Downloading...</span>
-                      <span className="font-mono">{Math.round(downloadProgress)}%</span>
-                    </div>
-                    <Progress value={downloadProgress} className="w-full" />
-                  </div>
-                )}
-
-                <Button
-                  onClick={() => handleDownloadFile(shareDetails.file_id, decryptedFilename || shareDetails.file?.filename || 'file')}
-                  disabled={downloading}
-                  className="w-full"
-                  size="lg"
-                >
-                  {downloading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      Downloading...
-                    </>
-                  ) : (
-                    <>
-                      <Download className="h-4 w-4 mr-2" />
-                      Download File
-                    </>
-                  )}
-                </Button>
+                  <Button
+                    onClick={() => handleDownloadFile(shareDetails.file_id, decryptedFilename || shareDetails.file?.filename || 'file', 'center')}
+                    disabled={downloading}
+                    className="mt-2 h-10 px-6 font-bold rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground min-w-[150px]"
+                  >
+                    {downloadingType === 'center' ? (
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Downloading...
+                      </>
+                    ) : (
+                      <>
+                        Download
+                      </>
+                    )}
+                  </Button>
+                </div>
 
                 {error && (
-                  <Alert>
+                  <Alert variant="destructive" className="max-w-md mt-6 rounded-lg border-2">
                     <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{error}</AlertDescription>
+                    <AlertDescription className="text-sm font-medium">{error}</AlertDescription>
                   </Alert>
                 )}
               </CardContent>
