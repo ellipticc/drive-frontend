@@ -1050,7 +1050,15 @@ export default function SharedDownloadPage() {
                 </div>
               </CardHeader>
               <CardContent className="flex-1 flex flex-col items-center justify-center p-0">
-                {shareDetails.file?.mimetype?.startsWith('audio/') ? (
+                {(shareDetails.file?.size && shareDetails.file.size > 100 * 1024 * 1024) ? (
+                  <div className="flex flex-col items-center justify-center gap-4 text-center p-8">
+                    <AlertCircle className="h-12 w-12 text-muted-foreground opacity-50" />
+                    <div className="space-y-1">
+                      <p className="font-medium">Preview not available</p>
+                      <p className="text-sm text-muted-foreground">File is too large to preview (&gt;100MB)</p>
+                    </div>
+                  </div>
+                ) : shareDetails.file?.mimetype?.startsWith('audio/') ? (
                   <AudioPreview
                     fileId={shareDetails.file_id}
                     mimeType={shareDetails.file.mimetype}
