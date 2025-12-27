@@ -42,6 +42,7 @@ import {
   decryptManifestItemName
 } from '@/lib/share-crypto';
 import { AudioPreview } from '@/components/previews/audio-preview';
+import { ImagePreview } from '@/components/previews/image-preview';
 
 // Helper to decrypt filename using share CEK
 
@@ -767,7 +768,8 @@ export default function SharedDownloadPage() {
           </div>
 
           {/* Center: E2EE Label */}
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2">
+          {/* Center: E2EE Label */}
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden md:flex items-center gap-2">
             <IconLock className="h-3.5 w-3.5 text-muted-foreground" />
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">End-to-end encrypted</span>
           </div>
@@ -826,7 +828,7 @@ export default function SharedDownloadPage() {
         </div>
       </header>
 
-      <div className="flex-1 flex items-center justify-center p-2 md:p-4 overflow-hidden">
+      <div className="flex-1 flex flex-col items-center justify-center p-2 md:p-4 overflow-hidden">
         <Card className="w-full max-w-[98vw] lg:max-w-[94vw] h-[calc(100vh-5rem)] flex flex-col shadow-sm border-0 bg-background rounded-xl overflow-hidden">
           {shareDetails.has_password && !passwordVerified ? (
             <>
@@ -1054,6 +1056,15 @@ export default function SharedDownloadPage() {
                     shareDetails={shareDetails}
                     onGetShareCEK={getShareCEK}
                   />
+                ) : shareDetails.file?.mimetype?.startsWith('image/') ? (
+                  <ImagePreview
+                    fileId={shareDetails.file_id}
+                    mimeType={shareDetails.file.mimetype}
+                    fileSize={shareDetails.file.size}
+                    fileName={decryptedFilename || shareDetails.file?.filename || 'Image File'}
+                    shareDetails={shareDetails}
+                    onGetShareCEK={getShareCEK}
+                  />
                 ) : (
                   <div className="flex-1 flex flex-col items-center justify-center gap-8 p-8 w-full">
                     <div className="flex flex-col items-center justify-center gap-6 text-center max-w-2xl mx-auto">
@@ -1097,6 +1108,12 @@ export default function SharedDownloadPage() {
             </>
           )}
         </Card>
+
+        {/* Mobile: E2EE Label below card */}
+        <div className="mt-6 flex md:hidden items-center justify-center gap-2">
+          <IconLock className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">End-to-end encrypted</span>
+        </div>
       </div>
 
 

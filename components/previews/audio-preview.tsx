@@ -189,10 +189,10 @@ export function AudioPreview({
   }
 
   return (
-    <div className="w-full max-w-md mx-auto space-y-6 py-6">
+    <div className="w-full max-w-md mx-auto space-y-4 md:space-y-6 py-2 md:py-6">
       {/* Visualizer / Icon placeholder */}
       <div className="flex items-center justify-center">
-        <div className="w-32 h-32 rounded-2xl flex items-center justify-center bg-muted">
+        <div className="w-24 h-24 md:w-32 md:h-32 rounded-2xl flex items-center justify-center bg-muted">
           {isLoading ? (
             <Loader2 className="h-12 w-12 text-primary animate-spin" />
           ) : (

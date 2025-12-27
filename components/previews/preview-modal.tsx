@@ -64,9 +64,9 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
 
     // Text files - medium size for code/text reading
     if (mimeType.startsWith('text/') ||
-        mimeType.includes('javascript') ||
-        mimeType.includes('json') ||
-        mimeType.includes('xml')) {
+      mimeType.includes('javascript') ||
+      mimeType.includes('json') ||
+      mimeType.includes('xml')) {
       return 'max-w-4xl w-full h-[80vh]';
     }
 
@@ -124,6 +124,7 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
         <ImagePreview
           fileId={id}
           filename={name}
+          mimetype={mimeType}
           onProgress={handleProgress}
           onError={handleError}
           isLoading={isLoading}
@@ -134,9 +135,9 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
 
     // Text files
     if (mimeType.startsWith('text/') ||
-        mimeType.includes('javascript') ||
-        mimeType.includes('json') ||
-        mimeType.includes('xml')) {
+      mimeType.includes('javascript') ||
+      mimeType.includes('json') ||
+      mimeType.includes('xml')) {
       return (
         <TextPreview
           fileId={id}
@@ -186,12 +187,12 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
 
     const mimeType = file.mimeType;
     return mimeType.startsWith('audio/') ||
-           mimeType.startsWith('video/') ||
-           mimeType.startsWith('image/') ||
-           mimeType.startsWith('text/') ||
-           mimeType.includes('javascript') ||
-           mimeType.includes('json') ||
-           mimeType.includes('xml');
+      mimeType.startsWith('video/') ||
+      mimeType.startsWith('image/') ||
+      mimeType.startsWith('text/') ||
+      mimeType.includes('javascript') ||
+      mimeType.includes('json') ||
+      mimeType.includes('xml');
   };
 
   return (

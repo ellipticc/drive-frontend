@@ -1,132 +1,180 @@
-import React, { useState, useEffect } from 'react';
-import { downloadEncryptedFile, DownloadProgress } from '@/lib/download';
-import { keyManager } from '@/lib/key-manager';
-import { Loader2 } from 'lucide-react';
+"use client"
+
+import { useEffect, useState } from "react"
+import { Loader2, ZoomIn, ZoomOut, Image as ImageIcon, AlertCircle } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
+import { downloadEncryptedFileWithCEK, downloadEncryptedFile, DownloadProgress } from "@/lib/download"
+import { decryptData } from "@/lib/crypto"
 
 interface ImagePreviewProps {
-  fileId: string;
-  filename: string;
-  onProgress?: (progress: DownloadProgress) => void;
-  onError?: (error: string) => void;
-  isLoading: boolean;
-  setIsLoading: (loading: boolean) => void;
+  fileId: string
+  // Support both naming conventions
+  mimeType?: string
+  mimetype?: string
+  fileSize?: number
+  fileName?: string
+  filename?: string
+
+  // Optional for dashboard usage
+  shareDetails?: any
+  onGetShareCEK?: () => Promise<Uint8Array>
+
+  // Callbacks
+  onProgress?: (progress: DownloadProgress) => void
+  onError?: (error: string) => void
+
+  // External state control
+  isLoading?: boolean
+  setIsLoading?: (loading: boolean) => void
 }
 
-export const ImagePreview: React.FC<ImagePreviewProps> = ({
+export function ImagePreview({
   fileId,
+  mimeType,
+  mimetype,
+  fileName,
   filename,
+  shareDetails,
+  onGetShareCEK,
   onProgress,
   onError,
-  isLoading,
-  setIsLoading
-}) => {
-  const [blobUrl, setBlobUrl] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  isLoading: externalIsLoading,
+  setIsLoading: setExternalIsLoading
+}: ImagePreviewProps) {
+  const [internalIsLoading, setInternalIsLoading] = useState(false)
+  const [imageUrl, setImageUrl] = useState<string | null>(null)
+  const [internalError, setInternalError] = useState<string | null>(null)
+  const [zoom, setZoom] = useState(1)
+
+  const isLoading = externalIsLoading ?? internalIsLoading
+  const setIsLoading = setExternalIsLoading ?? setInternalIsLoading
+  const error = internalError
+
+  const effectiveFileName = fileName || filename || 'Image'
 
   useEffect(() => {
-    let isMounted = true;
+    let isMounted = true
+    let url: string | null = null
 
     const loadImage = async () => {
       try {
-        setIsLoading(true);
-        setError(null);
+        setIsLoading(true)
+        setInternalError(null)
+        setZoom(1)
 
-        // Get user keys
-        const userKeys = await keyManager.getUserKeys();
+        let result;
 
-        // Download the file using the same encrypted flow as downloads
-        const result = await downloadEncryptedFile(fileId, userKeys, (progress) => {
-          onProgress?.(progress);
-        });
+        if (onGetShareCEK) {
+          // Shared link context - use CEK
+          const shareCekRaw = await onGetShareCEK()
+          const shareCek = new Uint8Array(shareCekRaw);
 
-        // Verify it's actually an image
-        if (!result.mimetype.startsWith('image/')) {
-          throw new Error('File is not an image');
+          let fileCek = shareCek;
+
+          // If we have shareDetails, we might need to unwrap the FILE Key from the SHARE Key
+          if (shareDetails) {
+            // Single File Share: The file CEK is wrapped with the share CEK
+            if (!shareDetails.is_folder && shareDetails.wrapped_cek && shareDetails.nonce_wrap) {
+              try {
+                fileCek = new Uint8Array(decryptData(shareDetails.wrapped_cek, shareCek, shareDetails.nonce_wrap));
+              } catch (e) {
+                console.error('Failed to unwrap file key:', e);
+              }
+            }
+          }
+
+          result = await downloadEncryptedFileWithCEK(fileId, fileCek, onProgress)
+        } else {
+          // Dashboard context - use user keys
+          result = await downloadEncryptedFile(fileId, undefined, onProgress)
         }
 
-        if (isMounted) {
-          // Create blob URL for preview
-          const url = URL.createObjectURL(result.blob);
-          setBlobUrl(url);
-          setIsLoading(false);
-        }
+        if (!isMounted) return
+
+        url = URL.createObjectURL(result.blob)
+        setImageUrl(url)
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Failed to load image';
-        console.error('Image preview error:', errorMessage);
-
-        if (isMounted) {
-          setError(errorMessage);
-          setIsLoading(false);
-          onError?.(errorMessage);
-        }
+        if (!isMounted) return
+        const errorMessage = err instanceof Error ? err.message : "Failed to load image preview"
+        console.error("Failed to load image preview:", err)
+        setInternalError(errorMessage)
+        onError?.(errorMessage)
+      } finally {
+        if (isMounted) setIsLoading(false)
       }
-    };
+    }
 
-    loadImage();
+    loadImage()
 
-    // Cleanup function
     return () => {
-      isMounted = false;
-      if (blobUrl) {
-        URL.revokeObjectURL(blobUrl);
-      }
-    };
-  }, [fileId]); // Only depend on fileId to prevent infinite loops
+      isMounted = false
+      if (url) URL.revokeObjectURL(url)
+    }
+  }, [fileId, onGetShareCEK, setIsLoading, onProgress, onError, shareDetails])
 
-  // Cleanup blob URL when component unmounts
-  useEffect(() => {
-    return () => {
-      if (blobUrl) {
-        URL.revokeObjectURL(blobUrl);
-      }
-    };
-  }, [blobUrl]);
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-full min-h-[400px]">
-        <div className="text-center space-y-4">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto" />
-          <p className="text-sm text-muted-foreground">Loading image...</p>
-        </div>
-      </div>
-    );
-  }
+  const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.25, 4))
+  const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.25, 0.1))
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-full min-h-[400px]">
-        <div className="text-center space-y-4">
-          <div className="text-red-500">
-            <svg className="h-8 w-8 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-            </svg>
-          </div>
-          <p className="text-sm text-muted-foreground">Failed to load image</p>
-          <p className="text-xs text-muted-foreground">{error}</p>
-        </div>
+      <div className="flex flex-col items-center justify-center py-12 text-center text-destructive">
+        <AlertCircle className="h-8 w-8 mb-2" />
+        <p className="font-medium">{error}</p>
       </div>
-    );
+    )
   }
 
-  if (!blobUrl) {
+  if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-full min-h-[400px]">
-        <div className="text-center space-y-4">
-          <p className="text-sm text-muted-foreground">No preview available</p>
-        </div>
+      <div className="flex flex-col items-center justify-center py-12 min-h-[300px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
+        <p className="text-muted-foreground text-sm">Loading image...</p>
       </div>
-    );
+    )
   }
 
   return (
-    <div className="flex items-center justify-center h-full p-4">
-      <img
-        src={blobUrl}
-        alt={filename}
-        className="max-w-full max-h-full object-contain rounded-lg shadow-lg"
-        style={{ maxHeight: 'calc(100vh - 200px)' }}
-      />
+    <div className="flex flex-col items-center space-y-4 w-full">
+      <div className="relative overflow-auto max-h-[70vh] w-full flex items-center justify-center">
+        {imageUrl ? (
+          <img
+            src={imageUrl}
+            alt={effectiveFileName}
+            style={{ transform: `scale(${zoom})`, transition: 'transform 0.2s ease-out' }}
+            className="max-w-full h-auto object-contain"
+          />
+        ) : (
+          <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
+            <ImageIcon className="h-12 w-12 mb-2 opacity-20" />
+            <p className="text-sm">No image data</p>
+          </div>
+        )}
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={handleZoomOut}
+          disabled={!imageUrl || zoom <= 0.1}
+          title="Zoom Out"
+        >
+          <ZoomOut className="h-4 w-4" />
+        </Button>
+        <span className="text-sm font-mono text-muted-foreground w-12 text-center">
+          {Math.round(zoom * 100)}%
+        </span>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={handleZoomIn}
+          disabled={!imageUrl || zoom >= 4}
+          title="Zoom In"
+        >
+          <ZoomIn className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
-  );
-};
+  )
+}
