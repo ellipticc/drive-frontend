@@ -44,6 +44,7 @@ import {
 import { AudioPreview } from '@/components/previews/audio-preview';
 import { ImagePreview } from '@/components/previews/image-preview';
 import { TextPreview } from '@/components/previews/text-preview';
+import { PdfPreview } from '@/components/previews/pdf-preview';
 
 // Helper to decrypt filename using share CEK
 
@@ -1018,16 +1019,16 @@ export default function SharedDownloadPage() {
             </>
           ) : (
             <>
-              <CardHeader className="flex flex-row items-start justify-between space-y-0 px-6 pt-0 pb-0">
-                <div className="flex flex-col gap-1">
-                  <CardTitle className="text-xl md:text-2xl font-bold tracking-tight text-foreground">
+              <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between space-y-4 md:space-y-0 px-6 pt-0 pb-0">
+                <div className="flex flex-col gap-1 min-w-0 w-full md:w-auto text-left">
+                  <CardTitle className="text-xl md:text-2xl font-bold tracking-tight text-foreground truncate w-full">
                     {decryptedFilename || shareDetails.file?.filename || 'Encrypted File'}
                   </CardTitle>
                   <CardDescription className="text-sm font-medium text-muted-foreground">
                     {formatFileSize(shareDetails.file?.size || 0)}
                   </CardDescription>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 w-full md:w-auto">
                   <Button
                     onClick={() => handleDownloadFile(shareDetails.file_id, decryptedFilename || shareDetails.file?.filename || 'file', 'header')}
                     disabled={downloading}
@@ -1076,6 +1077,15 @@ export default function SharedDownloadPage() {
                     mimeType={shareDetails.file.mimetype}
                     fileSize={shareDetails.file.size}
                     fileName={decryptedFilename || shareDetails.file?.filename || 'Text File'}
+                    shareDetails={shareDetails}
+                    onGetShareCEK={getShareCEK}
+                  />
+                ) : shareDetails.file?.mimetype === 'application/pdf' ? (
+                  <PdfPreview
+                    fileId={shareDetails.file_id}
+                    mimeType={shareDetails.file.mimetype}
+                    fileSize={shareDetails.file.size}
+                    fileName={decryptedFilename || shareDetails.file?.filename || 'PDF File'}
                     shareDetails={shareDetails}
                     onGetShareCEK={getShareCEK}
                   />

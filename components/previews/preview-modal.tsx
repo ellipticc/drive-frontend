@@ -6,6 +6,7 @@ import { AudioPreview } from './audio-preview';
 import { VideoPreview } from './video-preview';
 import { TextPreview } from './text-preview';
 import { ImagePreview } from './image-preview';
+import { PdfPreview } from './pdf-preview';
 import { Download, Eye } from 'lucide-react';
 
 interface FileItem {
@@ -107,6 +108,21 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
     if (mimeType.startsWith('video/')) {
       return (
         <VideoPreview
+          fileId={id}
+          filename={name}
+          mimetype={mimeType}
+          onProgress={handleProgress}
+          onError={handleError}
+          isLoading={isLoading}
+          setIsLoading={setIsLoading}
+        />
+      );
+    }
+
+    // PDF files
+    if (mimeType === 'application/pdf') {
+      return (
+        <PdfPreview
           fileId={id}
           filename={name}
           mimetype={mimeType}
