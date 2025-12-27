@@ -43,6 +43,7 @@ import {
 } from '@/lib/share-crypto';
 import { AudioPreview } from '@/components/previews/audio-preview';
 import { ImagePreview } from '@/components/previews/image-preview';
+import { TextPreview } from '@/components/previews/text-preview';
 
 // Helper to decrypt filename using share CEK
 
@@ -1062,6 +1063,19 @@ export default function SharedDownloadPage() {
                     mimeType={shareDetails.file.mimetype}
                     fileSize={shareDetails.file.size}
                     fileName={decryptedFilename || shareDetails.file?.filename || 'Image File'}
+                    shareDetails={shareDetails}
+                    onGetShareCEK={getShareCEK}
+                  />
+                ) : (shareDetails.file?.mimetype?.startsWith('text/') ||
+                  shareDetails.file?.mimetype?.includes('json') ||
+                  shareDetails.file?.mimetype?.includes('xml') ||
+                  shareDetails.file?.mimetype?.includes('javascript') ||
+                  shareDetails.file?.mimetype?.includes('css')) ? (
+                  <TextPreview
+                    fileId={shareDetails.file_id}
+                    mimeType={shareDetails.file.mimetype}
+                    fileSize={shareDetails.file.size}
+                    fileName={decryptedFilename || shareDetails.file?.filename || 'Text File'}
                     shareDetails={shareDetails}
                     onGetShareCEK={getShareCEK}
                   />
