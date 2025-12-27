@@ -24,6 +24,7 @@ import { Label } from "@/components/ui/label"
 import { Flag, Loader2 } from "lucide-react"
 import { apiClient } from "@/lib/api"
 import { toast } from "sonner"
+import { cn } from "@/lib/utils"
 
 const REPORT_TYPES = [
   {
@@ -77,9 +78,10 @@ interface ReportDialogProps {
   shareId: string
   trigger?: React.ReactNode
   onReportSuccess?: () => void
+  className?: string
 }
 
-export function ReportDialog({ shareId, trigger, onReportSuccess }: ReportDialogProps) {
+export function ReportDialog({ shareId, trigger, onReportSuccess, className }: ReportDialogProps) {
   const [open, setOpen] = useState(false)
   const [reportType, setReportType] = useState("")
   const [description, setDescription] = useState("")
@@ -150,7 +152,10 @@ export function ReportDialog({ shareId, trigger, onReportSuccess }: ReportDialog
           <Button
             variant="ghost"
             size="icon"
-            className="fixed bottom-4 right-4 z-50 h-8 w-8 rounded-full opacity-50 hover:opacity-100 transition-all hover:bg-muted/50 text-muted-foreground"
+            className={cn(
+              "fixed bottom-4 right-4 z-50 h-8 w-8 rounded-full opacity-50 hover:opacity-100 transition-all hover:bg-muted/50 text-muted-foreground",
+              className
+            )}
             title="Report Content"
           >
             <Flag className="h-4 w-4" />

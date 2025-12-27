@@ -33,6 +33,8 @@ import {
 import { masterKeyManager } from '@/lib/master-key';
 import { getDiceBearAvatar } from '@/lib/avatar';
 import { ReportDialog } from '@/components/shared/report-dialog';
+import { UnifiedProgressModal } from '@/components/modals/unified-progress-modal';
+import { DownloadProgress } from '@/lib/download';
 
 // Helper to decrypt filename using share CEK
 async function decryptShareFilename(encryptedFilename: string, nonce: string, shareCek: Uint8Array): Promise<string> {
@@ -282,7 +284,8 @@ export default function SharedDownloadPage() {
   const [error, setError] = useState<string | null>(null);
   const [downloadingType, setDownloadingType] = useState<'header' | 'center' | null>(null);
   const downloading = !!downloadingType;
-  const [downloadProgress, setDownloadProgress] = useState(0);
+  const [downloadProgress, setDownloadProgress] = useState<DownloadProgress | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   const [password, setPassword] = useState('');
   const [passwordVerified, setPasswordVerified] = useState(false);
   const [verifyingPassword, setVerifyingPassword] = useState(false);
@@ -732,7 +735,8 @@ export default function SharedDownloadPage() {
 
     setDownloadingType(type);
     setError(null);
-    setDownloadProgress(0);
+    setDownloadError(null);
+    setDownloadProgress({ stage: 'initializing', overallProgress: 0 });
 
     try {
       const shareCek = await getShareCEK();
@@ -753,8 +757,7 @@ export default function SharedDownloadPage() {
       }
 
       const result = await downloadEncryptedFileWithCEK(fileId, fileCek, (progress) => {
-        const p = typeof progress.overallProgress === 'number' ? progress.overallProgress : 0;
-        setDownloadProgress(Math.min(100, Math.max(0, p)));
+        setDownloadProgress(progress);
       });
 
       // Track in ingest server RIGHT AFTER download URLs request
@@ -798,7 +801,9 @@ export default function SharedDownloadPage() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Download failed');
+      const msg = err instanceof Error ? err.message : 'Download failed';
+      setError(msg);
+      setDownloadError(msg);
     } finally {
       setDownloadingType(null);
     }
@@ -1124,16 +1129,7 @@ export default function SharedDownloadPage() {
                   </div>
                 )}
 
-                {/* Download Progress */}
-                {downloading && (
-                  <div className="border-b px-6 py-3 space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Downloading...</span>
-                      <span className="font-mono text-sm">{Math.round(downloadProgress)}%</span>
-                    </div>
-                    <Progress value={downloadProgress} className="w-full" />
-                  </div>
-                )}
+                {/* Download Progress - REMOVED (Replaced by UnifiedProgressModal) */}
 
                 {/* Folder Contents - Filesystem Table Style */}
                 <div className="divide-y">
@@ -1308,8 +1304,38 @@ export default function SharedDownloadPage() {
 
 
 
-      {/* Report Dialog - Fixed position */}
-      <ReportDialog shareId={shareId} onReportSuccess={() => loadShareDetails()} />
+      {/* Report Dialog - Fixed position bottom left */}
+      <ReportDialog
+        shareId={shareId}
+        onReportSuccess={() => loadShareDetails()}
+        className="fixed bottom-4 left-4 right-auto z-50"
+      />
+
+      {/* Unified Progress Modal */}
+      <UnifiedProgressModal
+        open={!!downloadProgress}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDownloadProgress(null);
+            setDownloadError(null);
+          }
+        }}
+        downloadProgress={downloadProgress}
+        downloadFilename={decryptedFilename || shareDetails.file?.filename || 'file'}
+        downloadFileSize={shareDetails.file?.size || 0}
+        downloadFileId={shareDetails.file_id}
+        downloadError={downloadError}
+        onCancelDownload={() => {
+          setDownloadProgress(null);
+          setDownloadError(null);
+          setDownloadingType(null); // Stop downloading spinner
+        }}
+        onRetryDownload={() => {
+          if (shareDetails.file_id) {
+            handleDownloadFile(shareDetails.file_id, decryptedFilename || shareDetails.file?.filename || 'file', 'center');
+          }
+        }}
+      />
     </div>
   );
 }
