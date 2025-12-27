@@ -1,6 +1,6 @@
 "use client"
 
-import { IconUpload, IconFile, IconFolder, type Icon } from "@tabler/icons-react"
+import { IconUpload, IconFolderDown, IconFileUpload, type Icon } from "@tabler/icons-react"
 import * as React from "react"
 import { useRouter, usePathname } from "next/navigation"
 
@@ -65,11 +65,11 @@ export function NavMain({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-48">
                 <DropdownMenuItem onClick={handleFileUpload} className="cursor-pointer">
-                  <IconFile className="mr-2 h-4 w-4" />
+                  <IconFileUpload className="mr-2 h-4 w-4" />
                   Upload File
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleFolderUpload} className="cursor-pointer">
-                  <IconFolder className="mr-2 h-4 w-4" />
+                  <IconFolderDown className="mr-2 h-4 w-4" />
                   Upload Folder
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -79,8 +79,8 @@ export function NavMain({
         <SidebarMenu>
           {items.map((item) => (
             <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton 
-                tooltip={item.title} 
+              <SidebarMenuButton
+                tooltip={item.title}
                 isActive={pathname === item.url}
                 onClick={() => handleNavigate(item.url)}
                 className="cursor-pointer"
