@@ -45,6 +45,7 @@ import { AudioPreview } from '@/components/previews/audio-preview';
 import { ImagePreview } from '@/components/previews/image-preview';
 import { TextPreview } from '@/components/previews/text-preview';
 import { PdfPreview } from '@/components/previews/pdf-preview';
+import { VideoPreview } from '@/components/previews/video-preview';
 
 // Helper to decrypt filename using share CEK
 
@@ -1086,6 +1087,15 @@ export default function SharedDownloadPage() {
                     mimeType={shareDetails.file.mimetype}
                     fileSize={shareDetails.file.size}
                     fileName={decryptedFilename || shareDetails.file?.filename || 'PDF File'}
+                    shareDetails={shareDetails}
+                    onGetShareCEK={getShareCEK}
+                  />
+                ) : shareDetails.file?.mimetype?.startsWith('video/') ? (
+                  <VideoPreview
+                    fileId={shareDetails.file_id}
+                    mimeType={shareDetails.file.mimetype}
+                    fileSize={shareDetails.file.size}
+                    fileName={decryptedFilename || shareDetails.file?.filename || 'Video File'}
                     shareDetails={shareDetails}
                     onGetShareCEK={getShareCEK}
                   />
