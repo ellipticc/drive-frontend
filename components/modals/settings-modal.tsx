@@ -303,10 +303,55 @@ export function SettingsModal({
     }
   }, [open])
 
-  // Reset loaded state when modal closes
+  // Reset loaded state and form data when modal closes
   useEffect(() => {
     if (!open) {
       loadedRef.current = false
+
+      // Reset Profile Edit
+      setIsEditingName(false)
+      setDisplayName("")
+      setOriginalName("")
+
+      // Reset Security Modals
+      setNewEmail("")
+      setConfirmEmail("")
+      setEmailPassword("")
+      setIsChangingEmail(false)
+      setShowEmailModal(false)
+      setShowEmailOTPModal(false)
+      setEmailOTPCode("")
+      setIsVerifyingEmailOTP(false)
+      setIsResendingEmailOTP(false)
+
+      setIsChangingPassword(false)
+      setShowPasswordModal(false)
+
+      setIsDeletingAccount(false)
+      setShowDeleteModal(false)
+      setDeleteConfirmation("")
+
+      // Reset TOTP
+      setShowTOTPSetup(false)
+      setShowTOTPDisable(false)
+      setTotpSecret("")
+      setTotpQrCode("")
+      setTotpToken("")
+      setDisableToken("")
+      setDisableRecoveryCode("")
+      setIsVerifyingTOTP(false)
+      setIsDisablingTOTP(false)
+
+      // Reset Recovery Codes
+      setShowRecoveryCodesModal(false)
+      setRecoveryCodes([])
+
+      // Reset Billing
+      setShowCancelDialog(false)
+      setShowCancelReasonDialog(false)
+      setIsCancellingSubscription(false)
+      setCancelReason("")
+      setCancelReasonDetails("")
     }
   }, [open])
 
@@ -1114,7 +1159,13 @@ export function SettingsModal({
                                 ref={nameInputRef}
                                 id="display-name"
                                 value={displayName}
-                                onChange={(e) => setDisplayName(e.target.value)}
+                                onChange={(e) => {
+                                  // Strict validation: Alphanumeric and spaces only, max 50 chars
+                                  const val = e.target.value
+                                  if (val.length <= 50 && /^[a-zA-Z0-9 ]*$/.test(val)) {
+                                    setDisplayName(val)
+                                  }
+                                }}
                                 placeholder={displayName || "Enter your name"}
                                 readOnly={!isEditingName}
                                 className={`flex-1 ${!isEditingName ? 'bg-muted cursor-not-allowed' : ''}`}
