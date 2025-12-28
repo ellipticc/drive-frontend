@@ -7,7 +7,7 @@
 import React, { useState, useCallback } from 'react';
 import { UnifiedProgressModal } from '../modals/unified-progress-modal';
 import { usePreviewDownload } from '../../hooks/use-preview-download';
-import { PreviewModal } from '../previews/preview-modal';
+import { FullPagePreviewModal } from '../previews/full-page-preview-modal';
 
 interface PreviewDownloadManagerProps {
   children: (downloadFile: (fileId: string, filename: string, fileSize: number, mimeType: string) => void) => React.ReactNode;
@@ -107,10 +107,24 @@ export function PreviewDownloadManager({ children }: PreviewDownloadManagerProps
       />
 
       {previewFile && (
-        <PreviewModal
-          open={previewModalOpen}
-          onOpenChange={handlePreviewModalClose}
+        <FullPagePreviewModal
+          isOpen={previewModalOpen}
+          onClose={() => handlePreviewModalClose(false)}
           file={previewFile}
+          onNavigate={() => { }}
+          onDownload={() => {
+            // Initiate download from blob URL
+            if (previewFile.blobUrl) {
+              const a = document.createElement('a');
+              a.href = previewFile.blobUrl;
+              a.download = previewFile.name;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+            }
+          }}
+          hasPrev={false}
+          hasNext={false}
         />
       )}
     </>
