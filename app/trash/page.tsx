@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useLayoutEffect } from "react"
 import { SiteHeader } from "@/components/layout/header/site-header"
 import { TrashTable } from "@/components/tables/trash-table"
 import { useGlobalUpload } from "@/components/global-upload-context"
@@ -9,13 +9,17 @@ export default function Trash() {
   const [searchQuery, setSearchQuery] = useState("")
   const { handleFileUpload, handleFolderUpload } = useGlobalUpload()
 
+  useLayoutEffect(() => {
+    document.title = "Trash - Ellipticc Drive"
+  }, [])
+
   const handleSearch = (query: string) => {
     setSearchQuery(query)
   }
 
   return (
     <>
-      <SiteHeader 
+      <SiteHeader
         onSearch={handleSearch}
         onFileUpload={handleFileUpload}
         onFolderUpload={handleFolderUpload}

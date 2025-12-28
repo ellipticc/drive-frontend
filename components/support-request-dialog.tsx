@@ -46,8 +46,25 @@ export function SupportRequestDialog({ children }: SupportRequestDialogProps) {
     category: ""
   })
 
+  // Reset form when dialog closes
+  React.useEffect(() => {
+    if (!open) {
+      setFormData({
+        subject: "",
+        message: "",
+        priority: "medium",
+        category: ""
+      })
+    }
+  }, [open])
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
+
+    // Strict Input Masking
+    if (name === "subject" && value.length > 100) return
+    if (name === "message" && value.length > 1000) return
+
     setFormData(prev => ({ ...prev, [name]: value }))
   }
 
@@ -136,78 +153,88 @@ export function SupportRequestDialog({ children }: SupportRequestDialogProps) {
           <form onSubmit={handleSubmit} className="flex flex-col h-full">
             <div className="flex-1 px-6 py-4">
               <FieldGroup className="space-y-4">
-            <Field>
-              <FieldLabel htmlFor="subject">Subject</FieldLabel>
-              <Input
-                id="subject"
-                name="subject"
-                type="text"
-                placeholder="Brief description of your issue"
-                required
-                value={formData.subject}
-                onChange={handleInputChange}
-                className="transition-all duration-200 focus:ring-2 focus:ring-primary/20"
-              />
-              <FieldDescription>
-                A short title describing your support request
-              </FieldDescription>
-            </Field>
+                <Field>
+                  <div className="flex justify-between items-center">
+                    <FieldLabel htmlFor="subject">Subject</FieldLabel>
+                    <span className={formData.subject.length === 100 ? "text-red-500 font-medium text-xs" : "text-muted-foreground text-xs"}>
+                      {formData.subject.length}/100
+                    </span>
+                  </div>
+                  <Input
+                    id="subject"
+                    name="subject"
+                    type="text"
+                    placeholder="Brief description of your issue"
+                    required
+                    value={formData.subject}
+                    onChange={handleInputChange}
+                    className="transition-all duration-200 focus:ring-2 focus:ring-primary/20"
+                  />
+                  <FieldDescription>
+                    A short title describing your support request
+                  </FieldDescription>
+                </Field>
 
-            <div className="grid grid-cols-2 gap-4">
-              <Field>
-                <FieldLabel htmlFor="priority">Priority</FieldLabel>
-                <Select value={formData.priority} onValueChange={(value) => setFormData(prev => ({ ...prev, priority: value }))}>
-                  <SelectTrigger className="transition-all duration-200 focus:ring-2 focus:ring-primary/20">
-                    <SelectValue placeholder="Select priority" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FieldDescription>
-                  How urgent is this request?
-                </FieldDescription>
-              </Field>
+                <div className="grid grid-cols-2 gap-4">
+                  <Field>
+                    <FieldLabel htmlFor="priority">Priority</FieldLabel>
+                    <Select value={formData.priority} onValueChange={(value) => setFormData(prev => ({ ...prev, priority: value }))}>
+                      <SelectTrigger className="transition-all duration-200 focus:ring-2 focus:ring-primary/20">
+                        <SelectValue placeholder="Select priority" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="low">Low</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="high">High</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FieldDescription>
+                      How urgent is this request?
+                    </FieldDescription>
+                  </Field>
 
-              <Field>
-                <FieldLabel htmlFor="category">Category</FieldLabel>
-                <Select value={formData.category} onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}>
-                  <SelectTrigger className="transition-all duration-200 focus:ring-2 focus:ring-primary/20">
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="bug-report">Bug Report</SelectItem>
-                    <SelectItem value="technical">Technical Issue</SelectItem>
-                    <SelectItem value="account">Account Problem</SelectItem>
-                    <SelectItem value="billing">Billing</SelectItem>
-                    <SelectItem value="feature-request">Feature Request</SelectItem>
-                    <SelectItem value="general">General Inquiry</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FieldDescription>
-                  What type of issue is this?
-                </FieldDescription>
-              </Field>
-            </div>
+                  <Field>
+                    <FieldLabel htmlFor="category">Category</FieldLabel>
+                    <Select value={formData.category} onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}>
+                      <SelectTrigger className="transition-all duration-200 focus:ring-2 focus:ring-primary/20">
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="bug-report">Bug Report</SelectItem>
+                        <SelectItem value="technical">Technical Issue</SelectItem>
+                        <SelectItem value="account">Account Problem</SelectItem>
+                        <SelectItem value="billing">Billing</SelectItem>
+                        <SelectItem value="feature-request">Feature Request</SelectItem>
+                        <SelectItem value="general">General Inquiry</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FieldDescription>
+                      What type of issue is this?
+                    </FieldDescription>
+                  </Field>
+                </div>
 
-            <Field>
-              <FieldLabel htmlFor="message">Message</FieldLabel>
-              <Textarea
-                id="message"
-                name="message"
-                placeholder="Please describe your issue in detail. Include any error messages, steps to reproduce, or specific questions you have."
-                required
-                rows={6}
-                value={formData.message}
-                onChange={handleInputChange}
-                className="transition-all duration-200 focus:ring-2 focus:ring-primary/20 resize-none"
-              />
-              <FieldDescription>
-                Provide as much detail as possible to help us assist you better
-              </FieldDescription>
-            </Field>
+                <Field>
+                  <div className="flex justify-between items-center">
+                    <FieldLabel htmlFor="message">Message</FieldLabel>
+                    <span className={formData.message.length === 1000 ? "text-red-500 font-medium text-xs" : "text-muted-foreground text-xs"}>
+                      {formData.message.length}/1000
+                    </span>
+                  </div>
+                  <Textarea
+                    id="message"
+                    name="message"
+                    placeholder="Please describe your issue in detail. Include any error messages, steps to reproduce, or specific questions you have."
+                    required
+                    rows={6}
+                    value={formData.message}
+                    onChange={handleInputChange}
+                    className="transition-all duration-200 focus:ring-2 focus:ring-primary/20 resize-none max-h-40 overflow-y-auto field-sizing-fixed"
+                  />
+                  <FieldDescription>
+                    Provide as much detail as possible to help us assist you better
+                  </FieldDescription>
+                </Field>
               </FieldGroup>
             </div>
 
