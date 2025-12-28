@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -87,11 +87,54 @@ export function ReportDialog({ shareId, trigger, onReportSuccess, className }: R
   const [description, setDescription] = useState("")
   const [email, setEmail] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [emailError, setEmailError] = useState("")
+
+  const MAX_DESCRIPTION = 1000
+  const MAX_EMAIL = 254
+
+  // Reset form when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setReportType("")
+      setDescription("")
+      setEmail("")
+      setEmailError("")
+    }
+  }, [open])
+
+  // Email regex for validation
+  const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value
+    if (val.length <= MAX_EMAIL) {
+      setEmail(val)
+      if (val && !EMAIL_REGEX.test(val)) {
+        setEmailError("Please enter a valid email address")
+      } else {
+        setEmailError("")
+      }
+    }
+  }
+
+  const handleDescriptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value
+    if (val.length <= MAX_DESCRIPTION) {
+      setDescription(val)
+    }
+  }
 
   const handleSubmit = async () => {
     if (!reportType) {
       toast.error("Report type required", {
         description: "Please select a report type before submitting."
+      })
+      return
+    }
+
+    if (email && !EMAIL_REGEX.test(email)) {
+      toast.error("Invalid Email", {
+        description: "Please enter a valid email address."
       })
       return
     }
@@ -125,6 +168,7 @@ export function ReportDialog({ shareId, trigger, onReportSuccess, className }: R
       setReportType("")
       setDescription("")
       setEmail("")
+      setEmailError("")
       setOpen(false)
 
       // Call success callback to refresh page data
@@ -207,25 +251,37 @@ export function ReportDialog({ shareId, trigger, onReportSuccess, className }: R
               placeholder="name@example.com"
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={handleEmailChange}
+              className={emailError ? "border-red-500 focus-visible:ring-red-500" : ""}
             />
-            <p className="text-xs text-muted-foreground">
-              We may contact you if we need more information about this report.
-            </p>
+            {emailError ? (
+              <p className="text-xs text-red-500">
+                {emailError}
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                We may contact you if we need more information about this report.
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Additional Details (Optional)</Label>
+            <div className="flex justify-between">
+              <Label htmlFor="description">Additional Details (Optional)</Label>
+              <span className={`text-xs ${description.length >= MAX_DESCRIPTION ? "text-red-500 font-bold" : "text-muted-foreground"}`}>
+                {description.length}/{MAX_DESCRIPTION}
+              </span>
+            </div>
             <Textarea
               id="description"
               placeholder="Provide any additional context or details about your report..."
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={handleDescriptionChange}
               rows={3}
-              className="resize-none"
+              className="resize-none max-h-40 overflow-y-auto field-sizing-fixed"
             />
             <p className="text-xs text-muted-foreground">
-              Maximum 1000 characters. Please be specific and include any relevant details.
+              Please be specific and include any relevant details.
             </p>
           </div>
         </div>
@@ -240,7 +296,7 @@ export function ReportDialog({ shareId, trigger, onReportSuccess, className }: R
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={!reportType || isSubmitting}
+            disabled={!reportType || isSubmitting || !!emailError}
             className="min-w-[100px]"
           >
             {isSubmitting ? (
