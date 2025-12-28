@@ -61,19 +61,19 @@ export function CreateFolderModal({ children, parentId = null, onFolderCreated }
       const response = await apiClient.getProfile()
       if (response.success && response.data?.user?.crypto_keypairs) {
         const cryptoKeys = response.data.user.crypto_keypairs as { accountSalt?: string; pqcKeypairs?: PQCKeypairs }
-        
+
         // Check if user has incomplete crypto data (e.g., Google OAuth in setup phase)
         if (!cryptoKeys.pqcKeypairs || !cryptoKeys.accountSalt) {
           toast.error("Please complete your account setup before creating folders. Check your email for setup instructions.")
           setUserData(null)
           return
         }
-        
+
         if (cryptoKeys.pqcKeypairs) {
           // Check if we have the new encryption scheme data
           const hasNewFormat = cryptoKeys.pqcKeypairs.kyber.encryptionKey &&
-                              cryptoKeys.pqcKeypairs.kyber.encryptionNonce &&
-                              cryptoKeys.pqcKeypairs.kyber.privateKeyNonce
+            cryptoKeys.pqcKeypairs.kyber.encryptionNonce &&
+            cryptoKeys.pqcKeypairs.kyber.privateKeyNonce
 
           if (hasNewFormat) {
             setUserData({
@@ -215,7 +215,14 @@ export function CreateFolderModal({ children, parentId = null, onFolderCreated }
             <Input
               id="folder-name"
               value={folderName}
-              onChange={(e) => setFolderName(e.target.value)}
+              onChange={(e) => {
+                let val = e.target.value
+                if (val.length > 255) {
+                  toast.error("Folder name cannot exceed 255 characters")
+                  val = val.slice(0, 255)
+                }
+                setFolderName(val)
+              }}
               onKeyDown={handleKeyDown}
               placeholder="Enter folder name"
               autoFocus
