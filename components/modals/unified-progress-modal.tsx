@@ -505,14 +505,14 @@ export function UnifiedProgressModal({
                       </div>
 
                       {/* Middle: Size / Total (Only if not error) */}
+                      {/* Middle: Size / Total / Progress */}
                       {!downloadError && downloadProgress && (
-                        <div className="flex flex-col items-center justify-center px-4">
+                        <div className="flex flex-col items-center justify-center px-4 flex-shrink-0">
                           <span className="text-xs text-muted-foreground font-mono">
                             {downloadProgress.bytesDownloaded !== undefined ? formatFileSize(downloadProgress.bytesDownloaded) : '0 B'}
                             {' / '}
-                            {downloadProgress.totalBytes !== undefined ? formatFileSize(downloadProgress.totalBytes) : '...'}
+                            {downloadProgress.totalBytes && downloadProgress.totalBytes > 0 ? formatFileSize(downloadProgress.totalBytes) : '...'}
                           </span>
-                          {/* Simplified progress bar/line could go here if requested, but "nothing else" implies text only is fine or maybe a tiny line */}
                         </div>
                       )}
 

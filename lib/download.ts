@@ -897,49 +897,60 @@ export async function downloadFolderAsZip(
 ): Promise<void> {
   try {
     // Get all files and folders recursively
-    onProgress?.({ stage: 'initializing', overallProgress: 0 });
+    onProgress?.({ stage: 'initializing', overallProgress: 0, totalBytes: 0, bytesDownloaded: 0 });
     const folderContents = await getRecursiveFolderContents(folderId, '', userKeys);
     const allFiles = folderContents.files;
     const allFolders = folderContents.folders;
-    onProgress?.({ stage: 'initializing', overallProgress: 10 });
 
     if (allFiles.length === 0 && allFolders.length === 0) {
       throw new Error('Folder is empty');
     }
 
-    // Download all files
-    const downloadedFiles: Array<{ relativePath: string, filename: string, blob: Blob }> = [];
-    let completedFiles = 0;
-    let totalDownloadedBytes = 0;
+    // Calculate total size first for accurate progress
     let totalBytes = 0;
-
-    // First pass: get total size by downloading metadata for all files
     for (const file of allFiles) {
       if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
       try {
         const session = await initializeDownloadSession(file.fileId);
-        totalBytes += session.size;
-      } catch {
-        // console.warn(`Failed to get size for file ${file.filename}:`, error);
+        totalBytes += Number(session.size);
+      } catch (err) {
+        console.warn(`Failed to get size for file ${file.filename}:`, err);
       }
     }
+
+    // Emit initial progress with known total size
+    onProgress?.({ stage: 'downloading', overallProgress: 0, totalBytes, bytesDownloaded: 0 });
+
+    // Download all files
+    const downloadedFiles: Array<{ relativePath: string, filename: string, blob: Blob }> = [];
+    let completedFiles = 0;
+    let totalDownloadedBytes = 0;
 
     for (const file of allFiles) {
       if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
       if (pauseController?.isPaused) await pauseController.waitIfPaused();
 
       const result = await downloadEncryptedFile(file.fileId, userKeys, (progress) => {
-        // Update total progress
-        const fileProgress = progress.overallProgress / allFiles.length;
-        const baseProgress = (completedFiles / allFiles.length) * 80; // 10% to 90%
-        const currentProgress = 10 + baseProgress + (fileProgress * 80 / allFiles.length);
+        // Update total progress based on bytes
+        const currentFileBytes = progress.bytesDownloaded || 0;
+        const currentTotalDownloaded = totalDownloadedBytes + currentFileBytes;
+
+        // Calculate percentage based on bytes if we have a valid total, otherwise fallback evenly
+        let overallProgress = 0;
+        if (totalBytes > 0) {
+          overallProgress = (currentTotalDownloaded / totalBytes) * 90; // Allocate 90% for downloading
+        } else {
+          // Fallback if totalBytes is 0 (shouldn't happen for non-empty files)
+          const fileProgress = progress.overallProgress / 100;
+          overallProgress = ((completedFiles + fileProgress) / allFiles.length) * 90;
+        }
 
         onProgress?.({
-          stage: progress.stage,
-          overallProgress: Math.min(currentProgress, 90),
+          stage: 'downloading',
+          overallProgress: Math.min(overallProgress, 90),
           currentChunk: completedFiles + 1,
           totalChunks: allFiles.length,
-          bytesDownloaded: totalDownloadedBytes + (progress.bytesDownloaded || 0),
+          bytesDownloaded: currentTotalDownloaded,
           totalBytes: totalBytes,
           downloadSpeed: progress.downloadSpeed,
           timeRemaining: progress.timeRemaining
@@ -957,9 +968,9 @@ export async function downloadFolderAsZip(
     }
 
     // Create ZIP with both files and folders
-    onProgress?.({ stage: 'assembling', overallProgress: 80 });
+    onProgress?.({ stage: 'assembling', overallProgress: 95, totalBytes, bytesDownloaded: totalBytes });
     const zipBlob = await createZipFromFilesAndFolders(downloadedFiles, allFolders, folderName);
-    onProgress?.({ stage: 'assembling', overallProgress: 95 });
+    onProgress?.({ stage: 'assembling', overallProgress: 98, totalBytes, bytesDownloaded: totalBytes });
 
     // Trigger download
     const zipFilename = `${folderName}.zip`;
@@ -972,9 +983,19 @@ export async function downloadFolderAsZip(
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    onProgress?.({ stage: 'complete', overallProgress: 100 });
+    onProgress?.({ stage: 'complete', overallProgress: 100, totalBytes, bytesDownloaded: totalBytes });
 
   } catch (error) {
+    // Check for abort errors
+    if (error instanceof Error && (
+      error.name === 'AbortError' ||
+      error.message.includes('Aborted') ||
+      error.message.includes('BodyStreamBuffer was aborted') ||
+      error.message.includes('The operation was aborted')
+    )) {
+      console.log('Folder download cancelled by user');
+      return; // Return silently
+    }
     console.error('Folder ZIP download failed:', error);
     throw new Error(`Folder download failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
@@ -997,7 +1018,7 @@ export async function downloadMultipleItemsAsZip(
     const zipName = `files-${timestamp}-${randomHex}.zip`;
 
     // Get all files and folders recursively from all selected items
-    onProgress?.({ stage: 'initializing', overallProgress: 0 });
+    onProgress?.({ stage: 'initializing', overallProgress: 0, totalBytes: 0, bytesDownloaded: 0 });
     const allFiles: Array<{ fileId: string, relativePath: string, filename: string }> = [];
     const allFolders: Array<{ folderId: string, relativePath: string, folderName: string }> = [];
 
@@ -1021,41 +1042,50 @@ export async function downloadMultipleItemsAsZip(
       throw new Error('No files to download');
     }
 
-    onProgress?.({ stage: 'initializing', overallProgress: 10 });
+    // Calculate total size first for accurate progress
+    let totalBytes = 0;
+    for (const file of allFiles) {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+      try {
+        const session = await initializeDownloadSession(file.fileId);
+        totalBytes += Number(session.size);
+      } catch (err) {
+        console.warn(`Failed to get size for file ${file.filename}:`, err);
+      }
+    }
+
+    // Emit initial progress
+    onProgress?.({ stage: 'downloading', overallProgress: 0, totalBytes, bytesDownloaded: 0 });
 
     // Download all files
     const downloadedFiles: Array<{ relativePath: string, filename: string, blob: Blob }> = [];
     let completedFiles = 0;
     let totalDownloadedBytes = 0;
-    let totalBytes = 0;
-
-    // First pass: get total size
-    for (const file of allFiles) {
-      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-      try {
-        const session = await initializeDownloadSession(file.fileId);
-        totalBytes += session.size;
-      } catch {
-        // console.warn(`Failed to get size for file ${file.filename}:`, error);
-      }
-    }
 
     for (const file of allFiles) {
       if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
       if (pauseController?.isPaused) await pauseController.waitIfPaused();
 
       const result = await downloadEncryptedFile(file.fileId, userKeys, (progress) => {
-        // Update total progress
-        const fileProgress = progress.overallProgress / allFiles.length;
-        const baseProgress = (completedFiles / allFiles.length) * 80;
-        const currentProgress = 10 + baseProgress + (fileProgress * 80 / allFiles.length);
+        // Update total progress based on bytes
+        const currentFileBytes = progress.bytesDownloaded || 0;
+        const currentTotalDownloaded = totalDownloadedBytes + currentFileBytes;
+
+        // Calculate percentage based on bytes if we have a valid total
+        let overallProgress = 0;
+        if (totalBytes > 0) {
+          overallProgress = (currentTotalDownloaded / totalBytes) * 90; // Allocate 90% for downloading
+        } else {
+          const fileProgress = progress.overallProgress / 100;
+          overallProgress = ((completedFiles + fileProgress) / allFiles.length) * 90;
+        }
 
         onProgress?.({
-          stage: progress.stage,
-          overallProgress: Math.min(currentProgress, 90),
+          stage: 'downloading',
+          overallProgress: Math.min(overallProgress, 90),
           currentChunk: completedFiles + 1,
           totalChunks: allFiles.length,
-          bytesDownloaded: totalDownloadedBytes + (progress.bytesDownloaded || 0),
+          bytesDownloaded: currentTotalDownloaded,
           totalBytes: totalBytes,
           downloadSpeed: progress.downloadSpeed,
           timeRemaining: progress.timeRemaining
@@ -1073,9 +1103,9 @@ export async function downloadMultipleItemsAsZip(
     }
 
     // Create ZIP with both files and folders
-    onProgress?.({ stage: 'assembling', overallProgress: 95 });
+    onProgress?.({ stage: 'assembling', overallProgress: 95, totalBytes, bytesDownloaded: totalBytes });
     const zipBlob = await createZipFromFilesAndFolders(downloadedFiles, allFolders, '');
-    onProgress?.({ stage: 'assembling', overallProgress: 98 });
+    onProgress?.({ stage: 'assembling', overallProgress: 98, totalBytes, bytesDownloaded: totalBytes });
 
     // Trigger download
     const url = URL.createObjectURL(zipBlob);
@@ -1087,9 +1117,19 @@ export async function downloadMultipleItemsAsZip(
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    onProgress?.({ stage: 'complete', overallProgress: 100 });
+    onProgress?.({ stage: 'complete', overallProgress: 100, totalBytes, bytesDownloaded: totalBytes });
 
   } catch (error) {
+    // Check for abort errors
+    if (error instanceof Error && (
+      error.name === 'AbortError' ||
+      error.message.includes('Aborted') ||
+      error.message.includes('BodyStreamBuffer was aborted') ||
+      error.message.includes('The operation was aborted')
+    )) {
+      console.log('Bulk download cancelled by user');
+      return; // Return silently
+    }
     console.error('Bulk ZIP download failed:', error);
     throw new Error(`Bulk download failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
