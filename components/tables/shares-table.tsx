@@ -18,6 +18,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Checkbox } from "@/components/base/checkbox/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { downloadEncryptedFile } from '@/lib/download';
 import { apiClient, ShareItem } from "@/lib/api";
@@ -28,6 +29,7 @@ import { masterKeyManager } from "@/lib/master-key";
 import { truncateFilename } from "@/lib/utils";
 import { isTextTruncated } from "@/lib/tooltip-helper";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { FileIcon } from "../file-icon";
 
 
 export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
@@ -245,13 +247,7 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
         return `${month}/${day}/${year} ${time}`;
     };
 
-    // Get file or folder icon
-    const getItemIcon = (item: ShareItem) => {
-        if (item.isFolder) {
-            return <IconFolder className="h-4 w-4 text-blue-500" />;
-        }
-        return <IconFile className="h-4 w-4 text-gray-500" />;
-    };
+
 
     const sortedItems = useMemo(() => {
         return shares.sort((a, b) => {
@@ -515,7 +511,7 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                     className="py-1 [&>div>h2]:text-base [&>div>h2]:font-medium h-12 flex-shrink-0 border-0"
                 />
                 {viewMode === 'table' ? (
-                    <Table aria-label="Shares" selectionMode="multiple" sortDescriptor={sortDescriptor} onSortChange={setSortDescriptor} selectedKeys={selectedItems} onSelectionChange={(keys) => {
+                    <Table aria-label="Shares" selectionMode="multiple" selectionBehavior="replace" sortDescriptor={sortDescriptor} onSortChange={setSortDescriptor} selectedKeys={selectedItems} onSelectionChange={(keys) => {
                         if (keys === 'all') {
                             if (selectedItems.size > 0 && selectedItems.size < filteredItems.length) {
                                 setSelectedItems(new Set());
@@ -525,8 +521,12 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                         } else {
                             setSelectedItems(new Set(Array.from(keys as Set<string>)));
                         }
-                    }}>
+                    }}
+                    >
                         <Table.Header>
+                            <Table.Head className={`w-10 text-center pl-4 pr-0 transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 hover:opacity-100 focus-within:opacity-100"}`}>
+                                <Checkbox slot="selection" />
+                            </Table.Head>
                             <Table.Head id="fileName" isRowHeader allowsSorting className={`w-full pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`} align="left">
                                 {selectedItems.size > 0 ? (
                                     <span className="text-xs font-semibold whitespace-nowrap text-foreground px-1.5 py-1">{selectedItems.size} selected</span>
@@ -557,16 +557,23 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                             <Table.Head id="actions" align="center" />
                         </Table.Header>
 
-                        <Table.Body items={filteredItems}>
+                        <Table.Body items={filteredItems} dependencies={[filteredItems, selectedItems.size]}>
                             {(item) => (
                                 <Table.Row
                                     id={item.id}
                                     className="group hover:bg-muted/50 transition-colors duration-150"
                                 >
+                                    <Table.Cell className={`w-10 text-center pl-4 pr-0 transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}>
+                                        <Checkbox slot="selection" />
+                                    </Table.Cell>
                                     <Table.Cell className="w-full">
                                         <div className="flex items-center gap-2">
                                             <div className="text-base">
-                                                {getItemIcon(item)}
+                                                {item.isFolder ? (
+                                                    <IconFolder className="h-4 w-4 text-blue-500 inline-block" />
+                                                ) : (
+                                                    <FileIcon mimeType={item.mimeType} filename={item.fileName} className="h-4 w-4 inline-block" />
+                                                )}
                                             </div>
                                             {isTextTruncated(item.fileName) ? (
                                                 <Tooltip>
@@ -671,12 +678,31 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                             {shares.map((item) => (
                                 <div
                                     key={item.id}
-                                    className="group relative bg-card rounded-lg border border-border p-4 hover:bg-muted/50 transition-all duration-200 cursor-pointer"
-                                    onClick={() => handleDetailsClick(item.fileId, item.fileName, item.isFolder ? 'folder' : 'file')}
+                                    className={`group relative bg-card rounded-lg border border-border p-4 hover:bg-muted/50 transition-all duration-200 cursor-pointer ${selectedItems.has(item.id) ? 'ring-2 ring-primary bg-muted' : ''}`}
+                                    onClick={() => setSelectedItems(new Set([item.id]))}
+                                    onDoubleClick={() => handleDetailsClick(item.fileId, item.fileName, item.isFolder ? 'folder' : 'file')}
                                 >
                                     <div className="flex flex-col items-center text-center space-y-2">
-                                        <div className="text-2xl">
-                                            {getItemIcon(item)}
+                                        <div className="absolute top-2 left-2 z-10" onClick={(e) => e.stopPropagation()}>
+                                            <Checkbox
+                                                isSelected={selectedItems.has(item.id)}
+                                                onChange={(isSelected) => {
+                                                    const newSelected = new Set(selectedItems);
+                                                    if (isSelected) {
+                                                        newSelected.add(item.id);
+                                                    } else {
+                                                        newSelected.delete(item.id);
+                                                    }
+                                                    setSelectedItems(newSelected);
+                                                }}
+                                            />
+                                        </div>
+                                        <div className="text-4xl">
+                                            {item.isFolder ? (
+                                                <IconFolder className="h-12 w-12 text-blue-500" />
+                                            ) : (
+                                                <FileIcon mimeType={item.mimeType} filename={item.fileName} className="h-12 w-12" />
+                                            )}
                                         </div>
                                         <div className="flex-1 min-w-0 w-full">
                                             <p className="text-sm font-medium truncate" title={item.fileName}>

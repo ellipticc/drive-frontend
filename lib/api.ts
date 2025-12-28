@@ -262,6 +262,7 @@ export interface ShareItem {
   downloads: number;
   folderPath: string;
   isFolder: boolean;
+  mimeType?: string;
   encryptedFilename?: string;
   filenameSalt?: string;
   folderPathSalt?: string;

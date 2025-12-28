@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useCallback } from "react"
-import { X, ChevronLeft, ChevronRight, Download, Info, Share2, File as FileIcon } from "lucide-react"
+import { X, ChevronLeft, ChevronRight, Download, Info, Share2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { AudioPreview } from "./audio-preview"
@@ -9,8 +9,9 @@ import { VideoPreview } from "./video-preview"
 import { TextPreview } from "./text-preview"
 import { ImagePreview } from "./image-preview"
 import { PdfPreview } from "./pdf-preview"
+
+import { FileIcon } from "../file-icon"
 import { DownloadProgress } from "@/lib/download"
-import { truncateFilename } from "@/lib/utils"
 
 // Define the FileItem interface based on what's passed from files-table
 export interface PreviewFileItem {
@@ -19,6 +20,7 @@ export interface PreviewFileItem {
     type: 'file' | 'folder'
     mimeType?: string
     size?: number
+    blobUrl?: string
     // Add other fields if needed for context
 }
 
@@ -96,7 +98,8 @@ export function FullPagePreviewModal({
             onProgress: handleProgress,
             onError: handleError,
             isLoading,
-            setIsLoading
+            setIsLoading,
+            blobUrl: file.blobUrl
         }
 
         if (file.mimeType.startsWith('image/')) {
@@ -111,6 +114,7 @@ export function FullPagePreviewModal({
         if (file.mimeType === 'application/pdf') {
             return <PdfPreview {...commonProps} />
         }
+
         if (
             file.mimeType.startsWith('text/') ||
             file.mimeType.includes('json') ||
@@ -137,7 +141,7 @@ export function FullPagePreviewModal({
                 {/* Left: File Info */}
                 <div className="flex items-center gap-3 min-w-0 w-1/4">
                     <div className="p-2 bg-muted rounded-md shrink-0">
-                        <FileIcon className="h-5 w-5" />
+                        <FileIcon className="h-5 w-5" filename={file.name} mimeType={file.mimeType} />
                     </div>
                     <div className="flex flex-col min-w-0">
                         <span className="font-semibold truncate block" title={file.name}>

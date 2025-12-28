@@ -110,6 +110,7 @@ interface TableRootProps extends AriaTableProps, Omit<ComponentPropsWithRef<"tab
 
 interface TableRootProps extends AriaTableProps, Omit<ComponentPropsWithRef<"table">, "className" | "slot" | "style"> {
     size?: "sm" | "md";
+    dependencies?: any[];
 }
 
 const TableRoot = ({ className, size = "md", onSelectionChange, ...props }: TableRootProps) => {
@@ -282,7 +283,7 @@ const TableRow = <T extends object>({ columns, children, className, highlightSel
                 cx(
                     "relative outline-ring transition-colors after:pointer-events-none hover:bg-muted/50 focus-visible:outline-2 focus-visible:-outline-offset-2 group",
                     size === "sm" ? "h-10" : "h-12", // Even more compact height
-                    highlightSelectedRow && "selected:bg-muted",
+                    highlightSelectedRow && state.isSelected && "!bg-blue-100 dark:!bg-blue-900/30",
 
                     // Row border—using an "after" pseudo-element to avoid the border taking up space.
                     "[&>td]:after:absolute [&>td]:after:inset-x-0 [&>td]:after:bottom-0 [&>td]:after:h-px [&>td]:after:w-full [&>td]:after:bg-border last:[&>td]:after:hidden [&>td]:focus-visible:after:opacity-0 focus-visible:[&>td]:after:opacity-0",

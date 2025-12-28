@@ -15,6 +15,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Checkbox } from "@/components/base/checkbox/checkbox";
 import {
     Dialog,
     DialogContent,
@@ -35,6 +36,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { masterKeyManager } from "@/lib/master-key";
 import { decryptFilename } from "@/lib/crypto";
 import { useUser } from "@/components/user-context";
+import { FileIcon } from "../file-icon";
 
 interface TrashItem {
     id: string;
@@ -435,17 +437,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
         return formatted;
     };
 
-    // Get file icon based on mime type or type
-    const getFileIcon = (mimeType: string, type: string) => {
-        if (type === 'folder') return <IconFolder className="h-4 w-4 text-blue-500" />;
-        if (mimeType.startsWith('image/')) return <IconPhoto className="h-4 w-4 text-green-500" />;
-        if (mimeType.startsWith('video/')) return <IconVideo className="h-4 w-4 text-purple-500" />;
-        if (mimeType.startsWith('audio/')) return <IconMusic className="h-4 w-4 text-orange-500" />;
-        if (mimeType.includes('pdf')) return <IconFileText className="h-4 w-4 text-red-500" />;
-        if (mimeType.includes('zip') || mimeType.includes('rar')) return <IconArchive className="h-4 w-4 text-yellow-500" />;
-        if (mimeType.includes('text')) return <IconFileText className="h-4 w-4 text-gray-500" />;
-        return <IconFile className="h-4 w-4 text-gray-500" />;
-    };
+
 
     const sortedItems = useMemo(() => {
         // Filter items based on search query
@@ -569,6 +561,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                     <Table
                         aria-label="Trash"
                         selectionMode="multiple"
+                        selectionBehavior="replace"
                         sortDescriptor={sortDescriptor}
                         onSortChange={setSortDescriptor}
                         selectedKeys={selectedItems}
@@ -585,7 +578,10 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                         }}
                     >
                         <Table.Header>
-                            <Table.Head id="name" isRowHeader allowsSorting className={`w-full max-w-1/4 pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`} align="left">
+                            <Table.Head className={`w-10 text-center pl-4 pr-0 transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 hover:opacity-100 focus-within:opacity-100"}`}>
+                                <Checkbox slot="selection" />
+                            </Table.Head>
+                            <Table.Head id="name" isRowHeader allowsSorting={selectedItems.size === 0} className="w-full pointer-events-none cursor-default" align="left">
                                 {selectedItems.size > 0 ? (
                                     <span className="text-xs font-semibold whitespace-nowrap text-foreground px-1.5 py-1">{selectedItems.size} selected</span>
                                 ) : (
@@ -593,101 +589,120 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                                 )}
                             </Table.Head>
                             {!isMobile && (
-                                <Table.Head id="deletedAt" allowsSorting className={`text-right pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`} align="right">
-                                    <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Deleted</span>
+                                <Table.Head id="originalLocation" allowsSorting align="left" className={`pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
+                                    <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Original location</span>
                                 </Table.Head>
                             )}
                             {!isMobile && (
-                                <Table.Head id="size" allowsSorting className={`text-right pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`} align="right">
+                                <Table.Head id="deletedAt" allowsSorting align="right" className={`pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
+                                    <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Date deleted</span>
+                                </Table.Head>
+                            )}
+                            {!isMobile && (
+                                <Table.Head id="size" allowsSorting align="right" className={`pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
                                     <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Size</span>
                                 </Table.Head>
                             )}
                             <Table.Head id="actions" align="center" />
                         </Table.Header>
 
-                        <Table.Body items={sortedItems}>
-                            {(item) => {
-                                return (
-                                    <Table.Row id={item.id} className="h-12 group hover:bg-muted/50 transition-colors duration-150">
-                                        <Table.Cell className="h-12 w-full max-w-1/4">
-                                            <div className="flex items-center gap-2 h-full">
-                                                <div className="text-base flex-shrink-0">
-                                                    {getFileIcon(item.mimeType || '', item.type)}
-                                                </div>
-                                                {isTextTruncated(item.name) ? (
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <p className="text-sm font-medium whitespace-nowrap text-foreground truncate cursor-default flex-1 min-w-0">
-                                                                {truncateFilename(item.name)}
-                                                            </p>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>
-                                                            <p className="text-sm text-foreground max-w-xs break-words">
-                                                                {item.name}
-                                                            </p>
-                                                        </TooltipContent>
-                                                    </Tooltip>
+                        <Table.Body items={sortedItems} dependencies={[selectedItems.size]}>
+                            {(item) => (
+                                <Table.Row
+                                    id={item.id}
+                                    className="group hover:bg-muted/50 transition-colors duration-150"
+                                >
+                                    <Table.Cell className={`w-10 text-center pl-4 pr-0 transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}>
+                                        <Checkbox slot="selection" />
+                                    </Table.Cell>
+                                    <Table.Cell className="w-full">
+                                        <div className="flex items-center gap-2">
+                                            <div className="text-base">
+                                                {item.type === 'folder' ? (
+                                                    <IconFolder className="h-4 w-4 text-blue-500 inline-block" />
                                                 ) : (
-                                                    <p className="text-sm font-medium whitespace-nowrap text-foreground truncate cursor-default flex-1 min-w-0">
-                                                        {item.name}
-                                                    </p>
+                                                    <FileIcon mimeType={item.mimeType} filename={item.name} className="h-4 w-4" />
                                                 )}
                                             </div>
+                                            {isTextTruncated(item.name) ? (
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <p className="text-sm font-medium whitespace-nowrap text-foreground truncate cursor-default flex-1 min-w-0">
+                                                            {truncateFilename(item.name)}
+                                                        </p>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p className="text-sm text-foreground max-w-xs break-words">
+                                                            {item.name}
+                                                        </p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            ) : (
+                                                <p className="text-sm font-medium whitespace-nowrap text-foreground truncate cursor-default flex-1 min-w-0">
+                                                    {item.name}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </Table.Cell>
+                                    {!isMobile && (
+                                        <Table.Cell className="text-muted-foreground text-sm truncate max-w-[150px]">
+                                            {/* Original Location Placeholder - Backend doesn't seem to provide this yet? It was in header though. */}
+                                            --
                                         </Table.Cell>
-                                        {!isMobile && (
-                                            <Table.Cell className="text-right h-12">
-                                                <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
-                                                    {new Date(item.deletedAt).toLocaleString('en-US', {
-                                                        month: '2-digit',
-                                                        day: '2-digit',
-                                                        year: 'numeric',
-                                                        hour: 'numeric',
-                                                        minute: '2-digit',
-                                                        hour12: true
-                                                    })}
-                                                </span>
-                                            </Table.Cell>
-                                        )}
-                                        {!isMobile && (
-                                            <Table.Cell className="text-right h-12">
-                                                <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
-                                                    {item.type === 'folder' ? '--' : formatFileSize(item.size || 0)}
-                                                </span>
-                                            </Table.Cell>
-                                        )}
-                                        <Table.Cell className="px-3 h-12">
-                                            <div className="flex justify-end gap-1 h-full items-center">
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
-                                                            <DotsVertical className="h-4 w-4" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end" className="w-48">
-                                                        <DropdownMenuItem onClick={() => handleRestoreClick(item.id, item.name, item.type)}>
-                                                            <IconRestore className="h-4 w-4 mr-2" />
-                                                            Restore
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuSeparator />
-                                                        <DropdownMenuItem onClick={() => handleDetailsClick(item.id, item.name, item.type)}>
-                                                            <IconInfoCircle className="h-4 w-4 mr-2" />
-                                                            Details
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuSeparator />
-                                                        <DropdownMenuItem
-                                                            onClick={() => handleDeleteClick(item.id, item.name, item.type)}
-                                                            variant="destructive"
-                                                        >
-                                                            <IconTrashAlt className="h-4 w-4 mr-2" />
-                                                            Delete permanently
-                                                        </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                            </div>
+                                    )}
+                                    {!isMobile && (
+                                        <Table.Cell className="text-right h-12">
+                                            <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
+                                                {new Date(item.deletedAt).toLocaleString('en-US', {
+                                                    month: '2-digit',
+                                                    day: '2-digit',
+                                                    year: 'numeric',
+                                                    hour: 'numeric',
+                                                    minute: '2-digit',
+                                                    hour12: true
+                                                })}
+                                            </span>
                                         </Table.Cell>
-                                    </Table.Row>
-                                );
-                            }}
+                                    )}
+                                    {!isMobile && (
+                                        <Table.Cell className="text-right h-12">
+                                            <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
+                                                {item.type === 'folder' ? '--' : formatFileSize(item.size || 0)}
+                                            </span>
+                                        </Table.Cell>
+                                    )}
+                                    <Table.Cell className="px-3 h-12">
+                                        <div className="flex justify-end gap-1 h-full items-center">
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                                                        <DotsVertical className="h-4 w-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end" className="w-48">
+                                                    <DropdownMenuItem onClick={() => handleRestoreClick(item.id, item.name, item.type)}>
+                                                        <IconRestore className="h-4 w-4 mr-2" />
+                                                        Restore
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem onClick={() => handleDetailsClick(item.id, item.name, item.type)}>
+                                                        <IconInfoCircle className="h-4 w-4 mr-2" />
+                                                        Details
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem
+                                                        onClick={() => handleDeleteClick(item.id, item.name, item.type)}
+                                                        variant="destructive"
+                                                    >
+                                                        <IconTrashAlt className="h-4 w-4 mr-2" />
+                                                        Delete permanently
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </div>
+                                    </Table.Cell>
+                                </Table.Row>
+                            )}
                         </Table.Body>
                     </Table>
                 )}

@@ -135,9 +135,14 @@ export function ReportDialog({ shareId, trigger, onReportSuccess, className }: R
     } catch (error: unknown) {
       console.error('Report submission error:', error)
       const errorMessage = error instanceof Error ? error.message : "An error occurred while submitting your report. Please try again."
-      toast.error("Failed to submit report", {
-        description: errorMessage
-      })
+
+      if (errorMessage === 'You cannot report your own content.') {
+        toast.error("You cannot report your own content.")
+      } else {
+        toast.error("Failed to submit report", {
+          description: errorMessage
+        })
+      }
     } finally {
       setIsSubmitting(false)
     }

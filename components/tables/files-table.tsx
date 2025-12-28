@@ -23,6 +23,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Checkbox } from "@/components/base/checkbox/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiClient, FileItem, FolderContentItem, FileContentItem } from "@/lib/api";
 import { toast } from "sonner";
@@ -30,6 +31,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { FullPagePreviewModal, PreviewFileItem } from "@/components/previews/full-page-preview-modal";
 import { useCurrentFolder } from "@/components/current-folder-context";
 import { useOnFileAdded, useOnFileDeleted, useOnFileReplaced, useGlobalUpload } from "@/components/global-upload-context";
+import { FileIcon } from "@/components/file-icon";
 import { decryptFilename } from "@/lib/crypto";
 import { masterKeyManager } from "@/lib/master-key";
 import { truncateFilename } from "@/lib/utils";
@@ -1166,15 +1168,9 @@ export const Table01DividerLineSm = ({
     };
 
     // Get file icon based on mime type or type
-    const getFileIcon = (mimeType: string, type: string) => {
-        if (type === 'folder') return <IconFolder className="h-4 w-4 text-blue-500" />;
-        if (mimeType.startsWith('image/')) return <IconPhoto className="h-4 w-4 text-green-500" />;
-        if (mimeType.startsWith('video/')) return <IconVideo className="h-4 w-4 text-purple-500" />;
-        if (mimeType.startsWith('audio/')) return <IconMusic className="h-4 w-4 text-orange-500" />;
-        if (mimeType.includes('pdf')) return <IconFileText className="h-4 w-4 text-red-500" />;
-        if (mimeType.includes('zip') || mimeType.includes('rar')) return <IconArchive className="h-4 w-4 text-yellow-500" />;
-        if (mimeType.includes('text')) return <IconFileText className="h-4 w-4 text-gray-500" />;
-        return <IconFile className="h-4 w-4 text-gray-500" />;
+    const getFileIcon = (mimeType: string, type: string, name: string, className = "h-4 w-4") => {
+        if (type === 'folder') return <IconFolder className={`${className} text-blue-500`} />;
+        return <FileIcon mimeType={mimeType} filename={name} className={className} />;
     };
 
     const sortedItems = useMemo(() => {
@@ -1831,31 +1827,34 @@ export const Table01DividerLineSm = ({
                     className="py-1 [&>div>h2]:text-base [&>div>h2]:font-medium h-12 flex-shrink-0 border-0"
                 />
                 {viewMode === 'table' ? (
-                    <Table aria-label="Files" selectionMode="multiple" sortDescriptor={sortDescriptor} onSortChange={setSortDescriptor} selectedKeys={selectedItems} onSelectionChange={handleTableSelectionChange}
+                    <Table aria-label="Files" selectionMode="multiple" selectionBehavior="replace" sortDescriptor={sortDescriptor} onSortChange={setSortDescriptor} selectedKeys={selectedItems} onSelectionChange={handleTableSelectionChange}
                         onContextMenu={(e) => handleContextMenu(e)}
                     >
                         <Table.Header>
-                            <Table.Head id="name" isRowHeader allowsSorting={selectedItems.size === 0} className="w-full max-w-1/4 pointer-events-none cursor-default" align="left">
+                            <Table.Head className={`w-10 text-center pl-4 pr-0 transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 hover:opacity-100 focus-within:opacity-100"}`}>
+                                <Checkbox slot="selection" />
+                            </Table.Head>
+                            <Table.Head id="name" isRowHeader allowsSorting={selectedItems.size === 0} className="w-full pointer-events-none cursor-default" align="left">
                                 {selectedItems.size > 0 ? (
                                     <span className="text-xs font-semibold whitespace-nowrap text-foreground px-1.5 py-1">{selectedItems.size} selected</span>
                                 ) : (
                                     <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto">Name</span>
                                 )}
                             </Table.Head>
-                            <Table.Head id="modified" allowsSorting={selectedItems.size === 0} align="right" className={`hidden md:table-cell ${visibleColumns.has('modified') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} !px-0`}>
+                            <Table.Head id="modified" allowsSorting={selectedItems.size === 0} align="right" className={`hidden md:table-cell ${visibleColumns.has('modified') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
                                 <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Modified</span>
                             </Table.Head>
-                            <Table.Head id="size" allowsSorting={selectedItems.size === 0} align="right" className={`hidden md:table-cell ${visibleColumns.has('size') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} !px-0`}>
+                            <Table.Head id="size" allowsSorting={selectedItems.size === 0} align="right" className={`hidden md:table-cell ${visibleColumns.has('size') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
                                 <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Size</span>
                             </Table.Head>
-                            <Table.Head id="checksum" allowsSorting={selectedItems.size === 0} align="right" className={`hidden md:table-cell pr-2 ${visibleColumns.has('checksum') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} !px-0`}>
+                            <Table.Head id="checksum" allowsSorting={selectedItems.size === 0} align="right" className={`hidden md:table-cell ${visibleColumns.has('checksum') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
                                 <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Checksum</span>
                             </Table.Head>
-                            <Table.Head id="shared" align="center" className={`hidden md:table-cell w-8 ${visibleColumns.has('shared') ? '' : '[&>*]:invisible pointer-events-none cursor-default'}`} />
+                            <Table.Head id="shared" align="center" className={`hidden md:table-cell w-16 ${visibleColumns.has('shared') ? '' : '[&>*]:invisible pointer-events-none cursor-default'}`} />
                             <Table.Head id="actions" align="right" />
                         </Table.Header>
 
-                        <Table.Body items={filteredItems} dependencies={[visibleColumns]}>
+                        <Table.Body items={filteredItems} dependencies={[visibleColumns, selectedItems.size]}>
                             {(item) => (
                                 <Table.Row
                                     id={item.id}
@@ -1863,15 +1862,28 @@ export const Table01DividerLineSm = ({
                                     className="group hover:bg-muted/50 transition-colors duration-150"
                                     onContextMenu={(e) => handleContextMenu(e, item)}
                                 >
-                                    <Table.Cell className="w-full max-w-1/4">
+                                    <Table.Cell className={`w-10 text-center pl-4 pr-0 transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}>
+                                        <Checkbox slot="selection" />
+                                    </Table.Cell>
+                                    <Table.Cell className="w-full">
                                         <div className="flex items-center gap-2">
                                             <div className="text-base">
-                                                {getFileIcon(item.mimeType || '', item.type)}
+                                                {item.type === 'folder' ? (
+                                                    <IconFolder className="h-4 w-4 text-blue-500 inline-block" />
+                                                ) : (
+                                                    <FileIcon mimeType={item.mimeType} filename={item.name} className="h-4 w-4 inline-block" />
+                                                )}
                                             </div>
                                             {isTextTruncated(item.name) ? (
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
-                                                        <p className="text-sm font-medium whitespace-nowrap text-foreground truncate cursor-default">
+                                                        <p className="text-sm font-medium whitespace-nowrap text-foreground truncate cursor-default" onClick={() => {
+                                                            if (item.type === 'folder') {
+                                                                handleFolderDoubleClick(item.id, item.name);
+                                                            } else if (item.type === 'file' && item.mimeType && canPreviewFile(item.mimeType)) {
+                                                                handlePreviewClick(item.id, item.name, item.mimeType);
+                                                            }
+                                                        }}>
                                                             {truncateFilename(item.name)}
                                                         </p>
                                                     </TooltipTrigger>
@@ -1880,23 +1892,29 @@ export const Table01DividerLineSm = ({
                                                     </TooltipContent>
                                                 </Tooltip>
                                             ) : (
-                                                <p className="text-sm font-medium whitespace-nowrap text-foreground truncate cursor-default">
+                                                <p className="text-sm font-medium whitespace-nowrap text-foreground truncate cursor-default" onClick={() => {
+                                                    if (item.type === 'folder') {
+                                                        handleFolderDoubleClick(item.id, item.name);
+                                                    } else if (item.type === 'file' && item.mimeType && canPreviewFile(item.mimeType)) {
+                                                        handlePreviewClick(item.id, item.name, item.mimeType);
+                                                    }
+                                                }}>
                                                     {item.name}
                                                 </p>
                                             )}
                                         </div>
                                     </Table.Cell>
-                                    <Table.Cell className={`hidden md:table-cell text-right ${visibleColumns.has('modified') ? '' : '[&>*]:invisible'} !px-0`}>
+                                    <Table.Cell className={`hidden md:table-cell text-right ${visibleColumns.has('modified') ? '' : '[&>*]:invisible'} px-4`}>
                                         <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
                                             {formatDate(item.createdAt)}
                                         </span>
                                     </Table.Cell>
-                                    <Table.Cell className={`hidden md:table-cell text-right ${visibleColumns.has('size') ? '' : '[&>*]:invisible'} !px-0`}>
+                                    <Table.Cell className={`hidden md:table-cell text-right ${visibleColumns.has('size') ? '' : '[&>*]:invisible'} px-4`}>
                                         <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
                                             {item.type === 'folder' ? '--' : formatFileSize(item.size || 0)}
                                         </span>
                                     </Table.Cell>
-                                    <Table.Cell className={`hidden md:table-cell text-right ${visibleColumns.has('checksum') ? '' : '[&>*]:invisible'} !px-0`}>
+                                    <Table.Cell className={`hidden md:table-cell text-right ${visibleColumns.has('checksum') ? '' : '[&>*]:invisible'} px-4`}>
                                         {item.type === 'folder' ? (
                                             <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">N/A</span>
                                         ) : item.shaHash ? (
@@ -1930,7 +1948,7 @@ export const Table01DividerLineSm = ({
                                             <span className="text-xs text-muted-foreground font-mono break-all">N/A</span>
                                         )}
                                     </Table.Cell>
-                                    <Table.Cell className={`hidden md:table-cell px-1 w-8 text-center ${visibleColumns.has('shared') ? '' : '[&>*]:invisible'}`}>
+                                    <Table.Cell className={`hidden md:table-cell px-1 w-16 text-center ${visibleColumns.has('shared') ? '' : '[&>*]:invisible'}`}>
                                         {/* Shared icon */}
                                         {item.is_shared ? (
                                             <Tooltip>
@@ -2010,11 +2028,8 @@ export const Table01DividerLineSm = ({
                                     className={`group relative bg-card rounded-lg border border-border p-4 hover:bg-muted/50 transition-all duration-200 cursor-pointer ${selectedItems.has(item.id) ? 'ring-2 ring-primary bg-muted' : ''
                                         }`}
                                     onClick={() => {
-                                        if (item.type === 'folder') {
-                                            handleFolderDoubleClick(item.id, item.name);
-                                        } else if (item.type === 'file' && item.mimeType && canPreviewFile(item.mimeType)) {
-                                            handlePreviewClick(item.id, item.name, item.mimeType);
-                                        }
+                                        // Single click -> Select only this item (replace selection)
+                                        setSelectedItems(new Set([item.id]));
                                     }}
                                     onDoubleClick={() => {
                                         if (item.type === 'folder') {
@@ -2047,7 +2062,7 @@ export const Table01DividerLineSm = ({
                                     {/* File/Folder icon */}
                                     <div className="flex flex-col items-center gap-3 pt-6">
                                         <div className="text-4xl">
-                                            {getFileIcon(item.mimeType || '', item.type)}
+                                            {getFileIcon(item.mimeType || '', item.type, item.name, "h-12 w-12")}
                                         </div>
 
                                         {/* File name */}
