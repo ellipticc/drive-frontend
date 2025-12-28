@@ -1942,7 +1942,7 @@ export const Table01DividerLineSm = ({
                                                         }}
                                                         className="flex items-center justify-center cursor-pointer hover:bg-accent rounded-sm p-1 transition-colors"
                                                     >
-                                                        <IconShare3 className="h-3.5 w-3.5 text-blue-500 opacity-70 hover:opacity-100 transition-opacity" />
+                                                        <IconShare3 className="h-3.5 w-3.5 text-blue-500" />
                                                     </button>
                                                 </TooltipTrigger>
                                                 <TooltipContent>

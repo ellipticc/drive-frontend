@@ -504,15 +504,25 @@ export function UnifiedProgressModal({
                         </div>
                       </div>
 
-                      {/* Middle: Size / Total (Only if not error) */}
-                      {/* Middle: Size / Total / Progress */}
                       {!downloadError && downloadProgress && (
                         <div className="flex flex-col items-center justify-center px-4 flex-shrink-0">
-                          <span className="text-xs text-muted-foreground font-mono">
-                            {downloadProgress.bytesDownloaded !== undefined ? formatFileSize(downloadProgress.bytesDownloaded) : '0 B'}
-                            {' / '}
-                            {downloadProgress.totalBytes && downloadProgress.totalBytes > 0 ? formatFileSize(downloadProgress.totalBytes) : '...'}
+                          <span className="text-xs text-muted-foreground font-mono flex items-center gap-2">
+                            <span>
+                              {downloadProgress.bytesDownloaded !== undefined ? formatFileSize(downloadProgress.bytesDownloaded) : '0 B'}
+                              {' / '}
+                              {downloadProgress.totalBytes && downloadProgress.totalBytes > 0 ? formatFileSize(downloadProgress.totalBytes) : '...'}
+                            </span>
+                            {downloadProgress.stage === 'complete' && (
+                              <span className="text-green-500 font-medium">Downloaded</span>
+                            )}
                           </span>
+                          {/* Small Loading Bar */}
+                          <div className="w-full h-0.5 bg-muted mt-1 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full transition-all duration-300 ${downloadProgress.stage === 'complete' ? 'bg-green-500' : 'bg-primary'}`}
+                              style={{ width: `${downloadProgress.overallProgress || 0}%` }}
+                            />
+                          </div>
                         </div>
                       )}
 

@@ -42,6 +42,7 @@ import {
   looksLikeEncryptedName,
   decryptManifestItemName
 } from '@/lib/share-crypto';
+import { FullPagePreviewModal, PreviewFileItem } from "@/components/previews/full-page-preview-modal";
 import { AudioPreview } from '@/components/previews/audio-preview';
 import { ImagePreview } from '@/components/previews/image-preview';
 import { TextPreview } from '@/components/previews/text-preview';
@@ -142,6 +143,12 @@ export default function SharedDownloadPage() {
   const [userSession, setUserSession] = useState<{ id: string; name: string; email: string; avatar: string } | null>(null);
   const [checkingSession, setCheckingSession] = useState(true);
   const [sharePasswordCEK, setSharePasswordCEK] = useState<Uint8Array | null>(null); // Store CEK from password verification
+
+  // Preview State
+  const [previewFile, setPreviewFile] = useState<PreviewFileItem & { blobUrl: string } | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewProgress, setPreviewProgress] = useState<DownloadProgress | null>(null);
+  const [isPreviewing, setIsPreviewing] = useState(false);
 
   // Load share details function
   const loadShareDetails = useCallback(async () => {
@@ -503,7 +510,6 @@ export default function SharedDownloadPage() {
   };
 
   // Get Share CEK from URL hash or password-protected wrapper
-  // Get Share CEK from URL hash or password-protected wrapper
   const getShareCEK = useCallback(async (): Promise<Uint8Array> => {
     if (!shareDetails) {
       throw new Error('Share details not loaded');
@@ -561,66 +567,188 @@ export default function SharedDownloadPage() {
 
     try {
       const shareCek = await getShareCEK();
+      setDownloadingType(null); // Stop spinner immediately
 
-      // For folder shares, get the file's CEK from the manifest
-      // For file shares, use the share's wrapped_cek
-      let fileCek: Uint8Array;
-      const { decryptData } = await import('@/lib/crypto');
+      const itemType = manifest[fileId]?.type || (shareDetails.folder?.id === fileId ? 'folder' : 'file');
 
-      if (shareDetails.is_folder && manifest[fileId]?.wrapped_cek && manifest[fileId]?.nonce_wrap) {
-        // Folder share: decrypt the file's envelope-encrypted CEK from manifest
-        fileCek = decryptData(manifest[fileId].wrapped_cek, shareCek, manifest[fileId].nonce_wrap);
-      } else if (!shareDetails.is_folder && shareDetails.wrapped_cek && shareDetails.nonce_wrap) {
-        // File share: decrypt the envelope-encrypted CEK from share record
-        fileCek = decryptData(shareDetails.wrapped_cek, shareCek, shareDetails.nonce_wrap);
-      } else {
-        throw new Error('File encryption data not available');
-      }
+      if (itemType === 'folder') {
+        // Custom folder download logic for shares using manifest
+        const { createZipFromFilesAndFolders } = await import('@/lib/download');
+        const { decryptData } = await import('@/lib/crypto');
 
-      const result = await downloadEncryptedFileWithCEK(fileId, fileCek, (progress) => {
-        setDownloadProgress(progress);
-      }, downloadAbortControllerRef.current.signal, pauseControllerRef.current);
+        // 1. Collect all files recursively from manifest
+        const allFiles: Array<{ fileId: string, relativePath: string, filename: string, size: number, wrappedCek: string, nonceWrap: string }> = [];
+        const allFolders: Array<{ folderId: string, relativePath: string, folderName: string }> = [];
 
-      // Track in ingest server RIGHT AFTER download URLs request
-      try {
-        const sessionId = sessionStorage.getItem(`share_session_${shareId}`);
-        if (sessionId) {
-          const ingestBaseUrl = process.env.NEXT_PUBLIC_INGEST_URL || 'https://ingest.ellipticc.com';
-          await fetch(`${ingestBaseUrl}/api/v1/sessions/convert`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              session_id: sessionId,
-              conversion_event: 'share_download',
-              event_data: {
-                fileId,
-                fileName: '[encrypted]',
-                shareId,
-                timestamp: new Date().toISOString()
-              }
-            })
-          }).catch(err => {
-            console.warn('Failed to track conversion in ingest server:', err);
-            // Don't fail download if ingest tracking fails
-          });
+        // Helper to recursively walk manifest
+        const walk = (folderId: string | null, currentPath: string) => {
+          // Files in this folder
+          const files = Object.values(manifest).filter(item => item.type === 'file' && (item.folder_id === folderId || (!folderId && !item.folder_id)));
+          for (const file of files) {
+
+            allFiles.push({
+              fileId: file.id,
+              relativePath: currentPath,
+              filename: file.name,
+              size: Number(file.size || 0),
+              wrappedCek: file.wrapped_cek!,
+              nonceWrap: file.nonce_wrap!
+            });
+          }
+
+          // Subfolders
+          const folders = Object.values(manifest).filter(item => item.type === 'folder' && (item.folder_id === folderId || (!folderId && !item.folder_id)));
+          for (const folder of folders) {
+            const folderName = folder.name;
+            const subPath = currentPath ? `${currentPath}/${folderName}` : folderName;
+            allFolders.push({
+              folderId: folder.id,
+              relativePath: currentPath,
+              folderName: folderName
+            });
+            walk(folder.id, subPath);
+          }
+        };
+
+        walk(fileId, '');
+
+        if (allFiles.length === 0 && allFolders.length === 0) {
+          throw new Error('Folder is empty');
         }
-      } catch (ingestError) {
-        console.warn('Error tracking ingest session:', ingestError);
-        // Don't fail download if ingest tracking fails
+
+        // 2. Download loop
+        let completedFiles = 0;
+        let totalDownloadedBytes = 0;
+        let totalBytes = allFiles.reduce((acc, f) => acc + Number(f.size), 0);
+
+        setDownloadProgress({
+          stage: 'initializing',
+          overallProgress: 0,
+          bytesDownloaded: 0,
+          totalBytes: totalBytes
+        });
+
+        const downloadedFiles: Array<{ relativePath: string, filename: string, blob: Blob }> = [];
+
+        for (const file of allFiles) {
+          if (downloadAbortControllerRef.current?.signal.aborted) throw new DOMException('Aborted', 'AbortError');
+          if (pauseControllerRef.current.isPaused) await pauseControllerRef.current.waitIfPaused();
+
+          // Decrypt CEK
+          let fileCek: Uint8Array;
+          try {
+            fileCek = decryptData(file.wrappedCek, shareCek, file.nonceWrap);
+          } catch (e) {
+            console.error('Failed to decrypt CEK for file', file.filename, e);
+            continue; // Skip file
+          }
+
+          const result = await downloadEncryptedFileWithCEK(file.fileId, fileCek, (progress) => {
+            const currentTotalDownloaded = totalDownloadedBytes + (progress.bytesDownloaded || 0);
+
+            // Calculate percentage based on bytes
+            const byteProgress = totalBytes > 0 ? (currentTotalDownloaded / totalBytes) * 100 : 0;
+            // Scale to 0-90% for downloading phase
+            const overallProgress = Math.min(byteProgress, 90);
+
+            setDownloadProgress({
+              stage: progress.stage,
+              overallProgress: overallProgress,
+              bytesDownloaded: currentTotalDownloaded,
+              totalBytes: totalBytes,
+              downloadSpeed: progress.downloadSpeed,
+              timeRemaining: progress.timeRemaining
+            });
+          }, downloadAbortControllerRef.current?.signal, pauseControllerRef.current);
+
+          downloadedFiles.push({
+            relativePath: file.relativePath,
+            filename: result.filename, // Use filename from result (decrypted) or manifest name? Result usually has original filename.
+            blob: result.blob
+          });
+
+          completedFiles++;
+          totalDownloadedBytes += Number(file.size);
+        }
+
+        // 3. Zip and Download
+        setDownloadProgress((prev) => prev ? ({ ...prev, stage: 'assembling', overallProgress: 95 }) : null);
+        const zipBlob = await createZipFromFilesAndFolders(downloadedFiles, allFolders, '');
+        setDownloadProgress((prev) => prev ? ({ ...prev, stage: 'complete', overallProgress: 100 }) : null);
+
+        const url = URL.createObjectURL(zipBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${fileName}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+      } else {
+        // ... (Existing file download logic)
+
+        // For file shares, get the file's CEK from the manifest
+        // For file shares, use the share's wrapped_cek
+        let fileCek: Uint8Array;
+        const { decryptData } = await import('@/lib/crypto');
+
+        if (shareDetails.is_folder && manifest[fileId]?.wrapped_cek && manifest[fileId]?.nonce_wrap) {
+          // Folder share: decrypt the file's envelope-encrypted CEK from manifest
+          fileCek = decryptData(manifest[fileId].wrapped_cek, shareCek, manifest[fileId].nonce_wrap);
+        } else if (!shareDetails.is_folder && shareDetails.wrapped_cek && shareDetails.nonce_wrap) {
+          // File share: decrypt the envelope-encrypted CEK from share record
+          fileCek = decryptData(shareDetails.wrapped_cek, shareCek, shareDetails.nonce_wrap);
+        } else {
+          throw new Error('File encryption data not available');
+        }
+
+        const result = await downloadEncryptedFileWithCEK(fileId, fileCek, (progress) => {
+          setDownloadProgress(progress);
+        }, downloadAbortControllerRef.current.signal, pauseControllerRef.current);
+
+        // ... (ingest tracking and blob download) ...
+        // Track in ingest server RIGHT AFTER download URLs request
+        try {
+          const sessionId = sessionStorage.getItem(`share_session_${shareId}`);
+          if (sessionId) {
+            const ingestBaseUrl = process.env.NEXT_PUBLIC_INGEST_URL || 'https://ingest.ellipticc.com';
+            await fetch(`${ingestBaseUrl}/api/v1/sessions/convert`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                session_id: sessionId,
+                conversion_event: 'share_download',
+                event_data: {
+                  fileId,
+                  fileName: '[encrypted]',
+                  shareId,
+                  timestamp: new Date().toISOString()
+                }
+              })
+            }).catch(err => {
+              console.warn('Failed to track conversion in ingest server:', err);
+              // Don't fail download if ingest tracking fails
+            });
+          }
+        } catch (ingestError) {
+          console.warn('Error tracking ingest session:', ingestError);
+          // Don't fail download if ingest tracking fails
+        }
+
+        // Track in main backend for webhooks
+        await apiClient.trackShareDownload(shareId);
+
+        const url = URL.createObjectURL(result.blob);
+        const a = document.createElement('a');
+        a.href = url;
+        // Use the already decrypted filename instead of result.filename
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
       }
-
-      // Track in main backend for webhooks
-      await apiClient.trackShareDownload(shareId);
-
-      const url = URL.createObjectURL(result.blob);
-      const a = document.createElement('a');
-      a.href = url;
-      // Use the already decrypted filename instead of result.filename
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
     } catch (err) {
       // Check for various abort signals including BodyStreamBuffer aborts
       const isAborted = err instanceof Error && (
@@ -643,6 +771,57 @@ export default function SharedDownloadPage() {
       }
       setDownloadingType(null);
       setIsDownloadPaused(false);
+    }
+  };
+
+  const handlePreviewFile = async (fileId: string, fileName: string) => {
+    if (isPreviewing) return;
+    setIsPreviewing(true);
+    setDownloadError(null);
+    setDownloadProgress({ stage: 'initializing', overallProgress: 0, bytesDownloaded: 0, totalBytes: 0 });
+
+    // Reset controllers
+    downloadAbortControllerRef.current = new AbortController();
+    pauseControllerRef.current.isPaused = false;
+    setIsDownloadPaused(false);
+
+    try {
+      const shareCek = await getShareCEK();
+      let fileCek: Uint8Array;
+      const { decryptData } = await import('@/lib/crypto');
+
+      if (shareDetails!.is_folder && manifest[fileId]?.wrapped_cek && manifest[fileId]?.nonce_wrap) {
+        fileCek = decryptData(manifest[fileId].wrapped_cek!, shareCek, manifest[fileId].nonce_wrap!);
+      } else if (!shareDetails!.is_folder && shareDetails!.wrapped_cek && shareDetails!.nonce_wrap) {
+        fileCek = decryptData(shareDetails!.wrapped_cek, shareCek, shareDetails!.nonce_wrap);
+      } else {
+        throw new Error('File encryption data not available');
+      }
+
+      const result = await downloadEncryptedFileWithCEK(fileId, fileCek, (progress) => {
+        setDownloadProgress(progress);
+      }, downloadAbortControllerRef.current.signal, pauseControllerRef.current);
+
+      const blobUrl = URL.createObjectURL(result.blob);
+
+      setPreviewFile({
+        id: fileId,
+        name: fileName,
+        type: 'file',
+        mimeType: result.mimetype,
+        size: result.size,
+        blobUrl: blobUrl
+      });
+      setIsPreviewOpen(true);
+
+      setDownloadProgress(null);
+    } catch (err) {
+      const isAborted = err instanceof Error && err.name === 'AbortError';
+      if (!isAborted) {
+        setDownloadError(err instanceof Error ? err.message : 'Preview failed');
+      }
+    } finally {
+      setIsPreviewing(false);
     }
   };
 
@@ -924,11 +1103,26 @@ export default function SharedDownloadPage() {
                     <div className="p-2 rounded-lg bg-muted">
                       <FolderOpen className="h-6 w-6 text-muted-foreground" />
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <CardTitle className="text-xl">{decryptedFolderName || shareDetails.folder?.name || 'Shared Folder'}</CardTitle>
-                      <CardDescription>
-                        Shared on {shareDetails.folder?.created_at ? formatDate(shareDetails.folder.created_at) : 'unknown date'}
-                      </CardDescription>
+                    <div className="min-w-0 flex-1 flex flex-row items-center justify-between gap-4">
+                      <div>
+                        <CardTitle className="text-xl">{decryptedFolderName || shareDetails.folder?.name || 'Shared Folder'}</CardTitle>
+                        <CardDescription>
+                          Shared on {shareDetails.folder?.created_at ? formatDate(shareDetails.folder.created_at) : 'unknown date'}
+                        </CardDescription>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleDownloadFile(currentFolderId || shareDetails.folder!.id, decryptedFolderName || shareDetails.folder?.name || 'Shared Folder')}
+                        disabled={downloading || !!downloadProgress}
+                      >
+                        {downloading && (currentFolderId === shareDetails.folder!.id || (!currentFolderId)) ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Download className="mr-2 h-4 w-4" />
+                        )}
+                        Download as ZIP
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -1019,10 +1213,10 @@ export default function SharedDownloadPage() {
                       {currentFolderContents.files.length > 0 && (
                         <>
                           {currentFolderContents.files.map((file) => (
-                            <button
+                            <div
                               key={file.id}
-                              onClick={() => handleDownloadFile(file.id, file.name)}
-                              className="w-full grid grid-cols-12 gap-4 px-6 py-3 hover:bg-accent transition-colors items-center group text-left"
+                              className="w-full grid grid-cols-12 gap-4 px-6 py-3 hover:bg-accent transition-colors items-center group text-left cursor-pointer"
+                              onClick={() => handlePreviewFile(file.id, file.name)}
                             >
                               <div className="col-span-6 flex items-center gap-3 min-w-0">
                                 <File className="h-4 w-4 text-muted-foreground flex-shrink-0 group-hover:scale-110 transition-transform" />
@@ -1040,9 +1234,19 @@ export default function SharedDownloadPage() {
                                 {file.size ? formatFileSize(file.size) : '-'}
                               </div>
                               <div className="col-span-1 flex justify-center">
-                                <Download className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDownloadFile(file.id, file.name);
+                                  }}
+                                >
+                                  <Download className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+                                </Button>
                               </div>
-                            </button>
+                            </div>
                           ))}
                         </>
                       )}
@@ -1211,23 +1415,28 @@ export default function SharedDownloadPage() {
 
       {/* Unified Progress Modal */}
       <UnifiedProgressModal
-        open={!!downloadProgress}
+        open={!!downloadProgress && !isPreviewOpen}
         onOpenChange={(open) => {
           if (!open) {
+            if (downloadAbortControllerRef.current) {
+              downloadAbortControllerRef.current.abort();
+            }
             setDownloadProgress(null);
             setDownloadError(null);
+            setIsPreviewing(false);
           }
         }}
         downloadProgress={downloadProgress}
-        downloadFilename={decryptedFilename || shareDetails.file?.filename || 'file'}
-        downloadFileSize={shareDetails.file?.size || 0}
-        downloadFileId={shareDetails.file_id}
-        downloadError={downloadError}
-
-        onRetryDownload={() => {
-          if (shareDetails.file_id) {
-            handleDownloadFile(shareDetails.file_id, decryptedFilename || shareDetails.file?.filename || 'file', 'center');
+        downloadFilename={decryptedFilename || decryptedFolderName || shareDetails.file?.filename || shareDetails.folder?.name || previewFile?.name || 'file'}
+        downloadFileSize={shareDetails.file?.size || previewFile?.size || 0}
+        downloadFileId={shareDetails.file_id || previewFile?.id}
+        onCancelDownload={() => {
+          if (downloadAbortControllerRef.current) {
+            downloadAbortControllerRef.current.abort();
           }
+          setDownloadProgress(null);
+          setDownloadError(null);
+          setIsPreviewing(false);
         }}
         isDownloadPaused={isDownloadPaused}
         onPauseDownload={() => {
@@ -1242,22 +1451,49 @@ export default function SharedDownloadPage() {
             pauseResolverRef.current = null;
           }
         }}
-        onCancelDownload={() => {
-          if (downloadAbortControllerRef.current) {
-            downloadAbortControllerRef.current.abort();
+        onRetryDownload={() => {
+          if (shareDetails?.file_id) {
+            handleDownloadFile(shareDetails.file_id, decryptedFilename || shareDetails.file?.filename || 'file', 'center');
           }
-          // Also resolve pause promise if stuck
-          if (pauseResolverRef.current) {
-            pauseResolverRef.current();
-            pauseResolverRef.current = null;
-          }
-
-          setDownloadProgress(null);
-          setDownloadError(null);
-          setDownloadingType(null);
-          setIsDownloadPaused(false);
         }}
+        downloadError={downloadError}
       />
+
+      {/* Plug in Full Page Preview Modal */}
+      {previewFile && isPreviewOpen && (
+        <FullPagePreviewModal
+          isOpen={isPreviewOpen}
+          file={previewFile}
+          onClose={() => {
+            setIsPreviewOpen(false);
+            if (previewFile.blobUrl) URL.revokeObjectURL(previewFile.blobUrl);
+            setPreviewFile(null);
+          }}
+          onNavigate={(direction) => {
+            const currentIndex = currentFolderContents.files.findIndex(f => f.id === previewFile.id);
+            if (currentIndex === -1) return;
+
+            let nextIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
+            if (nextIndex < 0) return;
+            if (nextIndex >= currentFolderContents.files.length) return;
+
+            const nextFile = currentFolderContents.files[nextIndex];
+            if (previewFile.blobUrl) URL.revokeObjectURL(previewFile.blobUrl);
+            setIsPreviewOpen(false);
+            handlePreviewFile(nextFile.id, nextFile.name);
+          }}
+          hasPrev={currentFolderContents.files.findIndex(f => f.id === previewFile.id) > 0}
+          hasNext={currentFolderContents.files.findIndex(f => f.id === previewFile.id) < currentFolderContents.files.length - 1}
+          onDownload={(file) => {
+            const a = document.createElement('a');
+            a.href = (file as any).blobUrl;
+            a.download = file.name;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+          }}
+        />
+      )}
     </div>
   );
 }

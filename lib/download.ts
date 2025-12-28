@@ -415,7 +415,7 @@ async function initializeDownloadSession(fileId: string): Promise<DownloadSessio
       chunkIndex: chunk.index,
       index: chunk.index, // Keep both for compatibility
       objectKey: presignedEntry.objectKey,
-      size: chunk.size,
+      size: Number(chunk.size),
       shaHash: chunk.sha256,
       nonce: chunk.nonce ?? null,
       getUrl: presignedEntry.getUrl,
@@ -432,7 +432,7 @@ async function initializeDownloadSession(fileId: string): Promise<DownloadSessio
     filename: data.storageKey,
     originalFilename: decryptedFilename,
     mimetype: data.mimetype,
-    size: data.size,
+    size: Number(data.size),
     shaHash: data.sha256,
     chunkCount: data.chunkCount,
     chunks: mergedChunks,
@@ -500,8 +500,8 @@ async function downloadChunksFromB2(
   pauseController?: PauseController
 ): Promise<Uint8Array[]> {
   const totalChunks = chunks.length;
-  const totalDeclaredBytes = chunks.reduce((sum, c) => sum + c.size, 0);
-  const expectedTotalBytes = Math.max(totalDeclaredBytes, chunks.reduce((sum, c) => sum + c.size, 0)); // Use declared sizes as baseline
+  const totalDeclaredBytes = chunks.reduce((sum, c) => sum + Number(c.size), 0);
+  const expectedTotalBytes = Math.max(totalDeclaredBytes, chunks.reduce((sum, c) => sum + Number(c.size), 0)); // Use declared sizes as baseline
   let completedChunks = 0;
   let totalBytesDownloaded = 0;
   const startTime = Date.now();
@@ -1138,7 +1138,7 @@ export async function downloadMultipleItemsAsZip(
 /**
  * Create ZIP file from array of files and folders with their relative paths
  */
-async function createZipFromFilesAndFolders(
+export async function createZipFromFilesAndFolders(
   files: Array<{ relativePath: string, filename: string, blob: Blob }>,
   folders: Array<{ folderId: string, relativePath: string, folderName: string }>,
   folderName: string
