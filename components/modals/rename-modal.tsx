@@ -80,7 +80,7 @@ export function RenameModal({
 
   const fetchUserData = async () => {
     if (userDataLoaded) return; // Don't fetch twice
-    
+
     try {
       const response = await apiClient.getProfile()
       if (response.success && response.data?.user?.crypto_keypairs) {
@@ -95,8 +95,8 @@ export function RenameModal({
 
         // Check if we have the new encryption scheme data
         const hasNewFormat = cryptoKeys.pqcKeypairs.kyber.encryptionKey &&
-                            cryptoKeys.pqcKeypairs.kyber.encryptionNonce &&
-                            cryptoKeys.pqcKeypairs.kyber.privateKeyNonce
+          cryptoKeys.pqcKeypairs.kyber.encryptionNonce &&
+          cryptoKeys.pqcKeypairs.kyber.privateKeyNonce
 
         if (hasNewFormat) {
           setUserData({
@@ -248,7 +248,14 @@ export function RenameModal({
                 ref={inputRef}
                 id="name"
                 value={newName}
-                onChange={(e) => setNewName(e.target.value)}
+                onChange={(e) => {
+                  let val = e.target.value
+                  if (val.length > 255) {
+                    toast.error("Name cannot exceed 255 characters")
+                    val = val.slice(0, 255)
+                  }
+                  setNewName(val)
+                }}
                 onKeyDown={handleKeyDown}
                 className="flex-1"
                 autoFocus
