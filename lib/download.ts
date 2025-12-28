@@ -57,6 +57,12 @@ export interface DownloadChunk {
   compressionCompressedSize?: number;
 }
 
+
+export interface PauseController {
+  isPaused: boolean;
+  waitIfPaused: () => Promise<void>;
+}
+
 export interface DownloadManifest {
   version: string;
   fileId: string;
@@ -182,7 +188,9 @@ function getChunkIndex(chunk: DownloadChunk): number {
 export async function downloadEncryptedFileWithCEK(
   fileId: string,
   cek: Uint8Array,
-  onProgress?: (progress: DownloadProgress) => void
+  onProgress?: (progress: DownloadProgress) => void,
+  signal?: AbortSignal,
+  pauseController?: PauseController
 ): Promise<DownloadResult> {
   try {
     // Stage 1: Get download URLs and metadata from backend
@@ -192,7 +200,7 @@ export async function downloadEncryptedFileWithCEK(
 
     // Stage 2: Download encrypted chunks from B2
     onProgress?.({ stage: 'downloading', overallProgress: 15 });
-    const encryptedChunks = await downloadChunksFromB2(session.chunks, onProgress);
+    const encryptedChunks = await downloadChunksFromB2(session.chunks, onProgress, signal, pauseController);
 
     // Stage 3: Decrypt chunks using the provided CEK
     onProgress?.({ stage: 'decrypting', overallProgress: 80 });
@@ -323,7 +331,9 @@ async function decryptChunksWithCEK(
 export async function downloadEncryptedFile(
   fileId: string,
   userKeys?: UserKeys,
-  onProgress?: (progress: DownloadProgress) => void
+  onProgress?: (progress: DownloadProgress) => void,
+  signal?: AbortSignal,
+  pauseController?: PauseController
 ): Promise<DownloadResult> {
   try {
     // Get user keys from KeyManager if not provided
@@ -336,7 +346,7 @@ export async function downloadEncryptedFile(
 
     // Stage 2: Download encrypted chunks from B2
     onProgress?.({ stage: 'downloading', overallProgress: 15 });
-    const encryptedChunks = await downloadChunksFromB2(session.chunks, onProgress);
+    const encryptedChunks = await downloadChunksFromB2(session.chunks, onProgress, signal, pauseController);
 
     // Stage 3: Decrypt chunks
     onProgress?.({ stage: 'decrypting', overallProgress: 80 });
@@ -485,7 +495,9 @@ async function unwrapCEK(encryption: DownloadEncryption, keypairs: UserKeypairs)
 }
 async function downloadChunksFromB2(
   chunks: DownloadChunk[],
-  onProgress?: (progress: DownloadProgress) => void
+  onProgress?: (progress: DownloadProgress) => void,
+  signal?: AbortSignal,
+  pauseController?: PauseController
 ): Promise<Uint8Array[]> {
   const totalChunks = chunks.length;
   const totalDeclaredBytes = chunks.reduce((sum, c) => sum + c.size, 0);
@@ -493,6 +505,17 @@ async function downloadChunksFromB2(
   let completedChunks = 0;
   let totalBytesDownloaded = 0;
   const startTime = Date.now();
+  let lastProgressUpdate = 0;
+
+  // Throttled progress wrapper
+  const reportProgress = (p: DownloadProgress) => {
+    const now = Date.now();
+    // Update if > 100ms elapsed, or stage changed, or complete (100%), or first update
+    if (now - lastProgressUpdate > 100 || p.overallProgress >= 100 || p.overallProgress <= 0 || p.stage !== 'downloading') {
+      lastProgressUpdate = now;
+      onProgress?.(p);
+    }
+  };
 
   // Download chunks in parallel with concurrency control
   const concurrencyLimit = 3; // Download up to 3 chunks simultaneously
@@ -502,8 +525,13 @@ async function downloadChunksFromB2(
     await semaphore.acquire();
 
     try {
+      if (signal?.aborted) {
+        throw new DOMException('Aborted', 'AbortError');
+      }
+
       const response = await fetch(chunk.getUrl, {
-        credentials: 'omit'
+        credentials: 'omit',
+        signal
       });
       if (!response.ok) {
         throw new Error(`Failed to download chunk ${getChunkIndex(chunk)}: ${response.status} ${response.statusText}`);
@@ -523,6 +551,16 @@ async function downloadChunksFromB2(
       let chunkBytesDownloaded = 0;
 
       while (true) {
+        if (signal?.aborted) {
+          reader.cancel();
+          throw new DOMException('Aborted', 'AbortError');
+        }
+
+        // check for pause
+        if (pauseController?.isPaused) {
+          await pauseController.waitIfPaused();
+        }
+
         const { done, value } = await reader.read();
         if (done) break;
 
@@ -533,7 +571,7 @@ async function downloadChunksFromB2(
         const chunkProgress = expectedChunkSize > 0 ? (chunkBytesDownloaded / expectedChunkSize) * 100 : 100;
         const overall = 15 + ((completedChunks + chunkProgress / 100) / totalChunks) * 65;
 
-        onProgress?.({
+        reportProgress({
           stage: 'downloading',
           overallProgress: Math.min(100, Math.max(0, overall)),
           currentChunk: completedChunks + 1,
@@ -578,7 +616,7 @@ async function downloadChunksFromB2(
       const timeRemaining = downloadSpeed > 0 ? remainingBytes / downloadSpeed : 0;
 
       const overall = 15 + (completedChunks / totalChunks) * 65;
-      onProgress?.({
+      reportProgress({
         stage: 'downloading',
         overallProgress: Math.min(100, Math.max(0, overall)),
         currentChunk: completedChunks,
@@ -747,9 +785,11 @@ async function verifyFileIntegrity(blob: Blob, expectedShaHash: string): Promise
 export async function downloadFileToBrowser(
   fileId: string,
   userKeys?: UserKeys,
-  onProgress?: (progress: DownloadProgress) => void
-): Promise<void> {
-  const result = await downloadEncryptedFile(fileId, userKeys, onProgress);
+  onProgress?: (progress: DownloadProgress) => void,
+  signal?: AbortSignal,
+  pauseController?: PauseController
+): Promise<DownloadResult> {
+  const result = await downloadEncryptedFile(fileId, userKeys, onProgress, signal, pauseController);
 
   // Create download link and trigger download
   const url = URL.createObjectURL(result.blob);
@@ -761,6 +801,7 @@ export async function downloadFileToBrowser(
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 
+  return result;
 }
 
 /**
@@ -850,7 +891,9 @@ export async function downloadFolderAsZip(
   folderId: string,
   folderName: string,
   userKeys?: UserKeys,
-  onProgress?: (progress: DownloadProgress) => void
+  onProgress?: (progress: DownloadProgress) => void,
+  signal?: AbortSignal,
+  pauseController?: PauseController
 ): Promise<void> {
   try {
     // Get all files and folders recursively
@@ -872,6 +915,7 @@ export async function downloadFolderAsZip(
 
     // First pass: get total size by downloading metadata for all files
     for (const file of allFiles) {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
       try {
         const session = await initializeDownloadSession(file.fileId);
         totalBytes += session.size;
@@ -881,6 +925,9 @@ export async function downloadFolderAsZip(
     }
 
     for (const file of allFiles) {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+      if (pauseController?.isPaused) await pauseController.waitIfPaused();
+
       const result = await downloadEncryptedFile(file.fileId, userKeys, (progress) => {
         // Update total progress
         const fileProgress = progress.overallProgress / allFiles.length;
@@ -897,7 +944,7 @@ export async function downloadFolderAsZip(
           downloadSpeed: progress.downloadSpeed,
           timeRemaining: progress.timeRemaining
         });
-      });
+      }, signal, pauseController);
 
       downloadedFiles.push({
         relativePath: file.relativePath,
@@ -939,7 +986,9 @@ export async function downloadFolderAsZip(
 export async function downloadMultipleItemsAsZip(
   items: Array<{ id: string, name: string, type: "file" | "folder" }>,
   userKeys?: UserKeys,
-  onProgress?: (progress: DownloadProgress) => void
+  onProgress?: (progress: DownloadProgress) => void,
+  signal?: AbortSignal,
+  pauseController?: PauseController
 ): Promise<void> {
   try {
     // Generate timestamp and random hex
@@ -953,6 +1002,7 @@ export async function downloadMultipleItemsAsZip(
     const allFolders: Array<{ folderId: string, relativePath: string, folderName: string }> = [];
 
     for (const item of items) {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
       if (item.type === 'file') {
         allFiles.push({
           fileId: item.id,
@@ -981,6 +1031,7 @@ export async function downloadMultipleItemsAsZip(
 
     // First pass: get total size
     for (const file of allFiles) {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
       try {
         const session = await initializeDownloadSession(file.fileId);
         totalBytes += session.size;
@@ -990,6 +1041,9 @@ export async function downloadMultipleItemsAsZip(
     }
 
     for (const file of allFiles) {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+      if (pauseController?.isPaused) await pauseController.waitIfPaused();
+
       const result = await downloadEncryptedFile(file.fileId, userKeys, (progress) => {
         // Update total progress
         const fileProgress = progress.overallProgress / allFiles.length;
@@ -1006,7 +1060,7 @@ export async function downloadMultipleItemsAsZip(
           downloadSpeed: progress.downloadSpeed,
           timeRemaining: progress.timeRemaining
         });
-      });
+      }, signal, pauseController);
 
       downloadedFiles.push({
         relativePath: file.relativePath,

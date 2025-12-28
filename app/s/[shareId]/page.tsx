@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { apiClient } from '@/lib/api';
 import { downloadEncryptedFileWithCEK } from '@/lib/download';
-import { truncateFilename } from '@/lib/utils';
+import { truncateFilename, formatFileSize } from '@/lib/utils';
+import { PauseController } from '@/lib/download';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -117,6 +118,21 @@ export default function SharedDownloadPage() {
   const downloading = !!downloadingType;
   const [downloadProgress, setDownloadProgress] = useState<DownloadProgress | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+
+  // Download controllers
+  const downloadAbortControllerRef = useRef<AbortController | null>(null);
+  const pauseResolverRef = useRef<(() => void) | null>(null);
+  const pauseControllerRef = useRef<PauseController>({
+    isPaused: false,
+    waitIfPaused: async () => {
+      if (pauseControllerRef.current.isPaused) {
+        await new Promise<void>(resolve => {
+          pauseResolverRef.current = resolve;
+        });
+      }
+    }
+  });
+  const [isDownloadPaused, setIsDownloadPaused] = useState(false);
   const [password, setPassword] = useState('');
   const [passwordVerified, setPasswordVerified] = useState(false);
   const [verifyingPassword, setVerifyingPassword] = useState(false);
@@ -525,7 +541,23 @@ export default function SharedDownloadPage() {
     setDownloadingType(type);
     setError(null);
     setDownloadError(null);
-    setDownloadProgress({ stage: 'initializing', overallProgress: 0 });
+
+    // Initialize with known size to avoid "0 B / ..." lag
+    const totalSize = shareDetails.is_folder
+      ? type === 'header' || type === 'center' ? 0 : 0 // Folder size logic might differ
+      : shareDetails.file?.size;
+
+    setDownloadProgress({
+      stage: 'initializing',
+      overallProgress: 0,
+      bytesDownloaded: 0,
+      totalBytes: totalSize || 0
+    });
+
+    // Reset controllers
+    downloadAbortControllerRef.current = new AbortController();
+    pauseControllerRef.current.isPaused = false;
+    setIsDownloadPaused(false);
 
     try {
       const shareCek = await getShareCEK();
@@ -547,7 +579,7 @@ export default function SharedDownloadPage() {
 
       const result = await downloadEncryptedFileWithCEK(fileId, fileCek, (progress) => {
         setDownloadProgress(progress);
-      });
+      }, downloadAbortControllerRef.current.signal, pauseControllerRef.current);
 
       // Track in ingest server RIGHT AFTER download URLs request
       try {
@@ -590,11 +622,27 @@ export default function SharedDownloadPage() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (err) {
+      // Check for various abort signals including BodyStreamBuffer aborts
+      const isAborted = err instanceof Error && (
+        err.name === 'AbortError' ||
+        err.message.includes('Aborted') ||
+        err.message.includes('BodyStreamBuffer was aborted') ||
+        err.message.includes('The operation was aborted')
+      );
+
+      if (isAborted) {
+        console.log('Download cancelled by user');
+        return;
+      }
       const msg = err instanceof Error ? err.message : 'Download failed';
       setError(msg);
       setDownloadError(msg);
     } finally {
+      if (downloadAbortControllerRef.current) {
+        downloadAbortControllerRef.current = null;
+      }
       setDownloadingType(null);
+      setIsDownloadPaused(false);
     }
   };
 
@@ -608,13 +656,7 @@ export default function SharedDownloadPage() {
     setCurrentFolderId(folderId);
   };
 
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
+
 
   const formatDate = (dateString: string): string => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -1181,15 +1223,39 @@ export default function SharedDownloadPage() {
         downloadFileSize={shareDetails.file?.size || 0}
         downloadFileId={shareDetails.file_id}
         downloadError={downloadError}
-        onCancelDownload={() => {
-          setDownloadProgress(null);
-          setDownloadError(null);
-          setDownloadingType(null); // Stop downloading spinner
-        }}
+
         onRetryDownload={() => {
           if (shareDetails.file_id) {
             handleDownloadFile(shareDetails.file_id, decryptedFilename || shareDetails.file?.filename || 'file', 'center');
           }
+        }}
+        isDownloadPaused={isDownloadPaused}
+        onPauseDownload={() => {
+          setIsDownloadPaused(true);
+          pauseControllerRef.current.isPaused = true;
+        }}
+        onResumeDownload={() => {
+          setIsDownloadPaused(false);
+          pauseControllerRef.current.isPaused = false;
+          if (pauseResolverRef.current) {
+            pauseResolverRef.current();
+            pauseResolverRef.current = null;
+          }
+        }}
+        onCancelDownload={() => {
+          if (downloadAbortControllerRef.current) {
+            downloadAbortControllerRef.current.abort();
+          }
+          // Also resolve pause promise if stuck
+          if (pauseResolverRef.current) {
+            pauseResolverRef.current();
+            pauseResolverRef.current = null;
+          }
+
+          setDownloadProgress(null);
+          setDownloadError(null);
+          setDownloadingType(null);
+          setIsDownloadPaused(false);
         }}
       />
     </div>

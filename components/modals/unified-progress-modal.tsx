@@ -31,7 +31,7 @@ import {
 } from "@tabler/icons-react";
 import { UploadProgress as UploadProgressType, UploadResult } from '@/lib/upload';
 import { DownloadProgress } from '@/lib/download';
-import { truncateFilename } from '@/lib/utils';
+import { truncateFilename, formatFileSize } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 export interface FileUploadState {
@@ -60,8 +60,11 @@ export interface UnifiedProgressModalProps {
   downloadFileSize?: number;
   downloadFileId?: string;
   onCancelDownload?: () => void;
+  onPauseDownload?: () => void;
+  onResumeDownload?: () => void;
   onRetryDownload?: () => void;
   downloadError?: string | null;
+  isDownloadPaused?: boolean;
   onDownloadComplete?: (fileId: string, filename: string, fileSize: number) => void;
 
   // Common props
@@ -82,8 +85,11 @@ export function UnifiedProgressModal({
   downloadFileSize = 0,
   downloadFileId,
   onCancelDownload,
+  onPauseDownload,
+  onResumeDownload,
   onRetryDownload,
   downloadError,
+  isDownloadPaused,
   onDownloadComplete,
   open,
   onOpenChange,
@@ -186,13 +192,7 @@ export function UnifiedProgressModal({
     return <Badge variant="default">Downloading</Badge>;
   };
 
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-  };
+
 
   const getUploadStageDescription = (stage: UploadProgressType['stage']): string => {
     switch (stage) {
@@ -240,10 +240,10 @@ export function UnifiedProgressModal({
   // Calculate overall progress
   const uploadProgress = uploads.length > 0
     ? uploads.reduce((sum, upload) => {
-        if (upload.status === 'completed') return sum + 100;
-        if (upload.status === 'failed' || upload.status === 'cancelled') return sum + 0;
-        return sum + (upload.progress?.overallProgress || 0);
-      }, 0) / uploads.length
+      if (upload.status === 'completed') return sum + 100;
+      if (upload.status === 'failed' || upload.status === 'cancelled') return sum + 0;
+      return sum + (upload.progress?.overallProgress || 0);
+    }, 0) / uploads.length
     : 0;
 
   const downloadProgressValue = downloadProgress?.overallProgress || 0;
@@ -254,8 +254,8 @@ export function UnifiedProgressModal({
   const combinedProgress = hasUploads && hasDownload
     ? (uploadProgress + downloadProgressValue) / 2
     : hasUploads
-    ? uploadProgress
-    : downloadProgressValue;
+      ? uploadProgress
+      : downloadProgressValue;
 
   const completedUploads = uploads.filter(u => u.status === 'completed').length;
   const failedUploads = uploads.filter(u => u.status === 'failed').length;
@@ -298,14 +298,12 @@ export function UnifiedProgressModal({
   return (
     <>
       {/* Floating Progress Modal */}
-      <div className={`fixed z-50 animate-in slide-in-from-bottom-2 fade-in-0 duration-300 ${
-        isMobile
-          ? 'bottom-0 left-0 right-0 w-full h-1/5 rounded-none'
-          : 'bottom-4 right-4 w-[32rem] max-w-lg'
-      }`}>
-        <Card className={`shadow-lg border-2 transition-all duration-200 ${
-          isMinimized ? 'h-12' : totalActiveItems <= 2 ? 'max-h-80' : 'max-h-[32rem]'
-        } ${isMobile ? 'h-full rounded-none' : ''}`}>
+      <div className={`fixed z-50 animate-in slide-in-from-bottom-2 fade-in-0 duration-300 ${isMobile
+        ? 'bottom-0 left-0 right-0 w-full h-1/5 rounded-none'
+        : 'bottom-4 right-4 w-[32rem] max-w-lg'
+        }`}>
+        <Card className={`shadow-lg border-2 transition-all duration-200 ${isMinimized ? 'h-12' : totalActiveItems <= 2 ? 'max-h-80' : 'max-h-[32rem]'
+          } ${isMobile ? 'h-full rounded-none' : ''}`}>
           {/* Header */}
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 cursor-move">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -372,9 +370,8 @@ export function UnifiedProgressModal({
               )}
 
               {/* Individual Progress Items */}
-              <div className={`flex-1 overflow-y-auto space-y-2 min-h-0 ${
-                totalActiveItems > 5 ? 'max-h-80' : ''
-              }`}>
+              <div className={`flex-1 overflow-y-auto space-y-2 min-h-0 ${totalActiveItems > 5 ? 'max-h-80' : ''
+                }`}>
                 {/* Upload Items */}
                 {uploads.slice(0, uploads.length <= 2 ? uploads.length : 5).map((upload) => (
                   <div key={upload.id} className="border rounded-lg p-3 space-y-2 bg-card/50">
@@ -418,11 +415,11 @@ export function UnifiedProgressModal({
 
                         {/* Bytes processed */}
                         {upload.progress && upload.progress.bytesProcessed !== undefined &&
-                         upload.progress.totalBytes !== undefined && (
-                          <div className="text-xs text-muted-foreground">
-                            {formatFileSize(upload.progress.bytesProcessed)} / {formatFileSize(upload.progress.totalBytes)}
-                          </div>
-                        )}
+                          upload.progress.totalBytes !== undefined && (
+                            <div className="text-xs text-muted-foreground">
+                              {formatFileSize(upload.progress.bytesProcessed)} / {formatFileSize(upload.progress.totalBytes)}
+                            </div>
+                          )}
                       </div>
                     )}
 
@@ -491,125 +488,74 @@ export function UnifiedProgressModal({
 
                 {/* Download Item */}
                 {hasDownload && (
-                  <div className="border rounded-lg p-3 space-y-2 bg-card/50">
-                    {/* File Header */}
+                  <div className="border rounded-lg p-3 bg-card/50 group relative">
                     <div className="flex items-center justify-between">
+                      {/* Left: Icon + Filename */}
                       <div className="flex items-center gap-2 min-w-0 flex-1">
+                        {/* Determine icon based on type/mime - simplified here */}
                         <IconFile className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                        <span className="font-medium text-sm truncate" title={downloadFilename}>
-                          {truncateFilename(downloadFilename || '')}
-                        </span>
-                        <span className="text-xs text-muted-foreground flex-shrink-0">
-                          ({formatFileSize(downloadFileSize)})
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        {getDownloadStatusBadge()}
-                        {getDownloadStatusIcon()}
-                      </div>
-                    </div>
-
-                    {/* Progress Details */}
-                    {downloadProgress && !downloadError && downloadProgress.stage !== 'complete' && (
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-muted-foreground">
-                            {getDownloadStageDescription(downloadProgress.stage)}
-                            {downloadProgress.currentChunk && downloadProgress.totalChunks &&
-                              ` (${downloadProgress.currentChunk}/${downloadProgress.totalChunks})`
-                            }
+                        <div className="flex flex-col min-w-0">
+                          <span className="font-medium text-sm truncate" title={downloadFilename}>
+                            {truncateFilename(downloadFilename || '')}
                           </span>
-                          <span className="font-medium">
-                            {Math.round(downloadProgress.overallProgress)}%
+                          {downloadError && (
+                            <span className="text-xs text-red-500 truncate">{downloadError}</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Middle: Size / Total (Only if not error) */}
+                      {!downloadError && downloadProgress && (
+                        <div className="flex flex-col items-center justify-center px-4">
+                          <span className="text-xs text-muted-foreground font-mono">
+                            {downloadProgress.bytesDownloaded !== undefined ? formatFileSize(downloadProgress.bytesDownloaded) : '0 B'}
+                            {' / '}
+                            {downloadProgress.totalBytes !== undefined ? formatFileSize(downloadProgress.totalBytes) : '...'}
                           </span>
+                          {/* Simplified progress bar/line could go here if requested, but "nothing else" implies text only is fine or maybe a tiny line */}
                         </div>
-                        <Progress value={downloadProgress.overallProgress} className="h-1 transition-all duration-300 ease-out" />
-
-                        {/* Download details */}
-                        <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                          {downloadProgress.bytesDownloaded !== undefined &&
-                           downloadProgress.totalBytes !== undefined && (
-                            <div>
-                              Downloaded: {formatFileSize(downloadProgress.bytesDownloaded)} / {formatFileSize(downloadProgress.totalBytes)}
-                            </div>
-                          )}
-                          {downloadProgress.downloadSpeed !== undefined && downloadProgress.stage === 'downloading' && (
-                            <div>
-                              Speed: {formatFileSize(downloadProgress.downloadSpeed)}/s
-                            </div>
-                          )}
-                          {downloadProgress.timeRemaining !== undefined && downloadProgress.stage === 'downloading' && (
-                            <div>
-                              Remaining: {formatTimeRemaining(downloadProgress.timeRemaining)}
-                            </div>
-                          )}
-                          <div>
-                            Elapsed: {formatTimeRemaining(downloadElapsedTime)}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Error Display */}
-                    {downloadError && (
-                      <div className="bg-red-50 border border-red-200 rounded p-2">
-                        <div className="flex items-start gap-2">
-                          <IconAlertTriangle className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-medium text-red-800">Download Failed</p>
-                            <p className="text-xs text-red-700 break-words">{downloadError}</p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Success Display */}
-                    {downloadProgress?.stage === 'complete' && (
-                      <div className="bg-green-50 border border-green-200 rounded p-2">
-                        <div className="flex items-start gap-2">
-                          <IconCheck className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-medium text-green-800">Download Complete</p>
-                            <p className="text-xs text-green-700">File has been downloaded successfully</p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Action Buttons */}
-                    <div className="flex justify-end gap-1">
-                      {downloadError && onRetryDownload && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={onRetryDownload}
-                          className="h-6 text-xs px-2"
-                        >
-                          <IconDownload className="h-3 w-3 mr-1" />
-                          Retry
-                        </Button>
                       )}
-                      {hasActiveDownload && onCancelDownload && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setShowCloseConfirm(true)}
-                          className="h-6 text-xs px-2"
-                        >
-                          <IconX className="h-3 w-3 mr-1" />
-                          Cancel
-                        </Button>
-                      )}
-                      {downloadProgress?.stage === 'complete' && (
-                        <Button
-                          size="sm"
-                          onClick={handleCloseAttempt}
-                          className="h-6 text-xs px-2"
-                        >
-                          <IconCheck className="h-3 w-3 mr-1" />
-                          Done
-                        </Button>
-                      )}
+
+
+                      {/* Right: Controls (Hover only) */}
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {!downloadError && downloadProgress?.stage !== 'complete' && (
+                          <>
+                            {isDownloadPaused ? (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={onResumeDownload}
+                                className="h-7 w-7 p-0 rounded-full hover:bg-muted"
+                                title="Resume"
+                              >
+                                <IconPlayerPlay className="h-4 w-4 text-primary" />
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={onPauseDownload}
+                                className="h-7 w-7 p-0 rounded-full hover:bg-muted"
+                                title="Pause"
+                              >
+                                <IconPlayerPause className="h-4 w-4" />
+                              </Button>
+                            )}
+
+                            {/* Cancel / Close */}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={onCancelDownload}
+                              className="h-7 w-7 p-0 rounded-full hover:bg-muted hover:text-destructive"
+                              title="Cancel"
+                            >
+                              <IconX className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}

@@ -5,7 +5,7 @@
  * and automatic preview modal opening on completion
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { downloadEncryptedFile, DownloadProgress, DownloadResult } from '../lib/download';
 import { keyManager } from '../lib/key-manager';
 
@@ -24,9 +24,15 @@ export function usePreviewDownload(options: UsePreviewDownloadOptions = {}) {
   const [currentFileId, setCurrentFileId] = useState<string | null>(null);
   const [currentFilename, setCurrentFilename] = useState<string>('');
   const [currentFileSize, setCurrentFileSize] = useState<number>(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const downloadForPreview = useCallback(async (fileId: string, filename: string, fileSize: number) => {
     try {
+      // Abort existing download first
+      abortControllerRef.current?.abort();
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
       setIsDownloading(true);
       setError(null);
       setResult(null);
@@ -42,7 +48,7 @@ export function usePreviewDownload(options: UsePreviewDownloadOptions = {}) {
       const downloadResult = await downloadEncryptedFile(fileId, keys, (progressUpdate) => {
         setProgress(progressUpdate);
         options.onProgress?.(progressUpdate);
-      });
+      }, controller.signal);
 
       setResult(downloadResult);
       setProgress({ stage: 'complete', overallProgress: 100 });
@@ -65,8 +71,7 @@ export function usePreviewDownload(options: UsePreviewDownloadOptions = {}) {
   }, [currentFileId, currentFilename, currentFileSize, downloadForPreview]);
 
   const cancelDownload = useCallback(() => {
-    // Note: The actual cancellation logic should be handled by the download function
-    // This is a placeholder for cleanup
+    abortControllerRef.current?.abort();
     setIsDownloading(false);
     setError(null);
     setResult(null);

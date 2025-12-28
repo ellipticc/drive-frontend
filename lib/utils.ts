@@ -1,3 +1,4 @@
+
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 
@@ -37,4 +38,24 @@ export function truncateFilename(filename: string, maxLength: number = 30): stri
   const end = filename.substring(filename.length - endLength);
 
   return start + ellipsis + end;
+}
+
+/**
+ * Formats a file size in bytes to a human-readable string (e.g., "1.5 MB").
+ *
+ * @param bytes - The size in bytes
+ * @param decimals - Number of decimal places (default: 2)
+ * @returns Formatted string
+ */
+export function formatFileSize(bytes: number, decimals: number = 2): string {
+  if (bytes === 0) return '0 B';
+  if (!bytes || isNaN(bytes)) return '0 B';
+
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + (sizes[i] || 'B');
 }

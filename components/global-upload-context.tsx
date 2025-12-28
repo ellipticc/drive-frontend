@@ -11,9 +11,10 @@ import { masterKeyManager } from '@/lib/master-key';
 import { useCurrentFolder } from '@/components/current-folder-context';
 import { useUser } from '@/components/user-context';
 import { toast } from 'sonner';
-import { downloadFileToBrowser, downloadFolderAsZip, downloadMultipleItemsAsZip, downloadEncryptedFile, DownloadProgress } from '@/lib/download';
+import { downloadEncryptedFile, downloadFileToBrowser, downloadFolderAsZip, downloadMultipleItemsAsZip, DownloadProgress, PauseController } from "@/lib/download";
+
 import { UploadResult } from '@/lib/upload';
-export type { UploadResult }; 
+export type { UploadResult };
 import { prepareFilesForUpload } from '@/lib/folder-upload-utils';
 import { ParallelUploadQueue, getUploadQueue, destroyUploadQueue } from '@/lib/parallel-upload-queue';
 
@@ -70,6 +71,7 @@ interface GlobalUploadContextType {
   downloadProgress: DownloadProgress | null;
   downloadError: string | null;
   currentDownloadFile: { id: string; name: string; type: 'file' | 'folder' } | null;
+  isDownloadPaused: boolean;
 
   // Download handlers
   startFileDownload: (fileId: string, fileName: string) => Promise<void>;
@@ -77,6 +79,8 @@ interface GlobalUploadContextType {
   startBulkDownload: (items: Array<{ id: string; name: string; type: 'file' | 'folder' }>) => Promise<void>;
   startPdfPreview: (fileId: string, fileName: string, fileSize: number) => Promise<void>;
   cancelDownload: () => void;
+  pauseDownload: () => void;
+  resumeDownload: () => void;
   retryDownload: () => void;
 }
 
@@ -150,10 +154,26 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
   const [downloadProgress, setDownloadProgress] = useState<DownloadProgress | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [currentDownloadFile, setCurrentDownloadFile] = useState<{ id: string; name: string; type: 'file' | 'folder' } | null>(null);
+  const downloadAbortControllerRef = useRef<AbortController | null>(null);
+
+  // Pause state
+  const [isDownloadPaused, setIsDownloadPaused] = useState(false);
+  const pauseResolverRef = useRef<(() => void) | null>(null);
+  // We need a stable reference to the pause controller object to pass to lib functions
+  const pauseControllerRef = useRef<PauseController>({
+    isPaused: false,
+    waitIfPaused: async () => {
+      if (pauseControllerRef.current.isPaused) {
+        await new Promise<void>(resolve => {
+          pauseResolverRef.current = resolve;
+        });
+      }
+    }
+  });
 
   // Get current folder from context
   const { currentFolderId } = useCurrentFolder();
-  
+
   // Get user context for storage updates
   const { updateStorage } = useUser();
 
@@ -169,13 +189,13 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
 
   // Upload completion callbacks
   const onUploadCompleteCallbacksRef = useRef<Set<(uploadId: string, result: UploadResult) => void>>(new Set());
-  
+
   // File added callbacks for incremental updates
   const onFileAddedCallbacksRef = useRef<Set<(file: FileItem) => void>>(new Set());
-  
+
   // File deleted callbacks for incremental updates
   const onFileDeletedCallbacksRef = useRef<Set<(fileId: string) => void>>(new Set());
-  
+
   // File replaced callbacks for refreshing the file list
   const onFileReplacedCallbacksRef = useRef<Set<() => void>>(new Set());
 
@@ -199,10 +219,10 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
 
   // Keep modal visible if uploads are in progress
   useEffect(() => {
-    const hasActiveUploads = uploads.some(u => 
+    const hasActiveUploads = uploads.some(u =>
       u.status === 'pending' || u.status === 'uploading' || u.status === 'paused'
     );
-    
+
     if (hasActiveUploads) {
       setIsModalOpen(true);
     }
@@ -219,7 +239,7 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
     if (!file.name || file.name.trim() === '') {
       throw new Error('Invalid file: missing filename');
     }
-    
+
     // Reject directory entries: those have webkitRelativePath === name
     const relativePath = (file as File & { webkitRelativePath?: string }).webkitRelativePath || '';
     if (relativePath === file.name && relativePath !== '') {
@@ -273,12 +293,12 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
             result: task.result,
             progress: task.progress,
           });
-          
+
           // Update storage in sidebar immediately (optimistic update)
           if (task.result && task.result.file && task.result.file.size) {
             updateStorage(task.result.file.size);
           }
-          
+
           // Trigger all registered upload completion callbacks (only when result exists)
           if (task.result) {
             onUploadCompleteCallbacksRef.current.forEach(callback => {
@@ -321,7 +341,7 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
           };
           setConflictItems([conflictItem]);
           setIsConflictModalOpen(true);
-          
+
           // Store the upload manager for later resolution
           uploadManagersRef.current.set(task.id, uploadManager);
         },
@@ -351,10 +371,10 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
 
   const closeModal = useCallback(() => {
     // Don't allow closing if there are active uploads
-    const hasActiveUploads = uploads.some(u => 
+    const hasActiveUploads = uploads.some(u =>
       u.status === 'pending' || u.status === 'uploading' || u.status === 'paused'
     );
-    
+
     if (!hasActiveUploads) {
       setIsModalOpen(false);
       // Clear all uploads when closing the modal to provide a clean slate
@@ -365,10 +385,10 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
   const handleModalOpenChange = useCallback((open: boolean) => {
     if (!open) {
       // Modal is being closed - check if we can close and clear uploads
-      const hasActiveUploads = uploads.some(u => 
+      const hasActiveUploads = uploads.some(u =>
         u.status === 'pending' || u.status === 'uploading' || u.status === 'paused'
       );
-      
+
       if (!hasActiveUploads) {
         setIsModalOpen(false);
         // Clear all uploads when closing the modal to provide a clean slate
@@ -628,14 +648,43 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
       setCurrentDownloadFile({ id: fileId, name: fileName, type: 'file' });
       setIsModalOpen(true);
 
+      setDownloadProgress({
+        stage: 'initializing',
+        overallProgress: 0,
+        bytesDownloaded: 0,
+        totalBytes: 0 // Will be updated when metadata is fetched
+      });
+
       const userKeys = await keyManager.getUserKeys();
+
+      downloadAbortControllerRef.current?.abort();
+      const controller = new AbortController();
+      downloadAbortControllerRef.current = controller;
+
+      // Reset pause state
+      setIsDownloadPaused(false);
+      pauseControllerRef.current.isPaused = false;
+      if (pauseResolverRef.current) {
+        pauseResolverRef.current();
+        pauseResolverRef.current = null;
+      }
+
       await downloadFileToBrowser(fileId, userKeys, (progress) => {
         setDownloadProgress(progress);
-      });
+      }, controller.signal, pauseControllerRef.current);
 
       // Keep modal open to show completion - user can manually close
       // The modal will auto-close when all uploads complete
     } catch (error) {
+      if (error instanceof Error && (
+        error.name === 'AbortError' ||
+        error.message.includes('Aborted') ||
+        error.message.includes('BodyStreamBuffer was aborted') ||
+        error.message.includes('The operation was aborted')
+      )) {
+        console.log('Download cancelled by user');
+        return;
+      }
       console.error('Download error:', error);
       setDownloadError(error instanceof Error ? error.message : 'Download failed');
     }
@@ -648,12 +697,34 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
       setIsModalOpen(true);
 
       const userKeys = await keyManager.getUserKeys();
+
+      downloadAbortControllerRef.current?.abort();
+      const controller = new AbortController();
+      downloadAbortControllerRef.current = controller;
+
+      // Reset pause state
+      setIsDownloadPaused(false);
+      pauseControllerRef.current.isPaused = false;
+      if (pauseResolverRef.current) {
+        pauseResolverRef.current();
+        pauseResolverRef.current = null;
+      }
+
       await downloadFolderAsZip(folderId, folderName, userKeys, (progress) => {
         setDownloadProgress(progress);
-      });
+      }, controller.signal, pauseControllerRef.current);
 
       // Keep modal open to show completion - user can manually close
     } catch (error) {
+      if (error instanceof Error && (
+        error.name === 'AbortError' ||
+        error.message.includes('Aborted') ||
+        error.message.includes('BodyStreamBuffer was aborted') ||
+        error.message.includes('The operation was aborted')
+      )) {
+        console.log('Folder download cancelled by user');
+        return;
+      }
       console.error('Folder download error:', error);
       setDownloadError(error instanceof Error ? error.message : 'Folder download failed');
     }
@@ -666,12 +737,34 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
       setIsModalOpen(true);
 
       const userKeys = await keyManager.getUserKeys();
+
+      downloadAbortControllerRef.current?.abort();
+      const controller = new AbortController();
+      downloadAbortControllerRef.current = controller;
+
+      // Reset pause state
+      setIsDownloadPaused(false);
+      pauseControllerRef.current.isPaused = false;
+      if (pauseResolverRef.current) {
+        pauseResolverRef.current();
+        pauseResolverRef.current = null;
+      }
+
       await downloadMultipleItemsAsZip(items, userKeys, (progress) => {
         setDownloadProgress(progress);
-      });
+      }, controller.signal, pauseControllerRef.current);
 
       // Keep modal open to show completion - user can manually close
     } catch (error) {
+      if (error instanceof Error && (
+        error.name === 'AbortError' ||
+        error.message.includes('Aborted') ||
+        error.message.includes('BodyStreamBuffer was aborted') ||
+        error.message.includes('The operation was aborted')
+      )) {
+        console.log('Bulk download cancelled by user');
+        return;
+      }
       console.error('Bulk download error:', error);
       setDownloadError(error instanceof Error ? error.message : 'Bulk download failed');
     }
@@ -688,9 +781,14 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
       const userKeys = await keyManager.getUserKeys();
 
       // Download the file to memory (not to disk)
+      downloadAbortControllerRef.current?.abort();
+      const controller = new AbortController();
+      downloadAbortControllerRef.current = controller;
+
       const result = await downloadEncryptedFile(fileId, userKeys, (progress) => {
         setDownloadProgress(progress);
-      });
+      }, controller.signal); // Note: PDF preview doesn't use the same pause controller currently as it renders directly, but could be added.
+      // For now leaving as is since user asked for "downloading file" specifically.
 
       // Verify it's actually a PDF
       if (!result.mimetype.includes('pdf')) {
@@ -744,12 +842,38 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
   }, []);
 
   const cancelDownload = useCallback(() => {
-    // Note: The download functions don't have built-in cancellation
-    // This would need to be implemented in the download functions themselves
+    // Abort the pending download
+    if (downloadAbortControllerRef.current) {
+      downloadAbortControllerRef.current.abort();
+      downloadAbortControllerRef.current = null;
+    }
+
+    // Also resolve any pending pause so we don't hang
+    if (pauseResolverRef.current) {
+      pauseResolverRef.current();
+      pauseResolverRef.current = null;
+    }
+    pauseControllerRef.current.isPaused = false;
+    setIsDownloadPaused(false);
+
     setDownloadProgress(null);
     setDownloadError(null);
     setCurrentDownloadFile(null);
-    // Modal stays open until user explicitly closes it
+    setIsModalOpen(false); // Close modal on cancel
+  }, []);
+
+  const pauseDownload = useCallback(() => {
+    setIsDownloadPaused(true);
+    pauseControllerRef.current.isPaused = true;
+  }, []);
+
+  const resumeDownload = useCallback(() => {
+    setIsDownloadPaused(false);
+    pauseControllerRef.current.isPaused = false;
+    if (pauseResolverRef.current) {
+      pauseResolverRef.current();
+      pauseResolverRef.current = null;
+    }
   }, []);
 
   const startUploadWithFiles = useCallback((files: File[], _folderId: string | null) => {
@@ -761,12 +885,12 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
       if (!file.name || file.name.trim() === '') {
         return false;
       }
-      
+
       // ONLY reject truly empty directory entries: size=0 AND type=""
       if (file.size === 0 && file.type === '') {
         return false;
       }
-      
+
       // All other files (with content) are valid
       return true;
     });
@@ -786,18 +910,18 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
   const startUploadWithFolders = useCallback((files: FileList | File[], folderId: string | null) => {
     // Filter out any suspicious entries before processing
     const fileArray = Array.from(files);
-    
+
     const validFiles = fileArray.filter(file => {
       // Check for empty or invalid filenames
       if (!file.name || file.name.trim() === '') {
         return false;
       }
-      
+
       // ONLY reject truly empty directory entries: size=0 AND type=""
       if (file.size === 0 && file.type === '') {
         return false;
       }
-      
+
       // All other files (with content) are valid
       return true;
     });
@@ -833,7 +957,7 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
           if (conflictItem?.existingFileId) {
             // Store the existing file ID for the upload manager to pass to uploadEncryptedFile
             manager.setExistingFileIdToDelete(conflictItem.existingFileId);
-            
+
             // Immediately remove the old file from the UI
             onFileDeletedCallbacksRef.current.forEach(callback => {
               callback(conflictItem.existingFileId!);
@@ -848,7 +972,7 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
             manager.setConflictFileName(conflictItem.name);
           }
         }
-        
+
         // Map 'ignore' to 'skip' for UploadManager
         const mappedResolution = resolution === 'ignore' ? 'skip' : resolution;
         manager.resolveConflict(mappedResolution as 'replace' | 'keepBoth' | 'skip');
@@ -904,7 +1028,7 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
               if (existing && existing.id) {
                 const delResp = await apiClient.deleteFolder(existing.id);
                 if (!delResp.success) throw new Error(delResp.error || 'Failed to delete existing folder');
-                
+
                 // Notify UI of folder deletion
                 const existingId = existing.id;
                 if (existingId) {
@@ -986,7 +1110,7 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
               // Attempt upload with the unique name
               const renameMap = { [conflict.folderPath]: suggested };
               const ok = await attemptPrepare(pending.files, pending.baseFolderId, renameMap, { suppressEmptyAlert: true });
-              
+
               if (ok) {
                 toast.success(`Folder uploaded as "${suggested}"`);
               } else {
@@ -1031,7 +1155,7 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
         }
       }
     }
-    
+
     // Close conflict modal
     setIsConflictModalOpen(false);
     setConflictItems([]);
@@ -1078,11 +1202,14 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
     downloadProgress,
     downloadError,
     currentDownloadFile,
+    isDownloadPaused,
     startFileDownload,
     startFolderDownload,
     startBulkDownload,
     startPdfPreview,
     cancelDownload,
+    pauseDownload,
+    resumeDownload,
     retryDownload,
   };
 
@@ -1118,11 +1245,14 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
         onCancelAllUploads={cancelAllUploads}
         downloadProgress={downloadProgress}
         downloadFilename={currentDownloadFile?.name}
-        downloadFileSize={0} // This would need to be calculated
+        downloadFileSize={0}
         downloadFileId={currentDownloadFile?.id}
         onCancelDownload={cancelDownload}
+        onPauseDownload={pauseDownload}
+        onResumeDownload={resumeDownload}
         onRetryDownload={retryDownload}
         downloadError={downloadError}
+        isDownloadPaused={isDownloadPaused}
         open={isModalOpen}
         onOpenChange={handleModalOpenChange}
         onClose={closeModal}

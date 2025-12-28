@@ -841,11 +841,9 @@ export const Table01DividerLineSm = ({
         if (itemType === 'folder') {
             // Download folder as ZIP
             await startFolderDownload(itemId, itemName);
-            toast.success('Folder downloaded successfully as ZIP');
         } else {
             // Download single file
             await startFileDownload(itemId, itemName);
-            toast.success('Download completed successfully');
         }
     };
 
@@ -868,7 +866,6 @@ export const Table01DividerLineSm = ({
 
         // Multiple items selected - create ZIP
         await startBulkDownload(selectedItemsArray);
-        toast.success(`Downloaded ${selectedItemsArray.length} items successfully`);
     }, [selectedItems, handleDownloadClick, startBulkDownload, toast]);
 
     // Handle folder double-click navigation
