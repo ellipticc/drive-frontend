@@ -27,7 +27,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { apiClient, FileItem, FolderContentItem, FileContentItem } from "@/lib/api";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { PreviewModal } from "@/components/previews";
+import { FullPagePreviewModal, PreviewFileItem } from "@/components/previews/full-page-preview-modal";
 import { useCurrentFolder } from "@/components/current-folder-context";
 import { useOnFileAdded, useOnFileDeleted, useOnFileReplaced, useGlobalUpload } from "@/components/global-upload-context";
 import { decryptFilename } from "@/lib/crypto";
@@ -1231,6 +1231,48 @@ export const Table01DividerLineSm = ({
         );
     }, [sortedItems, searchQuery]);
 
+    // Preview navigation logic
+    const getPreviewableFiles = useCallback(() => {
+        return filteredItems.filter(item =>
+            item.type === 'file' && item.mimeType && canPreviewFile(item.mimeType)
+        );
+    }, [filteredItems]);
+
+    const handlePreviewNavigate = useCallback((direction: 'prev' | 'next') => {
+        if (!selectedItemForPreview) return;
+
+        const previewableFiles = getPreviewableFiles();
+        const currentIndex = previewableFiles.findIndex(item => item.id === selectedItemForPreview.id);
+
+        if (currentIndex === -1) return;
+
+        let newIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
+
+        // Ensure bounds
+        if (newIndex >= 0 && newIndex < previewableFiles.length) {
+            const newItem = previewableFiles[newIndex];
+            setSelectedItemForPreview({
+                id: newItem.id,
+                name: newItem.name,
+                mimeType: newItem.mimeType
+            });
+        }
+    }, [selectedItemForPreview, getPreviewableFiles]);
+
+    // Calculate if we have next/prev items
+    const previewNavigationState = useMemo(() => {
+        if (!selectedItemForPreview) return { hasPrev: false, hasNext: false };
+        const previewableFiles = getPreviewableFiles();
+        const currentIndex = previewableFiles.findIndex(item => item.id === selectedItemForPreview.id);
+
+        if (currentIndex === -1) return { hasPrev: false, hasNext: false };
+
+        return {
+            hasPrev: currentIndex > 0,
+            hasNext: currentIndex < previewableFiles.length - 1
+        };
+    }, [selectedItemForPreview, getPreviewableFiles]);
+
 
 
     const renderHeaderIcons = useMemo(() => {
@@ -2339,16 +2381,25 @@ export const Table01DividerLineSm = ({
                 </div>
             )}
 
-            <PreviewModal
+            <FullPagePreviewModal
                 file={selectedItemForPreview ? {
                     id: selectedItemForPreview.id,
                     name: selectedItemForPreview.name,
                     type: 'file',
-                    mimeType: selectedItemForPreview.mimeType
+                    mimeType: selectedItemForPreview.mimeType,
+                    size: (() => {
+                        const item = filesMap.get(selectedItemForPreview.id);
+                        return item?.size;
+                    })()
                 } : null}
-                open={previewModalOpen}
-                onOpenChange={setPreviewModalOpen}
-                onDownload={handleDownloadClick}
+                isOpen={previewModalOpen}
+                onClose={() => setPreviewModalOpen(false)}
+                onDownload={(file) => handleDownloadClick(file.id, file.name, 'file')}
+                onNavigate={handlePreviewNavigate}
+                onShare={(file) => handleShareClick(file.id, file.name, 'file')}
+                onDetails={(file) => handleDetailsClick(file.id, file.name, 'file')}
+                hasPrev={previewNavigationState.hasPrev}
+                hasNext={previewNavigationState.hasNext}
             />
         </>
     );
