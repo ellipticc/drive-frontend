@@ -20,11 +20,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/base/checkbox/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
-import { downloadEncryptedFile } from '@/lib/download';
 import { apiClient, ShareItem } from "@/lib/api";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { decryptFilename } from "@/lib/crypto";
+import { useGlobalUpload } from "@/components/global-upload-context";
 import { masterKeyManager } from "@/lib/master-key";
 import { truncateFilename } from "@/lib/utils";
 import { isTextTruncated } from "@/lib/tooltip-helper";
@@ -34,6 +34,7 @@ import { FileIcon } from "../file-icon";
 
 export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
     const isMobile = useIsMobile();
+    const { startFileDownload, startBulkDownload } = useGlobalUpload();
 
     const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({
         column: "createdAt",
@@ -190,27 +191,13 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
         setShareModalOpen(true);
     };
 
-    const handleDownloadClick = async (shareId: string, fileId: string) => {
+    const handleDownloadClick = async (shareId: string, fileId: string, fileName: string) => {
         try {
-            // For owner's shares, download using owner's keys (not share CEK)
-            // The share CEK is only in the URL fragment for recipients
-            const result = await downloadEncryptedFile(fileId);
-
-            // Create download link and trigger download
-            const url = URL.createObjectURL(result.blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = result.filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-
-            toast.success('Download completed successfully');
-
+            // Use global download manager (Unified Progress Manager)
+            await startFileDownload(fileId, fileName);
         } catch (error) {
             console.error('Download error:', error);
-            toast.error('Download failed');
+            // toast error handled by context if needed, but we can log
         }
     };
 
@@ -311,43 +298,19 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
 
         try {
             const selectedShares = filteredItems.filter(item => selectedItems.has(item.id));
-            let successCount = 0;
-            let errorCount = 0;
+            const itemsToDownload = selectedShares.map(item => ({
+                id: item.fileId,
+                name: item.fileName,
+                type: item.isFolder ? 'folder' as const : 'file' as const
+            }));
 
-            for (const share of selectedShares) {
-                try {
-                    // For owner's shares, download using owner's keys (not share CEK)
-                    const result = await downloadEncryptedFile(share.fileId);
+            await startBulkDownload(itemsToDownload);
 
-                    // Create download link and trigger download
-                    const url = URL.createObjectURL(result.blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = result.filename;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-
-                    successCount++;
-                } catch (error) {
-                    console.error(`Failed to download ${share.fileName}:`, error);
-                    errorCount++;
-                }
-            }
-
-            if (successCount > 0) {
-                toast.success(`Downloaded ${successCount} of ${selectedShares.length} files`);
-            }
-            if (errorCount > 0) {
-                toast.error(`Failed to download ${errorCount} files`);
-            }
-
-            // Clear selection after bulk operation
+            // Clear selection after triggering bulk download
             setSelectedItems(new Set());
         } catch (error) {
             console.error('Bulk download error:', error);
-            toast.error('Bulk download failed');
+            // toast.error('Bulk download failed');
         }
     };
 
@@ -643,7 +606,7 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                                                         </>
                                                     ) : (
                                                         <>
-                                                            <DropdownMenuItem onClick={() => handleDownloadClick(item.id, item.fileId)}>
+                                                            <DropdownMenuItem onClick={() => handleDownloadClick(item.id, item.fileId, item.fileName)}>
                                                                 <IconDownload className="h-4 w-4 mr-2" />
                                                                 Download
                                                             </DropdownMenuItem>
