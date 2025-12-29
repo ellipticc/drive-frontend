@@ -9,7 +9,7 @@ import { keyManager } from "@/lib/key-manager"
 // Extended File interface to include webkitRelativePath
 interface ExtendedFile extends File {
   webkitRelativePath: string;
-} 
+}
 import { useUser } from "@/components/user-context"
 
 export default function Home() {
@@ -37,62 +37,39 @@ export default function Home() {
       }
 
       try {
-        // Use user from context (already fetched by UserProvider)
         if (user?.crypto_keypairs) {
           await keyManager.initialize(user)
-          // console.log('🔐 KeyManager initialized on main page')
-        } else {
-          // console.warn('Failed to initialize key manager - user crypto keypairs not available')
         }
       } catch {
-        // Log but don't throw - allows Google OAuth users in setup phase to view dashboard
-        // console.warn('Warning: Failed to initialize key manager:', error)
       }
     }
 
     initializeKeyManager()
   }, [user])
 
-    // Handle drag and drop files
-    const handleDrop = useCallback((files: FileList) => {
-    const fileArray = Array.from(files) as ExtendedFile[]
-    
-    console.log('=== DRAG DROP START ===');
-    console.log('Total files in FileList:', fileArray.length);
+  // Handle drag and drop files
+  const handleDrop = useCallback((files: File[] | FileList) => {
+    const fileArray = Array.isArray(files) ? files as ExtendedFile[] : Array.from(files) as ExtendedFile[]
+
     fileArray.forEach((f, i) => {
-      console.log(`[${i}] name="${f.name}" size=${f.size} type="${f.type}" relativePath="${f.webkitRelativePath || 'NONE'}"`);
+      const relativePath = (f as any).webkitRelativePath || '';
     });
-    
-    // Filter out directories and suspicious entries
+
     const validFiles = fileArray.filter(file => {
-      // Check for empty or invalid filenames first
       if (!file.name || file.name.trim() === '') {
-        console.log(`FILTERING OUT INVALID: empty name`);
-        return false; // Skip - invalid filename
-      }
-      
-      // ONLY reject truly empty directory entries: size=0 AND type=""
-      if (file.size === 0 && file.type === '') {
-        console.log(`FILTERING OUT DIR (empty): name="${file.name}" size=${file.size} type="${file.type}"`);
         return false;
       }
-      
-      // All other files (with content) are valid
       return true;
     });
-    
-    console.log('After filter, validFiles count:', validFiles.length);
-    
+
     const regularFiles = validFiles.filter(file => {
-      const relativePath = file.webkitRelativePath || '';
-      return !relativePath; // Files with no relative path
+      const relativePath = (file as any).webkitRelativePath || '';
+      return !relativePath;
     })
     const folderFiles = validFiles.filter(file => {
-      const relativePath = file.webkitRelativePath || '';
-      return !!relativePath; // Any files with relative path (folder structure)
+      const relativePath = (file as any).webkitRelativePath || '';
+      return !!relativePath;
     })
-
-    console.log('Separated into:', { regularFilesCount: regularFiles.length, folderFilesCount: folderFiles.length });
 
     setDroppedFiles({
       files: regularFiles,
@@ -135,7 +112,7 @@ export default function Home() {
     document.addEventListener('dragenter', handleGlobalDragEnter)
     document.addEventListener('dragleave', handleGlobalDragLeave)
     window.addEventListener('dragend', handleGlobalDragEnd)
-    
+
     return () => {
       document.removeEventListener('dragenter', handleGlobalDragEnter)
       document.removeEventListener('dragleave', handleGlobalDragLeave)
@@ -157,7 +134,7 @@ export default function Home() {
 
   return (
     <>
-      <SiteHeader 
+      <SiteHeader
         onSearch={handleSearch}
         onFileUpload={handleFileUpload}
         onFolderUpload={handleFolderUpload}
@@ -165,16 +142,14 @@ export default function Home() {
       <div className="flex flex-1 flex-col">
         <div className="@container/main flex flex-1 flex-col gap-2">
           <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-            <Table01DividerLineSm 
-              searchQuery={searchQuery} 
+            <Table01DividerLineSm
+              searchQuery={searchQuery}
               dragDropFiles={droppedFiles || undefined}
               onDragDropProcessed={() => {
-                // Reset dropped files after processing
-                console.log('Drop files processed, resetting state');
                 setDroppedFiles(null);
               }}
             />
-            
+
             {/* Hidden file inputs */}
             <input
               ref={fileInputRef}

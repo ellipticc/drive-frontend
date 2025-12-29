@@ -54,34 +54,30 @@ export default function Home() {
     initializeKeyManager()
   }, [user])
 
+  // Extended File interface to include webkitRelativePath
+  interface ExtendedFile extends File {
+    webkitRelativePath: string;
+  }
+
   // Drag and drop handlers
-  const handleDrop = useCallback((files: FileList) => {
-    const fileArray = Array.from(files)
-    
-    // Filter out directories and suspicious entries
+  const handleDrop = useCallback((files: FileList | File[]) => {
+    const fileArray = Array.isArray(files) ? files as ExtendedFile[] : Array.from(files) as ExtendedFile[]
+
+    // Filter out suspicious entries (empty name)
     const validFiles = fileArray.filter(file => {
-      const relativePath = getRelativePath(file);
-      
-      // Skip if this looks like a directory:
-      // 1. Has webkitRelativePath that equals the filename (folder, not file in folder)
-      // 2. Has empty name or type (suspicious entries)
-      if (relativePath === file.name && relativePath !== '') {
-        return false; // Skip - this is a directory
-      }
       if (!file.name || file.name.trim() === '') {
-        return false; // Skip - invalid filename
+        return false;
       }
-      
       return true;
     });
-    
+
     const regularFiles = validFiles.filter(file => {
-      const relativePath = getRelativePath(file);
-      return !relativePath; // Files with no relative path
+      const relativePath = (file as any).webkitRelativePath || '';
+      return !relativePath; // Files with no relative path (root files)
     })
     const folderFiles = validFiles.filter(file => {
-      const relativePath = getRelativePath(file);
-      return relativePath && relativePath !== file.name; // Files in folders
+      const relativePath = (file as any).webkitRelativePath || '';
+      return !!relativePath; // Files with relative path (inside folder structure)
     })
 
     setDroppedFiles({
@@ -125,7 +121,7 @@ export default function Home() {
     document.addEventListener('dragenter', handleGlobalDragEnter)
     document.addEventListener('dragleave', handleGlobalDragLeave)
     window.addEventListener('dragend', handleGlobalDragEnd)
-    
+
     return () => {
       document.removeEventListener('dragenter', handleGlobalDragEnter)
       document.removeEventListener('dragleave', handleGlobalDragLeave)
@@ -146,7 +142,7 @@ export default function Home() {
         handleDrop(e.dataTransfer.files)
       }}
     >
-      <SiteHeader 
+      <SiteHeader
         onSearch={handleSearch}
         onFileUpload={uploadHandlers?.handleFileUpload}
         onFolderUpload={uploadHandlers?.handleFolderUpload}
@@ -155,12 +151,12 @@ export default function Home() {
         <div className="@container/main flex flex-1 flex-col gap-2">
           <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
             <SectionCards />
-            <Table01DividerLineSm 
-              searchQuery={searchQuery} 
+            <Table01DividerLineSm
+              searchQuery={searchQuery}
               onUploadHandlersReady={setUploadHandlers}
               dragDropFiles={droppedFiles || undefined}
             />
-            
+
             {/* Hidden file inputs */}
             <input
               ref={fileInputRef}
