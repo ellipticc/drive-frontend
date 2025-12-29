@@ -58,6 +58,7 @@ export const Table01DividerLineSm = ({
     const router = useRouter();
     const pathname = usePathname();
     const isMobile = useIsMobile();
+    const searchParams = useSearchParams();
     const STORAGE_KEY = 'files-table-visible-columns';
 
     // Column visibility state
@@ -211,19 +212,10 @@ export const Table01DividerLineSm = ({
             return;
         }
 
-        // For all other file types, use the modal preview
-        // Prevent multiple preview modals
-        if (previewModalOpen) {
-            setPreviewModalOpen(false);
-            setTimeout(() => {
-                setSelectedItemForPreview({ id: itemId, name: itemName, mimeType });
-                setPreviewModalOpen(true);
-            }, 100);
-        } else {
-            setSelectedItemForPreview({ id: itemId, name: itemName, mimeType });
-            setPreviewModalOpen(true);
-        }
-    }, [previewModalOpen, setPreviewModalOpen, setSelectedItemForPreview, toast, filesMap, startPdfPreview]);
+        const params = new URLSearchParams(searchParams.toString());
+        params.set('preview', itemId);
+        router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    }, [pathname, router, searchParams]);
 
     // Hash copy animation state
     const [copiedHashId, setCopiedHashId] = useState<string | null>(null);
