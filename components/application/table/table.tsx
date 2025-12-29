@@ -184,7 +184,7 @@ const TableHeader = <T extends object>({ columns, children, bordered = true, cla
 
                     // Row border—using an "after" pseudo-element to avoid the border taking up space.
                     bordered &&
-                    "[&>tr>th]:after:pointer-events-none [&>tr>th]:after:absolute [&>tr>th]:after:inset-x-0 [&>tr>th]:after:bottom-0 [&>tr>th]:after:h-px [&>tr>th]:after:bg-border [&>tr>th]:focus-visible:after:bg-transparent",
+                    "[&>tr>th]:after:pointer-events-none [&>tr>th]:after:absolute [&>tr>th]:after:inset-x-0 [&>tr>th]:after:bottom-0 [&>tr>th]:after:h-px [&>tr>th]:after:bg-border dark:[&>tr>th]:after:bg-white/20 [&>tr>th]:focus-visible:after:bg-transparent",
 
                     typeof className === "function" ? className(state) : className,
                 )
@@ -281,12 +281,11 @@ const TableRow = <T extends object>({ columns, children, className, highlightSel
             {...props}
             className={(state) =>
                 cx(
-                    "relative outline-ring transition-colors after:pointer-events-none hover:bg-muted/50 focus-visible:outline-2 focus-visible:-outline-offset-2 group",
+                    "relative outline-ring transition-colors hover:bg-muted/50 focus-visible:outline-2 focus-visible:-outline-offset-2 group border-b border-border/60 last:border-b-0",
                     size === "sm" ? "h-10" : "h-12", // Even more compact height
                     highlightSelectedRow && state.isSelected && "!bg-blue-100 dark:!bg-blue-900/30",
 
-                    // Row border—using an "after" pseudo-element to avoid the border taking up space.
-                    "[&>td]:after:absolute [&>td]:after:inset-x-0 [&>td]:after:bottom-0 [&>td]:after:h-px [&>td]:after:w-full [&>td]:after:bg-border last:[&>td]:after:hidden [&>td]:focus-visible:after:opacity-0 focus-visible:[&>td]:after:opacity-0",
+                    // Removed pseudo-element borders in favor of standard border-b on the row for consistent full-width lines
 
                     typeof className === "function" ? className(state) : className,
                 )
