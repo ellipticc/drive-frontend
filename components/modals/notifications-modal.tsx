@@ -176,7 +176,7 @@ export function NotificationsModal({ open, onOpenChange }: NotificationsModalPro
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh]">
+      <DialogContent className="sm:max-w-lg md:max-w-3xl max-h-[85vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <IconBell className="h-5 w-5" />
@@ -210,7 +210,7 @@ export function NotificationsModal({ open, onOpenChange }: NotificationsModalPro
           )}
         </div>
 
-        <ScrollArea className="max-h-96">
+        <ScrollArea className="h-[60vh]">
           {loading && notifications.length === 0 ? (
             <div className="flex items-center justify-center py-8">
               <div className="text-muted-foreground">Loading notifications...</div>
@@ -226,14 +226,13 @@ export function NotificationsModal({ open, onOpenChange }: NotificationsModalPro
               </EmptyDescription>
             </Empty>
           ) : (
-            <div className="space-y-1">
+            <div className="space-y-1 pr-4">
               {notifications.map((notification, index) => (
                 <div key={notification.id}>
-                  <div className={`p-4 rounded-lg border transition-colors ${
-                    !notification.read_at
+                  <div className={`p-4 rounded-lg border transition-colors ${!notification.read_at
                       ? 'bg-muted/50 border-primary/20'
                       : 'bg-background border-border'
-                  }`}>
+                    }`}>
                     <div className="flex items-start gap-3">
                       <div className="flex-shrink-0">
                         {getNotificationIcon(notification.type)}
@@ -250,7 +249,7 @@ export function NotificationsModal({ open, onOpenChange }: NotificationsModalPro
                             <div className="w-2 h-2 bg-primary rounded-full" />
                           )}
                         </div>
-                        <p className="text-sm text-muted-foreground mb-2">
+                        <p className="text-sm text-muted-foreground mb-2 break-words whitespace-pre-wrap">
                           {notification.message}
                         </p>
                         {notification.data && (() => {
