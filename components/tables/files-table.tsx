@@ -175,8 +175,6 @@ export const Table01DividerLineSm = ({
     const [moveToTrashModalOpen, setMoveToTrashModalOpen] = useState(false);
     const [selectedItemForMoveToTrash] = useState<{ id: string; name: string; type: "file" | "folder" } | null>(null);
 
-    const searchParams = useSearchParams();
-
     // Preview modal state
     const [previewModalOpen, setPreviewModalOpen] = useState(false);
     const [selectedItemForPreview, setSelectedItemForPreview] = useState<{ id: string; name: string; mimeType?: string } | null>(null);
@@ -213,10 +211,19 @@ export const Table01DividerLineSm = ({
             return;
         }
 
-        const params = new URLSearchParams(searchParams.toString());
-        params.set('preview', itemId);
-        router.push(`${pathname}?${params.toString()}`, { scroll: false });
-    }, [pathname, router, searchParams]);
+        // For all other file types, use the modal preview
+        // Prevent multiple preview modals
+        if (previewModalOpen) {
+            setPreviewModalOpen(false);
+            setTimeout(() => {
+                setSelectedItemForPreview({ id: itemId, name: itemName, mimeType });
+                setPreviewModalOpen(true);
+            }, 100);
+        } else {
+            setSelectedItemForPreview({ id: itemId, name: itemName, mimeType });
+            setPreviewModalOpen(true);
+        }
+    }, [previewModalOpen, setPreviewModalOpen, setSelectedItemForPreview, toast, filesMap, startPdfPreview]);
 
     // Hash copy animation state
     const [copiedHashId, setCopiedHashId] = useState<string | null>(null);
