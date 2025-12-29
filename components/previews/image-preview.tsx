@@ -56,6 +56,7 @@ export function ImagePreview({
   useEffect(() => {
     let isMounted = true
     let url: string | null = null
+    const abortController = new AbortController()
 
     const loadImage = async () => {
       try {
@@ -84,10 +85,10 @@ export function ImagePreview({
             }
           }
 
-          result = await downloadEncryptedFileWithCEK(fileId, fileCek, onProgress)
+          result = await downloadEncryptedFileWithCEK(fileId, fileCek, onProgress, abortController.signal)
         } else {
           // Dashboard context - use user keys
-          result = await downloadEncryptedFile(fileId, undefined, onProgress)
+          result = await downloadEncryptedFile(fileId, undefined, onProgress, abortController.signal)
         }
 
         if (!isMounted) return
@@ -95,7 +96,7 @@ export function ImagePreview({
         url = URL.createObjectURL(result.blob)
         setImageUrl(url)
       } catch (err) {
-        if (!isMounted) return
+        if (!isMounted || (err instanceof Error && err.name === 'AbortError')) return
         const errorMessage = err instanceof Error ? err.message : "Failed to load image preview"
         console.error("Failed to load image preview:", err)
         setInternalError(errorMessage)
@@ -109,6 +110,7 @@ export function ImagePreview({
 
     return () => {
       isMounted = false
+      abortController.abort()
       if (url) URL.revokeObjectURL(url)
     }
   }, [fileId, onGetShareCEK, setIsLoading, onProgress, onError, shareDetails])

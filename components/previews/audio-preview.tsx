@@ -67,6 +67,7 @@ export function AudioPreview({
   useEffect(() => {
     let isMounted = true
     let url: string | null = null
+    const abortController = new AbortController()
 
     const loadAudio = async () => {
       try {
@@ -97,10 +98,10 @@ export function AudioPreview({
             // If shareDetails maps to the file directly (single file share), standard logic applies.
           }
 
-          result = await downloadEncryptedFileWithCEK(fileId, fileCek, onProgress)
+          result = await downloadEncryptedFileWithCEK(fileId, fileCek, onProgress, abortController.signal)
         } else {
           // Dashboard context - use user keys (handled by downloadEncryptedFile)
-          result = await downloadEncryptedFile(fileId, undefined, onProgress)
+          result = await downloadEncryptedFile(fileId, undefined, onProgress, abortController.signal)
         }
 
         if (!isMounted) return
@@ -108,7 +109,7 @@ export function AudioPreview({
         url = URL.createObjectURL(result.blob)
         setAudioUrl(url)
       } catch (err) {
-        if (!isMounted) return
+        if (!isMounted || (err instanceof Error && err.name === 'AbortError')) return
         const errorMessage = err instanceof Error ? err.message : "Failed to load audio preview"
         console.error("Failed to load audio preview:", err)
         setInternalError(errorMessage)
@@ -122,6 +123,7 @@ export function AudioPreview({
 
     return () => {
       isMounted = false
+      abortController.abort()
       if (url) URL.revokeObjectURL(url)
     }
   }, [fileId, onGetShareCEK, setIsLoading, onProgress, onError])

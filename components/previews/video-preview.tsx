@@ -47,6 +47,7 @@ export function VideoPreview({
   useEffect(() => {
     let isMounted = true
     let url: string | null = null
+    const abortController = new AbortController()
 
     const loadVideo = async () => {
       try {
@@ -73,9 +74,9 @@ export function VideoPreview({
             }
           }
 
-          result = await downloadEncryptedFileWithCEK(fileId, fileCek, onProgress)
+          result = await downloadEncryptedFileWithCEK(fileId, fileCek, onProgress, abortController.signal)
         } else {
-          result = await downloadEncryptedFile(fileId, undefined, onProgress)
+          result = await downloadEncryptedFile(fileId, undefined, onProgress, abortController.signal)
         }
 
         if (!isMounted) return
@@ -86,7 +87,7 @@ export function VideoPreview({
         setVideoUrl(url)
 
       } catch (err) {
-        if (!isMounted) return
+        if (!isMounted || (err instanceof Error && err.name === 'AbortError')) return
         const errorMessage = err instanceof Error ? err.message : "Failed to load video preview"
         console.error("Failed to load video preview:", err)
         setInternalError(errorMessage)
@@ -100,6 +101,7 @@ export function VideoPreview({
 
     return () => {
       isMounted = false
+      abortController.abort()
       if (url) URL.revokeObjectURL(url)
     }
   }, [fileId, onGetShareCEK, setIsLoading, onProgress, onError, shareDetails, mimetype, mimeType])

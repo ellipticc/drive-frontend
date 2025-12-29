@@ -12,6 +12,7 @@ import { PdfPreview } from "./pdf-preview"
 
 import { FileIcon } from "../file-icon"
 import { DownloadProgress } from "@/lib/download"
+import { formatFileSize } from "@/lib/utils"
 
 // Define the FileItem interface based on what's passed from files-table
 export interface PreviewFileItem {
@@ -104,10 +105,29 @@ export function FullPagePreviewModal({
     if (!isOpen || !file) return null
 
     const renderPreviewContent = () => {
+        // Size Limit Check (100MB)
+        const MAX_PREVIEW_SIZE = 100 * 1024 * 1024; // 100 MB
+        if (file.size && file.size > MAX_PREVIEW_SIZE) {
+            return (
+                <div className="flex flex-col items-center justify-center h-full text-muted-foreground animate-in fade-in-0 slide-in-from-bottom-5">
+                    <Info className="h-12 w-12 mb-4 opacity-20" />
+                    <p className="text-lg font-medium mb-2">File too large to preview</p>
+                    <p className="text-sm mb-6 max-w-md text-center text-muted-foreground/80">
+                        This file is <span className="font-medium text-foreground">{formatFileSize(file.size)}</span>.
+                        Previews are limited to 100 MB. Please download the file to view it.
+                    </p>
+                    <Button onClick={() => onDownload(file)}>
+                        <Download className="mr-2 h-4 w-4" />
+                        Download File
+                    </Button>
+                </div>
+            )
+        }
+
         if (!file.mimeType) return <div className="text-muted-foreground">Preview not available</div>
 
         const commonProps = {
-            key: file.id, // Force remount on file change
+            key: file.id, // Critical: Forces component remount, cancelling previous effects
             fileId: file.id,
             filename: file.name,
             fileName: file.name,
@@ -167,7 +187,7 @@ export function FullPagePreviewModal({
                             {file.name}
                         </span>
                         <span className="text-xs text-muted-foreground">
-                            {file.size ? (file.size / 1024 / 1024).toFixed(2) + ' MB' : ''}
+                            {file.size ? formatFileSize(file.size) : ''}
                         </span>
                     </div>
                 </div>

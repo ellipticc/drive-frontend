@@ -47,6 +47,7 @@ export function TextPreview({
 
   useEffect(() => {
     let isMounted = true
+    const abortController = new AbortController()
 
     const loadText = async () => {
       try {
@@ -73,10 +74,10 @@ export function TextPreview({
             }
           }
 
-          result = await downloadEncryptedFileWithCEK(fileId, fileCek, onProgress)
+          result = await downloadEncryptedFileWithCEK(fileId, fileCek, onProgress, abortController.signal)
         } else {
           // Dashboard context - use user keys
-          result = await downloadEncryptedFile(fileId, undefined, onProgress)
+          result = await downloadEncryptedFile(fileId, undefined, onProgress, abortController.signal)
         }
 
         if (!isMounted) return
@@ -84,7 +85,7 @@ export function TextPreview({
         const text = await result.blob.text()
         setTextContent(text)
       } catch (err) {
-        if (!isMounted) return
+        if (!isMounted || (err instanceof Error && err.name === 'AbortError')) return
         const errorMessage = err instanceof Error ? err.message : "Failed to load text preview"
         console.error("Failed to load text preview:", err)
         setInternalError(errorMessage)
@@ -98,6 +99,7 @@ export function TextPreview({
 
     return () => {
       isMounted = false
+      abortController.abort()
     }
   }, [fileId, onGetShareCEK, setIsLoading, onProgress, onError, shareDetails])
 
