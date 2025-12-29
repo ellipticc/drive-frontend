@@ -1,7 +1,7 @@
 "use client"
 
-import { IconUpload, IconFolderDown, IconFileUpload, type Icon } from "@tabler/icons-react"
-import * as React from "react"
+import { IconFolderDown, IconFileUpload, IconPlus, IconFolderPlus, type Icon } from "@tabler/icons-react"
+import { useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 
 import {
@@ -9,6 +9,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import {
   SidebarGroup,
@@ -17,6 +18,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import { CreateFolderModal } from "@/components/modals/create-folder-modal"
 
 export function NavMain({
   items,
@@ -33,6 +35,7 @@ export function NavMain({
 }) {
   const router = useRouter()
   const pathname = usePathname()
+  const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false)
 
   const handleFileUpload = () => {
     onFileUpload?.()
@@ -56,11 +59,11 @@ export function NavMain({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <SidebarMenuButton
-                  tooltip="Upload"
+                  tooltip="New"
                   className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground min-w-8 duration-200 ease-linear"
                 >
-                  <IconUpload />
-                  <span>Upload</span>
+                  <IconPlus />
+                  <span>New</span>
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-48">
@@ -72,8 +75,22 @@ export function NavMain({
                   <IconFolderDown className="mr-2 h-4 w-4" />
                   Upload Folder
                 </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setIsCreateFolderOpen(true)} className="cursor-pointer">
+                  <IconFolderPlus className="mr-2 h-4 w-4" />
+                  New Folder
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+
+            <CreateFolderModal
+              open={isCreateFolderOpen}
+              onOpenChange={setIsCreateFolderOpen}
+              onFolderCreated={() => {
+                // Refresh logic if needed
+                router.refresh()
+              }}
+            />
           </SidebarMenuItem>
         </SidebarMenu>
         <SidebarMenu>

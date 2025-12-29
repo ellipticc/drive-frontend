@@ -9,7 +9,7 @@ export default function SharedWithMe() {
 
   return (
     <>
-      <SiteHeader 
+      <SiteHeader
         onFileUpload={handleFileUpload}
         onFolderUpload={handleFolderUpload}
       />

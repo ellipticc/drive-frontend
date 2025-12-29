@@ -39,7 +39,7 @@ import { useNotifications } from "@/hooks/use-notifications"
 // Notification dot component for indicating unread notifications
 function NotificationDot() {
   return (
-    <div className="absolute -top-1 -right-1 h-3 w-3 bg-blue-500 rounded-full border-2 border-background" />
+    <div className="absolute top-0 right-0 h-2.5 w-2.5 bg-blue-500 rounded-full border-2 border-background z-10" />
   )
 }
 

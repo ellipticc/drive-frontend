@@ -39,8 +39,13 @@ interface UserData {
   }
 }
 
-export function CreateFolderModal({ children, parentId = null, onFolderCreated }: CreateFolderModalProps) {
-  const [open, setOpen] = useState(false)
+export function CreateFolderModal({ children, parentId = null, onFolderCreated, open: controlledOpen, onOpenChange: controlledOnOpenChange }: CreateFolderModalProps & { open?: boolean; onOpenChange?: (open: boolean) => void }) {
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
+
+  const isControlled = controlledOpen !== undefined
+  const open = isControlled ? controlledOpen : uncontrolledOpen
+  const setOpen = isControlled ? controlledOnOpenChange! : setUncontrolledOpen
+
   const [folderName, setFolderName] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [userData, setUserData] = useState<UserData | null>(null)
@@ -84,8 +89,6 @@ export function CreateFolderModal({ children, parentId = null, onFolderCreated }
               }
             })
           } else {
-            // console.warn('⚠️ Backend is using old encryption format. Folder creation may fail until backend is updated.')
-            // For now, set userData to null to prevent folder creation
             setUserData(null)
             toast.error("Encryption format not supported. Please update your account.")
           }
@@ -195,13 +198,11 @@ export function CreateFolderModal({ children, parentId = null, onFolderCreated }
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        {children || (
-          <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
-            <IconFolderPlus className="h-4 w-4" />
-          </Button>
-        )}
-      </DialogTrigger>
+      {children && (
+        <DialogTrigger asChild>
+          {children}
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Create New Folder</DialogTitle>

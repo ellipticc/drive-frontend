@@ -1,15 +1,19 @@
+import { useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { IconSearch, IconUpload, IconFileUpload, IconFolderDown } from "@tabler/icons-react"
+import { IconSearch, IconFileUpload, IconFolderDown, IconPlus, IconFolderPlus } from "@tabler/icons-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
+import { CreateFolderModal } from "@/components/modals/create-folder-modal"
+import { useRouter } from "next/navigation"
 
 interface SiteHeaderProps {
   onSearch?: (query: string) => void
@@ -18,6 +22,9 @@ interface SiteHeaderProps {
 }
 
 export function SiteHeader({ onSearch, onFileUpload, onFolderUpload }: SiteHeaderProps) {
+  const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false)
+  const router = useRouter()
+
   return (
     <header className="flex h-(--header-height) shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">
       <div className="flex w-full items-center gap-1 px-4 lg:gap-2 lg:px-6">
@@ -39,8 +46,8 @@ export function SiteHeader({ onSearch, onFileUpload, onFolderUpload }: SiteHeade
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button size="sm" className="h-8">
-                <IconUpload className="h-4 w-4 mr-2" />
-                Upload
+                <IconPlus className="h-4 w-4 mr-2" />
+                New
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -52,8 +59,24 @@ export function SiteHeader({ onSearch, onFileUpload, onFolderUpload }: SiteHeade
                 <IconFolderDown className="h-4 w-4 mr-2" />
                 Upload Folder
               </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setIsCreateFolderOpen(true)}>
+                <IconFolderPlus className="h-4 w-4 mr-2" />
+                New Folder
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          <CreateFolderModal
+            open={isCreateFolderOpen}
+            onOpenChange={setIsCreateFolderOpen}
+            onFolderCreated={() => {
+              // Refresh logic if needed, usually live via context/sockets or swr revalidation
+              // For now, we rely on the component's internal logic or parent refresh
+              router.refresh()
+            }}
+          />
+
           <ThemeToggle />
         </div>
       </div>
