@@ -1390,7 +1390,18 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
                 type="number"
                 min="0"
                 value={shareSettings.maxDownloads || ''}
-                onChange={(e) => handleSettingsChange('maxDownloads', parseInt(e.target.value) || 0)}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/[^0-9]/g, "")
+                  let numVal = parseInt(val)
+                  if (val === "") numVal = 0
+
+                  if (numVal > 1000000) {
+                    toast.error("At this point, just make it unlimited")
+                    numVal = 1000000
+                  }
+
+                  handleSettingsChange('maxDownloads', numVal)
+                }}
                 placeholder="Unlimited"
                 className="text-sm"
               />
