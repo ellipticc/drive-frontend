@@ -6,7 +6,7 @@ import { DotsVertical } from "@untitledui/icons";
 import type { SortDescriptor, Selection } from "react-aria-components";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Button } from "@/components/ui/button";
-import { IconFolderPlus, IconFolderDown, IconFileUpload, IconShare3, IconListDetails, IconDownload, IconFolder, IconEdit, IconInfoCircle, IconTrash, IconPhoto, IconVideo, IconMusic, IconFileText, IconArchive, IconFile, IconHome, IconChevronRight, IconLoader2, IconLink, IconEye, IconLayoutColumns, IconChevronDown } from "@tabler/icons-react";
+import { IconFolderPlus, IconFolderDown, IconFileUpload, IconShare3, IconListDetails, IconDownload, IconFolder, IconEdit, IconInfoCircle, IconTrash, IconPhoto, IconVideo, IconMusic, IconFileText, IconArchive, IconFile, IconHome, IconChevronRight, IconLink, IconEye, IconLayoutColumns, IconChevronDown } from "@tabler/icons-react";
 import { CreateFolderModal } from "@/components/modals/create-folder-modal";
 import { MoveToFolderModal } from "@/components/modals/move-to-folder-modal";
 import { ShareModal } from "@/components/modals/share-modal";
@@ -24,11 +24,11 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/base/checkbox/checkbox";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TableSkeleton } from "@/components/tables/table-skeleton";
 import { apiClient, FileItem, FolderContentItem, FileContentItem } from "@/lib/api";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { FullPagePreviewModal, PreviewFileItem } from "@/components/previews/full-page-preview-modal";
+import { FullPagePreviewModal } from "@/components/previews/full-page-preview-modal";
 import { useCurrentFolder } from "@/components/current-folder-context";
 import { useOnFileAdded, useOnFileDeleted, useOnFileReplaced, useGlobalUpload } from "@/components/global-upload-context";
 import { FileIcon } from "@/components/file-icon";
@@ -1629,78 +1629,46 @@ export const Table01DividerLineSm = ({
                     </div>
                 </div>
 
-                <TableCard.Root size="sm">
-                    <TableCard.Header
-                        title="My Files"
-                        contentTrailing={
-                            <div className="absolute top-1 right-4 md:right-6 flex items-center gap-1">
-                                <CreateFolderModal>
-                                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
-                                        <IconFolderPlus className="h-4 w-4" />
-                                    </Button>
-                                </CreateFolderModal>
-                                <div className="h-5 w-px bg-border mx-1" />
-                                <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-7 w-7 p-0"
-                                    onClick={handleFolderUpload}
-                                >
-                                    <IconFolderDown className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-7 w-7 p-0"
-                                    onClick={handleFileUpload}
-                                >
-                                    <IconFileUpload className="h-4 w-4" />
-                                </Button>
-                                <div className="h-5 w-px bg-border mx-1" />
+                <TableSkeleton
+                    title="My Files"
+                    headerIcons={
+                        <div className="absolute top-1 right-4 md:right-6 flex items-center gap-1">
+                            <CreateFolderModal>
                                 <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
-                                    <IconShare3 className="h-4 w-4" />
+                                    <IconFolderPlus className="h-4 w-4" />
                                 </Button>
-                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
-                                    <IconListDetails className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        }
-                        className="py-1 [&>div>h2]:text-base [&>div>h2]:font-medium h-12 flex-shrink-0 border-0"
-                    />
-                    <div className="flex items-center justify-center py-8">
-                        <div className="text-center space-y-4">
-                            <IconLoader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
-                            <p className="text-sm text-muted-foreground">Loading files...</p>
-                            {/* Skeleton rows for better UX */}
-                            <div className="space-y-2 max-w-md mx-auto">
-                                <div className="flex items-center gap-2">
-                                    <Skeleton className="h-4 w-4 rounded" />
-                                    <Skeleton className="h-4 flex-1" />
-                                    <Skeleton className="h-4 w-16" />
-                                    <Skeleton className="h-4 w-12" />
-                                    <Skeleton className="h-4 w-20" />
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Skeleton className="h-4 w-4 rounded" />
-                                    <Skeleton className="h-4 flex-1" />
-                                    <Skeleton className="h-4 w-16" />
-                                    <Skeleton className="h-4 w-12" />
-                                    <Skeleton className="h-4 w-20" />
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Skeleton className="h-4 w-4 rounded" />
-                                    <Skeleton className="h-4 flex-1" />
-                                    <Skeleton className="h-4 w-16" />
-                                    <Skeleton className="h-4 w-12" />
-                                    <Skeleton className="h-4 w-20" />
-                                </div>
-                            </div>
+                            </CreateFolderModal>
+                            <div className="h-5 w-px bg-border mx-1" />
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 w-7 p-0"
+                                onClick={handleFolderUpload}
+                            >
+                                <IconFolderDown className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 w-7 p-0"
+                                onClick={handleFileUpload}
+                            >
+                                <IconFileUpload className="h-4 w-4" />
+                            </Button>
+                            <div className="h-5 w-px bg-border mx-1" />
+                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
+                                <IconShare3 className="h-4 w-4" />
+                            </Button>
+                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
+                                <IconListDetails className="h-4 w-4" />
+                            </Button>
                         </div>
-                    </div>
-                </TableCard.Root>
+                    }
+                />
             </>
         );
     }
+
 
     if (error) {
         return (
@@ -1830,8 +1798,8 @@ export const Table01DividerLineSm = ({
                     <Table aria-label="Files" selectionMode="multiple" selectionBehavior="replace" sortDescriptor={sortDescriptor} onSortChange={setSortDescriptor} selectedKeys={selectedItems} onSelectionChange={handleTableSelectionChange}
                         onContextMenu={(e) => handleContextMenu(e)}
                     >
-                        <Table.Header>
-                            <Table.Head className={`w-10 text-center pl-4 pr-0 transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 hover:opacity-100 focus-within:opacity-100"}`}>
+                        <Table.Header className="group">
+                            <Table.Head className={`w-10 text-center pl-4 pr-0 transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}>
                                 <Checkbox slot="selection" />
                             </Table.Head>
                             <Table.Head id="name" isRowHeader allowsSorting={selectedItems.size === 0} className="w-full pointer-events-none cursor-default" align="left">

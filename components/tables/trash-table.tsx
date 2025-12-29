@@ -25,9 +25,8 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { IconFolder, IconInfoCircle, IconTrash as IconTrashAlt } from "@tabler/icons-react";
-import { IconPhoto, IconVideo, IconMusic, IconFileText, IconArchive, IconFile } from "@tabler/icons-react";
 import { apiClient, FileContentItem, FolderContentItem } from "@/lib/api";
-import { IconLoader2 } from "@tabler/icons-react";
+import { TableSkeleton } from "@/components/tables/table-skeleton";
 import { toast } from "sonner";
 import { truncateFilename } from "@/lib/utils";
 import { isTextTruncated } from "@/lib/tooltip-helper";
@@ -479,18 +478,39 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
 
     if (isLoading) {
         return (
-            <TableCard.Root size="sm">
-                <TableCard.Header
-                    title="Trash"
-                    className="py-1 [&>div>h2]:text-base [&>div>h2]:font-medium h-12 flex-shrink-0 border-0"
-                />
-                <div className="flex items-center justify-center py-8">
-                    <div className="text-center">
-                        <IconLoader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
-                        <p className="text-sm text-muted-foreground">Loading trash...</p>
+            <TableSkeleton
+                title="Trash"
+                headerIcons={
+                    <div className="flex items-center gap-2">
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            disabled
+                            className="h-8"
+                        >
+                            <IconRestore className="h-4 w-4 mr-2" />
+                            Restore All
+                        </Button>
+                        <Button
+                            size="sm"
+                            variant="destructive"
+                            disabled
+                            className="h-8"
+                        >
+                            <IconTrash className="h-4 w-4 mr-2" />
+                            Delete All
+                        </Button>
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            disabled
+                            className="h-8"
+                        >
+                            Refresh
+                        </Button>
                     </div>
-                </div>
-            </TableCard.Root>
+                }
+            />
         );
     }
 
@@ -577,8 +597,8 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                             }
                         }}
                     >
-                        <Table.Header>
-                            <Table.Head className={`w-10 text-center pl-4 pr-0 transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 hover:opacity-100 focus-within:opacity-100"}`}>
+                        <Table.Header className="group">
+                            <Table.Head className={`w-10 text-center pl-4 pr-0 transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}>
                                 <Checkbox slot="selection" />
                             </Table.Head>
                             <Table.Head id="name" isRowHeader allowsSorting={selectedItems.size === 0} className="w-full pointer-events-none cursor-default" align="left">

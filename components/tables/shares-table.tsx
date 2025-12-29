@@ -7,7 +7,7 @@ import type { SortDescriptor } from "react-aria-components";
 
 import { Table, TableCard } from "@/components/application/table/table";
 import { Button } from "@/components/ui/button";
-import { IconShare3, IconListDetails, IconDownload, IconInfoCircle, IconFile, IconFolder, IconLoader2, IconX, IconGrid3x3 } from "@tabler/icons-react";
+import { IconShare3, IconListDetails, IconDownload, IconInfoCircle, IconFolder, IconX, IconGrid3x3 } from "@tabler/icons-react";
 import { ShareModal } from "@/components/modals/share-modal";
 import { DetailsModal } from "@/components/modals/details-modal";
 import { RenameModal } from "@/components/modals/rename-modal";
@@ -19,7 +19,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/base/checkbox/checkbox";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TableSkeleton } from "@/components/tables/table-skeleton";
 import { apiClient, ShareItem } from "@/lib/api";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -393,49 +393,14 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
 
     if (isLoading) {
         return (
-            <TableCard.Root size="sm">
-                <TableCard.Header
-                    title="My links"
-                    contentTrailing={
-                        <div className="absolute top-1 right-4 md:right-6 flex items-center gap-1">
-                            {renderHeaderIcons()}
-                        </div>
-                    }
-                    className="py-1 [&>div>h2]:text-base [&>div>h2]:font-medium h-12 flex-shrink-0 border-0"
-                />
-                <div className="flex items-center justify-center py-8">
-                    <div className="text-center space-y-4">
-                        <IconLoader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
-                        <p className="text-sm text-muted-foreground">Loading shares...</p>
-                        <div className="space-y-2 max-w-md mx-auto">
-                            <div className="flex items-center gap-2">
-                                <Skeleton className="h-4 w-4 rounded" />
-                                <Skeleton className="h-4 flex-1" />
-                                <Skeleton className="h-4 w-16" />
-                                <Skeleton className="h-4 w-12" />
-                                <Skeleton className="h-4 w-20" />
-                                <Skeleton className="h-4 w-20" />
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <Skeleton className="h-4 w-4 rounded" />
-                                <Skeleton className="h-4 flex-1" />
-                                <Skeleton className="h-4 w-16" />
-                                <Skeleton className="h-4 w-12" />
-                                <Skeleton className="h-4 w-20" />
-                                <Skeleton className="h-4 w-20" />
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <Skeleton className="h-4 w-4 rounded" />
-                                <Skeleton className="h-4 flex-1" />
-                                <Skeleton className="h-4 w-16" />
-                                <Skeleton className="h-4 w-12" />
-                                <Skeleton className="h-4 w-20" />
-                                <Skeleton className="h-4 w-20" />
-                            </div>
-                        </div>
+            <TableSkeleton
+                title="My links"
+                headerIcons={
+                    <div className="absolute top-1 right-4 md:right-6 flex items-center gap-1">
+                        {renderHeaderIcons()}
                     </div>
-                </div>
-            </TableCard.Root>
+                }
+            />
         );
     }
 
@@ -486,8 +451,8 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                         }
                     }}
                     >
-                        <Table.Header>
-                            <Table.Head className={`w-10 text-center pl-4 pr-0 transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 hover:opacity-100 focus-within:opacity-100"}`}>
+                        <Table.Header className="group">
+                            <Table.Head className={`w-10 text-center pl-4 pr-0 transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}>
                                 <Checkbox slot="selection" />
                             </Table.Head>
                             <Table.Head id="fileName" isRowHeader allowsSorting className={`w-full pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`} align="left">
