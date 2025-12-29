@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useCallback } from "react"
-import { X, ChevronLeft, ChevronRight, Download, Info, Share2 } from "lucide-react"
+import { X, ChevronLeft, ChevronRight, Download, Info, Share2, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { AudioPreview } from "./audio-preview"
@@ -34,6 +34,8 @@ interface FullPagePreviewModalProps {
     onDetails?: (file: PreviewFileItem) => void
     hasPrev: boolean
     hasNext: boolean
+    currentIndex?: number
+    totalItems?: number
 }
 
 export function FullPagePreviewModal({
@@ -45,15 +47,31 @@ export function FullPagePreviewModal({
     onShare,
     onDetails,
     hasPrev,
-    hasNext
+    hasNext,
+    currentIndex,
+    totalItems
 }: FullPagePreviewModalProps) {
-    const [isLoading, setIsLoading] = useState(false)
+    const [isLoading, setIsLoading] = useState(true)
     const [downloadProgress, setDownloadProgress] = useState<DownloadProgress | null>(null)
+
+    // Handle body scroll
+    useEffect(() => {
+        if (isOpen) {
+            document.body.style.overflow = 'hidden'
+        } else {
+            document.body.style.overflow = ''
+        }
+        return () => {
+            document.body.style.overflow = ''
+        }
+    }, [isOpen])
 
     // Reset state when file changes
     useEffect(() => {
-        setIsLoading(false)
-        setDownloadProgress(null)
+        if (file?.id) {
+            setIsLoading(true)
+            setDownloadProgress(null)
+        }
     }, [file?.id])
 
     // Handle keyboard navigation
@@ -89,8 +107,9 @@ export function FullPagePreviewModal({
         if (!file.mimeType) return <div className="text-muted-foreground">Preview not available</div>
 
         const commonProps = {
+            key: file.id, // Force remount on file change
             fileId: file.id,
-            filename: file.name, // Note: components expect 'filename' or 'fileName' depending on implementation, checking standard
+            filename: file.name,
             fileName: file.name,
             mimetype: file.mimeType,
             mimeType: file.mimeType,
@@ -134,9 +153,9 @@ export function FullPagePreviewModal({
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex flex-col bg-background/95 backdrop-blur-sm animate-in fade-in-0">
+        <div className="fixed inset-0 z-50 flex flex-col bg-background overflow-hidden animate-in fade-in-0">
             {/* Header */}
-            <div className="flex items-center justify-between px-4 h-16 border-b bg-background/50 backdrop-blur-md sticky top-0 z-10">
+            <div className="flex items-center justify-between px-4 h-16 border-b bg-background sticky top-0 z-10 shrink-0">
 
                 {/* Left: File Info */}
                 <div className="flex items-center gap-3 min-w-0 w-1/4">
@@ -164,8 +183,14 @@ export function FullPagePreviewModal({
                     >
                         <ChevronLeft className="h-6 w-6" />
                     </Button>
-                    <span className="text-sm text-muted-foreground w-16 text-center select-none">
-                        Navigate
+                    <span className="text-sm text-muted-foreground min-w-[100px] text-center select-none">
+                        {(currentIndex !== undefined && totalItems) ? (
+                            <>
+                                <span className="font-bold text-foreground">{currentIndex + 1}</span> of <span className="font-bold text-foreground">{totalItems}</span> items
+                            </>
+                        ) : (
+                            'Navigate'
+                        )}
                     </span>
                     <Button
                         variant="ghost"
@@ -220,8 +245,8 @@ export function FullPagePreviewModal({
             </div>
 
             {/* Main Content */}
-            <div className="flex-1 overflow-hidden relative bg-black/5 flex items-center justify-center p-4">
-                <div className="w-full h-full flex items-center justify-center max-w-7xl mx-auto shadow-2xl bg-white rounded-lg overflow-hidden border">
+            <div className="flex-1 overflow-hidden relative bg-background flex items-center justify-center">
+                <div className="w-full h-full flex items-center justify-center overflow-hidden">
                     {renderPreviewContent()}
                 </div>
             </div>

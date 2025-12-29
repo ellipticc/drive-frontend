@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useRef, useEffect, useCallback } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { DotsVertical } from "@untitledui/icons";
 import type { SortDescriptor, Selection } from "react-aria-components";
 import { Table, TableCard } from "@/components/application/table/table";
@@ -93,8 +93,8 @@ export const Table01DividerLineSm = ({
         startUploadWithFolders,
         startFileDownload,
         startFolderDownload,
-        startBulkDownload,
-        startPdfPreview
+
+        startBulkDownload
     } = useGlobalUpload();
 
     // Current folder context
@@ -175,42 +175,48 @@ export const Table01DividerLineSm = ({
     const [moveToTrashModalOpen, setMoveToTrashModalOpen] = useState(false);
     const [selectedItemForMoveToTrash] = useState<{ id: string; name: string; type: "file" | "folder" } | null>(null);
 
+    const searchParams = useSearchParams();
+
     // Preview modal state
     const [previewModalOpen, setPreviewModalOpen] = useState(false);
     const [selectedItemForPreview, setSelectedItemForPreview] = useState<{ id: string; name: string; mimeType?: string } | null>(null);
 
-    // Handle unified file preview
-    const handlePreviewClick = useCallback(async (itemId: string, itemName: string, mimeType?: string) => {
+    // Sync state with URL "preview" param
+    useEffect(() => {
+        const previewId = searchParams?.get('preview');
+        if (previewId) {
+            const file = filesMap.get(previewId);
+            if (file && file.type === 'file' && file.mimeType && canPreviewFile(file.mimeType)) {
+                setSelectedItemForPreview({ id: file.id, name: file.name, mimeType: file.mimeType });
+                setPreviewModalOpen(true);
+            } else {
+                if (files.length > 0 && !isLoading) {
+                    // Only show error if files are loaded and file is definitely missing/invalid
+                    // Avoiding race condition where files aren't loaded yet
+                    toast.error("File ID doesn't exist or cannot be previewed");
+                    // Remove invalid param
+                    const params = new URLSearchParams(searchParams.toString());
+                    params.delete('preview');
+                    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+                }
+            }
+        } else {
+            setPreviewModalOpen(false);
+            setSelectedItemForPreview(null);
+        }
+    }, [searchParams, filesMap, files, isLoading, pathname, router]);
+
+    // Update handlePreviewClick to use URL
+    const handlePreviewClick = useCallback((itemId: string, itemName: string, mimeType?: string) => {
         if (!mimeType || !canPreviewFile(mimeType)) {
             toast.error('This file type cannot be previewed');
             return;
         }
 
-        // Special handling for PDFs - use unified progress modal and auto-open in new tab
-        if (mimeType.includes('pdf')) {
-            const item = filesMap.get(itemId);
-            if (!item || !item.size) {
-                toast.error('File information not available');
-                return;
-            }
-
-            await startPdfPreview(itemId, itemName, item.size);
-            return;
-        }
-
-        // For all other file types, use the modal preview
-        // Prevent multiple preview modals
-        if (previewModalOpen) {
-            setPreviewModalOpen(false);
-            setTimeout(() => {
-                setSelectedItemForPreview({ id: itemId, name: itemName, mimeType });
-                setPreviewModalOpen(true);
-            }, 100);
-        } else {
-            setSelectedItemForPreview({ id: itemId, name: itemName, mimeType });
-            setPreviewModalOpen(true);
-        }
-    }, [previewModalOpen, setPreviewModalOpen, setSelectedItemForPreview, toast, filesMap, startPdfPreview]);
+        const params = new URLSearchParams(searchParams.toString());
+        params.set('preview', itemId);
+        router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    }, [pathname, router, searchParams]);
 
     // Hash copy animation state
     const [copiedHashId, setCopiedHashId] = useState<string | null>(null);
@@ -1244,13 +1250,12 @@ export const Table01DividerLineSm = ({
         // Ensure bounds
         if (newIndex >= 0 && newIndex < previewableFiles.length) {
             const newItem = previewableFiles[newIndex];
-            setSelectedItemForPreview({
-                id: newItem.id,
-                name: newItem.name,
-                mimeType: newItem.mimeType
-            });
+            // Update URL instead of local state
+            const params = new URLSearchParams(searchParams.toString());
+            params.set('preview', newItem.id);
+            router.push(`${pathname}?${params.toString()}`, { scroll: false });
         }
-    }, [selectedItemForPreview, getPreviewableFiles]);
+    }, [selectedItemForPreview, getPreviewableFiles, pathname, router, searchParams]);
 
     // Calculate if we have next/prev items
     const previewNavigationState = useMemo(() => {
@@ -2361,13 +2366,21 @@ export const Table01DividerLineSm = ({
                     })()
                 } : null}
                 isOpen={previewModalOpen}
-                onClose={() => setPreviewModalOpen(false)}
+                onClose={() => {
+                    setPreviewModalOpen(false);
+                    // Clear URL param
+                    const params = new URLSearchParams(searchParams.toString());
+                    params.delete('preview');
+                    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+                }}
                 onDownload={(file) => handleDownloadClick(file.id, file.name, 'file')}
                 onNavigate={handlePreviewNavigate}
                 onShare={(file) => handleShareClick(file.id, file.name, 'file')}
                 onDetails={(file) => handleDetailsClick(file.id, file.name, 'file')}
                 hasPrev={previewNavigationState.hasPrev}
                 hasNext={previewNavigationState.hasNext}
+                currentIndex={selectedItemForPreview ? getPreviewableFiles().findIndex(item => item.id === selectedItemForPreview.id) : -1}
+                totalItems={getPreviewableFiles().length}
             />
         </>
     );
