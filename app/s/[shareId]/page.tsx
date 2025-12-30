@@ -14,8 +14,7 @@ import { Label } from '@/components/ui/label';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { Loader2, Download, File, AlertCircle, FolderOpen, ChevronRight, Lock } from 'lucide-react';
-import { IconCaretLeftRightFilled, IconLogout, IconLock, IconEyeOff } from '@tabler/icons-react';
+import { IconLoader2, IconDownload, IconFile, IconAlertCircle, IconFolderOpen, IconChevronRight, IconLock, IconCaretLeftRightFilled, IconLogout, IconEyeOff } from '@tabler/icons-react';
 import {
   Avatar,
   AvatarFallback,
@@ -48,17 +47,17 @@ import { ImagePreview } from '@/components/previews/image-preview';
 import { TextPreview } from '@/components/previews/text-preview';
 import { PdfPreview } from '@/components/previews/pdf-preview';
 import { VideoPreview } from '@/components/previews/video-preview';
-
-// Helper to decrypt filename using share CEK
-
+import { CommentSection } from '@/components/shared/comment-section';
 
 interface ShareDetails {
   id: string;
   file_id: string;
   folder_id?: string;
+  owner_user_id?: string;
   is_folder: boolean;
   has_password: boolean;
   salt_pw?: string;
+  comments_enabled?: boolean;
   expires_at?: string;
   max_views?: number;
   views: number;
@@ -143,6 +142,7 @@ export default function SharedDownloadPage() {
   const [userSession, setUserSession] = useState<{ id: string; name: string; email: string; avatar: string } | null>(null);
   const [checkingSession, setCheckingSession] = useState(true);
   const [sharePasswordCEK, setSharePasswordCEK] = useState<Uint8Array | null>(null); // Store CEK from password verification
+  const [shareCek, setShareCek] = useState<Uint8Array | null>(null);
 
   // Preview State
   const [previewFile, setPreviewFile] = useState<PreviewFileItem & { blobUrl: string } | null>(null);
@@ -443,7 +443,63 @@ export default function SharedDownloadPage() {
     if (shareId) {
       initializeIngestSession();
     }
-  }, [shareId]); useEffect(() => {
+  }, [shareId]);
+
+  // Get Share CEK from URL hash or password-protected wrapper
+  const getShareCEK = useCallback(async (): Promise<Uint8Array> => {
+    if (!shareDetails) {
+      throw new Error('Share details not loaded');
+    }
+
+    // If password-protected and already verified, use the stored CEK
+    if (shareDetails.has_password && sharePasswordCEK) {
+      return sharePasswordCEK;
+    }
+
+    // Try to extract from URL hash
+    if (typeof window !== 'undefined') {
+      const urlFragment = window.location.hash.substring(1);
+      if (urlFragment) {
+        try {
+          return new Uint8Array(atob(urlFragment).split('').map(c => c.charCodeAt(0)));
+        } catch (err) {
+          console.warn('Failed to decode CEK from hash:', err);
+        }
+      }
+    }
+
+    if (shareDetails.has_password) {
+      throw new Error('Password verification required');
+    }
+
+    throw new Error('Share encryption key not found in URL');
+  }, [shareDetails, sharePasswordCEK]);
+
+  const handleVerifyPassword = async () => {
+    if (!shareDetails || !password) return;
+
+    setVerifyingPassword(true);
+    setPasswordError(null);
+
+    try {
+      if (!shareDetails.salt_pw) {
+        throw new Error('Password data not available');
+      }
+
+      // Verify password and get decrypted CEK using helper
+      const shareCekFromPw = await verifySharePassword(password, shareDetails.salt_pw);
+
+      // Store the CEK for later use in manifest decryption
+      setSharePasswordCEK(shareCekFromPw);
+      setPasswordVerified(true);
+    } catch {
+      setPasswordError('Incorrect password. Please try again.');
+    } finally {
+      setVerifyingPassword(false);
+    }
+  };
+
+  useEffect(() => {
     if (shareDetails && passwordVerified) {
       // Load manifest
       loadManifestAndInitialize();
@@ -482,62 +538,17 @@ export default function SharedDownloadPage() {
       };
 
       decryptFilenameIfNeeded();
+
+      // Initialize shareCek state for components like CommentSection
+      getShareCEK().then(setShareCek).catch(err => {
+        console.warn('Failed to initialize shareCek:', err);
+      });
     }
-  }, [shareDetails, passwordVerified]);
+  }, [shareDetails, passwordVerified, getShareCEK]);
 
-  const handleVerifyPassword = async () => {
-    if (!shareDetails || !password) return;
 
-    setVerifyingPassword(true);
-    setPasswordError(null);
 
-    try {
-      if (!shareDetails.salt_pw) {
-        throw new Error('Password data not available');
-      }
 
-      // Verify password and get decrypted CEK using helper
-      const shareCek = await verifySharePassword(password, shareDetails.salt_pw);
-
-      // Store the CEK for later use in manifest decryption
-      setSharePasswordCEK(shareCek);
-      setPasswordVerified(true);
-    } catch {
-      setPasswordError('Incorrect password. Please try again.');
-    } finally {
-      setVerifyingPassword(false);
-    }
-  };
-
-  // Get Share CEK from URL hash or password-protected wrapper
-  const getShareCEK = useCallback(async (): Promise<Uint8Array> => {
-    if (!shareDetails) {
-      throw new Error('Share details not loaded');
-    }
-
-    // If password-protected and already verified, use the stored CEK
-    if (shareDetails.has_password && sharePasswordCEK) {
-      return sharePasswordCEK;
-    }
-
-    // Try to extract from URL hash
-    if (typeof window !== 'undefined') {
-      const urlFragment = window.location.hash.substring(1);
-      if (urlFragment) {
-        try {
-          return new Uint8Array(atob(urlFragment).split('').map(c => c.charCodeAt(0)));
-        } catch (err) {
-          console.warn('Failed to decode CEK from hash:', err);
-        }
-      }
-    }
-
-    if (shareDetails.has_password) {
-      throw new Error('Password verification required');
-    }
-
-    throw new Error('Share encryption key not found in URL');
-  }, [shareDetails, sharePasswordCEK]);
 
 
 
@@ -870,7 +881,7 @@ export default function SharedDownloadPage() {
         </header>
         <div className="flex items-center justify-center py-16">
           <div className="text-center">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+            <IconLoader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
             <p className="text-muted-foreground">Loading share details...</p>
           </div>
         </div>
@@ -949,12 +960,12 @@ export default function SharedDownloadPage() {
         <div className="flex items-center justify-center py-16 px-4">
           <Card className="w-full max-w-md">
             <CardHeader className="text-center">
-              <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+              <IconAlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
               <CardTitle className="text-destructive">Share Unavailable</CardTitle>
             </CardHeader>
             <CardContent>
               <Alert>
-                <AlertCircle className="h-4 w-4" />
+                <IconAlertCircle className="h-4 w-4" />
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
               <Button
@@ -1057,7 +1068,7 @@ export default function SharedDownloadPage() {
           {shareDetails.has_password && !passwordVerified ? (
             <>
               <CardHeader className="text-center">
-                <Lock className="h-12 w-12 text-primary mx-auto mb-4" />
+                <IconLock className="h-12 w-12 text-primary mx-auto mb-4" />
                 <CardTitle>Password Required</CardTitle>
                 <CardDescription>Enter the password to access this share</CardDescription>
               </CardHeader>
@@ -1080,7 +1091,7 @@ export default function SharedDownloadPage() {
                 >
                   {verifyingPassword ? (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
                       Verifying...
                     </>
                   ) : (
@@ -1089,7 +1100,7 @@ export default function SharedDownloadPage() {
                 </Button>
                 {passwordError && (
                   <Alert>
-                    <AlertCircle className="h-4 w-4" />
+                    <IconAlertCircle className="h-4 w-4" />
                     <AlertDescription>{passwordError}</AlertDescription>
                   </Alert>
                 )}
@@ -1101,7 +1112,7 @@ export default function SharedDownloadPage() {
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3 flex-1">
                     <div className="p-2 rounded-lg bg-muted">
-                      <FolderOpen className="h-6 w-6 text-muted-foreground" />
+                      <IconFolderOpen className="h-6 w-6 text-muted-foreground" />
                     </div>
                     <div className="min-w-0 flex-1 flex flex-row items-center justify-between gap-4">
                       <div>
@@ -1117,9 +1128,9 @@ export default function SharedDownloadPage() {
                         disabled={downloading || !!downloadProgress}
                       >
                         {downloading && (currentFolderId === shareDetails.folder!.id || (!currentFolderId)) ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          <IconLoader2 className="mr-2 h-4 w-4 animate-spin" />
                         ) : (
-                          <Download className="mr-2 h-4 w-4" />
+                          <IconDownload className="mr-2 h-4 w-4" />
                         )}
                         Download as ZIP
                       </Button>
@@ -1161,12 +1172,12 @@ export default function SharedDownloadPage() {
                 <div className="divide-y">
                   {Object.keys(manifest).length === 0 ? (
                     <div className="text-center py-16 px-6">
-                      <Loader2 className="h-8 w-8 text-muted-foreground mx-auto mb-3 animate-spin" />
+                      <IconLoader2 className="h-8 w-8 text-muted-foreground mx-auto mb-3 animate-spin" />
                       <p className="text-muted-foreground">Loading folder contents...</p>
                     </div>
                   ) : currentFolderContents.folders.length === 0 && currentFolderContents.files.length === 0 ? (
                     <div className="text-center py-16 px-6">
-                      <FolderOpen className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
+                      <IconFolderOpen className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
                       <p className="text-muted-foreground">This folder is empty</p>
                     </div>
                   ) : (
@@ -1189,7 +1200,7 @@ export default function SharedDownloadPage() {
                               className="w-full grid grid-cols-12 gap-4 px-6 py-3 hover:bg-accent transition-colors items-center group text-left"
                             >
                               <div className="col-span-6 flex items-center gap-3 min-w-0">
-                                <FolderOpen className="h-4 w-4 text-muted-foreground flex-shrink-0 group-hover:scale-110 transition-transform" />
+                                <IconFolderOpen className="h-4 w-4 text-muted-foreground flex-shrink-0 group-hover:scale-110 transition-transform" />
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <span className="truncate font-medium text-foreground">{truncateFilename(folder.name)}</span>
@@ -1202,7 +1213,7 @@ export default function SharedDownloadPage() {
                               </div>
                               <div className="col-span-2 text-sm text-muted-foreground text-right">-</div>
                               <div className="col-span-1 flex justify-center">
-                                <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:translate-x-1 transition-transform" />
+                                <IconChevronRight className="h-4 w-4 text-muted-foreground group-hover:translate-x-1 transition-transform" />
                               </div>
                             </button>
                           ))}
@@ -1219,7 +1230,7 @@ export default function SharedDownloadPage() {
                               onClick={() => handlePreviewFile(file.id, file.name)}
                             >
                               <div className="col-span-6 flex items-center gap-3 min-w-0">
-                                <File className="h-4 w-4 text-muted-foreground flex-shrink-0 group-hover:scale-110 transition-transform" />
+                                <IconFile className="h-4 w-4 text-muted-foreground flex-shrink-0 group-hover:scale-110 transition-transform" />
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <span className="truncate font-medium text-foreground">{truncateFilename(file.name)}</span>
@@ -1243,7 +1254,7 @@ export default function SharedDownloadPage() {
                                     handleDownloadFile(file.id, file.name);
                                   }}
                                 >
-                                  <Download className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+                                  <IconDownload className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
                                 </Button>
                               </div>
                             </div>
@@ -1257,7 +1268,7 @@ export default function SharedDownloadPage() {
                 {error && (
                   <div className="px-6 py-4">
                     <Alert>
-                      <AlertCircle className="h-4 w-4" />
+                      <IconAlertCircle className="h-4 w-4" />
                       <AlertDescription>{error}</AlertDescription>
                     </Alert>
                   </div>
@@ -1285,11 +1296,11 @@ export default function SharedDownloadPage() {
                   >
                     {downloadingType === 'header' ? (
                       <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Downloading...
+                        <IconLoader2 className="mr-2 h-4 w-4 animate-spin" /> Downloading...
                       </>
                     ) : (
                       <>
-                        <Download className="mr-2 h-4 w-4" /> Download
+                        <IconDownload className="mr-2 h-4 w-4" /> Download
                       </>
                     )}
                   </Button>
@@ -1298,7 +1309,7 @@ export default function SharedDownloadPage() {
               <CardContent className="flex-1 flex flex-col items-center justify-center p-0">
                 {(shareDetails.file?.size && shareDetails.file.size > 100 * 1024 * 1024) ? (
                   <div className="flex flex-col items-center justify-center gap-4 text-center p-8">
-                    <AlertCircle className="h-12 w-12 text-muted-foreground opacity-50" />
+                    <IconAlertCircle className="h-12 w-12 text-muted-foreground opacity-50" />
                     <div className="space-y-1">
                       <p className="font-medium">Preview not available</p>
                       <p className="text-sm text-muted-foreground">File is too large to preview (&gt;100MB)</p>
@@ -1357,7 +1368,7 @@ export default function SharedDownloadPage() {
                   <div className="flex-1 flex flex-col items-center justify-center gap-8 p-8 w-full">
                     <div className="flex flex-col items-center justify-center gap-6 text-center max-w-2xl mx-auto">
                       <div className="relative">
-                        <File className="h-24 w-24 text-muted-foreground/20 fill-muted/10" strokeWidth={1.5} />
+                        <IconFile className="h-24 w-24 text-muted-foreground/20 fill-muted/10" strokeWidth={1.5} />
                         <div className="absolute -bottom-2 -right-2 bg-background rounded-full p-1">
                           <IconEyeOff className="h-10 w-10 text-muted-foreground/60" strokeWidth={2} />
                         </div>
@@ -1374,7 +1385,7 @@ export default function SharedDownloadPage() {
                       >
                         {downloadingType === 'center' ? (
                           <>
-                            <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Downloading...
+                            <IconLoader2 className="mr-2 h-5 w-5 animate-spin" /> Downloading...
                           </>
                         ) : (
                           <>
@@ -1386,7 +1397,7 @@ export default function SharedDownloadPage() {
 
                     {error && (
                       <Alert variant="destructive" className="max-w-md mt-6 rounded-lg border-2">
-                        <AlertCircle className="h-4 w-4" />
+                        <IconAlertCircle className="h-4 w-4" />
                         <AlertDescription className="text-sm font-medium">{error}</AlertDescription>
                       </Alert>
                     )}
@@ -1492,6 +1503,17 @@ export default function SharedDownloadPage() {
             a.click();
             document.body.removeChild(a);
           }}
+        />
+      )}
+
+      {/* Comment Section - Floating button bottom right */}
+      {shareDetails && shareDetails.comments_enabled !== false && (
+        <CommentSection
+          shareId={shareId as string}
+          shareCek={shareCek || undefined}
+          currentUser={userSession ? { id: userSession.id, name: userSession.name, avatar: userSession.avatar || '' } : null}
+          isOwner={!!userSession && userSession.id === shareDetails?.owner_user_id}
+          className="fixed bottom-4 right-4 z-50"
         />
       )}
     </div>

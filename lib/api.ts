@@ -276,6 +276,29 @@ export interface ShareItem {
     revokedAt?: string;
   }>;
   has_password: boolean;
+  comments_enabled?: boolean;
+}
+
+export interface ShareComment {
+  id: string;
+  shareId: string;
+  userId: string;
+  parentId: string | null;
+  content: string; // Encrypted (base64)
+  createdAt: string;
+  updatedAt: string;
+  userName: string;
+  avatarUrl: string;
+}
+
+export interface ShareCommentsResponse {
+  comments: ShareComment[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
 }
 
 export interface Referral {
@@ -1275,6 +1298,7 @@ class ApiClient {
     expires_at?: string;
     max_views?: number;
     permissions?: string;
+    comments_enabled?: boolean;
     kyber_ciphertext?: string;
     kyber_public_key?: string;
     kyber_wrapped_cek?: string;
@@ -2287,6 +2311,80 @@ class ApiClient {
     });
   }
 
+  // Share comment endpoints
+  async getShareComments(shareId: string, page = 1, limit = 20): Promise<ApiResponse<ShareCommentsResponse>> {
+    return this.request(`/shares/${shareId}/comments?page=${page}&limit=${limit}`);
+  }
+
+  async addShareComment(shareId: string, data: {
+    content: string;
+    parentId?: string | null;
+  }): Promise<ApiResponse<{ success: boolean; comment: ShareComment }>> {
+    const idempotencyKey = generateIdempotencyKey('addShareComment', `${shareId}:${Date.now()}`);
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request(`/shares/${shareId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers,
+    });
+  }
+
+  async updateShareComment(shareId: string, commentId: string, data: {
+    content: string;
+  }): Promise<ApiResponse<{ success: boolean; message: string }>> {
+    const idempotencyKey = generateIdempotencyKey('updateShareComment', commentId);
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request(`/shares/${shareId}/comments/${commentId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+      headers,
+    });
+  }
+
+  async deleteShareComment(shareId: string, commentId: string): Promise<ApiResponse<{ success: boolean; message: string }>> {
+    const idempotencyKey = generateIdempotencyKey('deleteShareComment', commentId);
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request(`/shares/${shareId}/comments/${commentId}`, {
+      method: 'DELETE',
+      headers,
+    });
+  }
+
+  async getShareCommentCount(shareId: string): Promise<ApiResponse<{ count: number }>> {
+    return this.request(`/shares/${shareId}/comments/count`);
+  }
+
+  async updateShareSettings(shareId: string, settings: {
+    comments_enabled?: boolean;
+  }): Promise<ApiResponse<{ success: boolean; message: string }>> {
+    return this.request(`/shares/${shareId}/settings`, {
+      method: 'PATCH',
+      body: JSON.stringify(settings),
+    });
+  }
+
+  // SIWE (Sign-In with Ethereum) endpoints
+  async getSIWENonce(): Promise<{ nonce: string }> {
+    const response = await this.request<{ nonce: string }>('/auth/siwe/nonce');
+    if (!response.success || !response.data) {
+      throw new Error(response.error || 'Failed to get SIWE nonce');
+    }
+    return response.data;
+  }
+
+  async verifySIWE(data: {
+    message: string;
+    signature: string;
+    address: string;
+  }): Promise<ApiResponse<{
+    token: string;
+    user: UserData;
+  }>> {
+    return this.request('/auth/siwe/verify', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);
