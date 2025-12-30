@@ -4,10 +4,10 @@ import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { toast } from "sonner"
 import Image from "next/image"
 import {
-  Shield,
-  RotateCcwKeyIcon,
-  ShieldUser
-} from "lucide-react"
+  IconShield as Shield,
+  IconRefresh as RotateCcwKeyIcon,
+  IconUserShield as ShieldUser
+} from "@tabler/icons-react"
 
 import { Button } from "@/components/ui/button"
 import {

@@ -11,7 +11,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Copy, Eye, EyeOff, AlertTriangle, Download } from "lucide-react"
+import {
+  IconCopy as Copy,
+  IconEye as Eye,
+  IconEyeOff as EyeOff,
+  IconAlertTriangle as AlertTriangle,
+  IconDownload as Download
+} from "@tabler/icons-react"
 import { IconCaretLeftRightFilled } from "@tabler/icons-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { FieldDescription } from "@/components/ui/field"
@@ -25,7 +31,7 @@ export default function BackupPage() {
 
   useEffect(() => {
     document.title = "Backup Recovery Phrase - Ellipticc Drive"
-    
+
     // Check if mnemonic was loaded from localStorage
     if (!mnemonic) {
       // Check if user is authenticated (has auth token)
@@ -86,7 +92,7 @@ export default function BackupPage() {
         </Link>
         <ThemeToggle />
       </div>
-      
+
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">Save Your Recovery Phrase</CardTitle>

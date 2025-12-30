@@ -23,8 +23,7 @@ import { useState, useEffect } from "react"
 import { apiClient } from "@/lib/api"
 import { masterKeyManager } from "@/lib/master-key"
 import { keyManager } from "@/lib/key-manager"
-import { Loader2 } from "lucide-react"
-import { IconCloudLock } from '@tabler/icons-react';
+import { IconLoader2 as Loader2, IconCloudLock } from "@tabler/icons-react"
 import { sessionTrackingUtils } from "@/hooks/useSessionTracking"
 
 export function TOTPLoginForm({
@@ -132,9 +131,9 @@ export function TOTPLoginForm({
             await keyManager.initialize(userData)
           } catch (keyManagerError) {
             if (keyManagerError instanceof Error &&
-                (keyManagerError.message.includes('Corrupted') ||
-                 keyManagerError.message.includes('corrupted') ||
-                 keyManagerError.message.includes('Invalid'))) {
+              (keyManagerError.message.includes('Corrupted') ||
+                keyManagerError.message.includes('corrupted') ||
+                keyManagerError.message.includes('Invalid'))) {
               keyManager.forceClearStorage()
 
               try {

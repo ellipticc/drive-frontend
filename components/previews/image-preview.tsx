@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Loader2, ZoomIn, ZoomOut, Image as ImageIcon, AlertCircle } from "lucide-react"
+import { IconLoader2 as Loader2, IconZoomIn as ZoomIn, IconZoomOut as ZoomOut, IconPhoto as ImageIcon, IconAlertCircle as AlertCircle } from "@tabler/icons-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { downloadEncryptedFileWithCEK, downloadEncryptedFile, DownloadProgress } from "@/lib/download"

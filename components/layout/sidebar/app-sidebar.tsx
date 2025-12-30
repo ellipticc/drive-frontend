@@ -10,6 +10,7 @@ import {
   IconSettings,
   IconTrash,
   IconUsers,
+  IconDatabaseImport,
 } from "@tabler/icons-react"
 
 import { NavMain } from "@/components/layout/navigation/nav-main"
@@ -145,8 +146,8 @@ const defaultNavSecondary = [
   },
 ] */
 
-export const AppSidebar = React.memo(function AppSidebar({ 
-  ...props 
+export const AppSidebar = React.memo(function AppSidebar({
+  ...props
 }: React.ComponentProps<typeof Sidebar>) {
   const { state } = useSidebar()
   const router = useRouter()
@@ -216,7 +217,7 @@ export const AppSidebar = React.memo(function AppSidebar({
       }
 
       setIsAuthenticated(true)
-      
+
       // Update storage if available from context user
       if (contextUser?.storage) {
         setStorage(contextUser.storage)
@@ -290,6 +291,7 @@ export const AppSidebar = React.memo(function AppSidebar({
                 router.push('/billing')
               }}
             >
+              <IconDatabaseImport className="size-4" />
               Get more storage
             </Button>
           </div>

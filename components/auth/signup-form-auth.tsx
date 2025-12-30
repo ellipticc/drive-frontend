@@ -15,7 +15,7 @@ import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useState, useEffect } from "react"
 import { apiClient } from "@/lib/api"
-import { Loader2 } from "lucide-react"
+import { IconAlertCircle as AlertCircle, IconLoader2 as Loader2 } from "@tabler/icons-react"
 import { SIWELoginButton } from "./siwe-login-button"
 import { GoogleOAuthButton } from "./google-oauth-button"
 import { sessionTrackingUtils } from "@/hooks/useSessionTracking"
@@ -99,8 +99,8 @@ export function SignupFormAuth({
       }
 
       // Import crypto functions
-      const { 
-        generateAllKeypairs, 
+      const {
+        generateAllKeypairs,
         deriveRecoveryKeyEncryptionKey,
         generateRecoveryKey,
         encryptRecoveryKey,
@@ -110,49 +110,49 @@ export function SignupFormAuth({
         generateMasterKeyVerificationHash
       } = await import("@/lib/crypto")
       const { OPAQUE } = await import("@/lib/opaque")
-      
+
       // Generate a random account salt (32 bytes) in hex format
       // This salt is used for PBKDF2 key derivation and is deterministic per user
       const tempAccountSalt = crypto.getRandomValues(new Uint8Array(32))
       const tempAccountSaltHex = Array.from(tempAccountSalt)
         .map(b => b.toString(16).padStart(2, '0'))
         .join('')
-      
+
       // Generate keypairs using the hex salt
       const keypairs = await generateAllKeypairs(formData.password, tempAccountSaltHex)
-      
+
       // The mnemonic is already generated in generateAllKeypairs
       const mnemonic = keypairs.mnemonic
       const mnemonicHash = keypairs.mnemonicHash
-      
+
       // Derive RKEK (Recovery Key Encryption Key) from mnemonic
       const rkek = await deriveRecoveryKeyEncryptionKey(mnemonic)
-      
+
       // Generate a random Recovery Key (RK)
       const rk = generateRecoveryKey()
-      
+
       // Encrypt the RK with RKEK
       const recoveryKeyEncryption = encryptRecoveryKey(rk, rkek)
       const encryptedRecoveryKey = recoveryKeyEncryption.encryptedRecoveryKey
       const recoveryKeyNonce = recoveryKeyEncryption.recoveryKeyNonce
-      
+
       // Derive the Master Key from password (same as regular login)
       const masterKey = await deriveEncryptionKey(formData.password, tempAccountSaltHex)
-      
+
       // Encrypt the Master Key with the Recovery Key
       const masterKeyEncryption = encryptMasterKeyWithRecoveryKey(masterKey, rk)
       const encryptedMasterKey = masterKeyEncryption.encryptedMasterKey
       const masterKeyNonce = masterKeyEncryption.masterKeyNonce
-      
+
       // CRITICAL: Also encrypt Master Key with password-derived key
       // This allows login with password to decrypt Master Key (password-based path)
       const newPasswordDerivedKey = await deriveEncryptionKey(formData.password, tempAccountSaltHex)
       const { encryptedData: encryptedMasterKeyPassword, nonce: masterKeyPasswordNonce } = encryptData(masterKey, newPasswordDerivedKey)
-      
+
       // Generate Master Key verification hash for integrity validation
       // This allows detection of silent decryption failures or data corruption
       const masterKeyVerificationHash = await generateMasterKeyVerificationHash(masterKey)
-      
+
       // Prepare master key salt for storage (JSON stringified with the nonce)
       const masterKeySalt = JSON.stringify({
         salt: tempAccountSaltHex,
@@ -199,7 +199,7 @@ export function SignupFormAuth({
       try {
         // Retrieve referral code from sessionStorage if it exists
         const referralCode = sessionStorage.getItem('referral_code')
-        
+
         const cryptoSetupResponse = await apiClient.storeCryptoKeypairs({
           userId,
           accountSalt: tempAccountSaltHex,  // Store as HEX, not base64

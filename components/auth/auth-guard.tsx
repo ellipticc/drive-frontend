@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useState, useRef } from "react";
 import { usePathname } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { IconLoader2 as Loader2 } from "@tabler/icons-react";
 import { apiClient } from "@/lib/api";
 import { masterKeyManager } from "@/lib/master-key";
 import { SessionManager } from "@/lib/session-manager";
@@ -53,7 +53,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
     // For private routes, check if token exists and is valid
     const token = apiClient.getAuthToken();
     const isTokenValid = SessionManager.isTokenValid();
-    
+
     // CRITICAL: If token exists, also check that it's not an incomplete OAuth token
     // An incomplete OAuth token has account_salt not yet set on backend
     if (token && isTokenValid && !isIncompleteOAuthToken()) {
@@ -65,12 +65,12 @@ export function AuthGuard({ children }: AuthGuardProps) {
       const isSessionStorage = !!sessionToken && !localToken;
       const storage = isSessionStorage ? sessionStorage : localStorage;
       masterKeyManager.setStorage(storage);
-      
+
       hasCheckedAuthRef.current = true;
       requestAnimationFrame(() => setIsAuthenticated(true));
       return;
     }
-    
+
     if (!token || !isTokenValid || isIncompleteOAuthToken()) {
       // No token or token expired or incomplete OAuth token
       // Redirect immediately using window.location for instant navigation

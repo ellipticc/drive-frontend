@@ -1,16 +1,16 @@
 import {
-    FileText,
-    FileImage,
-    FileVideo,
-    FileAudio,
-    FileArchive,
-    FileCode,
-    FileSpreadsheet,
-    FileIcon as FileGeneric,
-    FileType2, // Doc
-    FileJson,
-    Database, // SQL/DB
-} from "lucide-react"
+    IconFileText as FileText,
+    IconPhoto as FileImage,
+    IconMovie as FileVideo,
+    IconMusic as FileAudio,
+    IconZip as FileArchive,
+    IconFileCode as FileCode,
+    IconFileTypeXls as FileSpreadsheet,
+    IconFile as FileGeneric,
+    IconFileDescription as FileType2,
+    IconFileTypeJs as FileJson,
+    IconDatabase as Database,
+} from "@tabler/icons-react"
 import { cn } from "@/lib/utils"
 
 interface FileIconProps {

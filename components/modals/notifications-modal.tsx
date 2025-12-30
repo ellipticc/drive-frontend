@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react"
 import { formatDistanceToNow } from "date-fns"
-import { Loader2 } from "lucide-react"
 import {
   IconBell,
   IconCheck,
@@ -14,7 +13,8 @@ import {
   IconLogin,
   IconUserCheck,
   IconFileText,
-  IconCreditCard
+  IconCreditCard,
+  IconLoader2 as Loader2
 } from "@tabler/icons-react"
 
 import {
@@ -230,8 +230,8 @@ export function NotificationsModal({ open, onOpenChange }: NotificationsModalPro
               {notifications.map((notification, index) => (
                 <div key={notification.id}>
                   <div className={`p-4 rounded-lg border transition-colors ${!notification.read_at
-                      ? 'bg-muted/50 border-primary/20'
-                      : 'bg-background border-border'
+                    ? 'bg-muted/50 border-primary/20'
+                    : 'bg-background border-border'
                     }`}>
                     <div className="flex items-start gap-3">
                       <div className="flex-shrink-0">

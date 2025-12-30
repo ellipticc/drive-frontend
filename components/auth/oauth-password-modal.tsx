@@ -15,12 +15,12 @@ import {
   FieldGroup,
   FieldLabel,
 } from '@/components/ui/field';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import { IconAlertCircle as AlertCircle, IconLoader2 as Loader2 } from "@tabler/icons-react"
 import { apiClient } from '@/lib/api';
 import { masterKeyManager } from '@/lib/master-key';
-import { 
-  deriveEncryptionKey, 
-  encryptMasterKeyWithRecoveryKey, 
+import {
+  deriveEncryptionKey,
+  encryptMasterKeyWithRecoveryKey,
   deriveRecoveryKeyEncryptionKey,
   generateRecoveryKey,
   encryptRecoveryKey,
@@ -58,18 +58,18 @@ export function OAuthPasswordModal({
     const checkUserStatus = async () => {
       try {
         const profileResponse = await apiClient.getProfile();
-        
+
         if (profileResponse.success && profileResponse.data?.user) {
           const user = profileResponse.data.user;
           const userIsNew = !user.account_salt || user.account_salt === 'pending_oauth_setup' || user.account_salt === '';
-          
-          console.log('OAuth Modal - Initial user check:', { 
+
+          console.log('OAuth Modal - Initial user check:', {
             email: user.email,
             hasAccountSalt: !!user.account_salt,
             accountSalt: user.account_salt?.substring(0, 20) + '...',
-            isNew: userIsNew 
+            isNew: userIsNew
           });
-          
+
           setIsNewUser(userIsNew);
         }
       } catch (err) {
@@ -86,7 +86,7 @@ export function OAuthPasswordModal({
 
   // For new user: both passwords must match and be 8+ chars
   // For existing user: just need to enter the password
-  const isPasswordValid = isNewUser 
+  const isPasswordValid = isNewUser
     ? password.length >= 8 && password === confirmPassword
     : password.length > 0;
 
@@ -181,21 +181,21 @@ export function OAuthPasswordModal({
         kyberEncryptionKey: allKeypairs.pqcKeypairs.kyber.encryptionKey,
         kyberEncryptionNonce: allKeypairs.pqcKeypairs.kyber.encryptionNonce,
         kyberPrivateKeyNonce: allKeypairs.pqcKeypairs.kyber.privateKeyNonce,
-        
+
         // X25519 keypair
         x25519PublicKey: allKeypairs.pqcKeypairs.x25519.publicKey,
         x25519PrivateKeyEncrypted: allKeypairs.pqcKeypairs.x25519.encryptedPrivateKey,
         x25519EncryptionKey: allKeypairs.pqcKeypairs.x25519.encryptionKey,
         x25519EncryptionNonce: allKeypairs.pqcKeypairs.x25519.encryptionNonce,
         x25519PrivateKeyNonce: allKeypairs.pqcKeypairs.x25519.privateKeyNonce,
-        
+
         // Dilithium keypair
         dilithiumPublicKey: allKeypairs.pqcKeypairs.dilithium.publicKey,
         dilithiumPrivateKeyEncrypted: allKeypairs.pqcKeypairs.dilithium.encryptedPrivateKey,
         dilithiumEncryptionKey: allKeypairs.pqcKeypairs.dilithium.encryptionKey,
         dilithiumEncryptionNonce: allKeypairs.pqcKeypairs.dilithium.encryptionNonce,
         dilithiumPrivateKeyNonce: allKeypairs.pqcKeypairs.dilithium.privateKeyNonce,
-        
+
         // Ed25519 keypair
         ed25519PublicKey: allKeypairs.pqcKeypairs.ed25519.publicKey,
         ed25519PrivateKeyEncrypted: allKeypairs.pqcKeypairs.ed25519.encryptedPrivateKey,
@@ -224,10 +224,10 @@ export function OAuthPasswordModal({
 
       if (response.success) {
         console.log('OAuth Setup - backend registration complete, redirecting to dashboard');
-        
+
         // Get the token from sessionStorage (not from apiClient.getAuthToken() which returns null during OAuth setup)
         const token = sessionStorage.getItem('oauth_temp_token');
-        
+
         // Store token in localStorage BEFORE clearing OAuth setup flags
         // This ensures AuthGuard can see the token after the page reloads
         if (token) {
@@ -236,13 +236,13 @@ export function OAuthPasswordModal({
           // Also set via apiClient so it can find the token
           apiClient.setAuthToken(token);
         }
-        
+
         // Clear OAuth setup state - registration is complete
         // Do this AFTER storing the token so AuthGuard won't reject it
         sessionStorage.removeItem('oauth_temp_token');
         sessionStorage.removeItem('oauth_setup_in_progress');
         sessionStorage.removeItem('oauth_user_id');
-        
+
         // Redirect to dashboard directly (no backup page for OAuth users)
         router.push('/');
       } else {
@@ -260,17 +260,17 @@ export function OAuthPasswordModal({
     try {
       // Fetch user data which includes encrypted_master_key and master_key_salt
       const profileResponse = await apiClient.getProfile();
-      
+
       if (!profileResponse.success || !profileResponse.data) {
         setError('Failed to fetch user data');
         return;
       }
 
       const user = profileResponse.data.user;
-      
+
       // Get account_salt - it might be at user.account_salt or inside crypto_keypairs
       const accountSalt = user.account_salt || user.crypto_keypairs?.accountSalt;
-      
+
       // Log the full structure for debugging
       const pqcKeypairs = user.crypto_keypairs?.pqcKeypairs;
       console.log('OAuth Existing User Login - Full Response:', {
@@ -316,7 +316,7 @@ export function OAuthPasswordModal({
 
       // Derive master key from password and stored account salt
       const masterKey = await deriveEncryptionKey(password, accountSalt);
-      
+
       console.log('OAuth Login - Master key derived');
 
       // Validate that the derived master key can actually decrypt the user's data
@@ -325,19 +325,19 @@ export function OAuthPasswordModal({
       try {
         // Temporarily cache the master key so decryptUserPrivateKeys can access it
         masterKeyManager.cacheExistingMasterKey(masterKey, accountSalt);
-        
+
         // Attempt to decrypt one of the user's private keys to validate the password
         // This will throw an error if the password is incorrect
         await decryptUserPrivateKeys(user as Parameters<typeof decryptUserPrivateKeys>[0]);
-        
+
         console.log('OAuth Login - Password validation successful! Decryption works.');
       } catch (validationError) {
         // Clear the cached master key since password validation failed
         masterKeyManager.clearMasterKey();
-        
+
         const errorMsg = validationError instanceof Error ? validationError.message : 'Password validation failed';
         console.error('OAuth Login - Password validation failed:', errorMsg);
-        
+
         // Show user-friendly error message
         setError('The password you entered is incorrect. Please try again.');
         return;
@@ -368,7 +368,7 @@ export function OAuthPasswordModal({
 
       // Clear session tracking after successful login
       sessionTrackingUtils.clearSession();
-      
+
       // Get the token before clearing OAuth setup state
       const token = sessionStorage.getItem('oauth_temp_token');
 
@@ -400,9 +400,9 @@ export function OAuthPasswordModal({
       <CardHeader>
         <CardTitle>Enter Your Password</CardTitle>
         <CardDescription>
-          {isChecking 
+          {isChecking
             ? 'Checking your account...'
-            : isNewUser 
+            : isNewUser
               ? 'Set a password to secure your account'
               : 'Enter your password to continue'
           }
@@ -434,46 +434,46 @@ export function OAuthPasswordModal({
                 />
               </FieldGroup>
 
-          <FieldGroup>
-            <FieldLabel>Password</FieldLabel>
-            <PasswordInput
-              placeholder="Enter your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={isLoading}
-              autoComplete={isNewUser ? 'new-password' : 'current-password'}
-            />
-          </FieldGroup>
+              <FieldGroup>
+                <FieldLabel>Password</FieldLabel>
+                <PasswordInput
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={isLoading}
+                  autoComplete={isNewUser ? 'new-password' : 'current-password'}
+                />
+              </FieldGroup>
 
-          {isNewUser && (
-            <FieldGroup>
-              <FieldLabel>Confirm Password</FieldLabel>
-              <PasswordInput
-                placeholder="Re-enter your password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                disabled={isLoading}
-                autoComplete="new-password"
-              />
-            </FieldGroup>
-          )}
+              {isNewUser && (
+                <FieldGroup>
+                  <FieldLabel>Confirm Password</FieldLabel>
+                  <PasswordInput
+                    placeholder="Re-enter your password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    disabled={isLoading}
+                    autoComplete="new-password"
+                  />
+                </FieldGroup>
+              )}
 
-          {isNewUser && (
-            <div className="rounded-lg border border-blue-200/50 bg-blue-50/50 dark:border-blue-900/50 dark:bg-blue-950/20 p-3">
-              <p className="text-xs text-blue-700 dark:text-blue-400 leading-relaxed">
-                Your password is used to encrypt your files locally and never stored on our servers.
-              </p>
-            </div>
-          )}
+              {isNewUser && (
+                <div className="rounded-lg border border-blue-200/50 bg-blue-50/50 dark:border-blue-900/50 dark:bg-blue-950/20 p-3">
+                  <p className="text-xs text-blue-700 dark:text-blue-400 leading-relaxed">
+                    Your password is used to encrypt your files locally and never stored on our servers.
+                  </p>
+                </div>
+              )}
 
-          <Button
-            type="submit"
-            disabled={!isPasswordValid || isLoading}
-            className="w-full"
-          >
-            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isLoading ? (isNewUser ? 'Setting up...' : 'Verifying...') : 'Continue'}
-          </Button>
+              <Button
+                type="submit"
+                disabled={!isPasswordValid || isLoading}
+                className="w-full"
+              >
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isLoading ? (isNewUser ? 'Setting up...' : 'Verifying...') : 'Continue'}
+              </Button>
             </form>
           </>
         )}

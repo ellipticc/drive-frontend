@@ -30,7 +30,8 @@ import {
   IconDownload,
   IconLink,
   IconSend,
-  IconClockHour8
+  IconClockHour8,
+  IconMessageCircle
 } from "@tabler/icons-react"
 import { toast } from "sonner"
 import { apiClient } from "@/lib/api"
@@ -375,6 +376,7 @@ interface ShareSettings {
   passwordEnabled: boolean
   expirationDate: Date | undefined
   maxDownloads: number
+  commentsEnabled: boolean
 }
 
 export function ShareModal({ children, itemId = "", itemName = "item", itemType = "file", open: externalOpen, onOpenChange: externalOnOpenChange, onShareUpdate }: ShareModalProps) {
@@ -396,7 +398,8 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
     password: "",
     passwordEnabled: false,
     expirationDate: undefined,
-    maxDownloads: 0
+    maxDownloads: 0,
+    commentsEnabled: true
   })
 
   // Use external state if provided, otherwise use internal state
@@ -441,7 +444,8 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
         password: "",
         passwordEnabled: false,
         expirationDate: undefined,
-        maxDownloads: 0
+        maxDownloads: 0,
+        commentsEnabled: true
       })
       setMessage("")
       setIncludeMessage(true)
@@ -471,6 +475,10 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
 
           // Automatically enable public link toggle and show existing link
           setCreatePublicLink(true)
+
+          if (existingShare.comments_enabled !== undefined) {
+            setShareSettings(prev => ({ ...prev, commentsEnabled: !!existingShare.comments_enabled }));
+          }
 
           // Generate the existing share link
           const { masterKeyManager } = await import('@/lib/master-key')
@@ -721,6 +729,7 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
         expires_at: shareSettings.expirationDate?.toISOString(),
         max_views: shareSettings.maxDownloads || undefined,
         permissions: 'read',
+        comments_enabled: shareSettings.commentsEnabled,
         encrypted_manifest: encryptedManifest  // Encrypted manifest for folder shares
       })
 
@@ -1375,6 +1384,38 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
               </div>
               <p className="text-xs text-muted-foreground">
                 Leave empty for no expiration
+              </p>
+            </div>
+
+            {/* Enable Comments */}
+            <div className="grid gap-3">
+              <div className="flex items-center gap-2">
+                <IconMessageCircle className="h-4 w-4 text-muted-foreground" />
+                <Label className="text-sm font-medium">Comments</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="comments-enabled"
+                  checked={shareSettings.commentsEnabled}
+                  onCheckedChange={async (checked: boolean) => {
+                    handleSettingsChange('commentsEnabled', checked);
+                    if (existingShareId) {
+                      try {
+                        await apiClient.updateShareSettings(existingShareId, { comments_enabled: checked });
+                        toast.success(`Comments ${checked ? 'enabled' : 'disabled'}`);
+                      } catch (err) {
+                        toast.error("Failed to update comment settings");
+                        handleSettingsChange('commentsEnabled', !checked);
+                      }
+                    }
+                  }}
+                />
+                <Label htmlFor="comments-enabled" className="text-sm">
+                  Enable comments on this share
+                </Label>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Allow recipients to leave secure, end-to-end encrypted comments
               </p>
             </div>
 

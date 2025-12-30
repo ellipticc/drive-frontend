@@ -2,7 +2,7 @@
 
 import { useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Loader2 } from "lucide-react"
+import { IconLoader2 as Loader2 } from "@tabler/icons-react"
 
 export default function RegisterRedirect() {
   const router = useRouter()
@@ -12,12 +12,12 @@ export default function RegisterRedirect() {
     // Build the new URL with all search parameters preserved
     const params = new URLSearchParams(searchParams)
     const newUrl = `/signup${params.toString() ? '?' + params.toString() : ''}`
-    
-    console.log('Redirecting /register to /signup', { 
+
+    console.log('Redirecting /register to /signup', {
       params: Object.fromEntries(params),
-      newUrl 
+      newUrl
     })
-    
+
     router.replace(newUrl)
   }, [router, searchParams])
 

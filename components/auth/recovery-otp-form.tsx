@@ -9,7 +9,7 @@ import {
   InputOTPSeparator,
   InputOTPSlot,
 } from "@/components/ui/input-otp"
-import { AlertCircle, Loader2 } from "lucide-react"
+import { IconAlertCircle as AlertCircle, IconLoader2 as Loader2 } from "@tabler/icons-react"
 import { apiClient } from "@/lib/api"
 
 interface RecoveryOTPFormProps {
@@ -32,7 +32,7 @@ export function RecoveryOTPForm({
     try {
       setIsLoading(true)
       const response = await apiClient.sendOTP(email)
-      
+
       if (response.success) {
         setResendCountdown(60)
       } else {

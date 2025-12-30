@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button"
-import { Loader2, AlertCircle } from "lucide-react"
+import { IconLoader2 as Loader2, IconAlertCircle as AlertCircle } from "@tabler/icons-react"
 import { apiClient } from '@/lib/api';
 
 /**
@@ -26,7 +26,7 @@ export function GoogleOAuthButton({ context = 'login' }: { context?: 'login' | '
     try {
       // Get referral code from sessionStorage if available
       const referralCode = sessionStorage.getItem('referral_code');
-      
+
       // Get the Google OAuth authorization URL from backend via apiClient
       const response = await apiClient.getGoogleOAuthUrl(referralCode || undefined);
 

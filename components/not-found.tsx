@@ -1,6 +1,6 @@
 "use client";
 
-import { Compass, Home } from "lucide-react";
+import { IconCompass as Compass, IconHome as Home } from "@tabler/icons-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Play, Pause, Volume2, VolumeX, Loader2, Music } from "lucide-react"
+import { IconPlayerPlay as Play, IconPlayerPause as Pause, IconVolume as Volume2, IconVolumeOff as VolumeX, IconLoader2 as Loader2, IconMusic as Music } from "@tabler/icons-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { downloadEncryptedFileWithCEK, downloadEncryptedFile, DownloadProgress } from "@/lib/download"

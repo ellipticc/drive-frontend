@@ -12,7 +12,12 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { ArrowRight, BadgeCheck, ArrowLeft, Loader2 } from 'lucide-react';
+import {
+  IconArrowRight as ArrowRight,
+  IconCircleCheck as BadgeCheck,
+  IconArrowLeft as ArrowLeft,
+  IconLoader2 as Loader2
+} from "@tabler/icons-react";
 import { useState, useEffect } from 'react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -117,7 +122,7 @@ const PricingPage = () => {
   // Handle success/cancel redirects from Stripe
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
-    
+
     if (searchParams.get('success') === 'true') {
       toast.success('Subscription created successfully! 🎉 Check your email for confirmation.');
       // Clean up URL
@@ -132,7 +137,7 @@ const PricingPage = () => {
   const handleSubscribe = async (planId: string) => {
     try {
       setCheckoutLoading(planId);
-      
+
       // Find the selected plan
       const plan = staticPlans.find((p: TransformedPlan) => p.id === planId);
 
@@ -182,7 +187,7 @@ const PricingPage = () => {
       }
     } catch (error) {
       console.error('Checkout error:', error);
-      
+
       // Provide more specific error messages
       if (error instanceof Error) {
         toast.error(`Error: ${error.message}`);
@@ -261,7 +266,7 @@ const PricingPage = () => {
                     <CardDescription>
                       <p>{plan.description}</p>
                       {typeof plan.price[frequency as keyof typeof plan.price] ===
-                      'number' ? (
+                        'number' ? (
                         <NumberFlow
                           className="font-medium text-foreground"
                           format={{
@@ -272,7 +277,7 @@ const PricingPage = () => {
                           suffix={`/${frequency === 'yearly' ? 'year' : 'month'}, billed ${frequency}.`}
                           value={
                             plan.price[
-                              frequency as keyof typeof plan.price
+                            frequency as keyof typeof plan.price
                             ] as number
                           }
                         />

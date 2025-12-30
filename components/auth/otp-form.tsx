@@ -1,6 +1,6 @@
 "use client"
 
-import { GalleryVerticalEnd } from "lucide-react"
+import { IconStack2 as GalleryVerticalEnd } from "@tabler/icons-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -76,10 +76,10 @@ export function OTPForm({ className, ...props }: React.ComponentProps<"div">) {
         const profileResponse = await apiClient.getProfile()
         if (profileResponse.success && profileResponse.data?.user?.crypto_keypairs) {
           const userData = profileResponse.data.user
-          
+
           // Import master key manager and derive master key
           const { masterKeyManager } = await import("@/lib/master-key")
-          
+
           try {
             if (userData.crypto_keypairs?.accountSalt) {
               // Get password from localStorage (stored during signup)
@@ -89,27 +89,27 @@ export function OTPForm({ className, ...props }: React.ComponentProps<"div">) {
                 if (userData.encrypted_master_key_password && userData.master_key_password_nonce) {
                   // NEW PATH: Decrypt password-encrypted Master Key
                   const { deriveEncryptionKey, decryptData } = await import("@/lib/crypto")
-                  
+
                   // Derive password-based encryption key using account salt
                   const passwordDerivedKey = await deriveEncryptionKey(
                     password,
                     userData.crypto_keypairs.accountSalt
                   )
-                  
+
                   // Decrypt the Master Key using password-derived key
                   const masterKeyBytes = await decryptData(
                     userData.encrypted_master_key_password,
                     passwordDerivedKey,
                     userData.master_key_password_nonce
                   )
-                  
+
                   // Cache the decrypted master key
                   masterKeyManager.cacheExistingMasterKey(masterKeyBytes, userData.crypto_keypairs.accountSalt)
                 } else {
                   // LEGACY PATH: Derive master key using account salt
                   await masterKeyManager.deriveAndCacheMasterKey(password, userData.crypto_keypairs.accountSalt)
                 }
-                
+
                 // Initialize keyManager with user data
                 // This will use the derived master key to decrypt and cache the keypairs
                 const { keyManager } = await import("@/lib/key-manager")
@@ -161,7 +161,7 @@ export function OTPForm({ className, ...props }: React.ComponentProps<"div">) {
       setError("") // Clear any previous errors
     } catch (err) {
       console.error("Resend OTP error:", err)
-      setError("Failed to resend verification code")
+      setError("Failed to send verification code")
     } finally {
       setIsLoading(false)
     }

@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { PasswordInput } from "@/components/ui/password-input"
-import { AlertCircle, Loader2 } from "lucide-react"
+import { IconAlertCircle as AlertCircle, IconLoader2 as Loader2 } from "@tabler/icons-react"
 import { apiClient } from "@/lib/api"
 import { toast } from "sonner"
 import { OPAQUERegistration } from "@/lib/opaque"
@@ -86,7 +86,7 @@ export function RecoveryPasswordResetForm({
       try {
         const rkNonceDecoded = atob(recoveryKeyNonce)
         const mkNonceDecoded = atob(masterKeyNonce)
-        
+
         if (rkNonceDecoded.length !== 24) {
           throw new Error(`Recovery key nonce has wrong length: ${rkNonceDecoded.length} bytes (expected 24)`)
         }
@@ -100,10 +100,10 @@ export function RecoveryPasswordResetForm({
 
       // Step 2: Derive RKEK from mnemonic (using same algorithm as backend)
       const normalizedMnemonic = mnemonic.trim().toLowerCase()
-      
+
       // CRITICAL: Use the same RKEK derivation as signup (SHA256(SHA256(mnemonic)))
       const rkek = await deriveRecoveryKeyEncryptionKey(normalizedMnemonic)
-      
+
       if (!rkek || rkek.length !== 32) {
         throw new Error(`RKEK derivation failed: expected 32 bytes, got ${rkek?.length || 0}`)
       }
@@ -112,19 +112,19 @@ export function RecoveryPasswordResetForm({
       // Nonces from backend are stored as base64, not hex
       const encryptedRKBytes = Uint8Array.from(atob(encryptedRecoveryKey), c => c.charCodeAt(0))
       const rkNonceBytes = Uint8Array.from(atob(recoveryKeyNonce), c => c.charCodeAt(0))
-      
+
       let recoveryKeyBytes: Uint8Array
       try {
         recoveryKeyBytes = xchacha20poly1305(rkek, rkNonceBytes).decrypt(encryptedRKBytes)
       } catch (error) {
         throw new Error(`Failed to decrypt recovery key: ${error instanceof Error ? error.message : String(error)}`)
       }
-      
+
       // Step 4: Decrypt Master Key using Recovery Key
       // Nonces from backend are stored as base64, not hex
       const encryptedMKBytes = Uint8Array.from(atob(encryptedMasterKey), c => c.charCodeAt(0))
       const mkNonceBytes = Uint8Array.from(atob(masterKeyNonce), c => c.charCodeAt(0))
-      
+
       let masterKeyBytes: Uint8Array
       try {
         masterKeyBytes = xchacha20poly1305(recoveryKeyBytes, mkNonceBytes).decrypt(encryptedMKBytes)
@@ -137,7 +137,7 @@ export function RecoveryPasswordResetForm({
       const reEncryptedRKResult = encryptRecoveryKey(recoveryKeyBytes, rkek)
       const reEncryptedRK = reEncryptedRKResult.encryptedRecoveryKey
       const newRKNonce = reEncryptedRKResult.recoveryKeyNonce
-      
+
       const reEncryptedMKResult = encryptMasterKeyWithRecoveryKey(masterKeyBytes, recoveryKeyBytes)
       const reEncryptedMK = reEncryptedMKResult.encryptedMasterKey
       const newMKNonce = reEncryptedMKResult.masterKeyNonce
@@ -148,7 +148,7 @@ export function RecoveryPasswordResetForm({
       if (!accountSalt) {
         throw new Error("Account salt not found. Cannot derive password-based encryption key.")
       }
-      
+
       const newPasswordDerivedKey = await deriveEncryptionKey(formData.newPassword, accountSalt)
       const { encryptedData: encryptedMasterKeyPassword, nonce: masterKeyPasswordNonce } = encryptData(masterKeyBytes, newPasswordDerivedKey)
 

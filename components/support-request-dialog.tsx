@@ -1,6 +1,5 @@
 import * as React from "react"
-import { IconHelp, IconSend } from "@tabler/icons-react"
-import { Loader2 } from "lucide-react"
+import { IconHelp, IconSend, IconLoader2 as Loader2 } from "@tabler/icons-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"

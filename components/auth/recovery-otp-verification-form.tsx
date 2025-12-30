@@ -10,7 +10,14 @@ import {
   InputOTPSlot,
 } from "@/components/ui/input-otp"
 import { Input } from "@/components/ui/input"
-import { AlertCircle, Loader2, ChevronLeft, Mail, Smartphone, History } from "lucide-react"
+import {
+  IconAlertCircle as AlertCircle,
+  IconLoader2 as Loader2,
+  IconChevronLeft as ChevronLeft,
+  IconMail as Mail,
+  IconDeviceMobile as Smartphone,
+  IconHistory as History
+} from "@tabler/icons-react"
 import { apiClient } from "@/lib/api"
 
 interface RecoveryOTPVerificationFormProps {
@@ -63,7 +70,7 @@ export function RecoveryOTPVerificationForm({
         if (response.success) {
           const hasTOTPEnabled = response.data?.hasTOTP || false
           setHasTOTP(hasTOTPEnabled)
-          
+
           if (!hasTOTPEnabled) {
             // If no TOTP, default to email and send OTP
             setVerificationMethod('email')

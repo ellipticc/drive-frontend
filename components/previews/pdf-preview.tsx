@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Loader2, AlertCircle } from "lucide-react"
+import { IconLoader2 as Loader2, IconAlertCircle as AlertCircle } from "@tabler/icons-react"
 import { downloadEncryptedFileWithCEK, downloadEncryptedFile, DownloadProgress } from "@/lib/download"
 import { decryptData } from "@/lib/crypto"
 

@@ -2,19 +2,19 @@
 
 import * as React from "react"
 import {
-  Bell,
-  Check,
-  Globe,
-  Home,
-  Keyboard,
-  Link,
-  Lock,
-  Menu,
-  MessageCircle,
-  Paintbrush,
-  Settings,
-  Video,
-} from "lucide-react"
+  IconBell as Bell,
+  IconCheck as Check,
+  IconGlobe as Globe,
+  IconHome as Home,
+  IconKeyboard as Keyboard,
+  IconLink as Link,
+  IconLock as Lock,
+  IconMenu2 as Menu,
+  IconMessageCircle as MessageCircle,
+  IconPalette as Paintbrush,
+  IconSettings as Settings,
+  IconVideo as Video,
+} from "@tabler/icons-react"
 
 import {
   Breadcrumb,

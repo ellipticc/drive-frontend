@@ -21,7 +21,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { Flag, Loader2 } from "lucide-react"
+import { IconFlag, IconLoader2 } from "@tabler/icons-react"
 import { apiClient } from "@/lib/api"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
@@ -207,7 +207,7 @@ export function ReportDialog({ shareId, trigger, onReportSuccess, className }: R
             )}
             title="Report Content"
           >
-            <Flag className="h-4 w-4" />
+            <IconFlag className="h-4 w-4" />
           </Button>
         )}
       </DialogTrigger>
@@ -301,7 +301,7 @@ export function ReportDialog({ shareId, trigger, onReportSuccess, className }: R
           >
             {isSubmitting ? (
               <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                <IconLoader2 className="h-4 w-4 mr-2 animate-spin" />
                 Submitting...
               </>
             ) : (

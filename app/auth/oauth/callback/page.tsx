@@ -3,7 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Loader2, AlertCircle, ArrowLeft } from 'lucide-react';
+import {
+  IconLoader2 as Loader2,
+  IconAlertCircle as AlertCircle,
+  IconArrowLeft as ArrowLeft
+} from "@tabler/icons-react";
 import { IconCaretLeftRightFilled } from '@tabler/icons-react';
 import { apiClient } from '@/lib/api';
 import { OAuthPasswordModal } from '@/components/auth/oauth-password-modal';
@@ -32,7 +36,7 @@ export default function OAuthCallbackPage() {
         e.returnValue = '';
         return '';
       }
-      
+
       // Clear the temporary OAuth token when user actually closes or leaves page
       if (!oauthData || !window.location.href.includes('/auth/oauth/callback')) {
         sessionStorage.removeItem('oauth_temp_token');
@@ -48,7 +52,7 @@ export default function OAuthCallbackPage() {
         sessionStorage.removeItem('oauth_temp_token');
         sessionStorage.removeItem('oauth_setup_in_progress');
         apiClient.clearAuthToken();
-        
+
         // Redirect to login page
         router.push('/login');
       }
