@@ -276,7 +276,8 @@ export interface ShareItem {
     revokedAt?: string;
   }>;
   has_password: boolean;
-  comments_enabled?: boolean;
+  comments_enabled?: boolean | number;
+  comments_locked?: boolean | number;
 }
 
 export interface ShareComment {
@@ -289,6 +290,9 @@ export interface ShareComment {
   updatedAt: string;
   userName: string;
   avatarUrl: string;
+  fingerprint?: string; // HMAC-SHA512 hex
+  signature?: string;   // ed25519 signature hex
+  publicKey?: string;   // ed25519 public key hex
 }
 
 export interface ShareCommentsResponse {
@@ -1370,7 +1374,11 @@ class ApiClient {
       id: string;
       name: string;
       created_at: string;
+      encrypted_name?: string;
+      nonce_name?: string;
     };
+    comments_enabled?: boolean | number;
+    comments_locked?: boolean | number;
   }>> {
     return this.request(`/shares/${shareId}`);
   }
@@ -2319,6 +2327,9 @@ class ApiClient {
   async addShareComment(shareId: string, data: {
     content: string;
     parentId?: string | null;
+    fingerprint?: string;
+    signature?: string;
+    publicKey?: string;
   }): Promise<ApiResponse<{ success: boolean; comment: ShareComment }>> {
     const idempotencyKey = generateIdempotencyKey('addShareComment', `${shareId}:${Date.now()}`);
     const headers = addIdempotencyKey({}, idempotencyKey);
@@ -2331,6 +2342,9 @@ class ApiClient {
 
   async updateShareComment(shareId: string, commentId: string, data: {
     content: string;
+    fingerprint?: string;
+    signature?: string;
+    publicKey?: string;
   }): Promise<ApiResponse<{ success: boolean; message: string }>> {
     const idempotencyKey = generateIdempotencyKey('updateShareComment', commentId);
     const headers = addIdempotencyKey({}, idempotencyKey);
@@ -2350,7 +2364,7 @@ class ApiClient {
     });
   }
 
-  async getShareCommentCount(shareId: string): Promise<ApiResponse<{ count: number }>> {
+  async getShareCommentCount(shareId: string): Promise<ApiResponse<{ count: number; isOwner?: boolean }>> {
     return this.request(`/shares/${shareId}/comments/count`);
   }
 
@@ -2383,6 +2397,20 @@ class ApiClient {
     return this.request('/auth/siwe/verify', {
       method: 'POST',
       body: JSON.stringify(data),
+    });
+  }
+
+  async lockComments(shareId: string, locked: boolean): Promise<ApiResponse<{ success: boolean; locked: boolean }>> {
+    return this.request(`/shares/${shareId}/comments/lock`, {
+      method: 'POST',
+      body: JSON.stringify({ locked }),
+    });
+  }
+
+  async setCommentsEnabled(shareId: string, enabled: boolean): Promise<ApiResponse<{ success: boolean; enabled: boolean }>> {
+    return this.request(`/shares/${shareId}/comments/enable`, {
+      method: 'POST',
+      body: JSON.stringify({ enabled }),
     });
   }
 }

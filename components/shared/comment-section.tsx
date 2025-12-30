@@ -9,14 +9,14 @@ import {
     SheetDescription,
     SheetHeader,
     SheetTitle,
-    SheetTrigger
+    SheetTrigger,
+    SheetClose
 } from '@/components/ui/sheet';
 import {
     IconMessageCircle,
     IconSend,
     IconLoader2,
     IconTrash,
-    IconDotsVertical,
     IconShield,
     IconArrowBackUp,
     IconPencil,
@@ -24,18 +24,30 @@ import {
     IconCornerDownRight,
     IconAlertTriangle,
     IconDownload,
-    IconLock
+    IconLock,
+    IconDotsVertical,
+    IconLockOff,
+    IconMessageOff,
+    IconFilter
 } from '@tabler/icons-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { apiClient, ShareComment } from '@/lib/api';
 import { getDiceBearAvatar } from '@/lib/avatar';
-import { deriveCommentKey, encryptComment, decryptComment } from '@/lib/comment-crypto';
+import { deriveCommentKey, encryptComment, decryptComment, createMessageFingerprint, signMessageFingerprint } from '@/lib/comment-crypto';
+import { keyManager } from '@/lib/key-manager';
+import { uint8ArrayToHex } from '@/lib/crypto';
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -69,9 +81,33 @@ export function CommentSection({ shareId, shareCek, currentUser, isOwner, classN
     const [pagination, setPagination] = useState({ page: 1, totalPages: 1 });
     const [hasDecryptionError, setHasDecryptionError] = useState(false);
     const [commentCount, setCommentCount] = useState(0);
+    const [realIsOwner, setRealIsOwner] = useState(isOwner);
+
+    // Update realIsOwner if prop changes
+    useEffect(() => {
+        setRealIsOwner(isOwner);
+    }, [isOwner]);
+
+    // Share settings state
+    const [isLocked, setIsLocked] = useState(false);
+    const [isEnabled, setIsEnabled] = useState(true);
+    const [sortBy, setSortBy] = useState<'recent' | 'oldest' | 'unread'>('recent');
+    const [lastSeenTimestamp, setLastSeenTimestamp] = useState<number>(0);
+    // Load last seen from local storage
+    useEffect(() => {
+        if (shareId) {
+            const saved = localStorage.getItem(`share_last_seen_${shareId}`);
+            if (saved) {
+                setLastSeenTimestamp(parseInt(saved));
+            }
+        }
+    }, [shareId]);
 
     const scrollAreaRef = useRef<HTMLDivElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    // Initialize comment key
 
     // Initialize comment key
     useEffect(() => {
@@ -85,6 +121,17 @@ export function CommentSection({ shareId, shareCek, currentUser, isOwner, classN
         setLoading(true);
         try {
             const response = await apiClient.getShareComments(shareId, page);
+
+            // Allow checking ownership via count endpoint
+            apiClient.getShareCommentCount(shareId).then(res => {
+                if (res.success && res.data) {
+                    setCommentCount(res.data.count);
+                    if (res.data.isOwner !== undefined) {
+                        setRealIsOwner(res.data.isOwner);
+                    }
+                }
+            }).catch(console.error);
+
             if (response.success && response.data) {
                 let decryptionErrorFound = false;
                 const decrypted = await Promise.all(
@@ -142,8 +189,28 @@ export function CommentSection({ shareId, shareCek, currentUser, isOwner, classN
     useEffect(() => {
         if (isOpen && commentKey) {
             fetchComments(1);
+            // Update last seen in localStorage when opening
+            const now = Date.now();
+            localStorage.setItem(`share_last_seen_${shareId}`, now.toString());
+
+            // Focus input on open
+            setTimeout(() => {
+                textareaRef.current?.focus();
+            }, 100);
         }
-    }, [isOpen, commentKey, fetchComments]);
+    }, [isOpen, commentKey, fetchComments, shareId]);
+
+    // Fetch share settings (locked/enabled)
+    useEffect(() => {
+        if (isOpen && shareId) {
+            apiClient.getShare(shareId).then(resp => {
+                if (resp.success && resp.data) {
+                    setIsLocked(!!resp.data.comments_locked);
+                    setIsEnabled(!!resp.data.comments_enabled);
+                }
+            });
+        }
+    }, [isOpen, shareId]);
 
     // Polling for new comments / count every minute
     useEffect(() => {
@@ -152,15 +219,13 @@ export function CommentSection({ shareId, shareCek, currentUser, isOwner, classN
         const interval = setInterval(async () => {
             if (isOpen && commentKey) {
                 await fetchComments(1);
-            } else {
-                try {
-                    const response = await apiClient.getShareCommentCount(shareId);
-                    if (response.success && response.data) {
-                        setCommentCount(response.data.count);
-                    }
-                } catch (err) {
-                    console.error('Failed to poll comment count:', err);
+            } else try {
+                const response = await apiClient.getShareCommentCount(shareId);
+                if (response.success && response.data) {
+                    setCommentCount(response.data.count);
                 }
+            } catch (err) {
+                // Silent fail for polling
             }
         }, 60000);
 
@@ -216,9 +281,41 @@ export function CommentSection({ shareId, shareCek, currentUser, isOwner, classN
         try {
             const encryptedContent = await encryptComment(content, commentKey);
 
+            // Cryptographic fingerprinting and signing
+            let fingerprintHex = '';
+            let signatureHex = '';
+            let publicKeyHex = '';
+
+            if (currentUser) {
+                try {
+                    const keys = await keyManager.getUserKeys();
+                    const fingerprint = await createMessageFingerprint(content, currentUser.id);
+                    const signature = await signMessageFingerprint(fingerprint, keys.keypairs.ed25519PrivateKey);
+
+                    fingerprintHex = uint8ArrayToHex(fingerprint);
+                    signatureHex = uint8ArrayToHex(signature);
+                    publicKeyHex = keys.keypairs.ed25519PublicKey;
+                } catch (cryptoErr) {
+                    console.error('Failed to sign message:', cryptoErr);
+                    // Continue without signature if key is missing (e.g. not logged in correctly or keys not loaded)
+                }
+            }
+
             if (editingComment) {
-                // Update logic
-                const response = await apiClient.updateShareComment(shareId, editingComment.id, { content: encryptedContent });
+                // Update logic - check if changed
+                if (content.trim() === editingComment.decryptedContent) {
+                    setEditingComment(null);
+                    setContent('');
+                    setSubmitting(false);
+                    return;
+                }
+
+                const response = await apiClient.updateShareComment(shareId, editingComment.id, {
+                    content: encryptedContent,
+                    fingerprint: fingerprintHex,
+                    signature: signatureHex,
+                    publicKey: publicKeyHex
+                });
                 if (response.success) {
                     const now = new Date().toISOString();
                     setComments(prev => prev.map(c => c.id === editingComment.id ? {
@@ -226,7 +323,10 @@ export function CommentSection({ shareId, shareCek, currentUser, isOwner, classN
                         decryptedContent: content,
                         content: encryptedContent,
                         updatedAt: now,
-                        isEdited: true
+                        isEdited: true,
+                        fingerprint: fingerprintHex,
+                        signature: signatureHex,
+                        publicKey: publicKeyHex
                     } : c));
                     setEditingComment(null);
                     setContent('');
@@ -235,16 +335,24 @@ export function CommentSection({ shareId, shareCek, currentUser, isOwner, classN
                 // Create logic
                 const response = await apiClient.addShareComment(shareId, {
                     content: encryptedContent,
-                    parentId: replyingTo?.id || null
+                    parentId: replyingTo?.id || null,
+                    fingerprint: fingerprintHex,
+                    signature: signatureHex,
+                    publicKey: publicKeyHex
                 });
 
                 if (response.success && response.data) {
                     const now = new Date().toISOString();
                     const newComment: DecryptedComment = {
                         ...response.data.comment,
+                        userName: currentUser?.name || 'You',
+                        avatarUrl: currentUser?.avatar || '',
                         decryptedContent: content,
                         updatedAt: now,
-                        isEdited: false
+                        isEdited: false,
+                        fingerprint: fingerprintHex,
+                        signature: signatureHex,
+                        publicKey: publicKeyHex
                     };
 
                     setComments(prev => [...prev, newComment]);
@@ -292,13 +400,42 @@ export function CommentSection({ shareId, shareCek, currentUser, isOwner, classN
         }
     };
 
+    const toggleLock = async () => {
+        try {
+            const newLocked = !isLocked;
+            const res = await apiClient.lockComments(shareId, newLocked);
+            if (res.success) {
+                setIsLocked(newLocked);
+                toast.success(newLocked ? "Comments locked" : "Comments unlocked");
+            }
+        } catch (err) {
+            toast.error("Failed to update status");
+        }
+    };
+
+    const toggleEnabled = async () => {
+        try {
+            const newEnabled = !isEnabled;
+            const res = await apiClient.setCommentsEnabled(shareId, newEnabled);
+            if (res.success) {
+                setIsEnabled(newEnabled);
+                if (!newEnabled) setIsOpen(false);
+                toast.success(newEnabled ? "Comments enabled" : "Comments disabled");
+            }
+        } catch (err) {
+            toast.error("Failed to update status");
+        }
+    };
+
     // Organize comments into threads
     const threadedComments = useMemo(() => {
+        let sorted = [...comments];
+
+        // Root grouping logic
         const map = new Map<string, DecryptedComment[]>();
         const roots: DecryptedComment[] = [];
 
-        // Group by parentId
-        comments.forEach(c => {
+        sorted.forEach(c => {
             if (c.parentId) {
                 const children = map.get(c.parentId) || [];
                 children.push(c);
@@ -308,10 +445,21 @@ export function CommentSection({ shareId, shareCek, currentUser, isOwner, classN
             }
         });
 
-        // Sort roots by date (oldest first for "most recent at bottom")
-        roots.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        // Apply root sorting
+        if (sortBy === 'recent') {
+            roots.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()); // Chronological for chat flow
+        } else if (sortBy === 'oldest') {
+            roots.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        } else if (sortBy === 'unread') {
+            roots.sort((a, b) => {
+                const aIsUnread = new Date(a.createdAt).getTime() > lastSeenTimestamp;
+                const bIsUnread = new Date(b.createdAt).getTime() > lastSeenTimestamp;
+                if (aIsUnread && !bIsUnread) return -1;
+                if (!aIsUnread && bIsUnread) return 1;
+                return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+            });
+        }
 
-        // Build the final list: Root followed by its children (oldest children first)
         const result: { comment: DecryptedComment, isReply: boolean }[] = [];
         roots.forEach(root => {
             result.push({ comment: root, isReply: false });
@@ -322,8 +470,13 @@ export function CommentSection({ shareId, shareCek, currentUser, isOwner, classN
             });
         });
 
+        if (sortBy === 'unread' && result.length > 0) {
+            // Unread first might break thread unity if we just sort results, 
+            // but here we keep threads together and put "roots with unread" at top.
+        }
+
         return result;
-    }, [comments]);
+    }, [comments, sortBy, lastSeenTimestamp]);
 
     const formatDate = (dateStr: string) => {
         try {
@@ -359,49 +512,135 @@ export function CommentSection({ shareId, shareCek, currentUser, isOwner, classN
                     )}
                 </Button>
             </SheetTrigger>
-            <SheetContent className="w-full sm:max-w-md flex flex-col p-0 gap-0 border-l shadow-2xl">
-                <SheetHeader className="p-4 border-b bg-muted/20">
-                    <div className="flex items-center justify-between">
+            <SheetContent
+                className="w-full sm:max-w-md flex flex-col p-0 gap-0 border-l shadow-2xl bg-background outline-none [&>button]:hidden"
+                onOpenAutoFocus={(e) => {
+                    e.preventDefault();
+                    textareaRef.current?.focus();
+                }}
+            >
+                <TooltipProvider delayDuration={300}>
+                    <SheetHeader className="px-4 py-3 border-b bg-muted/5 shrink-0 flex flex-row items-center justify-between space-y-0">
                         <div className="flex flex-col gap-0.5">
                             <div className="flex items-center gap-2">
-                                <IconMessageCircle className="h-4 w-4 text-primary" />
-                                <SheetTitle className="text-base font-semibold">Comments</SheetTitle>
+                                <div className="text-primary">
+                                    <IconMessageCircle className="h-4 w-4" />
+                                </div>
+                                <SheetTitle className="text-base font-bold tracking-tight">Comments</SheetTitle>
                             </div>
-                            <SheetDescription className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-medium text-muted-foreground/70">
-                                <IconShield className="h-3 w-3" />
-                                End-to-end encrypted
-                            </SheetDescription>
+                            <div className="flex items-center gap-1 opacity-30 px-0.5">
+                                <IconShield className="h-2 w-2" />
+                                <span className="text-[7px] font-black uppercase tracking-[0.2em]">E2EE Secured</span>
+                            </div>
                         </div>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-muted-foreground/60 hover:text-foreground"
-                            title="Download comments JSON"
-                            onClick={() => {
-                                const dataStr = JSON.stringify(comments, null, 2);
-                                const blob = new Blob([dataStr], { type: 'application/json' });
-                                const url = URL.createObjectURL(blob);
-                                const link = document.createElement('a');
-                                link.href = url;
-                                link.download = `share-${shareId}-comments.json`;
-                                document.body.appendChild(link);
-                                link.click();
-                                document.body.removeChild(link);
-                                URL.revokeObjectURL(url);
-                            }}
-                        >
-                            <IconDownload className="h-4 w-4" />
-                        </Button>
-                    </div>
-                </SheetHeader>
 
-                <ScrollArea className="flex-1" ref={scrollAreaRef}>
-                    <div className="p-4 space-y-4">
+                        <div className="flex items-center gap-1">
+                            {/* Download Button */}
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-muted-foreground/50 hover:text-foreground hover:bg-muted/50 rounded-lg transition-all"
+                                        onClick={() => {
+                                            const dataStr = JSON.stringify(comments, null, 2);
+                                            const blob = new Blob([dataStr], { type: 'application/json' });
+                                            const url = URL.createObjectURL(blob);
+                                            const link = document.createElement('a');
+                                            link.href = url;
+                                            link.download = `share-${shareId}-comments.json`;
+                                            document.body.appendChild(link);
+                                            link.click();
+                                            document.body.removeChild(link);
+                                            URL.revokeObjectURL(url);
+                                        }}
+                                    >
+                                        <IconDownload className="h-3.5 w-3.5" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom" className="text-[10px] font-black">Download JSON</TooltipContent>
+                            </Tooltip>
+
+                            {/* Filter Button */}
+                            <DropdownMenu>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground/50 hover:text-foreground hover:bg-muted/50 rounded-lg transition-all">
+                                                <IconFilter className="h-3.5 w-3.5" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="bottom" className="text-[10px] font-black">Sort</TooltipContent>
+                                </Tooltip>
+                                <DropdownMenuContent align="end" className="w-32 text-xs font-bold">
+                                    <DropdownMenuItem onClick={() => setSortBy('recent')} className="gap-2">
+                                        <div className={cn("h-1.5 w-1.5 rounded-full bg-primary", sortBy !== 'recent' && "opacity-0")} />
+                                        Recent
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setSortBy('oldest')} className="gap-2">
+                                        <div className={cn("h-1.5 w-1.5 rounded-full bg-primary", sortBy !== 'oldest' && "opacity-0")} />
+                                        Oldest
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setSortBy('unread')} className="gap-2">
+                                        <div className={cn("h-1.5 w-1.5 rounded-full bg-primary", sortBy !== 'unread' && "opacity-0")} />
+                                        Unread
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+
+                            {/* Options Button */}
+                            {realIsOwner && (
+                                <DropdownMenu modal={false}>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground/50 hover:text-foreground hover:bg-muted/50 rounded-lg transition-all">
+                                                    <IconDotsVertical className="h-3.5 w-3.5" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="bottom" className="text-[10px] font-black">Options</TooltipContent>
+                                    </Tooltip>
+                                    <DropdownMenuContent align="end" className="w-48 text-xs font-bold">
+                                        <DropdownMenuItem onClick={toggleLock} className="gap-2 cursor-pointer transition-colors">
+                                            {isLocked ? <IconLockOff className="h-4 w-4" /> : <IconLock className="h-4 w-4" />}
+                                            {isLocked ? "Unlock Comments" : "Lock Comments"}
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={toggleEnabled} className={cn("gap-2 cursor-pointer transition-colors", isEnabled ? "text-destructive focus:text-destructive" : "text-green-500 focus:text-green-500")}>
+                                            {isEnabled ? <IconMessageOff className="h-4 w-4" /> : <IconMessageCircle className="h-4 w-4" />}
+                                            {isEnabled ? "Disable Comments" : "Enable Comments"}
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            )}
+
+                            {/* Custom Close Button */}
+                            <SheetClose asChild>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground/50 hover:text-foreground hover:bg-muted/50 rounded-lg transition-all ml-1">
+                                    <IconX className="h-4 w-4" />
+                                </Button>
+                            </SheetClose>
+                        </div>
+                    </SheetHeader>
+                </TooltipProvider>
+
+                <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/10 hover:scrollbar-thumb-muted-foreground/20" ref={scrollAreaRef as any}>
+                    <div className="p-4 pb-24 flex flex-col">
+                        <div className="flex items-center justify-center py-2 px-1 mb-6">
+                            <div className="h-px bg-muted flex-1" />
+                            <span className="px-3 text-[9px] uppercase tracking-widest font-black text-muted-foreground/40 flex items-center gap-2">
+                                <IconShield className="h-2.5 w-2.5" />
+                                E2EE Connection Active
+                            </span>
+                            <div className="h-px bg-muted flex-1" />
+                        </div>
+
                         {pagination.page < pagination.totalPages && !loading && (
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                className="w-full text-[10px] text-muted-foreground font-medium uppercase tracking-widest hover:bg-transparent hover:text-foreground mb-4"
+                                className="w-full text-[10px] text-muted-foreground font-medium uppercase tracking-widest hover:bg-transparent hover:text-foreground"
                                 onClick={() => fetchComments(pagination.page + 1)}
                             >
                                 Load older messages
@@ -409,189 +648,242 @@ export function CommentSection({ shareId, shareCek, currentUser, isOwner, classN
                         )}
 
                         {threadedComments.length === 0 && !loading && commentKey && (
-                            <div className="text-center py-20 px-8">
-                                <div className="bg-muted/30 h-16 w-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                                    <IconMessageCircle className="h-8 w-8 text-muted-foreground/40" />
+                            <div className="text-center py-24 px-8">
+                                <div className="bg-muted/30 h-16 w-16 rounded-3xl flex items-center justify-center mx-auto mb-6 rotate-3">
+                                    <IconMessageCircle className="h-8 w-8 text-primary/30" />
                                 </div>
-                                <h3 className="text-sm font-medium mb-1">No comments yet</h3>
-                                <p className="text-xs text-muted-foreground">Be the first to share your thoughts securely.</p>
+                                <h3 className="text-sm font-bold mb-2">No comments yet</h3>
+                                <p className="text-[11px] text-muted-foreground leading-relaxed max-w-[180px] mx-auto">Be the first to share your thoughts securely. All messages are encrypted.</p>
                             </div>
                         )}
 
                         {!commentKey && isOpen && (
-                            <div className="text-center py-20 px-8">
-                                <div className="bg-muted/30 h-16 w-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                                    <IconLock className="h-8 w-8 text-muted-foreground/40" />
+                            <div className="text-center py-24 px-8">
+                                <div className="bg-muted/30 h-16 w-16 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                                    <IconLock className="h-8 w-8 text-primary/30" />
                                 </div>
-                                <h3 className="text-sm font-medium mb-1">Encryption Key Required</h3>
-                                <p className="text-xs text-muted-foreground">Please enter the share password to view comments.</p>
+                                <h3 className="text-sm font-bold mb-2">Encryption Key Required</h3>
+                                <p className="text-[11px] text-muted-foreground leading-relaxed">Please enter the share password to decrypt this conversation.</p>
                             </div>
                         )}
 
-                        {threadedComments.map(({ comment, isReply }) => {
+                        {threadedComments.map(({ comment, isReply }, index) => {
                             const isMe = !!currentUser && currentUser.id === comment.userId;
-                            const canDelete = !!currentUser && (isMe || isOwner);
+                            const canDelete = !!currentUser && (isMe || realIsOwner);
+
+                            // Grouping logic: check if next comment is from same user
+                            const nextComment = threadedComments[index + 1];
+                            const isNextSameUser = nextComment && nextComment.comment.userId === comment.userId;
+                            const isLastInGroup = !isNextSameUser;
 
                             return (
                                 <div
                                     key={comment.id}
                                     className={cn(
-                                        "flex flex-col gap-1 w-full animate-in fade-in slide-in-from-bottom-2 duration-300",
-                                        isReply && (isMe ? "pr-10" : "pl-10"),
-                                        isMe ? "items-end ml-auto" : "items-start mr-auto"
+                                        "flex flex-col w-full animate-in fade-in slide-in-from-bottom-2 duration-300",
+                                        isMe ? "items-end" : "items-start",
+                                        isLastInGroup ? "mb-4" : "mb-0.5" // Tighter spacing for groups
                                     )}
                                 >
+                                    {isReply && (
+                                        <div className={cn(
+                                            "flex items-center gap-2 mb-1 opacity-50 px-2 max-w-[90%]",
+                                            isMe ? "justify-end flex-row-reverse" : "justify-start"
+                                        )}>
+                                            <IconCornerDownRight className={cn("h-3 w-3 shrink-0", isMe && "rotate-180")} />
+                                            <div className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground overflow-hidden">
+                                                <span className="font-black shrink-0">@{comments.find(c => c.id === comment.parentId)?.userName || 'deleted'}</span>
+                                                <span className="truncate italic opacity-70 leading-none">{comments.find(c => c.id === comment.parentId)?.decryptedContent}</span>
+                                            </div>
+                                        </div>
+                                    )}
+
                                     <div className={cn(
-                                        "flex gap-3 items-start max-w-full relative",
+                                        "flex gap-2 group relative w-full items-end", // Items-end for bottom alignment
                                         isMe ? "flex-row-reverse" : "flex-row"
                                     )}>
-                                        {isReply && (
-                                            <IconCornerDownRight className={cn(
-                                                "h-3 w-3 text-muted-foreground/30 absolute top-1.5",
-                                                isMe ? "-right-5 rotate-180" : "-left-5"
-                                            )} />
-                                        )}
-                                        <Avatar className="h-8 w-8 shrink-0 border bg-background shadow-xs mt-0.5">
-                                            <AvatarImage src={comment.avatarUrl || getDiceBearAvatar(comment.userId)} />
-                                            <AvatarFallback className="text-[10px]">{comment.userName?.substring(0, 2).toUpperCase()}</AvatarFallback>
-                                        </Avatar>
+                                        {/* Avatar Column - Fixed Width */}
+                                        <div className="w-8 shrink-0 flex justify-center">
+                                            {isLastInGroup ? (
+                                                <Avatar className="h-6 w-6 border bg-background shadow-xs">
+                                                    <AvatarImage src={comment.avatarUrl || getDiceBearAvatar(comment.userId)} />
+                                                    <AvatarFallback className="text-[8px] font-bold">{comment.userName?.substring(0, 2).toUpperCase()}</AvatarFallback>
+                                                </Avatar>
+                                            ) : (
+                                                <div className="w-6" /> // Spacer
+                                            )}
+                                        </div>
 
                                         <div className={cn(
-                                            "group relative max-w-[85%] space-y-1 flex flex-col",
-                                            isMe ? "items-end text-right" : "items-start text-left"
+                                            "flex flex-col gap-0.5 min-w-0 flex-1 max-w-[85%]",
+                                            isMe ? "items-end" : "items-start"
                                         )}>
-                                            <div className={cn(
-                                                "flex items-baseline gap-2 mb-0.5 px-1",
-                                                isMe ? "flex-row-reverse" : "flex-row"
-                                            )}>
-                                                <span className="text-[10px] font-bold text-muted-foreground/90 uppercase tracking-tight">
-                                                    {isMe ? "You" : comment.userName}
-                                                    {isOwner && comment.userId === currentUser?.id && " (Owner)"}
-                                                </span>
-                                                <span className="text-[9px] text-muted-foreground/40 font-medium">
-                                                    {formatDate(comment.createdAt)}
-                                                </span>
-                                            </div>
+
+                                            {(!threadedComments[index - 1] || threadedComments[index - 1].comment.userId !== comment.userId || isReply) && (
+                                                <div className={cn(
+                                                    "flex items-center gap-2 px-1 mb-0.5",
+                                                    isMe ? "flex-row-reverse" : "flex-row"
+                                                )}>
+                                                    <span className="text-[10px] font-black text-foreground/70 uppercase tracking-tighter leading-none">
+                                                        {isMe ? "You" : comment.userName}
+                                                    </span>
+                                                    <span className="text-[8px] text-muted-foreground/30 font-bold uppercase tracking-widest leading-none">
+                                                        {formatDate(comment.createdAt)}
+                                                    </span>
+                                                </div>
+                                            )}
 
                                             <div className={cn(
-                                                "text-sm px-3 py-2 shadow-sm break-words",
+                                                "text-[13px] px-3 py-2 shadow-xs break-words relative leading-snug",
                                                 isMe
-                                                    ? "bg-primary text-primary-foreground rounded-2xl rounded-tr-sm"
-                                                    : "bg-muted/50 border rounded-2xl rounded-tl-sm",
+                                                    ? "bg-primary text-primary-foreground rounded-2xl rounded-br-sm"
+                                                    : "bg-muted/50 border-none rounded-2xl rounded-bl-sm",
+                                                // Adjust corners for grouping
+                                                !isLastInGroup && isMe && "rounded-br-2xl border-r-2 border-r-transparent", // connect visually?
+                                                // Actually separate bubbles is better for "discord" style usually, just tight spacing.
+
                                                 comment.decryptionFailed && "opacity-70 bg-destructive/10 text-destructive border-destructive/20 italic"
                                             )}>
                                                 {comment.decryptionFailed && <IconAlertTriangle className="h-3 w-3 inline mr-1.5 -mt-0.5" />}
                                                 {comment.decryptedContent}
                                                 {!!comment.isEdited && !comment.decryptionFailed && (
-                                                    <span className="ml-1.5 opacity-60 text-[10px] italic">(edited)</span>
+                                                    <span className="ml-1.5 opacity-40 text-[7px] font-black uppercase tracking-[0.05em] align-baseline">edited</span>
                                                 )}
                                             </div>
+                                        </div>
 
-                                            <div className={cn(
-                                                "flex items-center gap-3 px-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity",
-                                                isMe ? "flex-row-reverse" : "flex-row"
-                                            )}>
-                                                {!isReply && !comment.decryptionFailed && (
-                                                    <button
-                                                        onClick={() => handleReply(comment)}
-                                                        className="text-[10px] font-medium text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
-                                                    >
-                                                        <IconArrowBackUp className="h-3 w-3" /> Reply
-                                                    </button>
-                                                )}
+                                        <div className={cn(
+                                            "flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all duration-200 self-center mb-1",
+                                            isMe ? "flex-row-reverse" : "flex-row"
+                                        )}>
+                                            {!isReply && !comment.decryptionFailed && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-5 w-5 rounded-full hover:bg-primary/10 hover:text-primary text-muted-foreground/30"
+                                                    onClick={() => handleReply(comment)}
+                                                    title="Reply"
+                                                >
+                                                    <IconArrowBackUp className="h-3 w-3" />
+                                                </Button>
+                                            )}
 
-                                                {isMe && !comment.decryptionFailed && (
-                                                    <button
-                                                        onClick={() => handleEdit(comment)}
-                                                        className="text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-                                                    >
-                                                        <IconPencil className="h-3 w-3" /> Edit
-                                                    </button>
-                                                )}
+                                            {isMe && !comment.decryptionFailed && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-5 w-5 rounded-full hover:bg-foreground/5 text-muted-foreground/30"
+                                                    onClick={() => handleEdit(comment)}
+                                                    title="Edit"
+                                                >
+                                                    <IconPencil className="h-3 w-3" />
+                                                </Button>
+                                            )}
 
-                                                {canDelete && (
-                                                    <button
-                                                        onClick={() => handleDelete(comment.id)}
-                                                        className="text-[10px] font-medium text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1"
-                                                    >
-                                                        <IconTrash className="h-3 w-3" /> Delete
-                                                    </button>
-                                                )}
-                                            </div>
+                                            {canDelete && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-5 w-5 rounded-full hover:bg-destructive/10 hover:text-destructive text-muted-foreground/30"
+                                                    onClick={() => handleDelete(comment.id)}
+                                                    title="Delete"
+                                                >
+                                                    <IconTrash className="h-3 w-3" />
+                                                </Button>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
                             );
                         })}
 
-                        <div ref={scrollRef} className="h-px" />
+                        <div ref={scrollRef} className="h-px w-full" />
 
                         {loading && (
                             <div className="flex justify-center py-4">
-                                <IconLoader2 className="h-5 w-5 animate-spin text-muted-foreground/50" />
+                                <IconLoader2 className="h-5 w-5 animate-spin text-primary/30" />
                             </div>
                         )}
                     </div>
-                    <div className="h-6" /> {/* Extra padding for scroll space */}
-                </ScrollArea>
+                </div>
 
                 <div className="p-4 pb-8 border-t bg-background/95 backdrop-blur-md shadow-[0_-8px_16px_-4px_rgba(0,0,0,0.05)]">
                     {currentUser ? (
                         <div className="space-y-3">
                             {(replyingTo || editingComment) && (
-                                <div className="flex items-center justify-between bg-muted/40 rounded-lg px-3 py-2 border animate-in slide-in-from-bottom-2 duration-200">
-                                    <div className="flex flex-col gap-0.5 overflow-hidden">
-                                        <span className="text-[10px] font-bold text-primary flex items-center gap-1.5 uppercase tracking-wider">
-                                            {editingComment ? <IconPencil className="h-2.5 w-2.5" /> : <IconArrowBackUp className="h-2.5 w-2.5" />}
-                                            {editingComment ? "Editing message" : `Replying to ${replyingTo?.userName}`}
-                                        </span>
-                                        <p className="text-xs text-muted-foreground truncate italic">
-                                            {editingComment ? editingComment.decryptedContent : replyingTo?.decryptedContent}
-                                        </p>
+                                <div className="flex items-center justify-between bg-primary/5 rounded-xl px-4 py-3 border border-primary/10 animate-in slide-in-from-bottom-2 duration-300">
+                                    <div className="flex items-center gap-3 overflow-hidden">
+                                        <div className="p-2 bg-primary/10 rounded-lg shrink-0">
+                                            {editingComment ? <IconPencil className="h-3.5 w-3.5 text-primary" /> : <IconArrowBackUp className="h-3.5 w-3.5 text-primary" />}
+                                        </div>
+                                        <div className="flex flex-col gap-0.5 min-w-0">
+                                            <span className="text-[10px] font-black text-primary uppercase tracking-widest">
+                                                {editingComment ? "Modifying message" : `Replying to @${replyingTo?.userName}`}
+                                            </span>
+                                            <p className="text-xs text-muted-foreground/70 truncate italic leading-none">
+                                                {editingComment ? editingComment.decryptedContent : replyingTo?.decryptedContent}
+                                            </p>
+                                        </div>
                                     </div>
-                                    <button onClick={cancelAction} className="h-6 w-6 rounded-full hover:bg-muted flex items-center justify-center shrink-0">
-                                        <IconX className="h-3.5 w-3.5" />
-                                    </button>
+                                    <Button variant="ghost" size="icon" onClick={cancelAction} className="h-8 w-8 rounded-full hover:bg-primary/10 transition-colors shrink-0 -mr-1">
+                                        <IconX className="h-4 w-4" />
+                                    </Button>
                                 </div>
                             )}
-
-                            <form onSubmit={handleSubmit} className="relative group">
-                                <Textarea
-                                    placeholder={replyingTo ? "Write a reply..." : "Write a secure comment..."}
-                                    className="min-h-[80px] bg-muted/40 border-none focus-visible:ring-1 focus-visible:ring-primary/20 rounded-xl resize-none py-3 pr-10 text-sm placeholder:text-muted-foreground/50"
-                                    value={content}
-                                    onChange={(e) => setContent(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter' && !e.shiftKey) {
-                                            e.preventDefault();
-                                            handleSubmit(e);
-                                        }
-                                    }}
-                                />
-                                <Button
-                                    type="submit"
-                                    size="icon"
-                                    disabled={submitting || !content.trim()}
-                                    className={cn(
-                                        "absolute bottom-2.5 right-2.5 h-7 w-7 rounded-lg transition-all shadow-sm",
-                                        content.trim() ? "scale-100 opacity-100" : "scale-90 opacity-0 pointer-events-none"
-                                    )}
-                                >
-                                    {submitting ? (
-                                        <IconLoader2 className="h-3.5 w-3.5 animate-spin" />
-                                    ) : (
-                                        <IconSend className="h-3.5 w-3.5" />
-                                    )}
-                                </Button>
+                            <form onSubmit={handleSubmit} className="relative flex gap-2">
+                                {isLocked && !isOwner ? (
+                                    <div className="w-full h-12 rounded-xl bg-muted/50 border flex items-center justify-center gap-2 text-muted-foreground text-xs font-bold">
+                                        <IconLock className="h-3.5 w-3.5" />
+                                        Comments are locked
+                                    </div>
+                                ) : !isEnabled ? (
+                                    <div className="w-full h-12 rounded-xl bg-muted/50 border flex items-center justify-center gap-2 text-muted-foreground text-xs font-bold">
+                                        <IconMessageOff className="h-3.5 w-3.5" />
+                                        Comments are disabled
+                                    </div>
+                                ) : (
+                                    <>
+                                        <Textarea
+                                            ref={textareaRef}
+                                            placeholder={replyingTo ? `Replying to @${replyingTo.userName}...` : "Message..."}
+                                            className="min-h-[44px] max-h-[120px] bg-muted/30 border-none focus-visible:ring-0 focus-visible:bg-muted/50 rounded-xl resize-none py-3 px-4 text-[13px] leading-relaxed pr-10 scrollbar-thin scrollbar-thumb-muted-foreground/10"
+                                            value={content}
+                                            onChange={(e) => setContent(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' && !e.shiftKey) {
+                                                    e.preventDefault();
+                                                    handleSubmit(e);
+                                                }
+                                                if (e.key === 'Escape') {
+                                                    if (editingComment || replyingTo) {
+                                                        cancelAction();
+                                                    }
+                                                }
+                                            }}
+                                            disabled={submitting}
+                                        />
+                                        <div className="absolute right-2 bottom-1.5 flex items-center">
+                                            <Button
+                                                type="submit"
+                                                size="icon"
+                                                disabled={!content.trim() || submitting}
+                                                className={cn(
+                                                    "h-8 w-8 rounded-lg transition-all",
+                                                    content.trim() ? "bg-primary text-primary-foreground shadow-sm hover:translate-y-[-1px]" : "bg-transparent text-muted-foreground/20 hover:bg-transparent"
+                                                )}
+                                            >
+                                                {submitting ? (
+                                                    <IconLoader2 className="h-4 w-4 animate-spin" />
+                                                ) : (
+                                                    <IconSend className="h-4 w-4" />
+                                                )}
+                                            </Button>
+                                        </div>
+                                    </>
+                                )}
                             </form>
-                            <div className="flex items-center justify-between px-1">
-                                <p className="text-[9px] text-muted-foreground/60 italic">
-                                    Shift + Enter for new line
-                                </p>
-                                <div className="flex items-center gap-1.5 text-[9px] text-primary/70 font-medium">
-                                    <IconShield className="h-2.5 w-2.5" />
-                                    End-to-End Encrypted
-                                </div>
+                            <div className="text-[9px] text-muted-foreground/30 font-black text-center mt-2 uppercase tracking-widest">
+                                {editingComment ? "Editing Message • Esc to cancel" : replyingTo ? "Replying • Esc to cancel" : "End-to-end encrypted"}
                             </div>
                         </div>
                     ) : (
@@ -608,6 +900,6 @@ export function CommentSection({ shareId, shareCek, currentUser, isOwner, classN
                     )}
                 </div>
             </SheetContent>
-        </Sheet>
+        </Sheet >
     );
 }

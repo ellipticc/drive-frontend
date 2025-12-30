@@ -57,7 +57,8 @@ interface ShareDetails {
   is_folder: boolean;
   has_password: boolean;
   salt_pw?: string;
-  comments_enabled?: boolean;
+  comments_enabled?: boolean | number;
+  comments_locked?: boolean | number;
   expires_at?: string;
   max_views?: number;
   views: number;

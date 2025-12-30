@@ -3,6 +3,11 @@
  * All comments are encrypted client-side using a key derived from the share CEK.
  */
 import { xchacha20poly1305 } from '@noble/ciphers/chacha.js';
+import * as ed from '@noble/ed25519';
+import { sha512 } from '@noble/hashes/sha2.js';
+
+// Configure SHA-512 for noble/ed25519 if not already done in the environment
+ed.hashes.sha512 = sha512;
 
 /**
  * Derives a dedicated comment encryption key from the share CEK using HKDF.
@@ -68,3 +73,33 @@ export async function decryptComment(encryptedBase64: string, key: Uint8Array): 
         return '[Decryption Failed]';
     }
 }
+
+/**
+ * Creates an immutable fingerprint of the message using HMAC-SHA512.
+ * Uses the userId as the key.
+ */
+export async function createMessageFingerprint(message: string, userId: string): Promise<Uint8Array> {
+    const encoder = new TextEncoder();
+    const keyBytes = encoder.encode(userId);
+    const messageBytes = encoder.encode(message);
+
+    const key = await crypto.subtle.importKey(
+        'raw',
+        keyBytes,
+        { name: 'HMAC', hash: 'SHA-512' },
+        false,
+        ['sign']
+    );
+
+    const hmac = await crypto.subtle.sign('HMAC', key, messageBytes);
+    return new Uint8Array(hmac);
+}
+
+/**
+ * Signs the message fingerprint using the user's Ed25519 private key.
+ */
+export async function signMessageFingerprint(fingerprint: Uint8Array, privateKey: Uint8Array): Promise<Uint8Array> {
+    // noble/ed25519 expects Uint8Array for both message and private key
+    return await ed.sign(fingerprint, privateKey);
+}
+
