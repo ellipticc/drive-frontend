@@ -4,7 +4,9 @@ import { useState, useEffect } from "react"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
+  DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -94,7 +96,7 @@ export function DetailsModal({
   useEffect(() => {
     const decryptFilenameAsync = async () => {
       // Handle different field names for files vs folders
-const encryptedName = itemDetails?.encrypted_filename || itemDetails?.encryptedFilename
+      const encryptedName = itemDetails?.encrypted_filename || itemDetails?.encryptedFilename
       const filenameSalt = itemDetails?.filename_salt || itemDetails?.nameSalt
 
       if (encryptedName && filenameSalt) {
@@ -260,11 +262,11 @@ const encryptedName = itemDetails?.encrypted_filename || itemDetails?.encryptedF
         // Assume it's a timestamp in seconds
         dateObj = new Date(date * 1000);
       }
-      
+
       if (isNaN(dateObj.getTime())) {
         return "Invalid date";
       }
-      
+
       return dateObj.toLocaleDateString("en-US", {
         year: "numeric",
         month: "short",
@@ -300,7 +302,10 @@ const encryptedName = itemDetails?.encrypted_filename || itemDetails?.encryptedF
       ) : (
         children
       )}
-      <DialogContent className={`${isMobile ? 'w-[90vw] max-w-none h-[75vh] max-h-none overflow-y-auto' : 'sm:max-w-lg'}`}>
+      <DialogContent aria-describedby="details-modal-description" className={`${isMobile ? 'w-[90vw] max-w-none h-[75vh] max-h-none overflow-y-auto' : 'sm:max-w-lg'}`}>
+        <DialogDescription id="details-modal-description" className="sr-only">
+          Details for {itemType} {itemName}
+        </DialogDescription>
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <IconLoader2 className="h-6 w-6 animate-spin text-slate-400 mr-2" />
@@ -310,175 +315,173 @@ const encryptedName = itemDetails?.encrypted_filename || itemDetails?.encryptedF
           <div className="flex flex-col h-full">
             <div className="flex-1">
               <div className="space-y-4 p-6 pb-0">
-            <DialogHeader className="pb-2">
-              <div className="flex items-start gap-3">
-                {itemType === "file" ? (
-                  <IconFile className="h-5 w-5 text-slate-600 dark:text-slate-400 mt-1 flex-shrink-0" />
-                ) : (
-                  <IconFolder className="h-5 w-5 text-slate-600 dark:text-slate-400 mt-1 flex-shrink-0" />
-                )}
-                <div className="flex-1 min-w-0">
-                  <h2 className="text-base font-semibold break-words">
-                    {truncateFilename(itemName, 50)}
-                  </h2>
-                </div>
-              </div>
-            </DialogHeader>
-
-            {/* Signature Status Badge */}
-            {signatureStatus && (
-              <div className={`flex flex-col gap-2 px-3 py-3 rounded-lg border ${
-                signatureStatus.verified === true
-                  ? "border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40"
-                  : signatureStatus.status === "unsigned"
-                  ? "border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/30"
-                  : "border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40"
-              }`}>
-                <div className="flex items-center gap-2">
-                  {signatureStatus.verified === true ? (
-                    <IconShieldCheck className="h-4 w-4 text-slate-600 dark:text-slate-400 flex-shrink-0" />
-                  ) : signatureStatus.status === "unsigned" ? (
-                    <IconAlertCircle className="h-4 w-4 text-slate-600 dark:text-slate-400 flex-shrink-0" />
-                  ) : (
-                    <IconAlertCircle className="h-4 w-4 text-slate-600 dark:text-slate-400 flex-shrink-0" />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-semibold ${
-                      signatureStatus.verified === true
-                        ? "text-emerald-900 dark:text-emerald-100"
-                        : signatureStatus.status === "unsigned"
-                        ? "text-slate-900 dark:text-slate-100"
-                        : "text-amber-900 dark:text-amber-100"
-                    }`}>
-                      {signatureStatus.verified === true
-                        ? "Digital signature has been verified"
-                        : signatureStatus.status === "unsigned"
-                        ? "No Signature"
-                        : "Invalid Signature"}
-                    </p>
-                  </div>
-                </div>
-                {signatureStatus.verified === true && signatureStatus.signerEmail && (
-                  <p className="text-xs text-emerald-700 dark:text-emerald-300 ml-6">
-                    {itemType === "file" ? "File" : "Folder"} has been uploaded/imported by {signatureStatus.signerEmail}
-                  </p>
-                )}
-              </div>
-            )}
-
-            <Separator />
-
-            {/* Basic Info */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-foreground">Details</h3>
-
-              <div className="grid grid-cols-1 gap-2">
-                {/* Original Filename */}
-                <div className="flex items-center justify-between py-2">
-                  <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">Name</span>
-                  <span className="text-xs font-semibold text-slate-900 dark:text-slate-100 max-w-[200px] truncate">
-                    {truncateMiddle(decryptedFilename || itemDetails.filename || itemDetails.encryptedFilename || itemName, 30)}
-                  </span>
-                </div>
-
-                {/* Path */}
-                <div className="flex items-center justify-between py-2">
-                  <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">Path</span>
-                  <span className="text-xs font-semibold text-slate-900 dark:text-slate-100 max-w-[200px] truncate">
-                    {itemType === "folder" && (itemDetails.parentId === null || itemDetails.parentId === undefined) ? 'Root' : (decryptedPath || itemDetails.path || 'Root')}
-                  </span>
-                </div>
-
-                {/* Created By */}
-                <div className="flex items-center justify-between py-2">
-                  <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">Created By</span>
-                  <span className="text-xs font-semibold text-slate-900 dark:text-slate-100 max-w-[200px] truncate">
-                    {signatureStatus?.signerEmail || '-'}
-                  </span>
-                </div>
-
-                {/* Upload Date */}
-                <div className="flex items-center justify-between py-2">
-                  <span className="text-xs text-slate-600 dark:text-slate-400 font-medium flex items-center gap-1">
-                    <IconCalendar className="h-3 w-3 text-slate-600 dark:text-slate-400" /> Upload Date
-                  </span>
-                  <span className="text-xs text-slate-700 dark:text-slate-300">
-                    {formatDate(itemDetails.created_at || itemDetails.createdAt) || '-'}
-                  </span>
-                </div>
-
-                {/* Last Modified Date */}
-                <div className="flex items-center justify-between py-2">
-                  <span className="text-xs text-slate-600 dark:text-slate-400 font-medium flex items-center gap-1">
-                    <IconCalendar className="h-3 w-3 text-slate-600 dark:text-slate-400" /> Last Modified
-                  </span>
-                  <span className="text-xs text-slate-700 dark:text-slate-300">
-                    {formatDate(itemDetails.updatedAt || itemDetails.updated_at || itemDetails.createdAt || itemDetails.created_at) || '-'}
-                  </span>
-                </div>
-
-                {/* Type */}
-                <div className="flex items-center justify-between py-2">
-                  <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">Type</span>
-                  <span className="text-xs font-semibold text-slate-900 dark:text-slate-100 capitalize">
-                    {itemType}
-                  </span>
-                </div>
-
-                {/* Mimetype - Only for files */}
-                {itemType === "file" && (
-                  <div className="flex items-center justify-between py-2">
-                    <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">Mimetype</span>
-                    <span className="text-xs font-mono text-slate-700 dark:text-slate-300">
-                      {itemDetails.mimetype || '-'}
-                    </span>
-                  </div>
-                )}
-
-                {/* Size - Only for files */}
-                {itemType === "file" && (
-                  <div className="flex items-center justify-between py-2">
-                    <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">Size</span>
-                    <span className="text-xs font-semibold text-slate-900 dark:text-slate-100">
-                      {itemDetails.size ? formatBytes(itemDetails.size) : '-'}
-                    </span>
-                  </div>
-                )}
-
-                {/* Is Shared */}
-                <div className="flex items-center justify-between py-2">
-                  <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">Shared</span>
-                  <span className="text-xs font-semibold text-slate-900 dark:text-slate-100">
-                    {itemDetails.is_shared ? 'Yes' : 'No'}
-                  </span>
-                </div>
-
-                {/* Hash - Only for files */}
-                {itemType === "file" && itemDetails.sha_hash && (
-                  <div className="flex items-center justify-between py-2">
-                    <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">Hash</span>
-                    <div className="flex items-center gap-1">
-                      <code className="text-xs font-mono text-slate-700 dark:text-slate-300">
-                        {itemDetails.sha_hash.substring(0, 16)}...
-                      </code>
-                      <Button
-                        onClick={() => itemDetails?.sha_hash && copyToClipboard(itemDetails.sha_hash, "hash")}
-                        variant="ghost"
-                        size="sm"
-                        className="h-5 w-5 p-0"
-                      >
-                        {copiedHashId === "hash" ? (
-                          <IconCheck className="h-3 w-3 text-emerald-600" />
-                        ) : (
-                          <IconCopy className="h-3 w-3 text-slate-500" />
-                        )}
-                      </Button>
+                <DialogHeader className="pb-2">
+                  <div className="flex items-start gap-3">
+                    {itemType === "file" ? (
+                      <IconFile className="h-5 w-5 text-slate-600 dark:text-slate-400 mt-1 flex-shrink-0" />
+                    ) : (
+                      <IconFolder className="h-5 w-5 text-slate-600 dark:text-slate-400 mt-1 flex-shrink-0" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <DialogTitle className="text-base font-semibold break-words">
+                        {truncateFilename(itemName, 50)}
+                      </DialogTitle>
                     </div>
                   </div>
+                </DialogHeader>
+
+                {/* Signature Status Badge */}
+                {signatureStatus && (
+                  <div className={`flex flex-col gap-2 px-3 py-3 rounded-lg border ${signatureStatus.verified === true
+                    ? "border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40"
+                    : signatureStatus.status === "unsigned"
+                      ? "border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/30"
+                      : "border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40"
+                    }`}>
+                    <div className="flex items-center gap-2">
+                      {signatureStatus.verified === true ? (
+                        <IconShieldCheck className="h-4 w-4 text-slate-600 dark:text-slate-400 flex-shrink-0" />
+                      ) : signatureStatus.status === "unsigned" ? (
+                        <IconAlertCircle className="h-4 w-4 text-slate-600 dark:text-slate-400 flex-shrink-0" />
+                      ) : (
+                        <IconAlertCircle className="h-4 w-4 text-slate-600 dark:text-slate-400 flex-shrink-0" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-semibold ${signatureStatus.verified === true
+                          ? "text-emerald-900 dark:text-emerald-100"
+                          : signatureStatus.status === "unsigned"
+                            ? "text-slate-900 dark:text-slate-100"
+                            : "text-amber-900 dark:text-amber-100"
+                          }`}>
+                          {signatureStatus.verified === true
+                            ? "Digital signature has been verified"
+                            : signatureStatus.status === "unsigned"
+                              ? "No Signature"
+                              : "Invalid Signature"}
+                        </p>
+                      </div>
+                    </div>
+                    {signatureStatus.verified === true && signatureStatus.signerEmail && (
+                      <p className="text-xs text-emerald-700 dark:text-emerald-300 ml-6">
+                        {itemType === "file" ? "File" : "Folder"} has been uploaded/imported by {signatureStatus.signerEmail}
+                      </p>
+                    )}
+                  </div>
                 )}
+
+                <Separator />
+
+                {/* Basic Info */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold text-foreground">Details</h3>
+
+                  <div className="grid grid-cols-1 gap-2">
+                    {/* Original Filename */}
+                    <div className="flex items-center justify-between py-2">
+                      <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">Name</span>
+                      <span className="text-xs font-semibold text-slate-900 dark:text-slate-100 max-w-[200px] truncate">
+                        {truncateMiddle(decryptedFilename || itemDetails.filename || itemDetails.encryptedFilename || itemName, 30)}
+                      </span>
+                    </div>
+
+                    {/* Path */}
+                    <div className="flex items-center justify-between py-2">
+                      <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">Path</span>
+                      <span className="text-xs font-semibold text-slate-900 dark:text-slate-100 max-w-[200px] truncate">
+                        {itemType === "folder" && (itemDetails.parentId === null || itemDetails.parentId === undefined) ? 'Root' : (decryptedPath || itemDetails.path || 'Root')}
+                      </span>
+                    </div>
+
+                    {/* Created By */}
+                    <div className="flex items-center justify-between py-2">
+                      <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">Created By</span>
+                      <span className="text-xs font-semibold text-slate-900 dark:text-slate-100 max-w-[200px] truncate">
+                        {signatureStatus?.signerEmail || '-'}
+                      </span>
+                    </div>
+
+                    {/* Upload Date */}
+                    <div className="flex items-center justify-between py-2">
+                      <span className="text-xs text-slate-600 dark:text-slate-400 font-medium flex items-center gap-1">
+                        <IconCalendar className="h-3 w-3 text-slate-600 dark:text-slate-400" /> Upload Date
+                      </span>
+                      <span className="text-xs text-slate-700 dark:text-slate-300">
+                        {formatDate(itemDetails.created_at || itemDetails.createdAt) || '-'}
+                      </span>
+                    </div>
+
+                    {/* Last Modified Date */}
+                    <div className="flex items-center justify-between py-2">
+                      <span className="text-xs text-slate-600 dark:text-slate-400 font-medium flex items-center gap-1">
+                        <IconCalendar className="h-3 w-3 text-slate-600 dark:text-slate-400" /> Last Modified
+                      </span>
+                      <span className="text-xs text-slate-700 dark:text-slate-300">
+                        {formatDate(itemDetails.updatedAt || itemDetails.updated_at || itemDetails.createdAt || itemDetails.created_at) || '-'}
+                      </span>
+                    </div>
+
+                    {/* Type */}
+                    <div className="flex items-center justify-between py-2">
+                      <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">Type</span>
+                      <span className="text-xs font-semibold text-slate-900 dark:text-slate-100 capitalize">
+                        {itemType}
+                      </span>
+                    </div>
+
+                    {/* Mimetype - Only for files */}
+                    {itemType === "file" && (
+                      <div className="flex items-center justify-between py-2">
+                        <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">Mimetype</span>
+                        <span className="text-xs font-mono text-slate-700 dark:text-slate-300">
+                          {itemDetails.mimetype || '-'}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Size - Only for files */}
+                    {itemType === "file" && (
+                      <div className="flex items-center justify-between py-2">
+                        <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">Size</span>
+                        <span className="text-xs font-semibold text-slate-900 dark:text-slate-100">
+                          {itemDetails.size ? formatBytes(itemDetails.size) : '-'}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Is Shared */}
+                    <div className="flex items-center justify-between py-2">
+                      <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">Shared</span>
+                      <span className="text-xs font-semibold text-slate-900 dark:text-slate-100">
+                        {itemDetails.is_shared ? 'Yes' : 'No'}
+                      </span>
+                    </div>
+
+                    {/* Hash - Only for files */}
+                    {itemType === "file" && itemDetails.sha_hash && (
+                      <div className="flex items-center justify-between py-2">
+                        <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">Hash</span>
+                        <div className="flex items-center gap-1">
+                          <code className="text-xs font-mono text-slate-700 dark:text-slate-300">
+                            {itemDetails.sha_hash.substring(0, 16)}...
+                          </code>
+                          <Button
+                            onClick={() => itemDetails?.sha_hash && copyToClipboard(itemDetails.sha_hash, "hash")}
+                            variant="ghost"
+                            size="sm"
+                            className="h-5 w-5 p-0"
+                          >
+                            {copiedHashId === "hash" ? (
+                              <IconCheck className="h-3 w-3 text-emerald-600" />
+                            ) : (
+                              <IconCopy className="h-3 w-3 text-slate-500" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
-              </div>
-            </div>
             </div>
 
             {/* Actions - Fixed at bottom */}

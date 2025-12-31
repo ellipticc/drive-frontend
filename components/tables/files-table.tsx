@@ -26,14 +26,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/base/checkbox/checkbox";
 import { TableSkeleton } from "@/components/tables/table-skeleton";
-import { apiClient, FileItem, FolderContentItem, FileContentItem } from "@/lib/api";
+import { decryptFilename, encryptFilename, computeFilenameHmac, createSignedFileManifest, createSignedFolderManifest, decryptUserPrivateKeys } from "@/lib/crypto";
+import { apiClient, FileItem, FolderContentItem, FileContentItem, PQCKeypairs } from "@/lib/api";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { FullPagePreviewModal } from "@/components/previews/full-page-preview-modal";
 import { useCurrentFolder } from "@/components/current-folder-context";
 import { useOnFileAdded, useOnFileDeleted, useOnFileReplaced, useGlobalUpload } from "@/components/global-upload-context";
 import { FileIcon } from "@/components/file-icon";
-import { decryptFilename, encryptFilename, computeFilenameHmac } from "@/lib/crypto";
 import { masterKeyManager } from "@/lib/master-key";
 import { truncateFilename } from "@/lib/utils";
 import { isTextTruncated } from "@/lib/tooltip-helper";
@@ -187,6 +187,40 @@ export const Table01DividerLineSm = ({
     const [copyConflictOpen, setCopyConflictOpen] = useState(false);
     const [copyConflictItems, setCopyConflictItems] = useState<Array<{ id: string; name: string; type: 'file' | 'folder'; conflictingItemId?: string; existingPath: string; newPath: string }>>([]);
     const [copyDestinationFolderId, setCopyDestinationFolderId] = useState<string | null>(null);
+
+    interface UserData {
+        id: string
+        crypto_keypairs: {
+            accountSalt: string
+            pqcKeypairs: {
+                kyber: { publicKey: string; encryptedPrivateKey: string; privateKeyNonce: string; encryptionKey: string; encryptionNonce: string }
+                x25519: { publicKey: string; encryptedPrivateKey: string; privateKeyNonce: string; encryptionKey: string; encryptionNonce: string }
+                dilithium: { publicKey: string; encryptedPrivateKey: string; privateKeyNonce: string; encryptionKey: string; encryptionNonce: string }
+                ed25519: { publicKey: string; encryptedPrivateKey: string; privateKeyNonce: string; encryptionKey: string; encryptionNonce: string }
+            }
+        }
+    }
+    const [userData, setUserData] = useState<UserData | null>(null);
+
+    // Fetch user data when conflict modal opens (for signing)
+    useEffect(() => {
+        if (copyConflictOpen && !userData) {
+            apiClient.getProfile().then(response => {
+                if (response.success && response.data?.user?.crypto_keypairs) {
+                    const cryptoKeys = response.data.user.crypto_keypairs as { accountSalt?: string; pqcKeypairs?: PQCKeypairs }
+                    if (cryptoKeys.pqcKeypairs && cryptoKeys.accountSalt) {
+                        setUserData({
+                            id: response.data.user.id,
+                            crypto_keypairs: {
+                                accountSalt: cryptoKeys.accountSalt,
+                                pqcKeypairs: cryptoKeys.pqcKeypairs
+                            }
+                        })
+                    }
+                }
+            }).catch(e => console.warn("Failed to load user data for signing", e));
+        }
+    }, [copyConflictOpen]);
 
     // Sync state with URL "preview" param
     useEffect(() => {
@@ -1327,7 +1361,7 @@ export const Table01DividerLineSm = ({
                         return;
                     }
 
-                    // 2. Retry Copy
+                    // 2. Retry Copy (Replace)
                     const masterKey = masterKeyManager.getMasterKey();
                     if (!masterKey) {
                         toast.error('Encryption key missing');
@@ -1335,9 +1369,64 @@ export const Table01DividerLineSm = ({
                         return;
                     }
                     const nameHmac = await computeFilenameHmac(item.name, copyDestinationFolderId);
+
+                    // Sign manifest for the ORIGINAL name
+                    let signedManifest;
+                    if (userData && masterKeyManager.hasMasterKey()) {
+                        const privateKeys = await decryptUserPrivateKeys(userData);
+                        if (item.type === 'file') {
+                            signedManifest = await createSignedFileManifest(
+                                item.name,
+                                copyDestinationFolderId,
+                                {
+                                    ed25519PrivateKey: privateKeys.ed25519PrivateKey,
+                                    ed25519PublicKey: privateKeys.ed25519PublicKey,
+                                    dilithiumPrivateKey: privateKeys.dilithiumPrivateKey,
+                                    dilithiumPublicKey: privateKeys.dilithiumPublicKey
+                                }
+                            );
+                        } else {
+                            // Sign folder manifest
+                            signedManifest = await createSignedFolderManifest(
+                                item.name,
+                                copyDestinationFolderId,
+                                {
+                                    ed25519PrivateKey: privateKeys.ed25519PrivateKey,
+                                    ed25519PublicKey: privateKeys.ed25519PublicKey,
+                                    dilithiumPrivateKey: privateKeys.dilithiumPrivateKey,
+                                    dilithiumPublicKey: privateKeys.dilithiumPublicKey
+                                }
+                            );
+                        }
+                    }
+
                     const res = item.type === 'file'
-                        ? await apiClient.copyFile(item.id, copyDestinationFolderId, { nameHmac })
-                        : await apiClient.copyFolder(item.id, copyDestinationFolderId, { nameHmac });
+                        ? await apiClient.copyFile(item.id, copyDestinationFolderId, {
+                            nameHmac,
+                            ...(signedManifest ? {
+                                manifestHash: signedManifest.manifestHash,
+                                manifestSignatureEd25519: signedManifest.manifestSignatureEd25519,
+                                manifestPublicKeyEd25519: signedManifest.manifestPublicKeyEd25519,
+                                manifestSignatureDilithium: signedManifest.manifestSignatureDilithium,
+                                manifestPublicKeyDilithium: signedManifest.manifestPublicKeyDilithium,
+                                manifestCreatedAt: signedManifest.manifestCreatedAt,
+                                algorithmVersion: signedManifest.algorithmVersion
+                            } : {})
+                        })
+                        : await apiClient.copyFolder(item.id, copyDestinationFolderId, {
+                            nameHmac,
+                            ...(signedManifest ? {
+                                encryptedName: (signedManifest as any).encryptedName,
+                                nameSalt: (signedManifest as any).nameSalt,
+                                manifestHash: signedManifest.manifestHash,
+                                manifestSignatureEd25519: signedManifest.manifestSignatureEd25519,
+                                manifestPublicKeyEd25519: signedManifest.manifestPublicKeyEd25519,
+                                manifestSignatureDilithium: signedManifest.manifestSignatureDilithium,
+                                manifestPublicKeyDilithium: signedManifest.manifestPublicKeyDilithium,
+                                manifestCreatedAt: signedManifest.manifestCreatedAt,
+                                algorithmVersion: signedManifest.algorithmVersion
+                            } : {})
+                        });
 
                     if (res.success) successCount++; else failCount++;
 
@@ -1363,8 +1452,37 @@ export const Table01DividerLineSm = ({
 
                     const { encryptedFilename, filenameSalt } = await encryptFilename(newName, masterKey);
 
-                    // 3. Copy with new name params
                     const nameHmac = await computeFilenameHmac(newName, copyDestinationFolderId);
+
+                    // Sign manifest for the NEW name
+                    let signedManifest;
+                    if (userData && masterKeyManager.hasMasterKey()) {
+                        const privateKeys = await decryptUserPrivateKeys(userData);
+                        if (item.type === 'file') {
+                            signedManifest = await createSignedFileManifest(
+                                newName,
+                                copyDestinationFolderId,
+                                {
+                                    ed25519PrivateKey: privateKeys.ed25519PrivateKey,
+                                    ed25519PublicKey: privateKeys.ed25519PublicKey,
+                                    dilithiumPrivateKey: privateKeys.dilithiumPrivateKey,
+                                    dilithiumPublicKey: privateKeys.dilithiumPublicKey
+                                }
+                            );
+                        } else {
+                            // Sign folder manifest
+                            signedManifest = await createSignedFolderManifest(
+                                newName,
+                                copyDestinationFolderId,
+                                {
+                                    ed25519PrivateKey: privateKeys.ed25519PrivateKey,
+                                    ed25519PublicKey: privateKeys.ed25519PublicKey,
+                                    dilithiumPrivateKey: privateKeys.dilithiumPrivateKey,
+                                    dilithiumPublicKey: privateKeys.dilithiumPublicKey
+                                }
+                            );
+                        }
+                    }
 
                     let res;
                     if (item.type === 'file') {
@@ -1372,13 +1490,31 @@ export const Table01DividerLineSm = ({
                             filename: newName,
                             encryptedFilename: encryptedFilename,
                             filenameSalt: filenameSalt,
-                            nameHmac
+                            nameHmac,
+                            ...(signedManifest ? {
+                                manifestHash: signedManifest.manifestHash,
+                                manifestSignatureEd25519: signedManifest.manifestSignatureEd25519,
+                                manifestPublicKeyEd25519: signedManifest.manifestPublicKeyEd25519,
+                                manifestSignatureDilithium: signedManifest.manifestSignatureDilithium,
+                                manifestPublicKeyDilithium: signedManifest.manifestPublicKeyDilithium,
+                                manifestCreatedAt: signedManifest.manifestCreatedAt,
+                                algorithmVersion: signedManifest.algorithmVersion
+                            } : {})
                         });
                     } else {
                         res = await apiClient.copyFolder(item.id, copyDestinationFolderId, {
                             encryptedName: encryptedFilename,
                             nameSalt: filenameSalt,
-                            nameHmac
+                            nameHmac,
+                            ...(signedManifest ? {
+                                manifestHash: signedManifest.manifestHash,
+                                manifestSignatureEd25519: signedManifest.manifestSignatureEd25519,
+                                manifestPublicKeyEd25519: signedManifest.manifestPublicKeyEd25519,
+                                manifestSignatureDilithium: signedManifest.manifestSignatureDilithium,
+                                manifestPublicKeyDilithium: signedManifest.manifestPublicKeyDilithium,
+                                manifestCreatedAt: signedManifest.manifestCreatedAt,
+                                algorithmVersion: signedManifest.algorithmVersion
+                            } : {})
                         });
                     }
 

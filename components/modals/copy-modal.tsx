@@ -15,11 +15,10 @@ import { Label } from "@/components/ui/label"
 import { IconFolder, IconChevronRight, IconChevronDown, IconLoader2, IconCopy } from "@tabler/icons-react"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
-import { apiClient } from "@/lib/api"
-import type { FolderContentItem } from '@/lib/api'
+import { decryptFilename, computeFilenameHmac, createSignedFileManifest, decryptUserPrivateKeys, createSignedFolderManifest } from "@/lib/crypto"
+import { apiClient, PQCKeypairs, type FolderContentItem } from "@/lib/api"
 import { truncateFilename } from "@/lib/utils"
 import { masterKeyManager } from "@/lib/master-key"
-import { decryptFilename, computeFilenameHmac } from "@/lib/crypto"
 
 interface CopyModalProps {
     children?: React.ReactNode
@@ -47,12 +46,27 @@ interface Folder {
     hasExploredChildren?: boolean
 }
 
+interface UserData {
+    id: string
+    crypto_keypairs: {
+        accountSalt: string
+        pqcKeypairs: {
+            kyber: { publicKey: string; encryptedPrivateKey: string; privateKeyNonce: string; encryptionKey: string; encryptionNonce: string }
+            x25519: { publicKey: string; encryptedPrivateKey: string; privateKeyNonce: string; encryptionKey: string; encryptionNonce: string }
+            dilithium: { publicKey: string; encryptedPrivateKey: string; privateKeyNonce: string; encryptionKey: string; encryptionNonce: string }
+            ed25519: { publicKey: string; encryptedPrivateKey: string; privateKeyNonce: string; encryptionKey: string; encryptionNonce: string }
+        }
+    }
+}
+
 export function CopyModal({ children, itemId = "", itemName = "item", itemType = "file", items, open: externalOpen, onOpenChange: externalOnOpenChange, onItemCopied, onConflict }: CopyModalProps) {
     const [internalOpen, setInternalOpen] = useState(false)
     const [selectedFolder, setSelectedFolder] = useState<string | null>(null)
     const [isLoading, setIsLoading] = useState(false)
     const [isLoadingFolders, setIsLoadingFolders] = useState(false)
     const [folders, setFolders] = useState<Folder[]>([])
+    const [userData, setUserData] = useState<UserData | null>(null)
+    const [userDataLoaded, setUserDataLoaded] = useState(false)
 
     // Use external state if provided, otherwise use internal state
     const open = externalOpen !== undefined ? externalOpen : internalOpen
@@ -66,12 +80,36 @@ export function CopyModal({ children, itemId = "", itemName = "item", itemType =
         ? `Choose a destination folder for ${operationItems.length} selected item${operationItems.length > 1 ? 's' : ''}.`
         : `Choose a destination folder for "${truncateFilename(itemName)}".`
 
-    // Fetch folders when modal opens
+    // Fetch folders and user data when modal opens
     useEffect(() => {
         if (open) {
             fetchFolders()
+            fetchUserData()
         }
     }, [open])
+
+    const fetchUserData = async () => {
+        if (userDataLoaded) return;
+        try {
+            const response = await apiClient.getProfile()
+            if (response.success && response.data?.user?.crypto_keypairs) {
+                const cryptoKeys = response.data.user.crypto_keypairs as { accountSalt?: string; pqcKeypairs?: PQCKeypairs }
+                if (cryptoKeys.pqcKeypairs && cryptoKeys.accountSalt) {
+                    setUserData({
+                        id: response.data.user.id,
+                        crypto_keypairs: {
+                            accountSalt: cryptoKeys.accountSalt,
+                            pqcKeypairs: cryptoKeys.pqcKeypairs
+                        }
+                    })
+                }
+            }
+            setUserDataLoaded(true)
+        } catch (e) {
+            console.warn("Failed to load user data for signing", e)
+            setUserDataLoaded(true)
+        }
+    }
 
     const fetchFolders = async () => {
         setIsLoadingFolders(true)
@@ -301,18 +339,74 @@ export function CopyModal({ children, itemId = "", itemName = "item", itemType =
                     let response;
                     const destFolderId = selectedFolder === 'root' ? null : selectedFolder;
 
-                    // Compute HMAC for Zero-Knowledge conflict detection
+                    // Compute HMAC and Sign Manifest
                     let nameHmac;
+                    let signedManifest;
                     try {
                         nameHmac = await computeFilenameHmac(item.name, destFolderId);
+
+                        // IMPROVEMENT: Sign the copied file to ensure integrity
+                        if (userData && masterKeyManager.hasMasterKey()) {
+                            const privateKeys = await decryptUserPrivateKeys(userData);
+                            if (item.type === 'file') {
+                                signedManifest = await createSignedFileManifest(
+                                    item.name,
+                                    destFolderId,
+                                    {
+                                        ed25519PrivateKey: privateKeys.ed25519PrivateKey,
+                                        ed25519PublicKey: privateKeys.ed25519PublicKey,
+                                        dilithiumPrivateKey: privateKeys.dilithiumPrivateKey,
+                                        dilithiumPublicKey: privateKeys.dilithiumPublicKey
+                                    }
+                                );
+                            } else {
+                                // Create signed folder manifest for ROOT folder copy
+                                signedManifest = await createSignedFolderManifest(
+                                    item.name,
+                                    destFolderId,
+                                    {
+                                        ed25519PrivateKey: privateKeys.ed25519PrivateKey,
+                                        ed25519PublicKey: privateKeys.ed25519PublicKey,
+                                        dilithiumPrivateKey: privateKeys.dilithiumPrivateKey,
+                                        dilithiumPublicKey: privateKeys.dilithiumPublicKey
+                                    }
+                                );
+                            }
+                        }
                     } catch (err) {
-                        console.warn('Failed to compute filename HMAC for copy', err);
+                        console.warn('Failed to compute crypto data for copy', err);
                     }
 
                     if (item.type === 'file') {
-                        response = await apiClient.copyFile(item.id, destFolderId, { nameHmac });
+                        response = await apiClient.copyFile(item.id, destFolderId, {
+                            nameHmac,
+                            // Spread signed manifest fields if available
+                            ...(signedManifest ? {
+                                manifestHash: signedManifest.manifestHash,
+                                manifestSignatureEd25519: signedManifest.manifestSignatureEd25519,
+                                manifestPublicKeyEd25519: signedManifest.manifestPublicKeyEd25519,
+                                manifestSignatureDilithium: signedManifest.manifestSignatureDilithium,
+                                manifestPublicKeyDilithium: signedManifest.manifestPublicKeyDilithium,
+                                manifestCreatedAt: signedManifest.manifestCreatedAt,
+                                algorithmVersion: signedManifest.algorithmVersion
+                            } : {})
+                        });
                     } else {
-                        response = await apiClient.copyFolder(item.id, destFolderId, { nameHmac });
+                        response = await apiClient.copyFolder(item.id, destFolderId, {
+                            nameHmac,
+                            ...(signedManifest ? {
+                                encryptedName: (signedManifest as any).encryptedName,
+                                nameSalt: (signedManifest as any).nameSalt,
+                                manifestHash: signedManifest.manifestHash,
+                                manifestSignatureEd25519: signedManifest.manifestSignatureEd25519,
+                                manifestPublicKeyEd25519: signedManifest.manifestPublicKeyEd25519,
+                                manifestSignatureDilithium: signedManifest.manifestSignatureDilithium,
+                                manifestPublicKeyDilithium: signedManifest.manifestPublicKeyDilithium,
+                                manifestCreatedAt: signedManifest.manifestCreatedAt,
+                                algorithmVersion: signedManifest.algorithmVersion
+                            } : {})
+                        });
+
                     }
 
                     if (response.success) {

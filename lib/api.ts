@@ -1652,7 +1652,20 @@ class ApiClient {
     });
   }
 
-  async copyFile(fileId: string, folderId: string | null, options?: { filename?: string, encryptedFilename?: string, filenameSalt?: string, nameHmac?: string }): Promise<ApiResponse<{
+  async copyFile(fileId: string, folderId: string | null, options?: {
+    filename?: string,
+    encryptedFilename?: string,
+    filenameSalt?: string,
+    nameHmac?: string,
+    // Manifest fields for signed copied file
+    manifestHash?: string,
+    manifestSignatureEd25519?: string,
+    manifestPublicKeyEd25519?: string,
+    manifestSignatureDilithium?: string,
+    manifestPublicKeyDilithium?: string,
+    manifestCreatedAt?: number,
+    algorithmVersion?: string
+  }): Promise<ApiResponse<{
     success: boolean;
     message: string;
     file: any;
@@ -1667,7 +1680,19 @@ class ApiClient {
     });
   }
 
-  async copyFolder(folderId: string, destinationFolderId: string | null, options?: { encryptedName?: string, nameSalt?: string, nameHmac?: string }): Promise<ApiResponse<{
+  async copyFolder(folderId: string, destinationFolderId: string | null, options?: {
+    encryptedName?: string,
+    nameSalt?: string,
+    nameHmac?: string,
+    // Manifest fields for signed copied folder
+    manifestHash?: string,
+    manifestSignatureEd25519?: string,
+    manifestPublicKeyEd25519?: string,
+    manifestSignatureDilithium?: string,
+    manifestPublicKeyDilithium?: string,
+    manifestCreatedAt?: number,
+    algorithmVersion?: string
+  }): Promise<ApiResponse<{
     success: boolean;
     message: string;
     conflictingItemId?: string;
