@@ -1652,6 +1652,35 @@ class ApiClient {
     });
   }
 
+  async copyFile(fileId: string, folderId: string | null, options?: { filename?: string, encryptedFilename?: string, filenameSalt?: string, nameHmac?: string }): Promise<ApiResponse<{
+    success: boolean;
+    message: string;
+    file: any;
+    conflictingItemId?: string;
+  }>> {
+    const idempotencyKey = generateIdempotencyKey('copyFile', `${fileId}:${folderId}:${options?.filename || ''}`);
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request(`/files/${fileId}/copy`, {
+      method: 'POST',
+      body: JSON.stringify({ folderId, ...options }),
+      headers
+    });
+  }
+
+  async copyFolder(folderId: string, destinationFolderId: string | null, options?: { encryptedName?: string, nameSalt?: string, nameHmac?: string }): Promise<ApiResponse<{
+    success: boolean;
+    message: string;
+    conflictingItemId?: string;
+  }>> {
+    const idempotencyKey = generateIdempotencyKey('copyFolder', `${folderId}:${destinationFolderId}:${options?.encryptedName || ''}`);
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request(`/folders/${folderId}/copy`, {
+      method: 'POST',
+      body: JSON.stringify({ destinationFolderId, ...options }),
+      headers
+    });
+  }
+
   // Upload operations
   async initializeUploadSession(data: {
     encryptedFilename: string;

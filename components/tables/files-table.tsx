@@ -6,9 +6,10 @@ import { DotsVertical } from "@untitledui/icons";
 import type { SortDescriptor, Selection } from "react-aria-components";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Button } from "@/components/ui/button";
-import { IconFolderPlus, IconFolderDown, IconFileUpload, IconShare3, IconListDetails, IconDownload, IconFolder, IconEdit, IconInfoCircle, IconTrash, IconPhoto, IconVideo, IconMusic, IconFileText, IconArchive, IconFile, IconHome, IconChevronRight, IconLink, IconEye, IconLayoutColumns, IconChevronDown } from "@tabler/icons-react";
+import { IconFolderPlus, IconFolderDown, IconFileUpload, IconShare3, IconListDetails, IconDownload, IconFolder, IconEdit, IconInfoCircle, IconTrash, IconPhoto, IconVideo, IconMusic, IconFileText, IconArchive, IconFile, IconHome, IconChevronRight, IconLink, IconEye, IconLayoutColumns, IconChevronDown, IconCopy } from "@tabler/icons-react";
 import { CreateFolderModal } from "@/components/modals/create-folder-modal";
 import { MoveToFolderModal } from "@/components/modals/move-to-folder-modal";
+import { CopyModal } from "@/components/modals/copy-modal";
 import { ShareModal } from "@/components/modals/share-modal";
 import { SharePickerModal } from "@/components/modals/share-picker-modal";
 import { DetailsModal } from "@/components/modals/details-modal";
@@ -32,7 +33,7 @@ import { FullPagePreviewModal } from "@/components/previews/full-page-preview-mo
 import { useCurrentFolder } from "@/components/current-folder-context";
 import { useOnFileAdded, useOnFileDeleted, useOnFileReplaced, useGlobalUpload } from "@/components/global-upload-context";
 import { FileIcon } from "@/components/file-icon";
-import { decryptFilename } from "@/lib/crypto";
+import { decryptFilename, encryptFilename, computeFilenameHmac } from "@/lib/crypto";
 import { masterKeyManager } from "@/lib/master-key";
 import { truncateFilename } from "@/lib/utils";
 import { isTextTruncated } from "@/lib/tooltip-helper";
@@ -173,12 +174,19 @@ export const Table01DividerLineSm = ({
     const [selectedItemForDetails, setSelectedItemForDetails] = useState<{ id: string; name: string; type: "file" | "folder" } | null>(null);
     const [moveToFolderModalOpen, setMoveToFolderModalOpen] = useState(false);
     const [selectedItemsForMoveToFolder, setSelectedItemsForMoveToFolder] = useState<Array<{ id: string; name: string; type: "file" | "folder" }>>([]);
+    const [copyModalOpen, setCopyModalOpen] = useState(false);
+    const [selectedItemsForCopy, setSelectedItemsForCopy] = useState<Array<{ id: string; name: string; type: "file" | "folder" }>>([]);
     const [moveToTrashModalOpen, setMoveToTrashModalOpen] = useState(false);
     const [selectedItemForMoveToTrash] = useState<{ id: string; name: string; type: "file" | "folder" } | null>(null);
 
     // Preview modal state
     const [previewModalOpen, setPreviewModalOpen] = useState(false);
     const [selectedItemForPreview, setSelectedItemForPreview] = useState<{ id: string; name: string; mimeType?: string } | null>(null);
+
+    // Copy conflict state
+    const [copyConflictOpen, setCopyConflictOpen] = useState(false);
+    const [copyConflictItems, setCopyConflictItems] = useState<Array<{ id: string; name: string; type: 'file' | 'folder'; conflictingItemId?: string; existingPath: string; newPath: string }>>([]);
+    const [copyDestinationFolderId, setCopyDestinationFolderId] = useState<string | null>(null);
 
     // Sync state with URL "preview" param
     useEffect(() => {
@@ -704,6 +712,11 @@ export const Table01DividerLineSm = ({
         setMoveToFolderModalOpen(true);
     };
 
+    const handleCopyClick = (itemId: string, itemName: string, itemType: "file" | "folder") => {
+        setSelectedItemsForCopy([{ id: itemId, name: itemName, type: itemType }]);
+        setCopyModalOpen(true);
+    };
+
     const handleMoveToTrashClick = async (itemId: string, itemName: string, itemType: "file" | "folder") => {
         try {
             let response;
@@ -955,6 +968,9 @@ export const Table01DividerLineSm = ({
                     break;
                 case 'moveToFolder':
                     handleMoveToFolderClick(item.id, item.name, item.type);
+                    break;
+                case 'copy':
+                    handleCopyClick(item.id, item.name, item.type);
                     break;
                 case 'rename':
                     handleRenameClick(item.id, item.name, item.type);
@@ -1271,6 +1287,121 @@ export const Table01DividerLineSm = ({
     }, [selectedItemForPreview, getPreviewableFiles]);
 
 
+
+
+    const handleCopyConflict = (items: Array<{ id: string; name: string; type: "file" | "folder"; conflictingItemId?: string }>, destinationFolderId: string | null) => {
+        setCopyConflictItems(items.map(item => ({
+            ...item,
+            // ConflictModal expects existingPath/newPath but they are not strictly used for Copy UI display usually
+            // We provide dummy values to satisfy the interface if strict
+            existingPath: 'Destination',
+            newPath: 'Destination'
+        })));
+        setCopyDestinationFolderId(destinationFolderId);
+        setCopyConflictOpen(true);
+    };
+
+    const handleCopyConflictResolution = async (resolutions: Record<string, 'replace' | 'keepBoth' | 'ignore'>) => {
+        let successCount = 0;
+        let failCount = 0;
+        const promises = copyConflictItems.map(async (item) => {
+            const resolution = resolutions[item.id];
+            if (!resolution || resolution === 'ignore') return;
+
+            try {
+                if (resolution === 'replace') {
+                    // 1. Delete the conflicting item first
+                    if (item.conflictingItemId) {
+                        // Use moveFileToTrash as a safe delete (name is freed from active folder)
+                        const delRes = item.type === 'file'
+                            ? await apiClient.moveFileToTrash(item.conflictingItemId)
+                            : await apiClient.moveFolderToTrash(item.conflictingItemId);
+
+                        if (!delRes.success) {
+                            console.error('Failed to remove conflicting item', delRes);
+                            failCount++;
+                            return;
+                        }
+                    } else {
+                        failCount++;
+                        return;
+                    }
+
+                    // 2. Retry Copy
+                    const masterKey = masterKeyManager.getMasterKey();
+                    if (!masterKey) {
+                        toast.error('Encryption key missing');
+                        failCount++;
+                        return;
+                    }
+                    const nameHmac = await computeFilenameHmac(item.name, copyDestinationFolderId);
+                    const res = item.type === 'file'
+                        ? await apiClient.copyFile(item.id, copyDestinationFolderId, { nameHmac })
+                        : await apiClient.copyFolder(item.id, copyDestinationFolderId, { nameHmac });
+
+                    if (res.success) successCount++; else failCount++;
+
+                } else if (resolution === 'keepBoth') {
+                    // 1. Generate new name: "Name (Copy)" 
+                    const nameParts = item.name.lastIndexOf('.');
+                    let newName = item.name + ' (Copy)';
+                    if (item.type === 'file' && nameParts !== -1) {
+                        // Insert before extension
+                        newName = item.name.substring(0, nameParts) + ' (Copy)' + item.name.substring(nameParts);
+                    }
+                    if (item.type === 'folder') {
+                        newName = item.name + ' (Copy)';
+                    }
+
+                    // 2. Encrypt new name
+                    const masterKey = masterKeyManager.getMasterKey();
+                    if (!masterKey) {
+                        toast.error('Encryption key missing');
+                        failCount++;
+                        return;
+                    }
+
+                    const { encryptedFilename, filenameSalt } = await encryptFilename(newName, masterKey);
+
+                    // 3. Copy with new name params
+                    const nameHmac = await computeFilenameHmac(newName, copyDestinationFolderId);
+
+                    let res;
+                    if (item.type === 'file') {
+                        res = await apiClient.copyFile(item.id, copyDestinationFolderId, {
+                            filename: newName,
+                            encryptedFilename: encryptedFilename,
+                            filenameSalt: filenameSalt,
+                            nameHmac
+                        });
+                    } else {
+                        res = await apiClient.copyFolder(item.id, copyDestinationFolderId, {
+                            encryptedName: encryptedFilename,
+                            nameSalt: filenameSalt,
+                            nameHmac
+                        });
+                    }
+
+                    if (res.success) successCount++; else failCount++;
+                }
+            } catch (err) {
+                console.error('Error resolving conflict', err);
+                failCount++;
+            }
+        });
+
+        await Promise.all(promises);
+
+        if (successCount > 0) {
+            toast.success(`Resolved ${successCount} conflicts`);
+            refreshFiles();
+        }
+        if (failCount > 0) {
+            toast.error(`Failed to resolve ${failCount} conflicts`);
+        }
+        setCopyConflictOpen(false);
+        setCopyConflictItems([]);
+    };
 
     const renderHeaderIcons = useMemo(() => {
         const hasSelection = selectedItems.size > 0;
@@ -1969,6 +2100,10 @@ export const Table01DividerLineSm = ({
                                                         <IconFolder className="h-4 w-4 mr-2" />
                                                         Move to folder
                                                     </DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleCopyClick(item.id, item.name, item.type)}>
+                                                        <IconCopy className="h-4 w-4 mr-2" />
+                                                        Copy to...
+                                                    </DropdownMenuItem>
                                                     <DropdownMenuItem onClick={() => handleRenameClick(item.id, item.name, item.type)}>
                                                         <IconEdit className="h-4 w-4 mr-2" />
                                                         Rename
@@ -2094,6 +2229,10 @@ export const Table01DividerLineSm = ({
                                                     <IconFolder className="h-4 w-4 mr-2" />
                                                     Move to folder
                                                 </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => handleCopyClick(item.id, item.name, item.type)}>
+                                                    <IconCopy className="h-4 w-4 mr-2" />
+                                                    Copy to...
+                                                </DropdownMenuItem>
                                                 <DropdownMenuItem onClick={() => handleRenameClick(item.id, item.name, item.type)}>
                                                     <IconEdit className="h-4 w-4 mr-2" />
                                                     Rename
@@ -2182,6 +2321,25 @@ export const Table01DividerLineSm = ({
                     setSelectedItems(new Set()); // Clear selection after moving items
                     refreshFiles();
                 }}
+            />
+
+            <CopyModal
+                items={selectedItemsForCopy}
+                open={copyModalOpen}
+                onOpenChange={setCopyModalOpen}
+                onItemCopied={() => {
+                    setSelectedItems(new Set()); // Clear selection
+                    refreshFiles();
+                }}
+                onConflict={handleCopyConflict}
+            />
+
+            <ConflictModal
+                isOpen={copyConflictOpen}
+                onClose={() => setCopyConflictOpen(false)}
+                conflicts={copyConflictItems}
+                onResolve={handleCopyConflictResolution}
+                operation="copy"
             />
 
             <MoveToTrashModal
@@ -2324,6 +2482,13 @@ export const Table01DividerLineSm = ({
                                 >
                                     <IconFolder className="h-4 w-4" />
                                     Move to Folder
+                                </button>
+                                <button
+                                    className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
+                                    onClick={() => handleContextMenuAction('copy', contextMenu.targetItem)}
+                                >
+                                    <IconCopy className="h-4 w-4" />
+                                    Copy to...
                                 </button>
                                 <button
                                     className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
