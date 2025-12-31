@@ -63,8 +63,15 @@ export function LoginFormAuth({
           apiClient.setStorage(storage);
           masterKeyManager.setStorage(storage);
           // Token and master key found in cache - user is authenticated
-          // Silently redirect to dashboard with loading spinner
-          router.push('/')
+          // Check for pending redirect
+          const redirectUrl = sessionStorage.getItem('login_redirect_url');
+          if (redirectUrl) {
+            console.log('Redirecting to stored URL:', redirectUrl);
+            sessionStorage.removeItem('login_redirect_url');
+            window.location.href = redirectUrl; // Use window.location for full refresh/external checks
+          } else {
+            router.push('/')
+          }
           return
         } else {
           console.log('Missing credentials - staying on login page')
@@ -294,7 +301,16 @@ export function LoginFormAuth({
       sessionTrackingUtils.clearSession()
 
       window.dispatchEvent(new CustomEvent('user-login'));
-      router.push("/")
+
+      // Check for pending redirect
+      const redirectUrl = sessionStorage.getItem('login_redirect_url');
+      if (redirectUrl) {
+        console.log('Redirecting to stored URL:', redirectUrl);
+        sessionStorage.removeItem('login_redirect_url');
+        window.location.href = redirectUrl;
+      } else {
+        router.push("/")
+      }
     } catch (err) {
       console.error('Login error:', err)
       setError(err instanceof Error ? err.message : "An unexpected error occurred")

@@ -48,8 +48,15 @@ export function SignupFormAuth({
         if (token && masterKey && accountSalt) {
           console.log('All credentials found! Redirecting to dashboard...')
           // Token and master key found in cache - user is authenticated
-          // Silently redirect to dashboard with loading spinner
-          router.push('/')
+          // Check for pending redirect
+          const redirectUrl = sessionStorage.getItem('login_redirect_url');
+          if (redirectUrl) {
+            console.log('Redirecting to stored URL:', redirectUrl);
+            sessionStorage.removeItem('login_redirect_url');
+            window.location.href = redirectUrl;
+          } else {
+            router.push('/')
+          }
           return
         } else {
           console.log('Missing credentials - staying on signup page')

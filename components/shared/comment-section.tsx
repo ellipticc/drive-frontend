@@ -34,6 +34,7 @@ import {
     IconUser
 } from '@tabler/icons-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useRouter } from "next/navigation";
 import { apiClient, ShareComment } from '@/lib/api';
 import { getDiceBearAvatar } from '@/lib/avatar';
 import { deriveCommentKey, encryptComment, decryptComment, createMessageFingerprint, signMessageFingerprint } from '@/lib/comment-crypto';
@@ -92,9 +93,12 @@ export function CommentSection({ shareId, shareCek, currentUser, isOwner, classN
     const [loading, setLoading] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [content, setContent] = useState('');
+    const [commentToDelete, setCommentToDelete] = useState<string | null>(null)
+    const router = useRouter()
 
     // Edit/Reply state
     const [editingComment, setEditingComment] = useState<DecryptedComment | null>(null);
+    const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
     const [replyingTo, setReplyingTo] = useState<DecryptedComment | null>(null);
 
     const [commentKey, setCommentKey] = useState<Uint8Array | null>(null);
@@ -1035,8 +1039,16 @@ export function CommentSection({ shareId, shareCek, currentUser, isOwner, classN
                                     <p className="text-[11px] text-muted-foreground leading-relaxed px-4">Log in to leave a secure, end-to-end encrypted comment on this share.</p>
                                 </div>
                                 <div className="flex flex-col sm:flex-row gap-2 justify-center">
-                                    <Button variant="outline" size="sm" className="h-9 text-xs font-bold px-6 rounded-full border-2 hover:bg-muted transition-all" onClick={() => window.location.href = '/login?utm_source=share_comments&utm_medium=referral&utm_campaign=share_auth'}>Log In</Button>
-                                    <Button size="sm" className="h-9 text-xs font-bold px-6 rounded-full shadow-lg hover:opacity-90 active:scale-95 transition-all" onClick={() => window.location.href = '/signup?utm_source=share_comments&utm_medium=referral&utm_campaign=share_auth'}>Get Started</Button>
+                                    <Button variant="outline" size="sm" className="h-9 text-xs font-bold px-6 rounded-full border-2 hover:bg-muted transition-all" onClick={() => {
+                                        console.log('Storing redirect URL:', window.location.href);
+                                        sessionStorage.setItem('login_redirect_url', window.location.href);
+                                        router.push('/login?utm_source=share_comments&utm_medium=referral&utm_campaign=share_auth');
+                                    }}>Log In</Button>
+                                    <Button size="sm" className="h-9 text-xs font-bold px-6 rounded-full shadow-lg hover:opacity-90 active:scale-95 transition-all" onClick={() => {
+                                        console.log('Storing redirect URL:', window.location.href);
+                                        sessionStorage.setItem('login_redirect_url', window.location.href);
+                                        router.push('/signup?utm_source=share_comments&utm_medium=referral&utm_campaign=share_auth');
+                                    }}>Get Started</Button>
                                 </div>
                             </div>
                         )}

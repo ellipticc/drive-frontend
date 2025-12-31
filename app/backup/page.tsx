@@ -76,7 +76,15 @@ export default function BackupPage() {
     // Clear mnemonic from localStorage for security
     localStorage.removeItem('recovery_mnemonic')
     // Navigate to main page
-    router.push('/')
+    // Check for pending redirect
+    const redirectUrl = sessionStorage.getItem('login_redirect_url');
+    if (redirectUrl) {
+      console.log('Redirecting to stored URL:', redirectUrl);
+      sessionStorage.removeItem('login_redirect_url');
+      window.location.href = redirectUrl;
+    } else {
+      router.push('/')
+    }
   }
 
   if (!mnemonic) {

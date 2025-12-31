@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { IconLoader2, IconDownload, IconFile, IconAlertCircle, IconFolderOpen, IconChevronRight, IconLock, IconCaretLeftRightFilled, IconLogout, IconEyeOff } from '@tabler/icons-react';
+import { IconLoader2, IconDownload, IconFile, IconAlertCircle, IconFolderOpen, IconChevronRight, IconLock, IconCaretLeftRightFilled, IconLogout, IconEyeOff, IconInfoCircle } from '@tabler/icons-react';
 import {
   Avatar,
   AvatarFallback,
@@ -48,12 +48,14 @@ import { TextPreview } from '@/components/previews/text-preview';
 import { PdfPreview } from '@/components/previews/pdf-preview';
 import { VideoPreview } from '@/components/previews/video-preview';
 import { CommentSection } from '@/components/shared/comment-section';
+import { FileDetailsDialog } from '@/components/shared/file-details-dialog';
 
 interface ShareDetails {
   id: string;
   file_id: string;
   folder_id?: string;
   owner_user_id?: string;
+  owner_name?: string;
   is_folder: boolean;
   has_password: boolean;
   salt_pw?: string;
@@ -150,6 +152,7 @@ export default function SharedDownloadPage() {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewProgress, setPreviewProgress] = useState<DownloadProgress | null>(null);
   const [isPreviewing, setIsPreviewing] = useState(false);
+  const [showDetailsDialog, setShowDetailsDialog] = useState(false);
 
   // Load share details function
   const loadShareDetails = useCallback(async () => {
@@ -1280,11 +1283,19 @@ export default function SharedDownloadPage() {
             <>
               <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between space-y-4 md:space-y-0 px-6 pt-0 pb-0">
                 <div className="flex flex-col gap-1 min-w-0 w-full md:w-auto text-left">
-                  <CardTitle className="text-xl md:text-2xl font-bold tracking-tight text-foreground truncate w-full">
-                    {decryptedFilename || shareDetails.file?.filename || 'Encrypted File'}
-                  </CardTitle>
+                  <div className="flex items-center gap-2 max-w-full">
+                    <CardTitle className="text-xl md:text-2xl font-bold tracking-tight text-foreground truncate">
+                      {decryptedFilename || shareDetails.file?.filename || 'Encrypted File'}
+                    </CardTitle>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-muted-foreground/50 hover:text-foreground" onClick={() => setShowDetailsDialog(true)}>
+                      <IconInfoCircle className="h-5 w-5" />
+                    </Button>
+                  </div>
                   <CardDescription className="text-sm font-medium text-muted-foreground">
                     {formatFileSize(shareDetails.file?.size || 0)}
+                    {shareDetails.comments_enabled && shareDetails.owner_name && (
+                      <span className="block mt-1 text-xs opacity-80">Shared by {shareDetails.owner_name}</span>
+                    )}
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-2 w-full md:w-auto">
@@ -1417,6 +1428,18 @@ export default function SharedDownloadPage() {
       </div>
 
 
+
+
+      <FileDetailsDialog
+        open={showDetailsDialog}
+        onOpenChange={setShowDetailsDialog}
+        fileName={decryptedFilename || shareDetails.file?.filename || shareDetails.folder?.name || 'File'}
+        fileSize={shareDetails.file?.size || 0}
+        fileType={shareDetails.file?.mimetype}
+        createdAt={shareDetails.file?.created_at || shareDetails.folder?.created_at}
+        ownerName={shareDetails.owner_name}
+        isFolder={shareDetails.is_folder}
+      />
 
       {/* Report Dialog - Fixed position bottom left */}
       <ReportDialog
