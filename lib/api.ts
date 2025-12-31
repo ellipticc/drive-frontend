@@ -289,6 +289,7 @@ export interface ShareComment {
   createdAt: string;
   updatedAt: string;
   userName: string;
+  userEmail?: string;
   avatarUrl: string;
   fingerprint?: string; // HMAC-SHA512 hex
   signature?: string;   // ed25519 signature hex
@@ -2331,7 +2332,8 @@ class ApiClient {
     signature?: string;
     publicKey?: string;
   }): Promise<ApiResponse<{ success: boolean; comment: ShareComment }>> {
-    const idempotencyKey = generateIdempotencyKey('addShareComment', `${shareId}:${Date.now()}`);
+    // Use strictly unique ID for every comment attempt to avoid middleware collisions
+    const idempotencyKey = generateIdempotencyKey('addShareComment', `${shareId}:${typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random()}`);
     const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/shares/${shareId}/comments`, {
       method: 'POST',
@@ -2364,7 +2366,7 @@ class ApiClient {
     });
   }
 
-  async getShareCommentCount(shareId: string): Promise<ApiResponse<{ count: number; isOwner?: boolean }>> {
+  async getShareCommentCount(shareId: string): Promise<ApiResponse<{ count: number; isOwner?: boolean; isLocked?: boolean; isEnabled?: boolean }>> {
     return this.request(`/shares/${shareId}/comments/count`);
   }
 
@@ -2412,6 +2414,32 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify({ enabled }),
     });
+  }
+
+  async banShareUser(shareId: string, userId: string): Promise<ApiResponse<{ success: boolean; message: string }>> {
+    return this.request(`/shares/${shareId}/comments/ban`, {
+      method: 'POST',
+      body: JSON.stringify({ userId }),
+    });
+  }
+
+  async unbanShareUser(shareId: string, userId: string): Promise<ApiResponse<{ success: boolean; message: string }>> {
+    return this.request(`/shares/${shareId}/comments/unban`, {
+      method: 'POST',
+      body: JSON.stringify({ userId }),
+    });
+  }
+
+  async getShareBannedUsers(shareId: string): Promise<ApiResponse<{
+    banned: Array<{
+      id: string;
+      name: string;
+      email: string;
+      avatarUrl: string;
+      bannedAt: string;
+    }>
+  }>> {
+    return this.request(`/shares/${shareId}/comments/banned`);
   }
 }
 
