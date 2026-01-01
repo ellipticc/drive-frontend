@@ -2070,8 +2070,11 @@ export const Table01DividerLineSm = ({
                         onContextMenu={(e) => handleContextMenu(e)}
                     >
                         <Table.Header className="group">
-                            <Table.Head className={`w-10 text-center pl-4 pr-0 transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}>
-                                <Checkbox slot="selection" />
+                            <Table.Head className="w-10 text-center pl-4 pr-0">
+                                <Checkbox
+                                    slot="selection"
+                                    className={`transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}
+                                />
                             </Table.Head>
                             <Table.Head id="name" isRowHeader allowsSorting={selectedItems.size === 0} className="w-full pointer-events-none cursor-default" align="left">
                                 {selectedItems.size > 0 ? (
@@ -2101,8 +2104,11 @@ export const Table01DividerLineSm = ({
                                     className="group hover:bg-muted/50 transition-colors duration-150"
                                     onContextMenu={(e) => handleContextMenu(e, item)}
                                 >
-                                    <Table.Cell className={`w-10 text-center pl-4 pr-0 transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}>
-                                        <Checkbox slot="selection" />
+                                    <Table.Cell className="w-10 text-center pl-4 pr-0">
+                                        <Checkbox
+                                            slot="selection"
+                                            className={`transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}
+                                        />
                                     </Table.Cell>
                                     <Table.Cell className="w-full">
                                         <div className="flex items-center gap-2">
