@@ -34,6 +34,7 @@ import { Input } from "@/components/ui/input"
 import { PasswordInput } from "@/components/ui/password-input"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import {
   Select,
   SelectContent,
@@ -53,7 +54,7 @@ import {
   SidebarMenuItem,
   SidebarProvider,
 } from "@/components/ui/sidebar"
-import { IconSettings, IconLoader2, IconPencil, IconCheck, IconMail, IconLock, IconLogout, IconTrash, IconUserCog, IconLockSquareRounded, IconGift, IconCopy, IconCheck as IconCheckmark, IconBell, IconCoin, IconInfoCircle, IconRefresh, IconX } from "@tabler/icons-react"
+import { IconSettings, IconLoader2, IconPencil, IconCheck, IconMail, IconLock, IconLogout, IconTrash, IconUserCog, IconLockSquareRounded, IconGift, IconCopy, IconCheck as IconCheckmark, IconBell, IconCoin, IconInfoCircle, IconRefresh, IconX, IconShieldLock } from "@tabler/icons-react"
 import { apiClient, Referral, Subscription, BillingUsage, PricingPlan, SubscriptionHistory } from "@/lib/api"
 import { useTheme } from "next-themes"
 import { getDiceBearAvatar } from "@/lib/avatar"
@@ -218,6 +219,10 @@ export function SettingsModal({
 
   // Session management state
   const [sessionExpiry, setSessionExpiry] = useState("3600")
+  const [userSessions, setUserSessions] = useState<any[]>([])
+  const [isLoadingSessions, setIsLoadingSessions] = useState(false)
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
+  const [showRevokeAllDialog, setShowRevokeAllDialog] = useState(false)
 
   // Recovery codes state
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([])
@@ -312,8 +317,16 @@ export function SettingsModal({
       loadSessionConfig()
       loadBillingData()
       loadSubscriptionHistory()
+      loadUserSessions()
     }
   }, [open])
+
+  // Load sessions when switching to security tab
+  useEffect(() => {
+    if (activeTab === "security" && open) {
+      loadUserSessions()
+    }
+  }, [activeTab, open])
 
   // Reset loaded state and form data when modal closes
   useEffect(() => {
@@ -555,6 +568,59 @@ export function SettingsModal({
 
 
 
+  // Load active sessions
+  const loadUserSessions = async () => {
+    setIsLoadingSessions(true)
+    try {
+      const response = await apiClient.getSessions()
+      if (response.success && response.data) {
+        setUserSessions(response.data.sessions || [])
+        setCurrentSessionId(response.data.currentSessionId || null)
+      } else {
+        setUserSessions([])
+      }
+    } catch (error) {
+      console.error('Failed to load sessions:', error)
+      setUserSessions([])
+    } finally {
+      setIsLoadingSessions(false)
+    }
+  }
+
+  // Revoke a specific session
+  const handleRevokeSession = async (sessionId: string) => {
+    try {
+      const response = await apiClient.revokeSession(sessionId)
+      if (response.success) {
+        toast.success("Session revoked")
+        loadUserSessions()
+      } else {
+        toast.error(response.error || "Failed to revoke session")
+      }
+    } catch (error) {
+      console.error('Failed to revoke session:', error)
+      toast.error("Failed to revoke session")
+    }
+  }
+
+  // Revoke all other sessions
+  const handleRevokeAllSessions = async () => {
+    try {
+      const response = await apiClient.revokeAllSessions()
+      if (response.success) {
+        toast.success("All other sessions revoked")
+        loadUserSessions()
+      } else {
+        toast.error(response.error || "Failed to revoke sessions")
+      }
+    } catch (error) {
+      console.error('Failed to revoke sessions:', error)
+      toast.error("Failed to revoke sessions")
+    } finally {
+      setShowRevokeAllDialog(false)
+    }
+  }
+
   // Format time ago for display
   const formatTimeAgo = (dateString: string | null) => {
     if (!dateString) return '-'
@@ -569,6 +635,26 @@ export function SettingsModal({
     if (diffHours > 0) return `${diffHours}h ago`
     if (diffMins > 0) return `${diffMins}m ago`
     return 'just now'
+  }
+
+  // Format date for session display (DD/MM/YYYY HH:MM AM/PM)
+  const formatSessionDate = (dateString: string | null) => {
+    if (!dateString) return '-'
+    const date = new Date(dateString)
+
+    const day = String(date.getDate()).padStart(2, '0')
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const year = date.getFullYear()
+
+    let hours = date.getHours()
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    const ampm = hours >= 12 ? 'PM' : 'AM'
+
+    hours = hours % 12
+    hours = hours ? hours : 12 // the hour '0' should be '12'
+    const strHours = String(hours).padStart(2, '0')
+
+    return `${day}/${month}/${year} ${strHours}:${minutes} ${ampm}`
   }
 
   // Copy referral code to clipboard
@@ -1472,6 +1558,145 @@ export function SettingsModal({
                         <SelectItem value="604800">7 days</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+
+                  {/* Session Manager Section */}
+                  <div className="border-t pt-6 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <IconShieldLock className="h-5 w-5 text-muted-foreground" />
+                        <div>
+                          <p className="font-medium">Session Manager</p>
+                          <p className="text-sm text-muted-foreground">Manage your active login sessions across devices</p>
+                        </div>
+                      </div>
+                      <Dialog open={showRevokeAllDialog} onOpenChange={setShowRevokeAllDialog}>
+                        <DialogTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={isLoadingSessions || userSessions.filter(s => !s.isCurrent && !s.is_revoked).length === 0}
+                            className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
+                          >
+                            Revoke All
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Revoke all other sessions?</DialogTitle>
+                            <DialogDescription>
+                              This will log you out of all other devices and browsers. You will remain logged in to your current session.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <DialogFooter className="mt-4">
+                            <Button variant="outline" onClick={() => setShowRevokeAllDialog(false)}>
+                              Cancel
+                            </Button>
+                            <Button
+                              onClick={handleRevokeAllSessions}
+                              className="bg-red-500 hover:bg-red-600 text-white"
+                            >
+                              Revoke All
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+
+                    <div className="border rounded-lg overflow-hidden bg-card">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead className="bg-muted/50 border-b">
+                            <tr>
+                              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Session ID</th>
+                              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Device / Browser</th>
+                              <th className="text-left px-4 py-3 font-medium text-muted-foreground">IP Address</th>
+                              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Last Active</th>
+                              <th className="text-right px-4 py-3 font-medium text-muted-foreground">Action</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y">
+                            {isLoadingSessions ? (
+                              <tr>
+                                <td colSpan={5} className="px-4 py-8 text-center">
+                                  <IconLoader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" />
+                                </td>
+                              </tr>
+                            ) : userSessions.length === 0 ? (
+                              <tr>
+                                <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                                  No active sessions found
+                                </td>
+                              </tr>
+                            ) : (
+                              userSessions.map((session) => (
+                                <tr key={session.id} className={`hover:bg-muted/30 transition-colors ${session.is_revoked ? 'opacity-50' : ''}`}>
+                                  <td className="px-4 py-3 font-mono text-[10px] text-muted-foreground">
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <span className="cursor-help underline decoration-dotted decoration-muted-foreground/30">
+                                            {session.id.substring(0, 8)}...
+                                          </span>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top">
+                                          <p className="font-mono text-xs">{session.id}</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <div className="flex flex-col">
+                                      <span className="font-medium truncate max-w-[200px]" title={session.user_agent}>
+                                        {session.user_agent.includes('Windows') ? 'Windows' :
+                                          session.user_agent.includes('Mac') ? 'macOS' :
+                                            session.user_agent.includes('Linux') ? 'Linux' :
+                                              session.user_agent.includes('Android') ? 'Android' :
+                                                session.user_agent.includes('iPhone') ? 'iPhone' : 'Unknown Device'}
+                                        {session.user_agent.includes('Chrome') ? ' (Chrome)' :
+                                          session.user_agent.includes('Firefox') ? ' (Firefox)' :
+                                            session.user_agent.includes('Safari') ? ' (Safari)' :
+                                              session.user_agent.includes('Edge') ? ' (Edge)' : ''}
+                                      </span>
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-3 text-muted-foreground font-mono text-xs">
+                                    {session.ip_address}
+                                  </td>
+                                  <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">
+                                    {formatSessionDate(session.last_active)}
+                                  </td>
+                                  <td className="px-4 py-3 text-right">
+                                    <div className="flex items-center justify-end gap-2">
+                                      {!!session.isCurrent && (
+                                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase py-1 px-2 bg-emerald-100/50 dark:bg-emerald-950/30 rounded">
+                                          Current
+                                        </span>
+                                      )}
+                                      {!!session.is_revoked && (
+                                        <span className="text-[10px] text-red-500 font-bold uppercase py-1 px-2 bg-red-100/50 dark:bg-red-950/30 rounded">
+                                          Revoked
+                                        </span>
+                                      )}
+                                      {(!session.isCurrent && !session.is_revoked) && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => handleRevokeSession(session.id)}
+                                          className="h-8 px-2 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
+                                        >
+                                          Revoke
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Account Actions Section */}

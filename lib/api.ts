@@ -990,6 +990,42 @@ class ApiClient {
     });
   }
 
+  async getSessions(): Promise<ApiResponse<{
+    currentSessionId: string;
+    sessions: Array<{
+      id: string;
+      ip_address: string;
+      user_agent: string;
+      device_info: any;
+      is_revoked: boolean;
+      last_active: string;
+      created_at: string;
+      isCurrent: boolean;
+    }>;
+  }>> {
+    return this.request('/auth/sessions');
+  }
+
+  async revokeSession(sessionId: string): Promise<ApiResponse> {
+    const idempotencyKey = generateIdempotencyKey('revokeSession', sessionId);
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request('/auth/sessions/revoke', {
+      method: 'POST',
+      body: JSON.stringify({ sessionId }),
+      headers,
+    });
+  }
+
+  async revokeAllSessions(): Promise<ApiResponse> {
+    const idempotencyKey = generateIdempotencyKey('revokeAllSessions', Date.now().toString());
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request('/auth/sessions/revoke-all', {
+      method: 'POST',
+      body: JSON.stringify({}),
+      headers,
+    });
+  }
+
   // Store or clear authentication token
   setAuthToken(token: string | null): void {
     if (token === null) {
