@@ -253,6 +253,7 @@ export function SettingsModal({
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
   const [cancelReason, setCancelReason] = useState<string>("")
   const [cancelReasonDetails, setCancelReasonDetails] = useState<string>("")
+  const [isRedirectingToPortal, setIsRedirectingToPortal] = useState(false)
 
   // Notification preferences state
   const [inAppNotifications, setInAppNotifications] = useState(true)
@@ -637,6 +638,26 @@ export function SettingsModal({
       setShowCancelReasonDialog(false)
       setCancelReason("")
       setCancelReasonDetails("")
+    }
+  }
+
+  // Manage subscription (redirect to Stripe portal)
+  const handleManageSubscription = async () => {
+    setIsRedirectingToPortal(true)
+    try {
+      const returnUrl = typeof window !== 'undefined' ? window.location.href : 'https://drive.ellipticc.com/dashboard#settings/Billing'
+      const response = await apiClient.createPortalSession({ returnUrl })
+
+      if (response.success && response.data?.url) {
+        window.location.href = response.data.url
+      } else {
+        toast.error(response.error || "Failed to create portal session")
+        setIsRedirectingToPortal(false)
+      }
+    } catch (error) {
+      console.error('Portal session error:', error)
+      toast.error("Failed to redirect to billing portal")
+      setIsRedirectingToPortal(false)
     }
   }
 
@@ -1865,6 +1886,21 @@ export function SettingsModal({
                             </div>
                           ) : null}
 
+                          <Button
+                            variant="outline"
+                            onClick={handleManageSubscription}
+                            disabled={isRedirectingToPortal}
+                            className="flex-1"
+                          >
+                            {isRedirectingToPortal ? (
+                              <>
+                                <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
+                                Redirecting...
+                              </>
+                            ) : (
+                              'Customer Portal'
+                            )}
+                          </Button>
                           <Button
                             onClick={() => window.location.href = '/billing'}
                             className="flex-1"
