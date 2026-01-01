@@ -1526,6 +1526,7 @@ class ApiClient {
     reportType: string;
     description?: string;
     email?: string;
+    turnstileToken: string;
   }): Promise<ApiResponse<{
     success: boolean;
     autoDeactivated?: boolean;

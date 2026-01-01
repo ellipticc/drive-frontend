@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -88,6 +89,8 @@ export function ReportDialog({ shareId, trigger, onReportSuccess, className }: R
   const [email, setEmail] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [emailError, setEmailError] = useState("")
+  const [turnstileToken, setTurnstileToken] = useState<string>("")
+  const turnstileRef = useRef<TurnstileInstance>(null)
 
   const MAX_DESCRIPTION = 1000
   const MAX_EMAIL = 254
@@ -99,6 +102,8 @@ export function ReportDialog({ shareId, trigger, onReportSuccess, className }: R
       setDescription("")
       setEmail("")
       setEmailError("")
+      setTurnstileToken("")
+      turnstileRef.current?.reset()
     }
   }, [open])
 
@@ -145,7 +150,8 @@ export function ReportDialog({ shareId, trigger, onReportSuccess, className }: R
       const response = await apiClient.reportShare(shareId, {
         reportType,
         description: description.trim() || undefined,
-        email: email.trim() || undefined
+        email: email.trim() || undefined,
+        turnstileToken
       })
 
       if (!response.success) {
@@ -189,6 +195,9 @@ export function ReportDialog({ shareId, trigger, onReportSuccess, className }: R
       }
     } finally {
       setIsSubmitting(false)
+      // Reset Turnstile after each attempt (successful or failed) for security
+      turnstileRef.current?.reset()
+      setTurnstileToken("")
     }
   }
 
@@ -284,6 +293,21 @@ export function ReportDialog({ shareId, trigger, onReportSuccess, className }: R
               Please be specific and include any relevant details.
             </p>
           </div>
+
+          {/* Cloudflare Turnstile */}
+          <div className="flex justify-center py-2">
+            <Turnstile
+              ref={turnstileRef}
+              siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "0x4AAAAAAA476sX870u0JihB"}
+              onSuccess={(token) => setTurnstileToken(token)}
+              onExpire={() => setTurnstileToken("")}
+              onError={() => setTurnstileToken("")}
+              options={{
+                theme: 'light',
+                size: 'normal',
+              }}
+            />
+          </div>
         </div>
 
         <DialogFooter className="flex gap-2">
@@ -296,7 +320,7 @@ export function ReportDialog({ shareId, trigger, onReportSuccess, className }: R
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={!reportType || isSubmitting || !!emailError}
+            disabled={!reportType || isSubmitting || !!emailError || !turnstileToken}
             className="min-w-[100px]"
           >
             {isSubmitting ? (

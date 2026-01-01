@@ -43,8 +43,8 @@ export class OPAQUERegistration {
     await opaque.ready;
     const { clientRegistrationState, registrationRequest } = opaque.client.startRegistration({ password });
     this.clientRegistrationState = clientRegistrationState;
-    const regReqBase64 = typeof registrationRequest === 'string' 
-      ? registrationRequest 
+    const regReqBase64 = typeof registrationRequest === 'string'
+      ? registrationRequest
       : Buffer.from(registrationRequest).toString('base64');
     return { registrationRequest: regReqBase64 };
   }
@@ -61,7 +61,7 @@ export class OPAQUERegistration {
       registrationResponse,
       password: this.password,
     });
-    
+
     const regRecBase64 = typeof registrationRecord === 'string'
       ? registrationRecord
       : Buffer.from(registrationRecord).toString('base64');
@@ -103,9 +103,9 @@ export class OPAQUELogin {
       loginResponse,
       password: this.password,
     });
-    
+
     if (!result) throw new Error('Login failed - invalid password or user not found');
-    
+
     const { finishLoginRequest, sessionKey } = result;
     const finishReqBase64 = typeof finishLoginRequest === 'string'
       ? finishLoginRequest
@@ -113,7 +113,7 @@ export class OPAQUELogin {
     const sessionKeyBase64 = typeof sessionKey === 'string'
       ? sessionKey
       : Buffer.from(sessionKey).toString('base64');
-      
+
     return {
       finishLoginRequest: finishReqBase64,
       sessionKey: sessionKeyBase64,
