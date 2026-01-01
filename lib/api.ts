@@ -884,16 +884,26 @@ class ApiClient {
     });
   }
 
-  async uploadAvatar(formData: FormData): Promise<ApiResponse<{ avatarUrl: string }>> {
-    const idempotencyKey = generateIdempotencyKey('uploadAvatar', 'current');
+  async uploadAvatar(formData: FormData, fileHash?: string): Promise<ApiResponse<{ avatarUrl: string }>> {
+    // Use the file hash for idempotency if available, ensuring duplicate uploads are caught by middleware
+    const idempotencyKey = fileHash
+      ? generateIdempotencyKey('uploadAvatar', fileHash)
+      : generateIdempotencyKey('uploadAvatar', 'current');
+
     const headers = addIdempotencyKey({}, idempotencyKey);
+
+    // Add custom hash header for duplicate detection logic in backend
+    const requestHeaders: Record<string, string> = {
+      ...headers,
+    };
+    if (fileHash) {
+      requestHeaders['X-Avatar-Hash'] = fileHash;
+    }
+
     return this.request('/auth/avatar', {
       method: 'POST',
       body: formData,
-      headers: {
-        // Don't set Content-Type for FormData, let the browser set it with boundary
-        ...headers,
-      },
+      headers: requestHeaders,
     });
   }
 

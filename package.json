@@ -47,6 +47,7 @@
     "@untitledui/icons": "^0.0.19",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "compressorjs": "^1.2.1",
     "date-fns": "^4.1.0",
     "eciesjs": "^0.4.16",
     "fflate": "^0.8.2",

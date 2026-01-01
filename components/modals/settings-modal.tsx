@@ -61,6 +61,7 @@ import { useUser } from "@/components/user-context"
 import { getInitials } from "@/components/layout/navigation/nav-user"
 import { useGlobalUpload } from "@/components/global-upload-context"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { compressAvatar } from "@/lib/image"
 
 interface SettingsModalProps {
   children?: React.ReactNode
@@ -262,6 +263,16 @@ export function SettingsModal({
   const [fileShareNotifications, setFileShareNotifications] = useState(true)
   const [billingNotifications, setBillingNotifications] = useState(true)
   const [isLoadingNotificationPrefs, setIsLoadingNotificationPrefs] = useState(false)
+
+  // Initialize display name from user data
+  useEffect(() => {
+    if (user) {
+      // Use name if available, otherwise derive from email or empty string
+      const nameToUse = user.name || (user.email ? user.email.split('@')[0] : "");
+      setDisplayName(nameToUse);
+      setOriginalName(nameToUse);
+    }
+  }, [user]);
 
   useEffect(() => {
     if (isEditingName && nameInputRef.current) {
@@ -713,10 +724,22 @@ export function SettingsModal({
 
     setIsLoadingAvatar(true)
     try {
-      const formData = new FormData()
-      formData.append('file', file)
+      // Compress image client-side before hashing and uploading
+      // Uses fixed parameters (512px, 0.8 quality, JPEG) for deterministic output
+      const compressedBlob = await compressAvatar(file);
 
-      const uploadResponse = await apiClient.uploadAvatar(formData)
+      // Calculate SHA256 hash of the COMPRESSED image for idempotency
+      const buffer = await compressedBlob.arrayBuffer();
+      const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const fileHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+      const formData = new FormData()
+      // Use compressed blob instead of original file
+      formData.append('file', compressedBlob, 'avatar.jpg')
+
+      // Pass the hash as the idempotency key (header)
+      const uploadResponse = await apiClient.uploadAvatar(formData, fileHash)
 
       if (uploadResponse.success && uploadResponse.data?.avatarUrl) {
         // Update the user's profile with the new avatar URL
@@ -727,7 +750,11 @@ export function SettingsModal({
         await refetch()
         toast.success("Avatar updated successfully!")
       } else {
-        toast.error("Failed to upload avatar")
+        if (uploadResponse.error === 'This image is already set as your avatar.') {
+          toast.error("This image is already set as your avatar.");
+        } else {
+          toast.error(uploadResponse.error || "Failed to upload avatar");
+        }
       }
     } catch (error) {
       console.error('Avatar upload error:', error)
@@ -783,6 +810,8 @@ export function SettingsModal({
 
   // Handle avatar removal
   const handleRemoveAvatar = async () => {
+    if (!user?.avatar) return;
+
     try {
       setIsLoadingAvatar(true)
 
@@ -791,6 +820,7 @@ export function SettingsModal({
       })
 
       if (response.success) {
+        // Immediately notify context to refresh
         await refetch()
         toast.success("Avatar removed successfully!")
       } else {
@@ -1201,14 +1231,31 @@ export function SettingsModal({
                                 }}
                               />
                               {isEditingName ? (
-                                <Button
-                                  size="sm"
-                                  onClick={handleSaveName}
-                                  disabled={isSavingName || displayName === originalName || !displayName.trim()}
-                                  className="h-9 w-9 p-0"
-                                >
-                                  <IconCheck className="h-4 w-4" />
-                                </Button>
+                                displayName === originalName ? (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={handleCancelEdit}
+                                    className="h-9 w-9 p-0"
+                                    title="Cancel"
+                                  >
+                                    <IconX className="h-4 w-4" />
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    onClick={handleSaveName}
+                                    disabled={isSavingName || !displayName.trim()}
+                                    className="h-9 w-9 p-0"
+                                    title="Save name"
+                                  >
+                                    {isSavingName ? (
+                                      <IconLoader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <IconCheck className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                )
                               ) : (
                                 <Button
                                   size="sm"
