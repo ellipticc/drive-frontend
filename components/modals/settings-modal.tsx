@@ -54,7 +54,7 @@ import {
   SidebarMenuItem,
   SidebarProvider,
 } from "@/components/ui/sidebar"
-import { IconSettings, IconLoader2, IconPencil, IconCheck, IconMail, IconLock, IconLogout, IconTrash, IconUserCog, IconLockSquareRounded, IconGift, IconCopy, IconCheck as IconCheckmark, IconBell, IconCoin, IconInfoCircle, IconRefresh, IconX, IconShieldLock } from "@tabler/icons-react"
+import { IconSettings, IconLoader2, IconPencil, IconCheck, IconMail, IconLock, IconLogout, IconTrash, IconUserCog, IconLockSquareRounded, IconGift, IconCopy, IconCheck as IconCheckmark, IconBell, IconCoin, IconInfoCircle, IconRefresh, IconX, IconShieldLock, IconChevronLeft, IconChevronRight } from "@tabler/icons-react"
 import { apiClient, Referral, Subscription, BillingUsage, PricingPlan, SubscriptionHistory } from "@/lib/api"
 import { useTheme } from "next-themes"
 import { getDiceBearAvatar } from "@/lib/avatar"
@@ -223,6 +223,9 @@ export function SettingsModal({
   const [isLoadingSessions, setIsLoadingSessions] = useState(false)
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
   const [showRevokeAllDialog, setShowRevokeAllDialog] = useState(false)
+  const [sessionsPage, setSessionsPage] = useState(1)
+  const [sessionsTotalPages, setSessionsTotalPages] = useState(1)
+  const [sessionsTotal, setSessionsTotal] = useState(0)
 
   // Recovery codes state
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([])
@@ -237,15 +240,18 @@ export function SettingsModal({
   const [copiedLink, setCopiedLink] = useState(false)
   const [referralStats, setReferralStats] = useState<{
     completedReferrals: number
-    pendingReferrals: string
-    totalEarningsMB: string
+    pendingReferrals: number
+    totalEarningsMB: number
     currentBonusMB: number
     maxBonusMB: number
     maxReferrals: number
+    totalReferralsCount: number
   } | null>(null)
   const [recentReferrals, setRecentReferrals] = useState<Referral[]>([])
   const [isLoadingReferrals, setIsLoadingReferrals] = useState(false)
   const [copiedCode, setCopiedCode] = useState(false)
+  const [referralsPage, setReferralsPage] = useState(1)
+  const [referralsTotal, setReferralsTotal] = useState(0)
 
   // Billing state
   const [subscription, setSubscription] = useState<Subscription | null>(null)
@@ -260,6 +266,10 @@ export function SettingsModal({
   const [cancelReason, setCancelReason] = useState<string>("")
   const [cancelReasonDetails, setCancelReasonDetails] = useState<string>("")
   const [isRedirectingToPortal, setIsRedirectingToPortal] = useState(false)
+  const [subsPage, setSubsPage] = useState(1)
+  const [subsTotalPages, setSubsTotalPages] = useState(1)
+  const [invoicesPage, setInvoicesPage] = useState(1)
+  const [invoicesTotalPages, setInvoicesTotalPages] = useState(1)
 
   // Notification preferences state
   const [inAppNotifications, setInAppNotifications] = useState(true)
@@ -312,12 +322,12 @@ export function SettingsModal({
     if (open && !loadedRef.current) {
       loadedRef.current = true
       loadTOTPStatus()
-      loadReferralData()
+      loadReferralData(1)
       loadNotificationPreferences()
       loadSessionConfig()
       loadBillingData()
-      loadSubscriptionHistory()
-      loadUserSessions()
+      loadSubscriptionHistory(1, 1)
+      loadUserSessions(1)
     }
   }, [open])
 
@@ -432,10 +442,10 @@ export function SettingsModal({
   }
 
   // Load referral data
-  const loadReferralData = async () => {
+  const loadReferralData = async (page = referralsPage) => {
     setIsLoadingReferrals(true)
     try {
-      const response = await apiClient.getReferralInfo()
+      const response = await apiClient.getReferralInfo(page, 5)
       if (response.success && response.data) {
         setReferralCode(response.data.referralCode)
         // Generate referral link from code
@@ -443,6 +453,8 @@ export function SettingsModal({
         setReferralLink(`${baseUrl}/register?ref=${response.data.referralCode}`)
         setReferralStats(response.data.stats)
         setRecentReferrals(response.data.recentReferrals || [])
+        setReferralsTotal(response.data.pagination?.total || 0)
+        setReferralsPage(page)
       } else if (response.error) {
         // Log error but don't crash - set empty defaults
         console.warn('Failed to load referral data:', response.error)
@@ -494,12 +506,21 @@ export function SettingsModal({
   }
 
   // Load subscription history
-  const loadSubscriptionHistory = async () => {
+  const loadSubscriptionHistory = async (sPage = subsPage, iPage = invoicesPage) => {
     setIsLoadingHistory(true)
     try {
-      const response = await apiClient.getSubscriptionHistory()
+      const response = await apiClient.getSubscriptionHistory({
+        subsPage: sPage,
+        subsLimit: 5,
+        invoicesPage: iPage,
+        invoicesLimit: 5
+      })
       if (response.success && response.data) {
         setSubscriptionHistory(response.data)
+        setSubsTotalPages(response.data.pagination?.subs?.totalPages || 1)
+        setInvoicesTotalPages(response.data.pagination?.invoices?.totalPages || 1)
+        setSubsPage(sPage)
+        setInvoicesPage(iPage)
       } else {
         setSubscriptionHistory(null)
       }
@@ -569,13 +590,16 @@ export function SettingsModal({
 
 
   // Load active sessions
-  const loadUserSessions = async () => {
+  const loadUserSessions = async (page = sessionsPage) => {
     setIsLoadingSessions(true)
     try {
-      const response = await apiClient.getSessions()
+      const response = await apiClient.getSessions(page, 5)
       if (response.success && response.data) {
         setUserSessions(response.data.sessions || [])
         setCurrentSessionId(response.data.currentSessionId || null)
+        setSessionsTotalPages(response.data.pagination?.totalPages || 1)
+        setSessionsTotal(response.data.pagination?.total || 0)
+        setSessionsPage(page)
       } else {
         setUserSessions([])
       }
@@ -1570,37 +1594,64 @@ export function SettingsModal({
                           <p className="text-sm text-muted-foreground">Manage your active login sessions across devices</p>
                         </div>
                       </div>
-                      <Dialog open={showRevokeAllDialog} onOpenChange={setShowRevokeAllDialog}>
-                        <DialogTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={isLoadingSessions || userSessions.filter(s => !s.isCurrent && !s.is_revoked).length === 0}
-                            className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
-                          >
-                            Revoke All
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Revoke all other sessions?</DialogTitle>
-                            <DialogDescription>
-                              This will log you out of all other devices and browsers. You will remain logged in to your current session.
-                            </DialogDescription>
-                          </DialogHeader>
-                          <DialogFooter className="mt-4">
-                            <Button variant="outline" onClick={() => setShowRevokeAllDialog(false)}>
-                              Cancel
-                            </Button>
+                      <div className="flex items-center gap-4">
+                        {sessionsTotal > 5 && (
+                          <div className="flex items-center gap-2">
                             <Button
-                              onClick={handleRevokeAllSessions}
-                              className="bg-red-500 hover:bg-red-600 text-white"
+                              variant="outline"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => loadUserSessions(sessionsPage - 1)}
+                              disabled={sessionsPage === 1}
+                            >
+                              <IconChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <span className="text-xs text-muted-foreground whitespace-nowrap">
+                              Page {sessionsPage} of {sessionsTotalPages}
+                            </span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => loadUserSessions(sessionsPage + 1)}
+                              disabled={sessionsPage >= sessionsTotalPages}
+                            >
+                              <IconChevronRight className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
+                        <Dialog open={showRevokeAllDialog} onOpenChange={setShowRevokeAllDialog}>
+                          <DialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={isLoadingSessions || userSessions.filter(s => !s.isCurrent && !s.is_revoked).length === 0}
+                              className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
                             >
                               Revoke All
                             </Button>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Revoke all other sessions?</DialogTitle>
+                              <DialogDescription>
+                                This will log you out of all other devices and browsers. You will remain logged in to your current session.
+                              </DialogDescription>
+                            </DialogHeader>
+                            <DialogFooter className="mt-4">
+                              <Button variant="outline" onClick={() => setShowRevokeAllDialog(false)}>
+                                Cancel
+                              </Button>
+                              <Button
+                                onClick={handleRevokeAllSessions}
+                                className="bg-red-500 hover:bg-red-600 text-white"
+                              >
+                                Revoke All
+                              </Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+                      </div>
                     </div>
 
                     <div className="border rounded-lg overflow-hidden bg-card">
@@ -1611,7 +1662,7 @@ export function SettingsModal({
                               <th className="text-left px-4 py-3 font-medium text-muted-foreground">Session ID</th>
                               <th className="text-left px-4 py-3 font-medium text-muted-foreground">Device / Browser</th>
                               <th className="text-left px-4 py-3 font-medium text-muted-foreground">IP Address</th>
-                              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Last Active</th>
+                              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Date</th>
                               <th className="text-right px-4 py-3 font-medium text-muted-foreground">Action</th>
                             </tr>
                           </thead>
@@ -1664,7 +1715,7 @@ export function SettingsModal({
                                     {session.ip_address}
                                   </td>
                                   <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">
-                                    {formatSessionDate(session.last_active)}
+                                    {formatSessionDate(session.created_at)}
                                   </td>
                                   <td className="px-4 py-3 text-right">
                                     <div className="flex items-center justify-end gap-2">
@@ -1919,7 +1970,36 @@ export function SettingsModal({
                         {/* Recent Referrals Table */}
                         {recentReferrals && recentReferrals.length > 0 && (
                           <div className="border-t pt-6 space-y-4">
-                            <h3 className="text-sm font-semibold">Referral History ({formatStorageSize((Number(referralStats?.totalEarningsMB) || 0) * 1024 * 1024)} of 10GB free space earned)</h3>
+                            <div className="flex items-center justify-between">
+                              <h3 className="text-sm font-semibold">Referral History ({formatStorageSize((referralStats?.totalEarningsMB || 0) * 1024 * 1024)} of 10GB free space earned)</h3>
+                              {referralsTotal > 5 && (
+                                <div className="flex items-center gap-2 px-4 py-1.5 bg-muted/40 rounded-full border border-border/50 shadow-sm transition-all hover:bg-muted/60">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0 rounded-full hover:bg-background shadow-xs transition-transform active:scale-95"
+                                    onClick={() => loadReferralData(referralsPage - 1)}
+                                    disabled={referralsPage === 1}
+                                  >
+                                    <IconChevronLeft className="h-4 w-4" />
+                                  </Button>
+                                  <div className="flex items-center gap-1 min-w-[3rem] justify-center">
+                                    <span className="text-[11px] font-bold text-foreground tabular-nums">{referralsPage}</span>
+                                    <span className="text-[10px] text-muted-foreground/60 uppercase font-bold tracking-tight">/</span>
+                                    <span className="text-[11px] font-medium text-muted-foreground tabular-nums">{Math.ceil(referralsTotal / 5)}</span>
+                                  </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0 rounded-full hover:bg-background shadow-xs transition-transform active:scale-95"
+                                    onClick={() => loadReferralData(referralsPage + 1)}
+                                    disabled={referralsPage >= Math.ceil(referralsTotal / 5)}
+                                  >
+                                    <IconChevronRight className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
                             <div className="border rounded-lg overflow-hidden">
                               <table className="w-full text-sm font-mono">
                                 <thead className="bg-muted/50 border-b">
@@ -2211,7 +2291,7 @@ export function SettingsModal({
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={loadSubscriptionHistory}
+                              onClick={() => loadSubscriptionHistory()}
                               disabled={isLoadingHistory}
                             >
                               {isLoadingHistory ? (
@@ -2233,7 +2313,34 @@ export function SettingsModal({
                             {/* Subscription History Table */}
                             {subscriptionHistory.history && subscriptionHistory.history.length > 0 && (
                               <div className="space-y-4">
-                                <h4 className="text-sm font-medium text-muted-foreground">Subscriptions</h4>
+                                <div className="flex items-center justify-between">
+                                  <h4 className="text-sm font-medium text-muted-foreground">Subscriptions</h4>
+                                  {subsTotalPages > 1 && (
+                                    <div className="flex items-center gap-2">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-7 w-7 p-0"
+                                        onClick={() => loadSubscriptionHistory(subsPage - 1, invoicesPage)}
+                                        disabled={subsPage === 1}
+                                      >
+                                        <IconChevronLeft className="h-4 w-4" />
+                                      </Button>
+                                      <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                        {subsPage} / {subsTotalPages}
+                                      </span>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-7 w-7 p-0"
+                                        onClick={() => loadSubscriptionHistory(subsPage + 1, invoicesPage)}
+                                        disabled={subsPage >= subsTotalPages}
+                                      >
+                                        <IconChevronRight className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  )}
+                                </div>
                                 <div className="border rounded-lg overflow-hidden bg-card max-h-80">
                                   <div className="overflow-x-auto overflow-y-auto h-full">
                                     <table className="w-full text-sm font-mono">
@@ -2293,7 +2400,34 @@ export function SettingsModal({
                             {/* Invoices Table */}
                             {subscriptionHistory.invoices && subscriptionHistory.invoices.length > 0 && (
                               <div className="space-y-4">
-                                <h4 className="text-sm font-medium text-muted-foreground">Invoices</h4>
+                                <div className="flex items-center justify-between">
+                                  <h4 className="text-sm font-medium text-muted-foreground">Invoices</h4>
+                                  {invoicesTotalPages > 1 && (
+                                    <div className="flex items-center gap-2">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-7 w-7 p-0"
+                                        onClick={() => loadSubscriptionHistory(subsPage, invoicesPage - 1)}
+                                        disabled={invoicesPage === 1}
+                                      >
+                                        <IconChevronLeft className="h-4 w-4" />
+                                      </Button>
+                                      <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                        {invoicesPage} / {invoicesTotalPages}
+                                      </span>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-7 w-7 p-0"
+                                        onClick={() => loadSubscriptionHistory(subsPage, invoicesPage + 1)}
+                                        disabled={invoicesPage >= invoicesTotalPages}
+                                      >
+                                        <IconChevronRight className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  )}
+                                </div>
                                 <div className="border rounded-lg overflow-hidden bg-card max-h-80">
                                   <div className="overflow-x-auto overflow-y-auto h-full">
                                     <table className="w-full text-sm font-mono">
@@ -2379,7 +2513,7 @@ export function SettingsModal({
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={loadSubscriptionHistory}
+                              onClick={() => loadSubscriptionHistory()}
                             >
                               Try Again
                             </Button>
@@ -2485,7 +2619,7 @@ export function SettingsModal({
                         return
                       }
 
-                      console.log("✅ Password validated successfully")
+                      console.log("Password validated successfully")
                     } catch (passwordError: unknown) {
                       const errorMsg = passwordError instanceof Error ? passwordError.message : "Password validation failed"
                       console.error('Password validation error:', errorMsg)

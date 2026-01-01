@@ -990,7 +990,7 @@ class ApiClient {
     });
   }
 
-  async getSessions(): Promise<ApiResponse<{
+  async getSessions(page = 1, limit = 5): Promise<ApiResponse<{
     currentSessionId: string;
     sessions: Array<{
       id: string;
@@ -1002,8 +1002,14 @@ class ApiClient {
       created_at: string;
       isCurrent: boolean;
     }>;
+    pagination: {
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+    };
   }>> {
-    return this.request('/auth/sessions');
+    return this.request(`/auth/sessions?page=${page}&limit=${limit}`);
   }
 
   async revokeSession(sessionId: string): Promise<ApiResponse> {
@@ -1935,7 +1941,12 @@ class ApiClient {
     });
   }
 
-  async getSubscriptionHistory(): Promise<ApiResponse<{
+  async getSubscriptionHistory(params?: {
+    subsPage?: number;
+    subsLimit?: number;
+    invoicesPage?: number;
+    invoicesLimit?: number;
+  }): Promise<ApiResponse<{
     history: Array<{
       id: string;
       status: string;
@@ -1949,6 +1960,7 @@ class ApiClient {
       canceledAt: number | null;
       created: number;
       endedAt: number | null;
+      provider?: string;
     }>;
     invoices: Array<{
       id: string;
@@ -1962,9 +1974,31 @@ class ApiClient {
       invoicePdf: string;
       hostedInvoiceUrl: string;
       subscriptionId: string | null;
+      provider?: string;
     }>;
+    pagination: {
+      subs: {
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+      };
+      invoices: {
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+      };
+    };
   }>> {
-    return this.request('/billing/history');
+    const queryParams = new URLSearchParams();
+    if (params?.subsPage) queryParams.append('subsPage', params.subsPage.toString());
+    if (params?.subsLimit) queryParams.append('subsLimit', params.subsLimit.toString());
+    if (params?.invoicesPage) queryParams.append('invoicesPage', params.invoicesPage.toString());
+    if (params?.invoicesLimit) queryParams.append('invoicesLimit', params.invoicesLimit.toString());
+
+    const queryString = queryParams.toString();
+    return this.request(`/billing/history${queryString ? `?${queryString}` : ''}`);
   }
 
   async createCheckoutSession(data: {
@@ -2091,15 +2125,16 @@ class ApiClient {
   }
 
   // Referral endpoints
-  async getReferralInfo(): Promise<ApiResponse<{
+  async getReferralInfo(page = 1, limit = 5): Promise<ApiResponse<{
     referralCode: string;
     stats: {
       completedReferrals: number;
-      pendingReferrals: string;
-      totalEarningsMB: string;
+      pendingReferrals: number;
+      totalEarningsMB: number;
       currentBonusMB: number;
       maxBonusMB: number;
       maxReferrals: number;
+      totalReferralsCount: number;
     };
     recentReferrals: Array<{
       referred_user_id: string;
@@ -2110,8 +2145,13 @@ class ApiClient {
       created_at: string;
       completed_at: string | null;
     }>;
+    pagination: {
+      total: number;
+      page: number;
+      limit: number;
+    };
   }>> {
-    return this.request('/referrals/info');
+    return this.request(`/referrals/info?page=${page}&limit=${limit}`);
   }
 
   async getReferralLeaderboard(limit?: number): Promise<ApiResponse<{
