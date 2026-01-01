@@ -45,7 +45,7 @@ export function PrivacyPolicyContent() {
               Privacy Policy
             </h1>
             <p className="text-lg text-muted-foreground">
-              Last updated: November 11, 2025
+              Last updated: January 1, 2026
             </p>
             <p className="text-base text-muted-foreground">
               We are committed to protecting your privacy. Learn how we collect, use, and safeguard your information.
@@ -75,7 +75,7 @@ export function PrivacyPolicyContent() {
                 <div>
                   <h3 className="text-lg font-semibold mb-2">2.1 Information You Provide Directly</h3>
                   <p className="text-base leading-relaxed">
-                    When you create an account, we collect your name and email address. During registration, your password is never sent to or stored by our servers — not even as a hash. Instead, a cryptographic record derived from your password (created using the <a href="https://csrc.nist.gov/csrc/media/presentations/2024/crclub-2024-10-16/images-media/crypto-club-20241016--hugo--OPAQUE.pdf" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline hover:text-blue-800">OPAQUE</a> protocol) is securely stored to allow future authentication without revealing or retaining the actual password. For paid accounts, we also collect your billing address and payment information through secure payment processors. These are the only identifying personal details we collect.
+                    When you create an account, we collect your name and email address. During registration, your password is never sent to or stored by our servers — not even as a hash. Instead, a cryptographic record derived from your password (created using the <a href="https://csrc.nist.gov/csrc/media/presentations/2024/crclub-2024-10-16/images-media/crypto-club-20241016--hugo--OPAQUE.pdf" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline hover:text-blue-800">OPAQUE</a> protocol) is securely stored to allow future authentication without revealing or retaining the actual password. For paid accounts, strictly necessary billing information is collected and processed securely by our third-party payment processor, <strong>Stripe</strong>. Ellipticc does not store your full credit card number or payment details on our servers.
                   </p>
                 </div>
                 <div>
@@ -246,7 +246,7 @@ export function PrivacyPolicyContent() {
                 <div>
                   <h3 className="text-lg font-semibold mb-2">7.2 Correction and Deletion</h3>
                   <p className="text-base leading-relaxed">
-                    You have the right to correct inaccurate account information and request deletion of your account and associated encrypted data through your account settings or by contacting us. Upon deletion, encrypted data is securely removed from our servers.
+                    You have the right to correct inaccurate account information and request deletion of your account and associated encrypted data through your account settings or by contacting us. Upon deletion, encrypted data is securely removed from our servers. Please note that in accordance with our Terms of Service, we reserve the right to delete data associated with accounts that remain in a non-payment, over-quota state for an extended period.
                   </p>
                 </div>
                 <div>
@@ -323,7 +323,7 @@ export function PrivacyPolicyContent() {
             </button>
           </div>
         </div>
-      </main>
-    </div>
+      </main >
+    </div >
   )
 }

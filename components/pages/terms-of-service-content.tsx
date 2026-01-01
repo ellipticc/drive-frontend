@@ -45,7 +45,7 @@ export function TermsOfServiceContent() {
               Terms of Service
             </h1>
             <p className="text-lg text-muted-foreground">
-              Last updated: November 11, 2025
+              Last updated: January 1, 2026
             </p>
             <p className="text-base text-muted-foreground">
               Please read our terms carefully. By using Ellipticc Drive, you agree to be bound by these terms.
@@ -106,10 +106,64 @@ export function TermsOfServiceContent() {
 
             {/* Section 4 */}
             <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">4. User Responsibilities</h2>
+              <h2 className="text-2xl font-semibold">4. Billing, Payments, and Cancellations</h2>
               <div className="space-y-4">
                 <div>
-                  <h3 className="text-lg font-semibold mb-2">4.1 Acceptable Use</h3>
+                  <h3 className="text-lg font-semibold mb-2">4.1 Subscriptions</h3>
+                  <p className="text-base leading-relaxed">
+                    Paid subscriptions are billed in advance on a recurring basis (monthly or annually). Your subscription will automatically renew at the end of each billing cycle unless you cancel it before the renewal date.
+                  </p>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">4.2 Payment Failure & Grace Period</h3>
+                  <p className="text-base leading-relaxed">
+                    If a payment fails, we will attempt to process the payment for a <strong>Grace Period of 20 days</strong>. During this period, your service will remain fully active, and you will retain full access to your data and features. We will notify you of the failure so you can update your payment method.
+                  </p>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">4.3 Non-Payment & Downgrade</h3>
+                  <p className="text-base leading-relaxed">
+                    If payment is not successfully received by the end of the 20-day Grace Period, your account will automatically downgrade to the <strong>Free Plan</strong>.
+                  </p>
+                  <ul className="list-disc list-inside space-y-2 mt-3 text-base">
+                    <li>If your storage usage is <strong>below</strong> the Free Plan limit (e.g., 5GB), your service continues normally.</li>
+                    <li>If your storage usage <strong>exceeds</strong> the Free Plan limit, your account will enter a <strong>Restricted Access (Read-Only)</strong> state. You will be able to view and download your files, but you will not be able to upload new files or edit existing ones.</li>
+                  </ul>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">4.4 Data Retention & Deletion</h3>
+                  <p className="text-base leading-relaxed">
+                    If your account remains in a <strong>Restricted Access (Over Quota)</strong> state for <strong>30 continuous days</strong> following the downgrade, we reserve the right to securely delete your encrypted data to bring your account within the Free Plan limits. We are not responsible for any data loss resulting from non-payment and subsequent account overage.
+                  </p>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">4.5 Cancellation</h3>
+                  <p className="text-base leading-relaxed">
+                    You may cancel your subscription at any time. Cancellation will take effect at the end of your current billing period. We do not provide refunds or credits for partial billing periods.
+                  </p>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">4.6 Data Storage Infrastructure</h3>
+                  <p className="text-base leading-relaxed">
+                    Your encrypted data is stored using <strong>Backblaze B2 Cloud Storage</strong>, utilizing their highly resilient Vaults architecture. Data is physically stored in the following regions:
+                  </p>
+                  <ul className="list-disc list-inside space-y-2 mt-3 text-base">
+                    <li><strong>eu-central-003</strong> (Amsterdam, NL) - Compliant with EU data protection regulations.</li>
+                    <li><strong>us-west-004</strong> (Stockton, CA) - For redundancy and US-based access.</li>
+                  </ul>
+                  <p className="text-base leading-relaxed mt-3">
+                    This infrastructure provides <strong>99.999999999% (11 nines) annual durability</strong> through erasure coding and redundant storage across multiple physical locations. We utilize this enterprise-grade durability to ensure your data remains safe, available, and protected against hardware failures.
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            {/* Section 5 */}
+            <section className="space-y-4">
+              <h2 className="text-2xl font-semibold">5. User Responsibilities</h2>
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">5.1 Acceptable Use</h3>
                   <p className="text-base leading-relaxed">
                     You agree to use the Service only for lawful purposes and in a way that does not infringe upon the rights of others or restrict their use and enjoyment of the Service. Prohibited behavior includes:
                   </p>
@@ -123,7 +177,7 @@ export function TermsOfServiceContent() {
                   </ul>
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold mb-2">4.2 Content Responsibility</h3>
+                  <h3 className="text-lg font-semibold mb-2">5.2 Content Responsibility</h3>
                   <p className="text-base leading-relaxed">
                     You are solely responsible for the content you upload, store, and share through the Service. You represent and warrant that you own or have the necessary rights to all content you upload and that your content does not violate any laws, regulations, or third-party intellectual property rights. You agree not to upload illegal content, malware, or material that infringes on others&apos; rights.
                   </p>
@@ -131,9 +185,9 @@ export function TermsOfServiceContent() {
               </div>
             </section>
 
-            {/* Section 5 */}
+            {/* Section 6 */}
             <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">5. Account Security</h2>
+              <h2 className="text-2xl font-semibold">6. Account Security</h2>
               <p className="text-base leading-relaxed">
                 You are responsible for all activity on your account. You agree to keep your password confidential and secure, immediately notify us of any unauthorized use, and log out when using shared or public devices. We implement industry-standard security measures, including end-to-end encryption and post-quantum cryptography.
               </p>
@@ -142,9 +196,9 @@ export function TermsOfServiceContent() {
               </p>
             </section>
 
-            {/* Section 6 */}
+            {/* Section 7 */}
             <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">6. Intellectual Property Rights</h2>
+              <h2 className="text-2xl font-semibold">7. Intellectual Property Rights</h2>
               <p className="text-base leading-relaxed">
                 You retain all ownership rights to the content you upload to the Service. By uploading content, you grant us a limited license to store, maintain, transmit, and deliver your encrypted content to you and to authorized recipients you specify. This license is solely for the purpose of providing the Service and does not grant us any right to view, use, or commercialize your content.
               </p>
@@ -153,9 +207,9 @@ export function TermsOfServiceContent() {
               </p>
             </section>
 
-            {/* Section 7 */}
+            {/* Section 8 */}
             <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">7. Zero-Knowledge Commitment</h2>
+              <h2 className="text-2xl font-semibold">8. Zero-Knowledge Commitment</h2>
               <p className="text-base leading-relaxed">
                 Ellipticc is designed as a zero-knowledge service. This means:
               </p>
@@ -171,9 +225,9 @@ export function TermsOfServiceContent() {
               </p>
             </section>
 
-            {/* Section 8 */}
+            {/* Section 9 */}
             <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">8. Data Loss & Responsibility</h2>
+              <h2 className="text-2xl font-semibold">9. Data Loss & Responsibility</h2>
               <p className="text-base leading-relaxed">
                 <strong>You are responsible for maintaining backups of your encryption keys and passwords.</strong> Because Ellipticc has no knowledge of your passwords or encryption keys, we cannot recover your data if you lose them. While we maintain automated backups of encrypted data on our servers, we cannot help you access your data if you forget your password or lose your encryption keys.
               </p>
@@ -188,9 +242,9 @@ export function TermsOfServiceContent() {
               </ul>
             </section>
 
-            {/* Section 9 */}
+            {/* Section 10 */}
             <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">9. Limitation of Liability</h2>
+              <h2 className="text-2xl font-semibold">10. Limitation of Liability</h2>
               <p className="text-base leading-relaxed">
                 The Service is provided &quot;as is&quot; and &quot;as available&quot; without warranties of any kind. We disclaim all warranties, including implied warranties of merchantability and fitness for a particular purpose. We do not guarantee that the Service will be error-free or uninterrupted.
               </p>
@@ -199,17 +253,17 @@ export function TermsOfServiceContent() {
               </p>
             </section>
 
-            {/* Section 10 */}
+            {/* Section 11 */}
             <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">10. Changes to the Service</h2>
+              <h2 className="text-2xl font-semibold">11. Changes to the Service</h2>
               <p className="text-base leading-relaxed">
                 We may modify, suspend, or discontinue the Service or any features at any time with notice. We will make reasonable efforts to notify users of material changes. Your continued use of the Service following notice of changes constitutes your acceptance of the modified Service.
               </p>
             </section>
 
-            {/* Section 11 */}
+            {/* Section 12 */}
             <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">11. Compliance & Legal Access</h2>
+              <h2 className="text-2xl font-semibold">12. Compliance & Legal Access</h2>
               <p className="text-base leading-relaxed">
                 Ellipticc complies with applicable laws and legal obligations. However, due to our zero-knowledge architecture, we have strict limitations on what we can provide:
               </p>
@@ -224,9 +278,9 @@ export function TermsOfServiceContent() {
               </p>
             </section>
 
-            {/* Section 12 */}
+            {/* Section 13 */}
             <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">12. Data Retention & Deletion</h2>
+              <h2 className="text-2xl font-semibold">13. Data Retention & Deletion</h2>
               <p className="text-base leading-relaxed">
                 You can delete your account and all associated encrypted data at any time through your account settings. Upon deletion, we securely remove all encrypted files and account data from our servers within 30 days. This deletion is permanent and irreversible.
               </p>
@@ -235,25 +289,25 @@ export function TermsOfServiceContent() {
               </p>
             </section>
 
-            {/* Section 13 */}
+            {/* Section 14 */}
             <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">13. Third-Party Services and Links</h2>
+              <h2 className="text-2xl font-semibold">14. Third-Party Services and Links</h2>
               <p className="text-base leading-relaxed">
                 The Service may integrate with or link to third-party services. We are not responsible for the availability, accuracy, security, or content of third-party services or their privacy practices. We encourage you to review the terms and privacy policies of third-party services before using them.
               </p>
             </section>
 
-            {/* Section 14 */}
+            {/* Section 15 */}
             <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">14. Termination</h2>
+              <h2 className="text-2xl font-semibold">15. Termination</h2>
               <p className="text-base leading-relaxed">
-                We may terminate or suspend your account immediately if you violate these Terms, engage in fraudulent behavior, if your account is inactive for an extended period, or if we are required to do so by law. Upon termination, your access to the Service ceases immediately, and encrypted data is deleted per Section 12.
+                We may terminate or suspend your account immediately if you violate these Terms, engage in fraudulent behavior, if your account is inactive for an extended period, or if we are required to do so by law. Upon termination, your access to the Service ceases immediately, and encrypted data is deleted per Section 13.
               </p>
             </section>
 
-            {/* Section 15 */}
+            {/* Section 16 */}
             <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">15. Dispute Resolution & Governing Law</h2>
+              <h2 className="text-2xl font-semibold">16. Dispute Resolution & Governing Law</h2>
               <p className="text-base leading-relaxed">
                 These Terms are governed by the laws of Delaware, United States, without regard to conflicts of law principles. Any disputes arising from or related to these Terms or the Service shall be resolved through binding arbitration administered by JAMS (Judicial Arbitration and Mediation Services) in accordance with its Comprehensive Arbitration Rules & Procedures, rather than in court.
               </p>
@@ -262,9 +316,9 @@ export function TermsOfServiceContent() {
               </p>
             </section>
 
-            {/* Section 16 */}
+            {/* Section 17 */}
             <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">16. Contact Information</h2>
+              <h2 className="text-2xl font-semibold">17. Contact Information</h2>
               <p className="text-base leading-relaxed">
                 For questions about these Terms of Service, please contact us at:
               </p>
