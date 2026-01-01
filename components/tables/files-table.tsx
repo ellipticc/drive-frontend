@@ -38,6 +38,7 @@ import { masterKeyManager } from "@/lib/master-key";
 import { truncateFilename } from "@/lib/utils";
 import { isTextTruncated } from "@/lib/tooltip-helper";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { TruncatedNameTooltip } from "./truncated-name-tooltip";
 
 export const Table01DividerLineSm = ({
     searchQuery,
@@ -2076,7 +2077,7 @@ export const Table01DividerLineSm = ({
                                     className={`transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}
                                 />
                             </Table.Head>
-                            <Table.Head id="name" isRowHeader allowsSorting={selectedItems.size === 0} className="w-full pointer-events-none cursor-default" align="left">
+                            <Table.Head id="name" isRowHeader allowsSorting={selectedItems.size === 0} className="w-full max-w-0 pointer-events-none cursor-default" align="left">
                                 {selectedItems.size > 0 ? (
                                     <span className="text-xs font-semibold whitespace-nowrap text-foreground px-1.5 py-1">{selectedItems.size} selected</span>
                                 ) : (
@@ -2110,8 +2111,8 @@ export const Table01DividerLineSm = ({
                                             className={`transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}
                                         />
                                     </Table.Cell>
-                                    <Table.Cell className="w-full">
-                                        <div className="flex items-center gap-2">
+                                    <Table.Cell className="w-full max-w-0">
+                                        <div className="flex items-center gap-2 min-w-0">
                                             <div className="text-base">
                                                 {item.type === 'folder' ? (
                                                     <IconFolder className="h-4 w-4 text-blue-500 inline-block" />
@@ -2119,34 +2120,17 @@ export const Table01DividerLineSm = ({
                                                     <FileIcon mimeType={item.mimeType} filename={item.name} className="h-4 w-4 inline-block" />
                                                 )}
                                             </div>
-                                            {isTextTruncated(item.name) ? (
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <p className="text-sm font-medium whitespace-nowrap text-foreground truncate cursor-default" onClick={() => {
-                                                            if (item.type === 'folder') {
-                                                                handleFolderDoubleClick(item.id, item.name);
-                                                            } else if (item.type === 'file' && item.mimeType && canPreviewFile(item.mimeType)) {
-                                                                handlePreviewClick(item.id, item.name, item.mimeType);
-                                                            }
-                                                        }}>
-                                                            {truncateFilename(item.name)}
-                                                        </p>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>
-                                                        <p>{item.name}</p>
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                            ) : (
-                                                <p className="text-sm font-medium whitespace-nowrap text-foreground truncate cursor-default" onClick={() => {
+                                            <TruncatedNameTooltip
+                                                name={item.name}
+                                                className="text-sm font-medium whitespace-nowrap text-foreground cursor-default flex-1 min-w-0"
+                                                onClick={() => {
                                                     if (item.type === 'folder') {
                                                         handleFolderDoubleClick(item.id, item.name);
                                                     } else if (item.type === 'file' && item.mimeType && canPreviewFile(item.mimeType)) {
                                                         handlePreviewClick(item.id, item.name, item.mimeType);
                                                     }
-                                                }}>
-                                                    {item.name}
-                                                </p>
-                                            )}
+                                                }}
+                                            />
                                         </div>
                                     </Table.Cell>
                                     <Table.Cell className={`hidden md:table-cell text-right ${visibleColumns.has('modified') ? '' : '[&>*]:invisible'} px-4`}>
@@ -2315,22 +2299,11 @@ export const Table01DividerLineSm = ({
                                         </div>
 
                                         {/* File name */}
-                                        {isTextTruncated(item.name) ? (
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <p className="text-sm font-medium text-center text-foreground line-clamp-2 break-words w-full cursor-default">
-                                                        {truncateFilename(item.name)}
-                                                    </p>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>{item.name}</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        ) : (
-                                            <p className="text-sm font-medium text-center text-foreground line-clamp-2 break-words w-full cursor-default">
-                                                {truncateFilename(item.name)}
-                                            </p>
-                                        )}
+                                        <TruncatedNameTooltip
+                                            name={item.name}
+                                            className="text-sm font-medium text-center text-foreground line-clamp-2 break-words w-full cursor-default"
+                                            maxTooltipWidth="300px"
+                                        />
 
                                         {/* File size or folder indicator */}
                                         <p className="text-xs text-muted-foreground text-center">

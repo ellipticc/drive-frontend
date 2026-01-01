@@ -32,6 +32,7 @@ import { truncateFilename } from "@/lib/utils";
 import { isTextTruncated } from "@/lib/tooltip-helper";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { TruncatedNameTooltip } from "./truncated-name-tooltip";
 import { masterKeyManager } from "@/lib/master-key";
 import { decryptFilename } from "@/lib/crypto";
 import { useUser } from "@/components/user-context";
@@ -604,7 +605,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                                     className={`transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}
                                 />
                             </Table.Head>
-                            <Table.Head id="name" isRowHeader allowsSorting={selectedItems.size === 0} className="w-full pointer-events-none cursor-default" align="left">
+                            <Table.Head id="name" isRowHeader allowsSorting={selectedItems.size === 0} className="w-full max-w-0 pointer-events-none cursor-default" align="left">
                                 {selectedItems.size > 0 ? (
                                     <span className="text-xs font-semibold whitespace-nowrap text-foreground px-1.5 py-1">{selectedItems.size} selected</span>
                                 ) : (
@@ -612,17 +613,17 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                                 )}
                             </Table.Head>
                             {!isMobile && (
-                                <Table.Head id="originalLocation" allowsSorting align="left" className={`pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
+                                <Table.Head id="originalLocation" allowsSorting align="left" className={`pointer-events-none cursor-default max-w-0 ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
                                     <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Original location</span>
                                 </Table.Head>
                             )}
                             {!isMobile && (
-                                <Table.Head id="deletedAt" allowsSorting align="right" className={`pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
+                                <Table.Head id="deletedAt" allowsSorting align="right" className={`pointer-events-none cursor-default min-w-[120px] ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
                                     <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Date deleted</span>
                                 </Table.Head>
                             )}
                             {!isMobile && (
-                                <Table.Head id="size" allowsSorting align="right" className={`pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
+                                <Table.Head id="size" allowsSorting align="right" className={`pointer-events-none cursor-default min-w-[100px] ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
                                     <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Size</span>
                                 </Table.Head>
                             )}
@@ -641,8 +642,8 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                                             className={`transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}
                                         />
                                     </Table.Cell>
-                                    <Table.Cell className="w-full">
-                                        <div className="flex items-center gap-2">
+                                    <Table.Cell className="w-full max-w-0">
+                                        <div className="flex items-center gap-2 min-w-0">
                                             <div className="text-base">
                                                 {item.type === 'folder' ? (
                                                     <IconFolder className="h-4 w-4 text-blue-500 inline-block" />
@@ -650,28 +651,14 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                                                     <FileIcon mimeType={item.mimeType} filename={item.name} className="h-4 w-4" />
                                                 )}
                                             </div>
-                                            {isTextTruncated(item.name) ? (
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <p className="text-sm font-medium whitespace-nowrap text-foreground truncate cursor-default flex-1 min-w-0">
-                                                            {truncateFilename(item.name)}
-                                                        </p>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>
-                                                        <p className="text-sm text-foreground max-w-xs break-words">
-                                                            {item.name}
-                                                        </p>
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                            ) : (
-                                                <p className="text-sm font-medium whitespace-nowrap text-foreground truncate cursor-default flex-1 min-w-0">
-                                                    {item.name}
-                                                </p>
-                                            )}
+                                            <TruncatedNameTooltip
+                                                name={item.name}
+                                                className="text-sm font-medium whitespace-nowrap text-foreground cursor-default flex-1 min-w-0"
+                                            />
                                         </div>
                                     </Table.Cell>
                                     {!isMobile && (
-                                        <Table.Cell className="text-muted-foreground text-sm truncate max-w-[150px]">
+                                        <Table.Cell className="text-muted-foreground text-sm truncate max-w-0">
                                             {/* Original Location Placeholder - Backend doesn't seem to provide this yet? It was in header though. */}
                                             --
                                         </Table.Cell>

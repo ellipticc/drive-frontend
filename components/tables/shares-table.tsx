@@ -30,6 +30,7 @@ import { truncateFilename } from "@/lib/utils";
 import { isTextTruncated } from "@/lib/tooltip-helper";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { FileIcon } from "../file-icon";
+import { TruncatedNameTooltip } from "./truncated-name-tooltip";
 
 
 export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
@@ -458,7 +459,7 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                                     className={`transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}
                                 />
                             </Table.Head>
-                            <Table.Head id="fileName" isRowHeader allowsSorting className={`w-full pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`} align="left">
+                            <Table.Head id="fileName" isRowHeader allowsSorting className={`w-full max-w-0 pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`} align="left">
                                 {selectedItems.size > 0 ? (
                                     <span className="text-xs font-semibold whitespace-nowrap text-foreground px-1.5 py-1">{selectedItems.size} selected</span>
                                 ) : (
@@ -466,22 +467,22 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                                 )}
                             </Table.Head>
                             {!isMobile && (
-                                <Table.Head id="folderPath" allowsSorting align="left" className={`pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
+                                <Table.Head id="folderPath" allowsSorting align="left" className={`pointer-events-none cursor-default max-w-0 ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
                                     <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Path</span>
                                 </Table.Head>
                             )}
                             {!isMobile && (
-                                <Table.Head id="createdAt" allowsSorting align="right" className={`pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
+                                <Table.Head id="createdAt" allowsSorting align="right" className={`pointer-events-none cursor-default min-w-[120px] ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
                                     <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Created at</span>
                                 </Table.Head>
                             )}
                             {!isMobile && (
-                                <Table.Head id="downloads" allowsSorting align="right" className={`pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
+                                <Table.Head id="downloads" allowsSorting align="right" className={`pointer-events-none cursor-default min-w-[80px] ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
                                     <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Download Count</span>
                                 </Table.Head>
                             )}
                             {!isMobile && (
-                                <Table.Head id="expiresAt" allowsSorting align="right" className={`pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
+                                <Table.Head id="expiresAt" allowsSorting align="right" className={`pointer-events-none cursor-default min-w-[120px] ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
                                     <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Expires at</span>
                                 </Table.Head>
                             )}
@@ -500,8 +501,8 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                                             className={`transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}
                                         />
                                     </Table.Cell>
-                                    <Table.Cell className="w-full">
-                                        <div className="flex items-center gap-2">
+                                    <Table.Cell className="w-full max-w-0">
+                                        <div className="flex items-center gap-2 min-w-0">
                                             <div className="text-base">
                                                 {item.isFolder ? (
                                                     <IconFolder className="h-4 w-4 text-blue-500 inline-block" />
@@ -509,27 +510,15 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                                                     <FileIcon mimeType={item.mimeType} filename={item.fileName} className="h-4 w-4 inline-block" />
                                                 )}
                                             </div>
-                                            {isTextTruncated(item.fileName) ? (
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <p className="text-sm font-medium truncate text-foreground">
-                                                            {truncateFilename(item.fileName)}
-                                                        </p>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>
-                                                        {item.fileName}
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                            ) : (
-                                                <p className="text-sm font-medium truncate text-foreground">
-                                                    {item.fileName}
-                                                </p>
-                                            )}
+                                            <TruncatedNameTooltip
+                                                name={item.fileName}
+                                                className="text-sm font-medium truncate text-foreground flex-1 min-w-0"
+                                            />
                                         </div>
                                     </Table.Cell>
                                     {!isMobile && (
-                                        <Table.Cell className="text-left">
-                                            <span className="text-xs text-muted-foreground font-[var(--font-jetbrains-mono)] font-semibold tracking-wider whitespace-nowrap">
+                                        <Table.Cell className="text-left max-w-0">
+                                            <span className="text-xs text-muted-foreground font-[var(--font-jetbrains-mono)] font-semibold tracking-wider whitespace-nowrap truncate block">
                                                 {item.folderPath || 'Root'}
                                             </span>
                                         </Table.Cell>
@@ -639,9 +628,11 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                                             )}
                                         </div>
                                         <div className="flex-1 min-w-0 w-full">
-                                            <p className="text-sm font-medium truncate" title={item.fileName}>
-                                                {item.fileName}
-                                            </p>
+                                            <TruncatedNameTooltip
+                                                name={item.fileName}
+                                                className="text-sm font-medium truncate cursor-default"
+                                                maxTooltipWidth="250px"
+                                            />
                                             <p className="text-xs text-muted-foreground truncate" title={item.folderPath}>
                                                 {item.folderPath}
                                             </p>
