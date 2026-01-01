@@ -35,6 +35,7 @@ import { PasswordInput } from "@/components/ui/password-input"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
   SelectContent,
@@ -202,6 +203,8 @@ export function SettingsModal({
   const [isDeletingAccount, setIsDeletingAccount] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleteConfirmation, setDeleteConfirmation] = useState("")
+  const [deleteReason, setDeleteReason] = useState("")
+  const [deleteDetails, setDeleteDetails] = useState("")
 
   // TOTP state
   const [totpEnabled, setTotpEnabled] = useState(false)
@@ -1079,6 +1082,10 @@ export function SettingsModal({
           'Authorization': `Bearer ${apiClient.getAuthToken()}`,
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          reason: deleteReason,
+          details: deleteDetails
+        }),
       })
 
       const data = await response.json()
@@ -1099,6 +1106,8 @@ export function SettingsModal({
       setIsDeletingAccount(false)
       setShowDeleteModal(false)
       setDeleteConfirmation("")
+      setDeleteReason("")
+      setDeleteDetails("")
     }
   }
 
@@ -2819,8 +2828,49 @@ export function SettingsModal({
                 This action cannot be undone. This will permanently delete your account and remove all your data from our servers.
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
-              <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+            <div className="space-y-4 pt-1 max-w-full overflow-hidden">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground uppercase font-bold tracking-wider">
+                    Why are you leaving? (Optional)
+                  </Label>
+                  <Select value={deleteReason} onValueChange={setDeleteReason}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a reason" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Too expensive">Too expensive</SelectItem>
+                      <SelectItem value="Better alternative">Found a better alternative</SelectItem>
+                      <SelectItem value="Not using">Not using</SelectItem>
+                      <SelectItem value="Too New">Product is too new</SelectItem>
+                      <SelectItem value="Not enough storage">Not enough storage</SelectItem>
+                      <SelectItem value="Security concerns">Security concerns</SelectItem>
+                      <SelectItem value="Technical issues">Technical issues</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-xs text-muted-foreground uppercase font-bold tracking-wider break-words">
+                      Additional feedback (Optional)
+                    </Label>
+                    <span className={`text-[10px] flex-shrink-0 ml-2 ${deleteDetails.length > 900 ? 'text-red-500 font-bold' : 'text-muted-foreground'}`}>
+                      {deleteDetails.length} / 1000
+                    </span>
+                  </div>
+                  <Textarea
+                    value={deleteDetails}
+                    onChange={(e) => setDeleteDetails(e.target.value.substring(0, 1000))}
+                    placeholder="Tell us more about your experience..."
+                    className="h-28 overflow-y-auto break-words resize-none w-full"
+                    style={{ fieldSizing: 'fixed' } as React.CSSProperties}
+                  />
+                </div>
+              </div>
+
+              <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg w-full">
                 <p className="text-sm font-medium text-destructive mb-2">
                   Type &quot;DELETE&quot; to confirm
                 </p>
@@ -2828,7 +2878,7 @@ export function SettingsModal({
                   value={deleteConfirmation}
                   onChange={(e) => setDeleteConfirmation(e.target.value)}
                   placeholder="Type DELETE to confirm"
-                  className="font-mono"
+                  className="font-mono bg-background/50 border-destructive/20 focus-visible:ring-destructive w-full"
                 />
               </div>
             </div>
