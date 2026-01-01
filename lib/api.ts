@@ -364,6 +364,7 @@ export interface SubscriptionHistory {
     canceledAt: number | null;
     created: number;
     endedAt: number | null;
+    provider?: string;
   }>;
   invoices: Array<{
     id: string;
@@ -377,6 +378,7 @@ export interface SubscriptionHistory {
     invoicePdf: string;
     hostedInvoiceUrl: string;
     subscriptionId: string | null;
+    provider?: string;
   }>;
 }
 
@@ -1946,6 +1948,24 @@ class ApiClient {
     const idempotencyKey = generateIdempotencyKey('createPortal', uniqueIntent);
     const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/billing/create-portal-session', {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers,
+    });
+  }
+
+  async createCryptoCheckoutSession(data: {
+    planId: string;
+    price: number;
+    currency?: string;
+    period: 'month' | 'year';
+  }): Promise<ApiResponse<{
+    url: string;
+    qr_code?: string;
+  }>> {
+    const idempotencyKey = generateIdempotencyKey('createCryptoCheckout', `${data.planId}:${Date.now()}`);
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request('/billing/crypto/checkout', {
       method: 'POST',
       body: JSON.stringify(data),
       headers,

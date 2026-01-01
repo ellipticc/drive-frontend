@@ -25,6 +25,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { apiClient } from '@/lib/api';
 import { toast } from 'sonner';
+import { PaymentMethodModal } from '@/components/modals/payment-method-modal';
 
 interface TransformedPlan {
   id: string;
@@ -119,92 +120,182 @@ const PricingPage = () => {
   const [frequency, setFrequency] = useState<string>('monthly');
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
 
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+
   // Handle success/cancel redirects from Stripe
+  // Handle success/cancel redirects from Stripe & Auto-Checkout
+  const [isAutoRedirecting, setIsAutoRedirecting] = useState(false);
+
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
 
-    if (searchParams.get('success') === 'true') {
-      toast.success('Subscription created successfully! 🎉 Check your email for confirmation.');
-      // Clean up URL
-      window.history.replaceState({}, document.title, window.location.pathname);
-    } else if (searchParams.get('canceled') === 'true') {
-      toast.error('Payment canceled. Your plan remains unchanged.');
-      // Clean up URL
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
+    const handleAutoCheckout = async () => {
+      const autoPlan = searchParams.get('plan');
+      const autoPeriod = searchParams.get('period');
+      const autoMethod = searchParams.get('method');
+
+      if (autoPlan && autoPeriod && autoMethod) {
+        const plan = staticPlans.find(p => p.id === autoPlan);
+        if (!plan) return;
+
+        setIsAutoRedirecting(true);
+
+        try {
+          if (autoMethod === 'stripe') {
+            const stripePriceId = plan.stripePriceIds[autoPeriod as keyof typeof plan.stripePriceIds];
+            if (!stripePriceId) throw new Error('Invalid Stripe price');
+
+            const response = await apiClient.createCheckoutSession({
+              priceId: stripePriceId,
+              successUrl: `${window.location.origin}/billing?success=true`,
+              cancelUrl: `${window.location.origin}/billing?canceled=true`,
+            });
+            if (response.success && response.data?.url) window.location.href = response.data.url;
+          }
+          else if (autoMethod === 'crypto') {
+            const price = plan.price[autoPeriod as keyof typeof plan.price];
+            const priceNum = typeof price === 'string' ? parseFloat(price) : price;
+
+            const response = await apiClient.createCryptoCheckoutSession({
+              planId: plan.id,
+              price: priceNum,
+              currency: 'USD',
+              period: autoPeriod === 'yearly' ? 'year' : 'month'
+            });
+            if (response.success && response.data?.url) window.location.href = response.data.url;
+          }
+          else if (autoMethod === 'paypal') {
+            toast.info('PayPal auto-checkout coming soon!');
+            setIsAutoRedirecting(false);
+          }
+        } catch (err) {
+          console.error("Auto-checkout failed", err);
+          toast.error("Auto-checkout failed, please select a plan manually.");
+          setIsAutoRedirecting(false);
+        }
+        return;
+      }
+
+      // Handle existing success/cancel flags
+      if (searchParams.get('success') === 'true') {
+        toast.success('Subscription created successfully! 🎉 Check your email for confirmation.');
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } else if (searchParams.get('canceled') === 'true') {
+        toast.error('Payment canceled. Your plan remains unchanged.');
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    };
+
+    handleAutoCheckout();
+
+    // Reset state when page is shown from bfcache (browser back button)
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        setIsAutoRedirecting(false);
+        setIsProcessingPayment(false);
+        setCheckoutLoading(null);
+      }
+    };
+
+    window.addEventListener('pageshow', handlePageShow);
+    return () => {
+      window.removeEventListener('pageshow', handlePageShow);
+    };
   }, []);
 
-  const handleSubscribe = async (planId: string) => {
-    try {
-      setCheckoutLoading(planId);
+  const handleSubscribe = (planId: string) => {
+    setSelectedPlanId(planId);
+    setShowPaymentModal(true);
+  };
 
-      // Find the selected plan
-      const plan = staticPlans.find((p: TransformedPlan) => p.id === planId);
+  const handlePaymentMethodSelect = async (method: 'stripe' | 'crypto' | 'paypal') => {
+    if (!selectedPlanId) return;
+
+    setIsProcessingPayment(true);
+    // Keep sidebar loading state if we want, or use local loading
+    setCheckoutLoading(selectedPlanId);
+
+    try {
+      const plan = staticPlans.find((p: TransformedPlan) => p.id === selectedPlanId);
 
       if (!plan) {
         toast.error('Invalid plan selected');
-        console.error('Plan not found:', planId);
         return;
       }
 
-      // Get the correct Stripe price ID based on frequency
-      const stripePriceId = plan.stripePriceIds[frequency as keyof typeof plan.stripePriceIds];
+      if (method === 'stripe') {
+        // STRIPE LOGIC
+        const stripePriceId = plan.stripePriceIds[frequency as keyof typeof plan.stripePriceIds];
 
-      if (!stripePriceId) {
-        toast.error('Invalid plan selected');
-        console.error('Stripe price ID not found for:', { planId, frequency });
-        return;
-      }
+        if (!stripePriceId) {
+          toast.error('Invalid plan selected');
+          return;
+        }
 
-      // Log the checkout request for debugging
-      console.log('Creating checkout session for plan:', {
-        planId: plan.id,
-        planName: plan.name,
-        frequency,
-        stripePriceId,
-      });
-
-      // Call backend to create Stripe checkout session
-      const response = await apiClient.createCheckoutSession({
-        priceId: stripePriceId,
-        successUrl: `${window.location.origin}/billing?success=true`,
-        cancelUrl: `${window.location.origin}/billing?canceled=true`,
-      });
-
-      // Handle successful response
-      if (response.success && response.data?.url) {
-        console.log('Checkout session created, redirecting to Stripe');
-        // Redirect to Stripe checkout page
-        window.location.href = response.data.url;
-      } else {
-        const errorMsg = response.error || 'Failed to create checkout session';
-        console.error('Checkout session creation failed:', {
-          success: response.success,
-          error: response.error,
-          data: response.data,
+        const response = await apiClient.createCheckoutSession({
+          priceId: stripePriceId,
+          successUrl: `${window.location.origin}/billing?success=true`,
+          cancelUrl: `${window.location.origin}/billing?canceled=true`,
         });
-        toast.error(errorMsg);
+
+        if (response.success && response.data?.url) {
+          window.location.href = response.data.url;
+        } else {
+          toast.error(response.error || 'Failed to create checkout session');
+        }
+
+      } else if (method === 'crypto') {
+        // CRYPTO LOGIC
+        setShowPaymentModal(false);
+        setIsAutoRedirecting(true);
+
+        const price = plan.price[frequency as keyof typeof plan.price];
+
+        // Ensure price is number
+        const priceNum = typeof price === 'string' ? parseFloat(price) : price;
+
+        const response = await apiClient.createCryptoCheckoutSession({
+          planId: plan.id,
+          price: priceNum,
+          currency: 'USD',
+          period: frequency === 'yearly' ? 'year' : 'month'
+        });
+
+        if (response.success && response.data?.url) {
+          window.location.href = response.data.url;
+          // Do not turn off isAutoRedirecting, we are leaving the page
+        } else {
+          toast.error(response.error || 'Failed to create crypto checkout');
+          setIsAutoRedirecting(false); // Stop the spinner
+          // Re-open modal so user can try again
+          // setTimeout to let the state flush
+          setTimeout(() => setShowPaymentModal(true), 100);
+        }
+      } else if (method === 'paypal') {
+        toast.info('PayPal checkout coming soon!');
       }
+
     } catch (error) {
       console.error('Checkout error:', error);
-
-      // Provide more specific error messages
-      if (error instanceof Error) {
-        toast.error(`Error: ${error.message}`);
-      } else {
-        toast.error('Failed to process checkout. Please try again.');
-      }
+      toast.error('Failed to process checkout. Please try again.');
+      setIsAutoRedirecting(false);
+      setShowPaymentModal(true);
     } finally {
+      setIsProcessingPayment(false);
       setCheckoutLoading(null);
     }
   };
 
-  if (false) {
+
+
+  if (isAutoRedirecting) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
-          <p className="text-sm text-muted-foreground">Loading pricing plans...</p>
+          <p className="text-sm text-muted-foreground mb-4">Redirecting to secure checkout...</p>
         </div>
       </div>
     );
@@ -346,6 +437,14 @@ const PricingPage = () => {
           </div>
         </div>
       </div>
+      {/* Modal */}
+      <PaymentMethodModal
+        isOpen={showPaymentModal}
+        onOpenChange={setShowPaymentModal}
+        onSelectMethod={handlePaymentMethodSelect}
+        isLoading={isProcessingPayment}
+        planFrequency={frequency}
+      />
     </div>
   );
 };
