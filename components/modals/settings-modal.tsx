@@ -645,7 +645,12 @@ export function SettingsModal({
   const handleManageSubscription = async () => {
     setIsRedirectingToPortal(true)
     try {
-      const returnUrl = typeof window !== 'undefined' ? window.location.href : 'https://drive.ellipticc.com/dashboard#settings/Billing'
+      // Clean return URL to avoid parameter accumulation and loops
+      // Always redirects to the billing settings tab
+      const returnUrl = typeof window !== 'undefined'
+        ? `${window.location.origin}/#settings/Billing`
+        : 'https://drive.ellipticc.com/#settings/Billing'
+
       const response = await apiClient.createPortalSession({ returnUrl })
 
       if (response.success && response.data?.url) {

@@ -1941,8 +1941,9 @@ class ApiClient {
   }): Promise<ApiResponse<{
     url: string;
   }>> {
-    // Use returnUrl as unique intent (creating portal session)
-    const idempotencyKey = generateIdempotencyKey('createPortal', data.returnUrl);
+    // Make uniqueIntent so that the same returnUrl doesn't create the same portal session
+    const uniqueIntent = `${data.returnUrl}:${Date.now()}`;
+    const idempotencyKey = generateIdempotencyKey('createPortal', uniqueIntent);
     const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/billing/create-portal-session', {
       method: 'POST',
