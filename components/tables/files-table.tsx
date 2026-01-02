@@ -2123,13 +2123,6 @@ export const Table01DividerLineSm = ({
                                             <TruncatedNameTooltip
                                                 name={item.name}
                                                 className="text-sm font-medium whitespace-nowrap text-foreground cursor-default flex-1 min-w-0"
-                                                onClick={() => {
-                                                    if (item.type === 'folder') {
-                                                        handleFolderDoubleClick(item.id, item.name);
-                                                    } else if (item.type === 'file' && item.mimeType && canPreviewFile(item.mimeType)) {
-                                                        handlePreviewClick(item.id, item.name, item.mimeType);
-                                                    }
-                                                }}
                                             />
                                         </div>
                                     </Table.Cell>
@@ -2260,9 +2253,35 @@ export const Table01DividerLineSm = ({
                                     key={item.id}
                                     className={`group relative bg-card rounded-lg border border-border p-4 hover:bg-muted/50 transition-all duration-200 cursor-pointer ${selectedItems.has(item.id) ? 'ring-2 ring-primary bg-muted' : ''
                                         }`}
-                                    onClick={() => {
-                                        // Single click -> Select only this item (replace selection)
-                                        setSelectedItems(new Set([item.id]));
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+
+                                        if (isMobile) {
+                                            // on mobile, single click enters/previews
+                                            if (item.type === 'folder') {
+                                                handleFolderDoubleClick(item.id, item.name);
+                                            } else if (item.type === 'file' && item.mimeType && canPreviewFile(item.mimeType)) {
+                                                handlePreviewClick(item.id, item.name, item.mimeType);
+                                            }
+                                            return;
+                                        }
+
+                                        const newSelected = new Set(selectedItems);
+                                        if (e.ctrlKey || e.metaKey) {
+                                            if (newSelected.has(item.id)) {
+                                                newSelected.delete(item.id);
+                                            } else {
+                                                newSelected.add(item.id);
+                                            }
+                                        } else if (e.shiftKey && selectedItems.size > 0) {
+                                            newSelected.clear();
+                                            newSelected.add(item.id);
+                                        } else {
+                                            newSelected.clear();
+                                            newSelected.add(item.id);
+                                        }
+                                        setSelectedItems(newSelected);
                                     }}
                                     onDoubleClick={() => {
                                         if (item.type === 'folder') {
