@@ -2668,29 +2668,6 @@ class ApiClient {
     });
   }
 
-  // SIWE (Sign-In with Ethereum) endpoints
-  async getSIWENonce(): Promise<{ nonce: string }> {
-    const response = await this.request<{ nonce: string }>('/auth/siwe/nonce');
-    if (!response.success || !response.data) {
-      throw new Error(response.error || 'Failed to get SIWE nonce');
-    }
-    return response.data;
-  }
-
-  async verifySIWE(data: {
-    message: string;
-    signature: string;
-    address: string;
-  }): Promise<ApiResponse<{
-    token: string;
-    user: UserData;
-  }>> {
-    return this.request('/auth/siwe/verify', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
   async lockComments(shareId: string, locked: boolean): Promise<ApiResponse<{ success: boolean; locked: boolean }>> {
     return this.request(`/shares/${shareId}/comments/lock`, {
       method: 'POST',

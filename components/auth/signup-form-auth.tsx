@@ -16,7 +16,6 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useState, useEffect } from "react"
 import { apiClient } from "@/lib/api"
 import { IconAlertCircle as AlertCircle, IconLoader2 as Loader2 } from "@tabler/icons-react"
-import { SIWELoginButton } from "./siwe-login-button"
 import { GoogleOAuthButton } from "./google-oauth-button"
 import { sessionTrackingUtils } from "@/hooks/useSessionTracking"
 import { initializeDeviceKeys } from "@/lib/device-keys"
@@ -310,9 +309,6 @@ export function SignupFormAuth({
               Enter your email below to create your account
             </p>
           </div>
-          <Field>
-            <SIWELoginButton context="register" />
-          </Field>
           <Field className="-mt-4">
             <GoogleOAuthButton context="register" />
           </Field>

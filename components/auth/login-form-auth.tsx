@@ -20,7 +20,6 @@ import { apiClient } from "@/lib/api"
 import { masterKeyManager } from "@/lib/master-key"
 import { keyManager } from "@/lib/key-manager"
 import { IconLoader2 as Loader2 } from "@tabler/icons-react"
-import { SIWELoginButton } from "./siwe-login-button"
 import { GoogleOAuthButton } from "./google-oauth-button"
 import { useSessionTracking, sessionTrackingUtils } from "@/hooks/useSessionTracking"
 import { initializeDeviceKeys } from "@/lib/device-keys"
@@ -380,9 +379,6 @@ export function LoginFormAuth({
               Login with your email and password
             </p>
           </div>
-          <Field>
-            <SIWELoginButton />
-          </Field>
           <Field className="-mt-4">
             <GoogleOAuthButton />
           </Field>
