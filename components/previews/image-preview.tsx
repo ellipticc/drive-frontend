@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react"
 import { IconLoader2 as Loader2, IconZoomIn as ZoomIn, IconZoomOut as ZoomOut, IconPhoto as ImageIcon, IconAlertCircle as AlertCircle } from "@tabler/icons-react"
 import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
 import { downloadEncryptedFileWithCEK, downloadEncryptedFile, DownloadProgress } from "@/lib/download"
 import { decryptData } from "@/lib/crypto"
 
@@ -31,8 +30,6 @@ interface ImagePreviewProps {
 
 export function ImagePreview({
   fileId,
-  mimeType,
-  mimetype,
   fileName,
   filename,
   shareDetails,

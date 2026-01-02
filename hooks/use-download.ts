@@ -4,7 +4,7 @@
  * Provides a React hook for downloading encrypted files with progress tracking
  */
 
-import { useRef, useState, useCallback, useEffect } from 'react';
+import { useRef, useState, useCallback } from 'react';
 import { downloadEncryptedFile, downloadFileToBrowser, DownloadProgress, DownloadResult, PauseController } from '@/lib/download';
 import { keyManager } from '@/lib/key-manager';
 

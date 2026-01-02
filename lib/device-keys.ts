@@ -2,9 +2,9 @@ import { getPublicKey, utils, sign, etc, hashes } from '@noble/ed25519';
 import { sha512 } from '@noble/hashes/sha2.js';
 
 // Configure SHA-512 for noble/ed25519
-// @ts-ignore
+// @ts-expect-error - noble-ed25519 v2/v3 compatibility
 etc.sha512Sync = (...m) => sha512(etc.concatBytes(...m));
-// @ts-ignore
+// @ts-expect-error - noble-ed25519 v2/v3 compatibility
 etc.sha512Async = (...m) => Promise.resolve(sha512(etc.concatBytes(...m)));
 
 // For v3 compatibility

@@ -150,7 +150,6 @@ export default function SharedDownloadPage() {
   // Preview State
   const [previewFile, setPreviewFile] = useState<PreviewFileItem & { blobUrl: string } | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [previewProgress, setPreviewProgress] = useState<DownloadProgress | null>(null);
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
 

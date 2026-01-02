@@ -87,7 +87,6 @@ export function UnifiedProgressModal({
   onCancelDownload,
   onPauseDownload,
   onResumeDownload,
-  onRetryDownload,
   downloadError,
   isDownloadPaused,
   onDownloadComplete,
@@ -180,20 +179,6 @@ export function UnifiedProgressModal({
     }
   };
 
-  const getDownloadStatusIcon = () => {
-    if (downloadError) return <IconAlertTriangle className="h-4 w-4 text-red-500" />;
-    if (downloadProgress?.stage === 'complete') return <IconCheck className="h-4 w-4 text-green-500" />;
-    return <IconDownload className="h-4 w-4 text-blue-500 animate-pulse" />;
-  };
-
-  const getDownloadStatusBadge = () => {
-    if (downloadError) return <Badge variant="destructive">Failed</Badge>;
-    if (downloadProgress?.stage === 'complete') return <Badge variant="default" className="bg-green-500">Completed</Badge>;
-    return <Badge variant="default">Downloading</Badge>;
-  };
-
-
-
   const getUploadStageDescription = (stage: UploadProgressType['stage']): string => {
     switch (stage) {
       case 'hashing':
@@ -209,32 +194,6 @@ export function UnifiedProgressModal({
       default:
         return stage;
     }
-  };
-
-  const getDownloadStageDescription = (stage: DownloadProgress['stage']): string => {
-    switch (stage) {
-      case 'initializing':
-        return 'Preparing download';
-      case 'downloading':
-        return 'Downloading file chunks';
-      case 'decrypting':
-        return 'Decrypting file';
-      case 'assembling':
-        return 'Assembling file';
-      case 'verifying':
-        return 'Verifying integrity';
-      case 'complete':
-        return 'Download complete';
-      default:
-        return stage;
-    }
-  };
-
-  const formatTimeRemaining = (seconds: number): string => {
-    if (seconds < 60) return `${Math.round(seconds)}s`;
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.round(seconds % 60);
-    return `${minutes}m ${remainingSeconds}s`;
   };
 
   // Calculate overall progress

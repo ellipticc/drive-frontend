@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react"
 import { IconPlayerPlay as Play, IconPlayerPause as Pause, IconVolume as Volume2, IconVolumeOff as VolumeX, IconLoader2 as Loader2, IconMusic as Music } from "@tabler/icons-react"
 import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
 import { downloadEncryptedFileWithCEK, downloadEncryptedFile, DownloadProgress } from "@/lib/download"
 import { decryptData } from "@/lib/crypto"
 
@@ -31,9 +30,6 @@ interface AudioPreviewProps {
 
 export function AudioPreview({
   fileId,
-  mimeType,
-  mimetype,
-  fileSize,
   fileName,
   filename,
   shareDetails,
@@ -44,7 +40,6 @@ export function AudioPreview({
   setIsLoading: setExternalIsLoading
 }: AudioPreviewProps) {
   // Normalize props
-  const effectiveMimeType = mimeType || mimetype || 'audio/mpeg'
   const effectiveFileName = fileName || filename || 'Audio File'
 
   const [isPlaying, setIsPlaying] = useState(false)

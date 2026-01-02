@@ -51,10 +51,6 @@ export default function Home() {
   const handleDrop = useCallback((files: File[] | FileList) => {
     const fileArray = Array.isArray(files) ? files as ExtendedFile[] : Array.from(files) as ExtendedFile[]
 
-    fileArray.forEach((f, i) => {
-      const relativePath = (f as any).webkitRelativePath || '';
-    });
-
     const validFiles = fileArray.filter(file => {
       if (!file.name || file.name.trim() === '') {
         return false;

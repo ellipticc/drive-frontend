@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useCallback } from "react"
-import { IconX as X, IconChevronLeft as ChevronLeft, IconChevronRight as ChevronRight, IconDownload as Download, IconInfoCircle as Info, IconShare as Share2, IconLoader2 as Loader2, IconFileUnknown } from "@tabler/icons-react"
+import { IconX as X, IconChevronLeft as ChevronLeft, IconChevronRight as ChevronRight, IconDownload as Download, IconInfoCircle as Info, IconShare as Share2, IconFileUnknown } from "@tabler/icons-react"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { AudioPreview } from "./audio-preview"

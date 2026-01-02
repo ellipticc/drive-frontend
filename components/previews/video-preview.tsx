@@ -27,8 +27,6 @@ export function VideoPreview({
   fileId,
   mimeType,
   mimetype,
-  fileName,
-  filename,
   shareDetails,
   onGetShareCEK,
   onProgress,

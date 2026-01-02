@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react"
 import { IconLoader2 as Loader2, IconFileText as FileText, IconAlertCircle as AlertCircle } from "@tabler/icons-react"
-import { cn } from "@/lib/utils"
 import { downloadEncryptedFileWithCEK, downloadEncryptedFile, DownloadProgress } from "@/lib/download"
 import { decryptData } from "@/lib/crypto"
 
@@ -26,10 +25,6 @@ interface TextPreviewProps {
 
 export function TextPreview({
   fileId,
-  mimeType,
-  mimetype,
-  fileName,
-  filename,
   shareDetails,
   onGetShareCEK,
   onProgress,

@@ -28,10 +28,7 @@ import { IconFolder, IconInfoCircle, IconTrash as IconTrashAlt } from "@tabler/i
 import { apiClient, FileContentItem, FolderContentItem } from "@/lib/api";
 import { TableSkeleton } from "@/components/tables/table-skeleton";
 import { toast } from "sonner";
-import { truncateFilename } from "@/lib/utils";
-import { isTextTruncated } from "@/lib/tooltip-helper";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TruncatedNameTooltip } from "./truncated-name-tooltip";
 import { masterKeyManager } from "@/lib/master-key";
 import { decryptFilename } from "@/lib/crypto";
@@ -396,48 +393,6 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
     };
-
-    // Format date
-    const formatDate = (dateString: string): string => {
-        const date = new Date(dateString);
-        const options: Intl.DateTimeFormatOptions = {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: true
-        };
-
-        // Add ordinal suffix helper
-        const ordinalSuffix = (day: number) => {
-            if (day > 3 && day < 21) return 'th';
-            switch (day % 10) {
-                case 1: return 'st';
-                case 2: return 'nd';
-                case 3: return 'rd';
-                default: return 'th';
-            }
-        };
-
-        const formatted = date.toLocaleDateString('en-US', options);
-        const parts = formatted.split(', ');
-        if (parts.length >= 2) {
-            const datePart = parts[0];
-            const timePart = parts[1];
-            // Insert ordinal suffix
-            const dayMatch = datePart.match(/(\w+)\s(\d+)/);
-            if (dayMatch) {
-                const month = dayMatch[1];
-                const dayNum = parseInt(dayMatch[2]);
-                const ordinalDay = `${dayNum}${ordinalSuffix(dayNum)}`;
-                return `${month} ${ordinalDay} ${date.getFullYear()}, ${timePart}`;
-            }
-        }
-        return formatted;
-    };
-
-
 
     const sortedItems = useMemo(() => {
         // Filter items based on search query

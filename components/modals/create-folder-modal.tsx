@@ -13,7 +13,6 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { IconFolderPlus } from "@tabler/icons-react"
 import { apiClient, PQCKeypairs } from "@/lib/api"
 import { createSignedFolderManifest, decryptUserPrivateKeys } from "@/lib/crypto"
 import { masterKeyManager } from "@/lib/master-key"

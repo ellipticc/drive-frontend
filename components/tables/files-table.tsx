@@ -6,7 +6,7 @@ import { DotsVertical } from "@untitledui/icons";
 import type { SortDescriptor, Selection } from "react-aria-components";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Button } from "@/components/ui/button";
-import { IconFolderPlus, IconFolderDown, IconFileUpload, IconShare3, IconListDetails, IconDownload, IconFolder, IconEdit, IconInfoCircle, IconTrash, IconPhoto, IconVideo, IconMusic, IconFileText, IconArchive, IconFile, IconHome, IconChevronRight, IconLink, IconEye, IconLayoutColumns, IconChevronDown, IconCopy } from "@tabler/icons-react";
+import { IconFolderPlus, IconFolderDown, IconFileUpload, IconShare3, IconListDetails, IconDownload, IconFolder, IconEdit, IconInfoCircle, IconTrash, IconFile, IconHome, IconChevronRight, IconLink, IconEye, IconLayoutColumns, IconCopy } from "@tabler/icons-react";
 import { CreateFolderModal } from "@/components/modals/create-folder-modal";
 import { MoveToFolderModal } from "@/components/modals/move-to-folder-modal";
 import { CopyModal } from "@/components/modals/copy-modal";
@@ -35,8 +35,6 @@ import { useCurrentFolder } from "@/components/current-folder-context";
 import { useOnFileAdded, useOnFileDeleted, useOnFileReplaced, useGlobalUpload } from "@/components/global-upload-context";
 import { FileIcon } from "@/components/file-icon";
 import { masterKeyManager } from "@/lib/master-key";
-import { truncateFilename } from "@/lib/utils";
-import { isTextTruncated } from "@/lib/tooltip-helper";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { TruncatedNameTooltip } from "./truncated-name-tooltip";
 

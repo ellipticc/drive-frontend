@@ -26,8 +26,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { decryptFilename } from "@/lib/crypto";
 import { useGlobalUpload } from "@/components/global-upload-context";
 import { masterKeyManager } from "@/lib/master-key";
-import { truncateFilename } from "@/lib/utils";
-import { isTextTruncated } from "@/lib/tooltip-helper";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { FileIcon } from "../file-icon";
 import { TruncatedNameTooltip } from "./truncated-name-tooltip";

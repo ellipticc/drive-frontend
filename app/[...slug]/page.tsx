@@ -18,9 +18,6 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const folderInputRef = useRef<HTMLInputElement>(null)
 
-  // Helper to access non-standard webkitRelativePath on File objects safely
-  const getRelativePath = (f: File) => (f as unknown as { webkitRelativePath?: string }).webkitRelativePath || ''
-
   // Drag and drop state - simplified
   // folders can be FileList (from input) or File[] (from drag & drop) - both preserve webkitRelativePath
   const [isDragOverlayVisible, setIsDragOverlayVisible] = useState(false)

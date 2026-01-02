@@ -6,7 +6,6 @@ import { Textarea } from '@/components/ui/textarea';
 import {
     Sheet,
     SheetContent,
-    SheetDescription,
     SheetHeader,
     SheetTitle,
     SheetTrigger,
@@ -69,7 +68,6 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -93,12 +91,10 @@ export function CommentSection({ shareId, shareCek, currentUser, isOwner, classN
     const [loading, setLoading] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [content, setContent] = useState('');
-    const [commentToDelete, setCommentToDelete] = useState<string | null>(null)
     const router = useRouter()
 
     // Edit/Reply state
     const [editingComment, setEditingComment] = useState<DecryptedComment | null>(null);
-    const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
     const [replyingTo, setReplyingTo] = useState<DecryptedComment | null>(null);
 
     const [commentKey, setCommentKey] = useState<Uint8Array | null>(null);

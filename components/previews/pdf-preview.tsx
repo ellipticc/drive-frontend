@@ -25,10 +25,7 @@ interface PdfPreviewProps {
 
 export function PdfPreview({
     fileId,
-    mimeType,
-    mimetype,
     fileName,
-    filename,
     shareDetails,
     onGetShareCEK,
     onProgress,
