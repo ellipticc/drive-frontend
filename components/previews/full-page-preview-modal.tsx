@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useCallback } from "react"
-import { IconX as X, IconChevronLeft as ChevronLeft, IconChevronRight as ChevronRight, IconDownload as Download, IconInfoCircle as Info, IconShare as Share2, IconLoader2 as Loader2 } from "@tabler/icons-react"
+import { IconX as X, IconChevronLeft as ChevronLeft, IconChevronRight as ChevronRight, IconDownload as Download, IconInfoCircle as Info, IconShare as Share2, IconLoader2 as Loader2, IconFileUnknown } from "@tabler/icons-react"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { AudioPreview } from "./audio-preview"
@@ -124,7 +124,18 @@ export function FullPagePreviewModal({
             )
         }
 
-        if (!file.mimeType) return <div className="text-muted-foreground">Preview not available</div>
+        if (!file.mimeType) {
+            return (
+                <div className="flex flex-col items-center justify-center h-full text-muted-foreground animate-in fade-in-0 slide-in-from-bottom-5">
+                    <IconFileUnknown className="h-20 w-20 mb-6 opacity-40 text-muted-foreground" />
+                    <p className="text-2xl font-bold mb-8 text-center">Preview for this file type is not supported</p>
+                    <Button onClick={() => onDownload(file)} size="lg">
+                        <Download className="mr-2 h-5 w-5" />
+                        Download File
+                    </Button>
+                </div>
+            )
+        }
 
         const commonProps = {
             key: file.id, // Critical: Forces component remount, cancelling previous effects
@@ -165,9 +176,13 @@ export function FullPagePreviewModal({
         }
 
         return (
-            <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-                <p className="mb-2">No preview available</p>
-                <Button variant="outline" onClick={() => onDownload(file)}>Download File</Button>
+            <div className="flex flex-col items-center justify-center h-full text-muted-foreground animate-in fade-in-0 slide-in-from-bottom-5">
+                <IconFileUnknown className="h-20 w-20 mb-6 opacity-40 text-muted-foreground" />
+                <p className="text-2xl font-bold mb-8 text-center">Preview for this file type is not supported</p>
+                <Button onClick={() => onDownload(file)} size="lg">
+                    <Download className="mr-2 h-5 w-5" />
+                    Download File
+                </Button>
             </div>
         )
     }
