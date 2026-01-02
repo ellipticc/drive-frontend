@@ -221,7 +221,7 @@ export function SettingsModal({
   const [isDisablingTOTP, setIsDisablingTOTP] = useState(false)
 
   // Session management state
-  const [sessionExpiry, setSessionExpiry] = useState("3600")
+  const [sessionExpiry, setSessionExpiry] = useState("5184000")
   const [userSessions, setUserSessions] = useState<any[]>([])
   const [isLoadingSessions, setIsLoadingSessions] = useState(false)
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
@@ -421,7 +421,7 @@ export function SettingsModal({
           setSessionExpiry(config.sessionExpiry.toString())
         } catch (e) {
           console.error('Failed to parse stored session config:', e)
-          setSessionExpiry('3600')
+          setSessionExpiry('5184000')
         }
       }
     }
@@ -1582,13 +1582,11 @@ export function SettingsModal({
                         <SelectValue placeholder="Select" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="1800">30 minutes</SelectItem>
-                        <SelectItem value="3600">1 hour</SelectItem>
-                        <SelectItem value="7200">2 hours</SelectItem>
-                        <SelectItem value="21600">6 hours</SelectItem>
-                        <SelectItem value="43200">12 hours</SelectItem>
                         <SelectItem value="86400">24 hours</SelectItem>
                         <SelectItem value="604800">7 days</SelectItem>
+                        <SelectItem value="1209600">14 days</SelectItem>
+                        <SelectItem value="2592000">30 days</SelectItem>
+                        <SelectItem value="5184000">60 days</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
