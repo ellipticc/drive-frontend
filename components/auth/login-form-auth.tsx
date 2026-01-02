@@ -169,9 +169,39 @@ export function LoginFormAuth({
       // If login didn't include crypto_keypairs, fetch profile
       // NOTE: We need to set the token first since getProfile() requires authentication
       let userData: UserData | Record<string, unknown> = userObj;
+
+      // Temporarily set token for fetching profile
+      apiClient.setAuthToken(token ?? null)
+
+      // CRITICAL: Initialize device identity IMMEDIATELY after login
+      // This ensures all following requests (getProfile, getTOTPStatus) have device headers
+      const publicKey = await initializeDeviceKeys();
+      if (publicKey) {
+        const deviceAuth = await apiClient.authorizeDevice(publicKey);
+        if (deviceAuth.success && deviceAuth.data) {
+          // Store device ID so it's injected into following request headers
+          localStorage.setItem('device_id', deviceAuth.data.deviceId);
+
+          if (deviceAuth.data.warning) {
+            try {
+              const { toast } = await import("sonner");
+              toast.warning("Device Limit Notice", {
+                description: deviceAuth.data.warning,
+                duration: 8000,
+              });
+            } catch (tError) {
+              console.warn('Could not load toast:', tError);
+            }
+          }
+        } else {
+          // If device auth fails, we cannot proceed as subsequent calls will fail 401
+          apiClient.setAuthToken(null)
+          setError(deviceAuth.error || "Device security verification failed");
+          return;
+        }
+      }
+
       if (!userObj.crypto_keypairs?.accountSalt) {
-        // Temporarily set token for fetching profile
-        apiClient.setAuthToken(token ?? null)
         const profileResponse = await apiClient.getProfile();
         if (profileResponse.success && profileResponse.data?.user) {
           userData = profileResponse.data.user as UserData;
@@ -300,24 +330,6 @@ export function LoginFormAuth({
 
       // Stop session tracking after successful login
       sessionTrackingUtils.clearSession()
-
-      // Initialize device keys (generate Ed25519 keypair if not exists)
-      const publicKey = await initializeDeviceKeys();
-      if (publicKey) {
-        const deviceAuth = await apiClient.authorizeDevice(publicKey);
-        if (deviceAuth.success && deviceAuth.data?.warning) {
-          // Show warning for duplicate device/incognito
-          try {
-            const { toast } = await import("sonner");
-            toast.warning("Device Limit Notice", {
-              description: deviceAuth.data.warning,
-              duration: 8000,
-            });
-          } catch (tError) {
-            console.warn('Could not load toast:', tError);
-          }
-        }
-      }
 
       window.dispatchEvent(new CustomEvent('user-login'));
 

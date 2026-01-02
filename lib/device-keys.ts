@@ -1,13 +1,15 @@
-import { getPublicKey, utils, sign, etc } from '@noble/ed25519';
+import { getPublicKey, utils, sign, etc, hashes } from '@noble/ed25519';
 import { sha512 } from '@noble/hashes/sha2.js';
 
 // Configure SHA-512 for noble/ed25519
-// @ts-ignore - noble-ed25519 v2/v3 compatibility
-if (!etc.sha512Sync) {
-    // @ts-ignore
-    etc.sha512Sync = (...m) => sha512(etc.concatBytes(...m));
-    // @ts-ignore
-    etc.sha512Async = (...m) => Promise.resolve(sha512(etc.concatBytes(...m)));
+// @ts-ignore
+etc.sha512Sync = (...m) => sha512(etc.concatBytes(...m));
+// @ts-ignore
+etc.sha512Async = (...m) => Promise.resolve(sha512(etc.concatBytes(...m)));
+
+// For v3 compatibility
+if (hashes) {
+    hashes.sha512 = sha512;
 }
 
 const DB_NAME = 'drive_device_keys';

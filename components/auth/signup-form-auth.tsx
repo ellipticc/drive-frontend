@@ -199,16 +199,25 @@ export function SignupFormAuth({
       const publicKey = await initializeDeviceKeys();
       if (publicKey) {
         const deviceAuth = await apiClient.authorizeDevice(publicKey);
-        if (deviceAuth.success && deviceAuth.data?.warning) {
-          try {
-            const { toast } = await import("sonner");
-            toast.warning("Device Limit Notice", {
-              description: deviceAuth.data.warning,
-              duration: 8000,
-            });
-          } catch (e) {
-            console.warn("Toast error", e);
+        if (deviceAuth.success && deviceAuth.data) {
+          // Store device ID for authenticated requests
+          localStorage.setItem('device_id', deviceAuth.data.deviceId);
+
+          if (deviceAuth.data.warning) {
+            try {
+              const { toast } = await import("sonner");
+              toast.warning("Device Limit Notice", {
+                description: deviceAuth.data.warning,
+                duration: 8000,
+              });
+            } catch (e) {
+              console.warn("Toast error", e);
+            }
           }
+        } else {
+          apiClient.setAuthToken(null)
+          setError(deviceAuth.error || "Device security verification failed");
+          return;
         }
       }
 
