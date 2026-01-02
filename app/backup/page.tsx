@@ -12,7 +12,6 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import {
-  IconCopy as Copy,
   IconEye as Eye,
   IconEyeOff as EyeOff,
   IconAlertTriangle as AlertTriangle,
@@ -26,7 +25,6 @@ export default function BackupPage() {
   const router = useRouter()
   const mnemonic = localStorage.getItem('recovery_mnemonic') || ""
   const [showMnemonic, setShowMnemonic] = useState(false)
-  const [copied, setCopied] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
 
   useEffect(() => {
@@ -48,15 +46,6 @@ export default function BackupPage() {
     }
   }, [router, mnemonic])
 
-  const copyToClipboard = async () => {
-    try {
-      await navigator.clipboard.writeText(mnemonic)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch (err) {
-      console.error('Failed to copy:', err)
-    }
-  }
 
   const downloadAsText = () => {
     const element = document.createElement('a')
@@ -130,17 +119,17 @@ export default function BackupPage() {
                   onClick={() => setShowMnemonic(!showMnemonic)}
                   className="h-8 px-3 text-xs"
                 >
-                  {showMnemonic ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={copyToClipboard}
-                  disabled={!showMnemonic}
-                  className="h-8 px-3 text-xs"
-                >
-                  <Copy className="h-4 w-4 mr-1" />
-                  {copied ? "Copied" : "Copy"}
+                  {showMnemonic ? (
+                    <>
+                      <EyeOff className="h-4 w-4 mr-1" />
+                      Hide
+                    </>
+                  ) : (
+                    <>
+                      <Eye className="h-4 w-4 mr-1" />
+                      Show
+                    </>
+                  )}
                 </Button>
                 <Button
                   variant="ghost"
