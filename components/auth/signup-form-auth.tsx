@@ -19,6 +19,7 @@ import { IconAlertCircle as AlertCircle, IconLoader2 as Loader2 } from "@tabler/
 import { SIWELoginButton } from "./siwe-login-button"
 import { GoogleOAuthButton } from "./google-oauth-button"
 import { sessionTrackingUtils } from "@/hooks/useSessionTracking"
+import { initializeDeviceKeys } from "@/lib/device-keys"
 
 export function SignupFormAuth({
   className,
@@ -193,6 +194,23 @@ export function SignupFormAuth({
 
       // Store authentication token
       apiClient.setAuthToken(token ?? null)
+
+      // Initialize device keys and authorize device
+      const publicKey = await initializeDeviceKeys();
+      if (publicKey) {
+        const deviceAuth = await apiClient.authorizeDevice(publicKey);
+        if (deviceAuth.success && deviceAuth.data?.warning) {
+          try {
+            const { toast } = await import("sonner");
+            toast.warning("Device Limit Notice", {
+              description: deviceAuth.data.warning,
+              duration: 8000,
+            });
+          } catch (e) {
+            console.warn("Toast error", e);
+          }
+        }
+      }
 
       // Store email and password for future use (OTP, master key derivation, etc.)
       localStorage.setItem('signup_email', formData.email)

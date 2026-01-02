@@ -28,6 +28,7 @@ import {
 } from '@/lib/crypto';
 import { useRouter } from 'next/navigation';
 import { sessionTrackingUtils } from '@/hooks/useSessionTracking';
+import { initializeDeviceKeys } from '@/lib/device-keys';
 
 interface OAuthPasswordModalProps {
   email: string;
@@ -243,6 +244,12 @@ export function OAuthPasswordModal({
         sessionStorage.removeItem('oauth_setup_in_progress');
         sessionStorage.removeItem('oauth_user_id');
 
+        // Initialize device keys
+        const publicKey = await initializeDeviceKeys();
+        if (publicKey) {
+          await apiClient.authorizeDevice(publicKey);
+        }
+
         // Redirect to dashboard directly (no backup page for OAuth users)
         router.push('/');
       } else {
@@ -386,6 +393,12 @@ export function OAuthPasswordModal({
       sessionStorage.removeItem('oauth_temp_token');
       sessionStorage.removeItem('oauth_setup_in_progress');
       sessionStorage.removeItem('oauth_user_id');
+
+      // Initialize device keys
+      const publicKey = await initializeDeviceKeys();
+      if (publicKey) {
+        await apiClient.authorizeDevice(publicKey);
+      }
 
       // Navigate to dashboard
       router.push('/');

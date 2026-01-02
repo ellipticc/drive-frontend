@@ -45,6 +45,7 @@
     "@serenity-kit/opaque": "^1.0.0",
     "@tabler/icons-react": "^3.35.0",
     "@tailwindcss/typography": "^0.5.19",
+    "@thumbmarkjs/thumbmarkjs": "^1.6.1",
     "@untitledui/icons": "^0.0.19",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

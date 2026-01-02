@@ -212,6 +212,12 @@ export function PrivacyPolicyContent() {
                     Your encryption keys are derived from your password using secure key derivation functions and are never shared with us, stored on our servers, or transmitted unencrypted. You are responsible for protecting your password.
                   </p>
                 </div>
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">5.5 Device Recognition</h3>
+                  <p className="text-base leading-relaxed">
+                    We display limited browser and device characteristics to help you recognize and manage your signed-in devices. These characteristics are not used for tracking, profiling, or cross-site identification, and are never relied upon as the sole factor for authentication. Loss or change of device fingerprint does not affect account access.
+                  </p>
+                </div>
               </div>
             </section>
 

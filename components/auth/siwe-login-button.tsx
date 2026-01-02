@@ -10,6 +10,7 @@ import { MetaMaskAuthService } from "@/lib/metamask-auth-service"
 import { keyManager } from "@/lib/key-manager"
 import SIWE from "@/lib/siwe"
 import { sessionTrackingUtils } from "@/hooks/useSessionTracking"
+import { initializeDeviceKeys } from "@/lib/device-keys"
 
 interface User {
   id: string;
@@ -273,6 +274,12 @@ export function SIWELoginButton({ onSuccess, onError, context = 'login' }: SIWEL
 
       // Clear session tracking after successful login
       sessionTrackingUtils.clearSession()
+
+      // Initialize device keys
+      const publicKey = await initializeDeviceKeys();
+      if (publicKey) {
+        await apiClient.authorizeDevice(publicKey);
+      }
 
       // Redirect to main drive page
       router.push("/")

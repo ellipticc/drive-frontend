@@ -1,4 +1,5 @@
 import { generateIdempotencyKey, addIdempotencyKey, generateIdempotencyKeyForCreate } from './idempotency';
+import { getDevicePublicKey, signWithDeviceKey } from './device-keys';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://drive.ellipticc.com/api/v1';
 
@@ -514,6 +515,43 @@ class ApiClient {
         ...config.headers,
         'Authorization': `Bearer ${token}`,
       };
+
+      if (typeof window !== 'undefined') {
+        const deviceId = localStorage.getItem('device_id');
+        const publicKey = await getDevicePublicKey().catch(() => null);
+
+        if (deviceId && publicKey) {
+          try {
+            const timestamp = Date.now().toString();
+            let fullPath = endpoint;
+
+            if (!endpoint.startsWith('http')) {
+              try {
+                const urlObj = new URL(requestUrl);
+                fullPath = urlObj.pathname + urlObj.search;
+              } catch {
+                fullPath = endpoint;
+              }
+            }
+
+            const method = (config.method || 'GET').toUpperCase();
+            const message = `${method}:${fullPath}:${timestamp}`;
+            const signature = await signWithDeviceKey(message);
+
+            if (!config.headers) {
+              config.headers = {};
+            }
+
+            const headers = config.headers as Record<string, string>;
+            headers['X-Device-Id'] = deviceId;
+            headers['X-Device-Signature'] = signature;
+            headers['X-Device-Timestamp'] = timestamp;
+
+          } catch (err) {
+            console.error('Device signature generation failed:', err);
+          }
+        }
+      }
     }
 
     try {
@@ -2346,6 +2384,95 @@ class ApiClient {
       body: JSON.stringify(data),
       headers,
     });
+  }
+
+  // Device Authorization
+  async authorizeDevice(publicKey: string): Promise<ApiResponse<{
+    success: boolean;
+    deviceId: string;
+    message: string;
+    warning?: string;
+  }>> {
+    // Device Recognition (UX only)
+    //
+    // We derive non-persistent browser characteristics to help users
+    // distinguish between their active devices in the security dashboard.
+    // These signals are not used for tracking, profiling, or standalone
+    // authentication decisions. Cryptographic device keys remain the
+    // sole authority for device trust.
+
+    // Use ThumbmarkJS for robust fingerprinting
+    const { getThumbmark } = await import('@thumbmarkjs/thumbmarkjs');
+    const fingerprint = await getThumbmark();
+
+    // Hash the fingerprint for integrity
+    // Ensure fingerprint is a string before hashing
+    const fingerprintStr = typeof fingerprint === 'string' ? fingerprint : JSON.stringify(fingerprint);
+    const fingerprintHash = await this.hashFingerprint(fingerprintStr);
+
+    // Get stored device ID if exists
+    const deviceId = localStorage.getItem('device_id');
+
+    const metadata = {
+      screenRes: `${window.screen.width}x${window.screen.height}`,
+      colorDepth: window.screen.colorDepth,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      language: navigator.language,
+      platform: navigator.platform,
+      hardwareConcurrency: navigator.hardwareConcurrency,
+      deviceMemory: (navigator as any).deviceMemory,
+      touchSupport: 'ontouchstart' in window || navigator.maxTouchPoints > 0,
+      fingerprint: fingerprint // Store the Thumbmark hash
+    };
+
+    const ua = navigator.userAgent;
+    let browser = 'Unknown';
+    if (ua.indexOf("Firefox") > -1) browser = "Firefox";
+    else if (ua.indexOf("SamsungBrowser") > -1) browser = "Samsung Internet";
+    else if (ua.indexOf("Opera") > -1 || ua.indexOf("OPR") > -1) browser = "Opera";
+    else if (ua.indexOf("Trident") > -1) browser = "Internet Explorer";
+    else if (ua.indexOf("Edge") > -1) browser = "Edge";
+    else if (ua.indexOf("Chrome") > -1) browser = "Chrome";
+    else if (ua.indexOf("Safari") > -1) browser = "Safari";
+
+    let os = "Unknown";
+    if (ua.indexOf("Win") !== -1) os = "Windows";
+    if (ua.indexOf("Mac") !== -1) os = "macOS";
+    if (ua.indexOf("Linux") !== -1) os = "Linux";
+    if (ua.indexOf("Android") !== -1) os = "Android";
+    if (ua.indexOf("like Mac") !== -1) os = "iOS";
+
+    const response = await this.request<{
+      success: boolean;
+      deviceId: string;
+      message: string;
+      warning?: string;
+    }>('/auth/device/authorize', {
+      method: 'POST',
+      body: JSON.stringify({
+        publicKey,
+        deviceId: deviceId || undefined, // Send existing ID if we have it
+        name: `${browser} on ${os}`,
+        type: /Mobi|Android/i.test(ua) ? 'mobile' : 'desktop',
+        browser,
+        os,
+        fingerprintHash,
+        metadata
+      })
+    });
+
+    if (response.success && response.data?.deviceId) {
+      localStorage.setItem('device_id', response.data.deviceId);
+    }
+
+    return response;
+  }
+
+  private async hashFingerprint(data: string): Promise<string> {
+    const msgBuffer = new TextEncoder().encode(data);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
   }
 
   // File signature verification endpoint

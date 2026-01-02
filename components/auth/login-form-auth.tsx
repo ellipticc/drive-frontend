@@ -23,6 +23,7 @@ import { IconLoader2 as Loader2 } from "@tabler/icons-react"
 import { SIWELoginButton } from "./siwe-login-button"
 import { GoogleOAuthButton } from "./google-oauth-button"
 import { useSessionTracking, sessionTrackingUtils } from "@/hooks/useSessionTracking"
+import { initializeDeviceKeys } from "@/lib/device-keys"
 
 export function LoginFormAuth({
   className,
@@ -299,6 +300,24 @@ export function LoginFormAuth({
 
       // Stop session tracking after successful login
       sessionTrackingUtils.clearSession()
+
+      // Initialize device keys (generate Ed25519 keypair if not exists)
+      const publicKey = await initializeDeviceKeys();
+      if (publicKey) {
+        const deviceAuth = await apiClient.authorizeDevice(publicKey);
+        if (deviceAuth.success && deviceAuth.data?.warning) {
+          // Show warning for duplicate device/incognito
+          try {
+            const { toast } = await import("sonner");
+            toast.warning("Device Limit Notice", {
+              description: deviceAuth.data.warning,
+              duration: 8000,
+            });
+          } catch (tError) {
+            console.warn('Could not load toast:', tError);
+          }
+        }
+      }
 
       window.dispatchEvent(new CustomEvent('user-login'));
 
