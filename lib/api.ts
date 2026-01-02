@@ -2392,6 +2392,12 @@ class ApiClient {
     deviceId: string;
     message: string;
     warning?: string;
+    limitReached?: boolean;
+    deviceQuota?: {
+      maxDevices: number;
+      planName: string;
+      currentDevices: number;
+    };
   }>> {
     // Device Recognition (UX only)
     //
@@ -2466,6 +2472,55 @@ class ApiClient {
     }
 
     return response;
+  }
+
+  // Device Management
+  async getDevices(page = 1, limit = 5): Promise<ApiResponse<{
+    devices: Array<{
+      id: string;
+      device_name: string;
+      device_type: string;
+      browser: string;
+      os: string;
+      ip_address: string;
+      location: string;
+      last_active: string;
+      created_at: string;
+      is_revoked: boolean;
+      is_current: boolean;
+    }>;
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+    plan: {
+      name: string;
+      maxDevices: number;
+      currentDevices: number;
+    };
+  }>> {
+    return this.request(`/auth/device?page=${page}&limit=${limit}`);
+  }
+
+  async revokeDevice(deviceId: string): Promise<ApiResponse<{
+    success: boolean;
+    message: string;
+  }>> {
+    return this.request(`/auth/device/revoke/${deviceId}`, {
+      method: 'POST'
+    });
+  }
+
+  async renameDevice(deviceId: string, name: string): Promise<ApiResponse<{
+    success: boolean;
+    message: string;
+  }>> {
+    return this.request(`/auth/device/${deviceId}/name`, {
+      method: 'PATCH',
+      body: JSON.stringify({ name })
+    });
   }
 
   private async hashFingerprint(data: string): Promise<string> {

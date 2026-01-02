@@ -5,15 +5,15 @@ import { SiteHeader } from "@/components/layout/header/site-header"
 import { Table01DividerLineSm } from "@/components/tables/files-table"
 import { DragDropOverlay } from "@/components/drag-drop-overlay"
 import { keyManager } from "@/lib/key-manager"
+import { useUser } from "@/components/user-context"
 
 // Extended File interface to include webkitRelativePath
 interface ExtendedFile extends File {
   webkitRelativePath: string;
 }
-import { useUser } from "@/components/user-context"
 
 export default function Home() {
-  const { user } = useUser()
+  const { user, deviceLimitReached } = useUser()
   const [searchQuery, setSearchQuery] = useState("")
   const fileInputRef = useRef<HTMLInputElement>(null)
   const folderInputRef = useRef<HTMLInputElement>(null)
@@ -153,8 +153,6 @@ export default function Home() {
               multiple
               className="hidden"
               onChange={(e) => {
-                // This will be handled by the table component
-                // We just need to trigger the change event
                 const tableFileInput = document.querySelector('input[type="file"][multiple]:not([webkitdirectory])') as HTMLInputElement
                 if (tableFileInput) {
                   tableFileInput.files = e.target.files
@@ -169,7 +167,6 @@ export default function Home() {
               multiple
               className="hidden"
               onChange={(e) => {
-                // This will be handled by the table component
                 const tableFolderInput = document.querySelector('input[type="file"][webkitdirectory]') as HTMLInputElement
                 if (tableFolderInput && e.target.files) {
                   tableFolderInput.files = e.target.files

@@ -30,6 +30,8 @@ interface UserContextType {
   user: UserData | null;
   loading: boolean;
   error: string | null;
+  deviceLimitReached: boolean;
+  deviceQuota: { planName: string; maxDevices: number } | null;
   refetch: () => Promise<void>;
   updateStorage: (delta: number) => void;
 }
@@ -81,6 +83,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deviceLimitReached, setDeviceLimitReached] = useState(false);
+  const [deviceQuota, setDeviceQuota] = useState<{ planName: string; maxDevices: number } | null>(null);
   const [hasFetched, setHasFetched] = useState(false);
   const pathname = usePathname();
 
@@ -109,50 +113,55 @@ export function UserProvider({ children }: { children: ReactNode }) {
       setLoading(true);
       setError(null);
       const response = await apiClient.getProfile();
-      
+
+      // Check for device limit reached in response (even if success is false)
+      if ((response as any).limitReached || (response.data as any)?.limitReached) {
+        setDeviceLimitReached(true);
+        const quota = (response as any).deviceQuota || (response.data as any)?.deviceQuota;
+        if (quota) setDeviceQuota(quota);
+      } else {
+        setDeviceLimitReached(false);
+      }
+
       if (response.success && response.data?.user) {
         console.log('UserProvider: Successfully fetched fresh user profile');
         const userData = response.data.user;
-        
+
         // Initialize KeyManager with user's crypto data (critical for uploads and file access)
         try {
           await keyManager.initialize(userData);
           console.log('UserProvider: KeyManager initialized with user crypto data');
         } catch (error) {
           console.warn('UserProvider: Failed to initialize KeyManager:', error);
-          // For OAuth users in setup phase or incomplete data, this is expected
-          // They will complete setup before attempting uploads
         }
-        
+
         // Validate master key matches current account salt from server
         if (userData.crypto_keypairs?.accountSalt) {
           const serverAccountSalt = userData.crypto_keypairs.accountSalt;
           const isValidMasterKey = masterKeyManager.validateMasterKeyForSalt(serverAccountSalt);
-          
+
           if (!isValidMasterKey) {
-            console.warn('UserProvider: Cached master key does not match server account salt - salt may have changed due to TOTP toggle');
-            console.log('UserProvider: Master key salt mismatch - stored:', masterKeyManager.getAccountSalt(), 'server:', serverAccountSalt);
-            
-            // Don't try to re-derive here - the key needs to come from a fresh login
-            // Clear stale master key from both storages
+            console.warn('UserProvider: Cached master key does not match server account salt');
             if (typeof window !== 'undefined') {
               localStorage.removeItem('master_key');
               localStorage.removeItem('account_salt');
               sessionStorage.removeItem('master_key');
               sessionStorage.removeItem('account_salt');
             }
-            console.warn('UserProvider: Cleared stale master key - user will need to login again');
-            // Don't fail completely, just warn - file decryption will fail gracefully
           }
         }
-        
+
         setUser(userData);
         setHasFetched(true);
         // Cache the user data
         saveUserDataToCache(userData);
       } else {
         console.log('UserProvider: Failed to fetch user profile:', response.error);
-        throw new Error(response.error || 'Failed to fetch user');
+
+        // If it's just a device limit, we continue but mark it
+        if (!(response as any).limitReached) {
+          throw new Error(response.error || 'Failed to fetch user');
+        }
       }
     } catch (err) {
       console.log('UserProvider: Error fetching user profile:', err);
@@ -164,53 +173,46 @@ export function UserProvider({ children }: { children: ReactNode }) {
   }, [shouldSkipFetch]);
 
   const fetchUser = useCallback(async (forceRefresh = false) => {
-    // Skip fetching for public/auth routes
     if (shouldSkipFetch) {
       setLoading(false);
       return;
     }
 
-    // If we already have data and don't need to force refresh, use cached data
     if (!forceRefresh && hasFetched && user !== null) {
       setLoading(false);
       return;
     }
 
-    // Try to load from cache first (unless forcing refresh)
     if (!forceRefresh) {
       const cachedUser = getUserDataFromCache();
       if (cachedUser) {
-        console.log('UserProvider: Loaded user data from cache');
         setUser(cachedUser);
         setLoading(false);
         setHasFetched(true);
-        // Still fetch fresh data in background for next time
         fetchFreshUserData();
         return;
       }
     }
 
-    // Fetch fresh data
     await fetchFreshUserData();
   }, [shouldSkipFetch, hasFetched, user, fetchFreshUserData]);
 
-  // Fetch user on mount
   useEffect(() => {
     fetchUser();
   }, [fetchUser]);
 
   const refetch = async () => {
     setHasFetched(false);
-    await fetchUser(true); // Force refresh
+    await fetchUser(true);
   };
 
   const updateStorage = (delta: number) => {
     setUser(prevUser => {
       if (!prevUser || !prevUser.storage) return prevUser;
-      
+
       const newUsedBytes = Math.max(0, prevUser.storage.used_bytes + delta);
       const newPercentUsed = (newUsedBytes / prevUser.storage.quota_bytes) * 100;
-      
+
       const updatedUser = {
         ...prevUser,
         storage: {
@@ -220,15 +222,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
           used_readable: formatBytes(newUsedBytes),
         }
       };
-      
-      // Update cache too
+
       saveUserDataToCache(updatedUser);
-      
       return updatedUser;
     });
   };
 
-  // Helper function to format bytes
   const formatBytes = (bytes: number): string => {
     if (bytes === 0) return '0 B';
     const k = 1024;
@@ -237,12 +236,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
     return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
   };
 
-  // Listen for custom login event
   useEffect(() => {
     const handleLogin = () => {
-      console.log('UserProvider: Login event detected, refetching user data');
       setHasFetched(false);
-      fetchUser(true); // Force refresh
+      fetchUser(true);
     };
 
     window.addEventListener('user-login', handleLogin);
@@ -250,7 +247,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   }, [fetchUser]);
 
   return (
-    <UserContext.Provider value={{ user, loading, error, refetch, updateStorage }}>
+    <UserContext.Provider value={{ user, loading, error, deviceLimitReached, deviceQuota, refetch, updateStorage }}>
       {children}
     </UserContext.Provider>
   );

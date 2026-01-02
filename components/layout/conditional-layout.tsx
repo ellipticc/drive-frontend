@@ -3,6 +3,8 @@
 import { usePathname } from "next/navigation";
 import { AppSidebar } from "@/components/layout/sidebar/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { useUser } from "@/components/user-context";
+import { DeviceLimitOverlay } from "@/components/modals/device-limit-overlay";
 
 interface ConditionalLayoutProps {
   children: React.ReactNode;
@@ -10,10 +12,11 @@ interface ConditionalLayoutProps {
 
 export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   const pathname = usePathname();
+  const { deviceLimitReached } = useUser();
 
   // Define public routes that don't need sidebar
   const publicRoutes = ['/login', '/signup', '/register', '/otp', '/recover', '/recover/otp', '/recover/reset', '/backup', '/totp', '/totp/recovery', '/auth/oauth/callback', '/terms-of-service', '/privacy-policy', '/billing'];
-  
+
   // Check if current path is public
   const isPublic = publicRoutes.includes(pathname) || pathname.startsWith('/s/');
 
@@ -36,6 +39,7 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
       <SidebarInset>
         {children}
       </SidebarInset>
+      <DeviceLimitOverlay />
     </SidebarProvider>
   );
 }

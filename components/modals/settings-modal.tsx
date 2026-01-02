@@ -90,7 +90,7 @@ export function SettingsModal({
 }: SettingsModalProps) {
   const isMobile = useIsMobile();
   const [internalOpen, setInternalOpen] = useState(false)
-  const { user, refetch } = useUser()
+  const { user, refetch, deviceLimitReached } = useUser()
   const { theme, setTheme } = useTheme()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const nameInputRef = useRef<HTMLInputElement>(null)
@@ -230,6 +230,20 @@ export function SettingsModal({
   const [sessionsTotalPages, setSessionsTotalPages] = useState(1)
   const [sessionsTotal, setSessionsTotal] = useState(0)
 
+  // Device management state
+  const [userDevices, setUserDevices] = useState<any[]>([])
+  const [isLoadingDevices, setIsLoadingDevices] = useState(false)
+  const [devicesPage, setDevicesPage] = useState(1)
+  const [devicesTotalPages, setDevicesTotalPages] = useState(1)
+  const [devicesTotal, setDevicesTotal] = useState(0)
+  const [devicePlan, setDevicePlan] = useState<{
+    name: string;
+    maxDevices: number;
+    currentDevices: number;
+  } | null>(null)
+  const [editingDeviceId, setEditingDeviceId] = useState<string | null>(null)
+  const [editNameValue, setEditNameValue] = useState("")
+
   // Recovery codes state
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([])
   const [showRecoveryCodesModal, setShowRecoveryCodesModal] = useState(false)
@@ -331,13 +345,15 @@ export function SettingsModal({
       loadBillingData()
       loadSubscriptionHistory(1, 1)
       loadUserSessions(1)
+      loadUserDevices(1)
     }
   }, [open])
 
-  // Load sessions when switching to security tab
+  // Load context-sensitive data when switching tabs
   useEffect(() => {
     if (activeTab === "security" && open) {
       loadUserSessions()
+      loadUserDevices()
     }
   }, [activeTab, open])
 
@@ -637,14 +653,86 @@ export function SettingsModal({
       if (response.success) {
         toast.success("All other sessions revoked")
         loadUserSessions()
+        if (deviceLimitReached) {
+          toast.info("Sessions Revoked. Please refresh the page to regain full access.", {
+            duration: 10000,
+            action: {
+              label: "Refresh Now",
+              onClick: () => window.location.reload()
+            }
+          })
+        }
       } else {
         toast.error(response.error || "Failed to revoke sessions")
       }
-    } catch (error) {
-      console.error('Failed to revoke sessions:', error)
-      toast.error("Failed to revoke sessions")
     } finally {
       setShowRevokeAllDialog(false)
+    }
+  }
+
+  // Load authorized devices
+  const loadUserDevices = async (page = devicesPage) => {
+    setIsLoadingDevices(true)
+    try {
+      const response = await apiClient.getDevices(page, 5)
+      if (response.success && response.data) {
+        setUserDevices(response.data.devices || [])
+        setDevicesTotalPages(response.data.pagination?.totalPages || 1)
+        setDevicesTotal(response.data.pagination?.total || 0)
+        setDevicesPage(page)
+        setDevicePlan(response.data.plan || null)
+      } else {
+        setUserDevices([])
+      }
+    } catch (error) {
+      console.error('Failed to load devices:', error)
+      setUserDevices([])
+    } finally {
+      setIsLoadingDevices(false)
+    }
+  }
+
+  // Revoke a specific device
+  const handleRevokeDevice = async (deviceId: string) => {
+    try {
+      const response = await apiClient.revokeDevice(deviceId)
+      if (response.success) {
+        toast.success("Device revoked")
+        loadUserDevices()
+        if (deviceLimitReached) {
+          toast.info("Access Restored? Please refresh the page to regain full access.", {
+            duration: 10000,
+            action: {
+              label: "Refresh Now",
+              onClick: () => window.location.reload()
+            }
+          })
+        }
+      } else {
+        toast.error(response.error || "Failed to revoke device")
+      }
+    } catch (error) {
+      console.error('Failed to revoke device:', error)
+      toast.error("Failed to revoke device")
+    }
+  }
+
+  // Update device name
+  const handleUpdateDeviceName = async (deviceId: string, newName: string) => {
+    if (!newName.trim()) return
+    try {
+      const response = await apiClient.renameDevice(deviceId, newName)
+      if (response.success) {
+        toast.success("Device name updated")
+        loadUserDevices()
+      } else {
+        toast.error(response.error || "Failed to update device name")
+      }
+    } catch (error) {
+      console.error('Failed to update device name:', error)
+      toast.error("Failed to update device name")
+    } finally {
+      setEditingDeviceId(null)
     }
   }
 
@@ -1238,19 +1326,27 @@ export function SettingsModal({
               <SidebarGroup>
                 <SidebarGroupContent>
                   <SidebarMenu>
-                    {data.nav.map((item) => (
-                      <SidebarMenuItem key={item.name}>
-                        <SidebarMenuButton
-                          asChild
-                          isActive={activeTab === item.id}
-                        >
-                          <button onClick={() => handleTabChange(item.id)}>
-                            <item.icon />
-                            <span>{item.name}</span>
-                          </button>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    ))}
+                    {data.nav.map((item) => {
+                      const isDisabled = deviceLimitReached && item.id !== "security";
+                      return (
+                        <SidebarMenuItem key={item.name}>
+                          <SidebarMenuButton
+                            asChild
+                            isActive={activeTab === item.id}
+                            disabled={isDisabled}
+                            className={isDisabled ? "opacity-50 cursor-not-allowed" : ""}
+                          >
+                            <button
+                              onClick={() => !isDisabled && handleTabChange(item.id)}
+                              className={isDisabled ? "cursor-not-allowed pointer-events-none" : ""}
+                            >
+                              <item.icon />
+                              <span>{item.name}</span>
+                            </button>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      );
+                    })}
                   </SidebarMenu>
                 </SidebarGroupContent>
               </SidebarGroup>
@@ -1726,7 +1822,7 @@ export function SettingsModal({
                                   </td>
                                   <td className="px-4 py-3 text-right">
                                     <div className="flex items-center justify-end gap-2">
-                                      {!!session.isCurrent && (
+                                      {(!!session.isCurrent || (currentSessionId && session.id === currentSessionId)) && (
                                         <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase py-1 px-2 bg-emerald-100/50 dark:bg-emerald-950/30 rounded">
                                           Current
                                         </span>
@@ -1736,11 +1832,210 @@ export function SettingsModal({
                                           Revoked
                                         </span>
                                       )}
-                                      {(!session.isCurrent && !session.is_revoked) && (
+                                      {(!session.isCurrent && (!currentSessionId || session.id !== currentSessionId) && !session.is_revoked) && (
                                         <Button
                                           variant="ghost"
                                           size="sm"
                                           onClick={() => handleRevokeSession(session.id)}
+                                          className="h-8 px-2 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
+                                        >
+                                          Revoke
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Device Manager Section */}
+                  <div className="border-t pt-6 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <IconUserCog className="h-5 w-5 text-muted-foreground" />
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium">Device Manager</p>
+                            {devicePlan && (
+                              <span className="text-[10px] bg-primary/10 text-primary border border-primary/20 px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                                {devicePlan.currentDevices}/{devicePlan.maxDevices} {devicePlan.name} Slots
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground">Manage authorized devices and cryptographic identities</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        {devicesTotal > 5 && (
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => loadUserDevices(devicesPage - 1)}
+                              disabled={devicesPage === 1}
+                            >
+                              <IconChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <span className="text-xs text-muted-foreground whitespace-nowrap">
+                              Page {devicesPage} of {devicesTotalPages}
+                            </span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => loadUserDevices(devicesPage + 1)}
+                              disabled={devicesPage >= devicesTotalPages}
+                            >
+                              <IconChevronRight className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="border rounded-lg overflow-hidden bg-card">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead className="bg-muted/50 border-b">
+                            <tr>
+                              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Device ID</th>
+                              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Device Name</th>
+                              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Location / IP</th>
+                              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Last Active</th>
+                              <th className="text-right px-4 py-3 font-medium text-muted-foreground">Action</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y">
+                            {isLoadingDevices ? (
+                              <tr>
+                                <td colSpan={5} className="px-4 py-8 text-center">
+                                  <IconLoader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" />
+                                </td>
+                              </tr>
+                            ) : userDevices.length === 0 ? (
+                              <tr>
+                                <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                                  No authorized devices found
+                                </td>
+                              </tr>
+                            ) : (
+                              userDevices.map((device) => (
+                                <tr key={device.id} className={`hover:bg-muted/30 transition-colors ${device.is_revoked ? 'opacity-50' : ''}`}>
+                                  <td className="px-4 py-3 font-mono text-[10px] text-muted-foreground">
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <span className="cursor-help underline decoration-dotted decoration-muted-foreground/30">
+                                            {device.id.substring(0, 8)}...
+                                          </span>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top">
+                                          <p className="font-mono text-xs">{device.id}</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <TooltipProvider>
+                                      <Tooltip delayDuration={300}>
+                                        <TooltipTrigger asChild>
+                                          <div
+                                            className="flex flex-col cursor-pointer group"
+                                            onDoubleClick={() => {
+                                              const isPro = devicePlan?.name === 'Pro' || devicePlan?.name === 'Unlimited';
+                                              if (isPro) {
+                                                setEditingDeviceId(device.id);
+                                                setEditNameValue(device.device_name || 'Unknown Device');
+                                              } else {
+                                                toast.info("Pro Feature", {
+                                                  description: "Upgrading to a Pro plan allows you to customize your device names."
+                                                });
+                                              }
+                                            }}
+                                          >
+                                            {editingDeviceId === device.id ? (
+                                              <Input
+                                                value={editNameValue}
+                                                onChange={(e) => setEditNameValue(e.target.value.slice(0, 30))}
+                                                onBlur={() => {
+                                                  const device = userDevices.find(d => d.id === editingDeviceId);
+                                                  if (device && editNameValue.trim() !== device.device_name) {
+                                                    handleUpdateDeviceName(device.id, editNameValue);
+                                                  } else {
+                                                    setEditingDeviceId(null);
+                                                  }
+                                                }}
+                                                onKeyDown={(e) => {
+                                                  if (e.key === 'Enter') {
+                                                    const device = userDevices.find(d => d.id === editingDeviceId);
+                                                    if (device && editNameValue.trim() !== device.device_name) {
+                                                      handleUpdateDeviceName(device.id, editNameValue);
+                                                    } else {
+                                                      setEditingDeviceId(null);
+                                                    }
+                                                  }
+                                                  if (e.key === 'Escape') setEditingDeviceId(null);
+                                                }}
+                                                className="h-7 text-xs py-0 px-2 w-full max-w-[150px]"
+                                                autoFocus
+                                              />
+                                            ) : (
+                                              <span className="font-medium group-hover:text-primary transition-colors truncate max-w-[180px]" title={device.device_name}>
+                                                {device.device_name && device.device_name.length > 25
+                                                  ? `${device.device_name.substring(0, 25)}...`
+                                                  : (device.device_name || 'Unknown Device')}
+                                              </span>
+                                            )}
+                                            <span className="text-[10px] text-muted-foreground uppercase font-mono tracking-tighter">
+                                              {device.os} • {device.browser}
+                                            </span>
+                                          </div>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" className="max-w-[200px] text-center">
+                                          {(devicePlan?.name === 'Pro' || devicePlan?.name === 'Unlimited') ? (
+                                            <p className="text-xs">Double-click to rename device</p>
+                                          ) : (
+                                            <div className="space-y-1">
+                                              <p className="text-xs font-bold">Pro Feature</p>
+                                              <p className="text-[10px]">Upgrade to a Pro plan to customize your device names.</p>
+                                            </div>
+                                          )}
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <div className="flex flex-col">
+                                      <span className="text-xs">{device.location || 'Unknown'}</span>
+                                      <span className="text-[10px] font-mono text-muted-foreground">{device.ip_address}</span>
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">
+                                    {formatSessionDate(device.last_active)}
+                                  </td>
+                                  <td className="px-4 py-3 text-right">
+                                    <div className="flex items-center justify-end gap-2">
+                                      {!!device.is_current && (
+                                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase py-1 px-2 bg-emerald-100/50 dark:bg-emerald-950/30 rounded">
+                                          Current
+                                        </span>
+                                      )}
+                                      {!!device.is_revoked && (
+                                        <span className="text-[10px] text-red-500 font-bold uppercase py-1 px-2 bg-red-100/50 dark:bg-red-950/30 rounded">
+                                          Revoked
+                                        </span>
+                                      )}
+                                      {(!device.is_current && !device.is_revoked) && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => handleRevokeDevice(device.id)}
                                           className="h-8 px-2 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
                                         >
                                           Revoke
