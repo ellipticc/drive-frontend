@@ -124,6 +124,14 @@ export class OPAQUELogin {
     const response = await apiCall('/auth/opaque/login/finish', { email, finishLoginRequest, sessionId });
     return response as OpaqueLoginResult;
   }
+
+  async reportFailure(sessionId: string, reason: string): Promise<void> {
+    try {
+      await apiCall('/auth/opaque/login/report-failure', { sessionId, reason });
+    } catch {
+      // Ignore errors during failure reporting
+    }
+  }
 }
 
 export class OPAQUE {
@@ -137,10 +145,24 @@ export class OPAQUE {
 
   static async login(password: string, email: string): Promise<OpaqueLoginResult> {
     const login = new OPAQUELogin();
-    const { startLoginRequest } = await login.step1(password);
-    const { loginResponse, sessionId } = await login.step2(email, startLoginRequest);
-    const { finishLoginRequest } = await login.step3(loginResponse);
-    return await login.step4(email, finishLoginRequest, sessionId);
+    let sessionId: string | undefined;
+
+    try {
+      const { startLoginRequest } = await login.step1(password);
+      const step2Result = await login.step2(email, startLoginRequest);
+      sessionId = step2Result.sessionId;
+      const { loginResponse } = step2Result;
+
+      const { finishLoginRequest } = await login.step3(loginResponse);
+      return await login.step4(email, finishLoginRequest, sessionId);
+    } catch (error) {
+      if (sessionId) {
+        // If we have a session ID, report the failure to the backend
+        const reason = error instanceof Error ? error.message : 'Unknown login error';
+        await login.reportFailure(sessionId, reason);
+      }
+      throw error;
+    }
   }
 }
 
