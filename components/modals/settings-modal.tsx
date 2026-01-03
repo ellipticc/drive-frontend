@@ -77,6 +77,18 @@ import {
   IconUserShield as ShieldUser,
   IconWorld
 } from "@tabler/icons-react"
+import {
+  WindowsIcon,
+  MacOSIcon,
+  IPhoneIcon,
+  AndroidIcon,
+  UbuntuIcon,
+  ChromeIcon,
+  FirefoxIcon,
+  SafariIcon,
+  EdgeIcon,
+  OperaIcon
+} from "@/components/icons/brand-icons"
 import { apiClient, Referral, Subscription, BillingUsage, PricingPlan, SubscriptionHistory, SecurityEvent } from "@/lib/api"
 import { useTheme } from "next-themes"
 import { getDiceBearAvatar } from "@/lib/avatar"
@@ -103,118 +115,6 @@ const data = {
   ],
 }
 
-// Colored SVG Components for OS and Browsers
-const WindowsIcon = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M22.1 6L3.5 8.5V23.5H22.1V6Z" fill="#00ADEF" />
-    <path d="M44.5 3L24.1 5.8V23.5H44.5V3Z" fill="#00ADEF" />
-    <path d="M22.1 24.5H3.5V39.5L22.1 42V24.5Z" fill="#00ADEF" />
-    <path d="M44.5 24.5H24.1V42.2L44.5 45V24.5Z" fill="#00ADEF" />
-  </svg>
-)
-
-const AppleIcon = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 384 512" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-    <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41-73-41-35.7 0-61.1 24.8-77.1 24.8-16.1 0-42.3-24.8-74-24.8-40.2 0-82.6 28.5-101.4 69.3-39.7 101.4-1.2 216 35.7 216 16.9 0 41.5-24.2 65.8-24.2 24.3 0 43.1 24.2 65.8 24.2 3.8 0 8.3-2.3 12.3-3.6 42.1-13.4 75-53.7 75-103.1l-.1-3.6zM288.6 112.9c16.3-21 21.6-47.3 18.6-72.9-20.9 1.1-46.1 14.1-60.3 31.9-13.1 16.2-18.1 40-15.1 64.6 19.3 1.5 40.5-14.6 56.8-23.6z" />
-  </svg>
-)
-
-const AndroidIcon = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M36.1 15.6C36.1 15.6 36.1 15.6 36.1 15.6C36.1 15.6 36.1 15.6 36.1 15.6Z" fill="#3DDC84" />
-    <path d="M36.1 15.6C34.7 15.6 33.4 16.1 32.4 17L31 15.6C30 14.7 28.7 14.2 27.2 14.2C25.8 14.2 24.5 14.7 23.5 15.6L22.1 17C21.1 16.1 19.8 15.6 18.4 15.6C17 15.6 15.7 16.1 14.7 17L13.3 15.6C12.3 14.7 11 14.2 9.5 14.2C8.1 14.2 6.8 14.7 5.8 15.6L4.4 17C3.4 16.1 2.1 15.6 0.7 15.6V42.2C0.7 43.8 2 45.1 3.6 45.1H40.9C42.5 45.1 43.8 43.8 43.8 42.2V15.6C42.3 15.6 41 16.1 40 17L38.6 15.6C37.6 14.7 36.3 14.2 34.9 14.2L36.1 15.6ZM13.8 33.3C12.4 33.3 11.2 32.1 11.2 30.7C11.2 29.3 12.4 28.1 13.8 28.1C15.2 28.1 16.4 29.3 16.4 30.7C16.4 32.1 15.2 33.3 13.8 33.3ZM30.7 33.3C29.3 33.3 28.1 32.1 28.1 30.7C28.1 29.3 29.3 28.1 30.7 28.1C32.1 28.1 33.3 29.3 33.3 30.7C33.3 32.1 32.1 33.3 30.7 33.3Z" fill="#3DDC84" />
-    <path d="M8.2 10.7L5.3 5.4C5 4.9 5.2 4.3 5.7 4.1C6.2 3.8 6.8 4 7.1 4.5L10 9.8C11.5 9.1 13.2 8.7 15 8.7C16.8 8.7 18.5 9.1 20 9.8L22.9 4.5C23.2 4 23.8 3.8 24.3 4.1C24.8 4.3 25 4.9 24.7 5.4L21.8 10.7C24.4 12.1 26.5 14.3 27.9 17H2.1C3.5 14.3 5.6 12.1 8.2 10.7Z" fill="#3DDC84" />
-  </svg>
-)
-
-const UbuntuIcon = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M24 44C35.0457 44 44 35.0457 44 24C44 12.9543 35.0457 4 24 4C12.9543 4 4 12.9543 4 24C4 35.0457 12.9543 44 24 44Z" fill="#E95420" />
-    <path d="M24 33C28.9706 33 33 28.9706 33 24C33 19.0294 28.9706 15 24 15C19.0294 15 15 19.0294 15 24C15 28.9706 19.0294 33 24 33Z" fill="white" />
-    <path d="M24 30C27.3137 30 30 27.3137 30 24C30 20.6863 27.3137 18 24 18C20.6863 18 18 20.6863 18 24C18 27.3137 20.6863 30 24 30Z" fill="#E95420" />
-  </svg>
-)
-
-const ChromeIcon = ({ className }: { className?: string }) => (
-  <svg className={className} version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewBox="0 0 512 512" xmlSpace="preserve">
-    <path fill="#FFFFFF" d="M255.73,383.71c70.3,0,127.3-56.99,127.3-127.3s-56.99-127.3-127.3-127.3s-127.3,56.99-127.3,127.3
-	S185.42,383.71,255.73,383.71z"/>
-    <linearGradient id="SVGID_1_" gradientUnits="userSpaceOnUse" x1="283.2852" y1="18.9008" x2="62.8264" y2="400.7473" gradientTransform="matrix(1 0 0 -1 0 514)">
-      <stop offset="0" style={{ stopColor: '#1E8E3E' }} />
-      <stop offset="1" style={{ stopColor: '#34A853' }} />
-    </linearGradient>
-    <path fill="url(#SVGID_1_)" d="M145.48,320.08L35.26,129.17c-22.35,38.7-34.12,82.6-34.12,127.29s11.76,88.59,34.11,127.29
-	c22.35,38.7,54.49,70.83,93.2,93.17c38.71,22.34,82.61,34.09,127.3,34.08l110.22-190.92v-0.03c-11.16,19.36-27.23,35.44-46.58,46.62
-	c-19.35,11.18-41.3,17.07-63.65,17.07s-44.3-5.88-63.66-17.05C172.72,355.52,156.65,339.44,145.48,320.08z"/>
-    <linearGradient id="SVGID_2_" gradientUnits="userSpaceOnUse" x1="218.5901" y1="2.3333" x2="439.0491" y2="384.1796" gradientTransform="matrix(1 0 0 -1 0 514)">
-      <stop offset="0" style={{ stopColor: '#FCC934' }} />
-      <stop offset="1" style={{ stopColor: '#FBBC04' }} />
-    </linearGradient>
-    <path fill="url(#SVGID_2_)" d="M365.96,320.08L255.74,510.99c44.69,0.01,88.59-11.75,127.29-34.1
-	c38.7-22.34,70.84-54.48,93.18-93.18c22.34-38.7,34.1-82.61,34.09-127.3c-0.01-44.69-11.78-88.59-34.14-127.28H255.72l-0.03,0.02
-	c22.35-0.01,44.31,5.86,63.66,17.03c19.36,11.17,35.43,27.24,46.61,46.59c11.18,19.35,17.06,41.31,17.06,63.66
-	C383.03,278.77,377.14,300.72,365.96,320.08L365.96,320.08z"/>
-    <path fill="#1A73E8" d="M255.73,357.21c55.66,0,100.78-45.12,100.78-100.78s-45.12-100.78-100.78-100.78
-	s-100.78,45.12-100.78,100.78S200.07,357.21,255.73,357.21z"/>
-    <linearGradient id="SVGID_3_" gradientUnits="userSpaceOnUse" x1="35.2587" y1="353.0303" x2="476.177" y2="353.0303" gradientTransform="matrix(1 0 0 -1 0 514)">
-      <stop offset="0" style={{ stopColor: '#D93025' }} />
-      <stop offset="1" style={{ stopColor: '#EA4335' }} />
-    </linearGradient>
-    <path fill="url(#SVGID_3_)" d="M255.73,129.14h220.45C453.84,90.43,421.7,58.29,383,35.95C344.3,13.6,300.4,1.84,255.71,1.84
-	c-44.69,0-88.59,11.77-127.29,34.12c-38.7,22.35-70.83,54.5-93.16,93.2l110.22,190.92l0.03,0.02
-	c-11.18-19.35-17.08-41.3-17.08-63.65s5.87-44.31,17.04-63.66c11.17-19.36,27.24-35.43,46.6-46.6
-	C211.42,135.01,233.38,129.13,255.73,129.14z"/>
-  </svg>
-)
-
-const FirefoxIcon = ({ className }: { className?: string }) => (
-  <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 87.419 81.967">
-    <defs>
-      <radialGradient gradientUnits="userSpaceOnUse" gradientTransform="translate(7978.7 8523.996)" r="80.797" cy="-8515.121" cx="-7907.187" id="b"><stop stopColor="#ffbd4f" offset=".129" /><stop stopColor="#ffac31" offset=".186" /><stop stopColor="#ff9d17" offset=".247" /><stop stopColor="#ff980e" offset=".283" /><stop stopColor="#ff563b" offset=".403" /><stop stopColor="#ff3750" offset=".467" /><stop stopColor="#f5156c" offset=".71" /><stop stopColor="#eb0878" offset=".782" /><stop stopColor="#e50080" offset=".86" /></radialGradient>
-      <radialGradient gradientUnits="userSpaceOnUse" gradientTransform="translate(7978.7 8523.996)" r="80.797" cy="-8482.089" cx="-7936.711" id="c"><stop stopColor="#960e18" offset=".3" /><stop stopOpacity=".74" stopColor="#b11927" offset=".351" /><stop stopOpacity=".343" stopColor="#db293d" offset=".435" /><stop stopOpacity=".094" stopColor="#f5334b" offset=".497" /><stop stopOpacity="0" stopColor="#ff3750" offset=".53" /></radialGradient>
-      <radialGradient gradientUnits="userSpaceOnUse" gradientTransform="translate(7978.7 8523.996)" r="58.534" cy="-8533.457" cx="-7926.97" id="d"><stop stopColor="#fff44f" offset=".132" /><stop stopColor="#ffdc3e" offset=".252" /><stop stopColor="#ff9d12" offset=".506" /><stop stopColor="#ff980e" offset=".526" /></radialGradient>
-      <radialGradient gradientUnits="userSpaceOnUse" gradientTransform="translate(7978.7 8523.996)" r="38.471" cy="-8460.984" cx="-7945.648" id="e"><stop stopColor="#3a8ee6" offset=".353" /><stop stopColor="#5c79f0" offset=".472" /><stop stopColor="#9059ff" offset=".669" /><stop stopColor="#c139e6" offset="1" /></radialGradient>
-      <radialGradient gradientUnits="userSpaceOnUse" gradientTransform="matrix(.972 -.235 .275 1.138 10095.002 7833.794)" r="20.397" cy="-8491.546" cx="-7935.62" id="f"><stop stopOpacity="0" stopColor="#9059ff" offset=".206" /><stop stopOpacity=".064" stopColor="#8c4ff3" offset=".278" /><stop stopOpacity=".45" stopColor="#7716a8" offset=".747" /><stop stopOpacity=".6" stopColor="#6e008b" offset=".975" /></radialGradient>
-      <radialGradient gradientUnits="userSpaceOnUse" gradientTransform="translate(7978.7 8523.996)" r="27.676" cy="-8518.427" cx="-7937.731" id="g"><stop stopColor="#ffe226" offset="0" /><stop stopColor="#ffdb27" offset=".121" /><stop stopColor="#ffc82a" offset=".295" /><stop stopColor="#ffa930" offset=".502" /><stop stopColor="#ff7e37" offset=".732" /><stop stopColor="#ff7139" offset=".792" /></radialGradient>
-      <radialGradient gradientUnits="userSpaceOnUse" gradientTransform="translate(7978.7 8523.996)" r="118.081" cy="-8535.981" cx="-7915.977" id="h"><stop stopColor="#fff44f" offset=".113" /><stop stopColor="#ff980e" offset=".456" /><stop stopColor="#ff5634" offset=".622" /><stop stopColor="#ff3647" offset=".716" /><stop stopColor="#e31587" offset=".904" /></radialGradient>
-      <radialGradient gradientUnits="userSpaceOnUse" gradientTransform="matrix(.105 .995 -.653 .069 -4680.304 8470.187)" r="86.499" cy="-8522.859" cx="-7927.165" id="i"><stop stopColor="#fff44f" offset="0" /><stop stopColor="#ffe847" offset=".06" /><stop stopColor="#ffc830" offset=".168" /><stop stopColor="#ff980e" offset=".304" /><stop stopColor="#ff8b16" offset=".356" /><stop stopColor="#ff672a" offset=".455" /><stop stopColor="#ff3647" offset=".57" /><stop stopColor="#e31587" offset=".737" /></radialGradient>
-      <radialGradient gradientUnits="userSpaceOnUse" gradientTransform="translate(7978.7 8523.996)" r="73.72" cy="-8508.176" cx="-7938.383" id="j"><stop stopColor="#fff44f" offset=".137" /><stop stopColor="#ff980e" offset=".48" /><stop stopColor="#ff5634" offset=".592" /><stop stopColor="#ff3647" offset=".655" /><stop stopColor="#e31587" offset=".904" /></radialGradient>
-      <radialGradient gradientUnits="userSpaceOnUse" gradientTransform="translate(7978.7 8523.996)" r="80.686" cy="-8503.861" cx="-7918.923" id="k"><stop stopColor="#fff44f" offset=".094" /><stop stopColor="#ffe141" offset=".231" /><stop stopColor="#ffaf1e" offset=".509" /><stop stopColor="#ff980e" offset=".626" /></radialGradient>
-      <linearGradient gradientTransform="translate(3.7 -.004)" gradientUnits="userSpaceOnUse" y2="74.468" x2="6.447" y1="12.393" x1="70.786" id="a"><stop stopColor="#fff44f" offset=".048" /><stop stopColor="#ffe847" offset=".111" /><stop stopColor="#ffc830" offset=".225" /><stop stopColor="#ff980e" offset=".368" /><stop stopColor="#ff8b16" offset=".401" /><stop stopColor="#ff672a" offset=".462" /><stop stopColor="#ff3647" offset=".534" /><stop stopColor="#e31587" offset=".705" /></linearGradient>
-      <linearGradient gradientTransform="translate(3.7 -.004)" gradientUnits="userSpaceOnUse" y2="66.806" x2="15.267" y1="12.061" x1="70.013" id="l"><stop stopOpacity=".8" stopColor="#fff44f" offset=".167" /><stop stopOpacity=".634" stopColor="#fff44f" offset=".266" /><stop stopOpacity=".217" stopColor="#fff44f" offset=".489" /><stop stopOpacity="0" stopColor="#fff44f" offset=".6" /></linearGradient>
-    </defs>
-    <path d="M79.616 26.827c-1.684-4.052-5.1-8.427-7.775-9.81a40.266 40.266 0 013.925 11.764l.007.065C71.391 17.92 63.96 13.516 57.891 3.924a47.099 47.099 0 01-.913-1.484 12.24 12.24 0 01-.427-.8 7.053 7.053 0 01-.578-1.535.1.1 0 00-.088-.1.138.138 0 00-.073 0c-.005 0-.013.009-.019.01l-.028.016.015-.026c-9.735 5.7-13.038 16.252-13.342 21.53a19.387 19.387 0 00-10.666 4.11 11.587 11.587 0 00-1-.757 17.968 17.968 0 01-.109-9.473 28.705 28.705 0 00-9.329 7.21h-.018c-1.536-1.947-1.428-8.367-1.34-9.708a6.928 6.928 0 00-1.294.687 28.225 28.225 0 00-3.788 3.245 33.845 33.845 0 00-3.623 4.347v.006-.007a32.733 32.733 0 00-5.2 11.743l-.052.256a61.89 61.89 0 00-.381 2.42c0 .029-.006.056-.009.085A36.937 36.937 0 005 41.042v.2a38.759 38.759 0 0076.954 6.554c.065-.5.118-.995.176-1.5a39.857 39.857 0 00-2.514-19.47zm-44.67 30.338c.181.087.351.18.537.264l.027.017q-.282-.135-.564-.281zm8.878-23.376zm31.952-4.934v-.037l.007.04z" fill="url(#a)" />
-  </svg>
-)
-
-const SafariIcon = ({ className }: { className?: string }) => (
-  <svg className={className} xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid" viewBox="0 0 256 256">
-    <defs>
-      <linearGradient x1="50%" y1="100%" x2="50%" y2="0%" id="a"><stop stopColor="#DBDBDA" offset="25%" /><stop stopColor="#FFF" offset="100%" /></linearGradient>
-      <linearGradient x1="49.05%" y1="35.703%" x2="25.713%" y2="77.572%" id="d"><stop stopOpacity="0" offset="0%" /><stop offset="100%" /></linearGradient>
-      <filter x="-50%" y="-50%" width="200%" height="200%" filterUnits="objectBoundingBox" id="b"><feOffset dy="2" in="SourceAlpha" result="shadowOffsetOuter1" /><feGaussianBlur stdDeviation="2" in="shadowOffsetOuter1" result="shadowBlurOuter1" /><feColorMatrix values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.266007133 0" in="shadowBlurOuter1" result="shadowMatrixOuter1" /><feMerge><feMergeNode in="shadowMatrixOuter1" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
-      <filter x="-50%" y="-50%" width="200%" height="200%" filterUnits="objectBoundingBox" id="e"><feOffset dy="1" in="SourceAlpha" result="shadowOffsetOuter1" /><feGaussianBlur stdDeviation="2" in="shadowOffsetOuter1" result="shadowBlurOuter1" /><feColorMatrix values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 13 0" in="shadowBlurOuter1" result="shadowMatrixOuter1" /><feMerge><feMergeNode in="shadowMatrixOuter1" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
-      <radialGradient cx="57.025%" cy="39.017%" fx="57.025%" fy="39.017%" r="61.032%" id="c"><stop stopColor="#2ABCE1" offset="0%" /><stop stopColor="#2ABBE1" offset="11.363%" /><stop stopColor="#3375F8" offset="100%" /></radialGradient>
-    </defs>
-    <g transform="translate(4 2)"><circle fill="url(#a)" filter="url(#b)" cx="124" cy="124" r="124" /><circle fill="url(#c)" cx="124" cy="124" r="114.7" /> </g>
-  </svg>
-)
-
-const EdgeIcon = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M38.8 24.1C38.8 15.9 32.2 9.2 24 9.2C15.8 9.2 9.2 15.8 9.2 24C9.2 32.2 15.8 38.8 24 38.8C32.2 38.8 38.8 32.1 38.8 24.1Z" fill="white" />
-    <path d="M24 4C13 4 4 13 4 24C4 35 13 44 24 44C32.6 44 39.9 38.5 42.6 30.9C42.8 30.2 42.4 29.5 41.7 29.3C41 29.1 40.3 29.5 40.1 30.2C38 36.6 31.9 41.2 24.7 41.2C15.3 41.2 7.7 33.6 7.7 24.2C7.7 14.8 15.3 7.2 24.7 7.2C32.4 7.2 38.9 12.3 40.8 19.3C41 20 41.7 20.4 42.4 20.2C43.1 20 43.5 19.3 43.3 18.6C41 10.2 33.2 4.1 24.1 4.1L24 4Z" fill="#0078D4" />
-    <path d="M42.4 20.2C39.4 20.2 37 22.6 37 25.6V26.6C37 32.8 32 37.8 25.8 37.8C19.6 37.8 14.6 32.8 14.6 26.6V25.6C14.6 22.6 12.2 20.2 9.2 20.2H42.4Z" fill="#0078D4" />
-  </svg>
-)
-
-const OperaIcon = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M24 44C35.0457 44 44 35.0457 44 24C44 12.9543 35.0457 4 24 4C12.9543 4 4 12.9543 4 24C4 35.0457 12.9543 44 24 44Z" fill="#FF1B2D" />
-    <path d="M24 37C28.4183 37 32 31.1797 32 24C32 16.8203 28.4183 11 24 11C19.5817 11 16 16.8203 16 24C16 31.1797 19.5817 37 24 37Z" fill="white" />
-    <path d="M24 34C26.2091 34 28 29.5228 28 24C28 18.4772 26.2091 14 24 14C21.7909 14 20 18.4772 20 24C20 29.5228 21.7909 34 24 34Z" fill="#FF1B2D" />
-  </svg>
-)
 
 export function SettingsModal({
   children,
@@ -399,6 +299,7 @@ export function SettingsModal({
 
   // Track which data has been loaded to prevent duplicate fetches
   const loadedRef = React.useRef(false)
+  const loadedTabsRef = React.useRef<Set<string>>(new Set())
 
   // Referral state
   const [referralCode, setReferralCode] = useState("")
@@ -483,35 +384,80 @@ export function SettingsModal({
     }
   }, [activeTab, registerOnUploadComplete, unregisterOnUploadComplete])
 
-  // Load data when modal opens (only once per session)
+  // Data loading functions organized by tab
+  const loadGeneralData = useCallback(() => {
+    // General tab data is mostly user state which is already loaded
+    // Only load session config if not present
+    loadSessionConfig()
+  }, [])
+
+  const loadSecurityData = useCallback(() => {
+    loadTOTPStatus()
+    loadUserSessions(1)
+    loadUserDevices(1)
+    loadSecurityEvents(1)
+    loadSecurityPreferences()
+  }, [])
+
+  const loadBillingDataTab = useCallback(() => {
+    loadBillingData()
+    loadSubscriptionHistory(1, 1)
+  }, [])
+
+  const loadNotificationsData = useCallback(() => {
+    loadNotificationPreferences()
+  }, [])
+
+  const loadReferralsData = useCallback(() => {
+    loadReferralData(1)
+  }, [])
+
+  // Master load function that delegates to specific tab loaders
+  const loadTabData = useCallback((tab: string) => {
+    if (loadedTabsRef.current.has(tab)) return
+
+    switch (tab) {
+      case 'general':
+        loadGeneralData()
+        break
+      case 'security':
+        loadSecurityData()
+        break
+      case 'billing':
+        loadBillingDataTab()
+        break
+      case 'notifications':
+        loadNotificationsData()
+        break
+      case 'referrals':
+        loadReferralsData()
+        break
+    }
+
+    loadedTabsRef.current.add(tab)
+  }, [loadGeneralData, loadSecurityData, loadBillingDataTab, loadNotificationsData, loadReferralsData])
+
+  // Load initial data when modal opens
   useEffect(() => {
     if (open && !loadedRef.current) {
       loadedRef.current = true
-      loadTOTPStatus()
-      loadReferralData(1)
-      loadNotificationPreferences()
-      loadSessionConfig()
-      loadBillingData()
-      loadSubscriptionHistory(1, 1)
-      loadUserSessions(1)
-      loadUserDevices(1)
+      // Always load the active tab's data immediately
+      loadTabData(activeTab)
     }
-  }, [open])
+  }, [open, activeTab, loadTabData])
 
-  // Load context-sensitive data when switching tabs
+  // Load data when switching tabs
   useEffect(() => {
-    if (activeTab === "security" && open) {
-      loadUserSessions()
-      loadUserDevices()
-      loadSecurityEvents(1)
-      loadSecurityPreferences()
+    if (open) {
+      loadTabData(activeTab)
     }
-  }, [activeTab, open])
+  }, [activeTab, open, loadTabData])
 
-  // Reset loaded state and form data when modal closes
+  // Reset loaded state when modal closes
   useEffect(() => {
     if (!open) {
       loadedRef.current = false
+      loadedTabsRef.current.clear()
 
       // Reset Profile Edit
       setIsEditingName(false)
@@ -1029,8 +975,9 @@ export function SettingsModal({
     let osName = 'Unknown OS';
 
     if (ua.includes('win')) { osIcon = <WindowsIcon className="h-3.5 w-3.5" />; osName = 'Windows'; }
-    else if (ua.includes('mac')) { osIcon = <AppleIcon className="h-3.5 w-3.5" />; osName = 'macOS'; }
-    else if (ua.includes('iphone') || ua.includes('ipad')) { osIcon = <AppleIcon className="h-3.5 w-3.5" />; osName = 'iOS'; }
+    else if (ua.includes('mac') && !ua.includes('iphone') && !ua.includes('ipad')) { osIcon = <MacOSIcon className="h-3.5 w-3.5" />; osName = 'macOS'; }
+    else if (ua.includes('iphone')) { osIcon = <IPhoneIcon className="h-3.5 w-3.5" />; osName = 'iOS (iPhone)'; }
+    else if (ua.includes('ipad')) { osIcon = <IPhoneIcon className="h-3.5 w-3.5" />; osName = 'iOS (iPad)'; }
     else if (ua.includes('android')) { osIcon = <AndroidIcon className="h-3.5 w-3.5" />; osName = 'Android'; }
     else if (ua.includes('linux')) { osIcon = <UbuntuIcon className="h-3.5 w-3.5" />; osName = 'Linux'; }
 
@@ -1578,7 +1525,7 @@ export function SettingsModal({
       ) : (
         children
       )}
-      <DialogContent showCloseButton={false} className={`${isMobile ? 'w-[90vw] h-[75vh] max-w-none max-h-none overflow-y-auto' : 'md:h-[700px] md:max-w-[1100px] overflow-hidden'} p-0`}>
+      <DialogContent showCloseButton={false} className={`${isMobile ? 'w-[90vw] h-[75vh] max-w-none max-h-none overflow-y-auto' : 'md:h-[800px] md:max-w-[1200px] overflow-hidden'} p-0`}>
         <DialogTitle className="sr-only">Settings</DialogTitle>
         <DialogDescription className="sr-only">
           Customize your settings here.
