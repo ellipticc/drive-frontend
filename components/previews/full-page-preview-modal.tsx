@@ -207,8 +207,8 @@ export function FullPagePreviewModal({
                     </div>
                 </div>
 
-                {/* Center: Pagination */}
-                <div className="flex items-center justify-center gap-2 flex-1">
+                {/* Center: Pagination (Desktop) */}
+                <div className="hidden md:flex items-center justify-center gap-2 flex-1">
                     <Button
                         variant="ghost"
                         size="icon"
@@ -284,6 +284,37 @@ export function FullPagePreviewModal({
                 <div className="w-full h-full flex items-center justify-center overflow-hidden">
                     {renderPreviewContent()}
                 </div>
+            </div>
+
+            {/* Mobile Pagination Footer */}
+            <div className="flex md:hidden items-center justify-between px-4 py-3 border-t bg-background shrink-0">
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => onNavigate('prev')}
+                    disabled={!hasPrev}
+                    className="rounded-full"
+                >
+                    <ChevronLeft className="h-6 w-6" />
+                </Button>
+                <span className="text-sm text-muted-foreground select-none font-medium">
+                    {(currentIndex !== undefined && totalItems) ? (
+                        <>
+                            <span className="text-foreground">{currentIndex + 1}</span> / <span className="text-foreground">{totalItems}</span>
+                        </>
+                    ) : (
+                        'Navigate'
+                    )}
+                </span>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => onNavigate('next')}
+                    disabled={!hasNext}
+                    className="rounded-full"
+                >
+                    <ChevronRight className="h-6 w-6" />
+                </Button>
             </div>
         </div>
     )
