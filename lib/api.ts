@@ -383,6 +383,17 @@ export interface SubscriptionHistory {
   }>;
 }
 
+export interface SecurityEvent {
+  id: string;
+  eventType: string;
+  status: string;
+  ipAddress: string;
+  location: string;
+  userAgent: string;
+  createdAt: string;
+  additionalData?: any;
+}
+
 class ApiClient {
   private baseURL: string;
   private storage: Storage | null = null;
@@ -2761,6 +2772,43 @@ class ApiClient {
     }>
   }>> {
     return this.request(`/shares/${shareId}/comments/banned`);
+  }
+
+  async getSecurityEvents(limit = 10, offset = 0): Promise<ApiResponse<{
+    events: SecurityEvent[];
+    pagination: { total: number; limit: number; offset: number; hasMore: boolean }
+  }>> {
+    return this.request(`/auth/security/events?limit=${limit}&offset=${offset}`, {
+      method: 'GET',
+    });
+  }
+
+  async getSecurityPreferences(): Promise<ApiResponse<{
+    activityMonitorEnabled: boolean;
+    detailedEventsEnabled: boolean;
+  }>> {
+    return this.request('/auth/security/preferences', {
+      method: 'GET',
+    });
+  }
+
+  async updateSecurityPreferences(activityMonitorEnabled: boolean, detailedEventsEnabled: boolean): Promise<ApiResponse<{
+    success: boolean;
+    message: string;
+  }>> {
+    return this.request('/auth/security/preferences', {
+      method: 'POST',
+      body: JSON.stringify({ activityMonitorEnabled, detailedEventsEnabled }),
+    });
+  }
+
+  async wipeSecurityEvents(): Promise<ApiResponse<{
+    success: boolean;
+    message: string;
+  }>> {
+    return this.request('/auth/security/events/wipe', {
+      method: 'POST',
+    });
   }
 }
 

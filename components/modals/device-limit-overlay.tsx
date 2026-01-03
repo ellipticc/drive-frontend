@@ -6,6 +6,7 @@ import { IconAlertTriangle, IconCaretLeftRightFilled } from "@tabler/icons-react
 import { useUser } from "@/components/user-context";
 import { useRouter } from "next/navigation";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { SettingsModal } from "@/components/modals/settings-modal";
 
 export function DeviceLimitOverlay() {
     const { deviceLimitReached, deviceQuota } = useUser();
@@ -58,6 +59,7 @@ export function DeviceLimitOverlay() {
                     </Button>
                 </div>
             </div>
+            <SettingsModal />
         </div>
     );
 }

@@ -81,6 +81,7 @@ export function NavUser({
     avatar: string
   }
 }) {
+  /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
   const { isMobile } = useSidebar()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
