@@ -15,6 +15,8 @@ import {
     IconLoader2,
     IconInfoCircle,
     IconRefresh,
+    IconWallet,
+    IconDownload,
     IconChevronLeft,
     IconChevronRight,
 } from "@tabler/icons-react"
@@ -337,11 +339,11 @@ export function BillingTab({
                                                 <table className="w-full text-sm font-mono">
                                                     <thead className="bg-muted/50 border-b">
                                                         <tr>
-                                                            <th className="text-left px-4 py-3 font-medium text-muted-foreground min-w-[160px]">Plan</th>
-                                                            <th className="text-center px-4 py-3 font-medium text-muted-foreground min-w-[120px]">Status</th>
-                                                            <th className="text-right px-4 py-3 font-medium text-muted-foreground min-w-[120px]">Amount</th>
-                                                            <th className="text-center px-4 py-3 font-medium text-muted-foreground min-w-[120px]">Billing</th>
-                                                            <th className="text-center px-4 py-3 font-medium text-muted-foreground min-w-[120px]">Created</th>
+                                                            <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Plan</th>
+                                                            <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Status</th>
+                                                            <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Amount</th>
+                                                            <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Billing Period</th>
+                                                            <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Date</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody className="divide-y">
@@ -353,7 +355,7 @@ export function BillingTab({
                                                                         <p className="text-xs text-muted-foreground capitalize">{sub.interval}ly</p>
                                                                     </div>
                                                                 </td>
-                                                                <td className="px-4 py-3 text-center min-w-[120px]">
+                                                                <td className="px-4 py-3 text-left min-w-[120px]">
                                                                     <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${sub.status === 'active'
                                                                         ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
                                                                         : sub.status === 'canceled'
@@ -369,14 +371,14 @@ export function BillingTab({
                                                                         {sub.cancelAtPeriodEnd && ' (Cancelling)'}
                                                                     </span>
                                                                 </td>
-                                                                <td className="px-4 py-3 text-right min-w-[120px]">
+                                                                <td className="px-4 py-3 text-left min-w-[120px]">
                                                                     <p className="font-medium">${sub.amount.toFixed(2)}</p>
                                                                     <p className="text-xs text-muted-foreground">{sub.currency.toUpperCase()}</p>
                                                                 </td>
-                                                                <td className="px-4 py-3 text-center min-w-[120px]">
+                                                                <td className="px-4 py-3 text-left min-w-[120px]">
                                                                     <p className="text-xs capitalize">{sub.interval}ly</p>
                                                                 </td>
-                                                                <td className="px-4 py-3 text-center min-w-[120px]">
+                                                                <td className="px-4 py-3 text-right min-w-[120px]">
                                                                     <p className="text-xs">{new Date(sub.created * 1000).toLocaleDateString()}</p>
                                                                 </td>
                                                             </tr>
@@ -424,57 +426,32 @@ export function BillingTab({
                                                 <table className="w-full text-sm font-mono">
                                                     <thead className="bg-muted/50 border-b">
                                                         <tr>
-                                                            <th className="text-left px-4 py-3 font-medium text-muted-foreground min-w-[160px]">Invoice</th>
-                                                            <th className="text-center px-4 py-3 font-medium text-muted-foreground min-w-[120px]">Status</th>
-                                                            <th className="text-right px-4 py-3 font-medium text-muted-foreground min-w-[120px]">Amount</th>
-                                                            <th className="text-center px-4 py-3 font-medium text-muted-foreground min-w-[120px]">Date</th>
-                                                            <th className="text-center px-4 py-3 font-medium text-muted-foreground min-w-[120px]">Actions</th>
+                                                            <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Invoice #</th>
+                                                            <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Status</th>
+                                                            <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Amount</th>
+                                                            <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Date</th>
+                                                            <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Action</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody className="divide-y">
                                                         {subscriptionHistory.invoices.map((invoice: SubscriptionHistory['invoices'][0]) => (
                                                             <tr key={invoice.id} className="hover:bg-muted/30 transition-colors">
-                                                                <td className="px-4 py-3 min-w-[160px]">
-                                                                    <div>
-                                                                        <p className="font-medium">{invoice.number || `Invoice ${invoice.id.slice(-8)}`}</p>
-                                                                        {invoice.subscriptionId && (
-                                                                            <p className="text-xs text-muted-foreground">Sub: {invoice.subscriptionId.slice(-8)}</p>
-                                                                        )}
-                                                                    </div>
-                                                                </td>
-                                                                <td className="px-4 py-3 text-center min-w-[120px]">
-                                                                    <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${invoice.status === 'paid'
-                                                                        ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
-                                                                        : invoice.status === 'open'
-                                                                            ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
-                                                                            : invoice.status === 'void'
-                                                                                ? 'bg-gray-100 dark:bg-gray-900/30 text-gray-700 dark:text-gray-400'
-                                                                                : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                                                                <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{invoice.id}</td>
+                                                                <td className="px-4 py-3 text-left">
+                                                                    <span className={`text-xs font-bold uppercase py-1 px-2 rounded ${invoice.status === 'paid' ? 'bg-emerald-100 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400' :
+                                                                        'bg-yellow-100 dark:bg-yellow-950/30 text-yellow-600 dark:text-yellow-400'
                                                                         }`}>
-                                                                        {invoice.status === 'paid' ? 'Paid' :
-                                                                            invoice.status === 'open' ? 'Open' :
-                                                                                invoice.status === 'void' ? 'Void' :
-                                                                                    invoice.status}
+                                                                        {invoice.status}
                                                                     </span>
                                                                 </td>
-                                                                <td className="px-4 py-3 text-right min-w-[120px]">
-                                                                    <p className="font-medium">${invoice.amount.toFixed(2)}</p>
-                                                                    <p className="text-xs text-muted-foreground">{invoice.currency.toUpperCase()}</p>
+                                                                <td className="px-4 py-3 text-left text-sm">${invoice.amount.toFixed(2)}</td>
+                                                                <td className="px-4 py-3 text-right text-xs text-muted-foreground">
+                                                                    {new Date(invoice.created * 1000).toLocaleDateString()}
                                                                 </td>
-                                                                <td className="px-4 py-3 text-center min-w-[120px]">
-                                                                    <p className="text-xs">{new Date(invoice.created * 1000).toLocaleDateString()}</p>
-                                                                </td>
-                                                                <td className="px-4 py-3 text-center min-w-[120px]">
-                                                                    <div className="flex gap-2 justify-center">
-                                                                        <Button
-                                                                            size="sm"
-                                                                            variant="outline"
-                                                                            onClick={() => window.open(invoice.invoicePdf, '_blank')}
-                                                                            className="text-xs"
-                                                                        >
-                                                                            Download
-                                                                        </Button>
-                                                                    </div>
+                                                                <td className="px-4 py-3 text-right">
+                                                                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => window.open(invoice.invoicePdf, '_blank')}>
+                                                                        <IconDownload className="h-4 w-4 text-muted-foreground" />
+                                                                    </Button>
                                                                 </td>
                                                             </tr>
                                                         ))}

@@ -45,7 +45,7 @@ import {
     IconShield as Shield,
     IconUserShield as ShieldUser
 } from "@tabler/icons-react"
-import { getUAInfo } from './device-icons'
+import { getUAInfo, getOSIcon, getBrowserIcon } from './device-icons'
 import { apiClient } from "@/lib/api"
 import { toast } from "sonner"
 
@@ -151,6 +151,7 @@ export function SecurityTab(props: SecurityTabProps) {
     } = props;
 
     const [copiedCodes, setCopiedCodes] = useState(false);
+    const [showWipeDialog, setShowWipeDialog] = useState(false);
 
     const handleCopyRecoveryCodes = () => {
         navigator.clipboard.writeText(recoveryCodes.join(' '));
@@ -418,11 +419,11 @@ export function SecurityTab(props: SecurityTabProps) {
                         <table className="w-full text-sm">
                             <thead className="bg-muted/50 border-b">
                                 <tr>
-                                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Session ID</th>
-                                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Device / Browser</th>
-                                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">IP Address</th>
-                                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Date</th>
-                                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">Action</th>
+                                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Session ID</th>
+                                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Device / Browser</th>
+                                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">IP Address</th>
+                                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Date</th>
+                                    <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Action</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y">
@@ -441,7 +442,7 @@ export function SecurityTab(props: SecurityTabProps) {
                                 ) : (
                                     userSessions.map((session) => (
                                         <tr key={session.id} className={`hover:bg-muted/30 transition-colors ${session.is_revoked ? 'opacity-50' : ''}`}>
-                                            <td className="px-4 py-3 font-mono text-[10px] text-muted-foreground">
+                                            <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
                                                 <TooltipProvider>
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
@@ -457,7 +458,7 @@ export function SecurityTab(props: SecurityTabProps) {
                                             </td>
                                             <td className="px-4 py-3">
                                                 <div className="flex flex-col">
-                                                    <span className="font-medium truncate max-w-[200px]" title={session.user_agent}>
+                                                    <span className="font-medium text-sm truncate max-w-[200px]" title={session.user_agent}>
                                                         {session.user_agent.includes('Windows') ? 'Windows' :
                                                             session.user_agent.includes('Mac') ? 'macOS' :
                                                                 session.user_agent.includes('Linux') ? 'Linux' :
@@ -560,11 +561,11 @@ export function SecurityTab(props: SecurityTabProps) {
                         <table className="w-full text-sm">
                             <thead className="bg-muted/50 border-b">
                                 <tr>
-                                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Device ID</th>
-                                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Device Name</th>
-                                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Location / IP</th>
-                                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Last Active</th>
-                                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">Action</th>
+                                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Device ID</th>
+                                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Device Name</th>
+                                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Location / IP</th>
+                                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Last Active</th>
+                                    <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Action</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y">
@@ -648,9 +649,24 @@ export function SecurityTab(props: SecurityTabProps) {
                                                                             : (device.device_name || 'Unknown Device')}
                                                                     </span>
                                                                 )}
-                                                                <span className="text-[10px] text-muted-foreground uppercase font-mono tracking-tighter">
-                                                                    {device.os} • {device.browser}
-                                                                </span>
+                                                                <div className="flex items-center gap-1.5 mt-0.5">
+                                                                    <TooltipProvider>
+                                                                        <Tooltip>
+                                                                            <TooltipTrigger className="flex items-center cursor-help">
+                                                                                {getOSIcon(device.os)}
+                                                                            </TooltipTrigger>
+                                                                            <TooltipContent side="top"><p className="text-xs">{device.os || 'Unknown OS'}</p></TooltipContent>
+                                                                        </Tooltip>
+                                                                    </TooltipProvider>
+                                                                    <TooltipProvider>
+                                                                        <Tooltip>
+                                                                            <TooltipTrigger className="flex items-center cursor-help">
+                                                                                {getBrowserIcon(device.browser)}
+                                                                            </TooltipTrigger>
+                                                                            <TooltipContent side="top"><p className="text-xs">{device.browser || 'Unknown Browser'}</p></TooltipContent>
+                                                                        </Tooltip>
+                                                                    </TooltipProvider>
+                                                                </div>
                                                             </div>
                                                         </TooltipTrigger>
                                                         <TooltipContent side="top" className="max-w-[200px] text-center">
@@ -734,7 +750,7 @@ export function SecurityTab(props: SecurityTabProps) {
                         <Button
                             variant="ghost"
                             size="sm"
-                            onClick={handleWipeSecurityEvents}
+                            onClick={() => setShowWipeDialog(true)}
                             className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
                             title="Wipe security history"
                         >
@@ -795,11 +811,11 @@ export function SecurityTab(props: SecurityTabProps) {
                         <table className="w-full text-sm">
                             <thead className="bg-muted/50 border-b">
                                 <tr>
-                                    <th className="text-left px-4 py-2 font-medium text-muted-foreground uppercase text-[10px] tracking-wider">Event ID</th>
-                                    <th className="text-left px-4 py-2 font-medium text-muted-foreground uppercase text-[10px] tracking-wider">Event</th>
-                                    <th className="text-left px-4 py-2 font-medium text-muted-foreground uppercase text-[10px] tracking-wider">Location / IP</th>
-                                    <th className="text-left px-4 py-2 font-medium text-muted-foreground uppercase text-[10px] tracking-wider">Status</th>
-                                    <th className="text-right px-4 py-2 font-medium text-muted-foreground uppercase text-[10px] tracking-wider">Time</th>
+                                    <th className="text-left px-4 py-2 font-medium text-muted-foreground text-xs tracking-wider">Event ID</th>
+                                    <th className="text-left px-4 py-2 font-medium text-muted-foreground text-xs tracking-wider">Event</th>
+                                    <th className="text-left px-4 py-2 font-medium text-muted-foreground text-xs tracking-wider">Location / IP</th>
+                                    <th className="text-left px-4 py-2 font-medium text-muted-foreground text-xs tracking-wider">Status</th>
+                                    <th className="text-right px-4 py-2 font-medium text-muted-foreground text-xs tracking-wider">Time</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y">
@@ -819,7 +835,7 @@ export function SecurityTab(props: SecurityTabProps) {
                                 ) : (
                                     securityEvents.map((event: any) => (
                                         <tr key={event.id} className="hover:bg-muted/30 transition-colors">
-                                            <td className="px-4 py-3 font-mono text-[10px] text-muted-foreground">
+                                            <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
                                                 <TooltipProvider>
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
@@ -835,7 +851,7 @@ export function SecurityTab(props: SecurityTabProps) {
                                             </td>
                                             <td className="px-4 py-3">
                                                 <div className="flex flex-col">
-                                                    <span className="font-medium text-xs capitalize">
+                                                    <span className="font-medium text-sm capitalize">
                                                         {event.eventType.replace(/_/g, ' ')}
                                                     </span>
                                                     <div className="flex items-center gap-1.5 mt-0.5">
@@ -863,21 +879,21 @@ export function SecurityTab(props: SecurityTabProps) {
                                             </td>
                                             <td className="px-4 py-3">
                                                 <div className="flex flex-col">
-                                                    <span className="text-xs">{event.location || 'Unknown'}</span>
-                                                    <span className="text-[10px] font-mono text-muted-foreground">
+                                                    <span className="text-sm">{event.location || 'Unknown'}</span>
+                                                    <span className="text-xs font-mono text-muted-foreground">
                                                         {detailedEventsEnabled ? event.ipAddress : '••••••••••••'}
                                                     </span>
                                                 </div>
                                             </td>
                                             <td className="px-4 py-3">
-                                                <span className={`text-[10px] font-bold uppercase py-0.5 px-1.5 rounded ${event.status === 'success'
+                                                <span className={`text-xs font-bold uppercase py-0.5 px-1.5 rounded ${event.status === 'success'
                                                     ? 'text-emerald-600 bg-emerald-100/50 dark:bg-emerald-950/30'
                                                     : 'text-red-500 bg-red-100/50 dark:bg-red-950/30'
                                                     }`}>
                                                     {event.status}
                                                 </span>
                                             </td>
-                                            <td className="px-4 py-3 text-right text-[10px] text-muted-foreground whitespace-nowrap">
+                                            <td className="px-4 py-3 text-right text-xs text-muted-foreground whitespace-nowrap">
                                                 {formatSessionDate(event.createdAt)}
                                             </td>
                                         </tr>
@@ -919,6 +935,8 @@ export function SecurityTab(props: SecurityTabProps) {
                 )}
             </div>
 
+
+
             <Dialog open={showDisableMonitorDialog} onOpenChange={setShowDisableMonitorDialog}>
                 <DialogContent>
                     <DialogHeader>
@@ -941,6 +959,29 @@ export function SecurityTab(props: SecurityTabProps) {
                             className="bg-red-500 hover:bg-red-600 text-white"
                         >
                             Disable Monitor
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={showWipeDialog} onOpenChange={setShowWipeDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Clear Activity Log?</DialogTitle>
+                        <DialogDescription>
+                            This will permanently remove all recorded security events from your account history. This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowWipeDialog(false)}>Cancel</Button>
+                        <Button
+                            variant="destructive"
+                            onClick={() => {
+                                handleWipeSecurityEvents()
+                                setShowWipeDialog(false)
+                            }}
+                        >
+                            Clear History
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -1066,6 +1107,6 @@ export function SecurityTab(props: SecurityTabProps) {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </div>
+        </div >
     )
 }

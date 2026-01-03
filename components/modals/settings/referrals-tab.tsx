@@ -179,10 +179,10 @@ export function ReferralsTab({
                                     <table className="w-full text-sm font-mono">
                                         <thead className="bg-muted/50 border-b">
                                             <tr>
-                                                <th className="text-left px-4 py-3 font-medium text-muted-foreground min-w-[160px]">User</th>
-                                                <th className="text-left px-4 py-3 font-medium text-muted-foreground min-w-[160px] hidden sm:table-cell">Email</th>
-                                                <th className="text-center px-4 py-3 font-medium text-muted-foreground min-w-[120px]">Status</th>
-                                                <th className="text-center px-4 py-3 font-medium text-muted-foreground min-w-[120px] hidden xs:table-cell">Date</th>
+                                                <th className="text-left px-4 py-3 font-medium text-muted-foreground min-w-[160px] text-xs tracking-wider">User</th>
+                                                <th className="text-left px-4 py-3 font-medium text-muted-foreground min-w-[160px] hidden sm:table-cell text-xs tracking-wider">Email</th>
+                                                <th className="text-center px-4 py-3 font-medium text-muted-foreground min-w-[120px] text-xs tracking-wider">Status</th>
+                                                <th className="text-center px-4 py-3 font-medium text-muted-foreground min-w-[120px] hidden xs:table-cell text-xs tracking-wider">Date</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y">
