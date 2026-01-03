@@ -2,8 +2,6 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { toast } from "sonner"
-import Image from "next/image"
-
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -14,22 +12,9 @@ import {
   DialogFooter,
   DialogHeader,
 } from "@/components/ui/dialog"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
 import { Input } from "@/components/ui/input"
 import { PasswordInput } from "@/components/ui/password-input"
 import { Label } from "@/components/ui/label"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
@@ -38,7 +23,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
 import {
   Sidebar,
   SidebarContent,
@@ -52,48 +36,33 @@ import {
 } from "@/components/ui/sidebar"
 import {
   IconSettings,
-  IconLoader2,
-  IconPencil,
-  IconMail,
-  IconLock,
-  IconLogout,
-  IconTrash,
   IconUserCog,
   IconLockSquareRounded,
   IconGift,
-  IconCopy,
-  IconCheck as IconCheckmark,
   IconBell,
   IconCoin,
-  IconInfoCircle,
-  IconRefresh,
+  IconLoader2,
   IconX,
-  IconShieldLock,
-  IconChevronLeft,
-  IconChevronRight,
-  IconActivity,
-  IconDownload,
-  IconShield as Shield,
-  IconUserShield as ShieldUser,
-  IconWorld
 } from "@tabler/icons-react"
 import {
-  WindowsIcon,
-  MacOSIcon,
-  IPhoneIcon,
-  AndroidIcon,
-  UbuntuIcon,
-  ChromeIcon,
-  FirefoxIcon,
-  SafariIcon,
-  EdgeIcon,
-  OperaIcon
-} from "@/components/icons/brand-icons"
+  GeneralTab
+} from "./settings/general-tab"
+import {
+  SecurityTab
+} from "./settings/security-tab"
+import {
+  NotificationsTab
+} from "./settings/notifications-tab"
+import {
+  BillingTab
+} from "./settings/billing-tab"
+import {
+  ReferralsTab
+} from "./settings/referrals-tab"
+
 import { apiClient, Referral, Subscription, BillingUsage, PricingPlan, SubscriptionHistory, SecurityEvent } from "@/lib/api"
 import { useTheme } from "next-themes"
-import { getDiceBearAvatar } from "@/lib/avatar"
 import { useUser } from "@/components/user-context"
-import { getInitials } from "@/components/layout/navigation/nav-user"
 import { useGlobalUpload } from "@/components/global-upload-context"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { compressAvatar } from "@/lib/image"
@@ -930,68 +899,10 @@ export function SettingsModal({
     }
   }
 
-  // Format time ago for display
-  const formatTimeAgo = (dateString: string | null) => {
-    if (!dateString) return '-'
-    const date = new Date(dateString)
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-    const diffMins = Math.floor(diffMs / (1000 * 60))
 
-    if (diffDays > 0) return `${diffDays}d ago`
-    if (diffHours > 0) return `${diffHours}h ago`
-    if (diffMins > 0) return `${diffMins}m ago`
-    return 'just now'
-  }
 
-  // Format date for session display (DD/MM/YYYY HH:MM AM/PM)
-  const formatSessionDate = (dateString: string | null) => {
-    if (!dateString) return '-'
-    const date = new Date(dateString)
 
-    const day = String(date.getDate()).padStart(2, '0')
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const year = date.getFullYear()
 
-    let hours = date.getHours()
-    const minutes = String(date.getMinutes()).padStart(2, '0')
-    const ampm = hours >= 12 ? 'PM' : 'AM'
-
-    hours = hours % 12
-    hours = hours ? hours : 12 // the hour '0' should be '12'
-    const strHours = String(hours).padStart(2, '0')
-
-    return `${day}/${month}/${year} ${strHours}:${minutes} ${ampm}`
-  }
-
-  // Get OS and Browser info from user agent
-  const getUAInfo = (userAgent: string) => {
-    if (!userAgent) return { osIcon: <IconWorld className="h-3.5 w-3.5" />, osName: 'Unknown', browserIcon: <IconWorld className="h-3.5 w-3.5" />, browserName: 'Unknown' };
-    const ua = userAgent.toLowerCase();
-
-    let osIcon = <IconWorld className="h-3.5 w-3.5 text-muted-foreground" />;
-    let osName = 'Unknown OS';
-
-    if (ua.includes('win')) { osIcon = <WindowsIcon className="h-3.5 w-3.5" />; osName = 'Windows'; }
-    else if (ua.includes('mac') && !ua.includes('iphone') && !ua.includes('ipad')) { osIcon = <MacOSIcon className="h-3.5 w-3.5" />; osName = 'macOS'; }
-    else if (ua.includes('iphone')) { osIcon = <IPhoneIcon className="h-3.5 w-3.5" />; osName = 'iOS (iPhone)'; }
-    else if (ua.includes('ipad')) { osIcon = <IPhoneIcon className="h-3.5 w-3.5" />; osName = 'iOS (iPad)'; }
-    else if (ua.includes('android')) { osIcon = <AndroidIcon className="h-3.5 w-3.5" />; osName = 'Android'; }
-    else if (ua.includes('linux')) { osIcon = <UbuntuIcon className="h-3.5 w-3.5" />; osName = 'Linux'; }
-
-    let browserIcon = <IconWorld className="h-3.5 w-3.5 text-muted-foreground" />;
-    let browserName = 'Unknown Browser';
-
-    if (ua.includes('edg')) { browserIcon = <EdgeIcon className="h-3.5 w-3.5" />; browserName = 'Edge'; }
-    else if (ua.includes('opr')) { browserIcon = <OperaIcon className="h-3.5 w-3.5" />; browserName = 'Opera'; }
-    else if (ua.includes('chrome') || ua.includes('crios')) { browserIcon = <ChromeIcon className="h-3.5 w-3.5" />; browserName = 'Chrome'; }
-    else if (ua.includes('firefox') || ua.includes('fxios')) { browserIcon = <FirefoxIcon className="h-3.5 w-3.5" />; browserName = 'Firefox'; }
-    else if (ua.includes('safari') && !ua.includes('chrome')) { browserIcon = <SafariIcon className="h-3.5 w-3.5" />; browserName = 'Safari'; }
-
-    return { osIcon, osName, browserIcon, browserName };
-  }
 
   // Copy referral code to clipboard
   const handleCopyReferralCode = async () => {
@@ -1099,28 +1010,7 @@ export function SettingsModal({
     }
   }
 
-  // Format storage size for display
-  const formatStorageSize = (bytes: number): string => {
-    if (bytes === 0) return '0MB'
 
-    const mb = bytes / (1024 * 1024)
-    if (mb < 1024) {
-      return `${Math.round(mb)}MB`
-    } else {
-      const gb = mb / 1024
-      return `${gb.toFixed(1)}GB`
-    }
-  }
-
-  // Extract display name from email (e.g., "john" from "john@doe.com")
-  const getDisplayNameFromEmail = (email: string): string => {
-    if (!email) return 'Unknown'
-    const atIndex = email.indexOf('@')
-    if (atIndex === -1) return email
-    const prefix = email.substring(0, atIndex)
-    // Capitalize first letter
-    return prefix.charAt(0).toUpperCase() + prefix.slice(1)
-  }
 
   // Handle avatar click to open file picker
   const handleAvatarClick = () => {
@@ -1257,7 +1147,7 @@ export function SettingsModal({
   }
 
   // Check if current avatar is a DiceBear avatar
-  const isDiceBearAvatar = user?.avatar && user.avatar.includes('dicebear-api.com')
+  const isDiceBearAvatar = !!(user?.avatar && user.avatar.includes('dicebear-api.com'))
 
 
 
@@ -1596,1694 +1486,169 @@ export function SettingsModal({
             )}
             <div className="flex flex-1 flex-col gap-4 p-6 pb-20 overflow-y-auto scroll-smooth">
               {activeTab === "general" && (
-                <div className="space-y-6">
-                  {/* Profile Section */}
-                  <div className="space-y-4">
-                    <h2 className="text-xl font-semibold">General</h2>
-                    <div className="flex items-start gap-6">
-                      {/* Avatar */}
-                      <div className="relative group">
-                        <Avatar
-                          className="h-20 w-20 cursor-pointer hover:opacity-75 transition-opacity flex-shrink-0"
-                          onClick={handleAvatarClick}
-                        >
-                          <AvatarImage
-                            src={user?.avatar || getDiceBearAvatar(user?.id || "user")}
-                            alt="Profile"
-                            onError={(e) => {
-                              // Prevent favicon.ico fallback request
-                              (e.target as HTMLImageElement).src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
-                            }}
-                          />
-                          <AvatarFallback className="text-base">
-                            {getInitials(displayName || "User")}
-                          </AvatarFallback>
-                        </Avatar>
-                        {isLoadingAvatar && (
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full">
-                            <IconLoader2 className="h-5 w-5 animate-spin text-white" />
-                          </div>
-                        )}
-                        {/* Remove avatar cross - only show for non-DiceBear avatars */}
-                        {user?.avatar && !isDiceBearAvatar && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleRemoveAvatar()
-                            }}
-                            className="absolute -top-1 -right-1 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
-                            title="Remove avatar"
-                          >
-                            <span className="text-xs font-bold">×</span>
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Display Name Section */}
-                      <div className="flex-1 pt-1">
-                        <div className="space-y-2">
-                          <div>
-                            <Label htmlFor="display-name" className="text-sm font-medium">
-                              Display name
-                            </Label>
-                            <div className="flex items-center gap-2 mt-1">
-                              <Input
-                                ref={nameInputRef}
-                                id="display-name"
-                                value={displayName}
-                                onChange={(e) => {
-                                  // Strict validation: Alphanumeric and spaces only, max 50 chars
-                                  const val = e.target.value
-                                  if (val.length <= 50 && /^[a-zA-Z0-9 ]*$/.test(val)) {
-                                    setDisplayName(val)
-                                  }
-                                }}
-                                placeholder={displayName || "Enter your name"}
-                                readOnly={!isEditingName}
-                                className={`flex-1 ${!isEditingName ? 'bg-muted cursor-not-allowed' : ''}`}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter' && isEditingName) handleSaveName()
-                                  if (e.key === 'Escape' && isEditingName) handleCancelEdit()
-                                }}
-                              />
-                              {isEditingName ? (
-                                displayName === originalName ? (
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={handleCancelEdit}
-                                    className="h-9 w-9 p-0"
-                                    title="Cancel"
-                                  >
-                                    <IconX className="h-4 w-4" />
-                                  </Button>
-                                ) : (
-                                  <Button
-                                    size="sm"
-                                    onClick={handleSaveName}
-                                    disabled={isSavingName || !displayName.trim()}
-                                    className="h-9 w-9 p-0"
-                                    title="Save name"
-                                  >
-                                    {isSavingName ? (
-                                      <IconLoader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                      <IconCheckmark className="h-4 w-4" />
-                                    )}
-                                  </Button>
-                                )
-                              ) : (
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => setIsEditingName(true)}
-                                  className="h-9 w-9 p-0"
-                                  title="Edit display name"
-                                >
-                                  <IconPencil className="h-4 w-4" />
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Appearance Section */}
-                  <div className="border-t pt-6 space-y-4">
-                    <h3 className="text-lg font-semibold">Appearance</h3>
-                    <div className="space-y-2">
-                      <Label htmlFor="theme-select" className="text-sm font-medium">
-                        Theme
-                      </Label>
-                      <Select value={theme || "system"} onValueChange={setTheme}>
-                        <SelectTrigger id="theme-select" className="w-full max-w-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="system">System</SelectItem>
-                          <SelectItem value="light">Light</SelectItem>
-                          <SelectItem value="dark">Dark</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  {/* Date & Time Section */}
-                  <div className="border-t pt-6 space-y-4">
-                    <h3 className="text-lg font-semibold">Date & Time</h3>
-                    <div className="space-y-2">
-                      <Label htmlFor="datetime-select" className="text-sm font-medium">
-                        Time format
-                      </Label>
-                      <Select value={dateTimePreference} onValueChange={setDateTimePreference}>
-                        <SelectTrigger id="datetime-select" className="w-full max-w-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="12h">12-hour (AM/PM)</SelectItem>
-                          <SelectItem value="24h">24-hour</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <p className="text-sm text-muted-foreground">
-                        Choose how time is displayed throughout the application.
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                <GeneralTab
+                  user={user}
+                  displayName={displayName}
+                  setDisplayName={setDisplayName}
+                  originalName={originalName}
+                  isEditingName={isEditingName}
+                  setIsEditingName={setIsEditingName}
+                  isSavingName={isSavingName}
+                  handleSaveName={handleSaveName}
+                  handleCancelEdit={handleCancelEdit}
+                  handleAvatarClick={handleAvatarClick}
+                  isLoadingAvatar={isLoadingAvatar}
+                  isDiceBearAvatar={isDiceBearAvatar}
+                  handleRemoveAvatar={handleRemoveAvatar}
+                  nameInputRef={nameInputRef as React.RefObject<HTMLInputElement>}
+                  theme={theme}
+                  setTheme={setTheme}
+                  dateTimePreference={dateTimePreference}
+                  setDateTimePreference={setDateTimePreference}
+                />
               )}
 
               {activeTab === "security" && (
-                <div className="space-y-6">
-                  <h2 className="text-xl font-semibold">Security</h2>
+                <SecurityTab
+                  user={user}
+                  setShowEmailModal={setShowEmailModal}
+                  setShowPasswordModal={setShowPasswordModal}
 
-                  {/* Wallet User Notice */}
-                  {(user?.email?.endsWith('@wallet.local') || user?.authMethod === 'wallet') && (
-                    <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                      <div className="flex items-start gap-3">
-                        <Shield className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-                        <div>
-                          <h3 className="font-medium text-blue-900 dark:text-blue-100">MetaMask Authentication</h3>
-                          <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-                            You are authenticated via MetaMask wallet. Email, password, and two-factor authentication settings are managed through your wallet and cannot be modified here.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  // 2FA
+                  totpEnabled={totpEnabled}
+                  isLoadingTOTP={isLoadingTOTP}
+                  setShowTOTPDisable={setShowTOTPDisable}
+                  handleTOTPSetup={handleTOTPSetup}
+                  handleTOTPDisable={handleTOTPDisable}
+                  showTOTPSetup={showTOTPSetup}
+                  setShowTOTPSetup={setShowTOTPSetup}
+                  totpQrCode={totpQrCode}
+                  totpSecret={totpSecret}
+                  totpToken={totpToken}
+                  setTotpToken={setTotpToken}
+                  isVerifyingTOTP={isVerifyingTOTP}
+                  handleTOTPVerify={handleTOTPVerify}
 
-                  {/* Change Email Section */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <IconMail className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium">Email Address</p>
-                        <p className="text-sm text-muted-foreground">{user?.email}</p>
-                      </div>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowEmailModal(true)}
-                      disabled={user?.email?.endsWith('@wallet.local') || user?.authMethod === 'wallet'}
-                    >
-                      Change
-                    </Button>
-                  </div>
+                  showRecoveryCodesModal={showRecoveryCodesModal}
+                  setShowRecoveryCodesModal={setShowRecoveryCodesModal}
+                  recoveryCodes={recoveryCodes}
+                  showTOTPDisable={showTOTPDisable}
+                  disableToken={disableToken}
+                  setDisableToken={setDisableToken}
+                  disableRecoveryCode={disableRecoveryCode}
+                  setDisableRecoveryCode={setDisableRecoveryCode}
+                  isDisablingTOTP={isDisablingTOTP}
 
-                  {/* Change Password Section */}
-                  <div className="flex items-center justify-between border-t pt-6">
-                    <div className="flex items-center gap-3">
-                      <IconLock className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium">Password</p>
-                        <p className="text-sm text-muted-foreground">••••••••</p>
-                      </div>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowPasswordModal(true)}
-                      disabled={user?.email?.endsWith('@wallet.local') || user?.authMethod === 'wallet'}
-                    >
-                      Change
-                    </Button>
-                  </div>
+                  // Session Duration
+                  sessionExpiry={sessionExpiry}
+                  setSessionExpiry={setSessionExpiry}
 
-                  {/* TOTP Section */}
-                  <div className="flex items-center justify-between border-t pt-6">
-                    <div className="flex items-center gap-3">
-                      <ShieldUser className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium">Two-Factor Authentication</p>
-                        <p className="text-sm text-muted-foreground">
-                          {totpEnabled ? "Enabled" : "Add an extra layer of security"}
-                        </p>
-                      </div>
-                    </div>
-                    {totpEnabled ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowTOTPDisable(true)}
-                        disabled={isLoadingTOTP || user?.email?.endsWith('@wallet.local') || user?.authMethod === 'wallet'}
-                      >
-                        {isLoadingTOTP ? (
-                          <>
-                            <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
-                            Loading...
-                          </>
-                        ) : (
-                          "Disable"
-                        )}
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleTOTPSetup}
-                        disabled={isLoadingTOTP || user?.email?.endsWith('@wallet.local') || user?.authMethod === 'wallet'}
-                      >
-                        {isLoadingTOTP ? (
-                          <>
-                            <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
-                            Setting up...
-                          </>
-                        ) : (
-                          "Enable"
-                        )}
-                      </Button>
-                    )}
-                  </div>
+                  // Sessions
+                  userSessions={userSessions}
+                  isLoadingSessions={isLoadingSessions}
+                  sessionsTotal={sessionsTotal}
+                  sessionsPage={sessionsPage}
+                  sessionsTotalPages={sessionsTotalPages}
+                  loadUserSessions={loadUserSessions}
+                  handleRevokeSession={handleRevokeSession}
+                  currentSessionId={currentSessionId}
+                  showRevokeAllDialog={showRevokeAllDialog}
+                  setShowRevokeAllDialog={setShowRevokeAllDialog}
+                  handleRevokeAllSessions={handleRevokeAllSessions}
 
-                  {/* Session Duration Configuration Section */}
-                  <div className="flex items-center justify-between border-t pt-6">
-                    <div className="flex items-center gap-3 flex-1">
-                      <IconRefresh className="h-5 w-5 text-muted-foreground" />
-                      <div className="flex flex-col gap-1">
-                        <p className="font-medium">Session Duration</p>
-                        <p className="text-sm text-muted-foreground">
-                          How long you can stay logged in before automatic logout
-                        </p>
-                      </div>
-                    </div>
-                    <Select
-                      value={sessionExpiry}
-                      onValueChange={async (value) => {
-                        setSessionExpiry(value);
-                        const sessionDuration = parseInt(value);
+                  // Devices
+                  userDevices={userDevices}
+                  isLoadingDevices={isLoadingDevices}
+                  devicesTotal={devicesTotal}
+                  devicesPage={devicesPage}
+                  devicesTotalPages={devicesTotalPages}
+                  loadUserDevices={loadUserDevices}
+                  handleRevokeDevice={handleRevokeDevice}
+                  editingDeviceId={editingDeviceId}
+                  setEditingDeviceId={setEditingDeviceId}
+                  editNameValue={editNameValue}
+                  setEditNameValue={setEditNameValue}
+                  handleUpdateDeviceName={handleUpdateDeviceName}
+                  devicePlan={devicePlan}
 
-                        // Save to localStorage for immediate frontend use
-                        const sessionConfig = {
-                          sessionExpiry: sessionDuration,
-                          remindBeforeExpiry: 300
-                        };
-                        localStorage.setItem('session_config', JSON.stringify(sessionConfig));
+                  // Activity
+                  securityEvents={securityEvents}
+                  isLoadingSecurityEvents={isLoadingSecurityEvents}
+                  detailedEventsEnabled={detailedEventsEnabled}
+                  activityMonitorEnabled={activityMonitorEnabled}
+                  handleUpdateSecurityPreferences={handleUpdateSecurityPreferences}
+                  showDisableMonitorDialog={showDisableMonitorDialog}
+                  setShowDisableMonitorDialog={setShowDisableMonitorDialog}
+                  handleWipeSecurityEvents={handleWipeSecurityEvents}
+                  handleDownloadSecurityEvents={handleDownloadSecurityEvents}
+                  loadSecurityEvents={loadSecurityEvents}
+                  securityEventsTotal={securityEventsTotal}
+                  securityEventsPage={securityEventsPage}
+                  securityEventsHasMore={securityEventsHasMore}
+                  setSecurityEvents={setSecurityEvents}
+                  setSecurityEventsTotal={setSecurityEventsTotal}
+                  setSecurityEventsHasMore={setSecurityEventsHasMore}
 
-                        // Send to backend API to persist in database
-                        try {
-                          const response = await apiClient.updateSessionDuration(sessionDuration);
-                          if (response.success) {
-                            toast.success('Session duration updated');
-                          } else {
-                            toast.error(response.error || 'Failed to save session duration');
-                          }
-                        } catch (error) {
-                          console.error('Error saving session duration:', error);
-                          toast.error('Failed to save session duration');
-                        }
-                      }}
-                    >
-                      <SelectTrigger className="w-32">
-                        <SelectValue placeholder="Select" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="86400">24 hours</SelectItem>
-                        <SelectItem value="604800">7 days</SelectItem>
-                        <SelectItem value="1209600">14 days</SelectItem>
-                        <SelectItem value="2592000">30 days</SelectItem>
-                        <SelectItem value="5184000">60 days</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Session Manager Section */}
-                  <div className="border-t pt-6 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <IconShieldLock className="h-5 w-5 text-muted-foreground" />
-                        <div>
-                          <p className="font-medium">Session Manager</p>
-                          <p className="text-sm text-muted-foreground">Manage your active login sessions across devices</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        {sessionsTotal > 5 && (
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-8 w-8 p-0"
-                              onClick={() => loadUserSessions(sessionsPage - 1)}
-                              disabled={sessionsPage === 1}
-                            >
-                              <IconChevronLeft className="h-4 w-4" />
-                            </Button>
-                            <span className="text-xs text-muted-foreground whitespace-nowrap">
-                              Page {sessionsPage} of {sessionsTotalPages}
-                            </span>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-8 w-8 p-0"
-                              onClick={() => loadUserSessions(sessionsPage + 1)}
-                              disabled={sessionsPage >= sessionsTotalPages}
-                            >
-                              <IconChevronRight className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        )}
-                        <Dialog open={showRevokeAllDialog} onOpenChange={setShowRevokeAllDialog}>
-                          <DialogTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              disabled={isLoadingSessions || userSessions.filter(s => !s.isCurrent && !s.is_revoked).length === 0}
-                              className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
-                            >
-                              Revoke All
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Revoke all other sessions?</DialogTitle>
-                              <DialogDescription>
-                                This will log you out of all other devices and browsers. You will remain logged in to your current session.
-                              </DialogDescription>
-                            </DialogHeader>
-                            <DialogFooter className="mt-4">
-                              <Button variant="outline" onClick={() => setShowRevokeAllDialog(false)}>
-                                Cancel
-                              </Button>
-                              <Button
-                                onClick={handleRevokeAllSessions}
-                                className="bg-red-500 hover:bg-red-600 text-white"
-                              >
-                                Revoke All
-                              </Button>
-                            </DialogFooter>
-                          </DialogContent>
-                        </Dialog>
-                      </div>
-                    </div>
-
-                    <div className="border rounded-lg overflow-hidden bg-card">
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead className="bg-muted/50 border-b">
-                            <tr>
-                              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Session ID</th>
-                              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Device / Browser</th>
-                              <th className="text-left px-4 py-3 font-medium text-muted-foreground">IP Address</th>
-                              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Date</th>
-                              <th className="text-right px-4 py-3 font-medium text-muted-foreground">Action</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y">
-                            {isLoadingSessions ? (
-                              <tr>
-                                <td colSpan={5} className="px-4 py-8 text-center">
-                                  <IconLoader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" />
-                                </td>
-                              </tr>
-                            ) : userSessions.length === 0 ? (
-                              <tr>
-                                <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
-                                  No active sessions found
-                                </td>
-                              </tr>
-                            ) : (
-                              userSessions.map((session) => (
-                                <tr key={session.id} className={`hover:bg-muted/30 transition-colors ${session.is_revoked ? 'opacity-50' : ''}`}>
-                                  <td className="px-4 py-3 font-mono text-[10px] text-muted-foreground">
-                                    <TooltipProvider>
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <span className="cursor-help underline decoration-dotted decoration-muted-foreground/30">
-                                            {session.id.substring(0, 8)}...
-                                          </span>
-                                        </TooltipTrigger>
-                                        <TooltipContent side="top">
-                                          <p className="font-mono text-xs">{session.id}</p>
-                                        </TooltipContent>
-                                      </Tooltip>
-                                    </TooltipProvider>
-                                  </td>
-                                  <td className="px-4 py-3">
-                                    <div className="flex flex-col">
-                                      <span className="font-medium truncate max-w-[200px]" title={session.user_agent}>
-                                        {session.user_agent.includes('Windows') ? 'Windows' :
-                                          session.user_agent.includes('Mac') ? 'macOS' :
-                                            session.user_agent.includes('Linux') ? 'Linux' :
-                                              session.user_agent.includes('Android') ? 'Android' :
-                                                session.user_agent.includes('iPhone') ? 'iPhone' : 'Unknown Device'}
-                                        {session.user_agent.includes('Chrome') ? ' (Chrome)' :
-                                          session.user_agent.includes('Firefox') ? ' (Firefox)' :
-                                            session.user_agent.includes('Safari') ? ' (Safari)' :
-                                              session.user_agent.includes('Edge') ? ' (Edge)' : ''}
-                                      </span>
-                                    </div>
-                                  </td>
-                                  <td className="px-4 py-3 text-muted-foreground font-mono text-xs">
-                                    {session.ip_address}
-                                  </td>
-                                  <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">
-                                    {formatSessionDate(session.created_at)}
-                                  </td>
-                                  <td className="px-4 py-3 text-right">
-                                    <div className="flex items-center justify-end gap-2">
-                                      {(!!session.isCurrent || (currentSessionId && session.id === currentSessionId)) && (
-                                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase py-1 px-2 bg-emerald-100/50 dark:bg-emerald-950/30 rounded">
-                                          Current
-                                        </span>
-                                      )}
-                                      {!!session.is_revoked && (
-                                        <span className="text-[10px] text-red-500 font-bold uppercase py-1 px-2 bg-red-100/50 dark:bg-red-950/30 rounded">
-                                          Revoked
-                                        </span>
-                                      )}
-                                      {(!session.isCurrent && (!currentSessionId || session.id !== currentSessionId) && !session.is_revoked) && (
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => handleRevokeSession(session.id)}
-                                          className="h-8 px-2 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
-                                        >
-                                          Revoke
-                                        </Button>
-                                      )}
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Device Manager Section */}
-                  <div className="border-t pt-6 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <IconUserCog className="h-5 w-5 text-muted-foreground" />
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium">Device Manager</p>
-                            {devicePlan && (
-                              <span className="text-[10px] bg-primary/10 text-primary border border-primary/20 px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider">
-                                {devicePlan.currentDevices}/{devicePlan.maxDevices} {devicePlan.name} Slots
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-sm text-muted-foreground">Manage authorized devices and cryptographic identities</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        {devicesTotal > 5 && (
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-8 w-8 p-0"
-                              onClick={() => loadUserDevices(devicesPage - 1)}
-                              disabled={devicesPage === 1}
-                            >
-                              <IconChevronLeft className="h-4 w-4" />
-                            </Button>
-                            <span className="text-xs text-muted-foreground whitespace-nowrap">
-                              Page {devicesPage} of {devicesTotalPages}
-                            </span>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-8 w-8 p-0"
-                              onClick={() => loadUserDevices(devicesPage + 1)}
-                              disabled={devicesPage >= devicesTotalPages}
-                            >
-                              <IconChevronRight className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="border rounded-lg overflow-hidden bg-card">
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead className="bg-muted/50 border-b">
-                            <tr>
-                              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Device ID</th>
-                              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Device Name</th>
-                              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Location / IP</th>
-                              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Last Active</th>
-                              <th className="text-right px-4 py-3 font-medium text-muted-foreground">Action</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y">
-                            {isLoadingDevices ? (
-                              <tr>
-                                <td colSpan={5} className="px-4 py-8 text-center">
-                                  <IconLoader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" />
-                                </td>
-                              </tr>
-                            ) : userDevices.length === 0 ? (
-                              <tr>
-                                <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
-                                  No authorized devices found
-                                </td>
-                              </tr>
-                            ) : (
-                              userDevices.map((device) => (
-                                <tr key={device.id} className={`hover:bg-muted/30 transition-colors ${device.is_revoked ? 'opacity-50' : ''}`}>
-                                  <td className="px-4 py-3 font-mono text-[10px] text-muted-foreground">
-                                    <TooltipProvider>
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <span className="cursor-help underline decoration-dotted decoration-muted-foreground/30">
-                                            {device.id.substring(0, 8)}...
-                                          </span>
-                                        </TooltipTrigger>
-                                        <TooltipContent side="top">
-                                          <p className="font-mono text-xs">{device.id}</p>
-                                        </TooltipContent>
-                                      </Tooltip>
-                                    </TooltipProvider>
-                                  </td>
-                                  <td className="px-4 py-3">
-                                    <TooltipProvider>
-                                      <Tooltip delayDuration={300}>
-                                        <TooltipTrigger asChild>
-                                          <div
-                                            className="flex flex-col cursor-pointer group"
-                                            onDoubleClick={() => {
-                                              const isPro = devicePlan?.name === 'Pro' || devicePlan?.name === 'Unlimited';
-                                              if (isPro) {
-                                                setEditingDeviceId(device.id);
-                                                setEditNameValue(device.device_name || 'Unknown Device');
-                                              } else {
-                                                toast.info("Pro Feature", {
-                                                  description: "Upgrading to a Pro plan allows you to customize your device names."
-                                                });
-                                              }
-                                            }}
-                                          >
-                                            {editingDeviceId === device.id ? (
-                                              <Input
-                                                value={editNameValue}
-                                                onChange={(e) => setEditNameValue(e.target.value.slice(0, 30))}
-                                                onBlur={() => {
-                                                  const device = userDevices.find(d => d.id === editingDeviceId);
-                                                  if (device && editNameValue.trim() !== device.device_name) {
-                                                    handleUpdateDeviceName(device.id, editNameValue);
-                                                  } else {
-                                                    setEditingDeviceId(null);
-                                                  }
-                                                }}
-                                                onKeyDown={(e) => {
-                                                  if (e.key === 'Enter') {
-                                                    const device = userDevices.find(d => d.id === editingDeviceId);
-                                                    if (device && editNameValue.trim() !== device.device_name) {
-                                                      handleUpdateDeviceName(device.id, editNameValue);
-                                                    } else {
-                                                      setEditingDeviceId(null);
-                                                    }
-                                                  }
-                                                  if (e.key === 'Escape') setEditingDeviceId(null);
-                                                }}
-                                                className="h-7 text-xs py-0 px-2 w-full max-w-[150px]"
-                                                autoFocus
-                                              />
-                                            ) : (
-                                              <span className="font-medium group-hover:text-primary transition-colors truncate max-w-[180px]" title={device.device_name}>
-                                                {device.device_name && device.device_name.length > 25
-                                                  ? `${device.device_name.substring(0, 25)}...`
-                                                  : (device.device_name || 'Unknown Device')}
-                                              </span>
-                                            )}
-                                            <span className="text-[10px] text-muted-foreground uppercase font-mono tracking-tighter">
-                                              {device.os} • {device.browser}
-                                            </span>
-                                          </div>
-                                        </TooltipTrigger>
-                                        <TooltipContent side="top" className="max-w-[200px] text-center">
-                                          {(devicePlan?.name === 'Pro' || devicePlan?.name === 'Unlimited') ? (
-                                            <p className="text-xs">Double-click to rename device</p>
-                                          ) : (
-                                            <div className="space-y-1">
-                                              <p className="text-xs font-bold">Pro Feature</p>
-                                              <p className="text-[10px]">Upgrade to a Pro plan to customize your device names.</p>
-                                            </div>
-                                          )}
-                                        </TooltipContent>
-                                      </Tooltip>
-                                    </TooltipProvider>
-                                  </td>
-                                  <td className="px-4 py-3">
-                                    <div className="flex flex-col">
-                                      <span className="text-xs">{device.location || 'Unknown'}</span>
-                                      <span className="text-[10px] font-mono text-muted-foreground">
-                                        {detailedEventsEnabled ? device.ip_address : '••••••••••••'}
-                                      </span>
-                                    </div>
-                                  </td>
-                                  <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">
-                                    {formatSessionDate(device.last_active)}
-                                  </td>
-                                  <td className="px-4 py-3 text-right">
-                                    <div className="flex items-center justify-end gap-2">
-                                      {!!device.is_current && (
-                                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase py-1 px-2 bg-emerald-100/50 dark:bg-emerald-950/30 rounded">
-                                          Current
-                                        </span>
-                                      )}
-                                      {!!device.is_revoked && (
-                                        <span className="text-[10px] text-red-500 font-bold uppercase py-1 px-2 bg-red-100/50 dark:bg-red-950/30 rounded">
-                                          Revoked
-                                        </span>
-                                      )}
-                                      {(!device.is_current && !device.is_revoked) && (
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => handleRevokeDevice(device.id)}
-                                          className="h-8 px-2 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
-                                        >
-                                          Revoke
-                                        </Button>
-                                      )}
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Activity Monitor Section */}
-                  <div className="border-t pt-6 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex flex-col">
-                        <div className="flex items-center gap-2">
-                          <IconActivity className="h-5 w-5 text-muted-foreground" />
-                          <h3 className="text-lg font-semibold">Activity Monitor</h3>
-                        </div>
-                        <p className="text-sm text-muted-foreground mt-1">Review security-related activity on your account</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => loadSecurityEvents(1)}
-                          disabled={isLoadingSecurityEvents}
-                          className="h-8 w-8 p-0"
-                          title="Reload"
-                        >
-                          <IconRefresh className={`h-4 w-4 ${isLoadingSecurityEvents ? 'animate-spin' : ''}`} />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={handleWipeSecurityEvents}
-                          className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
-                          title="Wipe security history"
-                        >
-                          <IconTrash className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={handleDownloadSecurityEvents}
-                          className="h-8 w-8 p-0"
-                          title="Download security history"
-                        >
-                          <IconDownload className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col gap-4 mb-4">
-                      <div className="flex items-center gap-2">
-                        <Switch
-                          id="activity-monitor-toggle"
-                          checked={activityMonitorEnabled}
-                          onCheckedChange={(checked) => {
-                            if (!checked) {
-                              setShowDisableMonitorDialog(true)
-                            } else {
-                              handleUpdateSecurityPreferences(true, detailedEventsEnabled)
-                            }
-                          }}
-                        />
-                        <Label className="text-sm font-medium">Activity monitor</Label>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <Switch
-                          id="detailed-events-toggle"
-                          checked={detailedEventsEnabled}
-                          onCheckedChange={(checked) => handleUpdateSecurityPreferences(activityMonitorEnabled, checked)}
-                        />
-                        <div className="flex items-center gap-1.5">
-                          <Label className="text-sm font-medium">Enable detailed events</Label>
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger>
-                                <IconInfoCircle className="h-3.5 w-3.5 text-muted-foreground" />
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p className="text-[10px]">Enabling detailed events records the IP address for each event.</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="border rounded-lg overflow-hidden bg-card">
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead className="bg-muted/50 border-b">
-                            <tr>
-                              <th className="text-left px-4 py-2 font-medium text-muted-foreground uppercase text-[10px] tracking-wider">Event ID</th>
-                              <th className="text-left px-4 py-2 font-medium text-muted-foreground uppercase text-[10px] tracking-wider">Event</th>
-                              <th className="text-left px-4 py-2 font-medium text-muted-foreground uppercase text-[10px] tracking-wider">Location / IP</th>
-                              <th className="text-left px-4 py-2 font-medium text-muted-foreground uppercase text-[10px] tracking-wider">Status</th>
-                              <th className="text-right px-4 py-2 font-medium text-muted-foreground uppercase text-[10px] tracking-wider">Time</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y">
-                            {isLoadingSecurityEvents && securityEvents.length === 0 ? (
-                              <tr>
-                                <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
-                                  <IconLoader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
-                                  Loading security events...
-                                </td>
-                              </tr>
-                            ) : securityEvents.length === 0 ? (
-                              <tr>
-                                <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
-                                  No security events recorded yet.
-                                </td>
-                              </tr>
-                            ) : (
-                              securityEvents.map((event) => (
-                                <tr key={event.id} className="hover:bg-muted/30 transition-colors">
-                                  <td className="px-4 py-3 font-mono text-[10px] text-muted-foreground">
-                                    <TooltipProvider>
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <span className="cursor-help underline decoration-dotted decoration-muted-foreground/30">
-                                            {event.id.substring(0, 8)}...
-                                          </span>
-                                        </TooltipTrigger>
-                                        <TooltipContent side="top">
-                                          <p className="font-mono text-xs">{event.id}</p>
-                                        </TooltipContent>
-                                      </Tooltip>
-                                    </TooltipProvider>
-                                  </td>
-                                  <td className="px-4 py-3">
-                                    <div className="flex flex-col">
-                                      <span className="font-medium text-xs capitalize">
-                                        {event.eventType.replace(/_/g, ' ')}
-                                      </span>
-                                      <div className="flex items-center gap-1.5 mt-0.5">
-                                        {(() => {
-                                          const { osIcon, osName, browserIcon, browserName } = getUAInfo(event.userAgent);
-                                          return (
-                                            <>
-                                              <TooltipProvider>
-                                                <Tooltip>
-                                                  <TooltipTrigger className="flex items-center">{osIcon}</TooltipTrigger>
-                                                  <TooltipContent side="top"><p className="text-xs">{osName}</p></TooltipContent>
-                                                </Tooltip>
-                                              </TooltipProvider>
-                                              <TooltipProvider>
-                                                <Tooltip>
-                                                  <TooltipTrigger className="flex items-center">{browserIcon}</TooltipTrigger>
-                                                  <TooltipContent side="top"><p className="text-xs">{browserName}</p></TooltipContent>
-                                                </Tooltip>
-                                              </TooltipProvider>
-                                            </>
-                                          );
-                                        })()}
-                                      </div>
-                                    </div>
-                                  </td>
-                                  <td className="px-4 py-3">
-                                    <div className="flex flex-col">
-                                      <span className="text-xs">{event.location || 'Unknown'}</span>
-                                      <span className="text-[10px] font-mono text-muted-foreground">
-                                        {detailedEventsEnabled ? event.ipAddress : '••••••••••••'}
-                                      </span>
-                                    </div>
-                                  </td>
-                                  <td className="px-4 py-3">
-                                    <span className={`text-[10px] font-bold uppercase py-0.5 px-1.5 rounded ${event.status === 'success'
-                                      ? 'text-emerald-600 bg-emerald-100/50 dark:bg-emerald-950/30'
-                                      : 'text-red-500 bg-red-100/50 dark:bg-red-950/30'
-                                      }`}>
-                                      {event.status}
-                                    </span>
-                                  </td>
-                                  <td className="px-4 py-3 text-right text-[10px] text-muted-foreground whitespace-nowrap">
-                                    {formatSessionDate(event.createdAt)}
-                                  </td>
-                                </tr>
-                              ))
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                    {securityEventsTotal > 10 && (
-                      <div className="flex items-center justify-between mt-4">
-                        <p className="text-xs text-muted-foreground">
-                          Showing {securityEvents.length} of {securityEventsTotal} events
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-8 w-8 p-0"
-                            onClick={() => loadSecurityEvents(securityEventsPage - 1)}
-                            disabled={securityEventsPage === 1 || isLoadingSecurityEvents}
-                          >
-                            <IconChevronLeft className="h-4 w-4" />
-                          </Button>
-                          <span className="text-xs text-muted-foreground min-w-[3rem] text-center">
-                            Page {securityEventsPage}
-                          </span>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-8 w-8 p-0"
-                            onClick={() => loadSecurityEvents(securityEventsPage + 1)}
-                            disabled={!securityEventsHasMore || isLoadingSecurityEvents}
-                          >
-                            <IconChevronRight className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <Dialog open={showDisableMonitorDialog} onOpenChange={setShowDisableMonitorDialog}>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Disable Activity Monitoring?</DialogTitle>
-                        <DialogDescription>
-                          Disabling the security activity monitor will stop logging new events.
-                          You will no longer be able to review security history through the dashboard.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <DialogFooter>
-                        <Button variant="outline" onClick={() => setShowDisableMonitorDialog(false)}>Cancel</Button>
-                        <Button
-                          onClick={() => {
-                            handleUpdateSecurityPreferences(false, detailedEventsEnabled)
-                            setSecurityEvents([])
-                            setSecurityEventsTotal(0)
-                            setSecurityEventsHasMore(false)
-                            setShowDisableMonitorDialog(false)
-                          }}
-                          className="bg-red-500 hover:bg-red-600 text-white"
-                        >
-                          Disable Monitor
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-
-                  {/* Account Actions Section */}
-                  <div className="border-t pt-6 space-y-4">
-                    <h3 className="text-lg font-semibold">Account Actions</h3>
-                    <div className="space-y-3">
-                      <Button
-                        variant="outline"
-                        onClick={handleLogout}
-                        disabled={isLoggingOut}
-                        className="w-full"
-                      >
-                        {isLoggingOut ? (
-                          <>
-                            <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
-                            Logging out...
-                          </>
-                        ) : (
-                          <>
-                            <IconLogout className="h-4 w-4 mr-2" />
-                            Log Out
-                          </>
-                        )}
-                      </Button>
-
-                      <Button
-                        variant="destructive"
-                        onClick={() => setShowDeleteModal(true)}
-                        className="w-full"
-                      >
-                        <IconTrash className="h-4 w-4 mr-2" />
-                        Delete Account
-                      </Button>
-                    </div>
-                  </div>
-                </div>
+                  // Account
+                  handleLogout={handleLogout}
+                  isLoggingOut={isLoggingOut}
+                  setShowDeleteModal={setShowDeleteModal}
+                />
               )}
 
               {activeTab === "notifications" && (
-                <div className="space-y-6">
-                  <h2 className="text-xl font-semibold">Notifications</h2>
-
-                  {/* Notification Preferences */}
-                  <div className="space-y-6">
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold">General Preferences</h3>
-
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <IconBell className="h-5 w-5 text-muted-foreground" />
-                          <div>
-                            <p className="font-medium">In-App Notifications</p>
-                            <p className="text-sm text-muted-foreground">Receive notifications within the application</p>
-                          </div>
-                        </div>
-                        <Switch
-                          checked={inAppNotifications}
-                          onCheckedChange={(checked) => {
-                            setInAppNotifications(checked)
-                            saveNotificationPreferences({ inApp: checked })
-                          }}
-                          disabled={isLoadingNotificationPrefs}
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between border-t pt-4">
-                        <div className="flex items-center gap-3">
-                          <IconMail className="h-5 w-5 text-muted-foreground" />
-                          <div>
-                            <p className="font-medium">Email Notifications</p>
-                            <p className="text-sm text-muted-foreground">Receive notifications via email</p>
-                          </div>
-                        </div>
-                        <Switch
-                          checked={emailNotifications}
-                          onCheckedChange={(checked) => {
-                            setEmailNotifications(checked)
-                            saveNotificationPreferences({ email: checked })
-                          }}
-                          disabled={isLoadingNotificationPrefs}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="border-t pt-6 space-y-4">
-                      <h3 className="text-lg font-semibold">Notification Types</h3>
-
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <Shield className="h-5 w-5 text-muted-foreground" />
-                          <div>
-                            <p className="font-medium">Login Notifications</p>
-                            <p className="text-sm text-muted-foreground">Get notified when someone logs into your account</p>
-                          </div>
-                        </div>
-                        <Switch
-                          checked={loginNotifications}
-                          onCheckedChange={(checked) => {
-                            setLoginNotifications(checked)
-                            saveNotificationPreferences({ login: checked })
-                          }}
-                          disabled={isLoadingNotificationPrefs}
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between border-t pt-4">
-                        <div className="flex items-center gap-3">
-                          <IconUserCog className="h-5 w-5 text-muted-foreground" />
-                          <div>
-                            <p className="font-medium">File Sharing Notifications</p>
-                            <p className="text-sm text-muted-foreground">Get notified when files are shared with you</p>
-                          </div>
-                        </div>
-                        <Switch
-                          checked={fileShareNotifications}
-                          onCheckedChange={(checked) => {
-                            setFileShareNotifications(checked)
-                            saveNotificationPreferences({ fileShare: checked })
-                          }}
-                          disabled={isLoadingNotificationPrefs}
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between border-t pt-4">
-                        <div className="flex items-center gap-3">
-                          <IconGift className="h-5 w-5 text-muted-foreground" />
-                          <div>
-                            <p className="font-medium">Billing Notifications</p>
-                            <p className="text-sm text-muted-foreground">Get notified about billing and payment updates</p>
-                          </div>
-                        </div>
-                        <Switch
-                          checked={billingNotifications}
-                          onCheckedChange={(checked) => {
-                            setBillingNotifications(checked)
-                            saveNotificationPreferences({ billing: checked })
-                          }}
-                          disabled={isLoadingNotificationPrefs}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <NotificationsTab
+                  inAppNotifications={inAppNotifications}
+                  setInAppNotifications={setInAppNotifications}
+                  emailNotifications={emailNotifications}
+                  setEmailNotifications={setEmailNotifications}
+                  loginNotifications={loginNotifications}
+                  setLoginNotifications={setLoginNotifications}
+                  fileShareNotifications={fileShareNotifications}
+                  setFileShareNotifications={setFileShareNotifications}
+                  billingNotifications={billingNotifications}
+                  setBillingNotifications={setBillingNotifications}
+                  isLoadingNotificationPrefs={isLoadingNotificationPrefs}
+                  saveNotificationPreferences={saveNotificationPreferences}
+                />
               )}
 
               {activeTab === "referrals" && (
-                <div className="space-y-6">
-                  <h2 className="text-xl font-semibold">Referral Program</h2>
-
-                  {/* Referral Info Banner */}
-                  <div className="p-4 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
-                    <div className="flex items-start gap-3">
-                      <IconGift className="h-5 w-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <h3 className="font-medium text-green-900 dark:text-green-100">Earn Free Storage</h3>
-                        <p className="text-sm text-green-700 dark:text-green-300 mt-1">
-                          Invite friends and get 500MB of storage for each friend who signs up, verifies their email, and uploads a file. Maximum 10GB bonus (20 referrals).
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex-1 overflow-y-auto pr-4 space-y-4">
-
-                    {/* Referral Code Section */}
-                    {isLoadingReferrals ? (
-                      <div className="flex justify-center py-6">
-                        <IconLoader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                      </div>
-                    ) : (
-                      <>
-                        <div className="space-y-4">
-                          <Label className="text-sm font-medium">Your Referral Code</Label>
-                          <div className="flex items-center gap-2">
-                            <code className="flex-1 p-3 bg-muted rounded font-mono text-sm border border-border">
-                              {referralCode}
-                            </code>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={handleCopyReferralCode}
-                              className="px-3"
-                            >
-                              {copiedCode ? (
-                                <IconCheckmark className="h-4 w-4" />
-                              ) : (
-                                <IconCopy className="h-4 w-4" />
-                              )}
-                            </Button>
-                          </div>
-                        </div>
-
-                        {/* Referral Link Section */}
-                        <div className="space-y-4">
-                          <Label className="text-sm font-medium">Your Referral Link</Label>
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="text"
-                              value={referralLink}
-                              readOnly
-                              className="flex-1 p-2 text-sm bg-muted rounded border border-border text-muted-foreground truncate"
-                            />
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={handleCopyReferralLink}
-                              className="px-3"
-                            >
-                              {copiedLink ? (
-                                <IconCheckmark className="h-4 w-4" />
-                              ) : (
-                                <IconCopy className="h-4 w-4" />
-                              )}
-                            </Button>
-                          </div>
-                        </div>
-
-                        {/* Referral Stats - Now showing in the title */}
-
-                        {/* Recent Referrals Table */}
-                        {recentReferrals && recentReferrals.length > 0 && (
-                          <div className="border-t pt-6 space-y-4">
-                            <div className="flex items-center justify-between">
-                              <h3 className="text-sm font-semibold">Referral History ({formatStorageSize((referralStats?.totalEarningsMB || 0) * 1024 * 1024)} of 10GB free space earned)</h3>
-                              {referralsTotal > 5 && (
-                                <div className="flex items-center gap-2 px-4 py-1.5 bg-muted/40 rounded-full border border-border/50 shadow-sm transition-all hover:bg-muted/60">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-7 w-7 p-0 rounded-full hover:bg-background shadow-xs transition-transform active:scale-95"
-                                    onClick={() => loadReferralData(referralsPage - 1)}
-                                    disabled={referralsPage === 1}
-                                  >
-                                    <IconChevronLeft className="h-4 w-4" />
-                                  </Button>
-                                  <div className="flex items-center gap-1 min-w-[3rem] justify-center">
-                                    <span className="text-[11px] font-bold text-foreground tabular-nums">{referralsPage}</span>
-                                    <span className="text-[10px] text-muted-foreground/60 uppercase font-bold tracking-tight">/</span>
-                                    <span className="text-[11px] font-medium text-muted-foreground tabular-nums">{Math.ceil(referralsTotal / 5)}</span>
-                                  </div>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-7 w-7 p-0 rounded-full hover:bg-background shadow-xs transition-transform active:scale-95"
-                                    onClick={() => loadReferralData(referralsPage + 1)}
-                                    disabled={referralsPage >= Math.ceil(referralsTotal / 5)}
-                                  >
-                                    <IconChevronRight className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              )}
-                            </div>
-                            <div className="border rounded-lg overflow-hidden">
-                              <table className="w-full text-sm font-mono">
-                                <thead className="bg-muted/50 border-b">
-                                  <tr>
-                                    <th className="text-left px-4 py-3 font-medium text-muted-foreground min-w-[160px]">User</th>
-                                    <th className="text-left px-4 py-3 font-medium text-muted-foreground min-w-[160px] hidden sm:table-cell">Email</th>
-                                    <th className="text-center px-4 py-3 font-medium text-muted-foreground min-w-[120px]">Status</th>
-                                    <th className="text-center px-4 py-3 font-medium text-muted-foreground min-w-[120px] hidden xs:table-cell">Date</th>
-                                  </tr>
-                                </thead>
-                                <tbody className="divide-y">
-                                  {recentReferrals.map((referral) => (
-                                    <tr key={referral.referred_user_id} className="hover:bg-muted/30 transition-colors">
-                                      <td className="px-4 py-3 min-w-[160px]">
-                                        <div className="flex items-center gap-3">
-                                          <Avatar className="h-8 w-8 flex-shrink-0">
-                                            <AvatarImage
-                                              src={referral.avatar_url || getDiceBearAvatar(referral.referred_user_id, 32)}
-                                              alt={`${referral.referred_name || getDisplayNameFromEmail(referral.referred_email)}'s avatar`}
-                                              onError={(e) => {
-                                                // Prevent favicon.ico fallback request
-                                                (e.target as HTMLImageElement).src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
-                                              }}
-                                            />
-                                            <AvatarFallback className="text-xs">
-                                              {getInitials(referral.referred_name || getDisplayNameFromEmail(referral.referred_email))}
-                                            </AvatarFallback>
-                                          </Avatar>
-                                          <div className="min-w-0">
-                                            <p className="font-medium text-sm truncate">{referral.referred_name || getDisplayNameFromEmail(referral.referred_email)}</p>
-                                          </div>
-                                        </div>
-                                      </td>
-                                      <td className="px-4 py-3 min-w-[160px] hidden sm:table-cell">
-                                        <p className="text-xs text-muted-foreground truncate">{referral.referred_email}</p>
-                                      </td>
-                                      <td className="px-4 py-3 text-center min-w-[120px]">
-                                        <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${referral.status === 'completed'
-                                          ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
-                                          : referral.status === 'pending'
-                                            ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
-                                            : 'bg-slate-100 dark:bg-slate-900/30 text-slate-700 dark:text-slate-400'
-                                          }`}>
-                                          {referral.status === 'completed' ? '✓ Completed' : referral.status === 'pending' ? '○ Pending' : 'Cancelled'}
-                                        </span>
-                                      </td>
-                                      <td className="px-4 py-3 text-center min-w-[120px] hidden xs:table-cell">
-                                        <p className="text-xs text-muted-foreground">
-                                          {referral.status === 'completed' && referral.completed_at
-                                            ? formatTimeAgo(referral.completed_at)
-                                            : formatTimeAgo(referral.created_at)}
-                                        </p>
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Empty Referrals State */}
-                        {recentReferrals.length === 0 && !isLoadingReferrals && (
-                          <div className="border-t pt-6">
-                            <p className="text-sm text-muted-foreground text-center py-8">
-                              No referrals yet. Share your referral link to get started!
-                            </p>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                </div>
+                <ReferralsTab
+                  referralCode={referralCode}
+                  referralLink={referralLink}
+                  isLoadingReferrals={isLoadingReferrals}
+                  handleCopyReferralCode={handleCopyReferralCode}
+                  handleCopyReferralLink={handleCopyReferralLink}
+                  copiedCode={copiedCode}
+                  copiedLink={copiedLink}
+                  recentReferrals={recentReferrals}
+                  referralsPage={referralsPage}
+                  referralsTotal={referralsTotal}
+                  loadReferralData={loadReferralData}
+                  referralStats={referralStats}
+                />
               )}
 
               {activeTab === "billing" && (
-                <div className="space-y-6">
-                  <h2 className="text-xl font-semibold">Billing & Subscription</h2>
-
-                  {/* Current Plan Section */}
-                  {isLoadingBilling ? (
-                    <div className="flex justify-center py-6">
-                      <IconLoader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                    </div>
-                  ) : (
-                    <>
-                      <div className="space-y-4">
-                        <div className="p-4 border rounded-lg">
-                          <h3 className="font-medium mb-3">Current Plan</h3>
-                          {subscription ? (
-                            <div className="space-y-3">
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm text-muted-foreground">Plan:</span>
-                                <span className="font-medium">{subscription.plan?.name || 'Unknown Plan'}</span>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm text-muted-foreground">Status:</span>
-                                <span className={`text-sm font-medium px-2 py-1 rounded-full ${subscription.status === 'active'
-                                  ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                                  : subscription.status === 'trialing'
-                                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                                    : subscription.status === 'past_due'
-                                      ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                                      : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
-                                  }`}>
-                                  {subscription.status === 'active' ? 'Active' :
-                                    subscription.status === 'trialing' ? 'Trial' :
-                                      subscription.status === 'past_due' ? 'Past Due' :
-                                        subscription.status || 'Unknown'}
-                                </span>
-                              </div>
-                              {subscription.cancelAtPeriodEnd && (
-                                <div className="flex items-center justify-between">
-                                  <span className="text-sm text-muted-foreground">Cancellation:</span>
-                                  <span className="text-sm text-red-600 font-medium">
-                                    {subscription.currentPeriodEnd
-                                      ? `Cancels ${new Date(subscription.currentPeriodEnd).toLocaleDateString()}`
-                                      : 'Scheduled for cancellation'
-                                    }
-                                  </span>
-                                </div>
-                              )}
-                              {!subscription.cancelAtPeriodEnd && subscription.currentPeriodEnd && (
-                                <div className="flex items-center justify-between">
-                                  <span className="text-sm text-muted-foreground">Next billing:</span>
-                                  <span className="text-sm font-medium">
-                                    {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
-                                  </span>
-                                </div>
-                              )}
-                              {subscription.plan?.interval && subscription.plan.interval !== 0 && subscription.plan.interval !== '0' && (
-                                <div className="flex items-center justify-between">
-                                  <span className="text-sm text-muted-foreground">Billing cycle:</span>
-                                  <span className="text-sm font-medium capitalize">
-                                    {subscription.plan.interval}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="space-y-3">
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm text-muted-foreground">Plan:</span>
-                                <span className="font-medium">Free Plan</span>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm text-muted-foreground">Status:</span>
-                                <span className={`text-sm font-medium px-2 py-1 rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200`}>
-                                  Active
-                                </span>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm text-muted-foreground">Storage:</span>
-                                <span className="text-sm font-medium">5GB included</span>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Storage Usage */}
-                        {billingUsage && (
-                          <div className="p-4 border rounded-lg">
-                            <h3 className="font-medium mb-2">Storage Usage</h3>
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm text-muted-foreground">Used:</span>
-                                <span className="font-medium">{formatStorageSize(billingUsage.usedBytes)}</span>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm text-muted-foreground">Limit:</span>
-                                <span className="font-medium">{formatStorageSize(billingUsage.quotaBytes)}</span>
-                              </div>
-                              <div className="w-full bg-gray-200 rounded-full h-2">
-                                <div
-                                  className={`h-2 rounded-full ${billingUsage.percentUsed > 90
-                                    ? 'bg-red-500'
-                                    : billingUsage.percentUsed > 75
-                                      ? 'bg-yellow-500'
-                                      : 'bg-green-500'
-                                    }`}
-                                  style={{ width: `${Math.min(billingUsage.percentUsed, 100)}%` }}
-                                ></div>
-                              </div>
-                              <p className="text-xs text-muted-foreground text-center">
-                                {billingUsage.percentUsed.toFixed(1)}% used
-                              </p>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Action Buttons */}
-                        <div className="flex gap-3">
-                          {subscription && !subscription.cancelAtPeriodEnd ? (
-                            <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  variant="destructive"
-                                  disabled={isCancellingSubscription}
-                                  className="flex-1"
-                                >
-                                  Cancel Subscription
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Cancel Subscription</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to cancel your subscription?
-                                    <br /><br />
-                                    • You will retain access to your current plan until the end of your billing period
-                                    <br />
-                                    • No future charges will be made
-                                    <br />
-                                    • You can reactivate your subscription at any time before it expires
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Keep Subscription</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={handleCancelSubscription}
-                                    disabled={isCancellingSubscription}
-                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                  >
-                                    {isCancellingSubscription ? (
-                                      <>
-                                        <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
-                                        Cancelling...
-                                      </>
-                                    ) : (
-                                      'Cancel Subscription'
-                                    )}
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          ) : subscription?.cancelAtPeriodEnd ? (
-                            <div className="flex-1 p-3 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-                              <p className="text-sm text-yellow-800 dark:text-yellow-200 text-center">
-                                Subscription will be cancelled on {subscription.currentPeriodEnd ? new Date(subscription.currentPeriodEnd * 1000).toLocaleDateString() : 'the end of billing period'}
-                              </p>
-                            </div>
-                          ) : null}
-
-                          <Button
-                            variant="outline"
-                            onClick={handleManageSubscription}
-                            disabled={isRedirectingToPortal}
-                            className="flex-1"
-                          >
-                            {isRedirectingToPortal ? (
-                              <>
-                                <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
-                                Redirecting...
-                              </>
-                            ) : (
-                              'Customer Portal'
-                            )}
-                          </Button>
-                          <Button
-                            onClick={() => window.location.href = '/billing'}
-                            className="flex-1"
-                          >
-                            {subscription ? 'Change Plan' : 'Upgrade Plan'}
-                          </Button>
-                        </div>
-
-                        {/* Important Information */}
-                        {subscription && !subscription.cancelAtPeriodEnd && (
-                          <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                            <h4 className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-2 flex items-center gap-2">
-                              <IconInfoCircle className="w-4 h-4" />
-                              Important Information
-                            </h4>
-                            <ul className="text-xs text-blue-700 dark:text-blue-300 space-y-1">
-                              <li>• You cannot cancel your subscription if you&apos;re using more than 5GB of storage</li>
-                              <li>• When cancelled, you&apos;ll keep access until the end of your billing period</li>
-                              <li>• No future charges will be made after cancellation</li>
-                              <li>• You can reactivate your subscription at any time before it expires</li>
-                            </ul>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Subscription History */}
-                      <div className="border-t pt-6 space-y-6">
-                        <div className="flex items-center justify-between">
-                          <h3 className="text-lg font-semibold">Billing History</h3>
-                          {subscriptionHistory && (subscriptionHistory.history?.length > 0 || subscriptionHistory.invoices?.length > 0) && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => loadSubscriptionHistory()}
-                              disabled={isLoadingHistory}
-                            >
-                              {isLoadingHistory ? (
-                                <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
-                              ) : (
-                                <IconRefresh className="h-4 w-4 mr-2" />
-                              )}
-                              Refresh
-                            </Button>
-                          )}
-                        </div>
-
-                        {isLoadingHistory ? (
-                          <div className="flex justify-center py-6">
-                            <IconLoader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                          </div>
-                        ) : subscriptionHistory ? (
-                          <>
-                            {/* Subscription History Table */}
-                            {subscriptionHistory.history && subscriptionHistory.history.length > 0 && (
-                              <div className="space-y-4">
-                                <div className="flex items-center justify-between">
-                                  <h4 className="text-sm font-medium text-muted-foreground">Subscriptions</h4>
-                                  {subsTotalPages > 1 && (
-                                    <div className="flex items-center gap-2">
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="h-7 w-7 p-0"
-                                        onClick={() => loadSubscriptionHistory(subsPage - 1, invoicesPage)}
-                                        disabled={subsPage === 1}
-                                      >
-                                        <IconChevronLeft className="h-4 w-4" />
-                                      </Button>
-                                      <span className="text-xs text-muted-foreground whitespace-nowrap">
-                                        {subsPage} / {subsTotalPages}
-                                      </span>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="h-7 w-7 p-0"
-                                        onClick={() => loadSubscriptionHistory(subsPage + 1, invoicesPage)}
-                                        disabled={subsPage >= subsTotalPages}
-                                      >
-                                        <IconChevronRight className="h-4 w-4" />
-                                      </Button>
-                                    </div>
-                                  )}
-                                </div>
-                                <div className="border rounded-lg overflow-hidden bg-card max-h-80">
-                                  <div className="overflow-x-auto overflow-y-auto h-full">
-                                    <table className="w-full text-sm font-mono">
-                                      <thead className="bg-muted/50 border-b">
-                                        <tr>
-                                          <th className="text-left px-4 py-3 font-medium text-muted-foreground min-w-[160px]">Plan</th>
-                                          <th className="text-center px-4 py-3 font-medium text-muted-foreground min-w-[120px]">Status</th>
-                                          <th className="text-right px-4 py-3 font-medium text-muted-foreground min-w-[120px]">Amount</th>
-                                          <th className="text-center px-4 py-3 font-medium text-muted-foreground min-w-[120px]">Billing</th>
-                                          <th className="text-center px-4 py-3 font-medium text-muted-foreground min-w-[120px]">Created</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody className="divide-y">
-                                        {subscriptionHistory.history.map((sub: SubscriptionHistory['history'][0]) => (
-                                          <tr key={sub.id} className="hover:bg-muted/30 transition-colors">
-                                            <td className="px-4 py-3 min-w-[160px]">
-                                              <div>
-                                                <p className="font-medium">{sub.planName}</p>
-                                                <p className="text-xs text-muted-foreground capitalize">{sub.interval}ly</p>
-                                              </div>
-                                            </td>
-                                            <td className="px-4 py-3 text-center min-w-[120px]">
-                                              <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${sub.status === 'active'
-                                                ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
-                                                : sub.status === 'canceled'
-                                                  ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                                                  : sub.status === 'past_due'
-                                                    ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
-                                                    : 'bg-slate-100 dark:bg-slate-900/30 text-slate-700 dark:text-slate-400'
-                                                }`}>
-                                                {sub.status === 'active' ? 'Active' :
-                                                  sub.status === 'canceled' ? 'Cancelled' :
-                                                    sub.status === 'past_due' ? 'Past Due' :
-                                                      sub.status}
-                                                {sub.cancelAtPeriodEnd && ' (Cancelling)'}
-                                              </span>
-                                            </td>
-                                            <td className="px-4 py-3 text-right min-w-[120px]">
-                                              <p className="font-medium">${sub.amount.toFixed(2)}</p>
-                                              <p className="text-xs text-muted-foreground">{sub.currency.toUpperCase()}</p>
-                                            </td>
-                                            <td className="px-4 py-3 text-center min-w-[120px]">
-                                              <p className="text-xs capitalize">{sub.interval}ly</p>
-                                            </td>
-                                            <td className="px-4 py-3 text-center min-w-[120px]">
-                                              <p className="text-xs">{new Date(sub.created * 1000).toLocaleDateString()}</p>
-                                            </td>
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Invoices Table */}
-                            {subscriptionHistory.invoices && subscriptionHistory.invoices.length > 0 && (
-                              <div className="space-y-4">
-                                <div className="flex items-center justify-between">
-                                  <h4 className="text-sm font-medium text-muted-foreground">Invoices</h4>
-                                  {invoicesTotalPages > 1 && (
-                                    <div className="flex items-center gap-2">
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="h-7 w-7 p-0"
-                                        onClick={() => loadSubscriptionHistory(subsPage, invoicesPage - 1)}
-                                        disabled={invoicesPage === 1}
-                                      >
-                                        <IconChevronLeft className="h-4 w-4" />
-                                      </Button>
-                                      <span className="text-xs text-muted-foreground whitespace-nowrap">
-                                        {invoicesPage} / {invoicesTotalPages}
-                                      </span>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="h-7 w-7 p-0"
-                                        onClick={() => loadSubscriptionHistory(subsPage, invoicesPage + 1)}
-                                        disabled={invoicesPage >= invoicesTotalPages}
-                                      >
-                                        <IconChevronRight className="h-4 w-4" />
-                                      </Button>
-                                    </div>
-                                  )}
-                                </div>
-                                <div className="border rounded-lg overflow-hidden bg-card max-h-80">
-                                  <div className="overflow-x-auto overflow-y-auto h-full">
-                                    <table className="w-full text-sm font-mono">
-                                      <thead className="bg-muted/50 border-b">
-                                        <tr>
-                                          <th className="text-left px-4 py-3 font-medium text-muted-foreground min-w-[160px]">Invoice</th>
-                                          <th className="text-center px-4 py-3 font-medium text-muted-foreground min-w-[120px]">Status</th>
-                                          <th className="text-right px-4 py-3 font-medium text-muted-foreground min-w-[120px]">Amount</th>
-                                          <th className="text-center px-4 py-3 font-medium text-muted-foreground min-w-[120px]">Date</th>
-                                          <th className="text-center px-4 py-3 font-medium text-muted-foreground min-w-[120px]">Actions</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody className="divide-y">
-                                        {subscriptionHistory.invoices.map((invoice: SubscriptionHistory['invoices'][0]) => (
-                                          <tr key={invoice.id} className="hover:bg-muted/30 transition-colors">
-                                            <td className="px-4 py-3 min-w-[160px]">
-                                              <div>
-                                                <p className="font-medium">{invoice.number || `Invoice ${invoice.id.slice(-8)}`}</p>
-                                                {invoice.subscriptionId && (
-                                                  <p className="text-xs text-muted-foreground">Sub: {invoice.subscriptionId.slice(-8)}</p>
-                                                )}
-                                              </div>
-                                            </td>
-                                            <td className="px-4 py-3 text-center min-w-[120px]">
-                                              <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${invoice.status === 'paid'
-                                                ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
-                                                : invoice.status === 'open'
-                                                  ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
-                                                  : invoice.status === 'void'
-                                                    ? 'bg-gray-100 dark:bg-gray-900/30 text-gray-700 dark:text-gray-400'
-                                                    : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                                                }`}>
-                                                {invoice.status === 'paid' ? 'Paid' :
-                                                  invoice.status === 'open' ? 'Open' :
-                                                    invoice.status === 'void' ? 'Void' :
-                                                      invoice.status}
-                                              </span>
-                                            </td>
-                                            <td className="px-4 py-3 text-right min-w-[120px]">
-                                              <p className="font-medium">${invoice.amount.toFixed(2)}</p>
-                                              <p className="text-xs text-muted-foreground">{invoice.currency.toUpperCase()}</p>
-                                            </td>
-                                            <td className="px-4 py-3 text-center min-w-[120px]">
-                                              <p className="text-xs">{new Date(invoice.created * 1000).toLocaleDateString()}</p>
-                                            </td>
-                                            <td className="px-4 py-3 text-center min-w-[120px]">
-                                              <div className="flex gap-2 justify-center">
-                                                <Button
-                                                  size="sm"
-                                                  variant="outline"
-                                                  onClick={() => window.open(invoice.invoicePdf, '_blank')}
-                                                  className="text-xs"
-                                                >
-                                                  Download
-                                                </Button>
-                                              </div>
-                                            </td>
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Empty State */}
-                            {(!subscriptionHistory.history || subscriptionHistory.history.length === 0) &&
-                              (!subscriptionHistory.invoices || subscriptionHistory.invoices.length === 0) && (
-                                <div className="text-center py-12">
-                                  <h3 className="text-sm font-medium text-foreground mb-1">No billing history yet</h3>
-                                  <p className="text-sm text-muted-foreground">Your invoices and subscription details will appear here</p>
-                                </div>
-                              )}
-                          </>
-                        ) : (
-                          <div className="text-center py-12">
-                            <div className="mx-auto w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-4">
-                              <IconLoader2 className="w-6 h-6 text-muted-foreground" />
-                            </div>
-                            <h3 className="text-sm font-medium text-foreground mb-1">Unable to load billing history</h3>
-                            <p className="text-sm text-muted-foreground mb-4">Please try again or contact support if the issue persists</p>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => loadSubscriptionHistory()}
-                            >
-                              Try Again
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    </>
-                  )}
-                </div>
+                <BillingTab
+                  isLoadingBilling={isLoadingBilling}
+                  subscription={subscription}
+                  billingUsage={billingUsage}
+                  showCancelDialog={showCancelDialog}
+                  setShowCancelDialog={setShowCancelDialog}
+                  isCancellingSubscription={isCancellingSubscription}
+                  handleCancelSubscription={handleCancelSubscription}
+                  handleManageSubscription={handleManageSubscription}
+                  isRedirectingToPortal={isRedirectingToPortal}
+                  loadSubscriptionHistory={loadSubscriptionHistory}
+                  isLoadingHistory={isLoadingHistory}
+                  subscriptionHistory={subscriptionHistory}
+                  subsPage={subsPage}
+                  invoicesPage={invoicesPage}
+                  subsTotalPages={subsTotalPages}
+                  invoicesTotalPages={invoicesTotalPages}
+                />
               )}
             </div>
           </main>
@@ -3659,136 +2024,7 @@ export function SettingsModal({
           </DialogContent>
         </Dialog>
 
-        {/* TOTP Setup Modal */}
-        <Dialog open={showTOTPSetup} onOpenChange={setShowTOTPSetup}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Setup Two-Factor Authentication</DialogTitle>
-              <DialogDescription>
-                Scan the QR code with your authenticator app, then enter the 6-digit code to enable TOTP.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              {totpQrCode && (
-                <div className="flex justify-center">
-                  <Image
-                    src={totpQrCode}
-                    alt="TOTP QR Code"
-                    width={200}
-                    height={200}
-                    className="max-w-full h-auto"
-                  />
-                </div>
-              )}
-              {totpSecret && (
-                <div className="space-y-2">
-                  <Label>Manual Entry Code</Label>
-                  <code className="block p-2 bg-muted rounded font-mono text-sm break-all">
-                    {totpSecret}
-                  </code>
-                </div>
-              )}
-              <div className="space-y-2">
-                <Label htmlFor="setup-totp-token">Enter 6-digit code</Label>
-                <Input
-                  id="setup-totp-token"
-                  value={totpToken}
-                  onChange={(e) => setTotpToken(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder="000000"
-                  maxLength={6}
-                  className="text-center text-lg font-mono"
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => {
-                setShowTOTPSetup(false)
-                setTotpSecret("")
-                setTotpUri("")
-                setTotpQrCode("")
-                setTotpToken("")
-              }}>
-                Cancel
-              </Button>
-              <Button
-                onClick={handleTOTPVerify}
-                disabled={isVerifyingTOTP || totpToken.length !== 6}
-              >
-                {isVerifyingTOTP ? (
-                  <>
-                    <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
-                    Verifying...
-                  </>
-                ) : (
-                  "Enable TOTP"
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
 
-        {/* TOTP Disable Modal */}
-        <Dialog open={showTOTPDisable} onOpenChange={setShowTOTPDisable}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Disable Two-Factor Authentication</DialogTitle>
-              <DialogDescription>
-                Enter your 6-digit authenticator code or a recovery code to disable TOTP.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="disable-totp-token">6-digit Authenticator Code</Label>
-                <Input
-                  id="disable-totp-token"
-                  value={disableToken}
-                  onChange={(e) => setDisableToken(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder="000000"
-                  maxLength={6}
-                  className="text-center text-lg font-mono"
-                />
-              </div>
-              <div className="text-center text-sm text-muted-foreground">OR</div>
-              <div className="space-y-2">
-                <Label htmlFor="disable-recovery-code">Recovery Code</Label>
-                <Input
-                  id="disable-recovery-code"
-                  value={disableRecoveryCode}
-                  onChange={(e) => setDisableRecoveryCode(e.target.value.toUpperCase().slice(0, 8))}
-                  placeholder="XXXXXXXX"
-                  maxLength={8}
-                  className="text-center text-lg font-mono"
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowTOTPDisable(false)
-                  setDisableToken("")
-                  setDisableRecoveryCode("")
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={handleTOTPDisable}
-                disabled={isDisablingTOTP || (!disableToken && !disableRecoveryCode)}
-              >
-                {isDisablingTOTP ? (
-                  <>
-                    <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
-                    Disabling...
-                  </>
-                ) : (
-                  "Disable TOTP"
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
 
         {/* Email OTP Verification Modal */}
         <Dialog open={showEmailOTPModal} onOpenChange={setShowEmailOTPModal}>
@@ -3850,62 +2086,7 @@ export function SettingsModal({
           </DialogContent>
         </Dialog>
 
-        {/* Recovery Codes Modal */}
-        <Dialog open={showRecoveryCodesModal} onOpenChange={setShowRecoveryCodesModal}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Your Recovery Codes</DialogTitle>
-              <DialogDescription>
-                These codes can be used to access your account if you lose your authenticator device. Keep them safe.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="p-4 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-                <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                  <strong>Important:</strong> Each code can only be used once. Store these codes securely and treat them like passwords.
-                </p>
-              </div>
-              <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
-                {recoveryCodes.map((code, index) => (
-                  <code key={index} className="block p-2 bg-muted rounded font-mono text-sm text-center">
-                    {code}
-                  </code>
-                ))}
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                onClick={() => {
-                  // Download recovery codes
-                  const codesText = recoveryCodes.join('\n')
-                  const blob = new Blob([codesText], { type: 'text/plain' })
-                  const unixTimestamp = Math.floor(Date.now() / 1000)
-                  const randomHex = Math.random().toString(16).slice(2, 8) // Random hex for uniqueness
-                  const url = URL.createObjectURL(blob)
-                  const a = document.createElement('a')
-                  a.href = url
-                  a.download = `recovery-codes-${randomHex}-${unixTimestamp}.txt`
-                  document.body.appendChild(a)
-                  a.click()
-                  document.body.removeChild(a)
-                  URL.revokeObjectURL(url)
-                  setShowRecoveryCodesModal(false)
-                  setRecoveryCodes([])
-                }}
-              >
-                Download Codes
-              </Button>
-              <Button
-                onClick={() => {
-                  setShowRecoveryCodesModal(false)
-                  setRecoveryCodes([])
-                }}
-              >
-                Close
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+
 
         {/* Cancellation Reason Dialog */}
         <Dialog open={showCancelReasonDialog} onOpenChange={setShowCancelReasonDialog}>
