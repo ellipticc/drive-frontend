@@ -11,11 +11,14 @@ import {
   IconTrash,
   IconUsers,
   IconDatabaseImport,
+  IconFileWord,
+  IconReport,
 } from "@tabler/icons-react"
 
 import { NavMain } from "@/components/layout/navigation/nav-main"
 import { NavSecondary } from "@/components/layout/navigation/nav-secondary"
 import { NavUser } from "@/components/layout/navigation/nav-user"
+import { NavSpaces } from "@/components/layout/navigation/nav-spaces"
 import {
   Sidebar,
   SidebarContent,
@@ -128,23 +131,7 @@ const defaultNavSecondary = [
   },
 ]
 
-/*const defaultDocuments = [
-  {
-    name: "Data Library",
-    url: "#",
-    icon: IconDatabase,
-  },
-  {
-    name: "Reports",
-    url: "#",
-    icon: IconReport,
-  },
-  {
-    name: "Word Assistant",
-    url: "#",
-    icon: IconFileWord,
-  },
-] */
+
 
 export const AppSidebar = React.memo(function AppSidebar({
   ...props
@@ -237,7 +224,6 @@ export const AppSidebar = React.memo(function AppSidebar({
     navMain: defaultNavMain,
     //navClouds: defaultNavClouds,
     navSecondary: defaultNavSecondary,
-    //documents: defaultDocuments,
   }
 
   return (
@@ -259,7 +245,7 @@ export const AppSidebar = React.memo(function AppSidebar({
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} onFileUpload={handleFileUpload} onFolderUpload={handleFolderUpload} />
-        {/* <NavDocuments items={data.documents} /> */}
+        <NavSpaces />
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>

@@ -151,6 +151,36 @@ export interface PQCKeypairs {
   };
 }
 
+export interface Space {
+  id: string;
+  owner_user_id: string;
+  encrypted_name: string;
+  name_salt: string;
+  icon?: string;
+  color?: string;
+  created_at: string;
+  updated_at: string;
+  items?: SpaceItem[];
+  decryptedName?: string;
+}
+
+export interface SpaceItem {
+  id: string;
+  space_id: string;
+  file_id?: string;
+  folder_id?: string;
+  created_at: string;
+  // Metadata for display
+  encrypted_filename?: string;
+  filename_salt?: string;
+  mimetype?: string;
+  size?: number;
+  encrypted_name?: string;
+  name_salt?: string;
+  file_folder_id?: string;
+  decryptedName?: string;
+}
+
 export interface FileItem {
   id: string;
   name: string; // Display name (decrypted filename for files, plain name for folders)
@@ -1592,6 +1622,101 @@ class ApiClient {
     return this.request(`/shares/${shareId}/report`, {
       method: 'POST',
       body: JSON.stringify(data),
+    });
+  }
+
+  // Spaces Management
+  async getSpaces(): Promise<ApiResponse<Space[]>> {
+    return this.request('/spaces');
+  }
+
+  async createSpace(data: {
+    encryptedName: string;
+    nameSalt: string;
+    icon?: string;
+    color?: string;
+  }): Promise<ApiResponse<{ id: string }>> {
+    const idempotencyKey = generateIdempotencyKey('createSpace', data.encryptedName + data.nameSalt);
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request('/spaces', {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers,
+    });
+  }
+
+  async reorderSpaces(spaceIds: string[]): Promise<ApiResponse<any>> {
+    return this.request('/spaces/reorder', {
+      method: 'POST',
+      body: JSON.stringify({ spaceIds })
+    });
+  }
+
+  async getStarredItems(): Promise<ApiResponse<SpaceItem[]>> {
+    return this.request('/files/spaced', { method: 'GET' });
+  }
+
+  async setItemStarred(data: {
+    fileId?: string;
+    folderId?: string;
+    fileIds?: string[];
+    folderIds?: string[];
+    isStarred: boolean
+  }): Promise<ApiResponse<any>> {
+    return this.request('/files/spaced', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async renameSpace(spaceId: string, data: {
+    encryptedName: string;
+    nameSalt: string;
+    icon?: string;
+    color?: string;
+  }): Promise<ApiResponse<{ success: boolean }>> {
+    return this.request(`/spaces/${spaceId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteSpace(spaceId: string): Promise<ApiResponse<{ success: boolean }>> {
+    return this.request(`/spaces/${spaceId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getSpaceItems(spaceId: string): Promise<ApiResponse<SpaceItem[]>> {
+    return this.request(`/spaces/${spaceId}/items`);
+  }
+
+  async addItemToSpace(spaceId: string, data: {
+    fileId?: string;
+    folderId?: string;
+    fileIds?: string[];
+    folderIds?: string[];
+  }): Promise<ApiResponse<{ id: string }>> {
+    const intent = `${spaceId}:${data.fileId || data.folderId || (data.fileIds?.join(',')) || (data.folderIds?.join(','))}`;
+    const idempotencyKey = generateIdempotencyKey('addItemToSpace', intent);
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request(`/spaces/${spaceId}/items`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers,
+    });
+  }
+
+  async removeItemFromSpace(spaceId: string, itemId: string): Promise<ApiResponse<any>> {
+    return this.request(`/spaces/${spaceId}/items/${itemId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async moveItemToSpace(spaceId: string, itemId: string, targetSpaceId: string): Promise<ApiResponse<any>> {
+    return this.request(`/spaces/${spaceId}/items/${itemId}/move`, {
+      method: 'POST',
+      body: JSON.stringify({ targetSpaceId })
     });
   }
 
