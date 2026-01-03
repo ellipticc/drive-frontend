@@ -25,14 +25,12 @@ import {
   IconCopy,
   IconCheck,
   IconSettings,
-  IconLock,
-  IconCalendar,
-  IconDownload,
   IconLink,
   IconSend,
-  IconClockHour8,
-  IconMessageCircle
+  IconCalendar,
+  IconClockHour8
 } from "@tabler/icons-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { toast } from "sonner"
 import { apiClient } from "@/lib/api"
 import { keyManager } from "@/lib/key-manager"
@@ -376,6 +374,9 @@ interface ShareSettings {
   passwordEnabled: boolean
   expirationDate: Date | undefined
   maxDownloads: number
+  maxDownloadsEnabled: boolean
+  maxViews: number
+  maxViewsEnabled: boolean
   commentsEnabled: boolean
 }
 
@@ -399,8 +400,40 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
     passwordEnabled: false,
     expirationDate: undefined,
     maxDownloads: 0,
+    maxDownloadsEnabled: false,
+    maxViews: 0,
+    maxViewsEnabled: false,
     commentsEnabled: true
   })
+
+  // Subscription status for paywall
+  const [isPro, setIsPro] = useState(false)
+  const [isLoadingSubscription, setIsLoadingSubscription] = useState(false)
+
+  // Check subscription status when settings open
+  useEffect(() => {
+    if (settingsOpen) {
+      const checkSubscription = async () => {
+        setIsLoadingSubscription(true)
+        try {
+          const res = await apiClient.getSubscriptionStatus()
+          // Check if user has an active subscription (Pro or higher)
+          if (res.success && res.data?.subscription && res.data.subscription.status === 'active') {
+            // Assuming any active subscription is "Pro" or higher for now
+            setIsPro(true)
+          } else {
+            setIsPro(false)
+          }
+        } catch (error) {
+          console.error("Failed to check subscription:", error)
+          setIsPro(false)
+        } finally {
+          setIsLoadingSubscription(false)
+        }
+      }
+      checkSubscription()
+    }
+  }, [settingsOpen])
 
   // Use external state if provided, otherwise use internal state
   const open = externalOpen !== undefined ? externalOpen : internalOpen
@@ -445,6 +478,9 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
         passwordEnabled: false,
         expirationDate: undefined,
         maxDownloads: 0,
+        maxDownloadsEnabled: false,
+        maxViews: 0,
+        maxViewsEnabled: false,
         commentsEnabled: true
       })
       setMessage("")
@@ -475,6 +511,21 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
 
           // Automatically enable public link toggle and show existing link
           setCreatePublicLink(true)
+
+          if (existingShare.maxViews !== undefined) {
+            setShareSettings(prev => ({
+              ...prev,
+              maxViews: existingShare.maxViews || 0,
+              maxViewsEnabled: (existingShare.maxViews || 0) > 0
+            }));
+          }
+          if (existingShare.maxDownloads !== undefined) {
+            setShareSettings(prev => ({
+              ...prev,
+              maxDownloads: existingShare.maxDownloads || 0,
+              maxDownloadsEnabled: (existingShare.maxDownloads || 0) > 0
+            }));
+          }
 
           if (existingShare.comments_enabled !== undefined) {
             setShareSettings(prev => ({ ...prev, commentsEnabled: !!existingShare.comments_enabled }));
@@ -727,7 +778,8 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
         encrypted_foldername: encryptedFoldername, // Folder name encrypted with share CEK (for folders)
         nonce_foldername: foldernameNonce, // Nonce for folder name encryption (for folders)
         expires_at: shareSettings.expirationDate?.toISOString(),
-        max_views: shareSettings.maxDownloads || undefined,
+        max_views: shareSettings.maxViewsEnabled ? (shareSettings.maxViews || undefined) : undefined,
+        max_downloads: shareSettings.maxDownloadsEnabled ? (shareSettings.maxDownloads || undefined) : undefined,
         permissions: 'read',
         comments_enabled: shareSettings.commentsEnabled,
         encrypted_manifest: encryptedManifest  // Encrypted manifest for folder shares
@@ -1271,25 +1323,31 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
+            {!isPro && !isLoadingSubscription && (
+              <Alert className="mb-2 bg-muted/50 border-border text-muted-foreground flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <AlertDescription className="text-muted-foreground whitespace-nowrap">
+                    <a href="/billing" className="hover:underline font-medium underline-offset-4">Upgrade to Ellipticc Pro to enable all link settings</a>
+                  </AlertDescription>
+                </div>
+              </Alert>
+            )}
+
             {/* Password Protection */}
-            <div className="grid gap-3">
-              <div className="flex items-center gap-2">
-                <IconLock className="h-4 w-4 text-muted-foreground" />
-                <Label className="text-sm font-medium">Password Protection</Label>
-              </div>
-              <div className="flex items-center space-x-2">
+            <div className={`grid gap-3 ${!isPro ? "opacity-50 pointer-events-none" : ""}`}>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password-enabled" className="text-sm font-medium">
+                  Require password
+                </Label>
                 <Switch
                   id="password-enabled"
                   checked={shareSettings.passwordEnabled}
                   onCheckedChange={(checked: boolean) => handleSettingsChange('passwordEnabled', checked)}
                 />
-                <Label htmlFor="password-enabled" className="text-sm">
-                  Require password to access
-                </Label>
               </div>
               {shareSettings.passwordEnabled && (
                 <form
-                  className="w-full"
+                  className="w-full animate-in slide-in-from-top-2 duration-200"
                   onSubmit={(e) => { e.preventDefault(); /* Prevent form submission */ }}
                   autoComplete="off"
                 >
@@ -1305,95 +1363,102 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
                     value={shareSettings.password}
                     onChange={(e) => handleSettingsChange('password', e.target.value)}
                     placeholder="Enter password"
-                    className="text-sm animate-in slide-in-from-top-2 duration-200"
+                    className="text-sm"
                     autoComplete="new-password"
                   />
                 </form>
               )}
             </div>
 
-            <Separator />
-
             {/* Expiration Date */}
-            <div className="grid gap-3">
-              <div className="flex items-center gap-2">
-                <IconCalendar className="h-4 w-4 text-muted-foreground" />
-                <Label className="text-sm font-medium">Expiration</Label>
+            <div className={`grid gap-3 ${!isPro ? "opacity-50 pointer-events-none" : ""}`}>
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">Set expiration</Label>
+                <Switch
+                  checked={!!shareSettings.expirationDate}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      // Default to tomorrow same time? Or end of today?
+                      // Let's default to 7 days from now as a common use case, or just "now".
+                      // User prompt said "Set expiration".
+                      const date = new Date();
+                      date.setDate(date.getDate() + 7); // Default 1 week
+                      handleSettingsChange('expirationDate', date);
+                    } else {
+                      handleSettingsChange('expirationDate', undefined);
+                    }
+                  }}
+                />
               </div>
-              <div className="flex gap-2">
-                {/* Date Picker (Left) */}
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="flex-1 justify-start text-left font-normal"
-                    >
-                      <IconCalendar className="mr-2 h-4 w-4" />
-                      {shareSettings.expirationDate ? format(shareSettings.expirationDate, "PPP") : "Pick a date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={shareSettings.expirationDate}
-                      onSelect={(date) => {
-                        if (date) {
-                          // Preserve existing time or default to end of day? User requested precise time, so current time or 00:00?
-                          // Let's keep existing logic: current time or 00:00 if new
-                          const current = shareSettings.expirationDate || new Date();
-                          date.setHours(current.getHours());
-                          date.setMinutes(current.getMinutes());
-                          date.setSeconds(current.getSeconds());
-                          handleSettingsChange('expirationDate', date);
-                        } else {
-                          handleSettingsChange('expirationDate', undefined);
+
+              {shareSettings.expirationDate && (
+                <div className="flex gap-2 animate-in slide-in-from-top-2 duration-200">
+                  {/* Date Picker (Left) */}
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="flex-1 justify-start text-left font-normal"
+                      >
+                        <IconCalendar className="mr-2 h-4 w-4" />
+                        {shareSettings.expirationDate ? format(shareSettings.expirationDate, "PPP") : "Pick a date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={shareSettings.expirationDate}
+                        onSelect={(date) => {
+                          if (date) {
+                            const current = shareSettings.expirationDate || new Date();
+                            date.setHours(current.getHours());
+                            date.setMinutes(current.getMinutes());
+                            date.setSeconds(current.getSeconds());
+                            handleSettingsChange('expirationDate', date);
+                          }
+                        }}
+                        disabled={{ before: startOfToday() }}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+
+                  {/* Time Picker (Right) */}
+                  <div className="relative w-32 shrink-0">
+                    <div className="text-muted-foreground pointer-events-none absolute inset-y-0 left-0 flex items-center justify-center pl-3 peer-disabled:opacity-50">
+                      <IconClockHour8 className="size-4" />
+                    </div>
+                    <Input
+                      type="time"
+                      id="time-picker"
+                      step="1"
+                      disabled={!shareSettings.expirationDate}
+                      value={shareSettings.expirationDate ? format(shareSettings.expirationDate, "HH:mm:ss") : ""}
+                      onChange={(e) => {
+                        const timeParts = e.target.value.split(':');
+                        if (timeParts.length >= 2 && shareSettings.expirationDate) {
+                          const newDate = new Date(shareSettings.expirationDate);
+                          newDate.setHours(parseInt(timeParts[0]));
+                          newDate.setMinutes(parseInt(timeParts[1]));
+                          if (timeParts.length === 3) {
+                            newDate.setSeconds(parseInt(timeParts[2]));
+                          }
+                          handleSettingsChange('expirationDate', newDate);
                         }
                       }}
-                      disabled={{ before: startOfToday() }}
-                      initialFocus
+                      className="peer bg-background appearance-none pl-9 [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none w-full"
                     />
-                  </PopoverContent>
-                </Popover>
-
-                {/* Time Picker (Right) */}
-                <div className="relative w-32 shrink-0">
-                  <div className="text-muted-foreground pointer-events-none absolute inset-y-0 left-0 flex items-center justify-center pl-3 peer-disabled:opacity-50">
-                    <IconClockHour8 className="size-4" />
                   </div>
-                  <Input
-                    type="time"
-                    id="time-picker"
-                    step="1"
-                    disabled={!shareSettings.expirationDate}
-                    value={shareSettings.expirationDate ? format(shareSettings.expirationDate, "HH:mm:ss") : ""}
-                    onChange={(e) => {
-                      const timeParts = e.target.value.split(':');
-                      if (timeParts.length >= 2 && shareSettings.expirationDate) {
-                        const newDate = new Date(shareSettings.expirationDate);
-                        newDate.setHours(parseInt(timeParts[0]));
-                        newDate.setMinutes(parseInt(timeParts[1]));
-                        if (timeParts.length === 3) {
-                          newDate.setSeconds(parseInt(timeParts[2]));
-                        }
-                        handleSettingsChange('expirationDate', newDate);
-                      }
-                    }}
-                    className="peer bg-background appearance-none pl-9 [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none w-full"
-                  />
                 </div>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Leave empty for no expiration
-              </p>
+              )}
             </div>
 
             {/* Enable Comments */}
             <div className="grid gap-3">
-              <div className="flex items-center gap-2">
-                <IconMessageCircle className="h-4 w-4 text-muted-foreground" />
-                <Label className="text-sm font-medium">Comments</Label>
-              </div>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="comments-enabled" className="text-sm font-medium">
+                  Enable comments
+                </Label>
                 <Switch
                   id="comments-enabled"
                   checked={shareSettings.commentsEnabled}
@@ -1410,45 +1475,85 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
                     }
                   }}
                 />
-                <Label htmlFor="comments-enabled" className="text-sm">
-                  Enable comments on this share
-                </Label>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Allow recipients to leave secure, end-to-end encrypted comments
-              </p>
             </div>
 
-            <Separator />
-
             {/* Max Downloads */}
-            <div className="grid gap-3">
-              <div className="flex items-center gap-2">
-                <IconDownload className="h-4 w-4 text-muted-foreground" />
-                <Label className="text-sm font-medium">Download Limit</Label>
+            <div className={`grid gap-3 ${!isPro ? "opacity-50 pointer-events-none" : ""}`}>
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">Set maximum downloads</Label>
+                <Switch
+                  checked={shareSettings.maxDownloadsEnabled}
+                  onCheckedChange={(checked) => {
+                    handleSettingsChange('maxDownloadsEnabled', checked);
+                    if (checked && (!shareSettings.maxDownloads || shareSettings.maxDownloads === 0)) {
+                      handleSettingsChange('maxDownloads', 10); // Default start
+                    }
+                  }}
+                />
               </div>
-              <Input
-                type="number"
-                min="0"
-                value={shareSettings.maxDownloads || ''}
-                onChange={(e) => {
-                  const val = e.target.value.replace(/[^0-9]/g, "")
-                  let numVal = parseInt(val)
-                  if (val === "") numVal = 0
+              {shareSettings.maxDownloadsEnabled && (
+                <div className="animate-in slide-in-from-top-2 duration-200">
+                  <Input
+                    type="number"
+                    min="1"
+                    value={shareSettings.maxDownloads || ''}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9]/g, "")
+                      let numVal = parseInt(val)
+                      if (val === "") numVal = 0
 
-                  if (numVal > 1000000) {
-                    toast.error("At this point, just make it unlimited")
-                    numVal = 1000000
-                  }
+                      if (numVal > 1000000) {
+                        toast.error("At this point, just make it unlimited")
+                        numVal = 1000000
+                      }
 
-                  handleSettingsChange('maxDownloads', numVal)
-                }}
-                placeholder="Unlimited"
-                className="text-sm"
-              />
-              <p className="text-xs text-muted-foreground">
-                Set to 0 for unlimited downloads
-              </p>
+                      handleSettingsChange('maxDownloads', numVal)
+                    }}
+                    placeholder="100"
+                    className="text-sm"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Max Views */}
+            <div className={`grid gap-3 ${!isPro ? "opacity-50 pointer-events-none" : ""}`}>
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">Set maximum views</Label>
+                <Switch
+                  checked={shareSettings.maxViewsEnabled}
+                  onCheckedChange={(checked) => {
+                    handleSettingsChange('maxViewsEnabled', checked);
+                    if (checked && (!shareSettings.maxViews || shareSettings.maxViews === 0)) {
+                      handleSettingsChange('maxViews', 10); // Default start
+                    }
+                  }}
+                />
+              </div>
+              {shareSettings.maxViewsEnabled && (
+                <div className="animate-in slide-in-from-top-2 duration-200">
+                  <Input
+                    type="number"
+                    min="1"
+                    value={shareSettings.maxViews || ''}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9]/g, "")
+                      let numVal = parseInt(val)
+                      if (val === "") numVal = 0
+
+                      if (numVal > 1000000) {
+                        toast.error("At this point, just make it unlimited")
+                        numVal = 1000000
+                      }
+
+                      handleSettingsChange('maxViews', numVal)
+                    }}
+                    placeholder="100"
+                    className="text-sm"
+                  />
+                </div>
+              )}
             </div>
           </div>
 

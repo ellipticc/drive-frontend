@@ -260,6 +260,7 @@ export interface ShareItem {
   linkSecret?: string;
   views: number;
   maxViews?: number;
+  maxDownloads?: number;
   downloads: number;
   folderPath: string;
   isFolder: boolean;
@@ -1405,6 +1406,7 @@ class ApiClient {
     salt_pw?: string;
     expires_at?: string;
     max_views?: number;
+    max_downloads?: number;
     permissions?: string;
     comments_enabled?: boolean;
     kyber_ciphertext?: string;
