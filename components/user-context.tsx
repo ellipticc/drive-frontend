@@ -89,7 +89,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   // Routes that should skip user profile fetching
-  const skipFetchRoutes = ['/login', '/signup', '/otp', '/recover', '/backup', '/totp', '/totp/recovery', '/auth/oauth/callback'];
+  const skipFetchRoutes = ['/login', '/signup', '/otp', '/recover', '/backup', '/totp', '/totp/recovery'];
   const shouldSkipFetch = skipFetchRoutes.includes(pathname) || pathname.startsWith('/s/');
 
   const fetchFreshUserData = useCallback(async () => {

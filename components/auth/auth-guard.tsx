@@ -6,7 +6,7 @@ import { IconLoader2 as Loader2 } from "@tabler/icons-react";
 import { apiClient } from "@/lib/api";
 import { masterKeyManager } from "@/lib/master-key";
 import { SessionManager } from "@/lib/session-manager";
-import { getOAuthSetupState, isIncompleteOAuthToken } from "@/lib/oauth-validation";
+
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -21,7 +21,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
   const hasCheckedAuthRef = useRef(false);
 
   // Define public routes that don't require authentication
-  const publicRoutes = ['/login', '/signup', '/register', '/otp', '/recover', '/backup', '/totp', '/totp/recovery', '/auth/oauth/callback', '/terms-of-service', '/privacy-policy'];
+  const publicRoutes = ['/login', '/signup', '/register', '/otp', '/recover', '/recover/otp', '/recover/reset', '/backup', '/totp', '/totp/recovery', '/terms-of-service', '/privacy-policy', '/billing'];
   const isPublic = publicRoutes.includes(pathname) || pathname.startsWith('/s/');
 
   useLayoutEffect(() => {
@@ -40,24 +40,12 @@ export function AuthGuard({ children }: AuthGuardProps) {
       return;
     }
 
-    // CRITICAL: Check if user is in the middle of OAuth setup
-    // If so, redirect them back to complete it instead of allowing access to other routes
-    const oauthSetupState = getOAuthSetupState();
-    if (oauthSetupState.inProgress) {
-      // User has an incomplete OAuth flow, redirect back to callback page
-      hasCheckedAuthRef.current = true;
-      window.location.href = '/auth/oauth/callback';
-      return;
-    }
-
     // For private routes, check if token exists and is valid
     const token = apiClient.getAuthToken();
     const isTokenValid = SessionManager.isTokenValid();
 
-    // CRITICAL: If token exists, also check that it's not an incomplete OAuth token
-    // An incomplete OAuth token has account_salt not yet set on backend
-    if (token && isTokenValid && !isIncompleteOAuthToken()) {
-      // Token exists, is valid, and is not from incomplete OAuth
+    if (token && isTokenValid) {
+      // Token exists and is valid
       // Initialize master key manager storage for all authenticated routes
       // This ensures correct storage type is used for decryption operations throughout the app
       const localToken = localStorage.getItem('auth_token');
@@ -71,8 +59,8 @@ export function AuthGuard({ children }: AuthGuardProps) {
       return;
     }
 
-    if (!token || !isTokenValid || isIncompleteOAuthToken()) {
-      // No token or token expired or incomplete OAuth token
+    if (!token || !isTokenValid) {
+      // No token or token expired
       // Redirect immediately using window.location for instant navigation
       hasCheckedAuthRef.current = true;
       const expiredFlag = !token;

@@ -151,33 +151,6 @@ export interface PQCKeypairs {
   };
 }
 
-// Flat format for OAuth backend (with prefixed field names)
-export interface OAuthPQCKeypairs {
-  kyberPublicKey: string;
-  kyberPrivateKeyEncrypted: string;
-  kyberPrivateKeyNonce: string;
-  kyberEncryptionKey: string;
-  kyberEncryptionNonce: string;
-
-  x25519PublicKey: string;
-  x25519PrivateKeyEncrypted: string;
-  x25519PrivateKeyNonce: string;
-  x25519EncryptionKey: string;
-  x25519EncryptionNonce: string;
-
-  dilithiumPublicKey: string;
-  dilithiumPrivateKeyEncrypted: string;
-  dilithiumPrivateKeyNonce: string;
-  dilithiumEncryptionKey: string;
-  dilithiumEncryptionNonce: string;
-
-  ed25519PublicKey: string;
-  ed25519PrivateKeyEncrypted: string;
-  ed25519PrivateKeyNonce: string;
-  ed25519EncryptionKey: string;
-  ed25519EncryptionNonce: string;
-}
-
 export interface FileItem {
   id: string;
   name: string; // Display name (decrypted filename for files, plain name for folders)
@@ -192,7 +165,7 @@ export interface FileItem {
   type: 'file' | 'folder';
   createdAt: string;
   updatedAt: string;
-  shaHash?: string; // File hash (SHA256 or SHA512 depending on algorithm)
+  shaHash?: string; // File hash (SHA512)
   sessionSalt?: string;
   is_shared?: boolean; // Whether this file/folder is currently shared
   encryption?: {
@@ -451,7 +424,7 @@ class ApiClient {
     if (typeof window === 'undefined') return false;
 
     const pathname = window.location.pathname;
-    const authPages = ['/login', '/signup', '/otp', '/recover', '/recover/otp', '/recover/reset', '/backup', '/totp', '/auth/oauth/callback'];
+    const authPages = ['/login', '/signup', '/otp', '/recover', '/recover/otp', '/recover/reset', '/backup', '/totp'];
     return !authPages.some(page => pathname.includes(page)) && !pathname.startsWith('/s/');
   }
 
@@ -673,12 +646,7 @@ class ApiClient {
   private getToken(): string | null {
     if (typeof window === 'undefined') return null;
 
-    // CRITICAL: During OAuth setup, use the temporary sessionStorage token
-    // This allows API calls to work during password verification without storing in localStorage
-    if (sessionStorage.getItem('oauth_setup_in_progress') === 'true') {
-      const oauthToken = sessionStorage.getItem('oauth_temp_token');
-      if (oauthToken) return oauthToken;
-    }
+
 
     // Try to get from current storage first - check both 'auth_token' and 'auth' formats
     const storage = this.getStorage();
@@ -687,16 +655,7 @@ class ApiClient {
     const authToken = storage.getItem('auth_token');
     if (authToken) return authToken;
 
-    // Then try the 'auth' object format (used by OAuth completion)
-    const authData = storage.getItem('auth');
-    if (authData) {
-      try {
-        const parsed = JSON.parse(authData);
-        if (parsed.accessToken) return parsed.accessToken;
-      } catch {
-        // Invalid JSON, ignore
-      }
-    }
+
 
     // Fallback to cookies
     const cookies = document.cookie.split(';');
@@ -723,7 +682,7 @@ class ApiClient {
 
     const storage = this.getStorage();
     storage.removeItem('auth_token');
-    storage.removeItem('auth'); // Also clear OAuth-style auth object
+    storage.removeItem('auth_token');
     document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
   }
 
@@ -1093,11 +1052,7 @@ class ApiClient {
 
   // Get current authentication token
   getAuthToken(): string | null {
-    // CRITICAL: During OAuth setup, don't return any token to prevent bypass
-    // This ensures users must complete password verification before gaining access
-    if (typeof window !== 'undefined' && sessionStorage.getItem('oauth_setup_in_progress') === 'true') {
-      return null;
-    }
+
     return this.getToken();
   }
 
@@ -1539,6 +1494,16 @@ class ApiClient {
     const idempotencyKey = generateIdempotencyKey('trackShareDownload', shareId);
     const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/shares/${shareId}/download`, {
+      method: 'POST',
+      headers,
+    });
+  }
+
+  async trackShareView(shareId: string): Promise<ApiResponse<{ success: boolean; views: number }>> {
+    // Use shareId as unique intent (tracking view for same share)
+    const idempotencyKey = generateIdempotencyKey('trackShareView', shareId);
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request(`/shares/${shareId}/view`, {
       method: 'POST',
       headers,
     });
@@ -2353,51 +2318,7 @@ class ApiClient {
     });
   }
 
-  // OAuth endpoints
-  async getGoogleOAuthUrl(referralCode?: string): Promise<ApiResponse<{
-    authUrl: string;
-  }>> {
-    const params = referralCode ? `?referralCode=${encodeURIComponent(referralCode)}` : '';
-    return this.request(`/auth/oauth/google/url${params}`, {
-      method: 'GET',
-    });
-  }
 
-  async handleGoogleOAuthCallback(code: string, state: string): Promise<ApiResponse<{
-    token: string;
-    user: {
-      id: string;
-      email: string;
-      has_account_salt: boolean;
-    };
-  }>> {
-    return this.request(`/auth/oauth/google/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`, {
-      method: 'GET',
-    });
-  }
-
-  async completeOAuthRegistration(data: {
-    accountSalt: string;
-    pqcKeypairs?: OAuthPQCKeypairs;
-    mnemonicHash?: string;
-    encryptedRecoveryKey?: string;
-    recoveryKeyNonce?: string;
-    encryptedMasterKey?: string;
-    masterKeySalt?: string;
-    algorithmVersion?: string;
-    opaquePasswordFile?: string;
-  }): Promise<ApiResponse<{
-    success: boolean;
-    message?: string;
-  }>> {
-    const idempotencyKey = generateIdempotencyKey('completeOAuthRegistration', 'current');
-    const headers = addIdempotencyKey({}, idempotencyKey);
-    return this.request('/auth/oauth/complete-registration', {
-      method: 'POST',
-      body: JSON.stringify(data),
-      headers,
-    });
-  }
 
   // Device Authorization
   async authorizeDevice(publicKey: string): Promise<ApiResponse<{

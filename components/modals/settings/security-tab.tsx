@@ -194,20 +194,7 @@ export function SecurityTab(props: SecurityTabProps) {
         <div className="space-y-6">
             <h2 className="text-xl font-semibold">Security</h2>
 
-            {/* Wallet User Notice */}
-            {(user?.email?.endsWith('@wallet.local') || user?.authMethod === 'wallet') && (
-                <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                    <div className="flex items-start gap-3">
-                        <Shield className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-                        <div>
-                            <h3 className="font-medium text-blue-900 dark:text-blue-100">MetaMask Authentication</h3>
-                            <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-                                You are authenticated via MetaMask wallet. Email, password, and two-factor authentication settings are managed through your wallet and cannot be modified here.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            )}
+
 
             {/* Change Email Section */}
             <div className="flex items-center justify-between">
@@ -222,7 +209,6 @@ export function SecurityTab(props: SecurityTabProps) {
                     variant="outline"
                     size="sm"
                     onClick={() => setShowEmailModal(true)}
-                    disabled={user?.email?.endsWith('@wallet.local') || user?.authMethod === 'wallet'}
                 >
                     Change
                 </Button>
@@ -241,7 +227,6 @@ export function SecurityTab(props: SecurityTabProps) {
                     variant="outline"
                     size="sm"
                     onClick={() => setShowPasswordModal(true)}
-                    disabled={user?.email?.endsWith('@wallet.local') || user?.authMethod === 'wallet'}
                 >
                     Change
                 </Button>
@@ -263,7 +248,7 @@ export function SecurityTab(props: SecurityTabProps) {
                         variant="outline"
                         size="sm"
                         onClick={() => setShowTOTPDisable(true)}
-                        disabled={isLoadingTOTP || user?.email?.endsWith('@wallet.local') || user?.authMethod === 'wallet'}
+                        disabled={isLoadingTOTP}
                     >
                         {isLoadingTOTP ? (
                             <>
@@ -279,7 +264,7 @@ export function SecurityTab(props: SecurityTabProps) {
                         variant="outline"
                         size="sm"
                         onClick={handleTOTPSetup}
-                        disabled={isLoadingTOTP || user?.email?.endsWith('@wallet.local') || user?.authMethod === 'wallet'}
+                        disabled={isLoadingTOTP}
                     >
                         {isLoadingTOTP ? (
                             <>

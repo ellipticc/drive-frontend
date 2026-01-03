@@ -16,7 +16,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useState, useEffect } from "react"
 import { apiClient } from "@/lib/api"
 import { IconLoader2 as Loader2 } from "@tabler/icons-react"
-import { GoogleOAuthButton } from "./google-oauth-button"
+
 import { sessionTrackingUtils } from "@/hooks/useSessionTracking"
 import { initializeDeviceKeys } from "@/lib/device-keys"
 
@@ -325,12 +325,7 @@ export function SignupFormAuth({
               Enter your email below to create your account
             </p>
           </div>
-          <Field className="-mt-4">
-            <GoogleOAuthButton context="register" />
-          </Field>
-          <FieldSeparator>
-            Or continue with email
-          </FieldSeparator>
+
           <Field>
             <FieldLabel htmlFor="email">Email</FieldLabel>
             <Input

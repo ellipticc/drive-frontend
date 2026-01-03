@@ -15,7 +15,6 @@ import {
     IconLoader2,
     IconInfoCircle,
     IconRefresh,
-    IconWallet,
     IconDownload,
     IconChevronLeft,
     IconChevronRight,

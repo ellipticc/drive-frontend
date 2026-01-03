@@ -176,6 +176,9 @@ export default function SharedDownloadPage() {
         throw new Error('This share link has reached its maximum view limit');
       }
 
+      // Track view
+      apiClient.trackShareView(shareId).catch(err => console.warn('Failed to track view:', err));
+
       if (share.has_password) {
         setPasswordVerified(false);
         // Stop loading here to show password prompt

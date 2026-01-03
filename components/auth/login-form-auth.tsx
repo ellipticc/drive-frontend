@@ -20,7 +20,7 @@ import { apiClient } from "@/lib/api"
 import { masterKeyManager } from "@/lib/master-key"
 import { keyManager } from "@/lib/key-manager"
 import { IconLoader2 as Loader2 } from "@tabler/icons-react"
-import { GoogleOAuthButton } from "./google-oauth-button"
+
 import { useSessionTracking, sessionTrackingUtils } from "@/hooks/useSessionTracking"
 import { initializeDeviceKeys } from "@/lib/device-keys"
 
@@ -395,12 +395,7 @@ export function LoginFormAuth({
               Login with your email and password
             </p>
           </div>
-          <Field className="-mt-4">
-            <GoogleOAuthButton />
-          </Field>
-          <FieldSeparator>
-            Or continue with email
-          </FieldSeparator>
+
           <Field>
             <FieldLabel htmlFor="email">Email</FieldLabel>
             <Input
