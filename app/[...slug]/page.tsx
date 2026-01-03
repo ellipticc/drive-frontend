@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from "react"
+import { useSearchParams } from "next/navigation"
 import { SectionCards } from "@/components/shared/section-cards"
 import { SiteHeader } from "@/components/layout/header/site-header"
 import { Table01DividerLineSm } from "@/components/tables/files-table"
@@ -22,6 +23,7 @@ export default function Home() {
   // folders can be FileList (from input) or File[] (from drag & drop) - both preserve webkitRelativePath
   const [isDragOverlayVisible, setIsDragOverlayVisible] = useState(false)
   const [droppedFiles, setDroppedFiles] = useState<{ files: File[], folders: FileList | File[] | null } | null>(null)
+  const searchParams = useSearchParams()
 
   useEffect(() => {
     document.title = "My Files - Ellipticc Drive"
@@ -94,6 +96,9 @@ export default function Home() {
     let dragCounter = 0
 
     const handleGlobalDragEnter = (e: DragEvent) => {
+      // Disable drag overlay if preview modal is open
+      if (searchParams.get('preview')) return;
+
       if (e.dataTransfer?.types.includes('Files')) {
         dragCounter++
         setIsDragOverlayVisible(true)
@@ -115,16 +120,35 @@ export default function Home() {
       setIsDragOverlayVisible(false)
     }
 
+    const handleGlobalDragOver = (e: DragEvent) => {
+      if (searchParams.get('preview')) {
+        e.preventDefault()
+        e.stopPropagation()
+        if (e.dataTransfer) e.dataTransfer.dropEffect = 'none'
+      }
+    }
+
+    const handleGlobalDrop = (e: DragEvent) => {
+      if (searchParams.get('preview')) {
+        e.preventDefault()
+        e.stopPropagation()
+      }
+    }
+
     document.addEventListener('dragenter', handleGlobalDragEnter)
     document.addEventListener('dragleave', handleGlobalDragLeave)
+    document.addEventListener('dragover', handleGlobalDragOver)
+    document.addEventListener('drop', handleGlobalDrop, true)
     window.addEventListener('dragend', handleGlobalDragEnd)
 
     return () => {
       document.removeEventListener('dragenter', handleGlobalDragEnter)
       document.removeEventListener('dragleave', handleGlobalDragLeave)
+      document.removeEventListener('dragover', handleGlobalDragOver)
+      document.removeEventListener('drop', handleGlobalDrop, true)
       window.removeEventListener('dragend', handleGlobalDragEnd)
     }
-  }, [])
+  }, [searchParams])
 
   const handleSearch = (query: string) => {
     setSearchQuery(query)
@@ -132,11 +156,17 @@ export default function Home() {
 
   return (
     <SidebarInset
-      onDragEnter={() => setIsDragOverlayVisible(true)}
+      onDragEnter={(e) => {
+        if (!searchParams.get('preview')) {
+          setIsDragOverlayVisible(true)
+        }
+      }}
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => {
         e.preventDefault()
-        handleDrop(e.dataTransfer.files)
+        if (!searchParams.get('preview')) {
+          handleDrop(e.dataTransfer.files)
+        }
       }}
     >
       <SiteHeader

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react"
+import { useSearchParams } from "next/navigation"
 import { SiteHeader } from "@/components/layout/header/site-header"
 import { Table01DividerLineSm } from "@/components/tables/files-table"
 import { DragDropOverlay } from "@/components/drag-drop-overlay"
@@ -22,6 +23,7 @@ export default function Home() {
   const [isDragOverlayVisible, setIsDragOverlayVisible] = useState(false)
   // folders can be FileList (from input) or File[] (from drag & drop) - both preserve webkitRelativePath
   const [droppedFiles, setDroppedFiles] = useState<{ files: File[], folders: FileList | File[] | null } | null>(null)
+  const searchParams = useSearchParams()
 
   // Set page title
   useLayoutEffect(() => {
@@ -84,6 +86,9 @@ export default function Home() {
     let dragCounter = 0
 
     const handleGlobalDragEnter = (e: DragEvent) => {
+      // Disable drag overlay if preview modal is open
+      if (searchParams.get('preview')) return;
+
       if (e.dataTransfer?.types.includes('Files')) {
         dragCounter++
         setIsDragOverlayVisible(true)
@@ -105,16 +110,35 @@ export default function Home() {
       setIsDragOverlayVisible(false)
     }
 
+    const handleGlobalDragOver = (e: DragEvent) => {
+      if (searchParams.get('preview')) {
+        e.preventDefault()
+        e.stopPropagation()
+        if (e.dataTransfer) e.dataTransfer.dropEffect = 'none'
+      }
+    }
+
+    const handleGlobalDrop = (e: DragEvent) => {
+      if (searchParams.get('preview')) {
+        e.preventDefault()
+        e.stopPropagation()
+      }
+    }
+
     document.addEventListener('dragenter', handleGlobalDragEnter)
     document.addEventListener('dragleave', handleGlobalDragLeave)
+    document.addEventListener('dragover', handleGlobalDragOver)
+    document.addEventListener('drop', handleGlobalDrop, true) // Capture to block everything
     window.addEventListener('dragend', handleGlobalDragEnd)
 
     return () => {
       document.removeEventListener('dragenter', handleGlobalDragEnter)
       document.removeEventListener('dragleave', handleGlobalDragLeave)
+      document.removeEventListener('dragover', handleGlobalDragOver)
+      document.removeEventListener('drop', handleGlobalDrop, true)
       window.removeEventListener('dragend', handleGlobalDragEnd)
     }
-  }, [])
+  }, [searchParams])
 
   const handleSearch = (query: string) => {
     setSearchQuery(query)
