@@ -1,101 +1,166 @@
-/**
- * File Upload Worker
- * Handles parallel encryption and hashing of file chunks
- * Offloads CPU-intensive crypto operations to background thread
- */
+/// <reference lib="webworker" />
 
-import { encryptData, uint8ArrayToHex } from '../crypto';
+// Encryption dependencies
+import { xchacha20poly1305 } from '@noble/ciphers/chacha';
 import { createBLAKE3 } from 'hash-wasm';
 
-interface ChunkProcessingJob {
-  jobId: string;
-  chunkData: Uint8Array;
-  chunkIndex: number;
-  cekHex: string; // CEK as hex string for transfer
-}
+// Hashing dependencies
+import { sha512 } from '@noble/hashes/sha2';
 
-interface ChunkProcessingResult {
-  jobId: string;
-  chunkIndex: number;
-  encryptedData: ArrayBuffer;
-  nonce: string;
-  blake3Hash: string;
-  error?: string;
-}
+// -----------------------------------------------------------------------------
+// Message Types
+// -----------------------------------------------------------------------------
 
-// Initialize BLAKE3 hasher once
-interface Blake3Hasher {
-  update(data: Uint8Array): void;
-  digest(): Uint8Array | number[];
-}
+type WorkerMessage =
+  | { type: 'hash_file'; id: string; file: File }
+  | { type: 'process_chunk'; id: string; chunk: Uint8Array; key: Uint8Array; index: number };
 
-let blake3Hasher: Blake3Hasher | null = null;
+// -----------------------------------------------------------------------------
+// Helper Functions
+// -----------------------------------------------------------------------------
 
-async function initializeBlake3() {
-  if (!blake3Hasher) {
-    blake3Hasher = await createBLAKE3() as unknown as Blake3Hasher;
+function uint8ArrayToBase64(array: Uint8Array): string {
+  const CHUNK_SIZE = 8192;
+  let result = '';
+  for (let i = 0; i < array.length; i += CHUNK_SIZE) {
+    const chunk = array.subarray(i, i + CHUNK_SIZE);
+    result += String.fromCharCode.apply(null, Array.from(chunk));
   }
+  return btoa(result);
 }
 
-/**
- * Compute BLAKE3 hash of data
- */
-async function computeBLAKE3Hash(data: Uint8Array): Promise<string> {
-  await initializeBlake3();
-  if (!blake3Hasher) throw new Error('BLAKE3 hasher not available');
-  blake3Hasher.update(data);
-  const hashArray = blake3Hasher.digest();
-  return uint8ArrayToHex(new Uint8Array(hashArray));
-}
-
-/**
- * Helper to convert hex string back to Uint8Array
- */
-function hexToUint8Array(hex: string): Uint8Array {
-  const bytes = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < hex.length; i += 2) {
-    bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
+function encryptChunk(data: Uint8Array, key: Uint8Array): { encryptedData: Uint8Array; nonce: Uint8Array } {
+  // Pad if < 16 bytes
+  let dataToEncrypt = data;
+  if (data.length < 16) {
+    dataToEncrypt = new Uint8Array(17);
+    dataToEncrypt[0] = data.length;
+    dataToEncrypt.set(data, 1);
+    dataToEncrypt.fill(0, 1 + data.length);
   }
-  return bytes;
+
+  const nonce = new Uint8Array(24);
+  crypto.getRandomValues(nonce);
+
+  const encrypted = xchacha20poly1305(key, nonce).encrypt(dataToEncrypt);
+  return { encryptedData: encrypted, nonce };
 }
 
-/**
- * Process a chunk: encrypt and hash
- */
-async function processChunk(job: ChunkProcessingJob): Promise<ChunkProcessingResult> {
+// Simple Gzip compression using CompressionStream if available
+async function compressData(data: Uint8Array): Promise<{ data: Uint8Array, isCompressed: boolean, algorithm: string, ratio: number }> {
   try {
-    const cek = hexToUint8Array(job.cekHex);
-    
-    // Encrypt the chunk
-    const { encryptedData, nonce } = encryptData(job.chunkData, cek);
-    const encryptedBytes = Uint8Array.from(atob(encryptedData), c => c.charCodeAt(0));
+    if (typeof CompressionStream !== 'undefined') {
 
-    // Compute BLAKE3 hash of encrypted data
-    const blake3Hash = await computeBLAKE3Hash(encryptedBytes);
+      const stream = new CompressionStream('gzip');
+      const writer = stream.writable.getWriter();
+      const writerPromise = writer.write(data as unknown as BufferSource).then(() => writer.close());
 
-    return {
-      jobId: job.jobId,
-      chunkIndex: job.chunkIndex,
-      encryptedData: encryptedBytes.buffer,
-      nonce,
-      blake3Hash
-    };
-  } catch (error) {
-    return {
-      jobId: job.jobId,
-      chunkIndex: job.chunkIndex,
-      encryptedData: new ArrayBuffer(0),
-      nonce: '',
-      blake3Hash: '',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    };
+      const chunks: Uint8Array[] = [];
+      const reader = stream.readable.getReader();
+      let totalLength = 0;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (value) {
+          chunks.push(value);
+          totalLength += value.length;
+        }
+      }
+
+      await writerPromise;
+
+      const result = new Uint8Array(totalLength);
+      let offset = 0;
+      for (const chunk of chunks) {
+        result.set(chunk, offset);
+        offset += chunk.length;
+      }
+
+      // Check if compression was worth it
+      const ratio = result.length / data.length;
+      if (ratio < 0.92) {
+        return { data: result, isCompressed: true, algorithm: 'gzip', ratio };
+      }
+    }
+  } catch (e) {
+    // Fallback or error
   }
+
+  return { data, isCompressed: false, algorithm: 'none', ratio: 1.0 };
 }
 
-// Handle messages from main thread
-self.onmessage = async (event: MessageEvent<ChunkProcessingJob>) => {
-  const result = await processChunk(event.data);
-  
-  // Send result back to main thread with transferable ArrayBuffer
-  (self as unknown as { postMessage: (data: unknown, transfer?: Transferable[]) => void }).postMessage(result, [result.encryptedData]);
+
+// -----------------------------------------------------------------------------
+// Message Handler
+// -----------------------------------------------------------------------------
+
+self.onmessage = async (e: MessageEvent) => {
+  const { type, id } = e.data;
+
+  try {
+    if (type === 'hash_file') {
+      const file = e.data.file; // Cast or assume File
+      const hasher = await createBLAKE3();
+      hasher.init();
+
+      const chunkSize = 4 * 1024 * 1024; // 4MB
+      // @ts-ignore - FileReaderSync is available in Worker
+      const reader = new FileReaderSync();
+
+      // Read file in chunks
+      for (let offset = 0; offset < file.size; offset += chunkSize) {
+        const slice = file.slice(offset, Math.min(offset + chunkSize, file.size));
+        const buffer = reader.readAsArrayBuffer(slice);
+        hasher.update(new Uint8Array(buffer));
+      }
+
+      const hashHex = hasher.digest('hex');
+      self.postMessage({ id, success: true, result: hashHex });
+
+    } else if (type === 'process_chunk') {
+      const { chunk, key, index } = e.data;
+
+      // 1. Compress
+      const compressionDesc = await compressData(chunk);
+
+      // 2. Encrypt
+      const { encryptedData, nonce } = encryptChunk(compressionDesc.data, key);
+
+      // 3. Hash (BLAKE3)
+      const blake3 = await createBLAKE3();
+      blake3.init();
+      blake3.update(encryptedData);
+      const hashHex = blake3.digest('hex');
+
+      const nonceB64 = uint8ArrayToBase64(nonce);
+
+      // Compress metadata
+      const compressionMeta = {
+        isCompressed: compressionDesc.isCompressed,
+        algorithm: compressionDesc.algorithm,
+        originalSize: chunk.length,
+        compressedSize: compressionDesc.data.length,
+        ratio: compressionDesc.ratio
+      };
+
+      self.postMessage({
+        id,
+        success: true,
+        result: {
+          encryptedData,
+          nonce: nonceB64,
+          hash: hashHex,
+          index,
+          compression: compressionMeta
+        }
+      }, [encryptedData.buffer]); // Transfer encrypted data
+    }
+  } catch (err) {
+    self.postMessage({
+      id,
+      success: false,
+      error: err instanceof Error ? err.message : String(err)
+    });
+  }
 };

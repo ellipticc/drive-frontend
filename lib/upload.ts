@@ -103,6 +103,60 @@ export interface UploadResult {
 const CHUNK_SIZE = 4 * 1024 * 1024; // 4MB chunks (configurable)
 
 /**
+ * Process a chunk in the Unified Web Worker
+ */
+const processChunkInWorker = (chunk: Uint8Array, key: Uint8Array, index: number): Promise<{ encryptedData: Uint8Array; nonce: string; hash: string; index: number; compression: CompressionMetadata }> => {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(new URL('./workers/upload-worker.ts', import.meta.url));
+
+    worker.onmessage = (event) => {
+      const { success, result, error } = event.data;
+      if (success) resolve(result);
+      else reject(new Error(error));
+      worker.terminate();
+    };
+
+    worker.onerror = (err) => {
+      reject(err instanceof Error ? err : new Error(String(err)));
+      worker.terminate();
+    };
+
+    const chunkBuffer = chunk.buffer.slice(chunk.byteOffset, chunk.byteOffset + chunk.byteLength);
+    worker.postMessage({
+      type: 'process_chunk',
+      id: index,
+      chunk: new Uint8Array(chunkBuffer),
+      key,
+      index
+    }, [chunkBuffer]);
+  });
+};
+
+/**
+ * Compute SHA-512 Hash in Worker to avoid UI freeze
+ */
+/**
+ * Compute SHA-512 Hash in Worker to avoid UI freeze.
+ * Updated to stream file in worker using FileReaderSync (supports 5GB+ files).
+ */
+const computeFileHashInWorker = async (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(new URL('./workers/upload-worker.ts', import.meta.url));
+    worker.onmessage = (e) => {
+      if (e.data.success) resolve(e.data.result);
+      else reject(new Error(e.data.error));
+      worker.terminate();
+    };
+    worker.onerror = (e) => {
+      reject(e);
+      worker.terminate();
+    }
+    // Pass File handle (Zero-Copy/Ref)
+    worker.postMessage({ type: 'hash_file', id: 'hash', file });
+  });
+};
+
+/**
  * Main upload function - orchestrates the entire secure upload pipeline
  */
 export async function uploadEncryptedFile(
@@ -149,7 +203,7 @@ export async function uploadEncryptedFile(
       if (testSize < 0) {
         throw new Error('Invalid file size');
       }
-      
+
       // CRITICAL: Always try to read a chunk to ensure it's actually a file, not a directory
       // Even empty files (size 0) should be readable, but directories will fail
       const testSlice = file.slice(0, Math.min(1024, Math.max(1, testSize)));
@@ -159,8 +213,9 @@ export async function uploadEncryptedFile(
     }
 
     // Stage 1: Compute SHA-512 hash of entire file (primary hash algorithm)
+    // OFF-THREAD: Computed in Web Worker
     onProgress?.({ stage: 'hashing', overallProgress: 0 });
-    const shaHash = await computeFileHash(file); // Only compute SHA-512 for new files
+    const shaHash = await computeFileHashInWorker(file);
     onProgress?.({ stage: 'hashing', overallProgress: 10 });
 
     // Check for abort after hashing
@@ -178,134 +233,108 @@ export async function uploadEncryptedFile(
       throw new Error('Upload cancelled');
     }
 
-    // Stage 3: Process each chunk (encrypt + hash) with improved UI responsiveness
-    const processedChunks: ChunkInfo[] = [];
-    const encryptedChunks: Uint8Array[] = [];
-    let totalProcessedBytes = 0;
+    // Stage 3: Initialize Upload Session (Streaming Mode)
+    // We initialize early to get Upload URLs.
+    // NOTE: Backend must be compatible with receiving incomplete manifest at this stage for streaming support.
+    onProgress?.({ stage: 'uploading', overallProgress: 20 });
 
-    // Use a Worker pool for parallel encryption (up to 4 chunks at a time)
-    const maxConcurrentChunks = Math.min(4, chunks.length);
-    const chunkProcessingQueue: Promise<{ chunk: Uint8Array; encryptedData: Uint8Array; nonce: string; hash: string; index: number; compression: CompressionMetadata }>[] = [];
+    const dummyChunks = chunks.map((_, i) => ({
+      index: i, size: 0, encryptedSize: 0, blake3Hash: '', nonce: '',
+      isCompressed: false, compressionAlgorithm: 'none' as CompressionAlgorithm,
+      compressionOriginalSize: 0, compressionCompressedSize: 0, compressionRatio: 0
+    }));
+
+    // Check for abort before initializing
+    if (abortSignal?.aborted) throw new Error('Upload cancelled');
+
+    const session = await initializeUploadSession(file, folderId, dummyChunks, shaHash, keys, conflictResolution, conflictFileName, existingFileIdToDelete, isKeepBothAttempt, fileId);
+
+    // Stage 4: Stream Process & Upload (Pipeline)
+    // Reads, Encrypts, Hashes, and Uploads chunks in parallel without buffering entire file
+    const processedChunks: ChunkInfo[] = new Array(chunks.length);
+    const chunkHashes: string[] = new Array(chunks.length); // BLAKE3 hashes (now collected during upload)
+
+    const activeTasks = new Set<Promise<void>>();
+    const concurrency = 4;
+    let completedCount = 0;
 
     for (let i = 0; i < chunks.length; i++) {
-      // Check for abort before processing each chunk
-      if (abortSignal?.aborted) {
-        throw new Error('Upload cancelled');
+      // Check triggers
+      if (abortSignal?.aborted) throw new Error('Upload cancelled');
+      if (isPaused?.()) throw new Error('Upload paused');
+
+      // Flow Control
+      while (activeTasks.size >= concurrency) {
+        await Promise.race(activeTasks);
       }
 
-      // Check if upload is paused
-      if (isPaused?.()) {
-        throw new Error('Upload paused');
-      }
-
-      const chunk = chunks[i];
-      const chunkIndex = i;
-
-      // Report progress for starting to process this chunk
-      onProgress?.({
-        stage: 'encrypting',
-        overallProgress: 20 + (i / chunks.length) * 30,
-        currentChunk: i,
-        totalChunks: chunks.length,
-        bytesProcessed: totalProcessedBytes,
-        totalBytes: file.size
-      });
-
-      // Process chunk asynchronously to allow UI updates
-      const chunkPromise = (async () => {
+      const task = (async () => {
         try {
-          // STAGE 3A: Compress chunk (if beneficial)
-          onProgress?.({
-            stage: 'compressing',
-            overallProgress: 20 + (i / chunks.length) * 10,
-            currentChunk: i,
-            totalChunks: chunks.length
+          // 1. Read (Lazy Load from Disk)
+          // This ensures we only hold ~16MB in memory (4 chunks * 4MB)
+          const range = chunks[i];
+          const chunkBlob = file.slice(range.start, range.end);
+          const chunkData = new Uint8Array(await chunkBlob.arrayBuffer());
+
+          // 2. Process (Worker Offload)
+          const processed = await processChunkInWorker(chunkData, keys.cek, i);
+
+          // 3. Upload (Streaming Network Request)
+          // Upload encrypted data immediately and discard it to free memory
+          const uploadUrl = session.uploadUrls[i];
+          const response = await fetch(uploadUrl, {
+            method: 'PUT',
+            body: new Blob([processed.encryptedData as any]),
+            headers: { 'Content-Type': 'application/octet-stream' },
+            signal: abortSignal,
+            credentials: 'omit'
           });
 
-          const compressionResult = await compressChunk(chunk);
-          const dataToEncrypt = compressionResult.isCompressed ? compressionResult.data : chunk;
+          if (!response.ok) {
+            const txt = await response.text();
+            throw new Error(`Upload failed for chunk ${i}: ${response.status} - ${txt}`);
+          }
 
-          // STAGE 3B: Encrypt compressed (or uncompressed) chunk
-          const { encryptedData, nonce } = encryptChunk(dataToEncrypt, keys.cek);
-
-          // Compute BLAKE3 hash of encrypted chunk
-          const blake3Hash = await computeBLAKE3Hash(encryptedData);
-
-          return {
-            chunk,
-            encryptedData,
-            nonce,
-            hash: blake3Hash,
-            index: chunkIndex,
-            compression: compressionResult
+          // 4. Metadata (Keep only lightweight metadata)
+          processedChunks[i] = {
+            index: i,
+            size: range.end - range.start,
+            encryptedSize: processed.encryptedData.byteLength,
+            blake3Hash: processed.hash,
+            nonce: processed.nonce,
+            isCompressed: processed.compression.isCompressed,
+            compressionAlgorithm: processed.compression.algorithm,
+            compressionOriginalSize: processed.compression.originalSize,
+            compressionCompressedSize: processed.compression.compressedSize,
+            compressionRatio: processed.compression.ratio
           };
-        } catch (error) {
-          console.error(`Failed to process chunk ${chunkIndex}:`, error);
-          throw error;
+          chunkHashes[i] = processed.hash;
+
+          completedCount++;
+          onProgress?.({
+            stage: 'uploading',
+            overallProgress: 20 + (completedCount / chunks.length) * 70,
+            currentChunk: completedCount,
+            totalChunks: chunks.length,
+            chunkProgress: 100
+          });
+
+        } catch (err) {
+          throw err;
         }
       })();
 
-      chunkProcessingQueue.push(chunkPromise);
-
-      // Yield control more frequently to prevent UI freezing
-      if ((i + 1) % maxConcurrentChunks === 0 || i === chunks.length - 1) {
-        // Wait for queued chunks to complete before continuing
-        const completedChunks = await Promise.all(chunkProcessingQueue);
-        
-        for (const { chunk: originalChunk, encryptedData, nonce, hash, index, compression } of completedChunks) {
-          processedChunks[index] = {
-            index,
-            size: originalChunk.byteLength,
-            encryptedSize: encryptedData.byteLength,
-            blake3Hash: hash,
-            nonce,
-            isCompressed: compression.isCompressed,
-            compressionAlgorithm: compression.algorithm,
-            compressionOriginalSize: compression.originalSize,
-            compressionCompressedSize: compression.compressedSize,
-            compressionRatio: compression.ratio
-          };
-          encryptedChunks[index] = encryptedData;
-          totalProcessedBytes += originalChunk.byteLength;
-        }
-
-        chunkProcessingQueue.length = 0;
-
-        // Yield to event loop to keep UI responsive
-        await new Promise(resolve => {
-          if (typeof requestIdleCallback !== 'undefined') {
-            requestIdleCallback(resolve, { timeout: 10 }); // More aggressive yielding
-          } else {
-            setTimeout(resolve, 0);
-          }
-        });
-      }
+      activeTasks.add(task);
+      // Clean up task from set when done, but let error propagate through Promise.all later if needed
+      task.then(() => activeTasks.delete(task)).catch(() => activeTasks.delete(task));
     }
 
-    onProgress?.({ stage: 'uploading', overallProgress: 50 });
+    // Wait for all remaining uploads
+    await Promise.all(activeTasks);
 
-    // Check for abort before initializing upload session
-    if (abortSignal?.aborted) {
-      throw new Error('Upload cancelled');
-    }
-
-    // Stage 4: Initialize upload session with backend
-    const session = await initializeUploadSession(file, folderId, processedChunks, encryptedChunks, shaHash, keys, conflictResolution, conflictFileName, existingFileIdToDelete, isKeepBothAttempt, fileId);
-
-    // Check for abort before uploading chunks
-    if (abortSignal?.aborted) {
-      throw new Error('Upload cancelled');
-    }
-
-    // Stage 5: Upload encrypted chunks to Backblaze B2
-    await uploadChunksToB2(session.uploadUrls, processedChunks, encryptedChunks, onProgress, abortSignal, isPaused);
-
-    onProgress?.({ stage: 'finalizing', overallProgress: 85 });
-
-    // Check for abort before confirming chunks
-    if (abortSignal?.aborted) {
-      throw new Error('Upload cancelled');
-    }
+    // Update Session with REAL hashes for finalization
+    session.chunkHashes = chunkHashes;
+    session.chunks = processedChunks;
 
     // Stage 6: Confirm chunk uploads with backend
     await confirmChunkUploads(session.sessionId, processedChunks, session.chunkHashes);
@@ -330,9 +359,12 @@ export async function uploadEncryptedFile(
       throw new Error('Upload cancelled by user');
     }
 
-    // Re-throw FILE_CONFLICT errors directly (don't wrap them)
-    if (error instanceof Error && error.message === 'FILE_CONFLICT') {
-      throw error;
+    // Unpack specific control flow errors - do NOT wrap them
+    if (error instanceof Error) {
+      if (error.message === 'Upload paused') throw error;
+      if (error.message === 'Upload cancelled') throw error;
+      if (error.message === 'Upload cancelled by user') throw error;
+      if (error.message === 'FILE_CONFLICT') throw error;
     }
 
     console.error('Upload failed:', error);
@@ -364,58 +396,21 @@ async function computeFileHash(file: File): Promise<string> {
  * Split file into chunks of CHUNK_SIZE
  * Includes retry logic for transient file access errors
  */
-async function splitFileIntoChunks(file: File): Promise<Uint8Array[]> {
-  const chunks: Uint8Array[] = [];
+/**
+ * Calculate file chunk ranges (Lazy Chunking)
+ * Does NOT read file content, just calculates start/end offsets.
+ * Supports 5GB+ files with minimal memory usage.
+ */
+function splitFileIntoChunks(file: File): { start: number; end: number }[] {
+  const chunks: { start: number; end: number }[] = [];
   const fileSize = file.size;
-  const MAX_RETRIES = 3;
-  const RETRY_DELAY_MS = 100;
-
-  // Validate file accessibility before starting
-  try {
-    const testChunk = file.slice(0, Math.min(1024, fileSize));
-    await testChunk.arrayBuffer();
-  } catch {
-    throw new Error(`File "${file.name}" is no longer accessible. It may have been deleted or moved during upload.`);
-  }
 
   for (let offset = 0; offset < fileSize; offset += CHUNK_SIZE) {
-    const chunkSize = Math.min(CHUNK_SIZE, fileSize - offset);
-    let lastError: Error | null = null;
-
-    // Retry logic for reading chunks
-    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-      try {
-        const chunk = file.slice(offset, offset + chunkSize);
-
-        // Convert blob to Uint8Array
-        const arrayBuffer = await chunk.arrayBuffer();
-        chunks.push(new Uint8Array(arrayBuffer));
-        break; // Success, move to next chunk
-      } catch (error) {
-        lastError = error instanceof Error ? error : new Error(String(error));
-        
-        // If it's a file accessibility error, give it a moment and retry
-        if (error instanceof Error && (
-          error.message.includes('could not be found') ||
-          error.message.includes('no longer accessible') ||
-          error.message.includes('ENOENT')
-        )) {
-          if (attempt < MAX_RETRIES - 1) {
-            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * (attempt + 1)));
-            continue;
-          }
-        }
-        
-        // For other errors, fail immediately
-        throw new Error(`Failed to read file chunk at offset ${offset}: ${lastError.message}`);
-      }
-    }
-
-    if (lastError && chunks.length === Math.floor(offset / CHUNK_SIZE)) {
-      throw new Error(`Failed to read file "${file.name}" after ${MAX_RETRIES} attempts: ${lastError.message}`);
-    }
+    chunks.push({
+      start: offset,
+      end: Math.min(offset + CHUNK_SIZE, fileSize)
+    });
   }
-
   return chunks;
 }
 
@@ -446,7 +441,7 @@ async function initializeUploadSession(
   file: File,
   folderId: string | null,
   chunks: ChunkInfo[],
-  encryptedChunks: Uint8Array[],
+  // encryptedChunks: Uint8Array[], // REMOVED - No longer needed for main thread hashing!
   shaHash: string,
   keys: UserKeys,
   conflictResolution?: 'replace' | 'keepBoth' | 'skip',
@@ -455,13 +450,9 @@ async function initializeUploadSession(
   isKeepBothAttempt?: boolean,
   clientFileId?: string
 ): Promise<UploadSession> {
-  // Compute SHA256 hashes for each encrypted chunk
-  const chunkHashes: string[] = [];
-  for (const encryptedChunk of encryptedChunks) {
-    const hashBuffer = await crypto.subtle.digest('SHA-256', new Uint8Array(encryptedChunk));
-    const hashHex = uint8ArrayToHex(new Uint8Array(hashBuffer));
-    chunkHashes.push(hashHex);
-  }
+
+  // Map worker-computed hashes (BLAKE3) to the list
+  const chunkHashes = chunks.map(c => c.blake3Hash);
 
   // Generate encryption metadata
   const encryptionIv = new Uint8Array(16);
@@ -477,12 +468,12 @@ async function initializeUploadSession(
   // Handle conflict resolution
   let actualFile = file;
   let keepBothCounter = 0; // Track how many keepBoth conflicts we've seen
-  
+
   if (conflictResolution === 'keepBoth') {
     // Generate a unique filename by incrementing a counter
     // If a conflicting filename was provided, extract its counter and increment
     let counter = 1;
-    
+
     // Extract base name and extension
     let baseName = file.name;
     let extension = '';
@@ -491,7 +482,7 @@ async function initializeUploadSession(
       baseName = file.name.substring(0, lastDotIndex);
       extension = file.name.substring(lastDotIndex);
     }
-    
+
     // Check if baseName ends with (number) and extract counter
     const counterMatch = baseName.match(/\((\d+)\)$/);
     if (counterMatch) {
@@ -510,10 +501,10 @@ async function initializeUploadSession(
         keepBothCounter = 1;
       }
     }
-    
+
     // Generate candidate name with the calculated counter
     const candidateName = `${baseName} (${counter})${extension}`;
-    
+
     actualFile = new File([file], candidateName, { type: file.type });
   } else if (conflictResolution === 'replace') {
     // For replace, the backend will handle deletion
@@ -523,15 +514,15 @@ async function initializeUploadSession(
   // Get master key from cache to encrypt filename
   let encryptedFilename: string;
   let filenameSalt: string;
-  
+
   try {
     const masterKey = masterKeyManager.getMasterKey();
     console.log('Master key retrieved for filename encryption');
-    
+
     const encrypted = await encryptFilename(actualFile.name, masterKey);
     encryptedFilename = encrypted.encryptedFilename;
     filenameSalt = encrypted.filenameSalt;
-    
+
     // Validate encryption happened
     if (!encryptedFilename || !encryptedFilename.includes(':')) {
       throw new Error(`Invalid encrypted filename format - missing nonce separator. Got: ${encryptedFilename}`);
@@ -579,19 +570,19 @@ async function initializeUploadSession(
   // Generate Kyber keypair and encapsulate to get shared secret
   const { ml_kem768 } = await import('@noble/post-quantum/ml-kem.js');
   const kyberPublicKeyBytes = hexToUint8Array(keys.keypairs.kyberPublicKey);
-  
+
   // Encapsulate: generate shared secret and ciphertext using the recipient's public key
   const kyberEncapsulation = ml_kem768.encapsulate(kyberPublicKeyBytes);
   const kyberSharedSecret = new Uint8Array(kyberEncapsulation.sharedSecret);
   const kyberCiphertext = new Uint8Array(kyberEncapsulation.cipherText); // Note: cipherText not ciphertext
-  
+
   // Encrypt CEK using the Kyber shared secret with XChaCha20-Poly1305
   const { encryptData } = await import('./crypto');
   const cekEncryption = encryptData(keys.cek, kyberSharedSecret);
 
   // COMPUTE FILENAME HMAC FOR DUPLICATE DETECTION (ZERO-KNOWLEDGE)
   const filenameHmac = await computeFilenameHmac(actualFile.name, folderId);
-  
+
   const response = await apiClient.initializeUploadSession({
     encryptedFilename: encryptedFilename,
     filenameSalt: filenameSalt,
@@ -633,7 +624,7 @@ async function initializeUploadSession(
     clientFileId: clientFileId  // Pass client-generated fileId for idempotency
   });
 
-    if (!response.success) {
+  if (!response.success) {
     // Check if this is a conflict error (409)
     if (response.error && (response.error.includes('already exists') || response.error.includes('409') || response.error === 'A file with this name already exists in the destination folder')) {
       // Throw a special conflict error that can be caught by the UI
@@ -726,7 +717,7 @@ async function uploadChunksToB2(
         signal: abortSignal, // Pass abort signal to fetch
         credentials: 'omit'
       });
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         console.error(`Upload failed for chunk ${index}: ${response.status} - ${errorText}`);

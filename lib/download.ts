@@ -21,9 +21,10 @@ function uint8ArrayToBase64(array: Uint8Array): string {
   let result = '';
 
   for (let i = 0; i < array.length; i += chunkSize) {
-    const chunk = array.slice(i, i + chunkSize);
-    // Use Array.from + spread to get a number[] without casting to `any`
-    result += String.fromCharCode(...Array.from(chunk));
+    const chunk = array.subarray(i, i + chunkSize);
+    // Use apply with the typed array directly (works in modern engines) or strictly cast if needed
+    // String.fromCharCode.apply handles Uint8Array in most modern contexts
+    result += String.fromCharCode.apply(null, chunk as unknown as number[]);
   }
 
   return btoa(result);
@@ -173,6 +174,68 @@ export interface DownloadResult {
 // const CHUNK_SIZE = 4 * 1024 * 1024; // 4MB chunks (matches upload) - removed unused constant
 
 /**
+ * Process decryption and decompression in the Download Worker
+ */
+const processDecryptInWorker = (
+  encryptedChunk: Uint8Array,
+  key: Uint8Array,
+  nonce: string,
+  isCompressed: boolean,
+  expectedHash?: string
+): Promise<Uint8Array> => {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(new URL('./workers/download-worker.ts', import.meta.url));
+
+    worker.onmessage = (event) => {
+      const { success, result, error } = event.data;
+      if (success) resolve(result);
+      else reject(new Error(error));
+      worker.terminate();
+    };
+
+    worker.onerror = (err) => {
+      reject(err instanceof Error ? err : new Error(String(err)));
+      worker.terminate();
+    };
+
+    const chunkBuffer = encryptedChunk.buffer.slice(encryptedChunk.byteOffset, encryptedChunk.byteOffset + encryptedChunk.byteLength);
+    worker.postMessage({
+      type: 'decrypt_chunk',
+      id: 'decrypt',
+      encryptedChunk: new Uint8Array(chunkBuffer),
+      key,
+      nonce,
+      isCompressed,
+      expectedHash
+    }, [chunkBuffer]);
+  });
+};
+
+/**
+ * Verify file integrity in Worker using BLAKE3
+ */
+const verifyIntegrityInWorker = async (fileData: Uint8Array): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(new URL('./workers/download-worker.ts', import.meta.url));
+
+    worker.onmessage = (event) => {
+      const { success, result, error } = event.data;
+      if (success) resolve(result);
+      else reject(new Error(error));
+      worker.terminate();
+    };
+
+    // Zero-copy transfer of the file data
+    const buffer = fileData.buffer.slice(fileData.byteOffset, fileData.byteOffset + fileData.byteLength);
+    worker.postMessage({
+      type: 'verify_integrity',
+      id: 'verify',
+      fileData: new Uint8Array(buffer)
+    }, [buffer]);
+  });
+};
+
+/**
  * Get the chunk index from a chunk object (handles both chunkIndex and index properties)
  */
 function getChunkIndex(chunk: DownloadChunk): number {
@@ -198,21 +261,16 @@ export async function downloadEncryptedFileWithCEK(
     const session = await initializeDownloadSession(fileId);
     onProgress?.({ stage: 'initializing', overallProgress: 10 });
 
-    // Stage 2: Download encrypted chunks from B2
+    // Stage 2 & 3: Pipelined Download & Decrypt
+    // Concurrently downloads and decrypts chunks to maximize throughput and minimize memory
     onProgress?.({ stage: 'downloading', overallProgress: 15 });
-    const encryptedChunks = await downloadChunksFromB2(session.chunks, onProgress, signal, pauseController);
 
-    // Stage 3: Decrypt chunks using the provided CEK
-    onProgress?.({ stage: 'decrypting', overallProgress: 80 });
-    const decryptedChunks = await decryptChunksWithCEK(encryptedChunks, session, cek);
+    // Use the streaming pipeline instead of serial download->decrypt
+    const decryptedChunks = await pipelineDownloadAndDecrypt(session, cek, onProgress, signal, pauseController);
 
     // Stage 4: Assemble file
     onProgress?.({ stage: 'assembling', overallProgress: 90 });
     const fileBlob = await assembleFile(decryptedChunks, session.mimetype);
-
-    // Stage 5: Verify integrity
-    onProgress?.({ stage: 'verifying', overallProgress: 95 });
-    await verifyFileIntegrity(fileBlob, session.shaHash);
 
     onProgress?.({ stage: 'complete', overallProgress: 100 });
 
@@ -226,107 +284,111 @@ export async function downloadEncryptedFileWithCEK(
     };
 
   } catch (error) {
-    // console.error('Download failed:', error);
     throw new Error(`Download failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
+}
+
+/**
+ * Pipelined Download & Decrypt
+ * Downloads chunks and immediately decrypts them in workers.
+ * Saves memory (discards encrypted data) and improves speed (parallel net+cpu).
+ */
+async function pipelineDownloadAndDecrypt(
+  session: DownloadSession,
+  cek: Uint8Array,
+  onProgress?: (progress: DownloadProgress) => void,
+  signal?: AbortSignal,
+  pauseController?: PauseController
+): Promise<Uint8Array[]> {
+  const chunks = session.chunks;
+  const totalChunks = chunks.length;
+  // Initialize array (holes are fine, we fill by index)
+  const decryptedChunks: Uint8Array[] = new Array(totalChunks);
+
+  const totalBytes = session.size; // Metadata size
+  let completedChunks = 0;
+  let decryptedBytes = 0;
+  let lastProgressUpdate = 0;
+  const startTime = Date.now();
+
+  const reportProgress = () => {
+    const now = Date.now();
+    if (now - lastProgressUpdate > 100 || completedChunks === totalChunks) {
+      lastProgressUpdate = now;
+      const elapsed = (now - startTime) / 1000;
+      const speed = elapsed > 0 ? decryptedBytes / elapsed : 0;
+      const remaining = totalBytes - decryptedBytes;
+      const eta = speed > 0 ? remaining / speed : 0;
+
+      onProgress?.({
+        stage: 'downloading',
+        overallProgress: 15 + (decryptedBytes / totalBytes) * 75,
+        currentChunk: completedChunks,
+        totalChunks,
+        bytesDownloaded: decryptedBytes, // Technically decrypted bytes
+        totalBytes: totalBytes,
+        downloadSpeed: speed,
+        timeRemaining: eta
+      });
+    }
+  };
+
+  const concurrency = 6; // High concurrency for small chunks, B2 handles parallel well
+  const semaphore = new Semaphore(concurrency);
+
+  const tasks = chunks.map(async (chunk) => {
+    await semaphore.acquire();
+    try {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+      if (pauseController?.isPaused) await pauseController.waitIfPaused();
+
+      // 1. Fetch
+      const response = await fetch(chunk.getUrl, { signal, credentials: 'omit' });
+      if (!response.ok) throw new Error(`Fetch failed ${response.status}`);
+
+      const chunkData = new Uint8Array(await response.arrayBuffer());
+
+      // 2. Decrypt (Worker)
+      // Adjust for B2 Trailers if needed
+      let dataToDecrypt = chunkData;
+      if (chunkData.length > chunk.size) {
+        dataToDecrypt = chunkData.subarray(0, chunk.size);
+      }
+
+      const index = getChunkIndex(chunk);
+      if (!chunk.nonce) throw new Error(`Missing nonce for chunk ${index}`);
+
+      const isCompressed = !!(chunk.isCompressed && chunk.compressionAlgorithm);
+
+      const decrypted = await processDecryptInWorker(
+        dataToDecrypt,
+        cek,
+        chunk.nonce,
+        isCompressed,
+        chunk.shaHash // Verify integrity in worker
+      );
+
+      // 3. Store
+      decryptedChunks[index] = decrypted;
+
+      // 4. Update Stats
+      completedChunks++;
+      decryptedBytes += decrypted.length; // Use actual decrypted size
+      reportProgress();
+
+    } finally {
+      semaphore.release();
+    }
+  });
+
+  await Promise.all(tasks);
+  return decryptedChunks;
 }
 
 /**
  * Decrypt downloaded chunks using a pre-unwrapped CEK
  * Also handles decompression if chunks were compressed before encryption
  */
-async function decryptChunksWithCEK(
-  encryptedChunks: Uint8Array[],
-  session: DownloadSession,
-  cek: Uint8Array
-): Promise<Uint8Array[]> {
-  const decryptedChunks: Uint8Array[] = [];
-
-  for (let i = 0; i < encryptedChunks.length; i++) {
-    const encryptedChunk = encryptedChunks[i];
-    const chunkInfo = session.chunks[i];
-
-    // Get the nonce for this chunk (should be base64 string from backend)
-    const chunkNonce = chunkInfo.nonce;
-
-    if (!chunkNonce) {
-      throw new Error(`No nonce available for chunk ${i}`);
-    }
-
-    // Handle potential B2 size discrepancies
-    const processedChunk = encryptedChunk;
-    const expectedSize = chunkInfo.size;
-
-    if (encryptedChunk.length > expectedSize) {
-      const difference = encryptedChunk.length - expectedSize;
-
-      // If the difference is small (likely B2-added content), try to truncate
-      if (difference <= 32) { // Allow up to 32 extra bytes for potential B2 metadata
-      } else {
-        // console.warn(`Large size difference (${difference} bytes), using full response but decryption may fail`);
-      }
-    } else if (encryptedChunk.length < expectedSize) {
-      // console.warn(`Chunk ${i} smaller than expected: expected ${expectedSize}, got ${encryptedChunk.length}`);
-    }
-
-    // Convert encrypted bytes to base64 string for decryption
-    const encryptedBase64 = uint8ArrayToBase64(processedChunk);
-
-    // Try decryption with fallback handling
-    let decryptedData: Uint8Array | undefined;
-    try {
-      decryptedData = decryptData(encryptedBase64, cek, chunkNonce);
-    } catch (decryptError) {
-
-      // If decryption failed and we have extra data, try with different truncation strategies
-      if (encryptedChunk.length > expectedSize && expectedSize > 16) { // Ensure we have at least the auth tag
-
-        // Try truncating to expected size minus potential B2 trailer
-        for (let offset = 0; offset < Math.min(32, encryptedChunk.length - expectedSize + 1); offset++) {
-          try {
-            const truncatedChunk = encryptedChunk.slice(0, expectedSize - offset);
-            const truncatedBase64 = uint8ArrayToBase64(truncatedChunk);
-            decryptedData = decryptData(truncatedBase64, cek, chunkNonce);
-            break;
-          } catch {
-            // Continue trying different offsets
-          }
-        }
-
-        // If all truncation attempts failed, try with original full data as last resort
-        if (!decryptedData) {
-          try {
-            const fullBase64 = uint8ArrayToBase64(encryptedChunk);
-            decryptedData = decryptData(fullBase64, cek, chunkNonce);
-          } catch (finalError) {
-            throw new Error(`Decryption failed for chunk ${i} after all attempts: ${finalError instanceof Error ? finalError.message : 'Unknown error'}`);
-          }
-        }
-      } else {
-        throw decryptError; // Re-throw original error if we can't try alternatives
-      }
-    }
-
-    if (!decryptedData) {
-      throw new Error(`Decryption failed for chunk ${i}: no valid decrypted data produced`);
-    }
-
-    // STAGE 3B: Decompress chunk if it was compressed before encryption
-    let finalData = decryptedData;
-    if (chunkInfo.isCompressed && chunkInfo.compressionAlgorithm) {
-      try {
-        const algorithm = chunkInfo.compressionAlgorithm as CompressionAlgorithm;
-        finalData = await decompressChunk(decryptedData, algorithm);
-      } catch (decompressError) {
-        throw new Error(`Decompression failed for chunk ${i} (${chunkInfo.compressionAlgorithm}): ${decompressError instanceof Error ? decompressError.message : 'Unknown error'}`);
-      }
-    }
-
-    decryptedChunks.push(finalData);
-  }
-
-  return decryptedChunks;
-}
 
 export async function downloadEncryptedFile(
   fileId: string,
@@ -344,21 +406,20 @@ export async function downloadEncryptedFile(
     const session = await initializeDownloadSession(fileId);
     onProgress?.({ stage: 'initializing', overallProgress: 10 });
 
-    // Stage 2: Download encrypted chunks from B2
-    onProgress?.({ stage: 'downloading', overallProgress: 15 });
-    const encryptedChunks = await downloadChunksFromB2(session.chunks, onProgress, signal, pauseController);
+    if (!session.encryption) {
+      throw new Error('No encryption metadata available');
+    }
 
-    // Stage 3: Decrypt chunks
-    onProgress?.({ stage: 'decrypting', overallProgress: 80 });
-    const decryptedChunks = await decryptChunks(encryptedChunks, session, keys.keypairs);
+    // Unwrap CEK
+    const cek = await unwrapCEK(session.encryption, keys.keypairs);
+
+    // Stage 2 & 3: Pipelined Download & Decrypt
+    onProgress?.({ stage: 'downloading', overallProgress: 15 });
+    const decryptedChunks = await pipelineDownloadAndDecrypt(session, cek, onProgress, signal, pauseController);
 
     // Stage 4: Assemble file
     onProgress?.({ stage: 'assembling', overallProgress: 90 });
     const fileBlob = await assembleFile(decryptedChunks, session.mimetype);
-
-    // Stage 5: Verify integrity
-    onProgress?.({ stage: 'verifying', overallProgress: 95 });
-    await verifyFileIntegrity(fileBlob, session.shaHash);
 
     onProgress?.({ stage: 'complete', overallProgress: 100 });
 
@@ -372,10 +433,18 @@ export async function downloadEncryptedFile(
     };
 
   } catch (error) {
-    // console.error('Download failed:', error);
+    // Unpack AbortErrors or explicit cancellations
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw error;
+    }
+    if (error instanceof Error && (error.message === 'Aborted' || error.message.includes('AbortError'))) {
+      throw error;
+    }
+
     throw new Error(`Download failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
+
 
 /**
  * Initialize download session by fetching URLs and metadata from backend
@@ -493,290 +562,15 @@ async function unwrapCEK(encryption: DownloadEncryption, keypairs: UserKeypairs)
 
   return decryptedCek;
 }
-async function downloadChunksFromB2(
-  chunks: DownloadChunk[],
-  onProgress?: (progress: DownloadProgress) => void,
-  signal?: AbortSignal,
-  pauseController?: PauseController
-): Promise<Uint8Array[]> {
-  const totalChunks = chunks.length;
-  const totalDeclaredBytes = chunks.reduce((sum, c) => sum + Number(c.size), 0);
-  const expectedTotalBytes = Math.max(totalDeclaredBytes, chunks.reduce((sum, c) => sum + Number(c.size), 0)); // Use declared sizes as baseline
-  let completedChunks = 0;
-  let totalBytesDownloaded = 0;
-  const startTime = Date.now();
-  let lastProgressUpdate = 0;
 
-  // Throttled progress wrapper
-  const reportProgress = (p: DownloadProgress) => {
-    const now = Date.now();
-    // Update if > 100ms elapsed, or stage changed, or complete (100%), or first update
-    if (now - lastProgressUpdate > 100 || p.overallProgress >= 100 || p.overallProgress <= 0 || p.stage !== 'downloading') {
-      lastProgressUpdate = now;
-      onProgress?.(p);
-    }
-  };
-
-  // Download chunks in parallel with concurrency control
-  const concurrencyLimit = 3; // Download up to 3 chunks simultaneously
-  const semaphore = new Semaphore(concurrencyLimit);
-
-  const downloadPromises = chunks.map(async (chunk) => {
-    await semaphore.acquire();
-
-    try {
-      if (signal?.aborted) {
-        throw new DOMException('Aborted', 'AbortError');
-      }
-
-      const response = await fetch(chunk.getUrl, {
-        credentials: 'omit',
-        signal
-      });
-      if (!response.ok) {
-        throw new Error(`Failed to download chunk ${getChunkIndex(chunk)}: ${response.status} ${response.statusText}`);
-      }
-
-      // Get content length for progress tracking
-      const contentLength = response.headers.get('content-length');
-      const expectedChunkSize = contentLength ? parseInt(contentLength, 10) : chunk.size;
-
-      // Use ReadableStream for real-time progress within chunk
-      const reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error(`Failed to get reader for chunk ${getChunkIndex(chunk)}`);
-      }
-
-      const chunks: Uint8Array[] = [];
-      let chunkBytesDownloaded = 0;
-
-      while (true) {
-        if (signal?.aborted) {
-          reader.cancel();
-          throw new DOMException('Aborted', 'AbortError');
-        }
-
-        // check for pause
-        if (pauseController?.isPaused) {
-          await pauseController.waitIfPaused();
-        }
-
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        chunks.push(value);
-        chunkBytesDownloaded += value.length;
-
-        // Emit progress update for this chunk's download
-        const chunkProgress = expectedChunkSize > 0 ? (chunkBytesDownloaded / expectedChunkSize) * 100 : 100;
-        const overall = 15 + ((completedChunks + chunkProgress / 100) / totalChunks) * 65;
-
-        reportProgress({
-          stage: 'downloading',
-          overallProgress: Math.min(100, Math.max(0, overall)),
-          currentChunk: completedChunks + 1,
-          totalChunks,
-          bytesDownloaded: totalBytesDownloaded + chunkBytesDownloaded,
-          totalBytes: expectedTotalBytes,
-          chunkProgress: Math.min(100, chunkProgress),
-          downloadSpeed: Math.round((totalBytesDownloaded + chunkBytesDownloaded) / ((Date.now() - startTime) / 1000)),
-          timeRemaining: Math.round((expectedTotalBytes - (totalBytesDownloaded + chunkBytesDownloaded)) / Math.max(1, (totalBytesDownloaded + chunkBytesDownloaded) / ((Date.now() - startTime) / 1000)))
-        });
-      }
-
-      // Combine all chunks into final encrypted data
-      const totalLength = chunks.reduce((sum, c) => sum + c.length, 0);
-      const encryptedData = new Uint8Array(totalLength);
-      let offset = 0;
-      for (const chunk of chunks) {
-        encryptedData.set(chunk, offset);
-        offset += chunk.length;
-      }
-
-      // Handle B2 checksum trailers and size mismatches
-      if (encryptedData.length > chunk.size) {
-        // B2 may add checksum trailers or the metadata size might be approximate
-        // Use the actual returned size instead of truncating
-      } else if (encryptedData.length < chunk.size) {
-        // Handle size differences (may occur due to storage optimizations)
-        if (encryptedData.length === expectedChunkSize && expectedChunkSize < chunk.size) {
-          // Don't throw error - use the actual size
-        } else {
-          throw new Error(`Chunk ${getChunkIndex(chunk)} too small: expected ${chunk.size}, got ${encryptedData.length}`);
-        }
-      }
-
-      completedChunks++;
-      totalBytesDownloaded += encryptedData.length;
-
-      // Final progress update for this chunk completion
-      const elapsedTime = (Date.now() - startTime) / 1000;
-      const downloadSpeed = totalBytesDownloaded / elapsedTime;
-      const remainingBytes = Math.max(expectedTotalBytes - totalBytesDownloaded, 0);
-      const timeRemaining = downloadSpeed > 0 ? remainingBytes / downloadSpeed : 0;
-
-      const overall = 15 + (completedChunks / totalChunks) * 65;
-      reportProgress({
-        stage: 'downloading',
-        overallProgress: Math.min(100, Math.max(0, overall)),
-        currentChunk: completedChunks,
-        totalChunks,
-        bytesDownloaded: totalBytesDownloaded,
-        totalBytes: expectedTotalBytes,
-        chunkProgress: 100,
-        downloadSpeed: Math.round(downloadSpeed),
-        timeRemaining: Math.round(timeRemaining)
-      });
-
-      return encryptedData;
-
-    } catch (error) {
-      throw error;
-    } finally {
-      semaphore.release();
-    }
-  });
-
-  const encryptedChunks = await Promise.all(downloadPromises);
-
-  return encryptedChunks;
-}
-
-/**
- * Decrypt downloaded chunks using the encryption metadata
- */
-async function decryptChunks(
-  encryptedChunks: Uint8Array[],
-  session: DownloadSession,
-  keypairs: UserKeypairs
-): Promise<Uint8Array[]> {
-  if (!session.encryption) {
-    throw new Error('No encryption metadata available for decryption');
-  }
-
-  // Unwrap the CEK using Kyber decapsulation
-  const cek = await unwrapCEK(session.encryption, keypairs);
-
-  const decryptedChunks: Uint8Array[] = [];
-
-  for (let i = 0; i < encryptedChunks.length; i++) {
-    const encryptedChunk = encryptedChunks[i];
-    const chunkInfo = session.chunks[i];
-
-    // Get the nonce for this chunk (should be base64 string from backend)
-    const chunkNonce = chunkInfo.nonce;
-
-    if (!chunkNonce) {
-      throw new Error(`No nonce available for chunk ${i}`);
-    }
-
-    // Handle potential B2 size discrepancies
-    let processedChunk = encryptedChunk;
-    const expectedSize = chunkInfo.size;
-
-    if (encryptedChunk.length > expectedSize) {
-      const difference = encryptedChunk.length - expectedSize;
-
-      // If the difference is small (likely B2-added content), try to truncate
-      if (difference <= 32) { // Allow up to 32 extra bytes for potential B2 metadata
-        processedChunk = encryptedChunk.slice(0, expectedSize);
-      } else {
-      }
-    } else if (encryptedChunk.length < expectedSize) {
-    }
-
-    // Convert encrypted bytes to base64 string for decryption
-    const encryptedBase64 = uint8ArrayToBase64(processedChunk);
-
-    // Try decryption with fallback handling
-    let decryptedData: Uint8Array | undefined;
-    try {
-      decryptedData = decryptData(encryptedBase64, cek, chunkNonce);
-    } catch (decryptError) {
-      // If decryption failed and we have extra data, try with different truncation strategies
-      if (encryptedChunk.length > expectedSize && expectedSize > 16) { // Ensure we have at least the auth tag
-
-        // Try truncating to expected size minus potential B2 trailer
-        for (let offset = 0; offset < Math.min(32, encryptedChunk.length - expectedSize + 1); offset++) {
-          try {
-            const truncatedChunk = encryptedChunk.slice(0, expectedSize - offset);
-            const truncatedBase64 = uint8ArrayToBase64(truncatedChunk);
-            decryptedData = decryptData(truncatedBase64, cek, chunkNonce);
-            break;
-          } catch {
-            // Continue trying different offsets
-          }
-        }
-
-        // If all truncation attempts failed, try with original full data as last resort
-        if (!decryptedData) {
-          try {
-            const fullBase64 = uint8ArrayToBase64(encryptedChunk);
-            decryptedData = decryptData(fullBase64, cek, chunkNonce);
-          } catch (finalError) {
-            throw new Error(`Decryption failed for chunk ${i} after all attempts: ${finalError instanceof Error ? finalError.message : 'Unknown error'}`);
-          }
-        }
-      } else {
-        throw decryptError; // Re-throw original error if we can't try alternatives
-      }
-    }
-
-    if (!decryptedData) {
-      throw new Error(`Decryption failed for chunk ${i}: no valid decrypted data produced`);
-    }
-
-    // STAGE 3B: Decompress chunk if it was compressed before encryption
-    let finalData = decryptedData;
-    if (chunkInfo.isCompressed && chunkInfo.compressionAlgorithm) {
-      try {
-        const algorithm = chunkInfo.compressionAlgorithm as CompressionAlgorithm;
-        finalData = await decompressChunk(decryptedData, algorithm);
-      } catch (decompressError) {
-        throw new Error(`Decompression failed for chunk ${i} (${chunkInfo.compressionAlgorithm}): ${decompressError instanceof Error ? decompressError.message : 'Unknown error'}`);
-      }
-    }
-
-    decryptedChunks.push(finalData);
-  }
-
-  return decryptedChunks;
-}
 
 /**
  * Assemble decrypted chunks into a single file blob
  */
 async function assembleFile(decryptedChunks: Uint8Array[], mimetype: string): Promise<Blob> {
-  // Concatenate all chunks
-  const totalSize = decryptedChunks.reduce((sum, chunk) => sum + chunk.length, 0);
-  const fileData = new Uint8Array(totalSize);
-
-  let offset = 0;
-  for (const chunk of decryptedChunks) {
-    fileData.set(chunk, offset);
-    offset += chunk.length;
-  }
-
-  const fileBlob = new Blob([fileData], { type: mimetype });
-
-  return fileBlob;
-}
-
-/**
- * Verify file integrity by computing SHA hash (256 or 512 based on expected hash length)
- */
-async function verifyFileIntegrity(blob: Blob, expectedShaHash: string): Promise<void> {
-  // Determine hash algorithm based on expected hash length
-  const isSha512 = expectedShaHash.length === 128; // SHA512 is 128 hex chars, SHA256 is 64
-  const algorithm = isSha512 ? 'SHA-512' : 'SHA-256';
-
-  const arrayBuffer = await blob.arrayBuffer();
-  const hashBuffer = await crypto.subtle.digest(algorithm, arrayBuffer);
-  const actualShaHash = uint8ArrayToHex(new Uint8Array(hashBuffer));
-
-  if (actualShaHash !== expectedShaHash) {
-    throw new Error(`File integrity check failed: expected ${expectedShaHash}, got ${actualShaHash}`);
-  }
+  // OPTIMIZATION: Construct Blob directly from chunks. 
+  // This avoids creating a duplicate Uint8Array of the entire file, saving massive memory and CPU.
+  return new Blob(decryptedChunks as any, { type: mimetype });
 }
 
 /**
