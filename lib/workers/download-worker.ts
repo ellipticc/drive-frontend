@@ -114,10 +114,19 @@ self.onmessage = async (e: MessageEvent) => {
             const nonceBytes = uint8ArrayFromBase64(nonce);
             const decrypted = xchacha20poly1305(key, nonceBytes).decrypt(encryptedChunk);
 
+            // Handle padding for small chunks (< 16 bytes)
+            let unpadded = decrypted;
+            if (decrypted.length === 17) {
+                const originalLength = decrypted[0];
+                if (originalLength < 16) {
+                    unpadded = decrypted.subarray(1, 1 + originalLength);
+                }
+            }
+
             // 2. Decompress if needed
-            let finalData = decrypted;
+            let finalData = unpadded;
             if (isCompressed) {
-                finalData = await decompressData(decrypted);
+                finalData = await decompressData(unpadded);
             }
 
             self.postMessage({

@@ -9,10 +9,10 @@ import {
     IconChevronRight,
     IconDotsVertical,
     IconArrowsMove,
-    IconRocket,
     IconGripVertical,
     IconPlus as IconAdd,
     IconPlanet,
+    IconSpace,
 } from "@tabler/icons-react"
 import * as TablerIcons from "@tabler/icons-react"
 import {
@@ -112,6 +112,60 @@ function TruncatedTooltip({ children, text }: { children: React.ReactNode, text:
     );
 }
 
+const getSpaceColorClass = (color?: string) => {
+    switch (color) {
+        case 'red': return 'text-red-500';
+        case 'blue': return 'text-blue-500';
+        case 'green': return 'text-green-500';
+        case 'yellow': return 'text-yellow-500';
+        case 'purple': return 'text-purple-500';
+        case 'orange': return 'text-orange-500';
+        case 'pink': return 'text-pink-500';
+        case 'indigo': return 'text-indigo-500';
+        case 'cyan': return 'text-cyan-500';
+        case 'teal': return 'text-teal-500';
+        case 'lime': return 'text-lime-500';
+        case 'amber': return 'text-amber-500';
+        case 'stone': return 'text-stone-600';
+        case 'gray': return 'text-gray-500';
+        case 'slate': return 'text-slate-700';
+        case 'emerald': return 'text-emerald-500';
+        case 'violet': return 'text-violet-600';
+        case 'fuchsia': return 'text-fuchsia-500';
+        case 'rose': return 'text-rose-500';
+        case 'sky': return 'text-sky-400';
+        case 'zinc': return 'text-zinc-800';
+        case 'white': return 'text-white drop-shadow-[0_0_1px_rgba(0,0,0,0.5)]';
+        case 'black': return 'text-black drop-shadow-[0_0_1px_rgba(255,255,255,0.5)]';
+        default: return 'text-blue-500';
+    }
+}
+
+const SpaceIconRenderer = ({
+    iconName,
+    color,
+    size = 18,
+    className,
+    isSpaced = false
+}: {
+    iconName?: string;
+    color?: string;
+    size?: number;
+    className?: string;
+    isSpaced?: boolean;
+}) => {
+    return (
+        <div className={cn("inline-flex items-center justify-center shrink-0", className)} style={{ width: size, height: size }}>
+            {isSpaced ? (
+                <IconPlanet size={size} className="text-blue-500" />
+            ) : (() => {
+                const TablerIcon = (iconName && (TablerIcons as any)[iconName]) || TablerIcons.IconFolder;
+                return <TablerIcon size={size} className={getSpaceColorClass(color)} />;
+            })()}
+        </div>
+    );
+}
+
 function SortableSpaceItem({
     space,
     onFetchItems,
@@ -155,43 +209,8 @@ function SortableSpaceItem({
 
     const { isMobile } = useSidebar()
 
-    const getSpaceColorClass = (color?: string) => {
-        switch (color) {
-            case 'red': return 'text-red-500';
-            case 'blue': return 'text-blue-500';
-            case 'green': return 'text-green-500';
-            case 'yellow': return 'text-yellow-500';
-            case 'purple': return 'text-purple-500';
-            case 'orange': return 'text-orange-500';
-            case 'pink': return 'text-pink-500';
-            case 'indigo': return 'text-indigo-500';
-            case 'cyan': return 'text-cyan-500';
-            case 'teal': return 'text-teal-500';
-            case 'lime': return 'text-lime-500';
-            case 'amber': return 'text-amber-500';
-            case 'stone': return 'text-stone-600';
-            case 'gray': return 'text-gray-500';
-            case 'slate': return 'text-slate-700';
-            case 'emerald': return 'text-emerald-500';
-            case 'violet': return 'text-violet-600';
-            case 'fuchsia': return 'text-fuchsia-500';
-            case 'rose': return 'text-rose-500';
-            case 'sky': return 'text-sky-400';
-            case 'zinc': return 'text-zinc-800';
-            case 'white': return 'text-white drop-shadow-[0_0_1px_rgba(0,0,0,0.5)]';
-            case 'black': return 'text-black drop-shadow-[0_0_1px_rgba(255,255,255,0.5)]';
-            default: return 'text-blue-500';
-        }
-    }
-
-    const IconRenderer = ({ iconName, color }: { iconName?: string; color?: string }) => {
-        if (isSpaced) return <IconPlanet size={18} className="shrink-0 text-blue-500" />
-        const TablerIcon = (TablerIcons[iconName as keyof typeof TablerIcons] as any) || TablerIcons.IconFolder
-        return <TablerIcon size={18} className={cn("shrink-0", getSpaceColorClass(color))} />
-    }
-
     return (
-        <div ref={setNodeRef} style={style}>
+        <div ref={setNodeRef} style={style} className="relative">
             <Collapsible
                 asChild
                 className="group/collapsible"
@@ -220,7 +239,7 @@ function SortableSpaceItem({
                             <CollapsibleTrigger asChild>
                                 <button className="flex items-center w-full h-full text-left">
                                     <IconChevronRight className="transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90 text-muted-foreground/40 shrink-0" size={12} />
-                                    <IconRenderer iconName={space.icon} color={space.color} />
+                                    <SpaceIconRenderer iconName={space.icon} color={space.color} isSpaced={isSpaced} />
                                     <span className="ml-1 font-medium truncate flex-1 text-sm">{space.decryptedName || "Encrypted Space"}</span>
                                 </button>
                             </CollapsibleTrigger>
@@ -335,7 +354,7 @@ function SortableSpaceItem({
                                                                     <DropdownMenuItem
                                                                         onClick={() => onMoveItem(space.id, item.id, "spaced-fixed")}
                                                                     >
-                                                                        <IconRocket size={12} className="text-blue-500" />
+                                                                        <SpaceIconRenderer isSpaced={true} size={14} />
                                                                         <span className="ml-2 truncate">Spaced</span>
                                                                     </DropdownMenuItem>
                                                                 )}
@@ -344,7 +363,7 @@ function SortableSpaceItem({
                                                                         key={targetSpace.id}
                                                                         onClick={() => onMoveItem(space.id, item.id, targetSpace.id)}
                                                                     >
-                                                                        <TablerIcons.IconCircleFilled size={8} className={getSpaceColorClass(targetSpace.color)} />
+                                                                        <SpaceIconRenderer iconName={targetSpace.icon} color={targetSpace.color} size={14} />
                                                                         <span className="ml-2 truncate">{targetSpace.decryptedName}</span>
                                                                     </DropdownMenuItem>
                                                                 ))}
@@ -382,7 +401,7 @@ export function NavSpaces() {
         encrypted_name: "",
         name_salt: "",
         decryptedName: "Spaced",
-        icon: "IconRocket",
+        icon: "IconPlanet",
         color: "blue",
         created_at: "",
         updated_at: "",
@@ -572,9 +591,9 @@ export function NavSpaces() {
                 });
                 if (response.success) {
                     toast.success("Item moved")
+                    // Full refresh to ensure consistency
                     fetchSpaceItems(targetSpaceId)
-                    if (currentSpaceId === "spaced-fixed") fetchSpaceItems("spaced-fixed")
-                    else fetchSpaceItems(currentSpaceId)
+                    fetchSpaceItems(currentSpaceId)
                 }
             }
         } catch (error) {

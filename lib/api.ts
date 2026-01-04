@@ -1691,9 +1691,13 @@ class ApiClient {
     folderIds?: string[];
     isStarred: boolean
   }): Promise<ApiResponse<any>> {
+    const intent = `${data.fileId || data.folderId || (data.fileIds?.join(',')) || (data.folderIds?.join(','))}:${data.isStarred}:${Date.now()}`;
+    const idempotencyKey = generateIdempotencyKey('setItemStarred', intent);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/files/spaced', {
       method: 'POST',
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
+      headers,
     });
   }
 
@@ -1725,7 +1729,7 @@ class ApiClient {
     fileIds?: string[];
     folderIds?: string[];
   }): Promise<ApiResponse<{ id: string }>> {
-    const intent = `${spaceId}:${data.fileId || data.folderId || (data.fileIds?.join(',')) || (data.folderIds?.join(','))}`;
+    const intent = `${spaceId}:${data.fileId || data.folderId || (data.fileIds?.join(',')) || (data.folderIds?.join(','))}:${Date.now()}`;
     const idempotencyKey = generateIdempotencyKey('addItemToSpace', intent);
     const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/spaces/${spaceId}/items`, {
@@ -1742,9 +1746,12 @@ class ApiClient {
   }
 
   async moveItemToSpace(spaceId: string, itemId: string, targetSpaceId: string): Promise<ApiResponse<any>> {
+    const idempotencyKey = generateIdempotencyKey('moveItemToSpace', `${spaceId}:${itemId}:${targetSpaceId}:${Date.now()}`);
+    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/spaces/${spaceId}/items/${itemId}/move`, {
       method: 'POST',
-      body: JSON.stringify({ targetSpaceId })
+      body: JSON.stringify({ targetSpaceId }),
+      headers,
     });
   }
 
@@ -2021,7 +2028,7 @@ class ApiClient {
     chunks: Array<{
       index: number;
       chunkSize: number;
-      shaHash?: string;
+      sha256Hash?: string;
       nonce?: string;
     }>;
   }): Promise<ApiResponse<{
