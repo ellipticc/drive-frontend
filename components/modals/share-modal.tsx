@@ -28,7 +28,12 @@ import {
   IconLink,
   IconSend,
   IconCalendar,
-  IconClockHour8
+  IconClockHour8,
+  IconChartBar,
+  IconTrash,
+  IconActivity,
+  IconChevronLeft,
+  IconChevronRight,
 } from "@tabler/icons-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { toast } from "sonner"
@@ -36,10 +41,21 @@ import { apiClient } from "@/lib/api"
 import { keyManager } from "@/lib/key-manager"
 import { masterKeyManager } from "@/lib/master-key"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
+import { getUAInfo } from "./settings/device-icons"
 import { format, startOfToday } from "date-fns"
 import { truncateFilename } from "@/lib/utils"
 
-import type { FileTreeItem, FolderTreeItem, FileInfo, FolderInfo } from '@/lib/api'
+const getFlagEmoji = (countryCode: string | null) => {
+  if (!countryCode || countryCode.length !== 2) return "🌐";
+  const codePoints = countryCode
+    .toUpperCase()
+    .split("")
+    .map(char => 127397 + char.charCodeAt(0));
+  return String.fromCodePoint(...codePoints);
+}
+
+import type { FileTreeItem, FolderTreeItem, FileInfo, FolderInfo, ShareAccessLog } from '@/lib/api'
 
 // Helper function to build encrypted manifest for folder shares
 // Returns an object (not JSON string) so createShare can serialize it correctly
@@ -383,6 +399,13 @@ interface ShareSettings {
 export function ShareModal({ children, itemId = "", itemName = "item", itemType = "file", open: externalOpen, onOpenChange: externalOnOpenChange, onShareUpdate }: ShareModalProps) {
   const [internalOpen, setInternalOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [logsModalOpen, setLogsModalOpen] = useState(false)
+  const [logs, setLogs] = useState<ShareAccessLog[]>([])
+  const [logsPagination, setLogsPagination] = useState({ total: 0, page: 1, limit: 50, totalPages: 0 })
+  const [logsSettings, setLogsSettings] = useState({ detailed_logging_enabled: true })
+  const [isLoadingLogs, setIsLoadingLogs] = useState(false)
+  const [isWipingLogs, setIsWipingLogs] = useState(false)
+  const [isUpdatingLogging, setIsUpdatingLogging] = useState(false)
   const [messageModalOpen, setMessageModalOpen] = useState(false)
   const [emailInput, setEmailInput] = useState("")
   const [emails, setEmails] = useState<string[]>([])
@@ -503,7 +526,7 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
       // Check if there's an existing active share for this item
       const response = await apiClient.getMyShares()
       if (response.success && response.data) {
-        const existingShare = response.data.find(share =>
+        const existingShare = response.data.find((share: any) =>
           share.fileId === itemId && !share.revoked
         )
         if (existingShare) {
@@ -559,6 +582,71 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
       setExistingShareId(null)
     } finally {
       setIsModalLoading(false)
+    }
+  }
+
+  const handleViewLogs = async (page: number = 1) => {
+    if (!existingShareId) return
+    setLogsModalOpen(true)
+    setIsLoadingLogs(true)
+    try {
+      const response = await apiClient.getShareLogs(existingShareId, page)
+      if (response.success && response.data) {
+        setLogs(response.data.logs)
+        setLogsPagination(response.data.pagination)
+        setLogsSettings(response.data.settings)
+      } else if (response.status === 403) {
+        toast.error("Detailed access logs require an active Pro subscription")
+        setLogsModalOpen(false)
+      } else {
+        toast.error("Failed to load access logs")
+      }
+    } catch (error) {
+      console.error("Failed to fetch logs:", error)
+      toast.error("An error occurred while fetching logs")
+    } finally {
+      setIsLoadingLogs(false)
+    }
+  }
+
+  const handleWipeLogs = async () => {
+    if (!existingShareId || !confirm("Are you sure you want to wipe all access logs? This action cannot be undone.")) return
+    setIsWipingLogs(true)
+    try {
+      const response = await apiClient.wipeShareLogs(existingShareId)
+      if (response.success) {
+        toast.success("Logs wiped successfully")
+        setLogs([])
+        setLogsPagination(prev => ({ ...prev, total: 0, totalPages: 0 }))
+      } else {
+        toast.error("Failed to wipe logs")
+      }
+    } catch (error) {
+      console.error("Failed to wipe logs:", error)
+      toast.error("An error occurred while wiping logs")
+    } finally {
+      setIsWipingLogs(false)
+    }
+  }
+
+  const handleToggleLogging = async (enabled: boolean) => {
+    if (!existingShareId) return
+    setIsUpdatingLogging(true)
+    try {
+      const response = await apiClient.updateShareSettings(existingShareId, {
+        detailed_logging_enabled: enabled
+      })
+      if (response.success) {
+        setLogsSettings(prev => ({ ...prev, detailed_logging_enabled: enabled }))
+        toast.success(enabled ? "Logging enabled" : "Logging disabled")
+      } else {
+        toast.error("Failed to update logging settings")
+      }
+    } catch (error) {
+      console.error("Failed to update logging settings:", error)
+      toast.error("An error occurred while updating settings")
+    } finally {
+      setIsUpdatingLogging(false)
     }
   }
 
@@ -829,7 +917,7 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
       // First check if there's already a share for this item
       const mySharesResponse = await apiClient.getMyShares()
       if (mySharesResponse.success && mySharesResponse.data) {
-        const existingShare = mySharesResponse.data.find(share =>
+        const existingShare = mySharesResponse.data.find((share: any) =>
           share.fileId === itemId && !share.revoked
         )
 
@@ -1098,9 +1186,22 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
                 onClick={() => setSettingsOpen(true)}
                 className="h-8 w-8 p-0"
                 disabled={isModalLoading}
+                title="Share Settings"
               >
                 <IconSettings className="h-4 w-4" />
               </Button>
+              {existingShareId && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleViewLogs(1)}
+                  className="h-8 w-8 p-0 text-primary hover:text-primary hover:bg-primary/10"
+                  disabled={isModalLoading}
+                  title="Access Logs (Pro)"
+                >
+                  <IconChartBar className="h-4 w-4" />
+                </Button>
+              )}
               <Separator orientation="vertical" className="h-6" />
               <Button
                 variant="ghost"
@@ -1567,6 +1668,254 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
           </DialogFooter>
         </DialogContent>
       </Dialog >
+      {/* Access Logs Modal */}
+      <Dialog open={logsModalOpen} onOpenChange={setLogsModalOpen}>
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden animate-in fade-in-0 zoom-in-95 duration-200">
+          <DialogHeader className="p-8 pb-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+                  <IconChartBar className="h-6 w-6 text-primary" />
+                  Detailed Access Logs
+                </DialogTitle>
+                <DialogDescription className="text-base">
+                  Track every interaction with your shared content securely.
+                </DialogDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                {isPro && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleViewLogs(1)}
+                    className="h-8 w-8 p-0 text-primary hover:text-primary hover:bg-primary/10"
+                    disabled={isModalLoading}
+                    title="Access Logs (Pro)"
+                  >
+                    <IconChartBar className="h-4 w-4" />
+                  </Button>
+                )}
+                <Separator orientation="vertical" className="h-6" />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setLogsModalOpen(false)}
+                  className="h-8 w-8 p-0"
+                >
+                  <IconX className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="flex-1 px-8 pb-8">
+            <div className="flex flex-col gap-6">
+              {/* Main Content Area */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <Badge variant="outline" className="font-mono px-2 py-0.5 text-[10px] uppercase tracking-wider">
+                      {logsPagination.total} Total Events
+                    </Badge>
+                    <div className="flex items-center gap-2 border rounded-full px-3 py-1 bg-muted/30">
+                      <IconActivity className={`h-3 w-3 ${logsSettings.detailed_logging_enabled ? 'text-emerald-500' : 'text-muted-foreground'}`} />
+                      <span className="text-[10px] font-bold uppercase tracking-tight">Logging</span>
+                      <Switch
+                        disabled={isUpdatingLogging}
+                        checked={logsSettings.detailed_logging_enabled}
+                        onCheckedChange={handleToggleLogging}
+                        className="scale-75 h-4 w-8"
+                      />
+                    </div>
+                  </div>
+
+                  {logs.length > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleWipeLogs}
+                      disabled={isWipingLogs}
+                      className="h-8 px-3 text-destructive hover:text-destructive hover:bg-destructive/10 gap-2 text-xs font-semibold uppercase tracking-wider"
+                    >
+                      {isWipingLogs ? (
+                        <div className="h-3 w-3 border-2 border-destructive border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <IconTrash className="h-3.5 w-3.5" />
+                      )}
+                      Wipe History
+                    </Button>
+                  )}
+                </div>
+
+                <div className="border rounded-xl overflow-hidden bg-card shadow-sm">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/50 border-b">
+                        <tr>
+                          <th className="text-left px-6 py-4 font-bold text-muted-foreground text-[10px] tracking-widest uppercase">Session</th>
+                          <th className="text-left px-6 py-4 font-bold text-muted-foreground text-[10px] tracking-widest uppercase">Event / Device</th>
+                          <th className="text-left px-6 py-4 font-bold text-muted-foreground text-[10px] tracking-widest uppercase">Location</th>
+                          <th className="text-left px-6 py-4 font-bold text-muted-foreground text-[10px] tracking-widest uppercase">Status</th>
+                          <th className="text-right px-6 py-4 font-bold text-muted-foreground text-[10px] tracking-widest uppercase">Time</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {isLoadingLogs ? (
+                          [...Array(6)].map((_, i) => (
+                            <tr key={i} className="animate-pulse">
+                              <td colSpan={5} className="px-6 py-6">
+                                <Skeleton className="h-4 w-full opacity-20" />
+                              </td>
+                            </tr>
+                          ))
+                        ) : logs.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="py-20 text-center">
+                              <div className="flex flex-col items-center justify-center gap-3">
+                                <div className="h-12 w-12 rounded-full bg-muted/50 flex items-center justify-center">
+                                  <IconActivity className="h-6 w-6 text-muted-foreground/40" />
+                                </div>
+                                <h3 className="text-base font-semibold text-foreground">No events recorded</h3>
+                                <p className="text-sm text-muted-foreground max-w-[240px]">
+                                  {logsSettings.detailed_logging_enabled
+                                    ? "Once people interact with your share, logs will appear here."
+                                    : "Access logging is currently disabled for this share."}
+                                </p>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : (
+                          logs.map((log) => (
+                            <tr key={log.id} className="group hover:bg-muted/40 transition-all duration-200">
+                              <td className="px-6 py-5 font-mono text-[10px] text-muted-foreground whitespace-nowrap">
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="cursor-help transition-colors group-hover:text-foreground">
+                                        {log.session_id.substring(0, 12).toUpperCase()}
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">
+                                      <p className="font-mono text-[10px]">{log.session_id}</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              </td>
+                              <td className="px-6 py-5">
+                                <div className="flex flex-col gap-1.5">
+                                  <span className="font-bold text-xs tracking-tight text-foreground/90">
+                                    {log.action === 'DOWNLOAD' ? 'FILE DOWNLOADED' : 'LINK VISITED'}
+                                  </span>
+                                  <div className="flex items-center gap-2 opacity-70 scale-90 origin-left">
+                                    {(() => {
+                                      const { osIcon, osName, browserIcon, browserName } = getUAInfo(log.user_agent || '');
+                                      return (
+                                        <>
+                                          <TooltipProvider>
+                                            <Tooltip>
+                                              <TooltipTrigger className="flex items-center pointer-events-auto">{osIcon}</TooltipTrigger>
+                                              <TooltipContent side="top"><p className="text-[10px] font-bold">{osName}</p></TooltipContent>
+                                            </Tooltip>
+                                          </TooltipProvider>
+                                          <TooltipProvider>
+                                            <Tooltip>
+                                              <TooltipTrigger className="flex items-center pointer-events-auto">{browserIcon}</TooltipTrigger>
+                                              <TooltipContent side="top"><p className="text-[10px] font-bold">{browserName}</p></TooltipContent>
+                                            </Tooltip>
+                                          </TooltipProvider>
+                                        </>
+                                      );
+                                    })()}
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-6 py-5">
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <div className="inline-flex items-center gap-3 cursor-help bg-muted/50 rounded-lg px-2.5 py-1.5 hover:bg-muted transition-colors">
+                                        <span className="text-xl leading-none antialiased grayscale-[0.2]">
+                                          {getFlagEmoji(log.country)}
+                                        </span>
+                                        <span className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
+                                          {log.country || '??'}
+                                        </span>
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">
+                                      <p className="text-[10px] font-bold uppercase tracking-widest">
+                                        {log.country || 'Unknown Location'}
+                                      </p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              </td>
+                              <td className="px-6 py-5">
+                                <Badge
+                                  className={`text-[9px] font-black px-2 py-0.5 rounded shadow-sm tracking-[0.05em] ${log.action === 'DOWNLOAD'
+                                    ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'
+                                    : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                                    }`}
+                                >
+                                  {log.action}
+                                </Badge>
+                              </td>
+                              <td className="px-6 py-5 text-right whitespace-nowrap">
+                                <div className="flex flex-col items-end">
+                                  <span className="text-[11px] font-bold text-foreground/80">{format(new Date(log.created_at), "dd/MM/yyyy")}</span>
+                                  <span className="text-[10px] text-muted-foreground font-mono">{format(new Date(log.created_at), "hh:mm a")}</span>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Pagination Controls */}
+                {logsPagination.totalPages > 1 && (
+                  <div className="flex items-center justify-between border-t pt-6">
+                    <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-widest">
+                      Page <span className="text-foreground font-bold">{logsPagination.page}</span> of <span className="text-foreground font-bold">{logsPagination.totalPages}</span>
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={logsPagination.page === 1 || isLoadingLogs}
+                        onClick={() => handleViewLogs(logsPagination.page - 1)}
+                        className="h-8 w-8 p-0 rounded-lg"
+                      >
+                        <IconChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={logsPagination.page === logsPagination.totalPages || isLoadingLogs}
+                        onClick={() => handleViewLogs(logsPagination.page + 1)}
+                        className="h-8 w-8 p-0 rounded-lg"
+                      >
+                        <IconChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {!isPro && (
+            <div className="mx-8 mb-8 p-4 bg-primary/5 border border-primary/10 rounded-xl text-center">
+              <p className="text-xs text-primary font-bold uppercase tracking-wider">
+                Full history & analytics available for Pro users.
+                <a href="/billing" className="underline ml-2 hover:opacity-80 transition-opacity">Upgrade now</a>
+              </p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

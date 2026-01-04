@@ -119,6 +119,7 @@ export interface ApiResponse<T = unknown> {
   message?: string;
   error?: string;
   data?: T;
+  status?: number;
 }
 
 export interface PQCKeypairs {
@@ -399,6 +400,18 @@ export interface SecurityEvent {
   additionalData?: any;
 }
 
+export interface ShareAccessLog {
+  id: string;
+  session_id: string;
+  action: 'VIEW' | 'DOWNLOAD';
+  country: string | null;
+  device_type: string | null;
+  browser: string | null;
+  os: string | null;
+  user_agent: string | null;
+  created_at: string;
+}
+
 class ApiClient {
   private baseURL: string;
   private storage: Storage | null = null;
@@ -626,14 +639,15 @@ class ApiClient {
         // Return error response as-is (don't throw) so callers like initializeUploadSession can handle 409 conflicts
         // The response should already have success: false from the backend
         if (data.success !== undefined) {
-          return data;  // Return the backend response directly with success: false
+          return { ...data, status: response.status };
         }
 
         // If backend didn't include success field, add it
         return {
           success: false,
           error: data.error || `HTTP ${response.status}`,
-          data: data
+          data: data,
+          status: response.status
         };
       }
 
@@ -649,6 +663,7 @@ class ApiClient {
             success,
             ...(error && { error }),
             data: responseData.data,
+            status: response.status
           };
         }
 
@@ -657,6 +672,7 @@ class ApiClient {
           success,
           ...(error && { error }),
           data: responseData,
+          status: response.status
         };
       }
 
@@ -664,6 +680,7 @@ class ApiClient {
       return {
         success: true,
         data: data,
+        status: response.status
       };
     } catch (error) {
       console.error('API request failed:', error);
@@ -1537,7 +1554,7 @@ class ApiClient {
     });
   }
 
-  async trackShareView(shareId: string): Promise<ApiResponse<{ success: boolean; views: number }>> {
+  async trackShareView(shareId: string): Promise<ApiResponse<{ success: boolean }>> {
     // Use shareId as unique intent (tracking view for same share)
     const idempotencyKey = generateIdempotencyKey('trackShareView', shareId);
     const headers = addIdempotencyKey({}, idempotencyKey);
@@ -2783,10 +2800,35 @@ class ApiClient {
 
   async updateShareSettings(shareId: string, settings: {
     comments_enabled?: boolean;
+    detailed_logging_enabled?: boolean;
   }): Promise<ApiResponse<{ success: boolean; message: string }>> {
     return this.request(`/shares/${shareId}/settings`, {
       method: 'PATCH',
       body: JSON.stringify(settings),
+    });
+  }
+
+  async getShareLogs(shareId: string, page: number = 1, limit: number = 50): Promise<ApiResponse<{
+    logs: ShareAccessLog[];
+    pagination: {
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+    };
+    settings: {
+      detailed_logging_enabled: boolean;
+    };
+  }>> {
+    return this.request(`/shares/${shareId}/logs?page=${page}&limit=${limit}`);
+  }
+
+  async wipeShareLogs(shareId: string): Promise<ApiResponse<{ success: boolean; message: string }>> {
+    const idempotencyKey = generateIdempotencyKey('wipeShareLogs', shareId);
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request(`/shares/${shareId}/logs`, {
+      method: 'DELETE',
+      headers,
     });
   }
 

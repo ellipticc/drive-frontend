@@ -63,7 +63,6 @@ interface ShareDetails {
   comments_locked?: boolean | number;
   expires_at?: string;
   max_views?: number;
-  views: number;
   disabled: boolean;
   wrapped_cek?: string;
   nonce_wrap?: string;
@@ -158,7 +157,7 @@ export default function SharedDownloadPage() {
     try {
       const shareResponse = await apiClient.getShare(shareId);
       if (!shareResponse.success || !shareResponse.data) {
-        throw new Error('Share not found or expired');
+        throw new Error(shareResponse.error || 'Share not found or expired');
       }
 
       const share = shareResponse.data;
@@ -172,9 +171,7 @@ export default function SharedDownloadPage() {
         throw new Error('This share link has expired');
       }
 
-      if (share.max_views && share.views >= share.max_views) {
-        throw new Error('This share link has reached its maximum view limit');
-      }
+
 
       // Track view
       apiClient.trackShareView(shareId).catch(err => console.warn('Failed to track view:', err));
