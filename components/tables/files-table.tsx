@@ -6,7 +6,7 @@ import { DotsVertical } from "@untitledui/icons";
 import type { SortDescriptor, Selection } from "react-aria-components";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Button } from "@/components/ui/button";
-import { IconFolderPlus, IconFolderDown, IconFileUpload, IconShare3, IconListDetails, IconDownload, IconFolder, IconEdit, IconInfoCircle, IconTrash, IconFile, IconHome, IconChevronRight, IconLink, IconEye, IconLayoutColumns, IconCopy } from "@tabler/icons-react";
+import { IconFolderPlus, IconFolderDown, IconFileUpload, IconShare3, IconListDetails, IconDownload, IconFolder, IconEdit, IconInfoCircle, IconTrash, IconFile, IconHome, IconChevronRight, IconLink, IconEye, IconLayoutColumns, IconCopy, IconStar, IconStarFilled } from "@tabler/icons-react";
 import { CreateFolderModal } from "@/components/modals/create-folder-modal";
 import { MoveToFolderModal } from "@/components/modals/move-to-folder-modal";
 import { CopyModal } from "@/components/modals/copy-modal";
@@ -62,7 +62,7 @@ export const Table01DividerLineSm = ({
     const STORAGE_KEY = 'files-table-visible-columns';
 
     // Column visibility state
-    const [visibleColumns, setVisibleColumns] = useState<Set<string>>(new Set(['modified', 'size', 'checksum', 'shared']));
+    const [visibleColumns, setVisibleColumns] = useState<Set<string>>(new Set(['starred', 'modified', 'size', 'shared']));
     const [isPreferencesLoaded, setIsPreferencesLoaded] = useState(false);
 
     // Load preferences from local storage
@@ -72,7 +72,9 @@ export const Table01DividerLineSm = ({
             try {
                 const parsed = JSON.parse(saved);
                 if (Array.isArray(parsed)) {
-                    setVisibleColumns(new Set(parsed));
+                    // Always hide checksum by default
+                    const filtered = parsed.filter(c => c !== 'checksum');
+                    setVisibleColumns(new Set(filtered));
                 }
             } catch (e) {
                 console.error("Failed to parse visible columns preference", e);
@@ -428,7 +430,8 @@ export const Table01DividerLineSm = ({
                     type: 'folder' as const,
                     createdAt: fileData.createdAt || new Date().toISOString(),
                     updatedAt: fileData.updatedAt || new Date().toISOString(),
-                    is_shared: fileData.is_shared || false
+                    is_shared: fileData.is_shared || false,
+                    is_starred: fileData.is_starred || false
                 };
 
                 // Add folder to beginning of list
@@ -460,7 +463,8 @@ export const Table01DividerLineSm = ({
                     createdAt: fileData.createdAt || new Date().toISOString(),
                     updatedAt: fileData.updatedAt || new Date().toISOString(),
                     shaHash: fileData.shaHash,
-                    is_shared: fileData.is_shared || false
+                    is_shared: fileData.is_shared || false,
+                    is_starred: fileData.is_starred || false
                 };
 
                 // Add to beginning of files list for visibility
@@ -541,7 +545,8 @@ export const Table01DividerLineSm = ({
                             type: 'folder' as const,
                             createdAt: folder.createdAt,
                             updatedAt: folder.updatedAt,
-                            is_shared: folder.is_shared || false
+                            is_shared: folder.is_shared || false,
+                            is_starred: folder.is_starred || false
                         };
                     }))),
                     ...(await Promise.all((response.data.files || []).map(async (file: FileContentItem) => {
@@ -577,7 +582,8 @@ export const Table01DividerLineSm = ({
                             createdAt: file.createdAt,
                             updatedAt: file.updatedAt,
                             shaHash: file.shaHash,
-                            is_shared: file.is_shared || false
+                            is_shared: file.is_shared || false,
+                            is_starred: file.is_starred || false
                         };
                     })))
                 ];
@@ -711,6 +717,30 @@ export const Table01DividerLineSm = ({
         setSelectedItemForShare({ id: itemId, name: itemName, type: itemType });
         setShareModalOpen(true);
     }, [setSelectedItemForShare, setShareModalOpen]);
+
+    const handleStarClick = useCallback(async (itemId: string, itemType: "file" | "folder", currentStarred: boolean) => {
+        try {
+            const isStarred = !currentStarred;
+            const res = await apiClient.setItemStarred({
+                fileId: itemType === 'file' ? itemId : undefined,
+                folderId: itemType === 'folder' ? itemId : undefined,
+                isStarred
+            });
+
+            if (res.success) {
+                // Update local state
+                setFiles(prev => prev.map(f =>
+                    f.id === itemId ? { ...f, is_starred: isStarred } : f
+                ));
+                toast.success(isStarred ? 'Added to Spaced' : 'Removed from Spaced');
+            } else {
+                toast.error(res.error || `Failed to ${isStarred ? 'star' : 'unstar'} item`);
+            }
+        } catch (error) {
+            console.error('Star error:', error);
+            toast.error('An error occurred while updating starred status');
+        }
+    }, [apiClient, setFiles]);
 
     const handleDetailsClick = useCallback(async (itemId: string, itemName: string, itemType: "file" | "folder") => {
         try {
@@ -976,6 +1006,9 @@ export const Table01DividerLineSm = ({
                     break;
                 case 'share':
                     handleShareClick(item.id, item.name, item.type);
+                    break;
+                case 'star':
+                    handleStarClick(item.id, item.type, item.is_starred || false);
                     break;
                 case 'moveToFolder':
                     handleMoveToFolderClick(item.id, item.name, item.type);
@@ -1530,6 +1563,19 @@ export const Table01DividerLineSm = ({
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56">
                         <DropdownMenuCheckboxItem
+                            checked={visibleColumns.has('starred')}
+                            onCheckedChange={(checked) => {
+                                setVisibleColumns(prev => {
+                                    const next = new Set(prev);
+                                    if (checked) next.add('starred');
+                                    else next.delete('starred');
+                                    return next;
+                                });
+                            }}
+                        >
+                            Spaced
+                        </DropdownMenuCheckboxItem>
+                        <DropdownMenuCheckboxItem
                             checked={visibleColumns.has('modified')}
                             onCheckedChange={(checked) => {
                                 setVisibleColumns(prev => {
@@ -2058,6 +2104,7 @@ export const Table01DividerLineSm = ({
                                     <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto">Name</span>
                                 )}
                             </Table.Head>
+                            <Table.Head id="starred" align="center" className={`hidden md:table-cell w-16 ${visibleColumns.has('starred') ? '' : '[&>*]:invisible pointer-events-none cursor-default'}`} />
                             <Table.Head id="modified" allowsSorting={selectedItems.size === 0} align="right" className={`hidden md:table-cell ${visibleColumns.has('modified') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
                                 <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Modified</span>
                             </Table.Head>
@@ -2099,6 +2146,30 @@ export const Table01DividerLineSm = ({
                                                 className="text-sm font-medium whitespace-nowrap text-foreground cursor-default flex-1 min-w-0"
                                             />
                                         </div>
+                                    </Table.Cell>
+                                    <Table.Cell className={`hidden md:table-cell px-1 w-16 text-center ${visibleColumns.has('starred') ? '' : '[&>*]:invisible'}`}>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleStarClick(item.id, item.type, item.is_starred || false);
+                                                    }}
+                                                    onMouseDown={(e) => e.stopPropagation()}
+                                                    onPointerDown={(e) => e.stopPropagation()}
+                                                    className="flex items-center justify-center cursor-pointer hover:bg-accent rounded-sm p-1 transition-colors ml-auto mr-2"
+                                                >
+                                                    {item.is_starred ? (
+                                                        <IconStarFilled className="h-4 w-4 text-foreground" />
+                                                    ) : (
+                                                        <IconStar className="h-4 w-4 text-muted-foreground/40 hover:text-foreground/80" />
+                                                    )}
+                                                </button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>{item.is_starred ? "Remove from Spaced" : "Add to Spaced"}</p>
+                                            </TooltipContent>
+                                        </Tooltip>
                                     </Table.Cell>
                                     <Table.Cell className={`hidden md:table-cell text-right ${visibleColumns.has('modified') ? '' : '[&>*]:invisible'} px-4`}>
                                         <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
@@ -2154,6 +2225,8 @@ export const Table01DividerLineSm = ({
                                                             e.stopPropagation();
                                                             handleShareClick(item.id, item.name, item.type);
                                                         }}
+                                                        onMouseDown={(e) => e.stopPropagation()}
+                                                        onPointerDown={(e) => e.stopPropagation()}
                                                         className="flex items-center justify-center cursor-pointer hover:bg-accent rounded-sm p-1 transition-colors"
                                                     >
                                                         <IconShare3 className="h-3.5 w-3.5 text-blue-500" />
@@ -2169,7 +2242,14 @@ export const Table01DividerLineSm = ({
                                         <div className={`flex justify-end gap-0.5 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-200`}>
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild id={filteredItems.indexOf(item) === 0 ? "tour-file-actions" : undefined}>
-                                                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        className="h-8 w-8 p-0"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        onMouseDown={(e) => e.stopPropagation()}
+                                                        onPointerDown={(e) => e.stopPropagation()}
+                                                    >
                                                         <DotsVertical className="h-4 w-4" />
                                                     </Button>
                                                 </DropdownMenuTrigger>
@@ -2187,6 +2267,19 @@ export const Table01DividerLineSm = ({
                                                     <DropdownMenuItem onClick={() => handleShareClick(item.id, item.name, item.type)}>
                                                         <IconShare3 className="h-4 w-4 mr-2" />
                                                         Share
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleStarClick(item.id, item.type, item.is_starred || false)}>
+                                                        {item.is_starred ? (
+                                                            <>
+                                                                <IconStarFilled className="h-4 w-4 mr-2 text-foreground" />
+                                                                Remove from Spaced
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <IconStar className="h-4 w-4 mr-2" />
+                                                                Add to Spaced
+                                                            </>
+                                                        )}
                                                     </DropdownMenuItem>
                                                     <DropdownMenuSeparator />
                                                     <DropdownMenuItem onClick={() => handleMoveToFolderClick(item.id, item.name, item.type)}>
@@ -2285,6 +2378,32 @@ export const Table01DividerLineSm = ({
                                         />
                                     </div>
 
+                                    {/* Star button */}
+                                    <div className={`absolute top-2 left-9 z-10 flex items-center transition-opacity duration-200 ${item.is_starred ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleStarClick(item.id, item.type, item.is_starred || false);
+                                                    }}
+                                                    onMouseDown={(e) => e.stopPropagation()}
+                                                    onPointerDown={(e) => e.stopPropagation()}
+                                                    className="focus:outline-none transition-transform hover:scale-110 active:scale-95"
+                                                >
+                                                    {item.is_starred ? (
+                                                        <IconStarFilled className="h-4 w-4 text-foreground" />
+                                                    ) : (
+                                                        <IconStar className="h-4 w-4 text-muted-foreground/40 hover:text-foreground/80" />
+                                                    )}
+                                                </button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>{item.is_starred ? "Remove from Spaced" : "Add to Spaced"}</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </div>
+
                                     {/* File/Folder icon */}
                                     <div className="flex flex-col items-center gap-3 pt-6">
                                         <div className="text-4xl">
@@ -2313,7 +2432,14 @@ export const Table01DividerLineSm = ({
                                     <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild id={filteredItems.indexOf(item) === 0 ? "tour-file-actions" : undefined}>
-                                                <Button size="sm" variant="ghost" className="h-6 w-6 p-0 bg-background/80 backdrop-blur-sm">
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    className="h-6 w-6 p-0 bg-background/80 backdrop-blur-sm"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    onMouseDown={(e) => e.stopPropagation()}
+                                                    onPointerDown={(e) => e.stopPropagation()}
+                                                >
                                                     <DotsVertical className="h-3 w-3" />
                                                 </Button>
                                             </DropdownMenuTrigger>
@@ -2331,6 +2457,19 @@ export const Table01DividerLineSm = ({
                                                 <DropdownMenuItem onClick={() => handleShareClick(item.id, item.name, item.type)}>
                                                     <IconShare3 className="h-4 w-4 mr-2" />
                                                     Share
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => handleStarClick(item.id, item.type, item.is_starred || false)}>
+                                                    {item.is_starred ? (
+                                                        <>
+                                                            <IconStarFilled className="h-4 w-4 mr-2 text-foreground" />
+                                                            Remove from Spaced
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <IconStar className="h-4 w-4 mr-2" />
+                                                            Add to Spaced
+                                                        </>
+                                                    )}
                                                 </DropdownMenuItem>
                                                 <DropdownMenuSeparator />
                                                 <DropdownMenuItem onClick={() => handleMoveToFolderClick(item.id, item.name, item.type)}>
@@ -2371,7 +2510,7 @@ export const Table01DividerLineSm = ({
                         )}
                     </div>
                 )}
-            </TableCard.Root>
+            </TableCard.Root >
 
             <RenameModal
                 itemName={selectedItemForRename?.name || ""}
@@ -2473,158 +2612,176 @@ export const Table01DividerLineSm = ({
             />
 
             {/* Context Menu */}
-            {contextMenu?.isOpen && (
-                <div
-                    className="fixed inset-0 z-50"
-                    onClick={handleContextMenuClose}
-                    onContextMenu={(e) => {
-                        e.preventDefault();
-                        handleContextMenuClose();
-                    }}
-                >
+            {
+                contextMenu?.isOpen && (
                     <div
-                        className="absolute bg-popover border border-border rounded-md shadow-lg py-1 min-w-48 z-50 animate-in fade-in-0 zoom-in-95 duration-200 ease-out pointer-events-auto"
-                        style={{
-                            left: (() => {
-                                const menuWidth = 192; // min-w-48 = 192px
-                                const viewportWidth = window.innerWidth;
-                                const cursorX = contextMenu.x;
-
-                                // If menu would go off-screen to the right, position it to the left of cursor
-                                if (cursorX + menuWidth > viewportWidth) {
-                                    return cursorX - menuWidth;
-                                }
-                                return cursorX;
-                            })(),
-                            top: (() => {
-                                const menuHeight = 200; // Approximate height
-                                const viewportHeight = window.innerHeight;
-                                const cursorY = contextMenu.y;
-
-                                // If menu would go off-screen to the bottom, position it above cursor
-                                if (cursorY + menuHeight > viewportHeight) {
-                                    return cursorY - menuHeight;
-                                }
-                                return cursorY;
-                            })(),
+                        className="fixed inset-0 z-50"
+                        onClick={handleContextMenuClose}
+                        onContextMenu={(e) => {
+                            e.preventDefault();
+                            handleContextMenuClose();
                         }}
-                        onClick={(e) => e.stopPropagation()}
                     >
-                        {!contextMenu.targetItem ? (
-                            // Context menu for empty space
-                            <>
-                                <button
-                                    className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
-                                    onClick={() => handleContextMenuAction('createFolder')}
-                                >
-                                    <IconFolderPlus className="h-4 w-4" />
-                                    Create Folder
-                                </button>
-                                <div className="h-px bg-border mx-2 my-1" />
-                                <button
-                                    className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
-                                    onClick={() => handleContextMenuAction('importFile')}
-                                >
-                                    <IconFileUpload className="h-4 w-4" />
-                                    Import File
-                                </button>
-                                <button
-                                    className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
-                                    onClick={() => handleContextMenuAction('importFolder')}
-                                >
-                                    <IconFolderDown className="h-4 w-4" />
-                                    Import Folder
-                                </button>
-                                <div className="h-px bg-border mx-2 my-1" />
-                                <button
-                                    className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
-                                    onClick={() => handleContextMenuAction('share')}
-                                >
-                                    <IconShare3 className="h-4 w-4" />
-                                    Share
-                                </button>
-                            </>
-                        ) : (
-                            // Context menu for items
-                            <>
-                                <button
-                                    className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
-                                    onClick={() => handleContextMenuAction('download', contextMenu.targetItem)}
-                                >
-                                    <IconDownload className="h-4 w-4" />
-                                    Download
-                                </button>
-                                {contextMenu.targetItem?.type === 'file' && (
-                                    <div
-                                        className="flex items-center px-3 py-2 text-sm text-foreground hover:bg-accent cursor-pointer transition-colors"
-                                        onClick={() => {
-                                            if (contextMenu.targetItem) {
-                                                handlePreviewClick(contextMenu.targetItem.id, contextMenu.targetItem.name, contextMenu.targetItem.mimeType);
-                                                handleContextMenuClose();
-                                            }
-                                        }}
+                        <div
+                            className="absolute bg-popover border border-border rounded-md shadow-lg py-1 min-w-48 z-50 animate-in fade-in-0 zoom-in-95 duration-200 ease-out pointer-events-auto"
+                            style={{
+                                left: (() => {
+                                    const menuWidth = 192; // min-w-48 = 192px
+                                    const viewportWidth = window.innerWidth;
+                                    const cursorX = contextMenu.x;
+
+                                    // If menu would go off-screen to the right, position it to the left of cursor
+                                    if (cursorX + menuWidth > viewportWidth) {
+                                        return cursorX - menuWidth;
+                                    }
+                                    return cursorX;
+                                })(),
+                                top: (() => {
+                                    const menuHeight = 200; // Approximate height
+                                    const viewportHeight = window.innerHeight;
+                                    const cursorY = contextMenu.y;
+
+                                    // If menu would go off-screen to the bottom, position it above cursor
+                                    if (cursorY + menuHeight > viewportHeight) {
+                                        return cursorY - menuHeight;
+                                    }
+                                    return cursorY;
+                                })(),
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            {!contextMenu.targetItem ? (
+                                // Context menu for empty space
+                                <>
+                                    <button
+                                        className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
+                                        onClick={() => handleContextMenuAction('createFolder')}
                                     >
-                                        <IconEye className="h-4 w-4 mr-2" />
-                                        Preview
-                                    </div>
-                                )}
-                                {/* TODO: Only show Copy Link if item is shared */}
-                                <button
-                                    className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
-                                    onClick={() => handleContextMenuAction('copyLink', contextMenu.targetItem)}
-                                >
-                                    <IconLink className="h-4 w-4" />
-                                    Copy Link
-                                </button>
-                                <button
-                                    className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
-                                    onClick={() => handleContextMenuAction('share', contextMenu.targetItem)}
-                                >
-                                    <IconShare3 className="h-4 w-4" />
-                                    Share
-                                </button>
-                                <div className="h-px bg-border mx-2 my-1" />
-                                <button
-                                    className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
-                                    onClick={() => handleContextMenuAction('moveToFolder', contextMenu.targetItem)}
-                                >
-                                    <IconFolder className="h-4 w-4" />
-                                    Move to Folder
-                                </button>
-                                <button
-                                    className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
-                                    onClick={() => handleContextMenuAction('copy', contextMenu.targetItem)}
-                                >
-                                    <IconCopy className="h-4 w-4" />
-                                    Copy to...
-                                </button>
-                                <button
-                                    className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
-                                    onClick={() => handleContextMenuAction('rename', contextMenu.targetItem)}
-                                >
-                                    <IconEdit className="h-4 w-4" />
-                                    Rename
-                                </button>
-                                <button
-                                    className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
-                                    onClick={() => handleContextMenuAction('details', contextMenu.targetItem)}
-                                >
-                                    <IconInfoCircle className="h-4 w-4" />
-                                    Details
-                                </button>
-                                <div className="h-px bg-border mx-2 my-1" />
-                                <button
-                                    className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                                    onClick={() => handleContextMenuAction('moveToTrash', contextMenu.targetItem)}
-                                >
-                                    <IconTrash className="h-4 w-4" />
-                                    Move to Trash
-                                </button>
-                            </>
-                        )}
-                    </div>
-                </div >
-            )}
+                                        <IconFolderPlus className="h-4 w-4" />
+                                        Create Folder
+                                    </button>
+                                    <div className="h-px bg-border mx-2 my-1" />
+                                    <button
+                                        className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
+                                        onClick={() => handleContextMenuAction('importFile')}
+                                    >
+                                        <IconFileUpload className="h-4 w-4" />
+                                        Import File
+                                    </button>
+                                    <button
+                                        className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
+                                        onClick={() => handleContextMenuAction('importFolder')}
+                                    >
+                                        <IconFolderDown className="h-4 w-4" />
+                                        Import Folder
+                                    </button>
+                                    <div className="h-px bg-border mx-2 my-1" />
+                                    <button
+                                        className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
+                                        onClick={() => handleContextMenuAction('share')}
+                                    >
+                                        <IconShare3 className="h-4 w-4" />
+                                        Share
+                                    </button>
+                                </>
+                            ) : (
+                                // Context menu for items
+                                <>
+                                    <button
+                                        className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
+                                        onClick={() => handleContextMenuAction('download', contextMenu.targetItem)}
+                                    >
+                                        <IconDownload className="h-4 w-4" />
+                                        Download
+                                    </button>
+                                    {contextMenu.targetItem?.type === 'file' && (
+                                        <div
+                                            className="flex items-center px-3 py-2 text-sm text-foreground hover:bg-accent cursor-pointer transition-colors"
+                                            onClick={() => {
+                                                if (contextMenu.targetItem) {
+                                                    handlePreviewClick(contextMenu.targetItem.id, contextMenu.targetItem.name, contextMenu.targetItem.mimeType);
+                                                    handleContextMenuClose();
+                                                }
+                                            }}
+                                        >
+                                            <IconEye className="h-4 w-4 mr-2" />
+                                            Preview
+                                        </div>
+                                    )}
+                                    {/* TODO: Only show Copy Link if item is shared */}
+                                    <button
+                                        className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
+                                        onClick={() => handleContextMenuAction('copyLink', contextMenu.targetItem)}
+                                    >
+                                        <IconLink className="h-4 w-4" />
+                                        Copy Link
+                                    </button>
+                                    <button
+                                        className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
+                                        onClick={() => handleContextMenuAction('share', contextMenu.targetItem)}
+                                    >
+                                        <IconShare3 className="h-4 w-4" />
+                                        Share
+                                    </button>
+                                    <button
+                                        className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
+                                        onClick={() => handleContextMenuAction('star', contextMenu.targetItem)}
+                                    >
+                                        {contextMenu.targetItem?.is_starred ? (
+                                            <>
+                                                <IconStarFilled className="h-4 w-4 text-foreground" />
+                                                Remove from Spaced
+                                            </>
+                                        ) : (
+                                            <>
+                                                <IconStar className="h-4 w-4" />
+                                                Add to Spaced
+                                            </>
+                                        )}
+                                    </button>
+                                    <div className="h-px bg-border mx-2 my-1" />
+                                    <button
+                                        className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
+                                        onClick={() => handleContextMenuAction('moveToFolder', contextMenu.targetItem)}
+                                    >
+                                        <IconFolder className="h-4 w-4" />
+                                        Move to Folder
+                                    </button>
+                                    <button
+                                        className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
+                                        onClick={() => handleContextMenuAction('copy', contextMenu.targetItem)}
+                                    >
+                                        <IconCopy className="h-4 w-4" />
+                                        Copy to...
+                                    </button>
+                                    <button
+                                        className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
+                                        onClick={() => handleContextMenuAction('rename', contextMenu.targetItem)}
+                                    >
+                                        <IconEdit className="h-4 w-4" />
+                                        Rename
+                                    </button>
+                                    <button
+                                        className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
+                                        onClick={() => handleContextMenuAction('details', contextMenu.targetItem)}
+                                    >
+                                        <IconInfoCircle className="h-4 w-4" />
+                                        Details
+                                    </button>
+                                    <div className="h-px bg-border mx-2 my-1" />
+                                    <button
+                                        className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                                        onClick={() => handleContextMenuAction('moveToTrash', contextMenu.targetItem)}
+                                    >
+                                        <IconTrash className="h-4 w-4" />
+                                        Move to Trash
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    </div >
+                )
+            }
 
             <FullPagePreviewModal
                 file={selectedItemForPreview ? {

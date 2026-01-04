@@ -200,6 +200,7 @@ export interface FileItem {
   shaHash?: string; // File hash (SHA512)
   sessionSalt?: string;
   is_shared?: boolean; // Whether this file/folder is currently shared
+  is_starred?: boolean; // Whether this file/folder is currently in a space (starred)
   encryption?: {
     iv: string;
     salt: string;
@@ -227,6 +228,7 @@ export interface FolderContentItem {
   updatedAt: string;
   deletedAt?: string;
   is_shared: boolean;
+  is_starred: boolean;
 }
 
 export interface FileContentItem {
@@ -251,6 +253,7 @@ export interface FileContentItem {
   shaHash: string;
   sha_hash?: string;
   is_shared: boolean;
+  is_starred: boolean;
 }
 
 export interface ShareItem {
