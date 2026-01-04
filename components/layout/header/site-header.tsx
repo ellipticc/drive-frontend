@@ -44,7 +44,7 @@ export function SiteHeader({ onSearch, onFileUpload, onFolderUpload }: SiteHeade
         </div>
         <div className="ml-auto flex items-center gap-2">
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+            <DropdownMenuTrigger asChild id="tour-new-button">
               <Button size="sm" className="h-8">
                 <IconPlus className="h-4 w-4 mr-2" />
                 New

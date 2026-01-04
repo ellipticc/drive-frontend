@@ -96,15 +96,33 @@ export function NavMain({
         <SidebarMenu>
           {items.map((item) => (
             <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton
-                tooltip={item.title}
-                isActive={pathname === item.url}
-                onClick={() => handleNavigate(item.url)}
-                className="cursor-pointer"
-              >
-                {item.icon && <item.icon />}
-                <span>{item.title}</span>
-              </SidebarMenuButton>
+              {item.title === 'Trash' ? (
+                <SidebarMenuButton
+                  tooltip={item.title}
+                  isActive={pathname === item.url}
+                  onClick={() => handleNavigate(item.url)}
+                  className="cursor-pointer"
+                  id="tour-trash"
+                >
+                  {item.icon && <item.icon />}
+                  <span>{item.title}</span>
+                </SidebarMenuButton>
+              ) : item.title === "Settings" ? (
+                <SidebarMenuButton onClick={() => window.location.hash = '#settings/General'} id="tour-settings">
+                  {item.icon && <item.icon />}
+                  <span>{item.title}</span>
+                </SidebarMenuButton>
+              ) : (
+                <SidebarMenuButton
+                  tooltip={item.title}
+                  isActive={pathname === item.url}
+                  onClick={() => handleNavigate(item.url)}
+                  className="cursor-pointer"
+                >
+                  {item.icon && <item.icon />}
+                  <span>{item.title}</span>
+                </SidebarMenuButton>
+              )}
             </SidebarMenuItem>
           ))}
         </SidebarMenu>

@@ -2168,7 +2168,7 @@ export const Table01DividerLineSm = ({
                                     <Table.Cell className="px-3 w-12">
                                         <div className={`flex justify-end gap-0.5 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-200`}>
                                             <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
+                                                <DropdownMenuTrigger asChild id={filteredItems.indexOf(item) === 0 ? "tour-file-actions" : undefined}>
                                                     <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
                                                         <DotsVertical className="h-4 w-4" />
                                                     </Button>
@@ -2312,7 +2312,7 @@ export const Table01DividerLineSm = ({
                                     {/* Actions menu */}
                                     <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                                         <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
+                                            <DropdownMenuTrigger asChild id={filteredItems.indexOf(item) === 0 ? "tour-file-actions" : undefined}>
                                                 <Button size="sm" variant="ghost" className="h-6 w-6 p-0 bg-background/80 backdrop-blur-sm">
                                                     <DotsVertical className="h-3 w-3" />
                                                 </Button>
@@ -2364,7 +2364,7 @@ export const Table01DividerLineSm = ({
                         {filteredItems.length === 0 && (
                             <div className="flex items-center justify-center py-12">
                                 <div className="text-center">
-                                    <IconFile className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                                    <IconFile className="h-12 w-12 mx-auto mb-4 text-muted-foreground" id={filteredItems.length === 0 ? "tour-file-actions" : undefined} />
                                     <p className="text-sm text-muted-foreground">No files found</p>
                                 </div>
                             </div>

@@ -24,6 +24,7 @@ interface UserData {
   };
   // Optional authentication method (e.g., 'wallet')
   authMethod?: string;
+  onboarding_completed?: boolean;
 }
 
 interface UserContextType {

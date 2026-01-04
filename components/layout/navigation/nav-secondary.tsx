@@ -37,7 +37,7 @@ export function NavSecondary({
                   </SidebarMenuButton>
                 </SupportRequestDialog>
               ) : item.title === "Settings" ? (
-                <SidebarMenuButton onClick={() => window.location.hash = '#settings/General'}>
+                <SidebarMenuButton onClick={() => window.location.hash = '#settings/General'} id="tour-settings">
                   <item.icon />
                   <span>{item.title}</span>
                 </SidebarMenuButton>

@@ -52,6 +52,7 @@
     "clsx": "^2.1.1",
     "compressorjs": "^1.2.1",
     "date-fns": "^4.1.0",
+    "driver.js": "^1.4.0",
     "eciesjs": "^0.4.16",
     "fflate": "^0.8.2",
     "hash-wasm": "^4.12.0",

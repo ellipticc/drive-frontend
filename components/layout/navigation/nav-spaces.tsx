@@ -621,7 +621,7 @@ export function NavSpaces() {
                 <SidebarGroupLabel className="flex items-center justify-between">
                     <span>Quick Spaces</span>
                     <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
+                        <DropdownMenuTrigger asChild id="tour-create-space">
                             <button className="hover:bg-accent p-1 rounded-sm transition-colors">
                                 <IconPlus size={14} />
                             </button>

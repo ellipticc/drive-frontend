@@ -16,6 +16,7 @@ export interface UserData {
   masterKeySalt?: string;
   sessionDuration?: number;
   authMethod?: string;
+  onboarding_completed?: boolean;
 
   storage?: {
     used_bytes: number;
@@ -852,6 +853,13 @@ class ApiClient {
 
   async getProfile(): Promise<ApiResponse<{ user: UserData }>> {
     return this.request('/auth/me');
+  }
+
+  async completeOnboarding(): Promise<ApiResponse> {
+    return this.request('/auth/onboarding/complete', {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
   }
 
   async updateUserProfile(data: {
