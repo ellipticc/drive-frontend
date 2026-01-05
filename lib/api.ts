@@ -216,6 +216,19 @@ export interface FileItem {
   fileNoncePrefix?: string;
 }
 
+export interface RecentItem {
+  id: string; // The file or folder ID
+  recentId: string; // The ID from recent_items table
+  type: 'file' | 'folder';
+  name: string; // Display name (decrypted or placeholder)
+  encryptedName?: string;
+  nameSalt?: string;
+  mimeType?: string; // For files
+  size?: number; // For files
+  parentId?: string | null;
+  accessedAt: string;
+}
+
 export interface FolderContentItem {
   id: string;
   name?: string;
@@ -1151,6 +1164,23 @@ class ApiClient {
     const endpoint = `/files${queryString ? `?${queryString}` : ''}`;
 
     return this.request(endpoint);
+  }
+
+  // Recent items endpoints
+  async getRecentItems(limit = 20, folderId?: string | null): Promise<ApiResponse<RecentItem[]>> {
+    const query = new URLSearchParams({ limit: limit.toString() });
+    if (folderId && folderId !== 'root') query.append('folderId', folderId);
+    return this.request(`/recent?${query.toString()}`);
+  }
+
+  async addRecentItem(data: { id: string; type: 'file' | 'folder' }): Promise<ApiResponse> {
+    const idempotencyKey = generateIdempotencyKey('addRecentItem', `${data.id}-${Date.now()}`);
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request('/recent', {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers,
+    });
   }
 
   // Folders endpoints

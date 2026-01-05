@@ -38,7 +38,9 @@ import { useOnFileAdded, useOnFileDeleted, useOnFileReplaced, useGlobalUpload } 
 import { FileIcon } from "@/components/file-icon";
 import { masterKeyManager } from "@/lib/master-key";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { TruncatedNameTooltip } from "./truncated-name-tooltip";
+import { useRecentFiles, RecentItem } from "@/hooks/use-recent-files";
+import { SuggestedFiles } from "@/components/files/suggested-files";
+import { TruncatedNameTooltip } from "@/components/tables/truncated-name-tooltip";
 import { cx } from "@/utils/cx";
 import {
     DndContext,
@@ -239,6 +241,7 @@ export const Table01DividerLineSm = ({
 
     // View mode state
     const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
+    const { recentItems, isVisible: isRecentVisible, toggleVisibility: toggleRecentVisibility, addRecent } = useRecentFiles(currentFolderId);
 
     // Save view mode to localStorage when it changes
     const handleViewModeChange = useCallback((newViewMode: 'table' | 'grid') => {
@@ -429,14 +432,32 @@ export const Table01DividerLineSm = ({
     useEffect(() => {
         const previewId = searchParams?.get('preview');
         if (previewId) {
-            const file = filesMap.get(previewId);
+            // First check the current folder's filesMap
+            let file = filesMap.get(previewId);
+
+            // If not in current folder, check recentItems (for suggestions from other folders)
+            if (!file && recentItems) {
+                const recent = recentItems.find(r => r.id === previewId && r.type === 'file');
+                if (recent) {
+                    file = {
+                        id: recent.id,
+                        name: recent.name,
+                        type: 'file',
+                        mimeType: recent.mimeType,
+                        // Add dummy/missing properties for FileItem compatibility if needed
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString(),
+                        size: recent.size || '0'
+                    } as FileItem;
+                }
+            }
+
             if (file && file.type === 'file') {
                 setSelectedItemForPreview({ id: file.id, name: file.name, mimeType: file.mimeType });
                 setPreviewModalOpen(true);
             } else {
                 if (files.length > 0 && !isLoading) {
                     // Only show error if files are loaded and file is definitely missing/invalid
-                    // Avoiding race condition where files aren't loaded yet
                     toast.error("File ID doesn't exist or cannot be previewed");
                     // Remove invalid param
                     const params = new URLSearchParams(searchParams.toString());
@@ -448,14 +469,20 @@ export const Table01DividerLineSm = ({
             setPreviewModalOpen(false);
             setSelectedItemForPreview(null);
         }
-    }, [searchParams, filesMap, files, isLoading, pathname, router]);
+    }, [searchParams, filesMap, files, isLoading, pathname, router, recentItems]);
 
     // Update handlePreviewClick to use URL
     const handlePreviewClick = useCallback((itemId: string, itemName: string, mimeType?: string) => {
+        addRecent({
+            id: itemId,
+            name: itemName,
+            type: 'file',
+            mimeType: mimeType
+        }, 1500); // 1.5s delay to prevent accidental/quick access tracking
         const params = new URLSearchParams(searchParams.toString());
         params.set('preview', itemId);
         router.push(`${pathname}?${params.toString()}`, { scroll: false });
-    }, [pathname, router, searchParams]);
+    }, [pathname, router, searchParams, addRecent]);
 
     // Hash copy animation state
     const [copiedHashId, setCopiedHashId] = useState<string | null>(null);
@@ -836,6 +863,11 @@ export const Table01DividerLineSm = ({
 
     // Navigate to a folder
     const navigateToFolder = async (folderId: string, folderName: string) => {
+        addRecent({
+            id: folderId,
+            name: folderName,
+            type: 'folder'
+        });
         const newPath = [...folderPath, { id: folderId, name: folderName }];
         setCurrentFolderId(folderId);
         setFolderPath(newPath);
@@ -2162,8 +2194,40 @@ export const Table01DividerLineSm = ({
         return () => document.removeEventListener('keydown', handleKeyDown);
     }, [selectedItems, filesMap]);
 
+    const handleSuggestedNavigate = useCallback((item: RecentItem) => {
+        if (item.type === 'folder') {
+            // Jump to folder
+            // We set ID and basic path [Root, Target]
+            setCurrentFolderId(item.id);
+            const basicPath = [{ id: 'root', name: 'My Files' }, { id: item.id, name: item.name }];
+            setFolderPath(basicPath);
+            updateUrl(basicPath);
+            addRecent({ ...item });
+        } else {
+            handlePreviewClick(item.id, item.name, item.mimeType);
+        }
+    }, [addRecent, handlePreviewClick, router]);
+
     return (
-        <>
+        <div className="flex flex-col h-full bg-background mt-1">
+            {/* Suggested Files Section */}
+            {!isLoading && !error && (
+                <SuggestedFiles
+                    items={recentItems}
+                    isVisible={isRecentVisible}
+                    onToggleVisibility={toggleRecentVisibility}
+                    onNavigate={handleSuggestedNavigate}
+                    onPreview={handlePreviewClick}
+                    onShare={handleShareClick}
+                    onStar={handleStarClick}
+                    onMoveToFolder={handleMoveToFolderClick}
+                    onCopy={handleCopyClick}
+                    onRename={handleRenameClick}
+                    onDetails={handleDetailsClick}
+                    onMoveToTrash={handleMoveToTrashClick}
+                />
+            )}
+
             <TableCard.Root size="sm">
                 <TableCard.Header
                     title={renderBreadcrumbs()}
@@ -2981,6 +3045,6 @@ export const Table01DividerLineSm = ({
                 currentIndex={selectedItemForPreview ? getPreviewableFiles().findIndex(item => item.id === selectedItemForPreview.id) : -1}
                 totalItems={getPreviewableFiles().length}
             />
-        </>
+        </div>
     );
 };
