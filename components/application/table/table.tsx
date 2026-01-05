@@ -62,7 +62,7 @@ const TableCardRoot = ({ children, className, size = "md", ...props }: HTMLAttri
 
 interface TableCardHeaderProps {
     /** The title of the table card header. */
-    title: string;
+    title: ReactNode;
     /** The badge displayed next to the title. */
     badge?: ReactNode;
     /** The description of the table card header. */
@@ -79,14 +79,20 @@ const TableCardHeader = ({ title, badge, description, contentTrailing, className
     return (
         <div
             className={cx(
-                "relative flex flex-col items-start gap-4 border-b border-border bg-card px-4 md:flex-row",
-                size === "sm" ? "py-4 md:px-5" : "py-5 md:px-6",
+                "relative flex flex-col items-center gap-4 border-b border-border bg-card px-4 md:flex-row",
+                size === "sm" ? "py-0 md:px-5" : "py-0 md:px-6",
                 className,
             )}
         >
-            <div className="flex flex-1 flex-col gap-0.5">
-                <div className="flex items-center gap-2">
-                    <h2 className={cx("font-semibold text-card-foreground", size === "sm" ? "text-md" : "text-lg")}>{title}</h2>
+            <div className="flex flex-1 flex-col gap-0">
+                <div className="flex items-center gap-2 w-full min-w-0">
+                    {typeof title === "string" ? (
+                        <h2 className={cx("font-semibold text-card-foreground truncate", size === "sm" ? "text-sm" : "text-lg")}>
+                            {title}
+                        </h2>
+                    ) : (
+                        <div className="flex-1 min-w-0">{title}</div>
+                    )}
                     {badge ? (
                         isValidElement(badge) ? (
                             badge

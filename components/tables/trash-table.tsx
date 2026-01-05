@@ -437,32 +437,22 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
             <TableSkeleton
                 title="Trash"
                 headerIcons={
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 md:gap-2">
                         <Button
                             size="sm"
-                            variant="outline"
+                            variant="ghost"
                             disabled
-                            className="h-8"
+                            className="h-8 w-8 p-0"
                         >
-                            <IconRestore className="h-4 w-4 mr-2" />
-                            Restore All
+                            <IconRestore className="h-4 w-4" />
                         </Button>
                         <Button
                             size="sm"
-                            variant="destructive"
+                            variant="ghost"
                             disabled
-                            className="h-8"
+                            className="h-8 w-8 p-0"
                         >
-                            <IconTrash className="h-4 w-4 mr-2" />
-                            Delete All
-                        </Button>
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            disabled
-                            className="h-8"
-                        >
-                            Refresh
+                            <IconTrash className="h-4 w-4" />
                         </Button>
                     </div>
                 }
@@ -475,7 +465,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
             <TableCard.Root size="sm">
                 <TableCard.Header
                     title="Trash"
-                    className="py-1 [&>div>h2]:text-base [&>div>h2]:font-medium h-12 flex-shrink-0 border-0"
+                    className="h-10 border-0"
                 />
                 <div className="flex items-center justify-center py-8">
                     <div className="text-center">
@@ -493,38 +483,30 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                 <TableCard.Header
                     title="Trash"
                     contentTrailing={
-                        <div className="absolute top-2 right-4 md:right-6 flex items-center gap-1.5 md:gap-2">
+                        <div className="flex items-center gap-1.5 md:gap-2">
                             <Button
                                 size="sm"
-                                variant="outline"
+                                variant="ghost"
                                 onClick={handleRestoreAll}
                                 disabled={trashItems.length === 0}
-                                className="h-8 px-2 md:px-3 text-[10px] md:text-sm"
+                                className="h-8 w-8 p-0"
+                                title="Restore All"
                             >
-                                <IconRestore className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 md:mr-2" />
-                                <span className="inline">Restore All</span>
+                                <IconRestore className="h-3.5 w-3.5" />
                             </Button>
                             <Button
                                 size="sm"
-                                variant="destructive"
+                                variant="ghost"
                                 onClick={handleDeleteAll}
                                 disabled={trashItems.length === 0}
-                                className="h-8 px-2 md:px-3 text-[10px] md:text-sm"
+                                className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                title="Delete All"
                             >
-                                <IconTrash className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 md:mr-2" />
-                                <span className="inline">Delete All</span>
-                            </Button>
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={refreshTrash}
-                                className="h-8 px-2 md:px-3 text-[10px] md:text-sm"
-                            >
-                                <span className="inline">Refresh</span>
+                                <IconTrash className="h-3.5 w-3.5" />
                             </Button>
                         </div>
                     }
-                    className="py-1 [&>div>h2]:text-base [&>div>h2]:font-medium h-12 flex-shrink-0 border-0"
+                    className="h-10 border-0"
                 />
                 {trashItems.length === 0 ? (
                     <div className="flex items-center justify-center py-12">

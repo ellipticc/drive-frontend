@@ -353,11 +353,11 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
             return (
                 <>
                     <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={handleShareRoot}>
-                        <IconShare3 className="h-4 w-4" />
+                        <IconShare3 className="h-3.5 w-3.5" />
                     </Button>
                     <div className="h-5 w-px bg-border mx-1" />
                     <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleViewModeChange(viewMode === 'table' ? 'grid' : 'table')}>
-                        {viewMode === 'table' ? <IconGrid3x3 className="h-4 w-4" /> : <IconListDetails className="h-4 w-4" />}
+                        {viewMode === 'table' ? <IconGrid3x3 className="h-3.5 w-3.5" /> : <IconListDetails className="h-3.5 w-3.5" />}
                     </Button>
                 </>
             );
@@ -368,7 +368,7 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={handleBulkDownload}>
-                                <IconDownload className="h-4 w-4" />
+                                <IconDownload className="h-3.5 w-3.5" />
                             </Button>
                         </TooltipTrigger>
                         <TooltipContent>Download selected</TooltipContent>
@@ -377,7 +377,7 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={handleBulkRevoke}>
-                                <IconX className="h-4 w-4" />
+                                <IconX className="h-3.5 w-3.5" />
                             </Button>
                         </TooltipTrigger>
                         <TooltipContent>Revoke selected shares</TooltipContent>
@@ -386,7 +386,7 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleViewModeChange(viewMode === 'table' ? 'grid' : 'table')}>
-                                {viewMode === 'table' ? <IconGrid3x3 className="h-4 w-4" /> : <IconListDetails className="h-4 w-4" />}
+                                {viewMode === 'table' ? <IconGrid3x3 className="h-3.5 w-3.5" /> : <IconListDetails className="h-3.5 w-3.5" />}
                             </Button>
                         </TooltipTrigger>
                         <TooltipContent>{viewMode === 'table' ? 'Grid view' : 'Table view'}</TooltipContent>
@@ -415,11 +415,11 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                 <TableCard.Header
                     title="My links"
                     contentTrailing={
-                        <div className="absolute top-1 right-4 md:right-6 flex items-center gap-1">
+                        <div className="flex items-center gap-1">
                             {renderHeaderIcons()}
                         </div>
                     }
-                    className="py-1 [&>div>h2]:text-base [&>div>h2]:font-medium h-12 flex-shrink-0 border-0"
+                    className="h-10 border-0"
                 />
                 <div className="flex items-center justify-center py-8">
                     <div className="text-center">
@@ -437,11 +437,11 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                 <TableCard.Header
                     title="My links"
                     contentTrailing={
-                        <div className="absolute top-1 right-4 md:right-6 flex items-center gap-1">
+                        <div className="flex items-center gap-1">
                             {renderHeaderIcons()}
                         </div>
                     }
-                    className="py-1 [&>div>h2]:text-base [&>div>h2]:font-medium h-12 flex-shrink-0 border-0"
+                    className="h-10 border-0"
                 />
                 {viewMode === 'table' ? (
                     <Table aria-label="Shares" selectionMode="multiple" selectionBehavior="replace" sortDescriptor={sortDescriptor} onSortChange={setSortDescriptor} selectedKeys={selectedItems} onSelectionChange={(keys) => {

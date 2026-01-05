@@ -1,12 +1,12 @@
 "use client";
 
-import { useMemo, useState, useRef, useEffect, useCallback } from "react";
+import React, { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { DotsVertical } from "@untitledui/icons";
 import type { SortDescriptor, Selection } from "react-aria-components";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Button } from "@/components/ui/button";
-import { IconFolderPlus, IconFolderDown, IconFileUpload, IconShare3, IconListDetails, IconDownload, IconFolder, IconEdit, IconInfoCircle, IconTrash, IconFile, IconHome, IconChevronRight, IconLink, IconEye, IconLayoutColumns, IconCopy, IconStar, IconStarFilled } from "@tabler/icons-react";
+import { IconFolderPlus, IconFolderDown, IconFileUpload, IconShare3, IconListDetails, IconDownload, IconFolder, IconEdit, IconInfoCircle, IconTrash, IconFile, IconHome, IconChevronRight, IconLink, IconEye, IconLayoutColumns, IconCopy, IconStar, IconStarFilled, IconLoader2, IconGrid3x3 } from "@tabler/icons-react";
 import { CreateFolderModal } from "@/components/modals/create-folder-modal";
 import { MoveToFolderModal } from "@/components/modals/move-to-folder-modal";
 import { CopyModal } from "@/components/modals/copy-modal";
@@ -24,6 +24,8 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/base/checkbox/checkbox";
 import { TableSkeleton } from "@/components/tables/table-skeleton";
 import { decryptFilename, encryptFilename, computeFilenameHmac, createSignedFileManifest, createSignedFolderManifest, decryptUserPrivateKeys } from "@/lib/crypto";
@@ -1746,6 +1748,69 @@ export const Table01DividerLineSm = ({
         setCopyConflictOpen(false);
         setCopyConflictItems([]);
     };
+    const renderBreadcrumbs = useCallback(() => {
+        return (
+            <Breadcrumb className="flex-1 min-w-0">
+                <BreadcrumbList className="flex-nowrap overflow-x-auto pb-0 gap-1 sm:gap-1 no-scrollbar animate-in fade-in slide-in-from-left-2 duration-300">
+                    {folderPath.map((folder, index) => {
+                        const isLast = index === folderPath.length - 1;
+                        const label = index === 0 ? "My Files" : folder.name;
+
+                        return (
+                            <React.Fragment key={folder.id}>
+                                <BreadcrumbItem className="min-w-0 flex-shrink-0">
+                                    {isLast ? (
+                                        <BreadcrumbPage className="truncate font-semibold text-foreground max-w-[120px] md:max-w-[250px] text-sm md:text-sm">
+                                            {truncateBreadcrumbName(label)}
+                                        </BreadcrumbPage>
+                                    ) : (
+                                        <BreadcrumbLink
+                                            className="cursor-pointer truncate max-w-[100px] md:max-w-[150px] text-sm md:text-sm hover:text-foreground transition-colors"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                navigateToPath(folder.id);
+                                            }}
+                                        >
+                                            {truncateBreadcrumbName(label)}
+                                        </BreadcrumbLink>
+                                    )}
+                                </BreadcrumbItem>
+                                {!isLast && (
+                                    <BreadcrumbSeparator className="flex-shrink-0">
+                                        <IconChevronRight className="h-3.5 w-3.5 opacity-50" />
+                                    </BreadcrumbSeparator>
+                                )}
+                            </React.Fragment>
+                        );
+                    })}
+                </BreadcrumbList>
+            </Breadcrumb>
+        );
+    }, [folderPath, navigateToPath, truncateBreadcrumbName]);
+
+    const renderLoadingIcons = useMemo(() => {
+        return (
+            <div className="flex items-center gap-1 opacity-50 pointer-events-none">
+                <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
+                    <IconFolderPlus className="h-3.5 w-3.5" />
+                </Button>
+                <div className="h-5 w-px bg-border mx-1" />
+                <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
+                    <IconFolderDown className="h-3.5 w-3.5" />
+                </Button>
+                <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
+                    <IconFileUpload className="h-3.5 w-3.5" />
+                </Button>
+                <div className="h-5 w-px bg-border mx-1" />
+                <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
+                    <IconShare3 className="h-3.5 w-3.5" />
+                </Button>
+                <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
+                    <IconListDetails className="h-3.5 w-3.5" />
+                </Button>
+            </div>
+        );
+    }, []);
 
     const renderHeaderIcons = useMemo(() => {
         const hasSelection = selectedItems.size > 0;
@@ -1758,7 +1823,7 @@ export const Table01DividerLineSm = ({
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Customize columns">
-                            <IconLayoutColumns className="h-4 w-4" />
+                            <IconLayoutColumns className="h-3.5 w-3.5" />
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56">
@@ -1841,7 +1906,7 @@ export const Table01DividerLineSm = ({
                         onFolderCreated={() => refreshFiles()}
                     >
                         <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Create new folder">
-                            <IconFolderPlus className="h-4 w-4" />
+                            <IconFolderPlus className="h-3.5 w-3.5" />
                         </Button>
                     </CreateFolderModal>
                     <div className="h-5 w-px bg-border mx-1" />
@@ -1852,7 +1917,7 @@ export const Table01DividerLineSm = ({
                         onClick={handleFolderUpload}
                         title="Upload folder"
                     >
-                        <IconFolderDown className="h-4 w-4" />
+                        <IconFolderDown className="h-3.5 w-3.5" />
                     </Button>
                     <Button
                         size="sm"
@@ -1861,7 +1926,7 @@ export const Table01DividerLineSm = ({
                         onClick={handleFileUpload}
                         title="Upload file"
                     >
-                        <IconFileUpload className="h-4 w-4" />
+                        <IconFileUpload className="h-3.5 w-3.5" />
                     </Button>
                     <div className="h-5 w-px bg-border mx-1" />
                     <Button
@@ -1874,7 +1939,7 @@ export const Table01DividerLineSm = ({
                         }}
                         title="Share files"
                     >
-                        <IconShare3 className="h-4 w-4" />
+                        <IconShare3 className="h-3.5 w-3.5" />
                     </Button>
                     <Button
                         size="sm"
@@ -1883,7 +1948,7 @@ export const Table01DividerLineSm = ({
                         onClick={() => handleViewModeChange(viewMode === 'table' ? 'grid' : 'table')}
                         title={viewMode === 'table' ? 'Switch to grid view' : 'Switch to table view'}
                     >
-                        <IconListDetails className="h-4 w-4" />
+                        {viewMode === 'table' ? <IconGrid3x3 className="h-3.5 w-3.5" /> : <IconListDetails className="h-3.5 w-3.5" />}
                     </Button>
                     {customizeColumnsDropdown}
                 </>
@@ -2097,369 +2162,435 @@ export const Table01DividerLineSm = ({
         return () => document.removeEventListener('keydown', handleKeyDown);
     }, [selectedItems, filesMap]);
 
-    if (isLoading) {
-        return (
-            <>
-                {/* Breadcrumb Navigation */}
-                <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-card h-12 flex-shrink-0">
-                    <IconHome className="h-4 w-4 text-muted-foreground" />
-                    <div className="flex items-center gap-1 text-sm">
-                        {folderPath.map((folder, index) => (
-                            <div key={folder.id} className="flex items-center gap-1">
-                                {index > 0 && <IconChevronRight className="h-3 w-3 text-muted-foreground" />}
-                                <button
-                                    onClick={() => navigateToPath(folder.id)}
-                                    className={`hover:text-primary transition-colors ${index === folderPath.length - 1 ? 'font-medium text-foreground' : 'text-muted-foreground'
-                                        }`}
-                                    disabled={index === folderPath.length - 1}
-                                    title={folder.name}
-                                >
-                                    {truncateBreadcrumbName(folder.name)}
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                <TableSkeleton
-                    title="My Files"
-                    headerIcons={
-                        <div className="absolute top-1 right-4 md:right-6 flex items-center gap-1">
-                            <CreateFolderModal>
-                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
-                                    <IconFolderPlus className="h-4 w-4" />
-                                </Button>
-                            </CreateFolderModal>
-                            <div className="h-5 w-px bg-border mx-1" />
-                            <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-7 w-7 p-0"
-                                onClick={handleFolderUpload}
-                            >
-                                <IconFolderDown className="h-4 w-4" />
-                            </Button>
-                            <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-7 w-7 p-0"
-                                onClick={handleFileUpload}
-                            >
-                                <IconFileUpload className="h-4 w-4" />
-                            </Button>
-                            <div className="h-5 w-px bg-border mx-1" />
-                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
-                                <IconShare3 className="h-4 w-4" />
-                            </Button>
-                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
-                                <IconListDetails className="h-4 w-4" />
-                            </Button>
-                        </div>
-                    }
-                />
-            </>
-        );
-    }
-
-
-    if (error) {
-        return (
-            <>
-                {/* Breadcrumb Navigation */}
-                <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-card h-12 flex-shrink-0">
-                    <IconHome className="h-4 w-4 text-muted-foreground" />
-                    <div className="flex items-center gap-1 text-sm">
-                        {folderPath.map((folder, index) => (
-                            <div key={folder.id} className="flex items-center gap-1">
-                                {index > 0 && <IconChevronRight className="h-3 w-3 text-muted-foreground" />}
-                                <button
-                                    onClick={() => navigateToPath(folder.id)}
-                                    className={`hover:text-primary transition-colors ${index === folderPath.length - 1 ? 'font-medium text-foreground' : 'text-muted-foreground'
-                                        }`}
-                                    disabled={index === folderPath.length - 1}
-                                    title={folder.name}
-                                >
-                                    {truncateBreadcrumbName(folder.name)}
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                <TableCard.Root size="sm">
-                    <TableCard.Header
-                        title="My Files"
-                        contentTrailing={
-                            <div className="absolute top-1 right-4 md:right-6 flex items-center gap-1">
-                                <CreateFolderModal>
-                                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
-                                        <IconFolderPlus className="h-4 w-4" />
-                                    </Button>
-                                </CreateFolderModal>
-                                <div className="h-5 w-px bg-border mx-1" />
-                                <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-7 w-7 p-0"
-                                    onClick={handleFolderUpload}
-                                >
-                                    <IconFolderDown className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-7 w-7 p-0"
-                                    onClick={handleFileUpload}
-                                >
-                                    <IconFileUpload className="h-4 w-4" />
-                                </Button>
-                                <div className="h-5 w-px bg-border mx-1" />
-                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
-                                    <IconShare3 className="h-4 w-4" />
-                                </Button>
-                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
-                                    <IconListDetails className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        }
-                        className="py-1 [&>div>h2]:text-base [&>div>h2]:font-medium h-12 flex-shrink-0 border-0"
-                    />
-                    <div className="flex items-center justify-center py-8">
-                        <div className="text-center">
-                            <p className="text-sm text-muted-foreground mb-2">Failed to load files</p>
-                            <p className="text-xs text-muted-foreground">{error}</p>
-                        </div>
-                    </div>
-                </TableCard.Root>
-            </>
-        );
-    }
-
     return (
         <>
-            {/* Breadcrumb Navigation */}
-            <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-card h-12 flex-shrink-0">
-                <IconHome className="h-4 w-4 text-muted-foreground" />
-                <div className="flex items-center gap-1 text-sm">
-                    {folderPath.map((folder, index) => (
-                        <div key={folder.id} className="flex items-center gap-1">
-                            {index > 0 && <IconChevronRight className="h-3 w-3 text-muted-foreground" />}
-                            <button
-                                onClick={() => navigateToPath(folder.id)}
-                                className={`hover:text-primary transition-colors ${index === folderPath.length - 1 ? 'font-medium text-foreground' : 'text-muted-foreground'
-                                    }`}
-                                disabled={index === folderPath.length - 1}
-                                title={folder.name}
-                            >
-                                {truncateBreadcrumbName(folder.name)}
-                            </button>
-                        </div>
-                    ))}
-                </div>
-            </div>
-
             <TableCard.Root size="sm">
                 <TableCard.Header
-                    title="My Files"
+                    title={renderBreadcrumbs()}
                     contentTrailing={
-                        <div className="absolute top-1 right-4 md:right-6 flex items-center gap-1">
-                            {renderHeaderIcons}
-
-                            {/* Hidden file inputs */}
-                            <input
-                                ref={fileInputRef}
-                                type="file"
-                                multiple
-                                className="hidden"
-                                onChange={handleFileSelect}
-                                accept="*/*"
-                            />
-                            <input
-                                ref={folderInputRef}
-                                type="file"
-                                multiple
-                                className="hidden"
-                                onChange={handleFolderSelect}
-                                {...({ webkitdirectory: "" } as React.InputHTMLAttributes<HTMLInputElement>)}
-                            />
+                        <div className="flex items-center gap-1">
+                            {isLoading ? renderLoadingIcons : renderHeaderIcons}
                         </div>
                     }
-                    className="py-1 [&>div>h2]:text-base [&>div>h2]:font-medium h-12 flex-shrink-0 border-0"
+                    className="h-10 border-0"
                 />
-                {viewMode === 'table' ? (
-                    <DndContext
-                        sensors={sensors}
-                        onDragStart={handleDragStart}
-                        onDragOver={handleDragOver}
-                        onDragEnd={handleDragEnd}
-                    >
-                        <Table aria-label="Files" selectionMode="multiple" selectionBehavior="replace" sortDescriptor={sortDescriptor} onSortChange={setSortDescriptor} selectedKeys={selectedItems} onSelectionChange={handleTableSelectionChange}
-                            onContextMenu={(e: React.MouseEvent) => handleContextMenu(e)}
-                        >
-                            <Table.Header className="group">
-                                <Table.Head className="w-10 text-center pl-4 pr-0">
-                                    <Checkbox
-                                        slot="selection"
-                                        className={`transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}
-                                    />
-                                </Table.Head>
-                                <Table.Head id="name" isRowHeader allowsSorting={selectedItems.size === 0} className="w-full max-w-0 pointer-events-none cursor-default" align="left">
-                                    {selectedItems.size > 0 ? (
-                                        <span className="text-xs font-semibold whitespace-nowrap text-foreground px-1.5 py-1">{selectedItems.size} selected</span>
-                                    ) : (
-                                        <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto">Name</span>
-                                    )}
-                                </Table.Head>
-                                <Table.Head id="starred" align="center" className={`hidden md:table-cell w-16 ${visibleColumns.has('starred') ? '' : '[&>*]:invisible pointer-events-none cursor-default'}`} />
-                                <Table.Head id="modified" allowsSorting={selectedItems.size === 0} align="right" className={`hidden md:table-cell ${visibleColumns.has('modified') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
-                                    <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Modified</span>
-                                </Table.Head>
-                                <Table.Head id="size" allowsSorting={selectedItems.size === 0} align="right" className={`hidden md:table-cell ${visibleColumns.has('size') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
-                                    <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Size</span>
-                                </Table.Head>
-                                <Table.Head id="checksum" allowsSorting={selectedItems.size === 0} align="right" className={`hidden md:table-cell ${visibleColumns.has('checksum') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
-                                    <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Checksum</span>
-                                </Table.Head>
-                                <Table.Head id="shared" align="center" className={`hidden md:table-cell w-16 ${visibleColumns.has('shared') ? '' : '[&>*]:invisible pointer-events-none cursor-default'}`} />
-                                <Table.Head id="actions" align="right" />
-                            </Table.Header>
 
-                            <Table.Body items={filteredItems} dependencies={[visibleColumns, selectedItems.size]}>
-                                {(item) => (
-                                    <DraggableDroppableRow
-                                        id={item.id}
-                                        item={item}
-                                        isSelected={selectedItems.has(item.id)}
-                                        isDraggingSomewhere={!!activeDragItem}
-                                        onDoubleClick={item.type === 'folder' ? () => handleFolderDoubleClick(item.id, item.name) : (item.type === 'file' ? () => handlePreviewClick(item.id, item.name, item.mimeType) : undefined)}
-                                        className="group hover:bg-muted/50 transition-colors duration-150"
-                                        onContextMenu={(e: React.MouseEvent) => handleContextMenu(e, item)}
-                                    >
-                                        <Table.Cell className="w-10 text-center pl-4 pr-0">
+                {isLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                        <div className="text-center space-y-4">
+                            <IconLoader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-muted-foreground" />
+                            <p className="text-sm text-muted-foreground">Loading...</p>
+                            <div className="space-y-2 max-w-md mx-auto px-6">
+                                {[...Array(3)].map((_, i) => (
+                                    <div key={i} className="flex items-center gap-2">
+                                        <Skeleton className="h-4 w-4 rounded" />
+                                        <Skeleton className="h-4 flex-1" />
+                                        <Skeleton className="h-4 w-16" />
+                                        <Skeleton className="h-4 w-12" />
+                                        <Skeleton className="h-4 w-20" />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                ) : error ? (
+                    <div className="flex items-center justify-center py-8">
+                        <div className="text-center text-red-500">
+                            <p className="text-sm font-medium mb-1">Failed to load files</p>
+                            <p className="text-xs opacity-80">{error}</p>
+                        </div>
+                    </div>
+                ) : (
+                    <>
+                        {viewMode === 'table' ? (
+                            <DndContext
+                                sensors={sensors}
+                                onDragStart={handleDragStart}
+                                onDragOver={handleDragOver}
+                                onDragEnd={handleDragEnd}
+                            >
+                                <Table aria-label="Files" selectionMode="multiple" selectionBehavior="replace" sortDescriptor={sortDescriptor} onSortChange={setSortDescriptor} selectedKeys={selectedItems} onSelectionChange={handleTableSelectionChange}
+                                    onContextMenu={(e: React.MouseEvent) => handleContextMenu(e)}
+                                >
+                                    <Table.Header className="group">
+                                        <Table.Head className="w-10 text-center pl-4 pr-0">
                                             <Checkbox
                                                 slot="selection"
                                                 className={`transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}
                                             />
-                                        </Table.Cell>
-                                        <Table.Cell className="w-full max-w-0">
-                                            <div className="flex items-center gap-2 min-w-0">
-                                                <div className="text-base">
+                                        </Table.Head>
+                                        <Table.Head id="name" isRowHeader allowsSorting={selectedItems.size === 0} className="w-full max-w-0 pointer-events-none cursor-default" align="left">
+                                            {selectedItems.size > 0 ? (
+                                                <span className="text-xs font-semibold whitespace-nowrap text-foreground px-1.5 py-1">{selectedItems.size} selected</span>
+                                            ) : (
+                                                <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto">Name</span>
+                                            )}
+                                        </Table.Head>
+                                        <Table.Head id="starred" align="center" className={`hidden md:table-cell w-16 ${visibleColumns.has('starred') ? '' : '[&>*]:invisible pointer-events-none cursor-default'}`} />
+                                        <Table.Head id="modified" allowsSorting={selectedItems.size === 0} align="right" className={`hidden md:table-cell ${visibleColumns.has('modified') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
+                                            <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Modified</span>
+                                        </Table.Head>
+                                        <Table.Head id="size" allowsSorting={selectedItems.size === 0} align="right" className={`hidden md:table-cell ${visibleColumns.has('size') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
+                                            <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Size</span>
+                                        </Table.Head>
+                                        <Table.Head id="checksum" allowsSorting={selectedItems.size === 0} align="right" className={`hidden md:table-cell ${visibleColumns.has('checksum') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
+                                            <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Checksum</span>
+                                        </Table.Head>
+                                        <Table.Head id="shared" align="center" className={`hidden md:table-cell w-16 ${visibleColumns.has('shared') ? '' : '[&>*]:invisible pointer-events-none cursor-default'}`} />
+                                        <Table.Head id="actions" align="right" />
+                                    </Table.Header>
+
+                                    <Table.Body items={filteredItems} dependencies={[visibleColumns, selectedItems.size]}>
+                                        {(item) => (
+                                            <DraggableDroppableRow
+                                                id={item.id}
+                                                item={item}
+                                                isSelected={selectedItems.has(item.id)}
+                                                isDraggingSomewhere={!!activeDragItem}
+                                                onDoubleClick={item.type === 'folder' ? () => handleFolderDoubleClick(item.id, item.name) : (item.type === 'file' ? () => handlePreviewClick(item.id, item.name, item.mimeType) : undefined)}
+                                                className="group hover:bg-muted/50 transition-colors duration-150"
+                                                onContextMenu={(e: React.MouseEvent) => handleContextMenu(e, item)}
+                                            >
+                                                <Table.Cell className="w-10 text-center pl-4 pr-0">
+                                                    <Checkbox
+                                                        slot="selection"
+                                                        className={`transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}
+                                                    />
+                                                </Table.Cell>
+                                                <Table.Cell className="w-full max-w-0">
+                                                    <div className="flex items-center gap-2 min-w-0">
+                                                        <div className="text-base">
+                                                            {item.type === 'folder' ? (
+                                                                <IconFolder className="h-4 w-4 text-blue-500 inline-block" />
+                                                            ) : (
+                                                                <FileIcon mimeType={item.mimeType} filename={item.name} className="h-4 w-4 inline-block" />
+                                                            )}
+                                                        </div>
+                                                        <TruncatedNameTooltip
+                                                            name={item.name}
+                                                            className="text-sm font-medium whitespace-nowrap text-foreground cursor-default flex-1 min-w-0"
+                                                        />
+                                                    </div>
+                                                </Table.Cell>
+                                                <Table.Cell className={`hidden md:table-cell px-1 w-16 text-center ${visibleColumns.has('starred') ? '' : '[&>*]:invisible'}`}>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleStarClick(item.id, item.type, item.is_starred || false);
+                                                                }}
+                                                                onMouseDown={(e) => e.stopPropagation()}
+                                                                onPointerDown={(e) => e.stopPropagation()}
+                                                                className="flex items-center justify-center cursor-pointer hover:bg-accent rounded-sm p-1 transition-colors ml-auto mr-2"
+                                                            >
+                                                                {item.is_starred ? (
+                                                                    <IconStarFilled className="h-4 w-4 text-foreground" />
+                                                                ) : (
+                                                                    <IconStar className="h-4 w-4 text-muted-foreground/40 hover:text-foreground/80" />
+                                                                )}
+                                                            </button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p>{item.is_starred ? "Remove from Spaced" : "Add to Spaced"}</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </Table.Cell>
+                                                <Table.Cell className={`hidden md:table-cell text-right ${visibleColumns.has('modified') ? '' : '[&>*]:invisible'} px-4`}>
+                                                    <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
+                                                        {formatDate(item.createdAt)}
+                                                    </span>
+                                                </Table.Cell>
+                                                <Table.Cell className={`hidden md:table-cell text-right ${visibleColumns.has('size') ? '' : '[&>*]:invisible'} px-4`}>
+                                                    <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
+                                                        {item.type === 'folder' ? '--' : formatFileSize(item.size || 0)}
+                                                    </span>
+                                                </Table.Cell>
+                                                <Table.Cell className={`hidden md:table-cell text-right ${visibleColumns.has('checksum') ? '' : '[&>*]:invisible'} px-4`}>
                                                     {item.type === 'folder' ? (
-                                                        <IconFolder className="h-4 w-4 text-blue-500 inline-block" />
+                                                        <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">N/A</span>
+                                                    ) : item.shaHash ? (
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <button
+                                                                    className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer font-mono whitespace-nowrap"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        navigator.clipboard.writeText(item.shaHash!);
+                                                                        setCopiedHashId(item.id);
+                                                                        setTimeout(() => setCopiedHashId(null), 300);
+                                                                    }}
+                                                                >
+                                                                    {item.shaHash.substring(0, 5)}...{item.shaHash.substring(item.shaHash.length - 5)}
+                                                                </button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent
+                                                                className="max-w-none whitespace-nowrap font-[var(--font-jetbrains-mono)] font-semibold tracking-wider"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    navigator.clipboard.writeText(item.shaHash!);
+                                                                    setCopiedHashId(item.id);
+                                                                    setTimeout(() => setCopiedHashId(null), 500);
+                                                                }}
+                                                            >
+                                                                <p className={`text-xs cursor-pointer transition-all duration-300 ${copiedHashId === item.id ? 'animate-pulse bg-primary/20 text-primary scale-105' : ''}`}>{item.shaHash}</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
                                                     ) : (
-                                                        <FileIcon mimeType={item.mimeType} filename={item.name} className="h-4 w-4 inline-block" />
+                                                        <span className="text-xs text-muted-foreground font-mono break-all">N/A</span>
                                                     )}
-                                                </div>
-                                                <TruncatedNameTooltip
-                                                    name={item.name}
-                                                    className="text-sm font-medium whitespace-nowrap text-foreground cursor-default flex-1 min-w-0"
+                                                </Table.Cell>
+                                                <Table.Cell className={`hidden md:table-cell px-1 w-16 text-center ${visibleColumns.has('shared') ? '' : '[&>*]:invisible'}`}>
+                                                    {/* Shared icon */}
+                                                    {item.is_shared ? (
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleShareClick(item.id, item.name, item.type);
+                                                                    }}
+                                                                    onMouseDown={(e) => e.stopPropagation()}
+                                                                    onPointerDown={(e) => e.stopPropagation()}
+                                                                    className="flex items-center justify-center cursor-pointer hover:bg-accent rounded-sm p-1 transition-colors"
+                                                                >
+                                                                    <IconShare3 className="h-3.5 w-3.5 text-blue-500" />
+                                                                </button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                <p>Manage share</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    ) : null}
+                                                </Table.Cell>
+                                                <Table.Cell className="px-3 w-12">
+                                                    <div className={`flex justify-end gap-0.5 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-200`}>
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild id={filteredItems.indexOf(item) === 0 ? "tour-file-actions" : undefined}>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    className="h-8 w-8 p-0"
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                    onMouseDown={(e) => e.stopPropagation()}
+                                                                    onPointerDown={(e) => e.stopPropagation()}
+                                                                >
+                                                                    <DotsVertical className="h-4 w-4" />
+                                                                </Button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="end" className="w-48">
+                                                                <DropdownMenuItem onClick={() => handleDownloadClick(item.id, item.name, item.type)}>
+                                                                    <IconDownload className="h-4 w-4 mr-2" />
+                                                                    Download
+                                                                </DropdownMenuItem>
+                                                                {item.type === 'file' && (
+                                                                    <DropdownMenuItem onClick={() => handlePreviewClick(item.id, item.name, item.mimeType)}>
+                                                                        <IconEye className="h-4 w-4 mr-2" />
+                                                                        Preview
+                                                                    </DropdownMenuItem>
+                                                                )}
+                                                                <DropdownMenuItem onClick={() => handleShareClick(item.id, item.name, item.type)}>
+                                                                    <IconShare3 className="h-4 w-4 mr-2" />
+                                                                    Share
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem onClick={() => handleStarClick(item.id, item.type, item.is_starred || false)}>
+                                                                    {item.is_starred ? (
+                                                                        <>
+                                                                            <IconStarFilled className="h-4 w-4 mr-2 text-foreground" />
+                                                                            Remove from Spaced
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            <IconStar className="h-4 w-4 mr-2" />
+                                                                            Add to Spaced
+                                                                        </>
+                                                                    )}
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuSeparator />
+                                                                <DropdownMenuItem onClick={() => handleMoveToFolderClick(item.id, item.name, item.type)}>
+                                                                    <IconFolder className="h-4 w-4 mr-2" />
+                                                                    Move to folder
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem onClick={() => handleCopyClick(item.id, item.name, item.type)}>
+                                                                    <IconCopy className="h-4 w-4 mr-2" />
+                                                                    Copy to...
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem onClick={() => handleRenameClick(item.id, item.name, item.type)}>
+                                                                    <IconEdit className="h-4 w-4 mr-2" />
+                                                                    Rename
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem onClick={() => handleDetailsClick(item.id, item.name, item.type)}>
+                                                                    <IconInfoCircle className="h-4 w-4 mr-2" />
+                                                                    Details
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuSeparator />
+                                                                <DropdownMenuItem onClick={() => handleMoveToTrashClick(item.id, item.name, item.type)} variant="destructive">
+                                                                    <IconTrash className="h-4 w-4 mr-2" />
+                                                                    Move to trash
+                                                                </DropdownMenuItem>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
+                                                    </div>
+                                                </Table.Cell>
+                                            </DraggableDroppableRow>
+                                        )}
+                                    </Table.Body>
+                                </Table>
+                                <DragOverlay modifiers={[snapCenterToCursor]} dropAnimation={null}>
+                                    {activeDragItem && (
+                                        <div className="bg-primary/95 text-primary-foreground border border-primary/20 rounded-md shadow-lg px-2.5 py-1.5 flex items-center gap-2 scale-95 pointer-events-none backdrop-blur-sm max-w-[160px]">
+                                            <div className="flex-shrink-0">
+                                                {activeDragItem.type === 'folder' ? (
+                                                    <IconFolder className="h-3.5 w-3.5" />
+                                                ) : (
+                                                    <FileIcon mimeType={activeDragItem.mimeType} filename={activeDragItem.name} className="h-3.5 w-3.5" />
+                                                )}
+                                            </div>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="text-[11px] font-semibold truncate leading-tight">
+                                                    {activeDragItem.name}
+                                                </span>
+                                                {selectedItems.size > 1 && selectedItems.has(activeDragItem.id) && (
+                                                    <span className="text-[9px] opacity-80 font-medium">
+                                                        +{selectedItems.size - 1} more items
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                </DragOverlay>
+                                <DropHelper folderName={currentDropTarget?.name || null} isVisible={!!activeDragItem} />
+                            </DndContext>
+                        ) : (
+                            // Grid View
+                            <div className="p-4" onContextMenu={(e) => handleContextMenu(e)}>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-4">
+                                    {filteredItems.map((item) => (
+                                        <div
+                                            key={item.id}
+                                            className={`group relative bg-card rounded-lg border border-border p-4 hover:bg-muted/50 transition-all duration-200 cursor-pointer ${selectedItems.has(item.id) ? 'ring-2 ring-primary bg-muted' : ''
+                                                }`}
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+
+                                                if (isMobile) {
+                                                    // on mobile, single click enters/previews
+                                                    if (item.type === 'folder') {
+                                                        handleFolderDoubleClick(item.id, item.name);
+                                                    } else if (item.type === 'file') {
+                                                        handlePreviewClick(item.id, item.name, item.mimeType);
+                                                    }
+                                                    return;
+                                                }
+
+                                                const newSelected = new Set(selectedItems);
+                                                if (e.ctrlKey || e.metaKey) {
+                                                    if (newSelected.has(item.id)) {
+                                                        newSelected.delete(item.id);
+                                                    } else {
+                                                        newSelected.add(item.id);
+                                                    }
+                                                } else if (e.shiftKey && selectedItems.size > 0) {
+                                                    newSelected.clear();
+                                                    newSelected.add(item.id);
+                                                } else {
+                                                    newSelected.clear();
+                                                    newSelected.add(item.id);
+                                                }
+                                                setSelectedItems(newSelected);
+                                            }}
+                                            onDoubleClick={() => {
+                                                if (item.type === 'folder') {
+                                                    handleFolderDoubleClick(item.id, item.name);
+                                                } else if (item.type === 'file') {
+                                                    handlePreviewClick(item.id, item.name, item.mimeType);
+                                                }
+                                            }}
+                                            onContextMenu={(e) => handleContextMenu(e, item)}
+                                        >
+                                            {/* Selection checkbox */}
+                                            <div className="absolute top-2 left-2 z-10">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedItems.has(item.id)}
+                                                    onChange={(e) => {
+                                                        e.stopPropagation();
+                                                        const newSelected = new Set(selectedItems);
+                                                        if (e.target.checked) {
+                                                            newSelected.add(item.id);
+                                                        } else {
+                                                            newSelected.delete(item.id);
+                                                        }
+                                                        setSelectedItems(newSelected);
+                                                    }}
+                                                    className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
                                                 />
                                             </div>
-                                        </Table.Cell>
-                                        <Table.Cell className={`hidden md:table-cell px-1 w-16 text-center ${visibleColumns.has('starred') ? '' : '[&>*]:invisible'}`}>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handleStarClick(item.id, item.type, item.is_starred || false);
-                                                        }}
-                                                        onMouseDown={(e) => e.stopPropagation()}
-                                                        onPointerDown={(e) => e.stopPropagation()}
-                                                        className="flex items-center justify-center cursor-pointer hover:bg-accent rounded-sm p-1 transition-colors ml-auto mr-2"
-                                                    >
-                                                        {item.is_starred ? (
-                                                            <IconStarFilled className="h-4 w-4 text-foreground" />
-                                                        ) : (
-                                                            <IconStar className="h-4 w-4 text-muted-foreground/40 hover:text-foreground/80" />
-                                                        )}
-                                                    </button>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>{item.is_starred ? "Remove from Spaced" : "Add to Spaced"}</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </Table.Cell>
-                                        <Table.Cell className={`hidden md:table-cell text-right ${visibleColumns.has('modified') ? '' : '[&>*]:invisible'} px-4`}>
-                                            <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
-                                                {formatDate(item.createdAt)}
-                                            </span>
-                                        </Table.Cell>
-                                        <Table.Cell className={`hidden md:table-cell text-right ${visibleColumns.has('size') ? '' : '[&>*]:invisible'} px-4`}>
-                                            <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
-                                                {item.type === 'folder' ? '--' : formatFileSize(item.size || 0)}
-                                            </span>
-                                        </Table.Cell>
-                                        <Table.Cell className={`hidden md:table-cell text-right ${visibleColumns.has('checksum') ? '' : '[&>*]:invisible'} px-4`}>
-                                            {item.type === 'folder' ? (
-                                                <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">N/A</span>
-                                            ) : item.shaHash ? (
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <button
-                                                            className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer font-mono whitespace-nowrap"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                navigator.clipboard.writeText(item.shaHash!);
-                                                                setCopiedHashId(item.id);
-                                                                setTimeout(() => setCopiedHashId(null), 300);
-                                                            }}
-                                                        >
-                                                            {item.shaHash.substring(0, 5)}...{item.shaHash.substring(item.shaHash.length - 5)}
-                                                        </button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent
-                                                        className="max-w-none whitespace-nowrap font-[var(--font-jetbrains-mono)] font-semibold tracking-wider"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            navigator.clipboard.writeText(item.shaHash!);
-                                                            setCopiedHashId(item.id);
-                                                            setTimeout(() => setCopiedHashId(null), 500);
-                                                        }}
-                                                    >
-                                                        <p className={`text-xs cursor-pointer transition-all duration-300 ${copiedHashId === item.id ? 'animate-pulse bg-primary/20 text-primary scale-105' : ''}`}>{item.shaHash}</p>
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                            ) : (
-                                                <span className="text-xs text-muted-foreground font-mono break-all">N/A</span>
-                                            )}
-                                        </Table.Cell>
-                                        <Table.Cell className={`hidden md:table-cell px-1 w-16 text-center ${visibleColumns.has('shared') ? '' : '[&>*]:invisible'}`}>
-                                            {/* Shared icon */}
-                                            {item.is_shared ? (
+
+                                            {/* Star button */}
+                                            <div className={`absolute top-2 left-9 z-10 flex items-center transition-opacity duration-200 ${item.is_starred ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                handleShareClick(item.id, item.name, item.type);
+                                                                handleStarClick(item.id, item.type, item.is_starred || false);
                                                             }}
                                                             onMouseDown={(e) => e.stopPropagation()}
                                                             onPointerDown={(e) => e.stopPropagation()}
-                                                            className="flex items-center justify-center cursor-pointer hover:bg-accent rounded-sm p-1 transition-colors"
+                                                            className="focus:outline-none transition-transform hover:scale-110 active:scale-95"
                                                         >
-                                                            <IconShare3 className="h-3.5 w-3.5 text-blue-500" />
+                                                            {item.is_starred ? (
+                                                                <IconStarFilled className="h-4 w-4 text-foreground" />
+                                                            ) : (
+                                                                <IconStar className="h-4 w-4 text-muted-foreground/40 hover:text-foreground/80" />
+                                                            )}
                                                         </button>
                                                     </TooltipTrigger>
                                                     <TooltipContent>
-                                                        <p>Manage share</p>
+                                                        <p>{item.is_starred ? "Remove from Spaced" : "Add to Spaced"}</p>
                                                     </TooltipContent>
                                                 </Tooltip>
-                                            ) : null}
-                                        </Table.Cell>
-                                        <Table.Cell className="px-3 w-12">
-                                            <div className={`flex justify-end gap-0.5 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-200`}>
+                                            </div>
+
+                                            {/* File/Folder icon */}
+                                            <div className="flex flex-col items-center gap-3 pt-6">
+                                                <div className="text-4xl">
+                                                    {getFileIcon(item.mimeType || '', item.type, item.name, "h-12 w-12")}
+                                                </div>
+
+                                                {/* File name */}
+                                                <TruncatedNameTooltip
+                                                    name={item.name}
+                                                    className="text-sm font-medium text-center text-foreground line-clamp-2 break-words w-full cursor-default"
+                                                    maxTooltipWidth="300px"
+                                                />
+
+                                                {/* File size or folder indicator */}
+                                                <p className="text-xs text-muted-foreground text-center">
+                                                    {item.type === 'folder' ? 'Folder' : formatFileSize(item.size || 0)}
+                                                </p>
+
+                                                {/* Modified date */}
+                                                <p className="text-xs text-muted-foreground text-center font-[var(--font-jetbrains-mono)] font-semibold tracking-wider">
+                                                    {formatDate(item.createdAt)}
+                                                </p>
+                                            </div>
+
+                                            {/* Actions menu */}
+                                            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild id={filteredItems.indexOf(item) === 0 ? "tour-file-actions" : undefined}>
                                                         <Button
                                                             size="sm"
                                                             variant="ghost"
-                                                            className="h-8 w-8 p-0"
+                                                            className="h-6 w-6 p-0 bg-background/80 backdrop-blur-sm"
                                                             onClick={(e) => e.stopPropagation()}
                                                             onMouseDown={(e) => e.stopPropagation()}
                                                             onPointerDown={(e) => e.stopPropagation()}
                                                         >
-                                                            <DotsVertical className="h-4 w-4" />
+                                                            <DotsVertical className="h-3 w-3" />
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end" className="w-48">
@@ -2515,236 +2646,41 @@ export const Table01DividerLineSm = ({
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
                                             </div>
-                                        </Table.Cell>
-                                    </DraggableDroppableRow>
-                                )}
-                            </Table.Body>
-                        </Table>
-                        <DragOverlay modifiers={[snapCenterToCursor]} dropAnimation={null}>
-                            {activeDragItem && (
-                                <div className="bg-primary/95 text-primary-foreground border border-primary/20 rounded-md shadow-lg px-2.5 py-1.5 flex items-center gap-2 scale-95 pointer-events-none backdrop-blur-sm max-w-[160px]">
-                                    <div className="flex-shrink-0">
-                                        {activeDragItem.type === 'folder' ? (
-                                            <IconFolder className="h-3.5 w-3.5" />
-                                        ) : (
-                                            <FileIcon mimeType={activeDragItem.mimeType} filename={activeDragItem.name} className="h-3.5 w-3.5" />
-                                        )}
-                                    </div>
-                                    <div className="flex flex-col min-w-0">
-                                        <span className="text-[11px] font-semibold truncate leading-tight">
-                                            {activeDragItem.name}
-                                        </span>
-                                        {selectedItems.size > 1 && selectedItems.has(activeDragItem.id) && (
-                                            <span className="text-[9px] opacity-80 font-medium">
-                                                +{selectedItems.size - 1} more items
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-                        </DragOverlay>
-                        <DropHelper folderName={currentDropTarget?.name || null} isVisible={!!activeDragItem} />
-                    </DndContext>
-                ) : (
-                    // Grid View
-                    <div className="p-4" onContextMenu={(e) => handleContextMenu(e)}>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-4">
-                            {filteredItems.map((item) => (
-                                <div
-                                    key={item.id}
-                                    className={`group relative bg-card rounded-lg border border-border p-4 hover:bg-muted/50 transition-all duration-200 cursor-pointer ${selectedItems.has(item.id) ? 'ring-2 ring-primary bg-muted' : ''
-                                        }`}
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-
-                                        if (isMobile) {
-                                            // on mobile, single click enters/previews
-                                            if (item.type === 'folder') {
-                                                handleFolderDoubleClick(item.id, item.name);
-                                            } else if (item.type === 'file') {
-                                                handlePreviewClick(item.id, item.name, item.mimeType);
-                                            }
-                                            return;
-                                        }
-
-                                        const newSelected = new Set(selectedItems);
-                                        if (e.ctrlKey || e.metaKey) {
-                                            if (newSelected.has(item.id)) {
-                                                newSelected.delete(item.id);
-                                            } else {
-                                                newSelected.add(item.id);
-                                            }
-                                        } else if (e.shiftKey && selectedItems.size > 0) {
-                                            newSelected.clear();
-                                            newSelected.add(item.id);
-                                        } else {
-                                            newSelected.clear();
-                                            newSelected.add(item.id);
-                                        }
-                                        setSelectedItems(newSelected);
-                                    }}
-                                    onDoubleClick={() => {
-                                        if (item.type === 'folder') {
-                                            handleFolderDoubleClick(item.id, item.name);
-                                        } else if (item.type === 'file') {
-                                            handlePreviewClick(item.id, item.name, item.mimeType);
-                                        }
-                                    }}
-                                    onContextMenu={(e) => handleContextMenu(e, item)}
-                                >
-                                    {/* Selection checkbox */}
-                                    <div className="absolute top-2 left-2 z-10">
-                                        <input
-                                            type="checkbox"
-                                            checked={selectedItems.has(item.id)}
-                                            onChange={(e) => {
-                                                e.stopPropagation();
-                                                const newSelected = new Set(selectedItems);
-                                                if (e.target.checked) {
-                                                    newSelected.add(item.id);
-                                                } else {
-                                                    newSelected.delete(item.id);
-                                                }
-                                                setSelectedItems(newSelected);
-                                            }}
-                                            className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
-                                        />
-                                    </div>
-
-                                    {/* Star button */}
-                                    <div className={`absolute top-2 left-9 z-10 flex items-center transition-opacity duration-200 ${item.is_starred ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleStarClick(item.id, item.type, item.is_starred || false);
-                                                    }}
-                                                    onMouseDown={(e) => e.stopPropagation()}
-                                                    onPointerDown={(e) => e.stopPropagation()}
-                                                    className="focus:outline-none transition-transform hover:scale-110 active:scale-95"
-                                                >
-                                                    {item.is_starred ? (
-                                                        <IconStarFilled className="h-4 w-4 text-foreground" />
-                                                    ) : (
-                                                        <IconStar className="h-4 w-4 text-muted-foreground/40 hover:text-foreground/80" />
-                                                    )}
-                                                </button>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>{item.is_starred ? "Remove from Spaced" : "Add to Spaced"}</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </div>
-
-                                    {/* File/Folder icon */}
-                                    <div className="flex flex-col items-center gap-3 pt-6">
-                                        <div className="text-4xl">
-                                            {getFileIcon(item.mimeType || '', item.type, item.name, "h-12 w-12")}
                                         </div>
-
-                                        {/* File name */}
-                                        <TruncatedNameTooltip
-                                            name={item.name}
-                                            className="text-sm font-medium text-center text-foreground line-clamp-2 break-words w-full cursor-default"
-                                            maxTooltipWidth="300px"
-                                        />
-
-                                        {/* File size or folder indicator */}
-                                        <p className="text-xs text-muted-foreground text-center">
-                                            {item.type === 'folder' ? 'Folder' : formatFileSize(item.size || 0)}
-                                        </p>
-
-                                        {/* Modified date */}
-                                        <p className="text-xs text-muted-foreground text-center font-[var(--font-jetbrains-mono)] font-semibold tracking-wider">
-                                            {formatDate(item.createdAt)}
-                                        </p>
-                                    </div>
-
-                                    {/* Actions menu */}
-                                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild id={filteredItems.indexOf(item) === 0 ? "tour-file-actions" : undefined}>
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    className="h-6 w-6 p-0 bg-background/80 backdrop-blur-sm"
-                                                    onClick={(e) => e.stopPropagation()}
-                                                    onMouseDown={(e) => e.stopPropagation()}
-                                                    onPointerDown={(e) => e.stopPropagation()}
-                                                >
-                                                    <DotsVertical className="h-3 w-3" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end" className="w-48">
-                                                <DropdownMenuItem onClick={() => handleDownloadClick(item.id, item.name, item.type)}>
-                                                    <IconDownload className="h-4 w-4 mr-2" />
-                                                    Download
-                                                </DropdownMenuItem>
-                                                {item.type === 'file' && (
-                                                    <DropdownMenuItem onClick={() => handlePreviewClick(item.id, item.name, item.mimeType)}>
-                                                        <IconEye className="h-4 w-4 mr-2" />
-                                                        Preview
-                                                    </DropdownMenuItem>
-                                                )}
-                                                <DropdownMenuItem onClick={() => handleShareClick(item.id, item.name, item.type)}>
-                                                    <IconShare3 className="h-4 w-4 mr-2" />
-                                                    Share
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => handleStarClick(item.id, item.type, item.is_starred || false)}>
-                                                    {item.is_starred ? (
-                                                        <>
-                                                            <IconStarFilled className="h-4 w-4 mr-2 text-foreground" />
-                                                            Remove from Spaced
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <IconStar className="h-4 w-4 mr-2" />
-                                                            Add to Spaced
-                                                        </>
-                                                    )}
-                                                </DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem onClick={() => handleMoveToFolderClick(item.id, item.name, item.type)}>
-                                                    <IconFolder className="h-4 w-4 mr-2" />
-                                                    Move to folder
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => handleCopyClick(item.id, item.name, item.type)}>
-                                                    <IconCopy className="h-4 w-4 mr-2" />
-                                                    Copy to...
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => handleRenameClick(item.id, item.name, item.type)}>
-                                                    <IconEdit className="h-4 w-4 mr-2" />
-                                                    Rename
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => handleDetailsClick(item.id, item.name, item.type)}>
-                                                    <IconInfoCircle className="h-4 w-4 mr-2" />
-                                                    Details
-                                                </DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem onClick={() => handleMoveToTrashClick(item.id, item.name, item.type)} variant="destructive">
-                                                    <IconTrash className="h-4 w-4 mr-2" />
-                                                    Move to trash
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </div>
+                                    ))}
                                 </div>
-                            ))}
-                        </div>
 
-                        {filteredItems.length === 0 && (
-                            <div className="flex items-center justify-center py-12">
-                                <div className="text-center">
-                                    <IconFile className="h-12 w-12 mx-auto mb-4 text-muted-foreground" id={filteredItems.length === 0 ? "tour-file-actions" : undefined} />
-                                    <p className="text-sm text-muted-foreground">No files found</p>
-                                </div>
+                                {filteredItems.length === 0 && (
+                                    <div className="flex items-center justify-center py-12">
+                                        <div className="text-center">
+                                            <IconFile className="h-12 w-12 mx-auto mb-4 text-muted-foreground" id={filteredItems.length === 0 ? "tour-file-actions" : undefined} />
+                                            <p className="text-sm text-muted-foreground">No files found</p>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
-                    </div>
+                    </>
                 )}
-            </TableCard.Root >
+            </TableCard.Root>
+
+            {/* Hidden file inputs moved here */}
+            <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={handleFileSelect}
+                accept="*/*"
+            />
+            <input
+                ref={folderInputRef}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={handleFolderSelect}
+                {...({ webkitdirectory: "" } as React.InputHTMLAttributes<HTMLInputElement>)}
+            />
 
             <RenameModal
                 itemName={selectedItemForRename?.name || ""}

@@ -4,7 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TableCard } from "@/components/application/table/table";
 
 interface TableSkeletonProps {
-    title: string;
+    title: React.ReactNode;
     headerIcons?: React.ReactNode;
     className?: string; // for custom header styling
 }
@@ -15,7 +15,7 @@ export const TableSkeleton = ({ title, headerIcons, className }: TableSkeletonPr
             <TableCard.Header
                 title={title}
                 contentTrailing={headerIcons}
-                className={`py-1 [&>div>h2]:text-base [&>div>h2]:font-medium h-12 flex-shrink-0 border-0 ${className || ''}`}
+                className={`h-10 border-0 ${className || ''}`}
             />
             <div className="flex items-center justify-center py-8">
                 <div className="text-center space-y-4">
