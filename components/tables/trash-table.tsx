@@ -493,34 +493,34 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                 <TableCard.Header
                     title="Trash"
                     contentTrailing={
-                        <div className="flex items-center gap-2">
+                        <div className="absolute top-2 right-4 md:right-6 flex items-center gap-1.5 md:gap-2">
                             <Button
                                 size="sm"
                                 variant="outline"
                                 onClick={handleRestoreAll}
                                 disabled={trashItems.length === 0}
-                                className="h-8"
+                                className="h-8 px-2 md:px-3 text-[10px] md:text-sm"
                             >
-                                <IconRestore className="h-4 w-4 mr-2" />
-                                Restore All
+                                <IconRestore className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 md:mr-2" />
+                                <span className="inline">Restore All</span>
                             </Button>
                             <Button
                                 size="sm"
                                 variant="destructive"
                                 onClick={handleDeleteAll}
                                 disabled={trashItems.length === 0}
-                                className="h-8"
+                                className="h-8 px-2 md:px-3 text-[10px] md:text-sm"
                             >
-                                <IconTrash className="h-4 w-4 mr-2" />
-                                Delete All
+                                <IconTrash className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1 md:mr-2" />
+                                <span className="inline">Delete All</span>
                             </Button>
                             <Button
                                 size="sm"
                                 variant="outline"
                                 onClick={refreshTrash}
-                                className="h-8"
+                                className="h-8 px-2 md:px-3 text-[10px] md:text-sm"
                             >
-                                Refresh
+                                <span className="inline">Refresh</span>
                             </Button>
                         </div>
                     }
