@@ -49,11 +49,9 @@ import {
     DragStartEvent,
     DragOverEvent,
     DragEndEvent,
-    defaultDropAnimationSideEffects
 } from "@dnd-kit/core";
 import { snapCenterToCursor } from "@dnd-kit/modifiers";
 import { AnimatePresence, motion } from "motion/react";
-import { useUser } from "@/components/user-context";
 
 /**
  * DropHelper: Fixed bottom center overlay that appears during drag

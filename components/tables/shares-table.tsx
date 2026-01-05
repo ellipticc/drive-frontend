@@ -123,8 +123,14 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                             console.warn(`Failed to decrypt folder path for share ${share.id}:`, err);
                             displayPath = share.folderPath || 'Root'; // Keep encrypted as fallback
                         }
-                    } else if (!share.folderPath) {
-                        displayPath = 'Root'; // Default to Root if no path
+                    } else {
+                        displayPath = 'Root'; // Default to Root if no path or no salts
+                    }
+
+                    // Trim any trailing slashes and ensure Root is the fallback
+                    displayPath = displayPath.trim();
+                    if (!displayPath || displayPath === '/') {
+                        displayPath = 'Root';
                     }
 
                     return {
@@ -465,7 +471,7 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                                 )}
                             </Table.Head>
                             {!isMobile && (
-                                <Table.Head id="folderPath" allowsSorting align="left" className={`pointer-events-none cursor-default max-w-0 ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
+                                <Table.Head id="folderPath" allowsSorting align="left" className={`pointer-events-none cursor-default min-w-[120px] max-w-[200px] ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
                                     <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Path</span>
                                 </Table.Head>
                             )}
@@ -515,7 +521,7 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                                         </div>
                                     </Table.Cell>
                                     {!isMobile && (
-                                        <Table.Cell className="text-left max-w-0">
+                                        <Table.Cell className="text-left min-w-[120px] max-w-[200px]">
                                             <span className="text-xs text-muted-foreground font-[var(--font-jetbrains-mono)] font-semibold tracking-wider whitespace-nowrap truncate block">
                                                 {item.folderPath || 'Root'}
                                             </span>
