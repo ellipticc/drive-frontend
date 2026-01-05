@@ -871,7 +871,11 @@ class ApiClient {
     return response;
   }
 
-  async getProfile(): Promise<ApiResponse<{ user: UserData }>> {
+  async getProfile(): Promise<ApiResponse<{
+    user: UserData;
+    limitReached: boolean;
+    deviceQuota: { planName: string; maxDevices: number } | null;
+  }>> {
     return this.request('/auth/me');
   }
 

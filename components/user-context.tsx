@@ -115,13 +115,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
       setError(null);
       const response = await apiClient.getProfile();
 
-      // Check for device limit reached in response (even if success is false)
-      if ((response as any).limitReached || (response.data as any)?.limitReached) {
-        setDeviceLimitReached(true);
-        const quota = (response as any).deviceQuota || (response.data as any)?.deviceQuota;
-        if (quota) setDeviceQuota(quota);
-      } else {
-        setDeviceLimitReached(false);
+      // Extract device quota and limit status
+      const limitReached = (response as any).limitReached || (response.data as any)?.limitReached || false;
+      const quota = (response as any).deviceQuota || (response.data as any)?.deviceQuota;
+
+      setDeviceLimitReached(limitReached);
+      if (quota) {
+        setDeviceQuota(quota);
       }
 
       if (response.success && response.data?.user) {

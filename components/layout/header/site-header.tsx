@@ -14,6 +14,10 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { CreateFolderModal } from "@/components/modals/create-folder-modal"
 import { useRouter } from "next/navigation"
+import { useUser } from "@/components/user-context"
+
+// Use a module-level variable to persist dismissal across SPA navigation but reset on page refresh
+let isUpgradeDismissedGlobal = false;
 
 interface SiteHeaderProps {
   onSearch?: (query: string) => void
@@ -23,7 +27,18 @@ interface SiteHeaderProps {
 
 export function SiteHeader({ onSearch, onFileUpload, onFolderUpload }: SiteHeaderProps) {
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false)
+  const [, setForceUpdate] = useState(0)
+  const { deviceQuota } = useUser()
   const router = useRouter()
+
+  const handleUpgradeClick = () => {
+    isUpgradeDismissedGlobal = true
+    setForceUpdate(prev => prev + 1)
+    window.open('/billing', '_blank')
+  }
+
+  const isFreePlan = deviceQuota?.planName === 'Free'
+  const showUpgrade = isFreePlan && !isUpgradeDismissedGlobal
 
   return (
     <header className="flex h-(--header-height) shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">
@@ -43,6 +58,17 @@ export function SiteHeader({ onSearch, onFileUpload, onFolderUpload }: SiteHeade
           />
         </div>
         <div className="ml-auto flex items-center gap-2">
+          {showUpgrade && (
+            <Button
+              size="sm"
+              className="h-8 text-white font-medium hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: '#704dff' }}
+              onClick={handleUpgradeClick}
+            >
+              Click to upgrade
+            </Button>
+          )}
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild id="tour-new-button">
               <Button size="sm" className="h-8">
