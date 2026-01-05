@@ -164,6 +164,10 @@ export function ReportDialog({ shareId, trigger, onReportSuccess, className }: R
         toast.success("Report submitted and share deactivated", {
           description: "Thank you for your report. This share has been automatically deactivated due to multiple reports."
         })
+      } else if (data && data.duplicate) {
+        toast.success("Report received", {
+          description: "We've already received a report from you for this share. Your feedback is noted!"
+        })
       } else {
         toast.success("Report submitted", {
           description: "Thank you for your report. Our team will review it shortly."

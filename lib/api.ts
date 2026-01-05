@@ -1646,10 +1646,35 @@ class ApiClient {
   }): Promise<ApiResponse<{
     success: boolean;
     autoDeactivated?: boolean;
+    duplicate?: boolean;
   }>> {
+    // Use ThumbmarkJS for robust fingerprinting (Exact same process as /authorize device)
+    const { getThumbmark } = await import('@thumbmarkjs/thumbmarkjs');
+    const fingerprint = await getThumbmark();
+
+    // Hash the fingerprint for storage
+    const fingerprintStr = typeof fingerprint === 'string' ? fingerprint : JSON.stringify(fingerprint);
+    const fingerprintHash = await this.hashFingerprint(fingerprintStr);
+
+    const metadata = {
+      screenRes: `${window.screen.width}x${window.screen.height}`,
+      colorDepth: window.screen.colorDepth,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      language: navigator.language,
+      platform: navigator.platform,
+      hardwareConcurrency: navigator.hardwareConcurrency,
+      deviceMemory: (navigator as any).deviceMemory,
+      touchSupport: 'ontouchstart' in window || navigator.maxTouchPoints > 0,
+      fingerprint: fingerprint
+    };
+
     return this.request(`/shares/${shareId}/report`, {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        ...data,
+        fingerprintHash,
+        metadata
+      }),
     });
   }
 
