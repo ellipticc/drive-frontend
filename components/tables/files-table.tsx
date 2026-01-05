@@ -37,6 +37,114 @@ import { FileIcon } from "@/components/file-icon";
 import { masterKeyManager } from "@/lib/master-key";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { TruncatedNameTooltip } from "./truncated-name-tooltip";
+import { cx } from "@/utils/cx";
+import {
+    DndContext,
+    DragOverlay,
+    useDraggable,
+    useDroppable,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragStartEvent,
+    DragOverEvent,
+    DragEndEvent,
+    defaultDropAnimationSideEffects
+} from "@dnd-kit/core";
+import { snapCenterToCursor } from "@dnd-kit/modifiers";
+import { AnimatePresence, motion } from "motion/react";
+import { useUser } from "@/components/user-context";
+
+/**
+ * DropHelper: Fixed bottom center overlay that appears during drag
+ */
+const DropHelper = ({ folderName, isVisible }: { folderName: string | null; isVisible: boolean }) => (
+    <AnimatePresence>
+        {isVisible && (
+            <motion.div
+                initial={{ opacity: 0, y: 20, x: "-50%" }}
+                animate={{ opacity: 1, y: 0, x: "-50%" }}
+                exit={{ opacity: 0, y: 20, x: "-50%" }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                className="fixed bottom-8 left-1/2 z-[100] flex items-center gap-3 px-6 py-3 bg-primary text-primary-foreground rounded-full shadow-2xl border border-primary/20 backdrop-blur-md"
+            >
+                <IconFileUpload className="w-5 h-5" />
+                <span className="text-sm font-medium">
+                    {folderName
+                        ? `Drop to move to folder '${folderName}'`
+                        : "Drag over a folder to move"}
+                </span>
+            </motion.div>
+        )}
+    </AnimatePresence>
+);
+
+/**
+ * DraggableRow: Wrapper for Table.Row that makes it draggable and optionally droppable
+ */
+const DraggableDroppableRow = ({
+    item,
+    isSelected,
+    isDraggingSomewhere,
+    children,
+    ...props
+}: {
+    item: FileItem;
+    isSelected: boolean;
+    isDraggingSomewhere: boolean;
+    children: React.ReactNode;
+    [key: string]: any;
+}) => {
+    // Draggable logic for all items
+    const {
+        attributes,
+        listeners,
+        setNodeRef: setDragRef,
+        isDragging,
+        transform
+    } = useDraggable({
+        id: item.id,
+        data: { type: 'move', item }
+    });
+
+    // Droppable logic only for folders
+    const {
+        setNodeRef: setDropRef,
+        isOver
+    } = useDroppable({
+        id: item.id,
+        disabled: item.type !== 'folder' || isDraggingSomewhere && isSelected,
+        data: { type: 'folder', item }
+    });
+
+    // Combine refs
+    const setRefs = (node: HTMLTableRowElement | null) => {
+        setDragRef(node);
+        setDropRef(node);
+    };
+
+    const style = {
+        zIndex: isDragging ? 50 : undefined,
+    };
+
+    return (
+        <Table.Row
+            {...props}
+            ref={setRefs}
+            style={style}
+            {...attributes}
+            {...listeners}
+            className={cx(
+                props.className,
+                // Use outline-offset to ensure lines are INSIDE the row boundary, preventing any layout shift
+                isOver && "relative z-20 outline outline-2 outline-primary -outline-offset-2 bg-primary/[0.03]",
+                isDragging && "opacity-100"
+            )}
+        >
+            {children}
+        </Table.Row>
+    );
+};
 
 export const Table01DividerLineSm = ({
     searchQuery,
@@ -140,6 +248,100 @@ export const Table01DividerLineSm = ({
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const folderInputRef = useRef<HTMLInputElement>(null);
+
+    // DND State
+    const [activeDragItem, setActiveDragItem] = useState<FileItem | null>(null);
+    const [currentDropTarget, setCurrentDropTarget] = useState<FileItem | null>(null);
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 8, // Avoid dragging when clicking
+            },
+        })
+    );
+
+    const handleDragStart = (event: DragStartEvent) => {
+        const { active } = event;
+        const item = active.data.current?.item as FileItem;
+        if (item) {
+            setActiveDragItem(item);
+        }
+    };
+
+    const handleDragOver = (event: DragOverEvent) => {
+        const { over } = event;
+        const target = over?.data.current?.item as FileItem;
+        if (target && target.type === 'folder' && target.id !== activeDragItem?.id) {
+            setCurrentDropTarget(target);
+        } else {
+            setCurrentDropTarget(null);
+        }
+    };
+
+    const handleDragEnd = async (event: DragEndEvent) => {
+        const { active, over } = event;
+        setActiveDragItem(null);
+        setCurrentDropTarget(null);
+
+        if (!over) return;
+
+        const targetFolder = over.data.current?.item as FileItem;
+        if (!targetFolder || targetFolder.type !== 'folder') return;
+
+        const draggedItem = active.data.current?.item as FileItem;
+        if (!draggedItem) return;
+
+        // Dropping onto same parent is no-op
+        if (draggedItem.folderId === targetFolder.id) return;
+
+        // Dropping folder onto itself is no-op
+        if (draggedItem.id === targetFolder.id) return;
+
+        // Determine which items to move (current item + others if selected)
+        const itemsToMove = selectedItems.has(draggedItem.id)
+            ? Array.from(selectedItems).map(id => filesMap.get(id)).filter(Boolean) as FileItem[]
+            : [draggedItem];
+
+        // Perform move
+        await performMove(itemsToMove, targetFolder.id);
+    };
+
+    const performMove = async (items: FileItem[], destinationFolderId: string | null) => {
+        setIsLoading(true);
+        try {
+            let successCount = 0;
+            let errorCount = 0;
+
+            for (const item of items) {
+                try {
+                    let response;
+                    if (item.type === 'file') {
+                        const nameHmac = await computeFilenameHmac(item.name, destinationFolderId === 'root' ? null : destinationFolderId);
+                        response = await apiClient.moveFileToFolder(item.id, destinationFolderId === 'root' ? null : destinationFolderId, nameHmac);
+                    } else {
+                        response = await apiClient.moveFolder(item.id, destinationFolderId === 'root' ? null : destinationFolderId);
+                    }
+
+                    if (response.success) successCount++; else errorCount++;
+                } catch (err) {
+                    console.error('Failed to move item', item.id, err);
+                    errorCount++;
+                }
+            }
+
+            if (successCount > 0) {
+                toast.success(`Moved ${successCount} item${successCount > 1 ? 's' : ''} to folder`);
+                refreshFiles();
+                setSelectedItems(new Set());
+            }
+            if (errorCount > 0) {
+                toast.error(`Failed to move ${errorCount} item${errorCount > 1 ? 's' : ''}`);
+            }
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     // Update global current folder context when local folder changes
     useEffect(() => {
@@ -2087,230 +2289,264 @@ export const Table01DividerLineSm = ({
                     className="py-1 [&>div>h2]:text-base [&>div>h2]:font-medium h-12 flex-shrink-0 border-0"
                 />
                 {viewMode === 'table' ? (
-                    <Table aria-label="Files" selectionMode="multiple" selectionBehavior="replace" sortDescriptor={sortDescriptor} onSortChange={setSortDescriptor} selectedKeys={selectedItems} onSelectionChange={handleTableSelectionChange}
-                        onContextMenu={(e) => handleContextMenu(e)}
+                    <DndContext
+                        sensors={sensors}
+                        onDragStart={handleDragStart}
+                        onDragOver={handleDragOver}
+                        onDragEnd={handleDragEnd}
                     >
-                        <Table.Header className="group">
-                            <Table.Head className="w-10 text-center pl-4 pr-0">
-                                <Checkbox
-                                    slot="selection"
-                                    className={`transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}
-                                />
-                            </Table.Head>
-                            <Table.Head id="name" isRowHeader allowsSorting={selectedItems.size === 0} className="w-full max-w-0 pointer-events-none cursor-default" align="left">
-                                {selectedItems.size > 0 ? (
-                                    <span className="text-xs font-semibold whitespace-nowrap text-foreground px-1.5 py-1">{selectedItems.size} selected</span>
-                                ) : (
-                                    <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto">Name</span>
-                                )}
-                            </Table.Head>
-                            <Table.Head id="starred" align="center" className={`hidden md:table-cell w-16 ${visibleColumns.has('starred') ? '' : '[&>*]:invisible pointer-events-none cursor-default'}`} />
-                            <Table.Head id="modified" allowsSorting={selectedItems.size === 0} align="right" className={`hidden md:table-cell ${visibleColumns.has('modified') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
-                                <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Modified</span>
-                            </Table.Head>
-                            <Table.Head id="size" allowsSorting={selectedItems.size === 0} align="right" className={`hidden md:table-cell ${visibleColumns.has('size') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
-                                <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Size</span>
-                            </Table.Head>
-                            <Table.Head id="checksum" allowsSorting={selectedItems.size === 0} align="right" className={`hidden md:table-cell ${visibleColumns.has('checksum') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
-                                <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Checksum</span>
-                            </Table.Head>
-                            <Table.Head id="shared" align="center" className={`hidden md:table-cell w-16 ${visibleColumns.has('shared') ? '' : '[&>*]:invisible pointer-events-none cursor-default'}`} />
-                            <Table.Head id="actions" align="right" />
-                        </Table.Header>
+                        <Table aria-label="Files" selectionMode="multiple" selectionBehavior="replace" sortDescriptor={sortDescriptor} onSortChange={setSortDescriptor} selectedKeys={selectedItems} onSelectionChange={handleTableSelectionChange}
+                            onContextMenu={(e: React.MouseEvent) => handleContextMenu(e)}
+                        >
+                            <Table.Header className="group">
+                                <Table.Head className="w-10 text-center pl-4 pr-0">
+                                    <Checkbox
+                                        slot="selection"
+                                        className={`transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}
+                                    />
+                                </Table.Head>
+                                <Table.Head id="name" isRowHeader allowsSorting={selectedItems.size === 0} className="w-full max-w-0 pointer-events-none cursor-default" align="left">
+                                    {selectedItems.size > 0 ? (
+                                        <span className="text-xs font-semibold whitespace-nowrap text-foreground px-1.5 py-1">{selectedItems.size} selected</span>
+                                    ) : (
+                                        <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto">Name</span>
+                                    )}
+                                </Table.Head>
+                                <Table.Head id="starred" align="center" className={`hidden md:table-cell w-16 ${visibleColumns.has('starred') ? '' : '[&>*]:invisible pointer-events-none cursor-default'}`} />
+                                <Table.Head id="modified" allowsSorting={selectedItems.size === 0} align="right" className={`hidden md:table-cell ${visibleColumns.has('modified') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
+                                    <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Modified</span>
+                                </Table.Head>
+                                <Table.Head id="size" allowsSorting={selectedItems.size === 0} align="right" className={`hidden md:table-cell ${visibleColumns.has('size') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
+                                    <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Size</span>
+                                </Table.Head>
+                                <Table.Head id="checksum" allowsSorting={selectedItems.size === 0} align="right" className={`hidden md:table-cell ${visibleColumns.has('checksum') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
+                                    <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Checksum</span>
+                                </Table.Head>
+                                <Table.Head id="shared" align="center" className={`hidden md:table-cell w-16 ${visibleColumns.has('shared') ? '' : '[&>*]:invisible pointer-events-none cursor-default'}`} />
+                                <Table.Head id="actions" align="right" />
+                            </Table.Header>
 
-                        <Table.Body items={filteredItems} dependencies={[visibleColumns, selectedItems.size]}>
-                            {(item) => (
-                                <Table.Row
-                                    id={item.id}
-                                    onDoubleClick={item.type === 'folder' ? () => handleFolderDoubleClick(item.id, item.name) : (item.type === 'file' ? () => handlePreviewClick(item.id, item.name, item.mimeType) : undefined)}
-                                    className="group hover:bg-muted/50 transition-colors duration-150"
-                                    onContextMenu={(e) => handleContextMenu(e, item)}
-                                >
-                                    <Table.Cell className="w-10 text-center pl-4 pr-0">
-                                        <Checkbox
-                                            slot="selection"
-                                            className={`transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}
-                                        />
-                                    </Table.Cell>
-                                    <Table.Cell className="w-full max-w-0">
-                                        <div className="flex items-center gap-2 min-w-0">
-                                            <div className="text-base">
-                                                {item.type === 'folder' ? (
-                                                    <IconFolder className="h-4 w-4 text-blue-500 inline-block" />
-                                                ) : (
-                                                    <FileIcon mimeType={item.mimeType} filename={item.name} className="h-4 w-4 inline-block" />
-                                                )}
-                                            </div>
-                                            <TruncatedNameTooltip
-                                                name={item.name}
-                                                className="text-sm font-medium whitespace-nowrap text-foreground cursor-default flex-1 min-w-0"
+                            <Table.Body items={filteredItems} dependencies={[visibleColumns, selectedItems.size]}>
+                                {(item) => (
+                                    <DraggableDroppableRow
+                                        id={item.id}
+                                        item={item}
+                                        isSelected={selectedItems.has(item.id)}
+                                        isDraggingSomewhere={!!activeDragItem}
+                                        onDoubleClick={item.type === 'folder' ? () => handleFolderDoubleClick(item.id, item.name) : (item.type === 'file' ? () => handlePreviewClick(item.id, item.name, item.mimeType) : undefined)}
+                                        className="group hover:bg-muted/50 transition-colors duration-150"
+                                        onContextMenu={(e: React.MouseEvent) => handleContextMenu(e, item)}
+                                    >
+                                        <Table.Cell className="w-10 text-center pl-4 pr-0">
+                                            <Checkbox
+                                                slot="selection"
+                                                className={`transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}
                                             />
-                                        </div>
-                                    </Table.Cell>
-                                    <Table.Cell className={`hidden md:table-cell px-1 w-16 text-center ${visibleColumns.has('starred') ? '' : '[&>*]:invisible'}`}>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleStarClick(item.id, item.type, item.is_starred || false);
-                                                    }}
-                                                    onMouseDown={(e) => e.stopPropagation()}
-                                                    onPointerDown={(e) => e.stopPropagation()}
-                                                    className="flex items-center justify-center cursor-pointer hover:bg-accent rounded-sm p-1 transition-colors ml-auto mr-2"
-                                                >
-                                                    {item.is_starred ? (
-                                                        <IconStarFilled className="h-4 w-4 text-foreground" />
+                                        </Table.Cell>
+                                        <Table.Cell className="w-full max-w-0">
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <div className="text-base">
+                                                    {item.type === 'folder' ? (
+                                                        <IconFolder className="h-4 w-4 text-blue-500 inline-block" />
                                                     ) : (
-                                                        <IconStar className="h-4 w-4 text-muted-foreground/40 hover:text-foreground/80" />
+                                                        <FileIcon mimeType={item.mimeType} filename={item.name} className="h-4 w-4 inline-block" />
                                                     )}
-                                                </button>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>{item.is_starred ? "Remove from Spaced" : "Add to Spaced"}</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </Table.Cell>
-                                    <Table.Cell className={`hidden md:table-cell text-right ${visibleColumns.has('modified') ? '' : '[&>*]:invisible'} px-4`}>
-                                        <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
-                                            {formatDate(item.createdAt)}
-                                        </span>
-                                    </Table.Cell>
-                                    <Table.Cell className={`hidden md:table-cell text-right ${visibleColumns.has('size') ? '' : '[&>*]:invisible'} px-4`}>
-                                        <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
-                                            {item.type === 'folder' ? '--' : formatFileSize(item.size || 0)}
-                                        </span>
-                                    </Table.Cell>
-                                    <Table.Cell className={`hidden md:table-cell text-right ${visibleColumns.has('checksum') ? '' : '[&>*]:invisible'} px-4`}>
-                                        {item.type === 'folder' ? (
-                                            <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">N/A</span>
-                                        ) : item.shaHash ? (
+                                                </div>
+                                                <TruncatedNameTooltip
+                                                    name={item.name}
+                                                    className="text-sm font-medium whitespace-nowrap text-foreground cursor-default flex-1 min-w-0"
+                                                />
+                                            </div>
+                                        </Table.Cell>
+                                        <Table.Cell className={`hidden md:table-cell px-1 w-16 text-center ${visibleColumns.has('starred') ? '' : '[&>*]:invisible'}`}>
                                             <Tooltip>
                                                 <TooltipTrigger asChild>
                                                     <button
-                                                        className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer font-mono whitespace-nowrap"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleStarClick(item.id, item.type, item.is_starred || false);
+                                                        }}
+                                                        onMouseDown={(e) => e.stopPropagation()}
+                                                        onPointerDown={(e) => e.stopPropagation()}
+                                                        className="flex items-center justify-center cursor-pointer hover:bg-accent rounded-sm p-1 transition-colors ml-auto mr-2"
+                                                    >
+                                                        {item.is_starred ? (
+                                                            <IconStarFilled className="h-4 w-4 text-foreground" />
+                                                        ) : (
+                                                            <IconStar className="h-4 w-4 text-muted-foreground/40 hover:text-foreground/80" />
+                                                        )}
+                                                    </button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>{item.is_starred ? "Remove from Spaced" : "Add to Spaced"}</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </Table.Cell>
+                                        <Table.Cell className={`hidden md:table-cell text-right ${visibleColumns.has('modified') ? '' : '[&>*]:invisible'} px-4`}>
+                                            <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
+                                                {formatDate(item.createdAt)}
+                                            </span>
+                                        </Table.Cell>
+                                        <Table.Cell className={`hidden md:table-cell text-right ${visibleColumns.has('size') ? '' : '[&>*]:invisible'} px-4`}>
+                                            <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
+                                                {item.type === 'folder' ? '--' : formatFileSize(item.size || 0)}
+                                            </span>
+                                        </Table.Cell>
+                                        <Table.Cell className={`hidden md:table-cell text-right ${visibleColumns.has('checksum') ? '' : '[&>*]:invisible'} px-4`}>
+                                            {item.type === 'folder' ? (
+                                                <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">N/A</span>
+                                            ) : item.shaHash ? (
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <button
+                                                            className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer font-mono whitespace-nowrap"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                navigator.clipboard.writeText(item.shaHash!);
+                                                                setCopiedHashId(item.id);
+                                                                setTimeout(() => setCopiedHashId(null), 300);
+                                                            }}
+                                                        >
+                                                            {item.shaHash.substring(0, 5)}...{item.shaHash.substring(item.shaHash.length - 5)}
+                                                        </button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent
+                                                        className="max-w-none whitespace-nowrap font-[var(--font-jetbrains-mono)] font-semibold tracking-wider"
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             navigator.clipboard.writeText(item.shaHash!);
                                                             setCopiedHashId(item.id);
-                                                            setTimeout(() => setCopiedHashId(null), 300);
+                                                            setTimeout(() => setCopiedHashId(null), 500);
                                                         }}
                                                     >
-                                                        {item.shaHash.substring(0, 5)}...{item.shaHash.substring(item.shaHash.length - 5)}
-                                                    </button>
-                                                </TooltipTrigger>
-                                                <TooltipContent
-                                                    className="max-w-none whitespace-nowrap font-[var(--font-jetbrains-mono)] font-semibold tracking-wider"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        navigator.clipboard.writeText(item.shaHash!);
-                                                        setCopiedHashId(item.id);
-                                                        setTimeout(() => setCopiedHashId(null), 500);
-                                                    }}
-                                                >
-                                                    <p className={`text-xs cursor-pointer transition-all duration-300 ${copiedHashId === item.id ? 'animate-pulse bg-primary/20 text-primary scale-105' : ''}`}>{item.shaHash}</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        ) : (
-                                            <span className="text-xs text-muted-foreground font-mono break-all">N/A</span>
-                                        )}
-                                    </Table.Cell>
-                                    <Table.Cell className={`hidden md:table-cell px-1 w-16 text-center ${visibleColumns.has('shared') ? '' : '[&>*]:invisible'}`}>
-                                        {/* Shared icon */}
-                                        {item.is_shared ? (
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handleShareClick(item.id, item.name, item.type);
-                                                        }}
-                                                        onMouseDown={(e) => e.stopPropagation()}
-                                                        onPointerDown={(e) => e.stopPropagation()}
-                                                        className="flex items-center justify-center cursor-pointer hover:bg-accent rounded-sm p-1 transition-colors"
-                                                    >
-                                                        <IconShare3 className="h-3.5 w-3.5 text-blue-500" />
-                                                    </button>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>Manage share</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        ) : null}
-                                    </Table.Cell>
-                                    <Table.Cell className="px-3 w-12">
-                                        <div className={`flex justify-end gap-0.5 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-200`}>
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild id={filteredItems.indexOf(item) === 0 ? "tour-file-actions" : undefined}>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="ghost"
-                                                        className="h-8 w-8 p-0"
-                                                        onClick={(e) => e.stopPropagation()}
-                                                        onMouseDown={(e) => e.stopPropagation()}
-                                                        onPointerDown={(e) => e.stopPropagation()}
-                                                    >
-                                                        <DotsVertical className="h-4 w-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end" className="w-48">
-                                                    <DropdownMenuItem onClick={() => handleDownloadClick(item.id, item.name, item.type)}>
-                                                        <IconDownload className="h-4 w-4 mr-2" />
-                                                        Download
-                                                    </DropdownMenuItem>
-                                                    {item.type === 'file' && (
-                                                        <DropdownMenuItem onClick={() => handlePreviewClick(item.id, item.name, item.mimeType)}>
-                                                            <IconEye className="h-4 w-4 mr-2" />
-                                                            Preview
+                                                        <p className={`text-xs cursor-pointer transition-all duration-300 ${copiedHashId === item.id ? 'animate-pulse bg-primary/20 text-primary scale-105' : ''}`}>{item.shaHash}</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            ) : (
+                                                <span className="text-xs text-muted-foreground font-mono break-all">N/A</span>
+                                            )}
+                                        </Table.Cell>
+                                        <Table.Cell className={`hidden md:table-cell px-1 w-16 text-center ${visibleColumns.has('shared') ? '' : '[&>*]:invisible'}`}>
+                                            {/* Shared icon */}
+                                            {item.is_shared ? (
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleShareClick(item.id, item.name, item.type);
+                                                            }}
+                                                            onMouseDown={(e) => e.stopPropagation()}
+                                                            onPointerDown={(e) => e.stopPropagation()}
+                                                            className="flex items-center justify-center cursor-pointer hover:bg-accent rounded-sm p-1 transition-colors"
+                                                        >
+                                                            <IconShare3 className="h-3.5 w-3.5 text-blue-500" />
+                                                        </button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Manage share</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            ) : null}
+                                        </Table.Cell>
+                                        <Table.Cell className="px-3 w-12">
+                                            <div className={`flex justify-end gap-0.5 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-200`}>
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild id={filteredItems.indexOf(item) === 0 ? "tour-file-actions" : undefined}>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            className="h-8 w-8 p-0"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            onMouseDown={(e) => e.stopPropagation()}
+                                                            onPointerDown={(e) => e.stopPropagation()}
+                                                        >
+                                                            <DotsVertical className="h-4 w-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end" className="w-48">
+                                                        <DropdownMenuItem onClick={() => handleDownloadClick(item.id, item.name, item.type)}>
+                                                            <IconDownload className="h-4 w-4 mr-2" />
+                                                            Download
                                                         </DropdownMenuItem>
-                                                    )}
-                                                    <DropdownMenuItem onClick={() => handleShareClick(item.id, item.name, item.type)}>
-                                                        <IconShare3 className="h-4 w-4 mr-2" />
-                                                        Share
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => handleStarClick(item.id, item.type, item.is_starred || false)}>
-                                                        {item.is_starred ? (
-                                                            <>
-                                                                <IconStarFilled className="h-4 w-4 mr-2 text-foreground" />
-                                                                Remove from Spaced
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <IconStar className="h-4 w-4 mr-2" />
-                                                                Add to Spaced
-                                                            </>
+                                                        {item.type === 'file' && (
+                                                            <DropdownMenuItem onClick={() => handlePreviewClick(item.id, item.name, item.mimeType)}>
+                                                                <IconEye className="h-4 w-4 mr-2" />
+                                                                Preview
+                                                            </DropdownMenuItem>
                                                         )}
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuItem onClick={() => handleMoveToFolderClick(item.id, item.name, item.type)}>
-                                                        <IconFolder className="h-4 w-4 mr-2" />
-                                                        Move to folder
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => handleCopyClick(item.id, item.name, item.type)}>
-                                                        <IconCopy className="h-4 w-4 mr-2" />
-                                                        Copy to...
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => handleRenameClick(item.id, item.name, item.type)}>
-                                                        <IconEdit className="h-4 w-4 mr-2" />
-                                                        Rename
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => handleDetailsClick(item.id, item.name, item.type)}>
-                                                        <IconInfoCircle className="h-4 w-4 mr-2" />
-                                                        Details
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuItem onClick={() => handleMoveToTrashClick(item.id, item.name, item.type)} variant="destructive">
-                                                        <IconTrash className="h-4 w-4 mr-2" />
-                                                        Move to trash
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </div>
-                                    </Table.Cell>
-                                </Table.Row>
+                                                        <DropdownMenuItem onClick={() => handleShareClick(item.id, item.name, item.type)}>
+                                                            <IconShare3 className="h-4 w-4 mr-2" />
+                                                            Share
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => handleStarClick(item.id, item.type, item.is_starred || false)}>
+                                                            {item.is_starred ? (
+                                                                <>
+                                                                    <IconStarFilled className="h-4 w-4 mr-2 text-foreground" />
+                                                                    Remove from Spaced
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <IconStar className="h-4 w-4 mr-2" />
+                                                                    Add to Spaced
+                                                                </>
+                                                            )}
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem onClick={() => handleMoveToFolderClick(item.id, item.name, item.type)}>
+                                                            <IconFolder className="h-4 w-4 mr-2" />
+                                                            Move to folder
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => handleCopyClick(item.id, item.name, item.type)}>
+                                                            <IconCopy className="h-4 w-4 mr-2" />
+                                                            Copy to...
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => handleRenameClick(item.id, item.name, item.type)}>
+                                                            <IconEdit className="h-4 w-4 mr-2" />
+                                                            Rename
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => handleDetailsClick(item.id, item.name, item.type)}>
+                                                            <IconInfoCircle className="h-4 w-4 mr-2" />
+                                                            Details
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem onClick={() => handleMoveToTrashClick(item.id, item.name, item.type)} variant="destructive">
+                                                            <IconTrash className="h-4 w-4 mr-2" />
+                                                            Move to trash
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </div>
+                                        </Table.Cell>
+                                    </DraggableDroppableRow>
+                                )}
+                            </Table.Body>
+                        </Table>
+                        <DragOverlay modifiers={[snapCenterToCursor]} dropAnimation={null}>
+                            {activeDragItem && (
+                                <div className="bg-primary/95 text-primary-foreground border border-primary/20 rounded-md shadow-lg px-2.5 py-1.5 flex items-center gap-2 scale-95 pointer-events-none backdrop-blur-sm max-w-[160px]">
+                                    <div className="flex-shrink-0">
+                                        {activeDragItem.type === 'folder' ? (
+                                            <IconFolder className="h-3.5 w-3.5" />
+                                        ) : (
+                                            <FileIcon mimeType={activeDragItem.mimeType} filename={activeDragItem.name} className="h-3.5 w-3.5" />
+                                        )}
+                                    </div>
+                                    <div className="flex flex-col min-w-0">
+                                        <span className="text-[11px] font-semibold truncate leading-tight">
+                                            {activeDragItem.name}
+                                        </span>
+                                        {selectedItems.size > 1 && selectedItems.has(activeDragItem.id) && (
+                                            <span className="text-[9px] opacity-80 font-medium">
+                                                +{selectedItems.size - 1} more items
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
                             )}
-                        </Table.Body>
-                    </Table>
+                        </DragOverlay>
+                        <DropHelper folderName={currentDropTarget?.name || null} isVisible={!!activeDragItem} />
+                    </DndContext>
                 ) : (
                     // Grid View
                     <div className="p-4" onContextMenu={(e) => handleContextMenu(e)}>

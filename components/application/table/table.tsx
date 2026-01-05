@@ -1,7 +1,7 @@
 "use client";
 
 import type { ComponentPropsWithRef, HTMLAttributes, ReactNode, Ref, TdHTMLAttributes, ThHTMLAttributes } from "react";
-import { createContext, isValidElement, useContext, useState, useEffect, useRef } from "react";
+import { createContext, isValidElement, useContext, useState, useEffect, useRef, forwardRef, ForwardedRef } from "react";
 import { ArrowDown, ChevronSelectorVertical, Copy01, Edit01, HelpCircle, Trash01 } from "@untitledui/icons";
 import type {
     CellProps as AriaCellProps,
@@ -272,13 +272,17 @@ interface TableRowProps<T extends object>
     highlightSelectedRow?: boolean;
 }
 
-const TableRow = <T extends object>({ columns, children, className, highlightSelectedRow = true, ...props }: TableRowProps<T>) => {
+const TableRow = forwardRef(<T extends object>(
+    { columns, children, className, highlightSelectedRow = true, ...props }: TableRowProps<T>,
+    ref: ForwardedRef<HTMLTableRowElement>
+) => {
     const { size } = useContext(TableContext);
     const { selectionBehavior } = useTableOptions();
 
     return (
         <AriaRow
             {...props}
+            ref={ref}
             className={(state) =>
                 cx(
                     "relative outline-ring transition-colors hover:bg-muted/50 focus-visible:outline-2 focus-visible:-outline-offset-2 group border-b border-border/60 last:border-b-0",
@@ -301,7 +305,7 @@ const TableRow = <T extends object>({ columns, children, className, highlightSel
             <AriaCollection items={columns}>{children}</AriaCollection>
         </AriaRow>
     );
-};
+});
 
 TableRow.displayName = "TableRow";
 
