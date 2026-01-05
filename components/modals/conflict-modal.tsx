@@ -71,10 +71,18 @@ export function ConflictModal({ isOpen, onClose, conflicts, onResolve, operation
     return `${opLabel} Conflicts (${conflicts.length})`
   }
 
+  const truncateName = (name: string, maxLength = 30) => {
+    if (name.length <= maxLength) return name;
+    const extension = name.includes('.') ? name.split('.').pop() : '';
+    const nameWithoutExtension = name.includes('.') ? name.substring(0, name.lastIndexOf('.')) : name;
+    const truncatedBase = nameWithoutExtension.substring(0, maxLength - (extension ? extension.length + 3 : 0));
+    return `${truncatedBase}...${extension ? '.' + extension : ''}`;
+  }
+
   const getDescription = () => {
     if (conflicts.length === 1) {
       const conflict = conflicts[0]
-      return `"${conflict.name}" already exists. What would you like to do?`
+      return `"${truncateName(conflict.name)}" already exists. What would you like to do?`
     }
     return `${conflicts.length} items already exist. Choose how to resolve each conflict.`
   }

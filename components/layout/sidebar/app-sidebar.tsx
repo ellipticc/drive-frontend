@@ -9,10 +9,10 @@ import {
   IconCaretLeftRightFilled,
   IconSettings,
   IconTrash,
-  IconUsers,
+  IconLink,
   IconDatabaseImport,
-  IconFileWord,
-  IconReport,
+  IconPhoto,
+  IconStack2,
 } from "@tabler/icons-react"
 
 import { NavMain } from "@/components/layout/navigation/nav-main"
@@ -45,23 +45,18 @@ const defaultNavMain = [
   {
     title: "My Files",
     url: "/",
-    icon: IconFolder,
+    icon: IconStack2,
   },
-  /*{
-    title: "Photos & Videos - Coming Soon",
-    url: "#",
-    icon: IconCamera,
-  }, */
+  {
+    title: "Photos & Videos",
+    url: "/photos",
+    icon: IconPhoto,
+  },
   {
     title: "Shared",
     url: "/shared",
-    icon: IconUsers,
+    icon: IconLink,
   },
-  /*{
-    title: "Shared with me - Coming Soon",
-    url: "#",
-    icon: IconFolder,
-  }, */
   {
     title: "Trash",
     url: "/trash",

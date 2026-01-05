@@ -515,7 +515,7 @@ async function initializeDownloadSession(fileId: string): Promise<DownloadSessio
 /**
  * Unwrap the Content Encryption Key (CEK) using Kyber decapsulation
  */
-async function unwrapCEK(encryption: DownloadEncryption, keypairs: UserKeypairs): Promise<Uint8Array> {
+export async function unwrapCEK(encryption: DownloadEncryption, keypairs: UserKeypairs): Promise<Uint8Array> {
   const { ml_kem768 } = await import('@noble/post-quantum/ml-kem.js');
 
   if (!encryption.kyberCiphertext) {

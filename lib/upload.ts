@@ -15,8 +15,8 @@ import { apiClient } from './api';
 import { encryptData, uint8ArrayToHex, hexToUint8Array, encryptFilename, computeFilenameHmac } from './crypto';
 import { keyManager } from './key-manager';
 import { masterKeyManager } from './master-key';
-import { createBLAKE3 } from 'hash-wasm';
-import { compressChunk, CompressionAlgorithm, CompressionMetadata } from './compression';
+import { CompressionAlgorithm, CompressionMetadata } from './compression';
+import { generateThumbnail } from './thumbnail';
 
 // Types and interfaces
 export interface UploadProgress {
@@ -75,6 +75,7 @@ export interface UploadSession {
   chunkHashes: string[]; // SHA256 hashes of encrypted chunks
   encryptedFilename?: string;
   filenameSalt?: string;
+  thumbnailPutUrl?: string | null;
   manifestCreatedAt?: number; // Timestamp for consistent manifest hash computation
 }
 
@@ -133,9 +134,6 @@ const processChunkInWorker = (chunk: Uint8Array, key: Uint8Array, index: number)
 };
 
 /**
- * Compute SHA-512 Hash in Worker to avoid UI freeze
- */
-/**
  * Compute SHA-512 Hash in Worker to avoid UI freeze.
  * Updated to stream file in worker using FileReaderSync (supports 5GB+ files).
  */
@@ -175,7 +173,6 @@ export async function uploadEncryptedFile(
   const fileId = crypto.randomUUID();
 
   try {
-    // 🔒 STRICT QUOTA ENFORCEMENT: Check storage quota BEFORE starting upload
     const storageInfo = await apiClient.getUserStorage();
     if (!storageInfo.success || !storageInfo.data) {
       throw new Error('Failed to check storage quota');
@@ -346,8 +343,68 @@ export async function uploadEncryptedFile(
       throw new Error('Upload cancelled');
     }
 
-    // Stage 7: Finalize upload
-    const result = await finalizeUpload(session.sessionId, session.fileId, file, shaHash, keys, folderId, session.encryptedFilename, session.filenameSalt, session.manifestCreatedAt);
+    // Stage 7: Generate Thumbnail (for photos/videos)
+    let thumbnailData: string | undefined;
+    let width: number | undefined;
+    let height: number | undefined;
+    let duration: number | undefined;
+
+    if ((file.type.startsWith('image/') || file.type.startsWith('video/')) && session.thumbnailPutUrl) {
+      try {
+        const thumb = await generateThumbnail(file);
+        if (thumb) {
+          // Encrypt thumbnail with CEK
+          const thumbArrayBuffer = await thumb.blob.arrayBuffer();
+          const thumbUint8 = new Uint8Array(thumbArrayBuffer);
+          const { encryptedData, nonce } = encryptData(thumbUint8, keys.cek);
+
+          // Format as "encryptedData:nonce" in base64 (they are already base64 strings)
+          const encryptedThumbBase64 = `${encryptedData}:${nonce}`;
+
+          // DIRECT UPLOAD TO B2 - Convert base64 string to binary for upload
+          console.log('🖼️ Uploading thumbnail directly to B2...');
+          const thumbResp = await fetch(session.thumbnailPutUrl, {
+            method: 'PUT',
+            body: new TextEncoder().encode(encryptedThumbBase64),
+            headers: { 'Content-Type': 'application/octet-stream' },
+            signal: abortSignal,
+            credentials: 'omit'
+          });
+
+          if (!thumbResp.ok) {
+            console.error('Thumbnail upload to B2 failed:', thumbResp.status);
+            // Fallback: send via finalizeUpload
+            thumbnailData = encryptedThumbBase64;
+          } else {
+            console.log('✅ Thumbnail uploaded successfully to B2');
+          }
+
+          width = thumb.width;
+          height = thumb.height;
+          duration = thumb.duration;
+        }
+      } catch (err) {
+        console.error('Failed to generate thumbnail:', err);
+        // Continue upload even if thumbnail fails
+      }
+    }
+
+    // Stage 8: Finalize upload
+    const result = await finalizeUpload(
+      session.sessionId,
+      session.fileId,
+      file,
+      shaHash,
+      keys,
+      folderId,
+      session.encryptedFilename,
+      session.filenameSalt,
+      session.manifestCreatedAt,
+      thumbnailData,
+      width,
+      height,
+      duration
+    );
 
     onProgress?.({ stage: 'finalizing', overallProgress: 100 });
 
@@ -373,26 +430,6 @@ export async function uploadEncryptedFile(
 }
 
 /**
- * Compute SHA-512 hash of entire file (primary hash algorithm for new files)
- * SHA-512 provides better security than SHA-256
- */
-async function computeFileHash(file: File): Promise<string> {
-  try {
-    const arrayBuffer = await file.arrayBuffer();
-
-    // Compute SHA-512 (new standard for file integrity)
-    const sha512Buffer = await crypto.subtle.digest('SHA-512', arrayBuffer);
-    const sha512Hash = uint8ArrayToHex(new Uint8Array(sha512Buffer));
-
-    return sha512Hash;
-  } catch (error) {
-    throw new Error(`Cannot read file "${file.name}": ${error instanceof Error ? error.message : String(error)}. The file may have been deleted or moved.`);
-  }
-}
-
-
-
-/**
  * Split file into chunks of CHUNK_SIZE
  * Includes retry logic for transient file access errors
  */
@@ -412,26 +449,6 @@ function splitFileIntoChunks(file: File): { start: number; end: number }[] {
     });
   }
   return chunks;
-}
-
-/**
- * Encrypt a chunk using XChaCha20-Poly1305
- */
-function encryptChunk(chunk: Uint8Array, key: Uint8Array): { encryptedData: Uint8Array; nonce: string } {
-  const result = encryptData(chunk, key);
-  return {
-    encryptedData: Uint8Array.from(atob(result.encryptedData), c => c.charCodeAt(0)),
-    nonce: result.nonce
-  };
-}
-
-/**
- * Compute BLAKE3 hash of data
- */
-async function computeBLAKE3Hash(data: Uint8Array): Promise<string> {
-  const hasher = await createBLAKE3();
-  hasher.update(data);
-  return hasher.digest('hex');
 }
 
 /**
@@ -668,93 +685,13 @@ async function initializeUploadSession(
     sessionId: response.data.sessionId,
     fileId: response.data.fileId,
     uploadUrls,
+    thumbnailPutUrl: response.data.thumbnailPutUrl,
     chunks,
     chunkHashes,
     encryptedFilename,
     filenameSalt,
     manifestCreatedAt  // Pass timestamp to finalizeUpload for consistent manifest hash
   };
-}
-
-/**
- * Upload encrypted chunks to Backblaze B2 via presigned URLs
- */
-async function uploadChunksToB2(
-  uploadUrls: string[],
-  chunks: ChunkInfo[],
-  encryptedChunks: Uint8Array[],
-  onProgress?: (progress: UploadProgress) => void,
-  abortSignal?: AbortSignal,
-  isPaused?: () => boolean
-): Promise<void> {
-  const totalChunks = chunks.length;
-  let completedChunks = 0;
-
-  // Upload chunks in parallel with concurrency control
-  const concurrencyLimit = 6; // Upload up to 6 chunks simultaneously for better performance
-  const semaphore = new Semaphore(concurrencyLimit);
-
-  const uploadPromises = encryptedChunks.map(async (encryptedChunk, index) => {
-    await semaphore.acquire();
-
-    try {
-      // Check for abort before starting each chunk upload
-      if (abortSignal?.aborted) {
-        throw new Error('Upload cancelled');
-      }
-
-      // Check if upload is paused
-      if (isPaused?.()) {
-        throw new Error('Upload paused');
-      }
-
-      const response = await fetch(uploadUrls[index], {
-        method: 'PUT',
-        body: new Blob([new Uint8Array(encryptedChunk)]),
-        headers: {
-          'Content-Type': 'application/octet-stream'
-        },
-        signal: abortSignal, // Pass abort signal to fetch
-        credentials: 'omit'
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`Upload failed for chunk ${index}: ${response.status} - ${errorText}`);
-        throw new Error(`Upload failed for chunk ${index}: ${response.status} - ${errorText}`);
-      }
-
-      completedChunks++;
-      onProgress?.({
-        stage: 'uploading',
-        overallProgress: 50 + (completedChunks / totalChunks) * 40,
-        currentChunk: completedChunks,
-        totalChunks,
-        chunkProgress: 100
-      });
-
-      // Yield control briefly after each chunk to keep UI responsive
-      if (completedChunks % 3 === 0) {
-        await new Promise(resolve => setTimeout(resolve, 0));
-      }
-
-    } catch (error) {
-      // Handle different types of errors
-      if (error instanceof Error) {
-        if (error.name === 'AbortError' || error.message === 'Upload cancelled') {
-          throw error;
-        } else if (error.message === 'Upload paused') {
-          throw error;
-        }
-      }
-      console.error(`Failed to upload chunk ${index}:`, error);
-      throw error;
-    } finally {
-      semaphore.release();
-    }
-  });
-
-  await Promise.all(uploadPromises);
 }
 
 /**
@@ -800,7 +737,11 @@ async function finalizeUpload(
   folderId: string | null = null,
   encryptedFilename?: string,
   filenameSalt?: string,
-  manifestCreatedAt?: number
+  manifestCreatedAt?: number,
+  thumbnailData?: string,
+  width?: number,
+  height?: number,
+  duration?: number
 ): Promise<UploadResult> {
   // Regenerate manifest data for finalization (must match initializeUploadSession exactly)
   // Use the timestamp from initializeUploadSession to ensure consistent manifest hash
@@ -839,7 +780,11 @@ async function finalizeUpload(
     manifestSignatureDilithium,
     manifestPublicKeyDilithium: keys.keypairs.dilithiumPublicKey,
     manifestCreatedAt: manifestCreatedAtFinal,
-    algorithmVersion: 'v3-hybrid-pqc'
+    algorithmVersion: 'v3-hybrid-pqc',
+    thumbnailData,
+    width,
+    height,
+    duration
   }, fileId);
 
   if (!response.success || !response.data) {
@@ -874,36 +819,3 @@ async function finalizeUpload(
     }
   };
 }
-
-/**
- * Semaphore for controlling concurrency
- */
-class Semaphore {
-  private permits: number;
-  private waiting: (() => void)[] = [];
-
-  constructor(permits: number) {
-    this.permits = permits;
-  }
-
-  async acquire(): Promise<void> {
-    if (this.permits > 0) {
-      this.permits--;
-      return;
-    }
-
-    return new Promise((resolve) => {
-      this.waiting.push(resolve);
-    });
-  }
-
-  release(): void {
-    this.permits++;
-    if (this.waiting.length > 0) {
-      const resolve = this.waiting.shift()!;
-      this.permits--;
-      resolve();
-    }
-  }
-}
-

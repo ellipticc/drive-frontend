@@ -1680,6 +1680,18 @@ class ApiClient {
     });
   }
 
+  async getPhotos(limit = 100, offset = 0): Promise<ApiResponse<any[]>> {
+    return this.request(`/photos?limit=${limit}&offset=${offset}`, {
+      method: 'GET'
+    });
+  }
+
+  async getThumbnailUrl(fileId: string): Promise<ApiResponse<{ url: string }>> {
+    return this.request(`/photos/${fileId}/thumbnail`, {
+      method: 'GET'
+    });
+  }
+
   async getStarredItems(): Promise<ApiResponse<SpaceItem[]>> {
     return this.request('/files/spaced', { method: 'GET' });
   }
@@ -1984,6 +1996,7 @@ class ApiClient {
       putUrl: string;
       objectKey: string;
     }>;
+    thumbnailPutUrl?: string | null;
     manifestVerified: boolean;
     manifestCreatedAt?: number;
     storageType: string;
@@ -2010,6 +2023,10 @@ class ApiClient {
     manifestPublicKeyDilithium: string;
     manifestCreatedAt: number;
     algorithmVersion: string;
+    thumbnailData?: string; // Encrypted base64
+    width?: number;
+    height?: number;
+    duration?: number;
   }, fileId?: string): Promise<ApiResponse<{
     fileId: string;
     message: string;
