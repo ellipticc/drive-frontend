@@ -568,7 +568,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                                 )}
                             </Table.Head>
                             {!isMobile && (
-                                <Table.Head id="originalLocation" allowsSorting align="left" className={`pointer-events-none cursor-default max-w-0 ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
+                                <Table.Head id="originalLocation" allowsSorting align="left" className={`pointer-events-none cursor-default w-[180px] ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
                                     <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Original location</span>
                                 </Table.Head>
                             )}
@@ -613,7 +613,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                                         </div>
                                     </Table.Cell>
                                     {!isMobile && (
-                                        <Table.Cell className="text-muted-foreground text-sm truncate max-w-0">
+                                        <Table.Cell className="text-muted-foreground text-sm truncate w-[180px]">
                                             {/* Original Location Placeholder - Backend doesn't seem to provide this yet? It was in header though. */}
                                             --
                                         </Table.Cell>
