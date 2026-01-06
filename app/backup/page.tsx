@@ -20,6 +20,7 @@ import {
 import { IconCaretLeftRightFilled } from "@tabler/icons-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { FieldDescription } from "@/components/ui/field"
+import { apiClient } from "@/lib/api"
 
 export default function BackupPage() {
   const router = useRouter()
@@ -44,6 +45,10 @@ export default function BackupPage() {
       router.push('/')
       return
     }
+
+    // Track detailed event: User viewed the backup page
+    apiClient.trackBackupViewed().catch(err => console.error("Failed to track backup view", err))
+
   }, [router, mnemonic])
 
 
@@ -62,18 +67,8 @@ export default function BackupPage() {
 
   const handleConfirm = () => {
     if (!confirmed) return
-    // Clear mnemonic from localStorage for security
-    localStorage.removeItem('recovery_mnemonic')
-    // Navigate to main page
-    // Check for pending redirect
-    const redirectUrl = sessionStorage.getItem('login_redirect_url');
-    if (redirectUrl) {
-      console.log('Redirecting to stored URL:', redirectUrl);
-      sessionStorage.removeItem('login_redirect_url');
-      window.location.href = redirectUrl;
-    } else {
-      router.push('/')
-    }
+    // Proceed to verification step without clearing mnemonic
+    router.push('/backup/verify')
   }
 
   if (!mnemonic) {
@@ -81,12 +76,14 @@ export default function BackupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="absolute top-4 right-4 flex items-center gap-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4 relative">
+      <div className="absolute top-6 left-6 flex items-center gap-4">
         <Link href="/" className="flex items-center gap-2 font-medium no-underline border-none bg-transparent hover:bg-transparent focus:outline-none">
           <IconCaretLeftRightFilled className="!size-5" />
           <span className="text-base font-mono break-all">ellipticc</span>
         </Link>
+      </div>
+      <div className="absolute top-6 right-6">
         <ThemeToggle />
       </div>
 

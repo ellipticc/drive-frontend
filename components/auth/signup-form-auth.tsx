@@ -17,7 +17,7 @@ import { useState, useEffect } from "react"
 import { apiClient } from "@/lib/api"
 import { IconLoader2 as Loader2 } from "@tabler/icons-react"
 
-import { sessionTrackingUtils } from "@/hooks/useSessionTracking"
+import { useSessionTracking, sessionTrackingUtils } from "@/hooks/useSessionTracking"
 import { initializeDeviceKeys } from "@/lib/device-keys"
 
 export function SignupFormAuth({
@@ -35,6 +35,7 @@ export function SignupFormAuth({
     password: "",
     confirmPassword: ""
   })
+  useSessionTracking(true) // Enable session tracking on signup page
 
   // Check if user is already authenticated with cached credentials
   useEffect(() => {

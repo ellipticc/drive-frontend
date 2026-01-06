@@ -1267,36 +1267,30 @@ export function SettingsModal({
   }
 
   // Handle account deletion
+  // Handle account deletion
   const handleDeleteAccount = async () => {
     if (deleteConfirmation !== "DELETE") {
       toast.error("Please type 'DELETE' to confirm account deletion")
       return
     }
 
+    if (!deleteReason) {
+      toast.error("Please select a reason for leaving")
+      return
+    }
+
     setIsDeletingAccount(true)
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://drive.ellipticc.com/api/v1'}/auth/delete`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${apiClient.getAuthToken()}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          reason: deleteReason,
-          details: deleteDetails
-        }),
-      })
+      const response = await apiClient.deleteAccount(deleteReason, deleteDetails)
 
-      const data = await response.json()
-
-      if (response.ok && data.success) {
+      if (response.success) {
         // Complete cleanup
         await completeLogout()
         toast.success("Account deleted successfully")
         // Redirect to landing page
         window.location.href = '/'
       } else {
-        toast.error(data.error || "Failed to delete account")
+        toast.error(response.error || "Failed to delete account")
       }
     } catch (error) {
       console.error('Delete account error:', error)
@@ -1949,7 +1943,7 @@ export function SettingsModal({
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground uppercase font-bold tracking-wider">
-                    Why are you leaving? (Optional)
+                    Why are you leaving? <span className="text-destructive">*</span>
                   </Label>
                   <Select value={deleteReason} onValueChange={setDeleteReason}>
                     <SelectTrigger className="w-full">
@@ -2009,7 +2003,7 @@ export function SettingsModal({
               <Button
                 variant="destructive"
                 onClick={handleDeleteAccount}
-                disabled={isDeletingAccount || deleteConfirmation !== "DELETE"}
+                disabled={isDeletingAccount || deleteConfirmation !== "DELETE" || !deleteReason}
               >
                 {isDeletingAccount ? (
                   <>

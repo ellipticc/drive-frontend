@@ -3000,6 +3000,27 @@ class ApiClient {
       method: 'POST',
     });
   }
+
+  // Backup flow tracking
+  async trackBackupViewed(): Promise<ApiResponse<{ success: boolean }>> {
+    return this.request('/backup/viewed', { method: 'POST' });
+  }
+
+  async trackBackupVerified(): Promise<ApiResponse<{ success: boolean }>> {
+    return this.request('/backup/verified', { method: 'POST' });
+  }
+
+  async deleteAccount(reason?: string, details?: string): Promise<ApiResponse<{
+    success: boolean;
+  }>> {
+    const idempotencyKey = generateIdempotencyKey('deleteAccount', 'permanent');
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request('/auth/delete', {
+      method: 'DELETE',
+      body: JSON.stringify({ reason, details }),
+      headers
+    });
+  }
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);
