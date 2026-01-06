@@ -58,6 +58,7 @@ export interface ChunkInfo {
   size: number;
   encryptedSize: number;
   blake3Hash: string;
+  md5?: string; // MD5 checksum for B2 Object Lock (Content-MD5 header)
   nonce: string;
   // Compression metadata
   isCompressed: boolean;
@@ -106,7 +107,7 @@ const CHUNK_SIZE = 4 * 1024 * 1024; // 4MB chunks (configurable)
 /**
  * Process a chunk in the Unified Web Worker
  */
-const processChunkInWorker = (chunk: Uint8Array, key: Uint8Array, index: number): Promise<{ encryptedData: Uint8Array; nonce: string; hash: string; index: number; compression: CompressionMetadata }> => {
+const processChunkInWorker = (chunk: Uint8Array, key: Uint8Array, index: number): Promise<{ encryptedData: Uint8Array; nonce: string; hash: string; md5: string; index: number; compression: CompressionMetadata }> => {
   return new Promise((resolve, reject) => {
     const worker = new Worker(new URL('./workers/upload-worker.ts', import.meta.url));
 
@@ -282,7 +283,10 @@ export async function uploadEncryptedFile(
           const response = await fetch(uploadUrl, {
             method: 'PUT',
             body: new Blob([processed.encryptedData as any]),
-            headers: { 'Content-Type': 'application/octet-stream' },
+            headers: {
+              'Content-Type': 'application/octet-stream',
+              'Content-MD5': processed.md5 // Required for Object Lock
+            },
             signal: abortSignal,
             credentials: 'omit'
           });
@@ -298,6 +302,7 @@ export async function uploadEncryptedFile(
             size: range.end - range.start,
             encryptedSize: processed.encryptedData.byteLength,
             blake3Hash: processed.hash,
+            md5: processed.md5,
             nonce: processed.nonce,
             isCompressed: processed.compression.isCompressed,
             compressionAlgorithm: processed.compression.algorithm,
@@ -361,8 +366,6 @@ export async function uploadEncryptedFile(
           // Format as "encryptedData:nonce" in base64 (they are already base64 strings)
           const encryptedThumbBase64 = `${encryptedData}:${nonce}`;
 
-          // DIRECT UPLOAD TO B2 - Convert base64 string to binary for upload
-          console.log('🖼️ Uploading thumbnail directly to B2...');
           const thumbResp = await fetch(session.thumbnailPutUrl, {
             method: 'PUT',
             body: new TextEncoder().encode(encryptedThumbBase64),
@@ -376,7 +379,7 @@ export async function uploadEncryptedFile(
             // Fallback: send via finalizeUpload
             thumbnailData = encryptedThumbBase64;
           } else {
-            console.log('✅ Thumbnail uploaded successfully to B2');
+            console.log('Thumbnail uploaded successfully to B2');
           }
 
           width = thumb.width;

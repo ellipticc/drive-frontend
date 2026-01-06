@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useCallback } from "react"
-import { IconX as X, IconChevronLeft as ChevronLeft, IconChevronRight as ChevronRight, IconDownload as Download, IconInfoCircle as Info, IconShare as Share2, IconFileUnknown } from "@tabler/icons-react"
+import { IconX as X, IconChevronLeft as ChevronLeft, IconChevronRight as ChevronRight, IconDownload as Download, IconInfoCircle as Info, IconShare as Share2, IconFileUnknown, IconLock } from "@tabler/icons-react"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { AudioPreview } from "./audio-preview"
@@ -22,6 +22,8 @@ export interface PreviewFileItem {
     mimeType?: string
     size?: number
     blobUrl?: string
+    lockedUntil?: string | null
+    retentionMode?: string | null
     // Add other fields if needed for context
 }
 
@@ -198,9 +200,21 @@ export function FullPagePreviewModal({
                         <FileIcon className="h-5 w-5" filename={file.name} mimeType={file.mimeType} />
                     </div>
                     <div className="flex flex-col min-w-0">
-                        <span className="font-semibold truncate block" title={file.name}>
-                            {file.name}
-                        </span>
+                        <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="font-semibold truncate block" title={file.name}>
+                                {file.name}
+                            </span>
+                            {file.lockedUntil && new Date(file.lockedUntil) > new Date() && (
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <IconLock className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        Locked until {new Date(file.lockedUntil).toLocaleString()}
+                                    </TooltipContent>
+                                </Tooltip>
+                            )}
+                        </div>
                         <span className="text-xs text-muted-foreground">
                             {file.size ? formatFileSize(file.size) : ''}
                         </span>

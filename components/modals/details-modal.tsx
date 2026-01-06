@@ -21,6 +21,7 @@ import {
   IconDownload,
   IconCopy,
   IconCheck,
+  IconLock,
 } from "@tabler/icons-react"
 import { toast } from "sonner"
 import { apiClient, FileInfo, FolderInfo } from "@/lib/api"
@@ -48,6 +49,8 @@ interface ItemDetails {
   is_shared?: boolean;
   sha_hash?: string | null;
   shaHash?: string | null;
+  lockedUntil?: string | null;
+  retentionMode?: string | null;
 }
 import { decryptFilename } from "@/lib/crypto"
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -477,6 +480,18 @@ export function DetailsModal({
                             )}
                           </Button>
                         </div>
+                      </div>
+                    )}
+
+                    {/* Retention Policy */}
+                    {itemDetails.lockedUntil && new Date(itemDetails.lockedUntil) > new Date() && (
+                      <div className="flex items-center justify-between py-2 bg-amber-50 dark:bg-amber-950/20 px-2 rounded-md border border-amber-100 dark:border-amber-900/30">
+                        <span className="text-xs text-amber-700 dark:text-amber-400 font-medium flex items-center gap-1">
+                          <IconLock className="h-3 w-3" /> Locked Until
+                        </span>
+                        <span className="text-xs font-semibold text-amber-900 dark:text-amber-200">
+                          {formatDate(itemDetails.lockedUntil)}
+                        </span>
                       </div>
                     )}
                   </div>

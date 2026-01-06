@@ -6,7 +6,7 @@ import { DotsVertical } from "@untitledui/icons";
 import type { SortDescriptor, Selection } from "react-aria-components";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Button } from "@/components/ui/button";
-import { IconFolderPlus, IconFolderDown, IconFileUpload, IconShare3, IconListDetails, IconDownload, IconFolder, IconEdit, IconInfoCircle, IconTrash, IconFile, IconHome, IconChevronRight, IconLink, IconEye, IconLayoutColumns, IconCopy, IconStar, IconStarFilled, IconLoader2, IconGrid3x3 } from "@tabler/icons-react";
+import { IconFolderPlus, IconFolderDown, IconFileUpload, IconShare3, IconListDetails, IconDownload, IconFolder, IconEdit, IconInfoCircle, IconTrash, IconFile, IconHome, IconChevronRight, IconLink, IconEye, IconLayoutColumns, IconCopy, IconStar, IconStarFilled, IconLoader2, IconGrid3x3, IconLock } from "@tabler/icons-react";
 import { CreateFolderModal } from "@/components/modals/create-folder-modal";
 import { MoveToFolderModal } from "@/components/modals/move-to-folder-modal";
 import { CopyModal } from "@/components/modals/copy-modal";
@@ -16,6 +16,7 @@ import { DetailsModal } from "@/components/modals/details-modal";
 import { MoveToTrashModal } from "@/components/modals/move-to-trash-modal";
 import { RenameModal } from "@/components/modals/rename-modal";
 import { ConflictModal } from "@/components/modals/conflict-modal";
+import { LockItemModal } from "@/components/modals/lock-item-modal";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -392,6 +393,14 @@ export const Table01DividerLineSm = ({
     const [copyModalOpen, setCopyModalOpen] = useState(false);
     const [selectedItemsForCopy, setSelectedItemsForCopy] = useState<Array<{ id: string; name: string; type: "file" | "folder" }>>([]);
     const [moveToTrashModalOpen, setMoveToTrashModalOpen] = useState(false);
+    const [lockModalOpen, setLockModalOpen] = useState(false);
+    const [selectedItemForLock, setSelectedItemForLock] = useState<{ id: string; name: string; type: "file" | "folder" } | null>(null);
+
+    const handleLockClick = useCallback((itemId: string, itemName: string, itemType: "file" | "folder") => {
+        setSelectedItemForLock({ id: itemId, name: itemName, type: itemType });
+        setLockModalOpen(true);
+    }, []);
+
     const [selectedItemForMoveToTrash] = useState<{ id: string; name: string; type: "file" | "folder" } | null>(null);
 
     // Preview modal state
@@ -1265,6 +1274,9 @@ export const Table01DividerLineSm = ({
                 case 'details':
                     handleDetailsClick(item.id, item.name, item.type);
                     break;
+                case 'lock':
+                    handleLockClick(item.id, item.name, item.type);
+                    break;
                 case 'moveToTrash':
                     handleMoveToTrashClick(item.id, item.name, item.type);
                     break;
@@ -2040,11 +2052,15 @@ export const Table01DividerLineSm = ({
                     >
                         <IconShare3 className="h-4 w-4" />
                     </Button>
-                    <div className="h-5 w-px bg-border mx-1" />
+                    {/* Move to folder */}
                     <Button
                         size="sm"
                         variant="ghost"
                         className="h-7 w-7 p-0"
+                        disabled={Array.from(selectedItems).some(id => {
+                            const item = filesMap.get(id);
+                            return item?.lockedUntil && new Date(item.lockedUntil) > new Date();
+                        })}
                         onClick={() => {
                             // Handle bulk move to folder
                             const selectedItemsArray = Array.from(selectedItems).map(id => {
@@ -2057,15 +2073,24 @@ export const Table01DividerLineSm = ({
                                 setMoveToFolderModalOpen(true);
                             }
                         }}
-                        title="Move to folder"
+                        title={Array.from(selectedItems).some(id => {
+                            const item = filesMap.get(id);
+                            return item?.lockedUntil && new Date(item.lockedUntil) > new Date();
+                        }) ? "Some items are locked and cannot be moved" : "Move to folder"}
                     >
                         <IconFolder className="h-4 w-4" />
                     </Button>
+
+                    {/* Rename */}
                     <Button
                         size="sm"
                         variant="ghost"
                         className="h-7 w-7 p-0"
-                        disabled={hasMultipleSelection}
+                        disabled={hasMultipleSelection || (() => {
+                            const firstItemId = Array.from(selectedItems)[0];
+                            const firstItem = filesMap.get(firstItemId);
+                            return !!(firstItem?.lockedUntil && new Date(firstItem.lockedUntil) > new Date());
+                        })()}
                         onClick={() => {
                             if (!hasMultipleSelection) {
                                 const firstItemId = Array.from(selectedItems)[0];
@@ -2075,10 +2100,18 @@ export const Table01DividerLineSm = ({
                                 }
                             }
                         }}
-                        title={hasMultipleSelection ? "Rename not available for multiple items" : "Rename"}
+                        title={hasMultipleSelection ? "Rename not available for multiple items" : (
+                            (() => {
+                                const firstItemId = Array.from(selectedItems)[0];
+                                const firstItem = filesMap.get(firstItemId);
+                                return firstItem?.lockedUntil && new Date(firstItem.lockedUntil) > new Date() ? "Item is locked" : "Rename";
+                            })()
+                        )}
                     >
                         <IconEdit className="h-4 w-4" />
                     </Button>
+
+                    {/* Details */}
                     <Button
                         size="sm"
                         variant="ghost"
@@ -2097,13 +2130,42 @@ export const Table01DividerLineSm = ({
                     >
                         <IconInfoCircle className="h-4 w-4" />
                     </Button>
+
+                    {/* Retention Policy - Only for single selection */}
+                    {selectedCount === 1 && (
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 w-7 p-0"
+                            onClick={() => {
+                                const firstItemId = Array.from(selectedItems)[0];
+                                const firstItem = filesMap.get(firstItemId);
+                                if (firstItem) {
+                                    handleLockClick(firstItem.id, firstItem.name, firstItem.type);
+                                }
+                            }}
+                            title="Retention policy"
+                        >
+                            <IconLock className="h-4 w-4" />
+                        </Button>
+                    )}
+
                     <div className="h-5 w-px bg-border mx-1" />
+
+                    {/* Move to trash */}
                     <Button
                         size="sm"
                         variant="ghost"
-                        className="h-7 w-7 p-0"
+                        className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
+                        disabled={Array.from(selectedItems).some(id => {
+                            const item = filesMap.get(id);
+                            return item?.lockedUntil && new Date(item.lockedUntil) > new Date();
+                        })}
                         onClick={handleBulkMoveToTrash}
-                        title="Move to trash"
+                        title={Array.from(selectedItems).some(id => {
+                            const item = filesMap.get(id);
+                            return item?.lockedUntil && new Date(item.lockedUntil) > new Date();
+                        }) ? "Some items are locked and cannot be deleted" : "Move to trash"}
                     >
                         <IconTrash className="h-4 w-4" />
                     </Button>
@@ -2360,6 +2422,16 @@ export const Table01DividerLineSm = ({
                                                             name={item.name}
                                                             className="text-sm font-medium whitespace-nowrap text-foreground cursor-default flex-1 min-w-0"
                                                         />
+                                                        {item.lockedUntil && new Date(item.lockedUntil) > new Date() && (
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <IconLock className="h-3.5 w-3.5 text-amber-500 shrink-0 ml-1" />
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    <p>Locked until {new Date(item.lockedUntil).toLocaleDateString()}</p>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        )}
                                                     </div>
                                                 </Table.Cell>
                                                 <Table.Cell className={`hidden md:table-cell px-1 w-16 text-center ${visibleColumns.has('starred') ? '' : '[&>*]:invisible'}`}>
@@ -2513,10 +2585,21 @@ export const Table01DividerLineSm = ({
                                                                     <IconInfoCircle className="h-4 w-4 mr-2" />
                                                                     Details
                                                                 </DropdownMenuItem>
+                                                                <DropdownMenuItem onClick={() => handleLockClick(item.id, item.name, item.type)}>
+                                                                    <IconLock className="h-4 w-4 mr-2" />
+                                                                    Retention policy
+                                                                </DropdownMenuItem>
                                                                 <DropdownMenuSeparator />
-                                                                <DropdownMenuItem onClick={() => handleMoveToTrashClick(item.id, item.name, item.type)} variant="destructive">
+                                                                <DropdownMenuItem
+                                                                    onClick={() => handleMoveToTrashClick(item.id, item.name, item.type)}
+                                                                    variant="destructive"
+                                                                    disabled={!!(item.lockedUntil && new Date(item.lockedUntil) > new Date())}
+                                                                >
                                                                     <IconTrash className="h-4 w-4 mr-2" />
                                                                     Move to trash
+                                                                    {item.lockedUntil && new Date(item.lockedUntil) > new Date() && (
+                                                                        <IconLock className="h-3 w-3 ml-auto opacity-50" />
+                                                                    )}
                                                                 </DropdownMenuItem>
                                                             </DropdownMenuContent>
                                                         </DropdownMenu>
@@ -3034,13 +3117,31 @@ export const Table01DividerLineSm = ({
                                         <IconInfoCircle className="h-4 w-4" />
                                         Details
                                     </button>
+                                    <button
+                                        className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
+                                        onClick={() => handleContextMenuAction('lock', contextMenu.targetItem)}
+                                    >
+                                        <IconLock className="h-4 w-4" />
+                                        Retention policy
+                                    </button>
                                     <div className="h-px bg-border mx-2 my-1" />
                                     <button
-                                        className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                                        onClick={() => handleContextMenuAction('moveToTrash', contextMenu.targetItem)}
+                                        className={`w-full px-3 py-2 text-left flex items-center gap-2 text-sm ${contextMenu.targetItem && contextMenu.targetItem.lockedUntil && new Date(contextMenu.targetItem.lockedUntil) > new Date()
+                                            ? 'opacity-50 cursor-not-allowed'
+                                            : 'text-destructive hover:bg-destructive hover:text-destructive-foreground'
+                                            }`}
+                                        onClick={() => {
+                                            if (!(contextMenu.targetItem && contextMenu.targetItem.lockedUntil && new Date(contextMenu.targetItem.lockedUntil) > new Date())) {
+                                                handleContextMenuAction('moveToTrash', contextMenu.targetItem)
+                                            }
+                                        }}
+                                        disabled={!!(contextMenu.targetItem && contextMenu.targetItem.lockedUntil && new Date(contextMenu.targetItem.lockedUntil) > new Date())}
                                     >
                                         <IconTrash className="h-4 w-4" />
                                         Move to Trash
+                                        {contextMenu.targetItem && contextMenu.targetItem.lockedUntil && new Date(contextMenu.targetItem.lockedUntil) > new Date() && (
+                                            <IconLock className="h-3 w-3 ml-auto" />
+                                        )}
                                     </button>
                                 </>
                             )}
@@ -3049,17 +3150,28 @@ export const Table01DividerLineSm = ({
                 )
             }
 
+            <LockItemModal
+                open={lockModalOpen}
+                onOpenChange={setLockModalOpen}
+                itemId={selectedItemForLock?.id}
+                itemName={selectedItemForLock?.name}
+                itemType={selectedItemForLock?.type}
+                onItemLocked={() => refreshFiles()}
+            />
+
             <FullPagePreviewModal
-                file={selectedItemForPreview ? {
-                    id: selectedItemForPreview.id,
-                    name: selectedItemForPreview.name,
-                    type: 'file',
-                    mimeType: selectedItemForPreview.mimeType,
-                    size: (() => {
-                        const item = filesMap.get(selectedItemForPreview.id);
-                        return item?.size;
-                    })()
-                } : null}
+                file={selectedItemForPreview ? (() => {
+                    const item = filesMap.get(selectedItemForPreview.id);
+                    return {
+                        id: selectedItemForPreview.id,
+                        name: selectedItemForPreview.name,
+                        type: 'file',
+                        mimeType: selectedItemForPreview.mimeType,
+                        size: item?.size,
+                        lockedUntil: item?.lockedUntil,
+                        retentionMode: item?.retentionMode
+                    };
+                })() : null}
                 isOpen={previewModalOpen}
                 onClose={() => {
                     setPreviewModalOpen(false);

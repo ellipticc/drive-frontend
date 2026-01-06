@@ -4,9 +4,6 @@
 import { xchacha20poly1305 } from '@noble/ciphers/chacha';
 import { createBLAKE3 } from 'hash-wasm';
 
-// Hashing dependencies
-import { sha512 } from '@noble/hashes/sha2';
-
 // -----------------------------------------------------------------------------
 // Message Types
 // -----------------------------------------------------------------------------
@@ -133,6 +130,15 @@ self.onmessage = async (e: MessageEvent) => {
       blake3.update(encryptedData);
       const hashHex = blake3.digest('hex');
 
+      // 4. Checksum (MD5) - Required for B2 Object Lock
+      // Use MD5 for Content-MD5 header (standard, won't be signed by AWS SDK)
+      const { createMD5 } = await import('hash-wasm');
+      const md5 = await createMD5();
+      md5.init();
+      md5.update(encryptedData);
+      const md5Bytes = new Uint8Array(md5.digest('binary'));
+      const md5Base64 = btoa(String.fromCharCode.apply(null, Array.from(md5Bytes)));
+
       const nonceB64 = uint8ArrayToBase64(nonce);
 
       // Compress metadata
@@ -151,6 +157,7 @@ self.onmessage = async (e: MessageEvent) => {
           encryptedData,
           nonce: nonceB64,
           hash: hashHex,
+          md5: md5Base64,
           index,
           compression: compressionMeta
         }

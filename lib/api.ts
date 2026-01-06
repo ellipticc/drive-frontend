@@ -214,6 +214,8 @@ export interface FileItem {
   encryptionSalt?: string;
   wrappedCek?: string;
   fileNoncePrefix?: string;
+  lockedUntil?: string | null;
+  retentionMode?: string | null;
 }
 
 export interface RecentItem {
@@ -242,6 +244,8 @@ export interface FolderContentItem {
   deletedAt?: string;
   is_shared: boolean;
   is_starred: boolean;
+  lockedUntil?: string | null;
+  retentionMode?: string | null;
 }
 
 export interface FileContentItem {
@@ -267,6 +271,8 @@ export interface FileContentItem {
   sha_hash?: string | null;
   is_shared: boolean;
   is_starred: boolean;
+  lockedUntil?: string | null;
+  retentionMode?: string | null;
 }
 
 export interface ShareItem {
@@ -1402,6 +1408,26 @@ class ApiClient {
     return this.request(`/folders/${folderId}/move`, {
       method: 'PUT',
       body: JSON.stringify({ parent_id: parentId }),
+      headers,
+    });
+  }
+
+  async lockFile(fileId: string, data: { durationDays: number; totpToken: string }): Promise<ApiResponse> {
+    const idempotencyKey = generateIdempotencyKey('lockFile', `${fileId}:${data.durationDays}`);
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request(`/files/${fileId}/lock`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers,
+    });
+  }
+
+  async lockFolder(folderId: string, data: { durationDays: number; totpToken: string }): Promise<ApiResponse> {
+    const idempotencyKey = generateIdempotencyKey('lockFolder', `${folderId}:${data.durationDays}`);
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request(`/folders/${folderId}/lock`, {
+      method: 'POST',
+      body: JSON.stringify(data),
       headers,
     });
   }
