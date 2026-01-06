@@ -10,6 +10,7 @@ import { GlobalUploadProvider } from "@/components/global-upload-context";
 import { CurrentFolderProvider } from "@/components/current-folder-context";
 import { ConditionalLayout } from "@/components/layout/conditional-layout";
 import { SessionPingProvider } from "@/components/session-ping-provider";
+import { NotificationProvider } from "@/components/notifications/notification-provider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -205,22 +206,24 @@ export default function RootLayout({
           disableTransitionOnChange={false}
         >
           <AuthGuard>
-            <CurrentFolderProvider>
-              <UserProvider>
-                <GlobalUploadProvider>
-                  <SessionPingProvider />
-                  <ConditionalLayout>{children}</ConditionalLayout>
-                  <Toaster
-                    position="bottom-right"
-                    richColors
-                    duration={5000}
-                    style={{
-                      fontFamily: 'var(--font-geist-sans)',
-                    }}
-                  />
-                </GlobalUploadProvider>
-              </UserProvider>
-            </CurrentFolderProvider>
+            <NotificationProvider>
+              <CurrentFolderProvider>
+                <UserProvider>
+                  <GlobalUploadProvider>
+                    <SessionPingProvider />
+                    <ConditionalLayout>{children}</ConditionalLayout>
+                    <Toaster
+                      position="bottom-right"
+                      richColors
+                      duration={5000}
+                      style={{
+                        fontFamily: 'var(--font-geist-sans)',
+                      }}
+                    />
+                  </GlobalUploadProvider>
+                </UserProvider>
+              </CurrentFolderProvider>
+            </NotificationProvider>
           </AuthGuard>
         </ThemeProvider>
       </body>

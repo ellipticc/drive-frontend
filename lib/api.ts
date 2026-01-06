@@ -2780,6 +2780,12 @@ class ApiClient {
     return this.request('/notifications/stats');
   }
 
+  async getUnseenStatus(): Promise<ApiResponse<{
+    hasUnseen: boolean;
+  }>> {
+    return this.request('/notifications/status');
+  }
+
   async markNotificationAsRead(notificationId: string): Promise<ApiResponse<{
     success: boolean;
     message: string;
