@@ -48,6 +48,7 @@ import {
     useDraggable,
     useDroppable,
     PointerSensor,
+    TouchSensor,
     useSensor,
     useSensors,
     DragStartEvent,
@@ -127,6 +128,8 @@ const DraggableDroppableRow = ({
 
     const style = {
         zIndex: isDragging ? 50 : undefined,
+        // Only disable touch action when we are definitely dragging to allow scrolling otherwise
+        touchAction: isDragging ? 'none' : undefined,
     };
 
     return (
@@ -260,6 +263,12 @@ export const Table01DividerLineSm = ({
         useSensor(PointerSensor, {
             activationConstraint: {
                 distance: 8, // Avoid dragging when clicking
+            },
+        }),
+        useSensor(TouchSensor, {
+            activationConstraint: {
+                delay: 300, // Slightly longer long-press for better mobile experience
+                tolerance: 15, // Higher tolerance for finger jitter
             },
         })
     );
@@ -1783,7 +1792,7 @@ export const Table01DividerLineSm = ({
     const renderBreadcrumbs = useCallback(() => {
         return (
             <Breadcrumb className="flex-1 min-w-0">
-                <BreadcrumbList className="flex-nowrap overflow-x-auto pb-0 gap-1 sm:gap-1 no-scrollbar animate-in fade-in slide-in-from-left-2 duration-300">
+                <BreadcrumbList className="flex-nowrap overflow-x-auto pb-0 gap-0.5 sm:gap-1 no-scrollbar animate-in fade-in slide-in-from-left-2 duration-300">
                     {folderPath.map((folder, index) => {
                         const isLast = index === folderPath.length - 1;
                         const label = index === 0 ? "My Files" : folder.name;
@@ -2228,16 +2237,33 @@ export const Table01DividerLineSm = ({
                 />
             )}
 
-            <TableCard.Root size="sm">
-                <TableCard.Header
-                    title={renderBreadcrumbs()}
-                    contentTrailing={
-                        <div className="flex items-center gap-1">
+            {isMobile && (
+                <div className="flex flex-col border-b border-border bg-card shadow-sm z-20">
+                    {/* Actions Toolbar - Mobile Only - Rectangle layout */}
+                    <div className="flex items-center gap-3 px-4 py-2 bg-muted/20 overflow-x-auto no-scrollbar min-h-[52px] border-b border-border/40">
+                        <div className="flex items-center gap-1.5 min-w-max">
                             {isLoading ? renderLoadingIcons : renderHeaderIcons}
                         </div>
-                    }
-                    className="h-10 border-0"
-                />
+                    </div>
+                    {/* Breadcrumbs - Separate line */}
+                    <div className="flex items-center px-4 h-10 bg-background/50 backdrop-blur-sm">
+                        {renderBreadcrumbs()}
+                    </div>
+                </div>
+            )}
+
+            <TableCard.Root size="sm" className={cx(isMobile && "rounded-none border-x-0 ring-0 shadow-none border-t-0")}>
+                {!isMobile && (
+                    <TableCard.Header
+                        title={renderBreadcrumbs()}
+                        contentTrailing={
+                            <div className="flex items-center gap-1">
+                                {isLoading ? renderLoadingIcons : renderHeaderIcons}
+                            </div>
+                        }
+                        className="h-10 border-0"
+                    />
+                )}
 
                 {isLoading ? (
                     <div className="flex items-center justify-center py-8">
@@ -2277,7 +2303,7 @@ export const Table01DividerLineSm = ({
                                     onContextMenu={(e: React.MouseEvent) => handleContextMenu(e)}
                                 >
                                     <Table.Header className="group">
-                                        <Table.Head className="w-10 text-center pl-4 pr-0">
+                                        <Table.Head className="w-10 text-center pl-2 md:pl-4 pr-0">
                                             <Checkbox
                                                 slot="selection"
                                                 className={`transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}
@@ -2315,7 +2341,7 @@ export const Table01DividerLineSm = ({
                                                 className="group hover:bg-muted/50 transition-colors duration-150"
                                                 onContextMenu={(e: React.MouseEvent) => handleContextMenu(e, item)}
                                             >
-                                                <Table.Cell className="w-10 text-center pl-4 pr-0">
+                                                <Table.Cell className="w-10 text-center pl-2 md:pl-4 pr-0">
                                                     <Checkbox
                                                         slot="selection"
                                                         className={`transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}
@@ -2427,7 +2453,7 @@ export const Table01DividerLineSm = ({
                                                         </Tooltip>
                                                     ) : null}
                                                 </Table.Cell>
-                                                <Table.Cell className="px-3 w-12">
+                                                <Table.Cell className="px-2 md:px-3 w-10 md:w-12">
                                                     <div className={`flex justify-end gap-0.5 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-200`}>
                                                         <DropdownMenu>
                                                             <DropdownMenuTrigger asChild id={filteredItems.indexOf(item) === 0 ? "tour-file-actions" : undefined}>
@@ -2500,9 +2526,15 @@ export const Table01DividerLineSm = ({
                                         )}
                                     </Table.Body>
                                 </Table>
-                                <DragOverlay modifiers={[snapCenterToCursor]} dropAnimation={null}>
+                                <DragOverlay
+                                    modifiers={isMobile ? [] : [snapCenterToCursor]}
+                                    dropAnimation={null}
+                                >
                                     {activeDragItem && (
-                                        <div className="bg-primary/95 text-primary-foreground border border-primary/20 rounded-md shadow-lg px-2.5 py-1.5 flex items-center gap-2 scale-95 pointer-events-none backdrop-blur-sm max-w-[160px]">
+                                        <div className={cx(
+                                            "bg-primary/95 text-primary-foreground border border-primary/20 rounded-md shadow-lg px-2.5 py-1.5 flex items-center gap-2 pointer-events-none max-w-[160px]",
+                                            !isMobile && "scale-95 backdrop-blur-sm"
+                                        )}>
                                             <div className="flex-shrink-0">
                                                 {activeDragItem.type === 'folder' ? (
                                                     <IconFolder className="h-3.5 w-3.5" />

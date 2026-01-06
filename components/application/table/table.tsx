@@ -79,8 +79,7 @@ const TableCardHeader = ({ title, badge, description, contentTrailing, className
     return (
         <div
             className={cx(
-                "relative flex flex-col items-center gap-4 border-b border-border bg-card px-4 md:flex-row",
-                size === "sm" ? "py-0 md:px-5" : "py-0 md:px-6",
+                "relative flex flex-row items-center justify-between gap-2 border-b border-border bg-card px-3 md:px-6 h-10 md:h-12",
                 className,
             )}
         >
@@ -236,8 +235,8 @@ const TableHead = ({ className, tooltip, label, align = "left", children, ...pro
             className={(state) =>
                 cx(
                     "relative p-0 outline-hidden focus-visible:z-1 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-background focus-visible:ring-inset",
-                    size === "sm" && "px-4 py-2",
-                    size === "md" && "px-5 py-3",
+                    size === "sm" && "px-2 py-2 md:px-4",
+                    size === "md" && "px-4 py-3 md:px-5",
                     selectionBehavior === "toggle" && "nth-2:pl-3",
                     state.allowsSorting && "cursor-pointer",
                     typeof className === "function" ? className(state) : className,
@@ -329,8 +328,8 @@ const TableCell = ({ className, children, ...props }: TableCellProps) => {
             className={(state) =>
                 cx(
                     "relative text-sm text-muted-foreground outline-ring focus-visible:z-1 focus-visible:outline-2 focus-visible:-outline-offset-2",
-                    size === "sm" && "px-4 py-2",
-                    size === "md" && "px-5 py-3",
+                    size === "sm" && "px-2 py-2 md:px-4",
+                    size === "md" && "px-4 py-3 md:px-6",
 
                     selectionBehavior === "toggle" && "nth-2:pl-3",
 

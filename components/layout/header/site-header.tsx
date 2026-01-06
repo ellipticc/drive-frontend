@@ -61,7 +61,7 @@ export function SiteHeader({ onSearch, onFileUpload, onFolderUpload }: SiteHeade
           {showUpgrade && (
             <Button
               size="sm"
-              className="h-8 text-white font-medium hover:opacity-90 transition-opacity"
+              className="hidden md:inline-flex h-8 text-white font-medium hover:opacity-90 transition-opacity"
               style={{ backgroundColor: '#704dff' }}
               onClick={handleUpgradeClick}
             >
