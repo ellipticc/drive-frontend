@@ -48,7 +48,7 @@ export interface DownloadChunk {
   index?: number;
   objectKey: string;
   size: number;
-  shaHash: string;
+  shaHash: string | null;
   nonce: string | null;
   getUrl: string;
   // Compression metadata
@@ -70,12 +70,12 @@ export interface DownloadManifest {
   originalFilename: string;
   size: number;
   mimetype: string;
-  shaHash: string;
+  shaHash: string | null;
   chunkCount: number;
   chunks: Array<{
     index: number;
     size: number;
-    shaHash: string;
+    shaHash: string | null;
     nonce: string | null;
   }>;
   created: number;
@@ -109,12 +109,12 @@ export interface DownloadUrlsResponse {
   filenameSalt?: string;
   mimetype: string;
   size: number;
-  sha256: string;
+  sha256: string | null;
   chunkCount: number;
   chunks: Array<{
     index: number;
     size: number;
-    sha256: string;
+    sha256: string | null;
     nonce?: string | null;
     isCompressed?: boolean;
     compressionAlgorithm?: CompressionAlgorithm;
@@ -141,7 +141,7 @@ export interface DownloadSession {
   originalFilename: string;
   mimetype: string;
   size: number;
-  shaHash: string;
+  shaHash: string | null;
   chunkCount: number;
   chunks: DownloadChunk[];
   manifest?: DownloadManifest;
@@ -167,7 +167,7 @@ export interface DownloadResult {
   filename: string;
   size: number;
   mimetype: string;
-  shaHash: string;
+  shaHash: string | null;
 }
 
 // Configuration
@@ -181,7 +181,7 @@ const processDecryptInWorker = (
   key: Uint8Array,
   nonce: string,
   isCompressed: boolean,
-  expectedHash?: string
+  expectedHash?: string | null
 ): Promise<Uint8Array> => {
   return new Promise((resolve, reject) => {
     const worker = new Worker(new URL('./workers/download-worker.ts', import.meta.url));

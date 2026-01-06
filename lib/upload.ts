@@ -47,7 +47,7 @@ export interface FileMetadata {
   filename: string;
   size: number;
   mimeType: string;
-  shaHash: string;
+  shaHash: string | null;
   wrappedCek: string;
   cekNonce: string;
   // PQC wrappers would be added here
@@ -95,7 +95,7 @@ export interface UploadResult {
     type: 'file';
     createdAt: string;
     updatedAt: string;
-    shaHash: string;
+    shaHash: string | null;
     is_shared: boolean;
   };
 }
@@ -209,10 +209,10 @@ export async function uploadEncryptedFile(
       throw new Error(`Cannot access file "${file.name}". The file may have been deleted, moved, or this may be a directory that cannot be uploaded directly. ${error instanceof Error ? error.message : ''}`);
     }
 
-    // Stage 1: Compute SHA-512 hash of entire file (primary hash algorithm)
-    // OFF-THREAD: Computed in Web Worker
+    // Stage 1: Skip SHA-512 hash of entire file (Optimization for large files)
+    // Relying on chunk-level BLAKE3 integrity instead
     onProgress?.({ stage: 'hashing', overallProgress: 0 });
-    const shaHash = await computeFileHashInWorker(file);
+    const shaHash = null; // Placeholder since full-file hashing is now optional
     onProgress?.({ stage: 'hashing', overallProgress: 10 });
 
     // Check for abort after hashing
@@ -458,8 +458,7 @@ async function initializeUploadSession(
   file: File,
   folderId: string | null,
   chunks: ChunkInfo[],
-  // encryptedChunks: Uint8Array[], // REMOVED - No longer needed for main thread hashing!
-  shaHash: string,
+  shaHash: string | null,
   keys: UserKeys,
   conflictResolution?: 'replace' | 'keepBoth' | 'skip',
   conflictFileName?: string,
@@ -732,7 +731,7 @@ async function finalizeUpload(
   sessionId: string,
   fileId: string,
   file: File,
-  shaHash: string,
+  shaHash: string | null,
   keys: UserKeys,
   folderId: string | null = null,
   encryptedFilename?: string,

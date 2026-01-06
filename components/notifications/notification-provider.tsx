@@ -1,6 +1,7 @@
 "use client"
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from "react"
+import { usePathname } from "next/navigation"
 import { apiClient } from "@/lib/api"
 
 interface Notification {
@@ -36,8 +37,14 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     const [hasUnread, setHasUnread] = useState(false);
     const [loading, setLoading] = useState(false);
     const hasFetched = useRef(false);
+    const pathname = usePathname();
+
+    // Define public routes where notification check should be skipped
+    const publicRoutes = ['/login', '/signup', '/register', '/otp', '/recover', '/recover/otp', '/recover/reset', '/backup', '/totp', '/totp/recovery', '/terms-of-service', '/privacy-policy', '/billing'];
+    const isPublic = publicRoutes.includes(pathname) || pathname.startsWith('/s/');
 
     const checkUnseenStatus = useCallback(async () => {
+        if (isPublic) return; // Don't fetch on public pages
         try {
             const response = await apiClient.getUnseenStatus();
             if (response.success && response.data) {
@@ -52,9 +59,10 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         } catch (error) {
             console.error('Failed to check unseen status:', error);
         }
-    }, [stats.unread]);
+    }, [stats.unread, isPublic]);
 
     const refreshStats = useCallback(async () => {
+        if (isPublic) return; // Don't fetch on public pages
         try {
             setLoading(true);
             const response = await apiClient.getNotifications();
@@ -71,7 +79,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [isPublic]);
 
     const markAsRead = async (id: string) => {
         try {

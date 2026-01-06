@@ -46,8 +46,8 @@ interface ItemDetails {
   mimetype?: string;
   size?: number;
   is_shared?: boolean;
-  sha_hash?: string;
-  shaHash?: string;
+  sha_hash?: string | null;
+  shaHash?: string | null;
 }
 import { decryptFilename } from "@/lib/crypto"
 import { useIsMobile } from "@/hooks/use-mobile"

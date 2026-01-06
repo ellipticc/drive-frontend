@@ -61,7 +61,7 @@ export interface FileInfo {
   mimeType: string;
   createdAt: string;
   updatedAt: string;
-  shaHash: string;
+  shaHash: string | null;
   folderId: string | null;
   is_shared: boolean;
   encryption?: {
@@ -92,12 +92,12 @@ export interface DownloadUrlsResponse {
   filenameSalt?: string;
   mimetype: string;
   size: number;
-  sha256: string;
+  sha256: string | null;
   chunkCount: number;
   chunks: Array<{
     index: number;
     size: number;
-    sha256: string;
+    sha256: string | null;
     nonce: string | null;
   }>;
   presigned: Array<{
@@ -197,7 +197,7 @@ export interface FileItem {
   type: 'file' | 'folder';
   createdAt: string;
   updatedAt: string;
-  shaHash?: string; // File hash (SHA512)
+  shaHash?: string | null; // File hash (SHA512)
   sessionSalt?: string;
   is_shared?: boolean; // Whether this file/folder is currently shared
   is_starred?: boolean; // Whether this file/folder is currently in a space (starred)
@@ -263,8 +263,8 @@ export interface FileContentItem {
   deletedAt?: string;
   deleted_at?: string;
   size?: number;
-  shaHash: string;
-  sha_hash?: string;
+  shaHash: string | null;
+  sha_hash?: string | null;
   is_shared: boolean;
   is_starred: boolean;
 }
@@ -1838,7 +1838,7 @@ class ApiClient {
       filenameSalt: string;
       mimetype: string;
       size: number;
-      shaHash: string;
+      shaHash: string | null;
       chunkCount: number;
       createdAt: string;
       updatedAt: string;
@@ -2015,7 +2015,7 @@ class ApiClient {
     mimetype: string;
     fileSize: number;
     chunkCount: number;
-    shaHash: string;
+    shaHash: string | null;
     chunks: Array<{
       index: number;
       sha256: string;
@@ -2065,7 +2065,7 @@ class ApiClient {
   }>> {
     const idempotencyKey = data.clientFileId
       ? generateIdempotencyKeyForCreate(data.clientFileId)
-      : generateIdempotencyKey('initializeUploadSession', data.shaHash);
+      : generateIdempotencyKey('initializeUploadSession', (data.shaHash ?? 'no-hash') as string);
     const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/files/upload/presigned/initialize', {
       method: 'POST',
@@ -2075,7 +2075,7 @@ class ApiClient {
   }
 
   async finalizeUpload(sessionId: string, data: {
-    finalShaHash: string;
+    finalShaHash: string | null;
     manifestSignature: string;
     manifestPublicKey: string;
     manifestSignatureDilithium: string;

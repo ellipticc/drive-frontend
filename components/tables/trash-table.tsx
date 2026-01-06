@@ -45,7 +45,7 @@ interface TrashItem {
     createdAt: string;
     updatedAt: string;
     deletedAt: string;
-    shaHash?: string;
+    shaHash?: string | null;
     // Temporary fields for async decryption
     encryptedFilename?: string;
     filenameSalt?: string;
