@@ -20,6 +20,7 @@
   },
   "registries": {
     "@efferd": "https://efferd.com/r/{name}.json",
-    "@shadcndesign": "https://shadcndesign-free.vercel.app/r/{name}.json"
+    "@shadcndesign": "https://shadcndesign-free.vercel.app/r/{name}.json",
+    "@kibo-ui": "https://www.kibo-ui.com/r/{name}.json"
   }
 }

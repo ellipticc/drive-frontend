@@ -43,6 +43,8 @@ import {
   IconCoin,
   IconLoader2,
   IconX,
+  IconCrop,
+  IconCheck,
 } from "@tabler/icons-react"
 import {
   GeneralTab
@@ -59,6 +61,12 @@ import {
 import {
   ReferralsTab
 } from "./settings/referrals-tab"
+import {
+  ImageCrop,
+  ImageCropContent,
+  ImageCropApply,
+  ImageCropReset
+} from "@/components/kibo-ui/image-crop"
 
 import { apiClient, Referral, Subscription, BillingUsage, PricingPlan, SubscriptionHistory, SecurityEvent } from "@/lib/api"
 import { useTheme } from "next-themes"
@@ -182,6 +190,7 @@ export function SettingsModal({
   const [isLoadingAvatar, setIsLoadingAvatar] = useState(false)
   const [isSavingName, setIsSavingName] = useState(false)
   const [dateTimePreference, setDateTimePreference] = useState("24h")
+  const [croppingFile, setCroppingFile] = useState<File | null>(null)
 
   // Tab state - initialize from URL hash or initialTab prop
   const [activeTab, setActiveTab] = useState(() => {
@@ -1037,7 +1046,7 @@ export function SettingsModal({
     fileInputRef.current?.click()
   }
 
-  // Handle avatar file selection and upload
+  // Handle avatar file selection and open cropper
   const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
@@ -1054,11 +1063,24 @@ export function SettingsModal({
       return
     }
 
+    setCroppingFile(file)
+  }
+
+  // Handle upload of the cropped avatar
+  const handleUploadCroppedAvatar = async (croppedImageDataUrl: string) => {
+    if (!croppingFile) return
+
     setIsLoadingAvatar(true)
+    setCroppingFile(null)
+
     try {
+      // Fetch the cropped image blob
+      const res = await fetch(croppedImageDataUrl)
+      const blob = await res.blob()
+
       // Compress image client-side before hashing and uploading
       // Uses fixed parameters (512px, 0.8 quality, JPEG) for deterministic output
-      const compressedBlob = await compressAvatar(file);
+      const compressedBlob = await compressAvatar(new File([blob], 'avatar.jpg', { type: 'image/jpeg' }));
 
       // Calculate SHA256 hash of the COMPRESSED image for idempotency
       const buffer = await compressedBlob.arrayBuffer();
@@ -1067,7 +1089,6 @@ export function SettingsModal({
       const fileHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
       const formData = new FormData()
-      // Use compressed blob instead of original file
       formData.append('file', compressedBlob, 'avatar.jpg')
 
       // Pass the hash as the idempotency key (header)
@@ -2181,6 +2202,57 @@ export function SettingsModal({
                 ) : (
                   'Submit Feedback'
                 )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Avatar Cropper Modal */}
+        <Dialog open={!!croppingFile} onOpenChange={(open) => !open && setCroppingFile(null)}>
+          <DialogContent className="sm:max-w-lg p-0 overflow-hidden gap-0 border-none shadow-2xl bg-background/95 backdrop-blur-xl">
+            <DialogHeader className="p-8 pb-4">
+              <DialogTitle className="text-2xl font-bold">
+                {t('settings.editAvatar')}
+              </DialogTitle>
+              <DialogDescription className="text-muted-foreground text-base">
+                {t('settings.cropDesc')}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="px-8 pb-8 pt-2">
+              <div className="relative group rounded-3xl overflow-hidden bg-muted/20 border shadow-inner flex items-center justify-center min-h-[300px] transition-colors hover:bg-muted/30">
+                {croppingFile && (
+                  <ImageCrop
+                    file={croppingFile}
+                    aspect={1}
+                    circularCrop
+                    onCrop={handleUploadCroppedAvatar}
+                  >
+                    <ImageCropContent className="max-h-[450px] w-full" />
+
+                    {/* Floating Controls Overlay */}
+                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 p-1.5 bg-background/80 backdrop-blur-md rounded-full border shadow-xl border-white/10 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0">
+                      <ImageCropReset className="hover:bg-muted transition-all active:scale-90" />
+                      <div className="h-4 w-[1px] bg-border mx-1" />
+                      <ImageCropApply className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full h-11 w-11 shadow-lg transition-all hover:scale-110 active:scale-95 flex items-center justify-center p-0">
+                        <IconCheck className="w-6 h-6" />
+                      </ImageCropApply>
+                    </div>
+                  </ImageCrop>
+                )}
+              </div>
+            </div>
+
+            <DialogFooter className="p-4 px-8 bg-muted/30 border-t flex justify-between items-center bg-muted/20">
+              <p className="text-xs text-muted-foreground hidden sm:block">
+                Changes apply instantly to your profile.
+              </p>
+              <Button
+                variant="ghost"
+                onClick={() => setCroppingFile(null)}
+                className="rounded-xl hover:bg-background/50"
+              >
+                {t('common.cancel')}
               </Button>
             </DialogFooter>
           </DialogContent>

@@ -48,6 +48,8 @@ export const dictionaries = {
             close: "Close settings",
             avatarUpdated: "Avatar updated successfully!",
             removeAvatar: "Remove avatar",
+            editAvatar: "Adjust Profile Picture",
+            cropDesc: "Drag to reposition or resize your image to fit the circle perfectly.",
         },
         sidebar: {
             myFiles: "My Files",
@@ -168,6 +170,8 @@ export const dictionaries = {
             close: "Fermer les paramètres",
             avatarUpdated: "Avatar mis à jour avec succès !",
             removeAvatar: "Supprimer l'avatar",
+            editAvatar: "Ajuster la photo de profil",
+            cropDesc: "Faites glisser pour repositionner ou redimensionner votre image afin qu'elle s'adapte parfaitement au cercle.",
         },
         sidebar: {
             myFiles: "Mes Fichiers",
@@ -288,6 +292,8 @@ export const dictionaries = {
             close: "Cerrar configuración",
             avatarUpdated: "¡Avatar actualizado con éxito!",
             removeAvatar: "Eliminar avatar",
+            editAvatar: "Ajustar foto de perfil",
+            cropDesc: "Arrastra para reposicionar o redimensionar tu imagen para que encaje perfectamente en el círculo.",
         },
         sidebar: {
             myFiles: "Mis Archivos",
@@ -408,6 +414,8 @@ export const dictionaries = {
             close: "Einstellungen schließen",
             avatarUpdated: "Avatar erfolgreich aktualisiert!",
             removeAvatar: "Avatar entfernen",
+            editAvatar: "Profilbild anpassen",
+            cropDesc: "Ziehen Sie, um Ihr Bild neu zu positionieren oder in der Größe anzupassen, damit es perfekt in den Kreis passt.",
         },
         sidebar: {
             myFiles: "Meine Dateien",
