@@ -2570,6 +2570,22 @@ class ApiClient {
     });
   }
 
+  async sendFeedback(data: {
+    message: string;
+    path?: string;
+  }): Promise<ApiResponse<{
+    success: boolean;
+    message: string;
+  }>> {
+    const idempotencyKey = generateIdempotencyKey('sendFeedback', `${data.message.substring(0, 20)}:${Date.now()}`);
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request('/support/feedback', {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers,
+    });
+  }
+
 
 
   // Device Authorization

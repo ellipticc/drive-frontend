@@ -9,6 +9,7 @@ import {
   IconSettings,
   IconTrash,
   IconUsers,
+  IconMessage2,
 } from "@tabler/icons-react"
 
 import { NavMain } from "@/components/layout/navigation/nav-main"
@@ -116,6 +117,11 @@ const defaultNavSecondary = [
     url: "#",
     icon: IconHelp,
   },
+  {
+    title: "Feedback",
+    url: "#",
+    icon: IconMessage2,
+  },
 ]
 
 /*const defaultDocuments = [
@@ -136,8 +142,8 @@ const defaultNavSecondary = [
   },
 ] */
 
-export const AppSidebar = React.memo(function AppSidebar({ 
-  ...props 
+export const AppSidebar = React.memo(function AppSidebar({
+  ...props
 }: React.ComponentProps<typeof Sidebar>) {
   const { state } = useSidebar()
   const { handleFileUpload, handleFolderUpload } = useGlobalUpload()
@@ -224,8 +230,8 @@ export const AppSidebar = React.memo(function AppSidebar({
               </span>
             </div>
             <div className="w-full bg-muted rounded-full h-2 transition-all duration-300">
-              <div 
-                className="bg-primary h-2 rounded-full transition-all duration-300" 
+              <div
+                className="bg-primary h-2 rounded-full transition-all duration-300"
                 style={{ width: userLoading ? '0%' : (userData?.storage ? `${Math.min(userData.storage.percent_used, 100)}%` : '0%') }}
               ></div>
             </div>

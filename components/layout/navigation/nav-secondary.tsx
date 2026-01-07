@@ -11,6 +11,8 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { SupportRequestDialog } from "@/components/support-request-dialog"
+import { FeedbackModal } from "@/components/modals/feedback-modal"
+import { Kbd } from "@/components/ui/kbd"
 
 export function NavSecondary({
   items,
@@ -22,9 +24,11 @@ export function NavSecondary({
     icon: Icon
   }[]
 } & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
+  const [feedbackOpen, setFeedbackOpen] = React.useState(false)
 
   return (
     <SidebarGroup {...props}>
+      <FeedbackModal open={feedbackOpen} onOpenChange={setFeedbackOpen} />
       <SidebarGroupContent>
         <SidebarMenu>
           {items.map((item) => (
@@ -40,6 +44,14 @@ export function NavSecondary({
                 <SidebarMenuButton onClick={() => window.location.hash = '#settings/General'} id="tour-settings">
                   <item.icon />
                   <span>{item.title}</span>
+                </SidebarMenuButton>
+              ) : item.title === "Feedback" ? (
+                <SidebarMenuButton onClick={() => setFeedbackOpen(true)}>
+                  <item.icon />
+                  <span>{item.title}</span>
+                  <div className="ml-auto">
+                    <Kbd>F</Kbd>
+                  </div>
                 </SidebarMenuButton>
               ) : (
                 <SidebarMenuButton asChild>
