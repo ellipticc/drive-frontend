@@ -35,11 +35,12 @@ import { getDiceBearAvatar } from "@/lib/avatar"
 import { SettingsModal } from "@/components/modals/settings-modal"
 import { NotificationsModal } from "@/components/modals/notifications-modal"
 import { useNotifications } from "@/hooks/use-notifications"
+import { useLanguage } from "@/lib/i18n/language-context"
 
 // Notification dot component for indicating unread notifications
 function NotificationDot() {
   return (
-    <div className="absolute top-0 right-0 h-2.5 w-2.5 bg-blue-500 rounded-full border-2 border-background z-10" />
+    <div className="absolute top-0 end-0 h-2.5 w-2.5 bg-blue-500 rounded-full border-2 border-background z-10" />
   )
 }
 
@@ -83,6 +84,7 @@ export function NavUser({
 }) {
   /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
   const { isMobile } = useSidebar()
+  const { t } = useLanguage()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const { hasUnread } = useNotifications()
@@ -129,13 +131,13 @@ export function NavUser({
                   </Avatar>
                   {hasUnread && <NotificationDot />}
                 </div>
-                <div className="grid flex-1 text-left text-sm leading-tight">
+                <div className="grid flex-1 text-start text-sm leading-tight">
                   <span className="truncate font-medium">{displayName}</span>
                   <span className="text-muted-foreground truncate text-xs">
                     {user.email}
                   </span>
                 </div>
-                <IconDotsVertical className="ml-auto size-4" />
+                <IconDotsVertical className="ms-auto size-4" />
               </SidebarMenuButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent
@@ -145,12 +147,12 @@ export function NavUser({
               sideOffset={4}
             >
               <DropdownMenuLabel className="p-0 font-normal">
-                <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+                <div className="flex items-center gap-2 px-1 py-1.5 text-start text-sm">
                   <Avatar className="h-8 w-8 rounded-lg">
                     <AvatarImage src={user.avatar || getDiceBearAvatar(user.id)} alt={displayName} />
                     <AvatarFallback className="rounded-lg">{getInitials(displayName)}</AvatarFallback>
                   </Avatar>
-                  <div className="grid flex-1 text-left text-sm leading-tight">
+                  <div className="grid flex-1 text-start text-sm leading-tight">
                     <span className="truncate font-medium">{displayName}</span>
                     <span className="text-muted-foreground truncate text-xs">
                       {user.email}
@@ -164,26 +166,26 @@ export function NavUser({
                   window.location.hash = '#settings/General'
                 }}>
                   <IconSettings />
-                  Settings
+                  {t("sidebar.settings")}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => {
                   window.location.hash = '#settings/Billing'
                 }}>
                   <IconCreditCard />
-                  Billing
+                  {t("settings.billing")}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setNotificationsOpen(true)}>
                   <div className="relative">
                     <IconBellRinging />
                     {hasUnread && <NotificationDot />}
                   </div>
-                  Notifications
+                  {t("settings.notifications")}
                 </DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout}>
                 <IconLogout />
-                Log out
+                {t("sidebar.logout")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

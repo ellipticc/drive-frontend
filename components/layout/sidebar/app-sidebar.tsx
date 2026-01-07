@@ -14,6 +14,7 @@ import {
   IconPhoto,
   IconStack2,
   IconBubbleText,
+  IconHome,
 } from "@tabler/icons-react"
 
 import { NavMain } from "@/components/layout/navigation/nav-main"
@@ -34,6 +35,7 @@ import { Button } from "@/components/ui/button"
 import { useGlobalUpload } from "@/components/global-upload-context"
 import { useUser } from "@/components/user-context"
 import { getDiceBearAvatar } from "@/lib/avatar"
+import { useLanguage } from "@/lib/i18n/language-context"
 
 const defaultUser = {
   name: "Loading...",
@@ -42,96 +44,6 @@ const defaultUser = {
   id: "",
 }
 
-const defaultNavMain = [
-  {
-    title: "My Files",
-    url: "/",
-    icon: IconStack2,
-  },
-  {
-    title: "Photos & Videos",
-    url: "/photos",
-    icon: IconPhoto,
-  },
-  {
-    title: "Shared",
-    url: "/shared",
-    icon: IconLink,
-  },
-  {
-    title: "Trash",
-    url: "/trash",
-    icon: IconTrash,
-  },
-]
-
-/*const defaultNavClouds = [
-  {
-    title: "Capture",
-    icon: IconCamera,
-    isActive: true,
-    url: "#",
-    items: [
-      {
-        title: "Active Proposals",
-        url: "#",
-      },
-      {
-        title: "Archived",
-        url: "#",
-      },
-    ],
-  },
-  {
-    title: "Proposal",
-    icon: IconFileDescription,
-    url: "#",
-    items: [
-      {
-        title: "Active Proposals",
-        url: "#",
-      },
-      {
-        title: "Archived",
-        url: "#",
-      },
-    ],
-  },
-  {
-    title: "Prompts",
-    icon: IconFileAi,
-    url: "#",
-    items: [
-      {
-        title: "Active Proposals",
-        url: "#",
-      },
-      {
-        title: "Archived",
-        url: "#",
-      },
-    ],
-  },
-] */
-
-const defaultNavSecondary = [
-  {
-    title: "Settings",
-    url: "#",
-    icon: IconSettings,
-  },
-  {
-    title: "Get Help",
-    url: "#",
-    icon: IconHelp,
-  },
-  {
-    title: "Feedback",
-    url: "#",
-    icon: IconBubbleText,
-  },
-]
-
 
 
 export const AppSidebar = React.memo(function AppSidebar({
@@ -139,8 +51,65 @@ export const AppSidebar = React.memo(function AppSidebar({
 }: React.ComponentProps<typeof Sidebar>) {
   const { state } = useSidebar()
   const router = useRouter()
+  const { t } = useLanguage()
   const { handleFileUpload, handleFolderUpload } = useGlobalUpload()
   const { user: contextUser, loading: userLoading } = useUser()
+
+  const data = {
+    user: contextUser ? {
+      name: contextUser.name || "",
+      email: contextUser.email,
+      avatar: contextUser.avatar || getDiceBearAvatar(contextUser.id),
+      id: contextUser.id,
+    } : defaultUser,
+    navMain: [
+      {
+        title: t("sidebar.myFiles"),
+        url: "/",
+        icon: IconStack2,
+        id: "my-files",
+      },
+      {
+        title: t("sidebar.photos"),
+        url: "/photos",
+        icon: IconPhoto,
+        id: "photos",
+      },
+      {
+        title: t("sidebar.shared"),
+        url: "/shared",
+        icon: IconLink,
+        id: "shared",
+      },
+      {
+        title: t("sidebar.trash"),
+        url: "/trash",
+        icon: IconTrash,
+        id: "trash",
+      },
+    ],
+    navSecondary: [
+      {
+        title: t("sidebar.settings"),
+        url: "#",
+        icon: IconSettings,
+        id: "settings",
+      },
+      {
+        title: t("sidebar.getHelp"),
+        url: "#",
+        icon: IconHelp,
+        id: "help",
+      },
+      {
+        title: t("sidebar.feedback"),
+        url: "#",
+        icon: IconBubbleText,
+        id: "feedback",
+      },
+    ],
+  }
+
   const [isAuthenticated, setIsAuthenticated] = React.useState(false)
   const [storage, setStorage] = React.useState({
     used_bytes: 0,
@@ -149,13 +118,6 @@ export const AppSidebar = React.memo(function AppSidebar({
     used_readable: "0 Bytes",
     quota_readable: "3 GB"
   })
-
-  const user = contextUser ? {
-    name: contextUser.name || "",
-    email: contextUser.email,
-    avatar: contextUser.avatar || getDiceBearAvatar(contextUser.id),
-    id: contextUser.id,
-  } : defaultUser
 
   React.useEffect(() => {
     const checkAuth = async () => {
@@ -220,13 +182,6 @@ export const AppSidebar = React.memo(function AppSidebar({
     return null
   }
 
-  const data = {
-    user,
-    navMain: defaultNavMain,
-    //navClouds: defaultNavClouds,
-    navSecondary: defaultNavSecondary,
-  }
-
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
@@ -254,10 +209,10 @@ export const AppSidebar = React.memo(function AppSidebar({
           <div className="px-3 py-3 mx-2 mb-2 text-xs text-muted-foreground w-auto space-y-3 bg-muted/30 rounded-lg border border-border/30">
             <div className="flex items-center gap-2 mb-2">
               <IconDatabase className="!size-4 text-muted-foreground transition-colors duration-200" stroke={1.8} />
-              <span className="font-semibold text-sm font-sans">Storage</span>
+              <span className="font-semibold text-sm font-sans">{t("sidebar.storage")}</span>
             </div>
             <div className="flex justify-between mb-1">
-              <span className="font-medium">Used</span>
+              <span className="font-medium">{t("sidebar.used")}</span>
               <span className="font-mono text-xs">
                 {storage.used_readable} / {storage.quota_readable}
               </span>
@@ -266,7 +221,7 @@ export const AppSidebar = React.memo(function AppSidebar({
               <div className="bg-primary h-2 rounded-full" style={{ width: `${storage.percent_used}%` }}></div>
             </div>
             <div className="text-center mt-1 text-xs font-medium">
-              {storage.percent_used.toFixed(1)}% used
+              {storage.percent_used.toFixed(1)}% {t("sidebar.used").toLowerCase()}
             </div>
 
             {/* Get more storage button */}
@@ -279,7 +234,7 @@ export const AppSidebar = React.memo(function AppSidebar({
               }}
             >
               <IconDatabaseImport className="size-4" />
-              Get more storage
+              {t("sidebar.getMore")}
             </Button>
           </div>
         )}

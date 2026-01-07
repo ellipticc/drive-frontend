@@ -26,6 +26,7 @@ interface UserData {
   authMethod?: string;
   onboarding_completed?: boolean;
   sessionDuration?: number;
+  language?: string;
 }
 
 interface UserContextType {
@@ -36,6 +37,7 @@ interface UserContextType {
   deviceQuota: { planName: string; maxDevices: number } | null;
   refetch: () => Promise<void>;
   updateStorage: (delta: number) => void;
+  updateUser: (data: Partial<UserData>) => void;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -94,6 +96,15 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const skipFetchRoutes = ['/login', '/signup', '/otp', '/recover', '/backup', '/totp', '/totp/recovery'];
   const shouldSkipFetch = skipFetchRoutes.includes(pathname) || pathname.startsWith('/s/');
 
+  const updateUser = useCallback((data: Partial<UserData>) => {
+    setUser(prevUser => {
+      if (!prevUser) return prevUser;
+      const updatedUser = { ...prevUser, ...data };
+      saveUserDataToCache(updatedUser);
+      return updatedUser;
+    });
+  }, []);
+
   const fetchFreshUserData = useCallback(async () => {
     // Skip for public/auth routes
     if (shouldSkipFetch) {
@@ -126,13 +137,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
       }
 
       if (response.success && response.data?.user) {
-        console.log('UserProvider: Successfully fetched fresh user profile');
         const userData = response.data.user;
 
         // Initialize KeyManager with user's crypto data (critical for uploads and file access)
         try {
           await keyManager.initialize(userData);
-          console.log('UserProvider: KeyManager initialized with user crypto data');
         } catch (error) {
           console.warn('UserProvider: Failed to initialize KeyManager:', error);
         }
@@ -264,7 +273,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   }, [fetchUser]);
 
   return (
-    <UserContext.Provider value={{ user, loading, error, deviceLimitReached, deviceQuota, refetch, updateStorage }}>
+    <UserContext.Provider value={{ user, loading, error, deviceLimitReached, deviceQuota, refetch, updateStorage, updateUser }}>
       {children}
     </UserContext.Provider>
   );

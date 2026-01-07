@@ -58,7 +58,7 @@ export const SuggestedFileCard = ({
                 <div className="flex flex-col justify-center items-start flex-1 min-w-0 overflow-hidden px-1">
                     <TruncatedNameTooltip
                         name={item.name}
-                        className="font-medium text-[13px] text-foreground/90 truncate block leading-tight text-left w-full"
+                        className="font-medium text-[13px] text-foreground/90 truncate block leading-tight text-start w-full"
                     />
                     <div className="flex items-center justify-start gap-1.5 text-[10px] text-muted-foreground/70 mt-0.5 w-full">
                         <span className="uppercase tracking-wider font-semibold">

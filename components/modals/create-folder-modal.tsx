@@ -18,6 +18,7 @@ import { createSignedFolderManifest, decryptUserPrivateKeys } from "@/lib/crypto
 import { masterKeyManager } from "@/lib/master-key"
 import { toast } from "sonner"
 import { ConflictModal } from "@/components/modals/conflict-modal"
+import { useLanguage } from "@/lib/i18n/language-context"
 
 interface CreateFolderModalProps {
   children?: React.ReactNode
@@ -39,6 +40,7 @@ interface UserData {
 }
 
 export function CreateFolderModal({ children, parentId = null, onFolderCreated, open: controlledOpen, onOpenChange: controlledOnOpenChange }: CreateFolderModalProps & { open?: boolean; onOpenChange?: (open: boolean) => void }) {
+  const { t } = useLanguage()
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
 
   const isControlled = controlledOpen !== undefined
@@ -132,7 +134,7 @@ export function CreateFolderModal({ children, parentId = null, onFolderCreated, 
       })
 
       if (response.success) {
-        toast.success("Folder created successfully")
+        toast.success(t("files.folderCreated"))
         setFolderName("")
         setOpen(false)
         onFolderCreated?.()
@@ -143,13 +145,13 @@ export function CreateFolderModal({ children, parentId = null, onFolderCreated, 
           setConflictItem({ id: folderName, name: folderName, type: 'folder' })
           setIsConflictOpen(true)
         } else {
-          toast.error(response.error || "Failed to create folder")
+          toast.error(response.error || t("files.folderCreateFailed"))
         }
       }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : "Unknown error"
       console.error("Failed to create folder:", errorMsg, error)
-      toast.error("Failed to create folder: " + errorMsg)
+      toast.error(t("files.folderCreateFailed") + ": " + errorMsg)
     } finally {
       setIsLoading(false)
     }
@@ -175,7 +177,7 @@ export function CreateFolderModal({ children, parentId = null, onFolderCreated, 
       // For now, ask user to delete the existing folder manually - backend didn't provide existing id here
       toast.error('Please delete the existing folder first then try creating again (or use rename to replace).')
       setIsConflictOpen(false)
-    } else {
+    } else if (resolution === 'ignore') {
       // ignore
       setIsConflictOpen(false)
     }
@@ -204,27 +206,27 @@ export function CreateFolderModal({ children, parentId = null, onFolderCreated, 
       )}
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Create New Folder</DialogTitle>
+          <DialogTitle>{t("files.newFolderTitle")}</DialogTitle>
           <DialogDescription>
-            Enter a name for your new folder.
+            {t("files.newFolderDescription")}
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid gap-2">
-            <Label htmlFor="folder-name">Folder Name</Label>
+            <Label htmlFor="folder-name">{t("files.newFolderName")}</Label>
             <Input
               id="folder-name"
               value={folderName}
               onChange={(e) => {
                 let val = e.target.value
                 if (val.length > 255) {
-                  toast.error("Folder name cannot exceed 255 characters")
+                  toast.error(t("files.nameLimit"))
                   val = val.slice(0, 255)
                 }
                 setFolderName(val)
               }}
               onKeyDown={handleKeyDown}
-              placeholder="Enter folder name"
+              placeholder={t("files.folderNamePlaceholder")}
               autoFocus
             />
           </div>
@@ -236,14 +238,14 @@ export function CreateFolderModal({ children, parentId = null, onFolderCreated, 
             onClick={() => setOpen(false)}
             disabled={isLoading}
           >
-            Cancel
+            {t("files.cancel")}
           </Button>
           <Button
             type="button"
             onClick={handleCreate}
             disabled={!folderName.trim() || isLoading || !userData}
           >
-            {isLoading ? "Creating..." : "Create Folder"}
+            {isLoading ? t("files.creating") : t("files.newFolder")}
           </Button>
         </DialogFooter>
       </DialogContent>

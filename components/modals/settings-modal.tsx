@@ -66,6 +66,7 @@ import { useUser } from "@/components/user-context"
 import { useGlobalUpload } from "@/components/global-upload-context"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { compressAvatar } from "@/lib/image"
+import { useLanguage } from "@/lib/i18n/language-context"
 
 interface SettingsModalProps {
   children?: React.ReactNode
@@ -98,6 +99,15 @@ export function SettingsModal({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const nameInputRef = useRef<HTMLInputElement>(null)
   const { registerOnUploadComplete, unregisterOnUploadComplete } = useGlobalUpload()
+  const { t } = useLanguage()
+
+  const navItems = [
+    { name: t("settings.general"), icon: IconUserCog, id: "general" },
+    { name: t("settings.security"), icon: IconLockSquareRounded, id: "security" },
+    { name: t("settings.billing"), icon: IconCoin, id: "billing" },
+    { name: t("settings.notifications"), icon: IconBell, id: "notifications" },
+    { name: t("settings.referrals"), icon: IconGift, id: "referrals" },
+  ]
 
   // Use external state if provided, otherwise internal state
   const open = externalOpen !== undefined ? externalOpen : internalOpen
@@ -1065,12 +1075,12 @@ export function SettingsModal({
 
       if (uploadResponse.success && uploadResponse.data?.avatarUrl) {
         // Update the user's profile with the new avatar URL
-        await apiClient.updateUserProfile({
+        await apiClient.updateProfile({
           avatar: uploadResponse.data.avatarUrl
         })
         // Force refetch to update user data
         await refetch()
-        toast.success("Avatar updated successfully!")
+        toast.success(t("settings.avatarUpdated"))
       } else {
         if (uploadResponse.error === 'This image is already set as your avatar.') {
           toast.error("This image is already set as your avatar.");
@@ -1104,7 +1114,7 @@ export function SettingsModal({
 
     setIsSavingName(true)
     try {
-      const response = await apiClient.updateUserProfile({
+      const response = await apiClient.updateProfile({
         name: displayName.trim()
       })
 
@@ -1112,7 +1122,7 @@ export function SettingsModal({
         setOriginalName(displayName.trim())
         setIsEditingName(false)
         await refetch()
-        toast.success("Display name updated!")
+        toast.success(t("settings.nameUpdated"))
       } else {
         toast.error(response.error || "Failed to update display name")
       }
@@ -1137,7 +1147,7 @@ export function SettingsModal({
     try {
       setIsLoadingAvatar(true)
 
-      const response = await apiClient.updateUserProfile({
+      const response = await apiClient.updateProfile({
         avatar: ""
       })
 
@@ -1428,14 +1438,14 @@ export function SettingsModal({
           Customize your settings here.
         </DialogDescription>
         <SidebarProvider className="items-start h-full min-h-0">
-          <Sidebar collapsible="none" className="hidden md:flex flex-none w-56 h-full border-r">
+          <Sidebar collapsible="none" className="hidden md:flex flex-none w-56 h-full border-e">
             <SidebarHeader className="p-2">
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => handleOpenChange(false)}
                 className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                aria-label="Close settings"
+                aria-label={t("settings.close")}
               >
                 <IconX className="h-5 w-5" />
               </Button>
@@ -1444,23 +1454,18 @@ export function SettingsModal({
               <SidebarGroup>
                 <SidebarGroupContent>
                   <SidebarMenu>
-                    {data.nav.map((item) => {
+                    {navItems.map((item) => {
                       const isDisabled = deviceLimitReached && item.id !== "security";
                       return (
                         <SidebarMenuItem key={item.name}>
                           <SidebarMenuButton
-                            asChild
                             isActive={activeTab === item.id}
+                            onClick={() => !isDisabled && handleTabChange(item.id)}
                             disabled={isDisabled}
                             className={isDisabled ? "opacity-50 cursor-not-allowed" : ""}
                           >
-                            <button
-                              onClick={() => !isDisabled && handleTabChange(item.id)}
-                              className={isDisabled ? "cursor-not-allowed pointer-events-none" : ""}
-                            >
-                              <item.icon />
-                              <span>{item.name}</span>
-                            </button>
+                            <item.icon />
+                            <span>{item.name}</span>
                           </SidebarMenuButton>
                         </SidebarMenuItem>
                       );
@@ -1475,7 +1480,7 @@ export function SettingsModal({
             {isMobile && (
               <div className="border-b border-border p-4 flex-shrink-0 sticky top-0 bg-background">
                 <div className="flex gap-1 overflow-x-auto">
-                  {data.nav.map((item) => (
+                  {navItems.map((item) => (
                     <button
                       key={item.id}
                       onClick={() => handleTabChange(item.id)}

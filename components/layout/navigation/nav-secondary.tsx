@@ -22,6 +22,7 @@ export function NavSecondary({
     title: string
     url: string
     icon: Icon
+    id?: string
   }[]
 } & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
   const [feedbackOpen, setFeedbackOpen] = React.useState(false)
@@ -32,24 +33,24 @@ export function NavSecondary({
         <SidebarMenu>
           {items.map((item) => (
             <SidebarMenuItem key={item.title}>
-              {item.title === "Get Help" ? (
+              {item.id === "help" ? (
                 <SupportRequestDialog>
                   <SidebarMenuButton>
                     <item.icon />
                     <span>{item.title}</span>
                   </SidebarMenuButton>
                 </SupportRequestDialog>
-              ) : item.title === "Settings" ? (
+              ) : item.id === "settings" ? (
                 <SidebarMenuButton onClick={() => window.location.hash = '#settings/General'} id="tour-settings">
                   <item.icon />
                   <span>{item.title}</span>
                 </SidebarMenuButton>
-              ) : item.title === "Feedback" ? (
+              ) : item.id === "feedback" ? (
                 <FeedbackPopover open={feedbackOpen} onOpenChange={setFeedbackOpen}>
                   <SidebarMenuButton isActive={feedbackOpen}>
                     <item.icon />
                     <span>{item.title}</span>
-                    <div className="ml-auto">
+                    <div className="ms-auto">
                       <Kbd>F</Kbd>
                     </div>
                   </SidebarMenuButton>

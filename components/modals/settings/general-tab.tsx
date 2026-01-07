@@ -15,9 +15,11 @@ import {
     IconPencil,
     IconCheck as IconCheckmark,
     IconX,
+    IconLanguage,
 } from "@tabler/icons-react"
 import { getDiceBearAvatar } from "@/lib/avatar"
 import { getInitials } from "@/components/layout/navigation/nav-user"
+import { useLanguage } from "@/lib/i18n/language-context"
 
 interface GeneralTabProps {
     user: any;
@@ -60,11 +62,13 @@ export function GeneralTab({
     dateTimePreference,
     setDateTimePreference
 }: GeneralTabProps) {
+    const { language, setLanguage, t } = useLanguage()
+
     return (
         <div className="space-y-6">
             {/* Profile Section */}
             <div className="space-y-4">
-                <h2 className="text-xl font-semibold">General</h2>
+                <h2 className="text-xl font-semibold">{t('settings.general')}</h2>
                 <div className="flex items-start gap-6">
                     {/* Avatar */}
                     <div className="relative group">
@@ -97,7 +101,7 @@ export function GeneralTab({
                                     handleRemoveAvatar()
                                 }}
                                 className="absolute -top-1 -right-1 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
-                                title="Remove avatar"
+                                title={t('settings.removeAvatar')}
                             >
                                 <span className="text-xs font-bold">×</span>
                             </button>
@@ -109,7 +113,7 @@ export function GeneralTab({
                         <div className="space-y-2">
                             <div>
                                 <Label htmlFor="display-name" className="text-sm font-medium">
-                                    Display name
+                                    {t('settings.name.label')}
                                 </Label>
                                 <div className="flex items-center gap-2 mt-1">
                                     <Input
@@ -123,7 +127,7 @@ export function GeneralTab({
                                                 setDisplayName(val)
                                             }
                                         }}
-                                        placeholder={displayName || "Enter your name"}
+                                        placeholder={displayName || t('settings.name.placeholder')}
                                         readOnly={!isEditingName}
                                         className={`flex-1 ${!isEditingName ? 'bg-muted cursor-not-allowed' : ''}`}
                                         onKeyDown={(e) => {
@@ -138,7 +142,7 @@ export function GeneralTab({
                                                 variant="ghost"
                                                 onClick={handleCancelEdit}
                                                 className="h-9 w-9 p-0"
-                                                title="Cancel"
+                                                title={t('common.cancel')}
                                             >
                                                 <IconX className="h-4 w-4" />
                                             </Button>
@@ -148,7 +152,7 @@ export function GeneralTab({
                                                 onClick={handleSaveName}
                                                 disabled={isSavingName || !displayName.trim()}
                                                 className="h-9 w-9 p-0"
-                                                title="Save name"
+                                                title={t('common.save')}
                                             >
                                                 {isSavingName ? (
                                                     <IconLoader2 className="h-4 w-4 animate-spin" />
@@ -163,7 +167,7 @@ export function GeneralTab({
                                             variant="ghost"
                                             onClick={() => setIsEditingName(true)}
                                             className="h-9 w-9 p-0"
-                                            title="Edit display name"
+                                            title={t('settings.editDisplayName')}
                                         >
                                             <IconPencil className="h-4 w-4" />
                                         </Button>
@@ -175,44 +179,74 @@ export function GeneralTab({
                 </div>
             </div>
 
+            {/* Language Section */}
+            <div className="border-t pt-6 space-y-4">
+                <h3 className="text-lg font-semibold">{t('settings.language.label')}</h3>
+                <div className="space-y-2">
+                    <Label htmlFor="language-select" className="text-sm font-medium">
+                        {t('settings.language.label')}
+                    </Label>
+                    <div className="flex items-center gap-2">
+                        <IconLanguage className="h-4 w-4 text-muted-foreground" />
+                        <Select value={language} onValueChange={(val) => setLanguage(val as any)}>
+                            <SelectTrigger id="language-select" className="w-full max-w-xs">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="en">English</SelectItem>
+                                <SelectItem value="fr">Français</SelectItem>
+                                <SelectItem value="es">Español</SelectItem>
+                                <SelectItem value="de">Deutsch</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                        {t('settings.language.desc')}
+                    </p>
+                </div>
+            </div>
+
             {/* Appearance Section */}
             <div className="border-t pt-6 space-y-4">
-                <h3 className="text-lg font-semibold">Appearance</h3>
+                <h3 className="text-lg font-semibold">{t('settings.appearance')}</h3>
                 <div className="space-y-2">
                     <Label htmlFor="theme-select" className="text-sm font-medium">
-                        Theme
+                        {t('settings.theme.label')}
                     </Label>
                     <Select value={theme || "system"} onValueChange={setTheme}>
                         <SelectTrigger id="theme-select" className="w-full max-w-xs">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="system">System</SelectItem>
-                            <SelectItem value="light">Light</SelectItem>
-                            <SelectItem value="dark">Dark</SelectItem>
+                            <SelectItem value="system">{t('settings.theme.system')}</SelectItem>
+                            <SelectItem value="light">{t('settings.theme.light')}</SelectItem>
+                            <SelectItem value="dark">{t('settings.theme.dark')}</SelectItem>
                         </SelectContent>
                     </Select>
+                    <p className="text-sm text-muted-foreground">
+                        {t('settings.theme.desc')}
+                    </p>
                 </div>
             </div>
 
             {/* Date & Time Section */}
             <div className="border-t pt-6 space-y-4">
-                <h3 className="text-lg font-semibold">Date & Time</h3>
+                <h3 className="text-lg font-semibold">{t('settings.dateTime')}</h3>
                 <div className="space-y-2">
                     <Label htmlFor="datetime-select" className="text-sm font-medium">
-                        Time format
+                        {t('settings.timeFormat.label')}
                     </Label>
                     <Select value={dateTimePreference} onValueChange={setDateTimePreference}>
                         <SelectTrigger id="datetime-select" className="w-full max-w-xs">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="12h">12-hour (AM/PM)</SelectItem>
-                            <SelectItem value="24h">24-hour</SelectItem>
+                            <SelectItem value="12h">{t('settings.timeFormat.12h')}</SelectItem>
+                            <SelectItem value="24h">{t('settings.timeFormat.24h')}</SelectItem>
                         </SelectContent>
                     </Select>
                     <p className="text-sm text-muted-foreground">
-                        Choose how time is displayed throughout the application.
+                        {t('settings.timeFormat.desc')}
                     </p>
                 </div>
             </div>

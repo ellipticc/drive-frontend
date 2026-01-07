@@ -5,6 +5,7 @@ import { AppSidebar } from "@/components/layout/sidebar/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { useUser } from "@/components/user-context";
 import { DeviceLimitOverlay } from "@/components/modals/device-limit-overlay";
+import { useLanguage } from "@/lib/i18n/language-context";
 
 interface ConditionalLayoutProps {
   children: React.ReactNode;
@@ -13,6 +14,7 @@ interface ConditionalLayoutProps {
 export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   const pathname = usePathname();
   const { deviceLimitReached } = useUser();
+  const { dir } = useLanguage();
 
   // Define public routes that don't need sidebar
   const publicRoutes = ['/login', '/signup', '/register', '/otp', '/recover', '/recover/otp', '/recover/reset', '/backup', '/backup/verify', '/totp', '/totp/recovery', '/terms-of-service', '/privacy-policy', '/billing'];
@@ -35,7 +37,7 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
         } as React.CSSProperties
       }
     >
-      <AppSidebar variant="inset" />
+      <AppSidebar variant="inset" side={dir === 'rtl' ? 'right' : 'left'} />
       <SidebarInset>
         {children}
       </SidebarInset>

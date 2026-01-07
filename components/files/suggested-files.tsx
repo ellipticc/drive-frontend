@@ -4,6 +4,7 @@ import { SuggestedFileCard } from "./suggested-file-card";
 import { Button } from "@/components/ui/button";
 import { IconEye, IconEyeOff, IconChevronLeft, IconChevronRight, IconSparkles } from "@tabler/icons-react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { useLanguage } from "@/lib/i18n/language-context";
 
 interface SuggestedFilesProps {
     items: RecentItem[];
@@ -28,6 +29,7 @@ export const SuggestedFiles = ({
     onNavigate,
     ...actionHandlers
 }: SuggestedFilesProps) => {
+    const { t } = useLanguage();
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const [canScrollLeft, setCanScrollLeft] = useState(false);
     const [canScrollRight, setCanScrollRight] = useState(false);
@@ -66,7 +68,7 @@ export const SuggestedFiles = ({
                 <div className="flex items-center justify-between mb-2 px-6">
                     <div className="flex items-center gap-2">
                         <div className="flex items-center gap-2">
-                            <h2 className="text-[13px] font-semibold text-foreground/90 tracking-tight">Suggested for you</h2>
+                            <h2 className="text-[13px] font-semibold text-foreground/90 tracking-tight">{t("files.suggested")}</h2>
                         </div>
 
                         <Tooltip>
@@ -81,13 +83,13 @@ export const SuggestedFiles = ({
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent side="right">
-                                <p className="text-[10px] font-medium">{isVisible ? "Hide suggestions" : "Show suggestions"}</p>
+                                <p className="text-[10px] font-medium">{isVisible ? t("files.hideSuggestions") : t("files.showSuggestions")}</p>
                             </TooltipContent>
                         </Tooltip>
                     </div>
 
                     {isVisible && (
-                        <div className="flex items-center gap-1.5 pr-2">
+                        <div className="flex items-center gap-1.5 pe-2">
                             <Tooltip>
                                 <TooltipTrigger asChild>
                                     <Button
@@ -101,7 +103,7 @@ export const SuggestedFiles = ({
                                     </Button>
                                 </TooltipTrigger>
                                 <TooltipContent side="top">
-                                    <p className="text-[10px] font-medium">Scroll left</p>
+                                    <p className="text-[10px] font-medium">{t("files.scrollLeft")}</p>
                                 </TooltipContent>
                             </Tooltip>
 
@@ -118,7 +120,7 @@ export const SuggestedFiles = ({
                                     </Button>
                                 </TooltipTrigger>
                                 <TooltipContent side="top">
-                                    <p className="text-[10px] font-medium">Scroll right</p>
+                                    <p className="text-[10px] font-medium">{t("files.scrollRight")}</p>
                                 </TooltipContent>
                             </Tooltip>
                         </div>

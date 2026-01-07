@@ -11,6 +11,7 @@ import { CurrentFolderProvider } from "@/components/current-folder-context";
 import { ConditionalLayout } from "@/components/layout/conditional-layout";
 import { SessionPingProvider } from "@/components/session-ping-provider";
 import { NotificationProvider } from "@/components/notifications/notification-provider";
+import { LanguageProvider } from "@/lib/i18n/language-context";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -43,7 +44,7 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
-  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://ellipticc.com'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://drive.ellipticc.com'),
   alternates: {
     canonical: '/',
   },
@@ -209,18 +210,20 @@ export default function RootLayout({
             <NotificationProvider>
               <CurrentFolderProvider>
                 <UserProvider>
-                  <GlobalUploadProvider>
-                    <SessionPingProvider />
-                    <ConditionalLayout>{children}</ConditionalLayout>
-                    <Toaster
-                      position="bottom-right"
-                      richColors
-                      duration={5000}
-                      style={{
-                        fontFamily: 'var(--font-geist-sans)',
-                      }}
-                    />
-                  </GlobalUploadProvider>
+                  <LanguageProvider>
+                    <GlobalUploadProvider>
+                      <SessionPingProvider />
+                      <ConditionalLayout>{children}</ConditionalLayout>
+                      <Toaster
+                        position="bottom-right"
+                        richColors
+                        duration={5000}
+                        style={{
+                          fontFamily: 'var(--font-geist-sans)',
+                        }}
+                      />
+                    </GlobalUploadProvider>
+                  </LanguageProvider>
                 </UserProvider>
               </CurrentFolderProvider>
             </NotificationProvider>

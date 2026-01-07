@@ -26,6 +26,13 @@ export function FeedbackPopover({ children, open, onOpenChange }: FeedbackPopove
     const [sending, setSending] = React.useState(false)
     const pathname = usePathname()
 
+    // Reset text when popover closes
+    React.useEffect(() => {
+        if (!open) {
+            setText("")
+        }
+    }, [open])
+
     // Global keyboard listener for "F" key and "Enter"
     React.useEffect(() => {
         const down = (e: KeyboardEvent) => {

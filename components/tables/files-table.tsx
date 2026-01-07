@@ -58,30 +58,34 @@ import {
 } from "@dnd-kit/core";
 import { snapCenterToCursor } from "@dnd-kit/modifiers";
 import { AnimatePresence, motion } from "motion/react";
+import { useLanguage } from "@/lib/i18n/language-context";
 
 /**
  * DropHelper: Fixed bottom center overlay that appears during drag
  */
-const DropHelper = ({ folderName, isVisible }: { folderName: string | null; isVisible: boolean }) => (
-    <AnimatePresence>
-        {isVisible && (
-            <motion.div
-                initial={{ opacity: 0, y: 20, x: "-50%" }}
-                animate={{ opacity: 1, y: 0, x: "-50%" }}
-                exit={{ opacity: 0, y: 20, x: "-50%" }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
-                className="fixed bottom-8 left-1/2 z-[100] flex items-center gap-3 px-6 py-3 bg-primary text-primary-foreground rounded-full shadow-2xl border border-primary/20 backdrop-blur-md"
-            >
-                <IconFileUpload className="w-5 h-5" />
-                <span className="text-sm font-medium">
-                    {folderName
-                        ? `Drop to move to folder '${folderName}'`
-                        : "Drag over a folder to move"}
-                </span>
-            </motion.div>
-        )}
-    </AnimatePresence>
-);
+const DropHelper = ({ folderName, isVisible }: { folderName: string | null; isVisible: boolean }) => {
+    const { t } = useLanguage();
+    return (
+        <AnimatePresence>
+            {isVisible && (
+                <motion.div
+                    initial={{ opacity: 0, y: 20, x: "-50%" }}
+                    animate={{ opacity: 1, y: 0, x: "-50%" }}
+                    exit={{ opacity: 0, y: 20, x: "-50%" }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                    className="fixed bottom-8 left-1/2 z-[100] flex items-center gap-3 px-6 py-3 bg-primary text-primary-foreground rounded-full shadow-2xl border border-primary/20 backdrop-blur-md"
+                >
+                    <IconFileUpload className="w-5 h-5" />
+                    <span className="text-sm font-medium">
+                        {folderName
+                            ? t("files.dropToMove", { folder: folderName })
+                            : t("files.dragToMove")}
+                    </span>
+                </motion.div>
+            )}
+        </AnimatePresence>
+    );
+};
 
 /**
  * DraggableRow: Wrapper for Table.Row that makes it draggable and optionally droppable
@@ -169,6 +173,7 @@ export const Table01DividerLineSm = ({
     onFolderInputRef?: (ref: HTMLInputElement | null) => void
     onUploadHandlersReady?: (handlers: { handleFileUpload: () => void; handleFolderUpload: () => void }) => void
 }) => {
+    const { t } = useLanguage();
     const router = useRouter();
     const pathname = usePathname();
     const isMobile = useIsMobile();
@@ -237,8 +242,20 @@ export const Table01DividerLineSm = ({
 
     // Folder navigation state
     const [currentFolderId, setCurrentFolderId] = useState<string>('root');
-    const [folderPath, setFolderPath] = useState<Array<{ id: string, name: string }>>([{ id: 'root', name: 'My Files' }]);
+    const [folderPath, setFolderPath] = useState<Array<{ id: string, name: string }>>([{ id: 'root', name: t('sidebar.myFiles') }]);
     const [isInitialLoad, setIsInitialLoad] = useState(true);
+
+    // Update root folder name when language changes
+    useEffect(() => {
+        setFolderPath(prev => {
+            if (prev.length > 0 && prev[0].id === 'root') {
+                const newPath = [...prev];
+                newPath[0] = { ...newPath[0], name: t('sidebar.myFiles') };
+                return newPath;
+            }
+            return prev;
+        });
+    }, [t]);
 
     // Selection state
     const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
@@ -552,7 +569,7 @@ export const Table01DividerLineSm = ({
             // Root folder
             // console.log('Loading root folder');
             setCurrentFolderId('root');
-            setFolderPath([{ id: 'root', name: 'My Files' }]);
+            setFolderPath([{ id: 'root', name: t('sidebar.myFiles') }]);
             setIsInitialLoad(false);
             // Load files for root folder
             refreshFiles('root');
@@ -562,7 +579,7 @@ export const Table01DividerLineSm = ({
         // Build folder path from URL segments
         const buildFolderPathFromUrl = async () => {
             try {
-                const currentPath = [{ id: 'root', name: 'My Files' }];
+                const currentPath = [{ id: 'root', name: t('sidebar.myFiles') }];
                 let currentId = 'root';
 
                 for (const segment of urlSegments) {
@@ -595,7 +612,7 @@ export const Table01DividerLineSm = ({
                         // console.warn(`Invalid folder ID in URL: ${segment}, response:`, response);
                         router.replace('/', { scroll: false });
                         setCurrentFolderId('root');
-                        setFolderPath([{ id: 'root', name: 'My Files' }]);
+                        setFolderPath([{ id: 'root', name: t('sidebar.myFiles') }]);
                         setIsInitialLoad(false);
                         // Load files for root folder
                         await refreshFiles('root');
@@ -1053,9 +1070,9 @@ export const Table01DividerLineSm = ({
                 });
 
                 // Show toast with undo option
-                toast("Item moved to trash", {
+                toast(t("files.itemMovedToTrash"), {
                     action: {
-                        label: "Cancel",
+                        label: t("files.cancel"),
                         onClick: async () => {
                             try {
                                 let restoreResponse;
@@ -1066,15 +1083,15 @@ export const Table01DividerLineSm = ({
                                 }
 
                                 if (restoreResponse.success) {
-                                    toast.success(`${itemType} restored successfully`);
+                                    toast.success(t("files.restored", { type: itemType }));
                                     refreshFiles(); // Refresh to show the restored item
                                 } else {
-                                    toast.error(`Failed to restore ${itemType}`);
+                                    toast.error(t("files.restoreFailed", { type: itemType }));
                                     refreshFiles(); // Refresh anyway to show current state
                                 }
                             } catch (err) {
                                 console.error('Restore error:', err);
-                                toast.error(`Failed to restore ${itemType}`);
+                                toast.error(t("files.restoreFailed", { type: itemType }));
                                 refreshFiles(); // Refresh anyway to show current state
                             }
                         },
@@ -1121,9 +1138,9 @@ export const Table01DividerLineSm = ({
                 setSelectedItems(new Set());
 
                 // Show success toast
-                toast(`${selectedItemsArray.length} item${selectedItemsArray.length > 1 ? 's' : ''} moved to trash`, {
+                toast(t("files.itemsMovedToTrash", { count: selectedItemsArray.length }), {
                     action: {
-                        label: "Cancel",
+                        label: t("files.cancel"),
                         onClick: async () => {
                             // Restore all moved items
                             if (fileIds.length > 0) {
@@ -1475,16 +1492,14 @@ export const Table01DividerLineSm = ({
     // Format date
     const formatDate = (dateString: string): string => {
         const date = new Date(dateString);
-        const month = (date.getMonth() + 1).toString().padStart(2, '0');
-        const day = date.getDate().toString().padStart(2, '0');
-        const year = date.getFullYear();
-        const time = date.toLocaleTimeString('en-US', {
+        return date.toLocaleString(undefined, {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
             hour: 'numeric',
             minute: '2-digit',
             hour12: true
         });
-
-        return `${month}/${day}/${year} ${time}`;
     };
 
     // Get file icon based on mime type or type
@@ -1958,7 +1973,7 @@ export const Table01DividerLineSm = ({
                         parentId={currentFolderId === 'root' ? null : currentFolderId}
                         onFolderCreated={() => refreshFiles()}
                     >
-                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Create new folder">
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title={t("files.newFolder")}>
                             <IconFolderPlus className="h-3.5 w-3.5" />
                         </Button>
                     </CreateFolderModal>
@@ -1968,7 +1983,7 @@ export const Table01DividerLineSm = ({
                         variant="ghost"
                         className="h-7 w-7 p-0"
                         onClick={handleFolderUpload}
-                        title="Upload folder"
+                        title={t("files.uploadFolder")}
                     >
                         <IconFolderDown className="h-3.5 w-3.5" />
                     </Button>
@@ -1977,7 +1992,7 @@ export const Table01DividerLineSm = ({
                         variant="ghost"
                         className="h-7 w-7 p-0"
                         onClick={handleFileUpload}
-                        title="Upload file"
+                        title={t("files.uploadFile")}
                     >
                         <IconFileUpload className="h-3.5 w-3.5" />
                     </Button>
@@ -1990,7 +2005,7 @@ export const Table01DividerLineSm = ({
                             // Open Share Picker Modal when no files are selected
                             setSharePickerModalOpen(true);
                         }}
-                        title="Share files"
+                        title={t("files.share")}
                     >
                         <IconShare3 className="h-3.5 w-3.5" />
                     </Button>
@@ -2375,18 +2390,18 @@ export const Table01DividerLineSm = ({
                                             {selectedItems.size > 0 ? (
                                                 <span className="text-xs font-semibold whitespace-nowrap text-foreground px-1.5 py-1">{selectedItems.size} selected</span>
                                             ) : (
-                                                <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto">Name</span>
+                                                <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto">{t("files.name")}</span>
                                             )}
                                         </Table.Head>
                                         <Table.Head id="starred" align="center" className={`hidden md:table-cell w-16 ${visibleColumns.has('starred') ? '' : '[&>*]:invisible pointer-events-none cursor-default'}`} />
                                         <Table.Head id="modified" allowsSorting={selectedItems.size === 0} align="right" className={`hidden md:table-cell ${visibleColumns.has('modified') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
-                                            <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Modified</span>
+                                            <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>{t("files.modified")}</span>
                                         </Table.Head>
                                         <Table.Head id="size" allowsSorting={selectedItems.size === 0} align="right" className={`hidden md:table-cell ${visibleColumns.has('size') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
-                                            <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Size</span>
+                                            <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>{t("files.size")}</span>
                                         </Table.Head>
                                         <Table.Head id="checksum" allowsSorting={selectedItems.size === 0} align="right" className={`hidden md:table-cell ${visibleColumns.has('checksum') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
-                                            <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Checksum</span>
+                                            <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>{t("files.checksum")}</span>
                                         </Table.Head>
                                         <Table.Head id="shared" align="center" className={`hidden md:table-cell w-16 ${visibleColumns.has('shared') ? '' : '[&>*]:invisible pointer-events-none cursor-default'}`} />
                                         <Table.Head id="actions" align="right" />
@@ -2428,7 +2443,7 @@ export const Table01DividerLineSm = ({
                                                                     <IconLock className="h-3.5 w-3.5 text-amber-500 shrink-0 ml-1" />
                                                                 </TooltipTrigger>
                                                                 <TooltipContent>
-                                                                    <p>Locked until {new Date(item.lockedUntil).toLocaleDateString()}</p>
+                                                                    <p>{t("files.locked", { date: new Date(item.lockedUntil).toLocaleDateString() })}</p>
                                                                 </TooltipContent>
                                                             </Tooltip>
                                                         )}
@@ -2454,7 +2469,7 @@ export const Table01DividerLineSm = ({
                                                             </button>
                                                         </TooltipTrigger>
                                                         <TooltipContent>
-                                                            <p>{item.is_starred ? "Remove from Spaced" : "Add to Spaced"}</p>
+                                                            <p>{item.is_starred ? t("files.starred.remove") : t("files.starred.add")}</p>
                                                         </TooltipContent>
                                                     </Tooltip>
                                                 </Table.Cell>
@@ -2520,7 +2535,7 @@ export const Table01DividerLineSm = ({
                                                                 </button>
                                                             </TooltipTrigger>
                                                             <TooltipContent>
-                                                                <p>Manage share</p>
+                                                                <p>{t("files.manageShare")}</p>
                                                             </TooltipContent>
                                                         </Tooltip>
                                                     ) : null}
@@ -2543,51 +2558,51 @@ export const Table01DividerLineSm = ({
                                                             <DropdownMenuContent align="end" className="w-48">
                                                                 <DropdownMenuItem onClick={() => handleDownloadClick(item.id, item.name, item.type)}>
                                                                     <IconDownload className="h-4 w-4 mr-2" />
-                                                                    Download
+                                                                    {t("files.download")}
                                                                 </DropdownMenuItem>
                                                                 {item.type === 'file' && (
                                                                     <DropdownMenuItem onClick={() => handlePreviewClick(item.id, item.name, item.mimeType)}>
                                                                         <IconEye className="h-4 w-4 mr-2" />
-                                                                        Preview
+                                                                        {t("files.preview")}
                                                                     </DropdownMenuItem>
                                                                 )}
                                                                 <DropdownMenuItem onClick={() => handleShareClick(item.id, item.name, item.type)}>
                                                                     <IconShare3 className="h-4 w-4 mr-2" />
-                                                                    Share
+                                                                    {t("files.share")}
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuItem onClick={() => handleStarClick(item.id, item.type, item.is_starred || false)}>
                                                                     {item.is_starred ? (
                                                                         <>
                                                                             <IconStarFilled className="h-4 w-4 mr-2 text-foreground" />
-                                                                            Remove from Spaced
+                                                                            {t("files.starred.remove")}
                                                                         </>
                                                                     ) : (
                                                                         <>
                                                                             <IconStar className="h-4 w-4 mr-2" />
-                                                                            Add to Spaced
+                                                                            {t("files.starred.add")}
                                                                         </>
                                                                     )}
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuSeparator />
                                                                 <DropdownMenuItem onClick={() => handleMoveToFolderClick(item.id, item.name, item.type)}>
-                                                                    <IconFolder className="h-4 w-4 mr-2" />
-                                                                    Move to folder
+                                                                    <IconFolder className="h-4 w-4 me-2" />
+                                                                    {t("files.move")}
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuItem onClick={() => handleCopyClick(item.id, item.name, item.type)}>
-                                                                    <IconCopy className="h-4 w-4 mr-2" />
-                                                                    Copy to...
+                                                                    <IconCopy className="h-4 w-4 me-2" />
+                                                                    {t("files.copyTo")}
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuItem onClick={() => handleRenameClick(item.id, item.name, item.type)}>
-                                                                    <IconEdit className="h-4 w-4 mr-2" />
-                                                                    Rename
+                                                                    <IconEdit className="h-4 w-4 me-2" />
+                                                                    {t("files.rename")}
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuItem onClick={() => handleDetailsClick(item.id, item.name, item.type)}>
                                                                     <IconInfoCircle className="h-4 w-4 mr-2" />
-                                                                    Details
+                                                                    {t("files.details")}
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuItem onClick={() => handleLockClick(item.id, item.name, item.type)}>
                                                                     <IconLock className="h-4 w-4 mr-2" />
-                                                                    Retention policy
+                                                                    {t("files.retention")}
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuSeparator />
                                                                 <DropdownMenuItem
@@ -2596,7 +2611,7 @@ export const Table01DividerLineSm = ({
                                                                     disabled={!!(item.lockedUntil && new Date(item.lockedUntil) > new Date())}
                                                                 >
                                                                     <IconTrash className="h-4 w-4 mr-2" />
-                                                                    Move to trash
+                                                                    {t("files.moveToTrash")}
                                                                     {item.lockedUntil && new Date(item.lockedUntil) > new Date() && (
                                                                         <IconLock className="h-3 w-3 ml-auto opacity-50" />
                                                                     )}
@@ -2631,7 +2646,7 @@ export const Table01DividerLineSm = ({
                                                 </span>
                                                 {selectedItems.size > 1 && selectedItems.has(activeDragItem.id) && (
                                                     <span className="text-[9px] opacity-80 font-medium">
-                                                        +{selectedItems.size - 1} more items
+                                                        +{selectedItems.size - 1} {t("files.moreItems")}
                                                     </span>
                                                 )}
                                             </div>
@@ -3003,7 +3018,7 @@ export const Table01DividerLineSm = ({
                                 // Context menu for empty space
                                 <>
                                     <button
-                                        className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
+                                        className="w-full px-3 py-2 text-start hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
                                         onClick={() => handleContextMenuAction('createFolder')}
                                     >
                                         <IconFolderPlus className="h-4 w-4" />
@@ -3011,14 +3026,14 @@ export const Table01DividerLineSm = ({
                                     </button>
                                     <div className="h-px bg-border mx-2 my-1" />
                                     <button
-                                        className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
+                                        className="w-full px-3 py-2 text-start hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
                                         onClick={() => handleContextMenuAction('importFile')}
                                     >
                                         <IconFileUpload className="h-4 w-4" />
                                         Import File
                                     </button>
                                     <button
-                                        className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
+                                        className="w-full px-3 py-2 text-start hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
                                         onClick={() => handleContextMenuAction('importFolder')}
                                     >
                                         <IconFolderDown className="h-4 w-4" />
@@ -3026,7 +3041,7 @@ export const Table01DividerLineSm = ({
                                     </button>
                                     <div className="h-px bg-border mx-2 my-1" />
                                     <button
-                                        className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
+                                        className="w-full px-3 py-2 text-start hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
                                         onClick={() => handleContextMenuAction('share')}
                                     >
                                         <IconShare3 className="h-4 w-4" />

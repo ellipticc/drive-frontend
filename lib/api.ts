@@ -17,6 +17,7 @@ export interface UserData {
   sessionDuration?: number;
   authMethod?: string;
   onboarding_completed?: boolean;
+  language?: string;
 
   storage?: {
     used_bytes: number;
@@ -883,12 +884,13 @@ class ApiClient {
     });
   }
 
-  async updateUserProfile(data: {
+  async updateProfile(data: {
     name?: string;
     email?: string;
     avatar?: string;
+    language?: string;
   }): Promise<ApiResponse> {
-    const idempotencyKey = generateIdempotencyKey('updateProfile', 'current');
+    const idempotencyKey = generateIdempotencyKey('updateProfile', JSON.stringify(data));
     const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/auth/profile', {
       method: 'PUT',
@@ -943,7 +945,7 @@ class ApiClient {
   async changePassword(data: {
     newOpaquePasswordFile: string;  // New OPAQUE registration record from OPAQUE step 3
   }): Promise<ApiResponse> {
-    const idempotencyKey = generateIdempotencyKey('changePassword', 'current');
+    const idempotencyKey = generateIdempotencyKey('changePassword', data.newOpaquePasswordFile);
     const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/auth/password/change', {
       method: 'POST',

@@ -196,7 +196,7 @@ const TableHeader = <T extends object>({ columns, children, bordered = true, cla
             }
         >
             {selectionBehavior === "toggle" && (
-                <AriaColumn className={cx("relative py-2 pr-0 pl-4", size === "sm" ? "w-9 md:pl-5" : "w-11 md:pl-6")}>
+                <AriaColumn className={cx("relative py-2 pe-0 ps-4", size === "sm" ? "w-9 md:ps-5" : "w-11 md:ps-6")}>
                     {selectionMode === "multiple" && (
                         <div className="flex items-start">
                             <Checkbox slot="selection" size={size} />
@@ -237,7 +237,7 @@ const TableHead = ({ className, tooltip, label, align = "left", children, ...pro
                     "relative p-0 outline-hidden focus-visible:z-1 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-background focus-visible:ring-inset",
                     size === "sm" && "px-2 py-2 md:px-4",
                     size === "md" && "px-4 py-3 md:px-5",
-                    selectionBehavior === "toggle" && "nth-2:pl-3",
+                    selectionBehavior === "toggle" && "nth-2:ps-3",
                     state.allowsSorting && "cursor-pointer",
                     typeof className === "function" ? className(state) : className,
                 )
@@ -301,7 +301,7 @@ const TableRow = forwardRef(<T extends object>(
             }
         >
             {selectionBehavior === "toggle" && (
-                <AriaCell className={cx("relative py-2 pr-0 pl-4", size === "sm" ? "md:pl-5" : "md:pl-6")}>
+                <AriaCell className={cx("relative py-2 pe-0 ps-4", size === "sm" ? "md:ps-5" : "md:ps-6")}>
                     <div className="flex items-end">
                         <Checkbox slot="selection" size={size} />
                     </div>
@@ -331,7 +331,7 @@ const TableCell = ({ className, children, ...props }: TableCellProps) => {
                     size === "sm" && "px-2 py-2 md:px-4",
                     size === "md" && "px-4 py-3 md:px-6",
 
-                    selectionBehavior === "toggle" && "nth-2:pl-3",
+                    selectionBehavior === "toggle" && "nth-2:ps-3",
 
                     typeof className === "function" ? className(state) : className,
                 )

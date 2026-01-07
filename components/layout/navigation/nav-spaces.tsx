@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
+import { useLanguage } from "@/lib/i18n/language-context"
 import {
     IconPlus,
     IconTrash,
@@ -191,6 +192,7 @@ function SortableSpaceItem({
     spaces: Space[],
     isSpaced?: boolean
 }) {
+    const { t } = useLanguage();
     const {
         attributes,
         listeners,
@@ -262,11 +264,11 @@ function SortableSpaceItem({
                                 <DropdownMenuContent align="end" className="w-44">
                                     <DropdownMenuItem onClick={onNewSpace}>
                                         <IconPlanet className="mr-2 h-4 w-4" />
-                                        <span>New Space</span>
+                                        <span>{t("sidebar.newSpace")}</span>
                                     </DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => onAdd({ id: space.id, name: space.decryptedName || "Space" })}>
                                         <IconAdd className="mr-2 h-4 w-4" />
-                                        <span>Add Item</span>
+                                        <span>{t("sidebar.addItem")}</span>
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
@@ -293,7 +295,7 @@ function SortableSpaceItem({
                                             icon: space.icon
                                         })}>
                                             <IconEdit className="mr-2 h-4 w-4" />
-                                            <span>Settings</span>
+                                            <span>{t("sidebar.settings")}</span>
                                         </DropdownMenuItem>
                                         <DropdownMenuSeparator />
                                         <DropdownMenuItem
@@ -301,7 +303,7 @@ function SortableSpaceItem({
                                             onClick={() => onDelete?.({ id: space.id, name: space.decryptedName || "Space" })}
                                         >
                                             <IconTrash className="mr-2 h-4 w-4" />
-                                            <span>Delete</span>
+                                            <span>{t("files.delete")}</span>
                                         </DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
@@ -345,7 +347,7 @@ function SortableSpaceItem({
                                                     <DropdownMenuSub>
                                                         <DropdownMenuSubTrigger>
                                                             <IconArrowsMove className="mr-2 h-4 w-4" />
-                                                            <span>Move to Space</span>
+                                                            <span>{t("sidebar.moveToSpace")}</span>
                                                         </DropdownMenuSubTrigger>
                                                         <DropdownMenuPortal>
                                                             <DropdownMenuSubContent className="w-48">
@@ -376,7 +378,7 @@ function SortableSpaceItem({
                                                         onClick={() => onRemoveItem(space.id, item.id)}
                                                     >
                                                         <IconTrash className="mr-2 h-4 w-4" />
-                                                        <span>Remove from Space</span>
+                                                        <span>{t("sidebar.removeFromSpace")}</span>
                                                     </DropdownMenuItem>
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
@@ -393,6 +395,7 @@ function SortableSpaceItem({
 }
 
 export function NavSpaces() {
+    const { t } = useLanguage()
     const router = useRouter()
     const [spaces, setSpaces] = useState<Space[]>([])
     const [spacedSpace, setSpacedSpace] = useState<Space & { items?: SpaceItem[] }>({
@@ -400,13 +403,18 @@ export function NavSpaces() {
         owner_user_id: "",
         encrypted_name: "",
         name_salt: "",
-        decryptedName: "Spaced",
+        decryptedName: t("sidebar.spaced"),
         icon: "IconPlanet",
         color: "blue",
         created_at: "",
         updated_at: "",
         items: []
     })
+
+    // Update decryptedName when language changes
+    useEffect(() => {
+        setSpacedSpace(prev => ({ ...prev, decryptedName: t("sidebar.spaced") }));
+    }, [t]);
     const [isLoading, setIsLoading] = useState(true)
 
     // Modals state
@@ -638,7 +646,7 @@ export function NavSpaces() {
         <TooltipProvider>
             <SidebarGroup className="group-data-[collapsible=icon]:hidden">
                 <SidebarGroupLabel className="flex items-center justify-between">
-                    <span>Quick Spaces</span>
+                    <span>{t("sidebar.quickSpaces")}</span>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild id="tour-create-space">
                             <button className="hover:bg-accent p-1 rounded-sm transition-colors">
@@ -651,7 +659,7 @@ export function NavSpaces() {
                                 setIsCreateOpen(true)
                             }}>
                                 <IconPlanet className="mr-2 h-4 w-4" />
-                                <span>New Space</span>
+                                <span>{t("sidebar.newSpace")}</span>
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
