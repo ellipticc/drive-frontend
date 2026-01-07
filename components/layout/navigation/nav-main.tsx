@@ -1,9 +1,10 @@
 "use client"
 
-import { IconFolderDown, IconFileUpload, IconPlus, IconFolderPlus, type Icon } from "@tabler/icons-react"
+import { IconFolderDown, IconFileUpload, IconPlus, IconFolderPlus, IconBrandGoogleDrive, type Icon } from "@tabler/icons-react"
 import { useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { useLanguage } from "@/lib/i18n/language-context"
+import { useGoogleDrive } from "@/hooks/use-google-drive"
 
 import {
   DropdownMenu,
@@ -39,6 +40,7 @@ export function NavMain({
   const router = useRouter()
   const pathname = usePathname()
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false)
+  const { openPicker } = useGoogleDrive()
 
   const handleFileUpload = () => {
     onFileUpload?.()
@@ -77,6 +79,11 @@ export function NavMain({
                 <DropdownMenuItem onClick={handleFolderUpload} className="cursor-pointer">
                   <IconFolderDown className="me-2 h-4 w-4" />
                   {t("files.uploadFolder")}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={openPicker} className="cursor-pointer">
+                  <IconBrandGoogleDrive className="me-2 h-4 w-4" stroke={1.5} />
+                  Import from Google Drive
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => setIsCreateFolderOpen(true)} className="cursor-pointer">

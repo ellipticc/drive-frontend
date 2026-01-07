@@ -3,8 +3,8 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
-import { ThemeToggle } from "@/components/theme-toggle"
-import { IconSearch, IconFileUpload, IconFolderDown, IconPlus, IconFolderPlus } from "@tabler/icons-react"
+import { ThemeToggle } from "@/components/ui/theme-toggle"
+import { IconSearch, IconFileUpload, IconFolderDown, IconPlus, IconFolderPlus, IconBrandGoogleDrive } from "@tabler/icons-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,6 +15,7 @@ import {
 import { CreateFolderModal } from "@/components/modals/create-folder-modal"
 import { useRouter } from "next/navigation"
 import { useUser } from "@/components/user-context"
+import { useGoogleDrive } from "@/hooks/use-google-drive"
 
 // Use a module-level variable to persist dismissal across SPA navigation but reset on page refresh
 let isUpgradeDismissedGlobal = false;
@@ -30,6 +31,7 @@ export function SiteHeader({ onSearch, onFileUpload, onFolderUpload }: SiteHeade
   const [, setForceUpdate] = useState(0)
   const { deviceQuota } = useUser()
   const router = useRouter()
+  const { openPicker } = useGoogleDrive()
 
   const handleUpgradeClick = () => {
     isUpgradeDismissedGlobal = true
@@ -84,6 +86,11 @@ export function SiteHeader({ onSearch, onFileUpload, onFolderUpload }: SiteHeade
               <DropdownMenuItem onClick={onFolderUpload}>
                 <IconFolderDown className="h-4 w-4 mr-2" />
                 Upload Folder
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={openPicker}>
+                <IconBrandGoogleDrive className="h-4 w-4 mr-2" stroke={1.5} />
+                Import from Google Drive
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => setIsCreateFolderOpen(true)}>

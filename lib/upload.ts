@@ -365,11 +365,23 @@ export async function uploadEncryptedFile(
 
           // Format as "encryptedData:nonce" in base64 (they are already base64 strings)
           const encryptedThumbBase64 = `${encryptedData}:${nonce}`;
+          const thumbBytes = new TextEncoder().encode(encryptedThumbBase64);
+
+          // Compute MD5 for thumbnail (required for some B2 configurations)
+          const { createMD5 } = await import('hash-wasm');
+          const md5Hasher = await createMD5();
+          md5Hasher.init();
+          md5Hasher.update(thumbBytes);
+          const thumbMd5Bytes = new Uint8Array(md5Hasher.digest('binary'));
+          const thumbMd5Base64 = btoa(String.fromCharCode.apply(null, Array.from(thumbMd5Bytes)));
 
           const thumbResp = await fetch(session.thumbnailPutUrl, {
             method: 'PUT',
-            body: new TextEncoder().encode(encryptedThumbBase64),
-            headers: { 'Content-Type': 'application/octet-stream' },
+            body: thumbBytes,
+            headers: {
+              'Content-Type': 'image/jpeg',
+              'Content-MD5': thumbMd5Base64
+            },
             signal: abortSignal,
             credentials: 'omit'
           });
@@ -674,7 +686,8 @@ async function initializeUploadSession(
   // The response.data contains the nested object with presigned array
   const uploadUrls = response.data?.presigned?.map(item => item.putUrl);
 
-  if (!uploadUrls || uploadUrls.length === 0) {
+  // Only throw if we expected chunks but got no URLs
+  if (!uploadUrls || (chunks.length > 0 && uploadUrls.length === 0)) {
     console.error('Failed to extract upload URLs from response:', response);
     throw new Error('No presigned URLs returned from server');
   }
