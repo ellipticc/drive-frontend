@@ -48,18 +48,23 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         try {
             const response = await apiClient.getUnseenStatus();
             if (response.success && response.data) {
-                setHasUnread(response.data.hasUnseen);
+                const hasUnseen = response.data.hasUnseen;
+                setHasUnread(hasUnseen);
                 // Optimistic update of unread count if we didn't have stats yet
-                if (response.data.hasUnseen && stats.unread === 0) {
-                    setStats(prev => ({ ...prev, unread: 1 }));
-                } else if (!response.data.hasUnseen) {
-                    setStats(prev => ({ ...prev, unread: 0 }));
-                }
+                // Use functional update to avoid dependency on external 'stats' state
+                setStats(prev => {
+                    if (hasUnseen && prev.unread === 0) {
+                        return { ...prev, unread: 1 };
+                    } else if (!hasUnseen) {
+                        return { ...prev, unread: 0 };
+                    }
+                    return prev;
+                });
             }
         } catch (error) {
             console.error('Failed to check unseen status:', error);
         }
-    }, [stats.unread, isPublic]);
+    }, [isPublic]);
 
     const refreshStats = useCallback(async () => {
         if (isPublic) return; // Don't fetch on public pages
@@ -121,15 +126,18 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     };
 
     useEffect(() => {
-        if (!hasFetched.current) {
+        // Fetch whenever we enter a private route and haven't fetched yet
+        if (!isPublic && !hasFetched.current) {
             hasFetched.current = true;
             checkUnseenStatus();
         }
-    }, [checkUnseenStatus]);
+    }, [isPublic, checkUnseenStatus]);
 
     useEffect(() => {
         const handleLogin = () => {
-            hasFetched.current = true;
+            // Reset hasFetched so we re-fetch upon entering the private dashboard
+            hasFetched.current = false;
+            // Attempt an immediate fetch in case we're already on a private route
             checkUnseenStatus();
         };
         window.addEventListener('user-login', handleLogin);

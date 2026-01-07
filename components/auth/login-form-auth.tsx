@@ -235,28 +235,39 @@ export function LoginFormAuth({
 
       if (isTOTPEnabled) {
         // Check if device is remembered
-        const deviceToken = localStorage.getItem('totp_device_token')
+        const getCookie = (name: string) => {
+          if (typeof document === 'undefined') return null;
+          const value = `; ${document.cookie}`;
+          const parts = value.split(`; ${name}=`);
+          if (parts.length === 2) return parts.pop()?.split(';').shift();
+          return null;
+        };
+
+        const deviceToken = localStorage.getItem('totp_device_token') || getCookie('totp_device_token')
         if (deviceToken) {
-          const deviceResponse = await apiClient.verifyDeviceToken(deviceToken)
-          if (deviceResponse.success && deviceResponse.data?.isValidDevice) {
+          // Attempt auto-verification to skip TOTP page
+          const autoVerifyResponse = await apiClient.autoVerifyTOTP(deviceToken);
+          if (autoVerifyResponse.success && autoVerifyResponse.data?.token) {
+            // Success! We have a TOTP-verified token.
+            apiClient.setAuthToken(autoVerifyResponse.data.token);
             // Fall through to master key derivation below
           } else {
+            // Device token invalid or expired, must show TOTP page
             if (token) storage.setItem('pending_auth_token', token)
             storage.setItem('login_email', formData.email)
             storage.setItem('login_password', formData.password)
             storage.setItem('login_user_id', String(userObj.id))
-            // DO NOT clear the token - TOTP form needs it to call getProfile()
             router.push(`/totp?email=${encodeURIComponent(formData.email)}&userId=${userObj.id}`)
             return
           }
         } else {
+          // No device token, must show TOTP page
           if (token) {
             storage.setItem('pending_auth_token', token)
             storage.setItem('login_email', formData.email)
             storage.setItem('login_password', formData.password)
             storage.setItem('login_user_id', String(userObj.id))
           }
-          // DO NOT clear the token - TOTP form needs it to call getProfile()
           router.push(`/totp?email=${encodeURIComponent(formData.email)}&userId=${userObj.id}`)
           return
         }

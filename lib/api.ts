@@ -866,20 +866,29 @@ class ApiClient {
     });
 
     if (response.success) {
+      // Capture device token before clearing storage
+      const deviceToken = typeof localStorage !== 'undefined' ? localStorage.getItem('totp_device_token') : null;
+
       this.clearToken();
       // Clear all localStorage
       if (typeof localStorage !== 'undefined') {
         localStorage.clear();
+        // Restore device token to localStorage after clear
+        if (deviceToken) {
+          localStorage.setItem('totp_device_token', deviceToken);
+        }
       }
       // Clear all sessionStorage
       if (typeof sessionStorage !== 'undefined') {
         sessionStorage.clear();
       }
-      // Clear all cookies
+      // Clear cookies selectively - DO NOT clear totp_device_token
       if (typeof document !== 'undefined') {
         const cookies = document.cookie.split(';');
         for (const cookie of cookies) {
           const [name] = cookie.trim().split('=');
+          if (name === 'totp_device_token') continue; // PERSIST DEVICE TOKEN
+
           document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; domain=${window.location.hostname}`;
           document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; domain=.${window.location.hostname}`;
           document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
@@ -1080,7 +1089,7 @@ class ApiClient {
     });
   }
 
-  async getSessions(page = 1, limit = 5): Promise<ApiResponse<{
+  async getSessions(page = 1, limit = 5, onlyActive = true): Promise<ApiResponse<{
     currentSessionId: string;
     sessions: Array<{
       id: string;
@@ -1099,7 +1108,7 @@ class ApiClient {
       totalPages: number;
     };
   }>> {
-    return this.request(`/auth/sessions?page=${page}&limit=${limit}`);
+    return this.request(`/auth/sessions?page=${page}&limit=${limit}&onlyActive=${onlyActive}`);
   }
 
   async revokeSession(sessionId: string): Promise<ApiResponse> {
@@ -2348,7 +2357,8 @@ class ApiClient {
   }>> {
     // Use user ID as unique intent (setting up TOTP for same user)
     const userId = 'current'; // Could be extracted from auth token if needed
-    const idempotencyKey = generateIdempotencyKey('setupTOTP', userId);
+    // Use a unique timestamp-based key for each setup request to avoid idempotency caching returning old secrets
+    const idempotencyKey = generateIdempotencyKey('setupTOTP', `${userId}:${Date.now()}`);
     const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/totp/setup', {
       method: 'POST',
@@ -2360,7 +2370,8 @@ class ApiClient {
     recoveryCodes: string[];
   }>> {
     // Use token hash as unique intent (verifying same setup)
-    const intent = token.substring(0, 8); // First 8 chars as intent identifier
+    // Use token + timestamp as unique intent to avoid cached failures/successes blocking retries
+    const intent = `${token.substring(0, 8)}:${Date.now()}`;
     const idempotencyKey = generateIdempotencyKey('verifyTOTPSetup', intent);
     const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/totp/verify', {
@@ -2399,6 +2410,15 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify({ userId, token, rememberDevice }),
       headers,
+    });
+  }
+
+  async autoVerifyTOTP(deviceToken: string): Promise<ApiResponse<{
+    token: string;
+  }>> {
+    return this.request('/totp/auto-verify', {
+      method: 'POST',
+      body: JSON.stringify({ deviceToken }),
     });
   }
 
@@ -2671,7 +2691,7 @@ class ApiClient {
   }
 
   // Device Management
-  async getDevices(page = 1, limit = 5): Promise<ApiResponse<{
+  async getDevices(page = 1, limit = 5, onlyActive = true): Promise<ApiResponse<{
     devices: Array<{
       id: string;
       device_name: string;
@@ -2697,7 +2717,7 @@ class ApiClient {
       currentDevices: number;
     };
   }>> {
-    return this.request(`/auth/device?page=${page}&limit=${limit}`);
+    return this.request(`/auth/device?page=${page}&limit=${limit}&onlyActive=${onlyActive}`);
   }
 
   async revokeDevice(deviceId: string): Promise<ApiResponse<{

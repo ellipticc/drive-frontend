@@ -134,6 +134,10 @@ interface SecurityTabProps {
     handleLogout: () => void;
     isLoggingOut: boolean;
     setShowDeleteModal: (val: boolean) => void;
+
+    // Revoked Toggle
+    showRevoked: boolean;
+    setShowRevoked: (val: boolean) => void;
 }
 
 export function SecurityTab(props: SecurityTabProps) {
@@ -147,11 +151,21 @@ export function SecurityTab(props: SecurityTabProps) {
         userSessions, isLoadingSessions, sessionsTotal, sessionsPage, sessionsTotalPages, loadUserSessions, handleRevokeSession, currentSessionId, showRevokeAllDialog, setShowRevokeAllDialog, handleRevokeAllSessions,
         userDevices, isLoadingDevices, devicesTotal, devicesPage, devicesTotalPages, loadUserDevices, handleRevokeDevice, editingDeviceId, setEditingDeviceId, editNameValue, setEditNameValue, handleUpdateDeviceName, devicePlan,
         securityEvents, isLoadingSecurityEvents, detailedEventsEnabled, activityMonitorEnabled, handleUpdateSecurityPreferences, showDisableMonitorDialog, setShowDisableMonitorDialog, handleWipeSecurityEvents, handleDownloadSecurityEvents, loadSecurityEvents, securityEventsTotal, securityEventsPage, securityEventsHasMore, setSecurityEvents, setSecurityEventsTotal, setSecurityEventsHasMore,
-        handleLogout, isLoggingOut, setShowDeleteModal
+        handleLogout, isLoggingOut, setShowDeleteModal,
+        showRevoked, setShowRevoked
     } = props;
 
     const [copiedCodes, setCopiedCodes] = useState(false);
+    const [copiedSecret, setCopiedSecret] = useState(false);
     const [showWipeDialog, setShowWipeDialog] = useState(false);
+
+    const handleCopySecret = () => {
+        if (!totpSecret) return;
+        navigator.clipboard.writeText(totpSecret);
+        setCopiedSecret(true);
+        setTimeout(() => setCopiedSecret(false), 2000);
+        toast.success('TOTP secret copied to clipboard');
+    }
 
     const handleCopyRecoveryCodes = () => {
         navigator.clipboard.writeText(recoveryCodes.join(' '));
@@ -327,6 +341,24 @@ export function SecurityTab(props: SecurityTabProps) {
                         <SelectItem value="5184000">60 days</SelectItem>
                     </SelectContent>
                 </Select>
+            </div>
+
+            {/* Show Revoked Toggle */}
+            <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border border-dashed">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-background rounded-full border shadow-sm">
+                        <IconRefresh className={`h-4 w-4 text-muted-foreground transition-transform duration-500 ${showRevoked ? 'rotate-180' : ''}`} />
+                    </div>
+                    <div>
+                        <p className="text-sm font-medium">Show Revoked History</p>
+                        <p className="text-xs text-muted-foreground">Include previously revoked sessions and devices in the lists</p>
+                    </div>
+                </div>
+                <Switch
+                    checked={showRevoked}
+                    onCheckedChange={setShowRevoked}
+                    aria-label="Toggle revoked history"
+                />
             </div>
 
             {/* Session Manager Section */}
@@ -1015,15 +1047,38 @@ export function SecurityTab(props: SecurityTabProps) {
                     </DialogHeader>
                     <div className="flex flex-col items-center gap-4 py-4">
                         {totpQrCode && (
-                            <div className="bg-white p-2 rounded-lg">
-                                <img src={totpQrCode} alt="TOTP QR Code" className="w-48 h-48" />
+                            <div className="bg-white p-2 rounded-lg relative group">
+                                <img
+                                    src={totpQrCode}
+                                    alt="TOTP QR Code"
+                                    className="w-48 h-48 select-none"
+                                    draggable="false"
+                                    onDragStart={(e) => e.preventDefault()}
+                                />
+                                <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg pointer-events-none" />
                             </div>
                         )}
                         <div className="w-full">
                             <Label>Or enter code manually</Label>
                             <div className="flex items-center gap-2 mt-1">
-                                <code className="flex-1 bg-muted p-2 rounded text-xs font-mono">{totpSecret}</code>
-                                <Button size="sm" variant="outline" onClick={() => navigator.clipboard.writeText(totpSecret)}><IconCopy className="h-4 w-4" /></Button>
+                                <code className="flex-1 bg-muted p-2 rounded text-xs font-mono select-all">{totpSecret}</code>
+                                <TooltipProvider>
+                                    <Tooltip open={copiedSecret}>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={handleCopySecret}
+                                                className="shrink-0"
+                                            >
+                                                {copiedSecret ? <IconCheckmark className="h-4 w-4 text-emerald-500" /> : <IconCopy className="h-4 w-4" />}
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>Copied!</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
                             </div>
                         </div>
                         <div className="w-full space-y-2">
@@ -1052,13 +1107,20 @@ export function SecurityTab(props: SecurityTabProps) {
                             <code key={i} className="bg-muted p-2 rounded text-center font-mono text-sm">{code}</code>
                         ))}
                     </div>
-                    <DialogFooter className="gap-2 sm:gap-0">
-                        <Button variant="outline" onClick={handleDownloadRecoveryCodes}><IconDownload className="h-4 w-4 mr-2" />Download</Button>
-                        <Button variant="outline" onClick={handleCopyRecoveryCodes}>
-                            {copiedCodes ? <IconCheckmark className="h-4 w-4 mr-2" /> : <IconCopy className="h-4 w-4 mr-2" />}
-                            {copiedCodes ? 'Copied' : 'Copy'}
+                    <DialogFooter className="flex flex-col sm:flex-row gap-3 mt-4">
+                        <div className="flex flex-1 gap-2">
+                            <Button variant="outline" className="flex-1" onClick={handleDownloadRecoveryCodes}>
+                                <IconDownload className="h-4 w-4 mr-2" />
+                                Download
+                            </Button>
+                            <Button variant="outline" className="flex-1" onClick={handleCopyRecoveryCodes}>
+                                {copiedCodes ? <IconCheckmark className="h-4 w-4 mr-2" /> : <IconCopy className="h-4 w-4 mr-2" />}
+                                {copiedCodes ? 'Copied' : 'Copy'}
+                            </Button>
+                        </div>
+                        <Button className="w-full sm:w-auto px-8" onClick={() => setShowRecoveryCodesModal(false)}>
+                            Done
                         </Button>
-                        <Button onClick={() => setShowRecoveryCodesModal(false)}>Done</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

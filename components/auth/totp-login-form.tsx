@@ -54,6 +54,39 @@ export function TOTPLoginForm({
     }
   }, [searchParams])
 
+  // Attempt auto-verify on mount if device token exists
+  useEffect(() => {
+    const attemptAutoVerify = async () => {
+      // Helper to get cookie by name
+      const getCookie = (name: string) => {
+        if (typeof document === 'undefined') return null;
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop()?.split(';').shift();
+        return null;
+      };
+
+      const deviceToken = localStorage.getItem('totp_device_token') || getCookie('totp_device_token')
+      if (deviceToken && userId) {
+        setIsLoading(true)
+        try {
+          const response = await apiClient.autoVerifyTOTP(deviceToken)
+          if (response.success && response.data?.token) {
+            await handleLoginSuccess(response.data.token)
+          }
+        } catch (err) {
+          console.error('[TOTP] Auto-verify failed:', err)
+        } finally {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    if (userId) {
+      attemptAutoVerify()
+    }
+  }, [userId])
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value.replace(/\D/g, '').slice(0, 6) }))
@@ -62,6 +95,69 @@ export function TOTPLoginForm({
 
   const handleCheckboxChange = (checked: boolean) => {
     setFormData(prev => ({ ...prev, rememberDevice: checked }))
+  }
+
+  const handleLoginSuccess = async (token: string, deviceToken?: string) => {
+    // Determine which storage was used
+    const isSessionStorage = !!sessionStorage.getItem('login_email')
+    const storage = isSessionStorage ? sessionStorage : localStorage
+
+    // Set storage type for API client and master key manager
+    apiClient.setStorage(storage)
+    masterKeyManager.setStorage(storage)
+
+    // Store device token if provided
+    if (deviceToken) {
+      localStorage.setItem('totp_device_token', deviceToken)
+      // Also store in cookie for persistence across logout-induced localStorage clears
+      document.cookie = `totp_device_token=${deviceToken}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax; ${window.location.protocol === 'https:' ? 'Secure' : ''}`
+    }
+
+    // Set auth token
+    apiClient.setAuthToken(token)
+
+    try {
+      // Get user data and initialize crypto
+      const profileResponse = await apiClient.getProfile()
+      if (profileResponse.success && profileResponse.data?.user) {
+        const userData = profileResponse.data.user
+
+        // Derive and cache master key
+        if (userData.crypto_keypairs?.accountSalt) {
+          const password = storage.getItem('login_password')
+          if (!password) {
+            console.error('login_password not found in storage during TOTP success')
+            throw new Error('Password not available for master key derivation. Please log in again.')
+          }
+          await masterKeyManager.deriveAndCacheMasterKey(password, userData.crypto_keypairs.accountSalt)
+        }
+
+        // Initialize KeyManager
+        await keyManager.initialize(userData)
+
+        // Clear login data
+        storage.removeItem('login_email')
+        storage.removeItem('login_password')
+        storage.removeItem('login_user_id')
+        storage.removeItem('pending_auth_token')
+
+        // Track conversion
+        const sessionId = sessionTrackingUtils.getSessionId()
+        if (sessionId) {
+          sessionTrackingUtils.trackConversion(sessionId, 'login', userId)
+        }
+        sessionTrackingUtils.clearSession()
+
+        // Redirect
+        window.dispatchEvent(new CustomEvent('user-login'))
+        router.push("/")
+      } else {
+        setError("Failed to load user profile")
+      }
+    } catch (err) {
+      console.error('Login success processing error:', err)
+      setError(err instanceof Error ? err.message : "Failed to complete login")
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -76,100 +172,9 @@ export function TOTPLoginForm({
     }
 
     try {
-      // Determine which storage was used (sessionStorage for sessionStorage logins, localStorage for localStorage logins)
-      const isSessionStorage = !!sessionStorage.getItem('login_email')
-      const storage = isSessionStorage ? sessionStorage : localStorage
-
-      // Set storage type for API client and master key manager to use correct storage
-      apiClient.setStorage(storage)
-      masterKeyManager.setStorage(storage)
-
       const response = await apiClient.verifyTOTPLogin(userId, formData.token, formData.rememberDevice)
-
-      if (response.success) {
-        // Store device token if remember device was checked (always in localStorage)
-        if (formData.rememberDevice && response.data?.deviceToken) {
-          localStorage.setItem('totp_device_token', response.data.deviceToken)
-        }
-
-        // Use the TOTP-verified token returned from the server
-        if (response.data?.token) {
-          apiClient.setAuthToken(response.data.token)
-        } else {
-          // Fallback to pending token if no token returned (shouldn't happen)
-          const pendingToken = storage.getItem('pending_auth_token')
-          if (pendingToken) {
-            apiClient.setAuthToken(pendingToken)
-            storage.removeItem('pending_auth_token')
-          }
-        }
-
-        // Get user data and initialize crypto
-        const profileResponse = await apiClient.getProfile()
-        if (profileResponse.success && profileResponse.data?.user) {
-          const userData = profileResponse.data.user
-
-          // Derive and cache master key for the session
-          // Note: login_password is still in storage during TOTP flow
-          try {
-            if (userData.crypto_keypairs?.accountSalt) {
-              const password = storage.getItem('login_password')
-              if (!password) {
-                console.error('login_password not found in storage during TOTP verification')
-                throw new Error('Password not available for master key derivation. Please log in again.')
-              }
-              await masterKeyManager.deriveAndCacheMasterKey(password, userData.crypto_keypairs.accountSalt)
-            }
-          } catch (keyError) {
-            console.error('Master key derivation error:', keyError)
-            setError(keyError instanceof Error ? keyError.message : "Failed to initialize cryptographic keys")
-            return
-          }
-
-          // Initialize KeyManager with user data
-          try {
-            await keyManager.initialize(userData)
-          } catch (keyManagerError) {
-            if (keyManagerError instanceof Error &&
-              (keyManagerError.message.includes('Corrupted') ||
-                keyManagerError.message.includes('corrupted') ||
-                keyManagerError.message.includes('Invalid'))) {
-              keyManager.forceClearStorage()
-
-              try {
-                await keyManager.initialize(userData)
-              } catch (retryError) {
-                console.error('Retry initialization error:', retryError)
-                setError("Failed to initialize key management system. Please try logging out and back in.")
-                return
-              }
-            } else {
-              setError("Failed to initialize key management system")
-              return
-            }
-          }
-
-          // Clear login data from storage
-          storage.removeItem('login_email')
-          storage.removeItem('login_password')
-          storage.removeItem('login_user_id')
-          storage.removeItem('pending_auth_token')
-
-          // Track login conversion for session analytics
-          const sessionId = sessionTrackingUtils.getSessionId()
-          if (sessionId) {
-            sessionTrackingUtils.trackConversion(sessionId, 'login', userId)
-          }
-
-          // Clear session tracking after successful login
-          sessionTrackingUtils.clearSession()
-
-          // Redirect to main page
-          window.dispatchEvent(new CustomEvent('user-login'))
-          router.push("/")
-        } else {
-          setError("Failed to load user profile")
-        }
+      if (response.success && response.data?.token) {
+        await handleLoginSuccess(response.data.token, response.data.deviceToken)
       } else {
         setError(response.error || "Invalid TOTP code")
       }

@@ -261,6 +261,7 @@ export function SettingsModal({
   const [activityMonitorEnabled, setActivityMonitorEnabled] = useState(true)
   const [detailedEventsEnabled, setDetailedEventsEnabled] = useState(true)
   const [showDisableMonitorDialog, setShowDisableMonitorDialog] = useState(false)
+  const [showRevoked, setShowRevoked] = useState(false)
 
   // Recovery codes state
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([])
@@ -422,6 +423,14 @@ export function SettingsModal({
     }
   }, [activeTab, open, loadTabData])
 
+  // Reload sessions/devices when showRevoked changes
+  useEffect(() => {
+    if (open && activeTab === 'security') {
+      loadUserSessions(1)
+      loadUserDevices(1)
+    }
+  }, [showRevoked, open, activeTab])
+
   // Reset loaded state when modal closes
   useEffect(() => {
     if (!open) {
@@ -475,6 +484,7 @@ export function SettingsModal({
 
       // Reset Security
       setSecurityEventsPage(1)
+      setShowRevoked(false)
     }
   }, [open])
 
@@ -681,7 +691,7 @@ export function SettingsModal({
   const loadUserSessions = async (page = sessionsPage) => {
     setIsLoadingSessions(true)
     try {
-      const response = await apiClient.getSessions(page, 5)
+      const response = await apiClient.getSessions(page, 5, !showRevoked)
       if (response.success && response.data) {
         setUserSessions(response.data.sessions || [])
         setCurrentSessionId(response.data.currentSessionId || null)
@@ -743,7 +753,7 @@ export function SettingsModal({
   const loadUserDevices = async (page = devicesPage) => {
     setIsLoadingDevices(true)
     try {
-      const response = await apiClient.getDevices(page, 5)
+      const response = await apiClient.getDevices(page, 5, !showRevoked)
       if (response.success && response.data) {
         setUserDevices(response.data.devices || [])
         setDevicesTotalPages(response.data.pagination?.totalPages || 1)
@@ -1313,6 +1323,7 @@ export function SettingsModal({
         setTotpSecret(response.data.secret)
         setTotpUri(response.data.totpUri)
         setTotpQrCode(response.data.qrCode)
+        setTotpToken("")
         setShowTOTPSetup(true)
       } else {
         toast.error("Failed to setup TOTP")
@@ -1587,6 +1598,10 @@ export function SettingsModal({
                   handleLogout={handleLogout}
                   isLoggingOut={isLoggingOut}
                   setShowDeleteModal={setShowDeleteModal}
+
+                  // Revoked Toggle
+                  showRevoked={showRevoked}
+                  setShowRevoked={setShowRevoked}
                 />
               )}
 

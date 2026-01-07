@@ -25,6 +25,7 @@ interface UserData {
   // Optional authentication method (e.g., 'wallet')
   authMethod?: string;
   onboarding_completed?: boolean;
+  sessionDuration?: number;
 }
 
 interface UserContextType {
@@ -154,6 +155,21 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
         setUser(userData);
         setHasFetched(true);
+
+        // Sync session configuration if present
+        if (userData.sessionDuration) {
+          try {
+            const config = {
+              sessionExpiry: userData.sessionDuration,
+              remindBeforeExpiry: 300 // default 5 mins
+            };
+            localStorage.setItem('session_config', JSON.stringify(config));
+            console.log('UserProvider: Session configuration synced from server:', userData.sessionDuration);
+          } catch (storageError) {
+            console.warn('UserProvider: Failed to sync session config to localStorage:', storageError);
+          }
+        }
+
         // Cache the user data
         saveUserDataToCache(userData);
       } else {
