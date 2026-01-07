@@ -3,14 +3,28 @@
 import * as React from "react"
 import { IconMoon as Moon, IconSun as Sun } from "@tabler/icons-react"
 import { useTheme } from "next-themes"
-
+import { useUser } from "@/components/user-context"
+import { apiClient } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 
 export function ThemeToggle({ className }: { className?: string }) {
   const { setTheme, resolvedTheme } = useTheme()
+  const { user, updateUser, refetch } = useUser()
 
-  const toggleTheme = () => {
-    setTheme(resolvedTheme === "dark" ? "light" : "dark")
+  const toggleTheme = async () => {
+    const newMode = resolvedTheme === "dark" ? "light" : "dark"
+    setTheme(newMode)
+
+    // If sync is on, disable it because user is making a manual choice
+    if (user?.theme_sync) {
+      try {
+        updateUser({ theme_sync: false });
+        await apiClient.updateProfile({ theme_sync: false });
+        await refetch();
+      } catch (err) {
+        console.error("Failed to disable theme sync:", err);
+      }
+    }
   }
 
   return (

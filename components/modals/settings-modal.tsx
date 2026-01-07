@@ -102,7 +102,7 @@ export function SettingsModal({
 }: SettingsModalProps) {
   const isMobile = useIsMobile();
   const [internalOpen, setInternalOpen] = useState(false)
-  const { user, refetch, deviceLimitReached } = useUser()
+  const { user, refetch, deviceLimitReached, updateUser } = useUser()
   const { theme, setTheme } = useTheme()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const nameInputRef = useRef<HTMLInputElement>(null)
@@ -191,6 +191,8 @@ export function SettingsModal({
   const [isSavingName, setIsSavingName] = useState(false)
   const [dateTimePreference, setDateTimePreference] = useState("24h")
   const [croppingFile, setCroppingFile] = useState<File | null>(null)
+  const [appearanceTheme, setAppearanceTheme] = useState("default")
+  const [themeSync, setThemeSync] = useState(true)
 
   // Tab state - initialize from URL hash or initialTab prop
   const [activeTab, setActiveTab] = useState(() => {
@@ -342,6 +344,14 @@ export function SettingsModal({
       const nameToUse = user.name || (user.email ? user.email.split('@')[0] : "");
       setDisplayName(nameToUse);
       setOriginalName(nameToUse);
+
+      // Initialize theme state
+      if (user.appearance_theme) {
+        setAppearanceTheme(user.appearance_theme);
+      }
+      if (user.theme_sync !== undefined) {
+        setThemeSync(user.theme_sync);
+      }
     }
   }, [user]);
 
@@ -1536,6 +1546,31 @@ export function SettingsModal({
                   nameInputRef={nameInputRef as React.RefObject<HTMLInputElement>}
                   theme={theme}
                   setTheme={setTheme}
+                  appearanceTheme={appearanceTheme}
+                  setAppearanceTheme={async (newTheme) => {
+                    setAppearanceTheme(newTheme);
+                    updateUser({ appearance_theme: newTheme });
+                    try {
+                      await apiClient.updateProfile({ appearance_theme: newTheme });
+                      await refetch();
+                    } catch (err) {
+                      toast.error("Failed to update theme preference");
+                    }
+                  }}
+                  themeSync={themeSync}
+                  setThemeSync={async (sync) => {
+                    setThemeSync(sync);
+                    updateUser({ theme_sync: sync });
+                    try {
+                      if (sync) {
+                        setTheme('system');
+                      }
+                      await apiClient.updateProfile({ theme_sync: sync });
+                      await refetch();
+                    } catch (err) {
+                      toast.error("Failed to update sync setting");
+                    }
+                  }}
                   dateTimePreference={dateTimePreference}
                   setDateTimePreference={setDateTimePreference}
                 />

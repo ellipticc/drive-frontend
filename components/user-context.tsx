@@ -27,6 +27,8 @@ interface UserData {
   onboarding_completed?: boolean;
   sessionDuration?: number;
   language?: string;
+  appearance_theme?: string;
+  theme_sync?: boolean;
 }
 
 interface UserContextType {

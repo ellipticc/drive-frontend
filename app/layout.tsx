@@ -12,6 +12,7 @@ import { ConditionalLayout } from "@/components/layout/conditional-layout";
 import { SessionPingProvider } from "@/components/session-ping-provider";
 import { NotificationProvider } from "@/components/notifications/notification-provider";
 import { LanguageProvider } from "@/lib/i18n/language-context";
+import { ThemeConfiguration } from "@/components/theme-configuration";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -200,6 +201,23 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${jetbrainsMono.variable} antialiased`}
       >
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var cookie = document.cookie.split('; ').find(row => row.startsWith('appearance_theme='));
+                  if (cookie) {
+                    var theme = cookie.split('=')[1];
+                    if (theme && theme !== 'default') {
+                      document.documentElement.classList.add(theme);
+                    }
+                  }
+                } catch (e) {}
+              })();
+            `,
+          }}
+        />
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
@@ -212,6 +230,7 @@ export default function RootLayout({
                 <UserProvider>
                   <LanguageProvider>
                     <GlobalUploadProvider>
+                      <ThemeConfiguration />
                       <SessionPingProvider />
                       <ConditionalLayout>{children}</ConditionalLayout>
                       <Toaster

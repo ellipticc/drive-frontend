@@ -18,6 +18,8 @@ export interface UserData {
   authMethod?: string;
   onboarding_completed?: boolean;
   language?: string;
+  appearance_theme?: string;
+  theme_sync?: boolean;
 
   storage?: {
     used_bytes: number;
@@ -889,6 +891,8 @@ class ApiClient {
     email?: string;
     avatar?: string;
     language?: string;
+    appearance_theme?: string;
+    theme_sync?: boolean;
   }): Promise<ApiResponse> {
     const idempotencyKey = generateIdempotencyKey('updateProfile', JSON.stringify(data));
     const headers = addIdempotencyKey({}, idempotencyKey);
