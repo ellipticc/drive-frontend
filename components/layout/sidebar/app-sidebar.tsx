@@ -13,6 +13,7 @@ import {
   IconDatabaseImport,
   IconPhoto,
   IconStack2,
+  IconBubbleText,
 } from "@tabler/icons-react"
 
 import { NavMain } from "@/components/layout/navigation/nav-main"
@@ -123,6 +124,11 @@ const defaultNavSecondary = [
     title: "Get Help",
     url: "#",
     icon: IconHelp,
+  },
+  {
+    title: "Feedback",
+    url: "#",
+    icon: IconBubbleText,
   },
 ]
 

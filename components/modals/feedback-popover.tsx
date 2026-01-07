@@ -2,31 +2,31 @@
 
 import * as React from "react"
 import { apiClient } from "@/lib/api"
-import { IconMessage2, IconLoader2, IconDatabaseSmile } from "@tabler/icons-react"
+import { IconBubbleText, IconLoader2, IconDatabaseSmile } from "@tabler/icons-react"
 import { toast } from "sonner"
 import { usePathname } from "next/navigation"
 
 import {
-    Dialog,
-    DialogContent,
-    DialogTitle,
-    DialogDescription
-} from "@/components/ui/dialog"
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Kbd } from "@/components/ui/kbd"
 
-interface FeedbackModalProps {
+interface FeedbackPopoverProps {
+    children: React.ReactNode
     open: boolean
     onOpenChange: (open: boolean) => void
 }
 
-export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
+export function FeedbackPopover({ children, open, onOpenChange }: FeedbackPopoverProps) {
     const [text, setText] = React.useState("")
     const [sending, setSending] = React.useState(false)
     const pathname = usePathname()
 
-    // Global keyboard listener for "F" key and "Cmd+Enter"
+    // Global keyboard listener for "F" key and "Enter"
     React.useEffect(() => {
         const down = (e: KeyboardEvent) => {
             // Open/Close on "f" if not typing
@@ -43,19 +43,22 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
                 onOpenChange(!open)
             }
 
-            // Send on Cmd+Enter (or Ctrl+Enter) when open
-            if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && open) {
-                e.preventDefault()
-                handleSend()
+            // Send on Enter (or Cmd+Enter) when open
+            if (e.key === "Enter" && !e.shiftKey && open) {
+                const active = document.activeElement
+                if (active?.tagName.toLowerCase() === 'textarea') {
+                    e.preventDefault()
+                    handleSend()
+                }
             }
         }
 
         document.addEventListener("keydown", down)
         return () => document.removeEventListener("keydown", down)
-    }, [open, text, onOpenChange]) // Dependencies for handleSend closure
+    }, [open, text, onOpenChange])
 
     const handleSend = async () => {
-        if (!text.trim()) return
+        if (!text.trim() || sending) return
         if (text.length > 1000) {
             toast.error("Message too long (max 1000 characters)")
             return
@@ -74,9 +77,7 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
 
             setText("")
             onOpenChange(false)
-            toast.success("Feedback sent! Thank you.", {
-                icon: <IconDatabaseSmile stroke={1.5} className="h-4 w-4" />
-            })
+            toast.success("Feedback sent! Thank you.")
         } catch (e) {
             console.error("Feedback error:", e)
             toast.error("Failed to send feedback. Please try again.")
@@ -86,56 +87,53 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
     }
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[480px] p-0 gap-0 overflow-hidden bg-zinc-950 border-zinc-800 shadow-2xl">
-                {/* Header with Title and 'F' shortcut hint */}
-                <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
-                    <DialogTitle className="text-sm font-medium flex items-center gap-2 text-zinc-100">
-                        Feedback
-                    </DialogTitle>
-                    <Kbd className="bg-zinc-900 border-zinc-800 text-zinc-400">F</Kbd>
-                </div>
-
-                <DialogDescription className="sr-only">
-                    Send feedback, bug reports, or ideas to the team.
-                </DialogDescription>
-
+        <Popover open={open} onOpenChange={onOpenChange}>
+            <PopoverTrigger asChild>
+                {children}
+            </PopoverTrigger>
+            <PopoverContent
+                side="right"
+                align="start"
+                sideOffset={10}
+                className="w-[320px] p-0 gap-0 overflow-hidden bg-muted border-border shadow-2xl animate-in fade-in-0 zoom-in-95 data-[state=open]:ring-2 data-[state=open]:ring-primary/20"
+            >
                 <div className="p-0">
                     <Textarea
                         value={text}
                         onChange={(e) => setText(e.target.value)}
                         placeholder="Ideas, bugs, or anything else..."
-                        className="min-h-[160px] w-full resize-none border-0 focus-visible:ring-0 rounded-none bg-zinc-950 p-4 text-base placeholder:text-zinc-500 text-zinc-100"
+                        className="h-[140px] w-full resize-none border-0 focus-visible:ring-0 rounded-none bg-transparent p-3 text-sm placeholder:text-muted-foreground text-foreground overflow-y-auto"
                         autoFocus
                         maxLength={1000}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault()
+                                handleSend()
+                            }
+                        }}
                     />
                 </div>
 
-                {/* Footer with Send button and shortcuts */}
-                <div className="flex items-center justify-between px-4 py-3 bg-zinc-950 border-t border-zinc-800">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <IconMessage2 className="h-4 w-4 text-zinc-600" />
+                <div className="flex items-center justify-between px-3 py-2 bg-transparent">
+                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-mono">
+                        {text.length}/1000
                     </div>
                     <div className="flex items-center gap-2">
                         <Button
                             onClick={handleSend}
                             disabled={!text.trim() || sending}
                             size="sm"
-                            className="h-8 gap-2 font-medium bg-zinc-100 text-zinc-900 hover:bg-white"
+                            className="h-7 px-4 font-medium transition-all duration-200 hover:scale-105 active:scale-95 bg-primary text-primary-foreground text-xs rounded-full shadow-lg hover:shadow-primary/20"
                         >
                             {sending ? (
-                                <IconLoader2 className="h-4 w-4 animate-spin" />
+                                <IconLoader2 className="h-3 w-3 animate-spin" />
                             ) : (
                                 "Send"
                             )}
-                            <div className="flex items-center gap-1 ml-1">
-                                <Kbd className="bg-zinc-300 border-zinc-300 text-zinc-900 h-5 px-1.5 text-[10px] min-w-[auto]">⌘</Kbd>
-                                <Kbd className="bg-zinc-300 border-zinc-300 text-zinc-900 h-5 px-1.5 text-[10px] min-w-[auto]">↵</Kbd>
-                            </div>
                         </Button>
                     </div>
                 </div>
-            </DialogContent>
-        </Dialog>
+            </PopoverContent>
+        </Popover>
     )
 }

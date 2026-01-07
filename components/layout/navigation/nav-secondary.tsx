@@ -11,7 +11,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { SupportRequestDialog } from "@/components/support-request-dialog"
-import { FeedbackModal } from "@/components/modals/feedback-modal"
+import { FeedbackPopover } from "@/components/modals/feedback-popover"
 import { Kbd } from "@/components/ui/kbd"
 
 export function NavSecondary({
@@ -28,7 +28,6 @@ export function NavSecondary({
 
   return (
     <SidebarGroup {...props}>
-      <FeedbackModal open={feedbackOpen} onOpenChange={setFeedbackOpen} />
       <SidebarGroupContent>
         <SidebarMenu>
           {items.map((item) => (
@@ -46,13 +45,15 @@ export function NavSecondary({
                   <span>{item.title}</span>
                 </SidebarMenuButton>
               ) : item.title === "Feedback" ? (
-                <SidebarMenuButton onClick={() => setFeedbackOpen(true)}>
-                  <item.icon />
-                  <span>{item.title}</span>
-                  <div className="ml-auto">
-                    <Kbd>F</Kbd>
-                  </div>
-                </SidebarMenuButton>
+                <FeedbackPopover open={feedbackOpen} onOpenChange={setFeedbackOpen}>
+                  <SidebarMenuButton isActive={feedbackOpen}>
+                    <item.icon />
+                    <span>{item.title}</span>
+                    <div className="ml-auto">
+                      <Kbd>F</Kbd>
+                    </div>
+                  </SidebarMenuButton>
+                </FeedbackPopover>
               ) : (
                 <SidebarMenuButton asChild>
                   <a href={item.url}>
