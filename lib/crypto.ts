@@ -10,7 +10,7 @@ import { wordlist } from '@scure/bip39/wordlists/english.js';
 import { sha512 } from '@noble/hashes/sha2.js';
 import { ml_kem768 } from '@noble/post-quantum/ml-kem.js';
 import { ml_dsa65 } from '@noble/post-quantum/ml-dsa.js';
-import { xchacha20poly1305 } from '@noble/ciphers/chacha.js';
+import { xchacha20poly1305 } from '@noble/ciphers/chacha';
 
 // Configure SHA-512 for noble/ed25519
 import * as ed from '@noble/ed25519';
@@ -87,7 +87,7 @@ export async function generateDilithiumKeypair(): Promise<{
   crypto.getRandomValues(seed);
   const keys = ml_dsa65.keygen(seed);
   const privateKeyArray = new Uint8Array(keys.secretKey);
-  
+
   if (privateKeyArray.length !== 4032) {
     console.error('CRITICAL: Dilithium private key has wrong length!', {
       expected: 4032,
@@ -95,7 +95,7 @@ export async function generateDilithiumKeypair(): Promise<{
       seed: seed.length
     });
   }
-  
+
   return {
     publicKey: uint8ArrayToHex(new Uint8Array(keys.publicKey)),
     privateKey: privateKeyArray
@@ -105,7 +105,7 @@ export async function generateDilithiumKeypair(): Promise<{
 // Derive encryption key from password using Argon2id
 export async function deriveEncryptionKey(password: string, salt: string): Promise<Uint8Array> {
   let saltBytes: Uint8Array;
-  
+
   // Try to decode salt - it could be base64 (from backend storage) or hex (from registration)
   try {
     // First try base64 (expected format from backend /me endpoint)
@@ -534,7 +534,7 @@ export async function decryptUserPrivateKeys(
       decryptData(pqcKeypairs.x25519.encryptionKey, masterKey, pqcKeypairs.x25519.encryptionNonce),
       decryptData(pqcKeypairs.kyber.encryptionKey, masterKey, pqcKeypairs.kyber.encryptionNonce)
     ]);
-    
+
     // Decrypt all private keys using their individual encryption keys
     // Decrypt sequentially to avoid any potential race conditions
     const ed25519PrivateKey = await decryptData(pqcKeypairs.ed25519.encryptedPrivateKey, ed25519Key, pqcKeypairs.ed25519.privateKeyNonce);
@@ -714,7 +714,7 @@ export async function deriveRecoveryKeyEncryptionKey(mnemonic: string): Promise<
   const mnemonicBytes = new TextEncoder().encode(mnemonic);
   const firstHash = await crypto.subtle.digest('SHA-256', mnemonicBytes);
   const secondHash = await crypto.subtle.digest('SHA-256', firstHash);
-  
+
   return new Uint8Array(secondHash);
 }
 
@@ -1140,10 +1140,10 @@ export async function computeFilenameHmac(filename: string, folderId: string | n
 
   // Normalize filename for consistent HMAC computation
   const normalizedName = filename.toLowerCase().normalize('NFC');
-  
+
   // Derive HMAC key using HKDF - same as folder implementation
   const hmacKey = await deriveHKDFKey(masterKey, 'EllipticcDrive-DuplicateCheck-v1', `filename-hmac-key||${folderId || 'root'}`, 32);
-  
+
   // Compute HMAC using normalized filename
   const nameHmacBytes = await crypto.subtle.sign('HMAC', hmacKey, new TextEncoder().encode(normalizedName));
   const nameHmac = Array.from(new Uint8Array(nameHmacBytes))
