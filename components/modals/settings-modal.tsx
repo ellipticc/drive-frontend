@@ -1393,6 +1393,8 @@ export function SettingsModal({
         setShowTOTPDisable(false)
         setDisableToken("")
         setDisableRecoveryCode("")
+        // Also clear local device token if present
+        localStorage.removeItem('totp_device_token')
         toast.success("TOTP disabled successfully")
         // Reload TOTP status to ensure UI is updated
         await loadTOTPStatus()

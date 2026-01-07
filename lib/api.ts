@@ -2386,7 +2386,8 @@ class ApiClient {
   }>> {
     // Use user ID as unique intent (disabling TOTP for same user)
     const userId = 'current';
-    const idempotencyKey = generateIdempotencyKey('disableTOTP', userId);
+    // Use a unique timestamp-based key for each disable request
+    const idempotencyKey = generateIdempotencyKey('disableTOTP', `${userId}:${Date.now()}`);
     const headers = addIdempotencyKey({}, idempotencyKey);
     const body: { token?: string; recoveryCode?: string } = {};
     if (token) body.token = token;
