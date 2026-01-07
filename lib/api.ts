@@ -608,38 +608,7 @@ class ApiClient {
     try {
       const response = await fetch(requestUrl, config);
 
-      // Check for Cloudflare bot protection errors
-      if (!response.ok) {
-        try {
-          const responseText = await response.clone().text();
 
-          // Common Cloudflare error signatures
-          const cloudflareSignatures = [
-            'Just a moment...',
-            'Checking your browser',
-            'cf-browser-verification',
-            'cf-challenge-running',
-            'DDoS protection by Cloudflare',
-            '__cf_chl_jschl_tk__',
-            'cf-ray',
-            'cf-cache-status'
-          ];
-
-          const isCloudflareError = cloudflareSignatures.some(signature =>
-            responseText.toLowerCase().includes(signature.toLowerCase())
-          );
-
-          if (isCloudflareError) {
-            return {
-              success: false,
-              error: 'Security verification required. Please reload the page.',
-            };
-          }
-        } catch (textError) {
-          // If we can't read the response text, continue with normal error handling
-          console.warn('Could not read response text for Cloudflare detection:', textError);
-        }
-      }
 
       const data = await response.json();
 
