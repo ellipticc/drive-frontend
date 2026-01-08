@@ -13,6 +13,17 @@ import { apiClient } from './api';
 import { decryptData, uint8ArrayToHex, hexToUint8Array, decryptFilename } from './crypto';
 import { keyManager, UserKeys, UserKeypairs } from './key-manager';
 import { decompressChunk, CompressionAlgorithm } from './compression';
+import { WorkerPool } from './worker-pool';
+
+// Lazy-initialized worker pool
+let downloadWorkerPool: WorkerPool | null = null;
+
+const getDownloadWorkerPool = () => {
+  if (!downloadWorkerPool) {
+    downloadWorkerPool = new WorkerPool(() => new Worker(new URL('./workers/download-worker.ts', import.meta.url)));
+  }
+  return downloadWorkerPool;
+};
 
 // Utility function to convert Uint8Array to base64 safely (avoids stack overflow)
 function uint8ArrayToBase64(array: Uint8Array): string {
@@ -183,56 +194,31 @@ const processDecryptInWorker = (
   isCompressed: boolean,
   expectedHash?: string | null
 ): Promise<Uint8Array> => {
-  return new Promise((resolve, reject) => {
-    const worker = new Worker(new URL('./workers/download-worker.ts', import.meta.url));
+  const chunkBuffer = encryptedChunk.buffer.slice(encryptedChunk.byteOffset, encryptedChunk.byteOffset + encryptedChunk.byteLength);
 
-    worker.onmessage = (event) => {
-      const { success, result, error } = event.data;
-      if (success) resolve(result);
-      else reject(new Error(error));
-      worker.terminate();
-    };
-
-    worker.onerror = (err) => {
-      reject(err instanceof Error ? err : new Error(String(err)));
-      worker.terminate();
-    };
-
-    const chunkBuffer = encryptedChunk.buffer.slice(encryptedChunk.byteOffset, encryptedChunk.byteOffset + encryptedChunk.byteLength);
-    worker.postMessage({
-      type: 'decrypt_chunk',
-      id: 'decrypt',
-      encryptedChunk: new Uint8Array(chunkBuffer),
-      key,
-      nonce,
-      isCompressed,
-      expectedHash
-    }, [chunkBuffer]);
-  });
+  return getDownloadWorkerPool().execute({
+    type: 'decrypt_chunk',
+    id: 'decrypt', // Worker pool manages queue, ID is just for worker internal check if needed
+    encryptedChunk: new Uint8Array(chunkBuffer),
+    key,
+    nonce,
+    isCompressed,
+    expectedHash
+  }, [chunkBuffer]);
 };
 
 /**
  * Verify file integrity in Worker using BLAKE3
  */
 const verifyIntegrityInWorker = async (fileData: Uint8Array): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const worker = new Worker(new URL('./workers/download-worker.ts', import.meta.url));
+  // Zero-copy transfer of the file data
+  const buffer = fileData.buffer.slice(fileData.byteOffset, fileData.byteOffset + fileData.byteLength);
 
-    worker.onmessage = (event) => {
-      const { success, result, error } = event.data;
-      if (success) resolve(result);
-      else reject(new Error(error));
-      worker.terminate();
-    };
-
-    // Zero-copy transfer of the file data
-    const buffer = fileData.buffer.slice(fileData.byteOffset, fileData.byteOffset + fileData.byteLength);
-    worker.postMessage({
-      type: 'verify_integrity',
-      id: 'verify',
-      fileData: new Uint8Array(buffer)
-    }, [buffer]);
-  });
+  return getDownloadWorkerPool().execute({
+    type: 'verify_integrity',
+    id: 'verify',
+    fileData: new Uint8Array(buffer)
+  }, [buffer]);
 };
 
 /**

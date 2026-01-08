@@ -17,6 +17,17 @@ import { keyManager } from './key-manager';
 import { masterKeyManager } from './master-key';
 import { CompressionAlgorithm, CompressionMetadata } from './compression';
 import { generateThumbnail } from './thumbnail';
+import { WorkerPool } from './worker-pool';
+
+// Lazy-initialized worker pool
+let uploadWorkerPool: WorkerPool | null = null;
+
+const getUploadWorkerPool = () => {
+  if (!uploadWorkerPool) {
+    uploadWorkerPool = new WorkerPool(() => new Worker(new URL('./workers/upload-worker.ts', import.meta.url)));
+  }
+  return uploadWorkerPool;
+};
 
 // Types and interfaces
 export interface UploadProgress {
@@ -108,30 +119,15 @@ const CHUNK_SIZE = 4 * 1024 * 1024; // 4MB chunks (configurable)
  * Process a chunk in the Unified Web Worker
  */
 const processChunkInWorker = (chunk: Uint8Array, key: Uint8Array, index: number): Promise<{ encryptedData: Uint8Array; nonce: string; hash: string; md5: string; index: number; compression: CompressionMetadata }> => {
-  return new Promise((resolve, reject) => {
-    const worker = new Worker(new URL('./workers/upload-worker.ts', import.meta.url));
+  const chunkBuffer = chunk.buffer.slice(chunk.byteOffset, chunk.byteOffset + chunk.byteLength);
 
-    worker.onmessage = (event) => {
-      const { success, result, error } = event.data;
-      if (success) resolve(result);
-      else reject(new Error(error));
-      worker.terminate();
-    };
-
-    worker.onerror = (err) => {
-      reject(err instanceof Error ? err : new Error(String(err)));
-      worker.terminate();
-    };
-
-    const chunkBuffer = chunk.buffer.slice(chunk.byteOffset, chunk.byteOffset + chunk.byteLength);
-    worker.postMessage({
-      type: 'process_chunk',
-      id: index,
-      chunk: new Uint8Array(chunkBuffer),
-      key,
-      index
-    }, [chunkBuffer]);
-  });
+  return getUploadWorkerPool().execute({
+    type: 'process_chunk',
+    id: index,
+    chunk: new Uint8Array(chunkBuffer),
+    key,
+    index
+  }, [chunkBuffer]);
 };
 
 /**
@@ -139,19 +135,12 @@ const processChunkInWorker = (chunk: Uint8Array, key: Uint8Array, index: number)
  * Updated to stream file in worker using FileReaderSync (supports 5GB+ files).
  */
 const computeFileHashInWorker = async (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const worker = new Worker(new URL('./workers/upload-worker.ts', import.meta.url));
-    worker.onmessage = (e) => {
-      if (e.data.success) resolve(e.data.result);
-      else reject(new Error(e.data.error));
-      worker.terminate();
-    };
-    worker.onerror = (e) => {
-      reject(e);
-      worker.terminate();
-    }
-    // Pass File handle (Zero-Copy/Ref)
-    worker.postMessage({ type: 'hash_file', id: 'hash', file });
+  // Use a unique ID for hashing tasks to avoid collisions if multiple hashes run
+  const id = `hash-${crypto.randomUUID()}`;
+  return getUploadWorkerPool().execute({
+    type: 'hash_file',
+    id,
+    file
   });
 };
 
