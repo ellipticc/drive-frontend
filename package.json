@@ -48,6 +48,7 @@
     "@stripe/stripe-js": "^8.6.1",
     "@tabler/icons-react": "^3.35.0",
     "@tailwindcss/typography": "^0.5.19",
+    "@tanstack/react-virtual": "^3.13.18",
     "@thumbmarkjs/thumbmarkjs": "^1.6.1",
     "@untitledui/icons": "^0.0.19",
     "class-variance-authority": "^0.7.1",

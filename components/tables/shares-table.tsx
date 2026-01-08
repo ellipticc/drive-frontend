@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 
 import { DotsVertical } from "@untitledui/icons";
 import type { SortDescriptor } from "react-aria-components";
@@ -298,6 +299,16 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
         );
     }, [sortedItems, searchQuery]);
 
+    // Virtualization setup
+    const parentRef = useRef<HTMLDivElement>(null);
+
+    const rowVirtualizer = useVirtualizer({
+        count: filteredItems.length,
+        getScrollElement: () => parentRef.current,
+        estimateSize: () => 50, // Estimate row height
+        overscan: 5,
+    });
+
     const handleBulkDownload = async () => {
         if (selectedItems.size === 0) return;
 
@@ -444,160 +455,194 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                     className="h-10 border-0"
                 />
                 {viewMode === 'table' ? (
-                    <Table aria-label="Shares" selectionMode="multiple" selectionBehavior="replace" sortDescriptor={sortDescriptor} onSortChange={setSortDescriptor} selectedKeys={selectedItems} onSelectionChange={(keys) => {
-                        if (keys === 'all') {
-                            if (selectedItems.size > 0 && selectedItems.size < filteredItems.length) {
-                                setSelectedItems(new Set());
-                            } else {
-                                setSelectedItems(new Set(filteredItems.map(item => item.id)));
-                            }
-                        } else {
-                            setSelectedItems(new Set(Array.from(keys as Set<string>)));
-                        }
-                    }}
+                    <div
+                        ref={parentRef}
+                        className="h-[calc(100vh-220px)] overflow-auto relative scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent"
                     >
-                        <Table.Header className="group">
-                            <Table.Head className="w-10 text-center pl-4 pr-0">
-                                <Checkbox
-                                    slot="selection"
-                                    className={`transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}
-                                />
-                            </Table.Head>
-                            <Table.Head id="fileName" isRowHeader allowsSorting className={`w-full max-w-0 pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`} align="left">
-                                {selectedItems.size > 0 ? (
-                                    <span className="text-xs font-semibold whitespace-nowrap text-foreground px-1.5 py-1">{selectedItems.size} selected</span>
-                                ) : (
-                                    <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto">Name</span>
+                        <Table aria-label="Shares" selectionMode="multiple" selectionBehavior="replace" sortDescriptor={sortDescriptor} onSortChange={setSortDescriptor} selectedKeys={selectedItems} onSelectionChange={(keys) => {
+                            if (keys === 'all') {
+                                if (selectedItems.size > 0 && selectedItems.size < filteredItems.length) {
+                                    setSelectedItems(new Set());
+                                } else {
+                                    setSelectedItems(new Set(filteredItems.map(item => item.id)));
+                                }
+                            } else {
+                                setSelectedItems(new Set(Array.from(keys as Set<string>)));
+                            }
+                        }}
+                        >
+                            <Table.Header className="group">
+                                <Table.Head className="w-10 text-center pl-4 pr-0">
+                                    <Checkbox
+                                        slot="selection"
+                                        className={`transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}
+                                    />
+                                </Table.Head>
+                                <Table.Head id="fileName" isRowHeader allowsSorting className={`w-full max-w-0 pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`} align="left">
+                                    {selectedItems.size > 0 ? (
+                                        <span className="text-xs font-semibold whitespace-nowrap text-foreground px-1.5 py-1">{selectedItems.size} selected</span>
+                                    ) : (
+                                        <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto">Name</span>
+                                    )}
+                                </Table.Head>
+                                {!isMobile && (
+                                    <Table.Head id="folderPath" allowsSorting align="left" className={`pointer-events-none cursor-default min-w-[120px] max-w-[200px] ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
+                                        <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Path</span>
+                                    </Table.Head>
                                 )}
-                            </Table.Head>
-                            {!isMobile && (
-                                <Table.Head id="folderPath" allowsSorting align="left" className={`pointer-events-none cursor-default min-w-[120px] max-w-[200px] ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
-                                    <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Path</span>
-                                </Table.Head>
-                            )}
-                            {!isMobile && (
-                                <Table.Head id="createdAt" allowsSorting align="right" className={`pointer-events-none cursor-default min-w-[120px] ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
-                                    <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Created at</span>
-                                </Table.Head>
-                            )}
-                            {!isMobile && (
-                                <Table.Head id="downloads" allowsSorting align="right" className={`pointer-events-none cursor-default min-w-[80px] ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
-                                    <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Download Count</span>
-                                </Table.Head>
-                            )}
-                            {!isMobile && (
-                                <Table.Head id="expiresAt" allowsSorting align="right" className={`pointer-events-none cursor-default min-w-[120px] ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
-                                    <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Expires at</span>
-                                </Table.Head>
-                            )}
-                            <Table.Head id="actions" align="center" />
-                        </Table.Header>
+                                {!isMobile && (
+                                    <Table.Head id="createdAt" allowsSorting align="right" className={`pointer-events-none cursor-default min-w-[120px] ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
+                                        <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Created at</span>
+                                    </Table.Head>
+                                )}
+                                {!isMobile && (
+                                    <Table.Head id="downloads" allowsSorting align="right" className={`pointer-events-none cursor-default min-w-[80px] ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
+                                        <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Download Count</span>
+                                    </Table.Head>
+                                )}
+                                {!isMobile && (
+                                    <Table.Head id="expiresAt" allowsSorting align="right" className={`pointer-events-none cursor-default min-w-[120px] ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
+                                        <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Expires at</span>
+                                    </Table.Head>
+                                )}
+                                <Table.Head id="actions" align="center" />
+                            </Table.Header>
 
-                        <Table.Body items={filteredItems} dependencies={[filteredItems, selectedItems.size]}>
-                            {(item) => (
-                                <Table.Row
-                                    id={item.id}
-                                    className="group hover:bg-muted/50 transition-colors duration-150"
-                                >
-                                    <Table.Cell className="w-10 text-center pl-4 pr-0">
-                                        <Checkbox
-                                            slot="selection"
-                                            className={`transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}
-                                        />
-                                    </Table.Cell>
-                                    <Table.Cell className="w-full max-w-0">
-                                        <div className="flex items-center gap-2 min-w-0">
-                                            <div className="text-base">
-                                                {item.isFolder ? (
-                                                    <IconFolder className="h-4 w-4 text-blue-500 inline-block" />
-                                                ) : (
-                                                    <FileIcon mimeType={item.mimeType} filename={item.fileName} className="h-4 w-4 inline-block" />
-                                                )}
-                                            </div>
-                                            <TruncatedNameTooltip
-                                                name={item.fileName}
-                                                className="text-sm font-medium truncate text-foreground flex-1 min-w-0"
-                                            />
-                                        </div>
-                                    </Table.Cell>
-                                    {!isMobile && (
-                                        <Table.Cell className="text-left min-w-[120px] max-w-[200px]">
-                                            <span className="text-xs text-muted-foreground font-[var(--font-jetbrains-mono)] font-semibold tracking-wider whitespace-nowrap truncate block">
-                                                {item.folderPath || 'Root'}
-                                            </span>
-                                        </Table.Cell>
-                                    )}
-                                    {!isMobile && (
-                                        <Table.Cell className="text-right">
-                                            <span className="text-xs text-muted-foreground font-[var(--font-jetbrains-mono)] font-semibold tracking-wider whitespace-nowrap">
-                                                {formatDate(item.createdAt)}
-                                            </span>
-                                        </Table.Cell>
-                                    )}
-                                    {!isMobile && (
-                                        <Table.Cell className="text-right">
-                                            <span className="text-xs text-muted-foreground font-[var(--font-jetbrains-mono)] font-semibold tracking-wider whitespace-nowrap">
-                                                {item.downloads}
-                                            </span>
-                                        </Table.Cell>
-                                    )}
-                                    {!isMobile && (
-                                        <Table.Cell className="text-right">
-                                            <span className="text-xs text-muted-foreground font-[var(--font-jetbrains-mono)] font-semibold tracking-wider whitespace-nowrap">
-                                                {item.expiresAt ? formatDate(item.expiresAt) : 'Never'}
-                                            </span>
-                                        </Table.Cell>
-                                    )}
-                                    <Table.Cell className="px-3 w-12">
-                                        <div className={`flex justify-end gap-0.5 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-200`}>
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
-                                                        <DotsVertical className="h-4 w-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end" className="w-48">
-                                                    {item.isFolder ? (
-                                                        <>
-                                                            <DropdownMenuItem onClick={() => {
-                                                                // Open folder share in new tab
-                                                                window.open(`/s/${item.id}`, '_blank');
-                                                            }}>
-                                                                <IconShare3 className="h-4 w-4 mr-2" />
-                                                                Open Share
+                            <Table.Body dependencies={[filteredItems, selectedItems.size, rowVirtualizer.getVirtualItems()]}>
+                                {/* Top Spacer */}
+                                {rowVirtualizer.getVirtualItems().length > 0 && rowVirtualizer.getVirtualItems()[0].start > 0 && (
+                                    <Table.Row id="spacer-top" className="hover:bg-transparent border-0 focus-visible:outline-none">
+                                        <Table.Cell colSpan={isMobile ? 3 : 7} style={{ height: rowVirtualizer.getVirtualItems()[0].start, padding: 0 }} />
+                                    </Table.Row>
+                                )}
+
+                                {rowVirtualizer.getVirtualItems().map((virtualItem) => {
+                                    const item = filteredItems[virtualItem.index];
+                                    return (
+                                        <Table.Row
+                                            key={item.id}
+                                            id={item.id}
+                                            data-index={virtualItem.index}
+                                            ref={rowVirtualizer.measureElement}
+                                            className="group hover:bg-muted/50 transition-colors duration-150"
+                                        >
+                                            <Table.Cell className="w-10 text-center pl-4 pr-0">
+                                                <Checkbox
+                                                    slot="selection"
+                                                    className={`transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}
+                                                />
+                                            </Table.Cell>
+                                            <Table.Cell className="w-full max-w-0">
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <div className="text-base">
+                                                        {item.isFolder ? (
+                                                            <IconFolder className="h-4 w-4 text-blue-500 inline-block" />
+                                                        ) : (
+                                                            <FileIcon mimeType={item.mimeType} filename={item.fileName} className="h-4 w-4 inline-block" />
+                                                        )}
+                                                    </div>
+                                                    <TruncatedNameTooltip
+                                                        name={item.fileName}
+                                                        className="text-sm font-medium truncate text-foreground flex-1 min-w-0"
+                                                    />
+                                                </div>
+                                            </Table.Cell>
+                                            {!isMobile && (
+                                                <Table.Cell className="text-left min-w-[120px] max-w-[200px]">
+                                                    <span className="text-xs text-muted-foreground font-[var(--font-jetbrains-mono)] font-semibold tracking-wider whitespace-nowrap truncate block">
+                                                        {item.folderPath || 'Root'}
+                                                    </span>
+                                                </Table.Cell>
+                                            )}
+                                            {!isMobile && (
+                                                <Table.Cell className="text-right">
+                                                    <span className="text-xs text-muted-foreground font-[var(--font-jetbrains-mono)] font-semibold tracking-wider whitespace-nowrap">
+                                                        {formatDate(item.createdAt)}
+                                                    </span>
+                                                </Table.Cell>
+                                            )}
+                                            {!isMobile && (
+                                                <Table.Cell className="text-right">
+                                                    <span className="text-xs text-muted-foreground font-[var(--font-jetbrains-mono)] font-semibold tracking-wider whitespace-nowrap">
+                                                        {item.downloads}
+                                                    </span>
+                                                </Table.Cell>
+                                            )}
+                                            {!isMobile && (
+                                                <Table.Cell className="text-right">
+                                                    <span className="text-xs text-muted-foreground font-[var(--font-jetbrains-mono)] font-semibold tracking-wider whitespace-nowrap">
+                                                        {item.expiresAt ? formatDate(item.expiresAt) : 'Never'}
+                                                    </span>
+                                                </Table.Cell>
+                                            )}
+                                            <Table.Cell className="px-3 w-12">
+                                                <div className={`flex justify-end gap-0.5 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-200`}>
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                                                                <DotsVertical className="h-4 w-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end" className="w-48">
+                                                            {item.isFolder ? (
+                                                                <>
+                                                                    <DropdownMenuItem onClick={() => {
+                                                                        // Open folder share in new tab
+                                                                        window.open(`/s/${item.id}`, '_blank');
+                                                                    }}>
+                                                                        <IconShare3 className="h-4 w-4 mr-2" />
+                                                                        Open Share
+                                                                    </DropdownMenuItem>
+                                                                    <DropdownMenuSeparator />
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <DropdownMenuItem onClick={() => handleDownloadClick(item.id, item.fileId, item.fileName)}>
+                                                                        <IconDownload className="h-4 w-4 mr-2" />
+                                                                        Download
+                                                                    </DropdownMenuItem>
+                                                                    <DropdownMenuItem onClick={() => handleShareClick(item.fileId, item.fileName, 'file')}>
+                                                                        <IconShare3 className="h-4 w-4 mr-2" />
+                                                                        Share
+                                                                    </DropdownMenuItem>
+                                                                    <DropdownMenuSeparator />
+                                                                </>
+                                                            )}
+                                                            <DropdownMenuItem onClick={() => handleDetailsClick(item.fileId, item.fileName, item.isFolder ? 'folder' : 'file')}>
+                                                                <IconInfoCircle className="h-4 w-4 mr-2" />
+                                                                Details
                                                             </DropdownMenuItem>
                                                             <DropdownMenuSeparator />
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <DropdownMenuItem onClick={() => handleDownloadClick(item.id, item.fileId, item.fileName)}>
-                                                                <IconDownload className="h-4 w-4 mr-2" />
-                                                                Download
+                                                            <DropdownMenuItem onClick={() => handleRevokeShare(item.id)} variant="destructive">
+                                                                <IconX className="h-4 w-4 mr-2" />
+                                                                Revoke share
                                                             </DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={() => handleShareClick(item.fileId, item.fileName, 'file')}>
-                                                                <IconShare3 className="h-4 w-4 mr-2" />
-                                                                Share
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuSeparator />
-                                                        </>
-                                                    )}
-                                                    <DropdownMenuItem onClick={() => handleDetailsClick(item.fileId, item.fileName, item.isFolder ? 'folder' : 'file')}>
-                                                        <IconInfoCircle className="h-4 w-4 mr-2" />
-                                                        Details
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuItem onClick={() => handleRevokeShare(item.id)} variant="destructive">
-                                                        <IconX className="h-4 w-4 mr-2" />
-                                                        Revoke share
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </div>
-                                    </Table.Cell>
-                                </Table.Row>
-                            )}
-                        </Table.Body>
-                    </Table>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </div>
+                                            </Table.Cell>
+                                        </Table.Row>
+                                    );
+                                })}
+
+                                {/* Bottom Spacer */}
+                                {rowVirtualizer.getVirtualItems().length > 0 && (
+                                    (() => {
+                                        const lastItem = rowVirtualizer.getVirtualItems()[rowVirtualizer.getVirtualItems().length - 1];
+                                        const bottomSpace = rowVirtualizer.getTotalSize() - lastItem.end;
+                                        if (bottomSpace > 0) {
+                                            return (
+                                                <Table.Row id="spacer-bottom" className="hover:bg-transparent border-0 focus-visible:outline-none">
+                                                    <Table.Cell colSpan={isMobile ? 3 : 7} style={{ height: bottomSpace, padding: 0 }} />
+                                                </Table.Row>
+                                            );
+                                        }
+                                        return null;
+                                    })()
+                                )}
+                            </Table.Body>
+                        </Table>
+                    </div>
                 ) : (
                     // Grid View
                     <div className="p-4">

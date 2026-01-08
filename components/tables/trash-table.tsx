@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { DotsVertical } from "@untitledui/icons";
 import type { SortDescriptor } from "react-aria-components";
 import { Table, TableCard } from "@/components/application/table/table";
@@ -432,6 +433,16 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
         });
     }, [trashItems, sortDescriptor, searchQuery]);
 
+    // Virtualization setup
+    const parentRef = useRef<HTMLDivElement>(null);
+
+    const rowVirtualizer = useVirtualizer({
+        count: sortedItems.length,
+        getScrollElement: () => parentRef.current,
+        estimateSize: () => 50, // Estimate row height
+        overscan: 5,
+    });
+
     if (isLoading) {
         return (
             <TableSkeleton
@@ -516,145 +527,179 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                         </div>
                     </div>
                 ) : (
-                    <Table
-                        aria-label="Trash"
-                        selectionMode="multiple"
-                        selectionBehavior="replace"
-                        sortDescriptor={sortDescriptor}
-                        onSortChange={setSortDescriptor}
-                        selectedKeys={selectedItems}
-                        onSelectionChange={(keys) => {
-                            if (keys === 'all') {
-                                if (selectedItems.size > 0 && selectedItems.size < sortedItems.length) {
-                                    setSelectedItems(new Set());
-                                } else {
-                                    setSelectedItems(new Set(sortedItems.map(item => item.id)));
-                                }
-                            } else {
-                                setSelectedItems(new Set(Array.from(keys as Set<string>)));
-                            }
-                        }}
+                    <div
+                        ref={parentRef}
+                        className="h-[calc(100vh-220px)] overflow-auto relative scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent"
                     >
-                        <Table.Header className="group">
-                            <Table.Head className="w-10 text-center pl-4 pr-0">
-                                <Checkbox
-                                    slot="selection"
-                                    className={`transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}
-                                />
-                            </Table.Head>
-                            <Table.Head id="name" isRowHeader allowsSorting={selectedItems.size === 0} className="w-full max-w-0 pointer-events-none cursor-default" align="left">
-                                {selectedItems.size > 0 ? (
-                                    <span className="text-xs font-semibold whitespace-nowrap text-foreground px-1.5 py-1">{selectedItems.size} selected</span>
-                                ) : (
-                                    <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto">Name</span>
+                        <Table
+                            aria-label="Trash"
+                            selectionMode="multiple"
+                            selectionBehavior="replace"
+                            sortDescriptor={sortDescriptor}
+                            onSortChange={setSortDescriptor}
+                            selectedKeys={selectedItems}
+                            onSelectionChange={(keys) => {
+                                if (keys === 'all') {
+                                    if (selectedItems.size > 0 && selectedItems.size < sortedItems.length) {
+                                        setSelectedItems(new Set());
+                                    } else {
+                                        setSelectedItems(new Set(sortedItems.map(item => item.id)));
+                                    }
+                                } else {
+                                    setSelectedItems(new Set(Array.from(keys as Set<string>)));
+                                }
+                            }}
+                        >
+                            <Table.Header className="group">
+                                <Table.Head className="w-10 text-center pl-4 pr-0">
+                                    <Checkbox
+                                        slot="selection"
+                                        className={`transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}
+                                    />
+                                </Table.Head>
+                                <Table.Head id="name" isRowHeader allowsSorting={selectedItems.size === 0} className="w-full max-w-0 pointer-events-none cursor-default" align="left">
+                                    {selectedItems.size > 0 ? (
+                                        <span className="text-xs font-semibold whitespace-nowrap text-foreground px-1.5 py-1">{selectedItems.size} selected</span>
+                                    ) : (
+                                        <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto">Name</span>
+                                    )}
+                                </Table.Head>
+                                {!isMobile && (
+                                    <Table.Head id="originalLocation" allowsSorting align="left" className={`pointer-events-none cursor-default w-[180px] ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
+                                        <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Original location</span>
+                                    </Table.Head>
                                 )}
-                            </Table.Head>
-                            {!isMobile && (
-                                <Table.Head id="originalLocation" allowsSorting align="left" className={`pointer-events-none cursor-default w-[180px] ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
-                                    <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Original location</span>
-                                </Table.Head>
-                            )}
-                            {!isMobile && (
-                                <Table.Head id="deletedAt" allowsSorting align="right" className={`pointer-events-none cursor-default min-w-[120px] ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
-                                    <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Date deleted</span>
-                                </Table.Head>
-                            )}
-                            {!isMobile && (
-                                <Table.Head id="size" allowsSorting align="right" className={`pointer-events-none cursor-default min-w-[100px] ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
-                                    <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Size</span>
-                                </Table.Head>
-                            )}
-                            <Table.Head id="actions" align="center" />
-                        </Table.Header>
+                                {!isMobile && (
+                                    <Table.Head id="deletedAt" allowsSorting align="right" className={`pointer-events-none cursor-default min-w-[120px] ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
+                                        <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Date deleted</span>
+                                    </Table.Head>
+                                )}
+                                {!isMobile && (
+                                    <Table.Head id="size" allowsSorting align="right" className={`pointer-events-none cursor-default min-w-[100px] ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
+                                        <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Size</span>
+                                    </Table.Head>
+                                )}
+                                <Table.Head id="actions" align="center" />
+                            </Table.Header>
 
-                        <Table.Body items={sortedItems} dependencies={[selectedItems.size]}>
-                            {(item) => (
-                                <Table.Row
-                                    id={item.id}
-                                    className="group hover:bg-muted/50 transition-colors duration-150"
-                                >
-                                    <Table.Cell className="w-10 text-center pl-4 pr-0">
-                                        <Checkbox
-                                            slot="selection"
-                                            className={`transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}
-                                        />
-                                    </Table.Cell>
-                                    <Table.Cell className="w-full max-w-0">
-                                        <div className="flex items-center gap-2 min-w-0">
-                                            <div className="text-base">
-                                                {item.type === 'folder' ? (
-                                                    <IconFolder className="h-4 w-4 text-blue-500 inline-block" />
-                                                ) : (
-                                                    <FileIcon mimeType={item.mimeType} filename={item.name} className="h-4 w-4" />
-                                                )}
-                                            </div>
-                                            <TruncatedNameTooltip
-                                                name={item.name}
-                                                className="text-sm font-medium whitespace-nowrap text-foreground cursor-default flex-1 min-w-0"
-                                            />
-                                        </div>
-                                    </Table.Cell>
-                                    {!isMobile && (
-                                        <Table.Cell className="text-muted-foreground text-sm truncate w-[180px]">
-                                            {/* Original Location Placeholder - Backend doesn't seem to provide this yet? It was in header though. */}
-                                            --
-                                        </Table.Cell>
-                                    )}
-                                    {!isMobile && (
-                                        <Table.Cell className="text-right h-12">
-                                            <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
-                                                {new Date(item.deletedAt).toLocaleString('en-US', {
-                                                    month: '2-digit',
-                                                    day: '2-digit',
-                                                    year: 'numeric',
-                                                    hour: 'numeric',
-                                                    minute: '2-digit',
-                                                    hour12: true
-                                                })}
-                                            </span>
-                                        </Table.Cell>
-                                    )}
-                                    {!isMobile && (
-                                        <Table.Cell className="text-right h-12">
-                                            <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
-                                                {item.type === 'folder' ? '--' : formatFileSize(item.size || 0)}
-                                            </span>
-                                        </Table.Cell>
-                                    )}
-                                    <Table.Cell className="px-3 h-12">
-                                        <div className="flex justify-end gap-1 h-full items-center">
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
-                                                        <DotsVertical className="h-4 w-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end" className="w-48">
-                                                    <DropdownMenuItem onClick={() => handleRestoreClick(item.id, item.name, item.type)}>
-                                                        <IconRestore className="h-4 w-4 mr-2" />
-                                                        Restore
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuItem onClick={() => handleDetailsClick(item.id, item.name, item.type)}>
-                                                        <IconInfoCircle className="h-4 w-4 mr-2" />
-                                                        Details
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuItem
-                                                        onClick={() => handleDeleteClick(item.id, item.name, item.type)}
-                                                        variant="destructive"
-                                                    >
-                                                        <IconTrashAlt className="h-4 w-4 mr-2" />
-                                                        Delete permanently
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </div>
-                                    </Table.Cell>
-                                </Table.Row>
-                            )}
-                        </Table.Body>
-                    </Table>
+                            <Table.Body dependencies={[sortedItems, selectedItems.size, rowVirtualizer.getVirtualItems()]}>
+                                {/* Top Spacer */}
+                                {rowVirtualizer.getVirtualItems().length > 0 && rowVirtualizer.getVirtualItems()[0].start > 0 && (
+                                    <Table.Row id="spacer-top" className="hover:bg-transparent border-0 focus-visible:outline-none">
+                                        <Table.Cell colSpan={isMobile ? 3 : 6} style={{ height: rowVirtualizer.getVirtualItems()[0].start, padding: 0 }} />
+                                    </Table.Row>
+                                )}
+
+                                {rowVirtualizer.getVirtualItems().map((virtualItem) => {
+                                    const item = sortedItems[virtualItem.index];
+                                    return (
+                                        <Table.Row
+                                            key={item.id}
+                                            id={item.id}
+                                            data-index={virtualItem.index}
+                                            ref={rowVirtualizer.measureElement}
+                                            className="group hover:bg-muted/50 transition-colors duration-150"
+                                        >
+                                            <Table.Cell className="w-10 text-center pl-4 pr-0">
+                                                <Checkbox
+                                                    slot="selection"
+                                                    className={`transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}
+                                                />
+                                            </Table.Cell>
+                                            <Table.Cell className="w-full max-w-0">
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <div className="text-base">
+                                                        {item.type === 'folder' ? (
+                                                            <IconFolder className="h-4 w-4 text-blue-500 inline-block" />
+                                                        ) : (
+                                                            <FileIcon mimeType={item.mimeType} filename={item.name} className="h-4 w-4" />
+                                                        )}
+                                                    </div>
+                                                    <TruncatedNameTooltip
+                                                        name={item.name}
+                                                        className="text-sm font-medium whitespace-nowrap text-foreground cursor-default flex-1 min-w-0"
+                                                    />
+                                                </div>
+                                            </Table.Cell>
+                                            {!isMobile && (
+                                                <Table.Cell className="text-muted-foreground text-sm truncate w-[180px]">
+                                                    {/* Original Location Placeholder - Backend doesn't seem to provide this yet? It was in header though. */}
+                                                    --
+                                                </Table.Cell>
+                                            )}
+                                            {!isMobile && (
+                                                <Table.Cell className="text-right h-12">
+                                                    <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
+                                                        {new Date(item.deletedAt).toLocaleString('en-US', {
+                                                            month: '2-digit',
+                                                            day: '2-digit',
+                                                            year: 'numeric',
+                                                            hour: 'numeric',
+                                                            minute: '2-digit',
+                                                            hour12: true
+                                                        })}
+                                                    </span>
+                                                </Table.Cell>
+                                            )}
+                                            {!isMobile && (
+                                                <Table.Cell className="text-right h-12">
+                                                    <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
+                                                        {item.type === 'folder' ? '--' : formatFileSize(item.size || 0)}
+                                                    </span>
+                                                </Table.Cell>
+                                            )}
+                                            <Table.Cell className="px-3 h-12">
+                                                <div className="flex justify-end gap-1 h-full items-center">
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                                                                <DotsVertical className="h-4 w-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end" className="w-48">
+                                                            <DropdownMenuItem onClick={() => handleRestoreClick(item.id, item.name, item.type)}>
+                                                                <IconRestore className="h-4 w-4 mr-2" />
+                                                                Restore
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuItem onClick={() => handleDetailsClick(item.id, item.name, item.type)}>
+                                                                <IconInfoCircle className="h-4 w-4 mr-2" />
+                                                                Details
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuItem
+                                                                onClick={() => handleDeleteClick(item.id, item.name, item.type)}
+                                                                variant="destructive"
+                                                            >
+                                                                <IconTrashAlt className="h-4 w-4 mr-2" />
+                                                                Delete permanently
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </div>
+                                            </Table.Cell>
+                                        </Table.Row>
+                                    );
+                                })}
+
+                                {/* Bottom Spacer */}
+                                {rowVirtualizer.getVirtualItems().length > 0 && (
+                                    (() => {
+                                        const lastItem = rowVirtualizer.getVirtualItems()[rowVirtualizer.getVirtualItems().length - 1];
+                                        const bottomSpace = rowVirtualizer.getTotalSize() - lastItem.end;
+                                        if (bottomSpace > 0) {
+                                            return (
+                                                <Table.Row id="spacer-bottom" className="hover:bg-transparent border-0 focus-visible:outline-none">
+                                                    <Table.Cell colSpan={isMobile ? 3 : 6} style={{ height: bottomSpace, padding: 0 }} />
+                                                </Table.Row>
+                                            );
+                                        }
+                                        return null;
+                                    })()
+                                )}
+                            </Table.Body>
+                        </Table>
+                    </div>
                 )}
             </TableCard.Root>
 
