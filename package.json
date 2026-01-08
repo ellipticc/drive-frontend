@@ -45,6 +45,7 @@
     "@scure/bip39": "^2.0.1",
     "@sentry/nextjs": "^10.23.0",
     "@serenity-kit/opaque": "^1.0.0",
+    "@stripe/stripe-js": "^8.6.1",
     "@tabler/icons-react": "^3.35.0",
     "@tailwindcss/typography": "^0.5.19",
     "@thumbmarkjs/thumbmarkjs": "^1.6.1",

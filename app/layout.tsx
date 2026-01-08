@@ -8,6 +8,7 @@ import { AuthGuard } from "@/components/auth/auth-guard";
 import { UserProvider } from "@/components/user-context";
 import { GlobalUploadProvider } from "@/components/global-upload-context";
 import { CurrentFolderProvider } from "@/components/current-folder-context";
+import { BillingProvider } from "@/components/billing-context";
 import { ConditionalLayout } from "@/components/layout/conditional-layout";
 import { SessionPingProvider } from "@/components/session-ping-provider";
 import { NotificationProvider } from "@/components/notifications/notification-provider";
@@ -228,21 +229,23 @@ export default function RootLayout({
             <NotificationProvider>
               <CurrentFolderProvider>
                 <UserProvider>
-                  <LanguageProvider>
-                    <GlobalUploadProvider>
-                      <ThemeConfiguration />
-                      <SessionPingProvider />
-                      <ConditionalLayout>{children}</ConditionalLayout>
-                      <Toaster
-                        position="bottom-right"
-                        richColors
-                        duration={5000}
-                        style={{
-                          fontFamily: 'var(--font-geist-sans)',
-                        }}
-                      />
-                    </GlobalUploadProvider>
-                  </LanguageProvider>
+                  <BillingProvider>
+                    <LanguageProvider>
+                      <GlobalUploadProvider>
+                        <ThemeConfiguration />
+                        <SessionPingProvider />
+                        <ConditionalLayout>{children}</ConditionalLayout>
+                        <Toaster
+                          position="bottom-right"
+                          richColors
+                          duration={5000}
+                          style={{
+                            fontFamily: 'var(--font-geist-sans)',
+                          }}
+                        />
+                      </GlobalUploadProvider>
+                    </LanguageProvider>
+                  </BillingProvider>
                 </UserProvider>
               </CurrentFolderProvider>
             </NotificationProvider>
