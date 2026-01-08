@@ -6,6 +6,7 @@ interface BillingProgressProps extends React.ComponentPropsWithoutRef<"div"> {
     label: string
     current: string | number
     total: string | number
+    progress?: number
     unit?: string
 }
 
@@ -13,13 +14,18 @@ function BillingProgress({
     label,
     current,
     total,
+    progress,
     unit = "",
     className,
     ...props
 }: BillingProgressProps) {
     const currentNum = typeof current === "string" ? parseFloat(current) : current
     const totalNum = typeof total === "string" ? parseFloat(total) : total
-    const percentage = totalNum > 0 ? (currentNum / totalNum) * 100 : 0
+
+    // Use explicit progress if provided, otherwise fallback to calculation
+    const percentage = progress !== undefined
+        ? progress
+        : (totalNum > 0 ? (currentNum / totalNum) * 100 : 0)
 
     return (
         <div className={cn("flex flex-col gap-2", className)} {...props}>

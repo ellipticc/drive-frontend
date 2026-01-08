@@ -589,6 +589,7 @@ const BillingPage = () => {
                     label="Storage Usage"
                     current={formatFileSize(usage?.usedBytes || 0)}
                     total={formatFileSize(usage?.quotaBytes || 1073741824)}
+                    progress={usage?.percentUsed}
                   />
                 </div>
               </FormCardContent>
