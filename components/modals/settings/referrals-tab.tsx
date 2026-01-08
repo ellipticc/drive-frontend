@@ -12,6 +12,12 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { getDiceBearAvatar } from "@/lib/avatar"
 import { getInitials } from "@/components/layout/navigation/nav-user"
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 const formatStorageSize = (bytes: number) => {
     if (bytes === 0) return '0 B'
@@ -179,6 +185,7 @@ export function ReferralsTab({
                                     <table className="w-full text-sm font-mono">
                                         <thead className="bg-muted/50 border-b">
                                             <tr>
+                                                <th className="text-left px-4 py-3 font-medium text-muted-foreground min-w-[100px] text-xs tracking-wider">Referral ID</th>
                                                 <th className="text-left px-4 py-3 font-medium text-muted-foreground min-w-[160px] text-xs tracking-wider">User</th>
                                                 <th className="text-left px-4 py-3 font-medium text-muted-foreground min-w-[160px] hidden sm:table-cell text-xs tracking-wider">Email</th>
                                                 <th className="text-center px-4 py-3 font-medium text-muted-foreground min-w-[120px] text-xs tracking-wider">Status</th>
@@ -187,7 +194,21 @@ export function ReferralsTab({
                                         </thead>
                                         <tbody className="divide-y">
                                             {recentReferrals.map((referral) => (
-                                                <tr key={referral.referred_user_id} className="hover:bg-muted/30 transition-colors">
+                                                <tr key={referral.referral_id || referral.referred_user_id} className="hover:bg-muted/30 transition-colors">
+                                                    <td className="px-4 py-3 min-w-[100px]">
+                                                        <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <span className="cursor-help underline decoration-dotted decoration-muted-foreground/30 font-mono text-[10px] text-muted-foreground/60">
+                                                                        {referral.referral_id ? `${referral.referral_id.substring(0, 8)}...` : 'N/A'}
+                                                                    </span>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent side="top">
+                                                                    <p className="font-mono text-xs">{referral.referral_id || 'No ID available'}</p>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
+                                                    </td>
                                                     <td className="px-4 py-3 min-w-[160px]">
                                                         <div className="flex items-center gap-3">
                                                             <Avatar className="h-8 w-8 flex-shrink-0">
