@@ -32,6 +32,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/base/checkbox/checkbox";
 import { TableSkeleton } from "@/components/tables/table-skeleton";
 import { decryptFilename, encryptFilename, computeFilenameHmac, createSignedFileManifest, createSignedFolderManifest, decryptUserPrivateKeys } from "@/lib/crypto";
+import { decryptFilenameInWorker } from "@/lib/filename-decryption-pool";
 import { apiClient, FileItem, FolderContentItem, FileContentItem, PQCKeypairs } from "@/lib/api";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -1563,16 +1564,17 @@ export const Table01DividerLineSm = ({
     }, [files, sortDescriptor]);
 
     // Filter items based on search query
+    const deferredQuery = React.useDeferredValue(searchQuery);
     const filteredItems = useMemo(() => {
-        if (!searchQuery || searchQuery.trim() === '') {
+        if (!deferredQuery || deferredQuery.trim() === '') {
             return sortedItems;
         }
 
-        const query = searchQuery.toLowerCase().trim();
+        const query = deferredQuery.toLowerCase().trim();
         return sortedItems.filter(item =>
             item.name.toLowerCase().includes(query)
         );
-    }, [sortedItems, searchQuery]);
+    }, [sortedItems, deferredQuery]);
 
     // Preview navigation logic
     const getPreviewableFiles = useCallback(() => {

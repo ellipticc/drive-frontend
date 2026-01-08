@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect, useRef } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
@@ -25,7 +25,7 @@ import { TableSkeleton } from "@/components/tables/table-skeleton";
 import { apiClient, ShareItem } from "@/lib/api";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { decryptFilename } from "@/lib/crypto";
+import { decryptFilenameInWorker } from "@/lib/filename-decryption-pool";
 import { useGlobalUpload } from "@/components/global-upload-context";
 import { masterKeyManager } from "@/lib/master-key";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -89,7 +89,7 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
 
                     if (share.encryptedFilename && share.filenameSalt && masterKey) {
                         try {
-                            displayName = await decryptFilename(share.encryptedFilename, share.filenameSalt, masterKey);
+                            displayName = await decryptFilenameInWorker(share.encryptedFilename, share.filenameSalt, masterKey);
                         } catch (err) {
                             console.warn(`Failed to decrypt filename for share ${share.id}:`, err);
                             displayName = share.fileName || '';
@@ -107,7 +107,7 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                                 for (let i = 0; i < encryptedParts.length; i++) {
                                     if (encryptedParts[i] && saltParts[i]) {
                                         try {
-                                            const decryptedPart = await decryptFilename(encryptedParts[i], saltParts[i], masterKey);
+                                            const decryptedPart = await decryptFilenameInWorker(encryptedParts[i], saltParts[i], masterKey);
                                             decryptedParts.push(decryptedPart);
                                         } catch (partErr) {
                                             console.warn(`Failed to decrypt folder path part ${i} for share ${share.id}:`, partErr);
@@ -288,17 +288,18 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
     }, [shares, sortDescriptor]);
 
     // Filter items based on search query
+    const deferredQuery = React.useDeferredValue(searchQuery);
     const filteredItems = useMemo(() => {
-        if (!searchQuery || searchQuery.trim() === '') {
+        if (!deferredQuery || deferredQuery.trim() === '') {
             return sortedItems;
         }
 
-        const query = searchQuery.toLowerCase().trim();
+        const query = deferredQuery.toLowerCase().trim();
         return sortedItems.filter(item =>
             item.fileName.toLowerCase().includes(query) ||
             item.folderPath.toLowerCase().includes(query)
         );
-    }, [sortedItems, searchQuery]);
+    }, [sortedItems, deferredQuery]);
 
     // Virtualization setup
     const parentRef = useRef<HTMLDivElement>(null);

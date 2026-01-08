@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect, useRef } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { DotsVertical } from "@untitledui/icons";
@@ -33,7 +33,7 @@ import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { TruncatedNameTooltip } from "./truncated-name-tooltip";
 import { masterKeyManager } from "@/lib/master-key";
-import { decryptFilename } from "@/lib/crypto";
+import { decryptFilenameInWorker } from "@/lib/filename-decryption-pool";
 import { useUser } from "@/components/user-context";
 import { FileIcon } from "../file-icon";
 
@@ -126,7 +126,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                         // Try to decrypt filename if encrypted data is available
                         if (file.encryptedFilename && file.filenameSalt) {
                             try {
-                                decryptedName = await decryptFilename(file.encryptedFilename, file.filenameSalt, masterKey);
+                                decryptedName = await decryptFilenameInWorker(file.encryptedFilename, file.filenameSalt, masterKey);
                             } catch (err) {
                                 console.warn(`Failed to decrypt filename for file ${file.id}:`, err);
                                 decryptedName = '(Unnamed file)';
@@ -157,7 +157,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                         // Try to decrypt folder name if encrypted data is available
                         if (folder.encryptedName && folder.nameSalt) {
                             try {
-                                decryptedName = await decryptFilename(folder.encryptedName, folder.nameSalt, masterKey);
+                                decryptedName = await decryptFilenameInWorker(folder.encryptedName, folder.nameSalt, masterKey);
                             } catch (err) {
                                 console.warn(`Failed to decrypt folder name for folder ${folder.id}:`, err);
                                 decryptedName = '(Unnamed folder)';
@@ -396,11 +396,12 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
         return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
     };
 
+    // Filter items based on search query
+    const deferredQuery = React.useDeferredValue(searchQuery);
     const sortedItems = useMemo(() => {
-        // Filter items based on search query
-        const filteredItems = searchQuery
+        const filteredItems = deferredQuery
             ? trashItems.filter(item =>
-                item.name.toLowerCase().includes(searchQuery.toLowerCase())
+                item.name.toLowerCase().includes(deferredQuery.toLowerCase())
             )
             : trashItems;
 
@@ -432,7 +433,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
 
             return 0;
         });
-    }, [trashItems, sortDescriptor, searchQuery]);
+    }, [trashItems, sortDescriptor, deferredQuery]);
 
     // Virtualization setup
     const parentRef = useRef<HTMLDivElement>(null);
