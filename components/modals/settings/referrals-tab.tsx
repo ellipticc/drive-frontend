@@ -211,20 +211,24 @@ export function ReferralsTab({
                                                     </td>
                                                     <td className="px-4 py-3 min-w-[160px]">
                                                         <div className="flex items-center gap-3">
-                                                            <Avatar className="h-8 w-8 flex-shrink-0">
+                                                            <Avatar className="h-8 w-8 flex-shrink-0 border bg-background">
                                                                 <AvatarImage
-                                                                    src={referral.avatar_url || getDiceBearAvatar(referral.referred_user_id, 32)}
-                                                                    alt={`${referral.referred_name || getDisplayNameFromEmail(referral.referred_email)}'s avatar`}
+                                                                    src={referral.avatar_url || getDiceBearAvatar(referral.referred_user_id || `deleted-${referral.referral_id}`, 32)}
+                                                                    alt={`${referral.referred_name || 'Deleted User'}'s avatar`}
+                                                                    className={referral.is_deleted ? "grayscale opacity-70" : ""}
                                                                     onError={(e) => {
                                                                         (e.target as HTMLImageElement).src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
                                                                     }}
                                                                 />
                                                                 <AvatarFallback className="text-xs">
-                                                                    {getInitials(referral.referred_name || getDisplayNameFromEmail(referral.referred_email))}
+                                                                    {getInitials(referral.referred_name || 'DU')}
                                                                 </AvatarFallback>
                                                             </Avatar>
-                                                            <div className="min-w-0">
-                                                                <p className="font-medium text-sm truncate">{referral.referred_name || getDisplayNameFromEmail(referral.referred_email)}</p>
+                                                            <div className="min-w-0 flex flex-col">
+                                                                <p className={`font-medium text-sm truncate ${referral.is_deleted ? "text-muted-foreground italic" : ""}`}>
+                                                                    {referral.referred_name}
+                                                                    {referral.is_deleted && <span className="ml-1 text-[10px] opacity-70">(Deleted)</span>}
+                                                                </p>
                                                             </div>
                                                         </div>
                                                     </td>
