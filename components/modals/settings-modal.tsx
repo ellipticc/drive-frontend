@@ -1552,7 +1552,6 @@ export function SettingsModal({
                     updateUser({ appearance_theme: newTheme });
                     try {
                       await apiClient.updateProfile({ appearance_theme: newTheme });
-                      await refetch();
                     } catch (err) {
                       toast.error("Failed to update theme preference");
                     }
@@ -1566,7 +1565,6 @@ export function SettingsModal({
                         setTheme('system');
                       }
                       await apiClient.updateProfile({ theme_sync: sync });
-                      await refetch();
                     } catch (err) {
                       toast.error("Failed to update sync setting");
                     }

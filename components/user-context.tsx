@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { apiClient } from "@/lib/api";
 import { keyManager } from "@/lib/key-manager";
@@ -107,7 +107,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [deviceLimitReached, setDeviceLimitReached] = useState(false);
   const [deviceQuota, setDeviceQuota] = useState<{ planName: string; maxDevices: number } | null>(null);
   const [hasFetched, setHasFetched] = useState(false);
+  const lastSubFetchTime = useRef<number>(0);
+  const userRef = useRef<UserData | null>(user);
   const pathname = usePathname();
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   // Routes that should skip user profile fetching
   const skipFetchRoutes = ['/login', '/signup', '/otp', '/recover', '/backup', '/totp', '/totp/recovery'];
@@ -122,7 +128,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const fetchFreshUserData = useCallback(async () => {
+  const fetchFreshUserData = useCallback(async (force = false) => {
     // Skip for public/auth routes
     if (shouldSkipFetch) {
       setLoading(false);
@@ -156,23 +162,40 @@ export function UserProvider({ children }: { children: ReactNode }) {
       if (response.success && response.data?.user) {
         const userData = response.data.user;
 
-        try {
-          const subResponse = await apiClient.getSubscriptionStatus();
-          if (subResponse.success && subResponse.data?.subscription) {
-            const sub = subResponse.data.subscription;
-            userData.subscription = {
-              ...sub,
-              cancelAtPeriodEnd: typeof sub.cancelAtPeriodEnd === 'boolean' ? (sub.cancelAtPeriodEnd ? 1 : 0) : sub.cancelAtPeriodEnd,
-              currentPeriodStart: sub.currentPeriodStart,
-              currentPeriodEnd: sub.currentPeriodEnd,
-              plan: {
-                ...sub.plan,
-                interval: (sub.plan as any).interval || 'month'
-              }
-            } as any;
+        // Only fetch subscription if forced or not fetched in the last 30 seconds
+        const now = Date.now();
+        if (force || (now - lastSubFetchTime.current > 30000)) {
+          console.log('UserProvider: Fetching fresh subscription status...');
+          try {
+            const subResponse = await apiClient.getSubscriptionStatus();
+            if (subResponse.success && subResponse.data?.subscription) {
+              const sub = subResponse.data.subscription;
+              userData.subscription = {
+                ...sub,
+                cancelAtPeriodEnd: typeof sub.cancelAtPeriodEnd === 'boolean' ? (sub.cancelAtPeriodEnd ? 1 : 0) : sub.cancelAtPeriodEnd,
+                currentPeriodStart: sub.currentPeriodStart,
+                currentPeriodEnd: sub.currentPeriodEnd,
+                plan: {
+                  ...sub.plan,
+                  interval: (sub.plan as any).interval || 'month'
+                }
+              } as any;
+              lastSubFetchTime.current = now;
+            }
+          } catch (subError) {
+            console.warn('UserProvider: Failed to fetch subscription status:', subError);
           }
-        } catch (subError) {
-          console.warn('UserProvider: Failed to fetch subscription status:', subError);
+        } else {
+          // If skip fetch, keep existing subscription data from current user state if available
+          if (userRef.current?.subscription) {
+            userData.subscription = userRef.current.subscription;
+          } else {
+            // Check cache if user state is empty
+            const cached = getUserDataFromCache();
+            if (cached?.subscription) {
+              userData.subscription = cached.subscription;
+            }
+          }
         }
 
         // Initialize KeyManager with user's crypto data (critical for uploads and file access)
@@ -240,7 +263,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (!forceRefresh && hasFetched && user !== null) {
+    if (!forceRefresh && hasFetched) {
       setLoading(false);
       return;
     }
@@ -251,13 +274,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
         setUser(cachedUser);
         setLoading(false);
         setHasFetched(true);
-        fetchFreshUserData();
+        fetchFreshUserData(false);
         return;
       }
     }
 
-    await fetchFreshUserData();
-  }, [shouldSkipFetch, hasFetched, user, fetchFreshUserData]);
+    await fetchFreshUserData(forceRefresh);
+  }, [shouldSkipFetch, hasFetched, fetchFreshUserData]);
 
   useEffect(() => {
     fetchUser();
@@ -300,13 +323,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const handleLogin = () => {
-      setHasFetched(false);
-      fetchUser(true);
+      refetch();
     };
 
     window.addEventListener('user-login', handleLogin);
     return () => window.removeEventListener('user-login', handleLogin);
-  }, [fetchUser]);
+  }, [refetch]);
 
   return (
     <UserContext.Provider value={{ user, loading, error, deviceLimitReached, deviceQuota, refetch, updateStorage, updateUser }}>

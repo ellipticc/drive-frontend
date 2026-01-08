@@ -4,6 +4,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from "@/components/ui/tooltip"
+import {
     Select,
     SelectContent,
     SelectItem,
@@ -78,6 +83,8 @@ export function GeneralTab({
 
     const themes = [
         { id: 'default', name: 'Default', colors: ['#ffffff', '#000000', '#f3f4f6'] },
+        { id: 'mocha-mousse', name: 'Mocha Mousse', colors: ['#f3f0e9', '#a67c52', '#d9c8a9'] },
+        { id: 'quantum-rose', name: 'Quantum Rose', colors: ['#fcecf1', '#e91e63', '#f8bbd0'] },
         { id: 'cosmic-night', name: 'Cosmic Night', colors: ['#922137', '#17223b', '#2e3a59'] },
         { id: 'claude', name: 'Claude', colors: ['#981805', '#267966', '#f8f1e7'] },
         { id: 'mono', name: 'Mono', colors: ['#000000', '#ffffff', '#709090'] },
@@ -85,6 +92,7 @@ export function GeneralTab({
         { id: 'neo-brutalism', name: 'Neo Brutalism', colors: ['#ff0000', '#ffffff', '#f4f4f4'] },
         { id: 'perpetuity', name: 'Perpetuity', colors: ['#4a8b9e', '#f2f6f7', '#edf2f3'] },
         { id: 'soft-pop', name: 'Soft Pop', colors: ['#6e44ff', '#fefbf6', '#f3f4f6'] },
+        { id: 'custom', name: 'Custom Theme', colors: ['#888888', '#555555', '#333333'], comingSoon: true },
     ]
 
     return (
@@ -268,46 +276,67 @@ export function GeneralTab({
                     </div>
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4">
-                        {themes.map((t) => (
-                            <button
-                                key={t.id}
-                                onClick={() => setAppearanceTheme(t.id)}
-                                className={cn(
-                                    "relative flex flex-col gap-2 p-1 group transition-all duration-300 outline-none",
-                                    appearanceTheme === t.id ? "scale-[1.02]" : "hover:scale-[1.01]"
-                                )}
-                            >
-                                <div className={cn(
-                                    "relative w-full aspect-video rounded-xl overflow-hidden border-2 transition-all duration-300 shadow-sm",
-                                    appearanceTheme === t.id
-                                        ? "border-primary ring-4 ring-primary/10"
-                                        : "border-muted group-hover:border-primary/40"
-                                )}>
-                                    {/* Theme Preview Skeleton */}
-                                    <div className="absolute inset-0 flex flex-col">
-                                        <div className="h-full w-1/3 bg-foreground/10 border-r border-foreground/5"
-                                            style={{ backgroundColor: t.id === 'default' ? '#f3f4f6' : t.colors[2] }}
-                                        />
-                                        <div className="absolute top-2 right-2 w-12 h-2 rounded-full bg-foreground/20" />
-                                        <div className="absolute top-6 right-2 w-16 h-2 rounded-full bg-foreground/10" />
-                                        <div className="absolute top-10 right-2 w-14 h-2 rounded-full bg-foreground/10" />
-                                    </div>
-
-                                    {/* Selection Indicator */}
-                                    {appearanceTheme === t.id && (
-                                        <div className="absolute top-2 left-2 bg-primary text-primary-foreground rounded-full p-0.5 shadow-lg">
-                                            <IconCheckmark className="w-3 h-3 stroke-[3]" />
-                                        </div>
+                        {themes.map((t) => {
+                            const themeButton = (
+                                <button
+                                    key={t.id}
+                                    onClick={() => !t.comingSoon && setAppearanceTheme(t.id)}
+                                    disabled={t.comingSoon}
+                                    className={cn(
+                                        "relative flex flex-col gap-2 p-1 group transition-all duration-300 outline-none w-full",
+                                        appearanceTheme === t.id ? "scale-[1.02]" : "hover:scale-[1.01]",
+                                        t.comingSoon && "opacity-60 grayscale cursor-not-allowed"
                                     )}
-                                </div>
-                                <span className={cn(
-                                    "text-xs font-medium text-center transition-colors",
-                                    appearanceTheme === t.id ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
-                                )}>
-                                    {t.name}
-                                </span>
-                            </button>
-                        ))}
+                                >
+                                    <div className={cn(
+                                        "relative w-full aspect-video rounded-xl overflow-hidden border-2 transition-all duration-300 shadow-sm",
+                                        appearanceTheme === t.id
+                                            ? "border-primary ring-4 ring-primary/10"
+                                            : "border-muted group-hover:border-primary/40"
+                                    )}>
+                                        {/* Theme Preview Skeleton */}
+                                        <div className="absolute inset-0 flex flex-col">
+                                            <div className="h-full w-1/3 bg-foreground/10 border-r border-foreground/5"
+                                                style={{ backgroundColor: t.id === 'default' ? '#f3f4f6' : t.colors[2] }}
+                                            />
+                                            <div className="absolute top-2 right-2 w-12 h-2 rounded-full bg-foreground/20" />
+                                            <div className="absolute top-6 right-2 w-16 h-2 rounded-full bg-foreground/10" />
+                                            <div className="absolute top-10 right-2 w-14 h-2 rounded-full bg-foreground/10" />
+                                        </div>
+
+                                        {/* Selection Indicator */}
+                                        {appearanceTheme === t.id && (
+                                            <div className="absolute top-2 left-2 bg-primary text-primary-foreground rounded-full p-0.5 shadow-lg">
+                                                <IconCheckmark className="w-3 h-3 stroke-[3]" />
+                                            </div>
+                                        )}
+                                    </div>
+                                    <span className={cn(
+                                        "text-xs font-medium text-center transition-colors",
+                                        appearanceTheme === t.id ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
+                                    )}>
+                                        {t.name}
+                                    </span>
+                                </button>
+                            );
+
+                            if (t.comingSoon) {
+                                return (
+                                    <Tooltip key={t.id}>
+                                        <TooltipTrigger asChild>
+                                            <div className="w-full">
+                                                {themeButton}
+                                            </div>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top">
+                                            <p>Coming soon</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                );
+                            }
+
+                            return themeButton;
+                        })}
                     </div>
 
                     {!themeSync && (
