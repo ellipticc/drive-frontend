@@ -7,16 +7,18 @@ import type { SortDescriptor, Selection } from "react-aria-components";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Button } from "@/components/ui/button";
 import { IconFolderPlus, IconFolderDown, IconFileUpload, IconShare3, IconListDetails, IconDownload, IconFolder, IconEdit, IconInfoCircle, IconTrash, IconFile, IconHome, IconChevronRight, IconLink, IconEye, IconLayoutColumns, IconCopy, IconStar, IconStarFilled, IconLoader2, IconGrid3x3, IconLock } from "@tabler/icons-react";
-import { CreateFolderModal } from "@/components/modals/create-folder-modal";
-import { MoveToFolderModal } from "@/components/modals/move-to-folder-modal";
-import { CopyModal } from "@/components/modals/copy-modal";
-import { ShareModal } from "@/components/modals/share-modal";
-import { SharePickerModal } from "@/components/modals/share-picker-modal";
-import { DetailsModal } from "@/components/modals/details-modal";
-import { MoveToTrashModal } from "@/components/modals/move-to-trash-modal";
-import { RenameModal } from "@/components/modals/rename-modal";
-import { ConflictModal } from "@/components/modals/conflict-modal";
-import { LockItemModal } from "@/components/modals/lock-item-modal";
+import dynamic from "next/dynamic";
+
+const CreateFolderModal = dynamic(() => import("@/components/modals/create-folder-modal").then(mod => mod.CreateFolderModal));
+const MoveToFolderModal = dynamic(() => import("@/components/modals/move-to-folder-modal").then(mod => mod.MoveToFolderModal));
+const CopyModal = dynamic(() => import("@/components/modals/copy-modal").then(mod => mod.CopyModal));
+const ShareModal = dynamic(() => import("@/components/modals/share-modal").then(mod => mod.ShareModal));
+const SharePickerModal = dynamic(() => import("@/components/modals/share-picker-modal").then(mod => mod.SharePickerModal));
+const DetailsModal = dynamic(() => import("@/components/modals/details-modal").then(mod => mod.DetailsModal));
+const MoveToTrashModal = dynamic(() => import("@/components/modals/move-to-trash-modal").then(mod => mod.MoveToTrashModal));
+const RenameModal = dynamic(() => import("@/components/modals/rename-modal").then(mod => mod.RenameModal));
+const ConflictModal = dynamic(() => import("@/components/modals/conflict-modal").then(mod => mod.ConflictModal));
+const LockItemModal = dynamic(() => import("@/components/modals/lock-item-modal").then(mod => mod.LockItemModal));
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -91,17 +93,22 @@ const DropHelper = ({ folderName, isVisible }: { folderName: string | null; isVi
 /**
  * DraggableRow: Wrapper for Table.Row that makes it draggable and optionally droppable
  */
-const DraggableDroppableRow = React.forwardRef<HTMLTableRowElement, {
+/**
+ * DraggableRow: Wrapper for Table.Row that makes it draggable and optionally droppable
+ */
+const DraggableDroppableRow = React.memo(React.forwardRef<HTMLTableRowElement, {
     item: FileItem;
     isSelected: boolean;
     isDraggingSomewhere: boolean;
     children: React.ReactNode;
+    onContextMenu: (e: React.MouseEvent, item: FileItem) => void;
     [key: string]: any;
 }>(({
     item,
     isSelected,
     isDraggingSomewhere,
     children,
+    onContextMenu,
     ...props
 }, ref) => {
     // Draggable logic for all items
@@ -156,11 +163,12 @@ const DraggableDroppableRow = React.forwardRef<HTMLTableRowElement, {
                 isOver && "relative z-20 outline outline-2 outline-primary -outline-offset-2 bg-primary/[0.03]",
                 isDragging && "opacity-100"
             )}
+            onContextMenu={(e) => onContextMenu(e, item)}
         >
             {children}
         </Table.Row>
     );
-});
+}));
 DraggableDroppableRow.displayName = "DraggableDroppableRow";
 
 export const Table01DividerLineSm = ({
@@ -2450,7 +2458,7 @@ export const Table01DividerLineSm = ({
                                                         isDraggingSomewhere={isDraggingSomewhere}
                                                         onDoubleClick={item.type === 'folder' ? () => handleFolderDoubleClick(item.id, item.name) : (item.type === 'file' ? () => handlePreviewClick(item.id, item.name, item.mimeType) : undefined)}
                                                         className="group hover:bg-muted/50 transition-colors duration-150"
-                                                        onContextMenu={(e: React.MouseEvent) => handleContextMenu(e, item)}
+                                                        onContextMenu={handleContextMenu}
                                                         // Ensure the row height is tracked
                                                         data-index={virtualItem.index}
                                                         ref={rowVirtualizer.measureElement}

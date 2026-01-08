@@ -1,14 +1,15 @@
 "use client";
 
 import { useMemo, useState, useEffect, useRef } from "react";
+import dynamic from "next/dynamic";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { DotsVertical } from "@untitledui/icons";
 import type { SortDescriptor } from "react-aria-components";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Button } from "@/components/ui/button";
 import { IconRestore, IconTrash } from "@tabler/icons-react";
-import { DeletePermanentlyModal } from "@/components/modals/delete-permanently-modal";
-import { DetailsModal } from "@/components/modals/details-modal";
+const DeletePermanentlyModal = dynamic(() => import("@/components/modals/delete-permanently-modal").then(mod => mod.DeletePermanentlyModal));
+const DetailsModal = dynamic(() => import("@/components/modals/details-modal").then(mod => mod.DetailsModal));
 import {
     DropdownMenu,
     DropdownMenuContent,
