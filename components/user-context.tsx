@@ -29,6 +29,21 @@ interface UserData {
   language?: string;
   appearance_theme?: string;
   theme_sync?: boolean;
+  is_verified?: boolean;
+  is_checkmarked?: boolean;
+  subscription?: {
+    id: string;
+    status: string;
+    currentPeriodStart: string | Date;
+    currentPeriodEnd: string | Date;
+    cancelAtPeriodEnd: number;
+    plan: {
+      id: string;
+      name: string;
+      storageQuota: number;
+      interval: string;
+    };
+  } | null;
 }
 
 interface UserContextType {
@@ -140,6 +155,25 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
       if (response.success && response.data?.user) {
         const userData = response.data.user;
+
+        try {
+          const subResponse = await apiClient.getSubscriptionStatus();
+          if (subResponse.success && subResponse.data?.subscription) {
+            const sub = subResponse.data.subscription;
+            userData.subscription = {
+              ...sub,
+              cancelAtPeriodEnd: typeof sub.cancelAtPeriodEnd === 'boolean' ? (sub.cancelAtPeriodEnd ? 1 : 0) : sub.cancelAtPeriodEnd,
+              currentPeriodStart: sub.currentPeriodStart,
+              currentPeriodEnd: sub.currentPeriodEnd,
+              plan: {
+                ...sub.plan,
+                interval: (sub.plan as any).interval || 'month'
+              }
+            } as any;
+          }
+        } catch (subError) {
+          console.warn('UserProvider: Failed to fetch subscription status:', subError);
+        }
 
         // Initialize KeyManager with user's crypto data (critical for uploads and file access)
         try {

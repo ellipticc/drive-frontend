@@ -9,7 +9,8 @@ import {
   IconExternalLink as ExternalLink,
   IconHistory as History,
   IconX as X,
-  IconInfoCircle as InfoCircle
+  IconInfoCircle as InfoCircle,
+  IconRosetteDiscountCheckFilled
 } from "@tabler/icons-react";
 import NumberFlow from '@number-flow/react';
 
@@ -684,7 +685,7 @@ const BillingPage = () => {
 
                             <Button
                               className={cn(
-                                "h-9 w-full max-w-[140px] text-xs font-bold uppercase tracking-wider transition-all",
+                                "h-9 w-full max-w-[140px] text-xs font-bold tracking-wider transition-all",
                                 plan.id === 'pro' && !isCurrent ? "bg-primary text-primary-foreground hover:bg-primary/90" : ""
                               )}
                               variant={plan.id === 'pro' && !isCurrent ? 'default' : 'outline'}
@@ -741,7 +742,11 @@ const BillingPage = () => {
                                 <span className="text-sm font-mono font-medium">{plan.features[feature]}</span>
                               ) : plan.features[feature] ? (
                                 <div className="flex justify-center">
-                                  <Check className="h-4.5 w-4.5 text-emerald-500" strokeWidth={3} />
+                                  {feature === 'Verified Source' ? (
+                                    <IconRosetteDiscountCheckFilled className="text-background size-5 fill-sky-500" />
+                                  ) : (
+                                    <Check className="h-4.5 w-4.5 text-emerald-500" strokeWidth={3} />
+                                  )}
                                 </div>
                               ) : (
                                 <div className="flex justify-center">
@@ -904,7 +909,7 @@ const BillingPage = () => {
             <Button
               variant="outline"
               size="sm"
-              className="h-10 px-8 text-xs font-bold uppercase tracking-widest rounded-full shadow-sm hover:shadow-md transition-all"
+              className="h-10 px-8 text-xs font-bold tracking-widest rounded-full shadow-sm hover:shadow-md transition-all"
               onClick={() => setIsCryptoLoading(false)}
             >
               Cancel

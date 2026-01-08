@@ -20,6 +20,8 @@ export interface UserData {
   language?: string;
   appearance_theme?: string;
   theme_sync?: boolean;
+  is_verified?: boolean;
+  is_checkmarked?: boolean;
 
   storage?: {
     used_bytes: number;
@@ -28,6 +30,19 @@ export interface UserData {
     used_readable: string;
     quota_readable: string;
   };
+  subscription?: {
+    id: string;
+    status: string;
+    currentPeriodStart: string | Date;
+    currentPeriodEnd: string | Date;
+    cancelAtPeriodEnd: number;
+    plan: {
+      id: string;
+      name: string;
+      storageQuota: number;
+      interval: string;
+    };
+  } | null;
   crypto_keypairs?: {
     accountSalt?: string;
     pqcKeypairs?: PQCKeypairs;
@@ -1542,6 +1557,7 @@ class ApiClient {
     };
     comments_enabled?: boolean | number;
     comments_locked?: boolean | number;
+    owner_is_checkmarked?: boolean;
   }>> {
     return this.request(`/shares/${shareId}`);
   }

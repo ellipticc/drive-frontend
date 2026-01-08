@@ -61,6 +61,7 @@ export const AppSidebar = React.memo(function AppSidebar({
       email: contextUser.email,
       avatar: contextUser.avatar || getDiceBearAvatar(contextUser.id),
       id: contextUser.id,
+      is_checkmarked: contextUser.is_checkmarked,
     } : defaultUser,
     navMain: [
       {

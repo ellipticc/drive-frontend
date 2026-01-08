@@ -16,8 +16,8 @@ import {
     IconCheck as IconCheckmark,
     IconX,
     IconLanguage,
-    IconPalette,
     IconInfoCircle,
+    IconRosetteDiscountCheckFilled,
 } from "@tabler/icons-react"
 import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
@@ -128,6 +128,9 @@ export function GeneralTab({
                             >
                                 <span className="text-xs font-bold">×</span>
                             </button>
+                        )}
+                        {user?.is_checkmarked && (
+                            <IconRosetteDiscountCheckFilled className="absolute -bottom-1 -right-1 z-20 text-background size-6 bg-background rounded-full p-[1px] fill-sky-500" />
                         )}
                     </div>
 
@@ -347,6 +350,6 @@ export function GeneralTab({
                     </p>
                 </div>
             </div>
-        </div>
+        </div >
     )
 }

@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { IconLoader2, IconDownload, IconFile, IconAlertCircle, IconFolderOpen, IconChevronRight, IconLock, IconCaretLeftRightFilled, IconLogout, IconEyeOff, IconInfoCircle } from '@tabler/icons-react';
+import { IconLoader2, IconDownload, IconFile, IconAlertCircle, IconFolderOpen, IconChevronRight, IconLock, IconCaretLeftRightFilled, IconLogout, IconEyeOff, IconInfoCircle, IconRosetteDiscountCheckFilled } from '@tabler/icons-react';
 import {
   Avatar,
   AvatarFallback,
@@ -58,6 +58,7 @@ interface ShareDetails {
   owner_name?: string;
   is_folder: boolean;
   has_password: boolean;
+  owner_is_checkmarked?: boolean;
   salt_pw?: string;
   comments_enabled?: boolean | number;
   comments_locked?: boolean | number;
@@ -1120,9 +1121,29 @@ export default function SharedDownloadPage() {
                     <div className="min-w-0 flex-1 flex flex-row items-center justify-between gap-4">
                       <div>
                         <CardTitle className="text-xl">{decryptedFolderName || shareDetails.folder?.name || 'Shared Folder'}</CardTitle>
-                        <CardDescription>
-                          Shared on {shareDetails.folder?.created_at ? formatDate(shareDetails.folder.created_at) : 'unknown date'}
-                        </CardDescription>
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <CardDescription>
+                            Shared on {shareDetails.folder?.created_at ? formatDate(shareDetails.folder.created_at) : 'unknown date'}
+                          </CardDescription>
+                          {(shareDetails.owner_name || shareDetails.owner_is_checkmarked) && (
+                            <>
+                              <span className="text-xs text-muted-foreground opacity-50">•</span>
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs text-muted-foreground">by {shareDetails.owner_name || (shareDetails.owner_is_checkmarked ? 'Verified Source' : 'User')}</span>
+                                {shareDetails.owner_is_checkmarked && (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <IconRosetteDiscountCheckFilled className="size-3.5 text-blue-500 shrink-0 cursor-help" />
+                                    </TooltipTrigger>
+                                    <TooltipContent side="bottom" className="max-w-[200px] text-xs">
+                                      This file was cryptographically uploaded and signed/verified by this user.
+                                    </TooltipContent>
+                                  </Tooltip>
+                                )}
+                              </div>
+                            </>
+                          )}
+                        </div>
                       </div>
                       <Button
                         size="sm"
@@ -1292,8 +1313,20 @@ export default function SharedDownloadPage() {
                   </div>
                   <CardDescription className="text-sm font-medium text-muted-foreground">
                     {formatFileSize(shareDetails.file?.size || 0)}
-                    {shareDetails.comments_enabled && shareDetails.owner_name && (
-                      <span className="block mt-1 text-xs opacity-80">Shared by {shareDetails.owner_name}</span>
+                    {(shareDetails.owner_name || shareDetails.owner_is_checkmarked) && (
+                      <div className="flex items-center gap-1.5 mt-1.5 opacity-90">
+                        <span className="text-xs text-muted-foreground">Shared by {shareDetails.owner_name || (shareDetails.owner_is_checkmarked ? 'Verified Source' : 'User')}</span>
+                        {shareDetails.owner_is_checkmarked && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <IconRosetteDiscountCheckFilled className="size-3.5 text-blue-500 shrink-0 cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="max-w-[200px] text-xs">
+                              This file was cryptographically uploaded and signed/verified by this user.
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                      </div>
                     )}
                   </CardDescription>
                 </div>
@@ -1437,6 +1470,7 @@ export default function SharedDownloadPage() {
         fileType={shareDetails.file?.mimetype}
         createdAt={shareDetails.file?.created_at || shareDetails.folder?.created_at}
         ownerName={shareDetails.owner_name}
+        ownerIsCheckmarked={shareDetails.owner_is_checkmarked}
         isFolder={shareDetails.is_folder}
       />
 

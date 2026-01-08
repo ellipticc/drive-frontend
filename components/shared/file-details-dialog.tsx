@@ -7,8 +7,13 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
-import { IconFile, IconFolder, IconCalendar, IconUser, IconDatabase } from "@tabler/icons-react"
+import { IconFile, IconFolder, IconCalendar, IconUser, IconDatabase, IconRosetteDiscountCheckFilled } from "@tabler/icons-react"
 import { formatFileSize } from "@/lib/utils"
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 interface FileDetailsDialogProps {
     open: boolean
@@ -18,6 +23,7 @@ interface FileDetailsDialogProps {
     fileType?: string
     createdAt?: string
     ownerName?: string
+    ownerIsCheckmarked?: boolean
     isFolder?: boolean
 }
 
@@ -29,6 +35,7 @@ export function FileDetailsDialog({
     fileType,
     createdAt,
     ownerName,
+    ownerIsCheckmarked,
     isFolder
 }: FileDetailsDialogProps) {
 
@@ -92,7 +99,19 @@ export function FileDetailsDialog({
                                 <IconUser className="h-4 w-4 text-muted-foreground" />
                                 <div className="space-y-1">
                                     <p className="text-sm font-medium leading-none">Shared by</p>
-                                    <p className="text-sm text-muted-foreground">{ownerName}</p>
+                                    <div className="flex items-center gap-1.5">
+                                        <p className="text-sm text-muted-foreground">{ownerName}</p>
+                                        {ownerIsCheckmarked && (
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <IconRosetteDiscountCheckFilled className="size-4 text-blue-500 shrink-0 cursor-help" />
+                                                </TooltipTrigger>
+                                                <TooltipContent side="bottom" className="max-w-[200px] text-xs">
+                                                    This file was cryptographically uploaded and signed/verified by this user.
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         )}

@@ -6,7 +6,8 @@ import {
   IconDotsVertical,
   IconLogout,
   IconBellRinging,
-  IconSettings
+  IconSettings,
+  IconRosetteDiscountCheckFilled
 } from "@tabler/icons-react"
 
 import {
@@ -80,6 +81,7 @@ export function NavUser({
     name: string
     email: string
     avatar: string
+    is_checkmarked?: boolean
   }
 }) {
   /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
@@ -130,6 +132,9 @@ export function NavUser({
                     <AvatarFallback className="rounded-lg">{getInitials(displayName)}</AvatarFallback>
                   </Avatar>
                   {hasUnread && <NotificationDot />}
+                  {user.is_checkmarked && (
+                    <IconRosetteDiscountCheckFilled className="absolute -bottom-1 -right-1 z-20 text-background size-5 fill-sky-500" />
+                  )}
                 </div>
                 <div className="grid flex-1 text-start text-sm leading-tight">
                   <span className="truncate font-medium">{displayName}</span>
@@ -148,10 +153,15 @@ export function NavUser({
             >
               <DropdownMenuLabel className="p-0 font-normal">
                 <div className="flex items-center gap-2 px-1 py-1.5 text-start text-sm">
-                  <Avatar className="h-8 w-8 rounded-lg">
-                    <AvatarImage src={user.avatar || getDiceBearAvatar(user.id)} alt={displayName} />
-                    <AvatarFallback className="rounded-lg">{getInitials(displayName)}</AvatarFallback>
-                  </Avatar>
+                  <div className="relative">
+                    <Avatar className="h-8 w-8 rounded-lg">
+                      <AvatarImage src={user.avatar || getDiceBearAvatar(user.id)} alt={displayName} />
+                      <AvatarFallback className="rounded-lg">{getInitials(displayName)}</AvatarFallback>
+                    </Avatar>
+                    {user.is_checkmarked && (
+                      <IconRosetteDiscountCheckFilled className="absolute -bottom-1 -right-1 z-20 text-background size-5 fill-sky-500" />
+                    )}
+                  </div>
                   <div className="grid flex-1 text-start text-sm leading-tight">
                     <span className="truncate font-medium">{displayName}</span>
                     <span className="text-muted-foreground truncate text-xs">

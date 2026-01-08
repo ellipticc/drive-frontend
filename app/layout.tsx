@@ -13,6 +13,7 @@ import { SessionPingProvider } from "@/components/session-ping-provider";
 import { NotificationProvider } from "@/components/notifications/notification-provider";
 import { LanguageProvider } from "@/lib/i18n/language-context";
 import { ThemeConfiguration } from "@/components/theme-configuration";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
 // Font definitions
@@ -232,17 +233,19 @@ export default function RootLayout({
                   <BillingProvider>
                     <LanguageProvider>
                       <GlobalUploadProvider>
-                        <ThemeConfiguration />
-                        <SessionPingProvider />
-                        <ConditionalLayout>{children}</ConditionalLayout>
-                        <Toaster
-                          position="bottom-right"
-                          richColors
-                          duration={5000}
-                          style={{
-                            fontFamily: 'var(--font-geist-sans)',
-                          }}
-                        />
+                        <TooltipProvider>
+                          <ThemeConfiguration />
+                          <SessionPingProvider />
+                          <ConditionalLayout>{children}</ConditionalLayout>
+                          <Toaster
+                            position="bottom-right"
+                            richColors
+                            duration={5000}
+                            style={{
+                              fontFamily: 'var(--font-geist-sans)',
+                            }}
+                          />
+                        </TooltipProvider>
                       </GlobalUploadProvider>
                     </LanguageProvider>
                   </BillingProvider>
