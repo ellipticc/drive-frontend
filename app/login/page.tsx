@@ -27,7 +27,7 @@ export default function LoginPage() {
           <ThemeToggle className="lg:hidden" />
           <a href="#" className="flex items-center gap-2 font-medium lg:hidden">
             <IconCaretLeftRightFilled className="!size-5" />
-            <span className="text-base font-mono break-all">ellipticc</span>
+            <span className="text-base font-geist-mono break-all">ellipticc</span>
           </a>
           <ThemeToggle className="hidden lg:flex" />
         </div>

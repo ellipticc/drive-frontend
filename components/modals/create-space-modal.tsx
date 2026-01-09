@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/collapsible"
 import * as TablerIcons from "@tabler/icons-react"
 import { IconChevronDown, IconSearch } from "@tabler/icons-react"
+import { useRouter } from "next/navigation"
 
 interface CreateSpaceModalProps {
     open: boolean
@@ -115,6 +116,8 @@ export function CreateSpaceModal({
         )
     }
 
+    const router = useRouter()
+
     const handleSave = async () => {
         if (!spaceName.trim()) return
 
@@ -171,7 +174,22 @@ export function CreateSpaceModal({
                     onOpenChange(false)
                     onSpaceCreated?.()
                 } else {
-                    toast.error(response.error || "Creation failed")
+                    const errorData = response.data as any;
+                    if (errorData?.error_code === 'SPACE_LIMIT_REACHED') {
+                        toast.error(`Space limit reached`, {
+                            description: `You have used ${errorData.currentUsage} of ${errorData.limit} spaces on the ${errorData.plan} plan. Upgrade to create more.`,
+                            action: {
+                                label: "Upgrade",
+                                onClick: () => {
+                                    onOpenChange(false);
+                                    router.push('/billing');
+                                }
+                            },
+                            duration: 5000,
+                        })
+                    } else {
+                        toast.error(response.error || "Creation failed")
+                    }
                 }
             }
         } catch (error) {

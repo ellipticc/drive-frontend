@@ -50,7 +50,7 @@ export function DeviceLimitOverlay() {
                     <Button
                         variant="outline"
                         onClick={() => {
-                            router.push('/billing');
+                            window.location.href = '/billing';
                         }}
                         size="lg"
                         className="w-full font-medium"

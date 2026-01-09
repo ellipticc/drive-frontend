@@ -57,8 +57,8 @@ export default function RecoveryResetPage() {
       </div>
       <div className="flex w-full max-w-sm flex-col gap-6">
         <Link href="/" className="flex items-center gap-2 self-center font-medium">
-            <IconCaretLeftRightFilled className="!size-5" />
-            <span className="text-base font-mono break-all">ellipticc</span>
+          <IconCaretLeftRightFilled className="!size-5" />
+          <span className="text-base font-geist-mono break-all">ellipticc</span>
         </Link>
 
         <div className="flex flex-col gap-6">

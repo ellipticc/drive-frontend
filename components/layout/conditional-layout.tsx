@@ -28,6 +28,8 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   }
 
   // For authenticated routes, render with sidebar
+  const isLockedOnBilling = deviceLimitReached && pathname === '/billing';
+
   return (
     <SidebarProvider
       style={
@@ -37,11 +39,11 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
         } as React.CSSProperties
       }
     >
-      <AppSidebar variant="inset" side={dir === 'rtl' ? 'right' : 'left'} />
+      {!isLockedOnBilling && <AppSidebar variant="inset" side={dir === 'rtl' ? 'right' : 'left'} />}
       <SidebarInset>
         {children}
       </SidebarInset>
-      <DeviceLimitOverlay />
+      {!isLockedOnBilling && <DeviceLimitOverlay />}
     </SidebarProvider>
   );
 }
