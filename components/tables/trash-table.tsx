@@ -26,7 +26,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import { IconFolder, IconInfoCircle, IconTrash as IconTrashAlt } from "@tabler/icons-react";
+import { IconFolder, IconInfoCircle, IconTrash as IconTrashAlt, IconX } from "@tabler/icons-react";
 import { apiClient, FileContentItem, FolderContentItem } from "@/lib/api";
 import { TableSkeleton } from "@/components/tables/table-skeleton";
 import { toast } from "sonner";
@@ -36,6 +36,14 @@ import { masterKeyManager } from "@/lib/master-key";
 import { decryptFilenameInWorker } from "@/lib/filename-decryption-pool";
 import { useUser } from "@/components/user-context";
 import { FileIcon } from "../file-icon";
+import {
+    ActionBar,
+    ActionBarSelection,
+    ActionBarGroup,
+    ActionBarItem,
+    ActionBarClose,
+    ActionBarSeparator,
+} from "@/components/ui/action-bar";
 
 interface TrashItem {
     id: string;
@@ -799,6 +807,45 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <ActionBar
+                open={selectedItems.size > 0}
+                onOpenChange={(open) => {
+                    if (!open) setSelectedItems(new Set());
+                }}
+            >
+                <ActionBarSelection>
+                    {selectedItems.size} selected
+                </ActionBarSelection>
+                <ActionBarSeparator />
+                <ActionBarGroup>
+                    <ActionBarItem
+                        onClick={async () => {
+                            const itemsToRestore = Array.from(selectedItems).map(id => trashItems.find(item => item.id === id)).filter(Boolean) as TrashItem[];
+                            for (const item of itemsToRestore) {
+                                await handleRestoreClick(item.id, item.name, item.type);
+                            }
+                            setSelectedItems(new Set());
+                        }}
+                    >
+                        <IconRestore className="h-4 w-4 mr-2" />
+                        Restore
+                    </ActionBarItem>
+                    <ActionBarItem
+                        variant="destructive"
+                        onClick={() => {
+                            setBulkDeleteModalOpen(true);
+                        }}
+                    >
+                        <IconTrashAlt className="h-4 w-4 mr-2" />
+                        Delete
+                    </ActionBarItem>
+                </ActionBarGroup>
+                <ActionBarSeparator />
+                <ActionBarClose>
+                    <IconX className="h-4 w-4" />
+                </ActionBarClose>
+            </ActionBar>
         </>
     );
 };

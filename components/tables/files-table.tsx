@@ -6,7 +6,7 @@ import { DotsVertical } from "@untitledui/icons";
 import type { SortDescriptor, Selection } from "react-aria-components";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Button } from "@/components/ui/button";
-import { IconFolderPlus, IconFolderDown, IconFileUpload, IconShare3, IconListDetails, IconDownload, IconFolder, IconEdit, IconInfoCircle, IconTrash, IconFile, IconHome, IconChevronRight, IconLink, IconEye, IconLayoutColumns, IconCopy, IconStar, IconStarFilled, IconLoader2, IconGrid3x3, IconLock } from "@tabler/icons-react";
+import { IconFolderPlus, IconFolderDown, IconFileUpload, IconShare3, IconListDetails, IconDownload, IconFolder, IconEdit, IconInfoCircle, IconTrash, IconFile, IconHome, IconChevronRight, IconLink, IconEye, IconLayoutColumns, IconCopy, IconStar, IconStarFilled, IconLoader2, IconGrid3x3, IconLock, IconX } from "@tabler/icons-react";
 import dynamic from "next/dynamic";
 
 const CreateFolderModal = dynamic(() => import("@/components/modals/create-folder-modal").then(mod => mod.CreateFolderModal));
@@ -30,9 +30,7 @@ import {
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/base/checkbox/checkbox";
-import { TableSkeleton } from "@/components/tables/table-skeleton";
 import { decryptFilename, encryptFilename, computeFilenameHmac, createSignedFileManifest, createSignedFolderManifest, decryptUserPrivateKeys } from "@/lib/crypto";
-import { decryptFilenameInWorker } from "@/lib/filename-decryption-pool";
 import { apiClient, FileItem, FolderContentItem, FileContentItem, PQCKeypairs } from "@/lib/api";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -63,6 +61,14 @@ import { snapCenterToCursor } from "@dnd-kit/modifiers";
 import { AnimatePresence, motion } from "motion/react";
 import { useLanguage } from "@/lib/i18n/language-context";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import {
+    ActionBar,
+    ActionBarSelection,
+    ActionBarGroup,
+    ActionBarItem,
+    ActionBarClose,
+    ActionBarSeparator,
+} from "@/components/ui/action-bar";
 
 /**
  * DropHelper: Fixed bottom center overlay that appears during drag
@@ -1270,6 +1276,30 @@ export const Table01DividerLineSm = ({
             toast.error(`Failed to move items to trash`);
         }
     }, [selectedItems, apiClient, setFiles, setSelectedItems, toast, refreshFiles, currentFolderId, navigateToParent]);
+
+    // Bulk move handler
+    const handleBulkMoveToFolderClick = useCallback(() => {
+        const selectedItemsArray = Array.from(selectedItems).map(id => {
+            const item = filesMap.get(id);
+            return item ? { id: item.id, name: item.name, type: item.type } : null;
+        }).filter(Boolean) as Array<{ id: string, name: string, type: "file" | "folder" }>;
+
+        if (selectedItemsArray.length === 0) return;
+        setSelectedItemsForMoveToFolder(selectedItemsArray);
+        setMoveToFolderModalOpen(true);
+    }, [selectedItems, filesMap]);
+
+    // Bulk copy handler
+    const handleBulkCopyClick = useCallback(() => {
+        const selectedItemsArray = Array.from(selectedItems).map(id => {
+            const item = filesMap.get(id);
+            return item ? { id: item.id, name: item.name, type: item.type } : null;
+        }).filter(Boolean) as Array<{ id: string, name: string, type: "file" | "folder" }>;
+
+        if (selectedItemsArray.length === 0) return;
+        setSelectedItemsForCopy(selectedItemsArray);
+        setCopyModalOpen(true);
+    }, [selectedItems, filesMap]);
 
 
 
@@ -3391,6 +3421,43 @@ export const Table01DividerLineSm = ({
                 currentIndex={selectedItemForPreview ? getPreviewableFiles().findIndex(item => item.id === selectedItemForPreview.id) : -1}
                 totalItems={getPreviewableFiles().length}
             />
+
+            <ActionBar
+                open={selectedItems.size > 0}
+                onOpenChange={(open) => {
+                    if (!open) setSelectedItems(new Set());
+                }}
+            >
+                <ActionBarSelection>
+                    {selectedItems.size} selected
+                </ActionBarSelection>
+                <ActionBarSeparator />
+                <ActionBarGroup>
+                    <ActionBarItem onClick={handleBulkDownload}>
+                        <IconDownload className="h-4 w-4 mr-2" />
+                        Download
+                    </ActionBarItem>
+                    <ActionBarItem onClick={handleBulkMoveToFolderClick}>
+                        <IconFolder className="h-4 w-4 mr-2" />
+                        Move
+                    </ActionBarItem>
+                    <ActionBarItem onClick={handleBulkCopyClick}>
+                        <IconCopy className="h-4 w-4 mr-2" />
+                        Copy
+                    </ActionBarItem>
+                    <ActionBarItem
+                        variant="destructive"
+                        onClick={handleBulkMoveToTrash}
+                    >
+                        <IconTrash className="h-4 w-4 mr-2" />
+                        Trash
+                    </ActionBarItem>
+                </ActionBarGroup>
+                <ActionBarSeparator />
+                <ActionBarClose>
+                    <IconX className="h-4 w-4" />
+                </ActionBarClose>
+            </ActionBar>
         </div>
     );
 };

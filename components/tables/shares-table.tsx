@@ -31,7 +31,14 @@ import { masterKeyManager } from "@/lib/master-key";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { FileIcon } from "../file-icon";
 import { TruncatedNameTooltip } from "./truncated-name-tooltip";
-
+import {
+    ActionBar,
+    ActionBarSelection,
+    ActionBarGroup,
+    ActionBarItem,
+    ActionBarClose,
+    ActionBarSeparator,
+} from "@/components/ui/action-bar";
 
 export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: string; mode?: 'sent' | 'received' }) => {
     const isMobile = useIsMobile();
@@ -881,6 +888,34 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
             />
 
 
+            <ActionBar
+                open={selectedItems.size > 0}
+                onOpenChange={(open) => {
+                    if (!open) setSelectedItems(new Set());
+                }}
+            >
+                <ActionBarSelection>
+                    {selectedItems.size} selected
+                </ActionBarSelection>
+                <ActionBarSeparator />
+                <ActionBarGroup>
+                    <ActionBarItem onClick={handleBulkDownload}>
+                        <IconDownload className="h-4 w-4 mr-2" />
+                        Download
+                    </ActionBarItem>
+                    <ActionBarItem
+                        variant="destructive"
+                        onClick={handleBulkRevoke}
+                    >
+                        <IconX className="h-4 w-4 mr-2" />
+                        Revoke
+                    </ActionBarItem>
+                </ActionBarGroup>
+                <ActionBarSeparator />
+                <ActionBarClose>
+                    <IconX className="h-4 w-4" />
+                </ActionBarClose>
+            </ActionBar>
         </>
     );
 };
