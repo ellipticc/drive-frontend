@@ -361,6 +361,18 @@ const BillingPage = () => {
   const [cancelDetails, setCancelDetails] = useState("");
   const [isSubmittingCancel, setIsSubmittingCancel] = useState(false);
 
+  // Mobile Comparison State
+  const [leftPlanIdx, setLeftPlanIdx] = useState(0); // Default: Free
+  const [rightPlanIdx, setRightPlanIdx] = useState(2); // Default: Pro
+  const [isMobileView, setIsMobileView] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobileView(window.innerWidth < 1024);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   const currentPriceId = subscription?.plan?.id;
   const currentPlanObj = staticPlans.find(plan =>
     (currentPriceId && (plan.stripePriceIds.monthly === currentPriceId || plan.stripePriceIds.yearly === currentPriceId)) ||
@@ -563,7 +575,7 @@ const BillingPage = () => {
 
             <FormCard>
               <FormCardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="space-y-1">
                     <FormCardTitle className="text-xl">Current Plan: {currentPlan}</FormCardTitle>
                     <FormCardDescription className="text-base text-muted-foreground/80">
@@ -572,18 +584,20 @@ const BillingPage = () => {
                         : `Your next renewal is on ${new Date(subscription!.currentPeriodEnd * 1000).toLocaleDateString()}.`}
                     </FormCardDescription>
                   </div>
-                  {currentPlan.toLowerCase() !== 'free' ? (
-                    <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 px-3 py-0.5">
-                      Active
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className="text-muted-foreground border-muted-foreground/20 px-3 py-0.5">
-                      Free Tier
-                    </Badge>
-                  )}
+                  <div className="flex items-center">
+                    {currentPlan.toLowerCase() !== 'free' ? (
+                      <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 px-3 py-0.5 whitespace-nowrap">
+                        Active
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-muted-foreground border-muted-foreground/20 px-3 py-0.5 whitespace-nowrap">
+                        Free Tier
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </FormCardHeader>
-              <FormCardContent className="py-8 px-8">
+              <FormCardContent className="py-8 px-4 sm:px-8">
                 <div className="space-y-4">
                   <BillingProgress
                     label="Storage Usage"
@@ -594,15 +608,15 @@ const BillingPage = () => {
                 </div>
               </FormCardContent>
               <FormCardFooter>
-                <div className="flex w-full items-center justify-between">
-                  <p className="text-sm text-muted-foreground font-medium">
+                <div className="flex flex-col sm:flex-row w-full items-start sm:items-center justify-between gap-4">
+                  <p className="text-sm text-muted-foreground font-medium max-w-lg">
                     Access your billing information, invoices and payment methods via Stripe.
                   </p>
                   <Button
                     variant="default"
                     size="sm"
                     onClick={handleManageBilling}
-                    className="gap-2 h-9 px-4 text-sm font-semibold shadow-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                    className="w-full sm:w-auto gap-2 h-9 px-4 text-sm font-semibold shadow-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                   >
                     Customer Portal
                     <ExternalLink className="h-4 w-4" />
@@ -634,134 +648,186 @@ const BillingPage = () => {
               </div>
             </SectionHeader>
 
-            <FormCard className="overflow-hidden shadow-sm">
-              <Table className="table-fixed w-full">
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent border-b">
-                    <TableHead className="w-[20%] py-12 px-6 text-sm font-medium text-muted-foreground border-r text-left">
-                      Features comparison
-                    </TableHead>
-                    {staticPlans.map(plan => {
-                      const isCurrent = plan.id === currentPlanObj.id;
-                      const price = frequency === 'monthly' ? plan.price.monthly : plan.price.yearlyEquivalent;
-                      const isUpgrade = plan.rank > currentPlanObj.rank;
-                      const isDowngrade = plan.rank < currentPlanObj.rank;
+            {/* Mobile Comparison Selector - Removed standalone version to integrate into table header */}
+            {isMobileView && (
+              <div className="mb-6 animate-in fade-in slide-in-from-top-2 duration-500">
+                <p className="text-sm text-muted-foreground text-center">Select two plans below to compare their features side-by-side.</p>
+              </div>
+            )}
 
-                      return (
-                        <TableHead key={plan.id} className={cn(
-                          "w-[20%] text-center py-12 px-2 align-top",
-                          plan.id === 'pro' && "bg-muted/50 border-x border-primary/10 shadow-[inset_0_0_0_1px_rgba(var(--primary),0.05)]"
-                        )}>
-                          <div className="flex flex-col gap-6 items-center w-full">
-                            <div className="flex flex-col gap-1.5 items-center">
-                              <div className="flex items-center gap-2 justify-center">
-                                <span className="text-xl font-medium font-sans leading-none">{plan.name}</span>
-                              </div>
-                              <p className="text-[11px] text-muted-foreground leading-relaxed text-center w-full max-w-[130px] font-mono opacity-80 min-h-[2.5rem] flex items-center justify-center">
-                                {plan.description}
-                              </p>
-                              <div className="flex flex-col items-center mt-3 min-h-[3.5rem] justify-center">
-                                <div className="flex items-baseline gap-1.5">
-                                  <span className="font-mono text-xl font-medium">
-                                    $<NumberFlow
-                                      value={price}
-                                      format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }}
-                                    />
-                                  </span>
-                                  {plan.id !== 'free' && (
-                                    <span className="text-xs text-muted-foreground opacity-60 font-mono">
-                                      /mo
-                                    </span>
+            <FormCard className="overflow-hidden shadow-sm border-primary/5">
+              <div className="overflow-x-auto no-scrollbar">
+                <Table className={cn("w-full transition-all duration-300", isMobileView ? "table-fixed min-w-[320px]" : "table-fixed min-w-[1000px]")}>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent border-b">
+                      <TableHead className={cn(
+                        "py-12 px-6 text-sm font-medium text-muted-foreground border-r text-left bg-muted/5 align-middle",
+                        isMobileView ? "w-[40%] text-xs px-3 whitespace-normal break-words" : "w-[20%]"
+                      )}>
+                        Features comparison
+                      </TableHead>
+                      {(isMobileView ? [staticPlans[leftPlanIdx], staticPlans[rightPlanIdx]] : staticPlans).map((plan, index) => {
+                        const isCurrent = plan.id === currentPlanObj.id;
+                        const price = frequency === 'monthly' ? plan.price.monthly : plan.price.yearlyEquivalent;
+                        const isUpgrade = plan.rank > currentPlanObj.rank;
+                        const isDowngrade = plan.rank < currentPlanObj.rank;
+
+                        return (
+                          <TableHead key={`${plan.id}-${index}`} className={cn(
+                            "text-center py-8 align-top transition-all duration-300",
+                            isMobileView ? "w-[30%] px-1" : "w-[20%] px-4",
+                            plan.id === 'pro' && "bg-muted/30 border-x border-primary/10 shadow-[inset_0_4px_12px_-4px_rgba(var(--primary),0.05)]"
+                          )}>
+                            <div className="flex flex-col gap-4 items-center w-full">
+                              <div className="flex flex-col gap-1.5 items-center w-full">
+                                <div className="flex items-center justify-center w-full">
+                                  {isMobileView ? (
+                                    <div className="w-full">
+                                      <Select
+                                        value={index === 0 ? leftPlanIdx.toString() : rightPlanIdx.toString()}
+                                        onValueChange={(v) => {
+                                          const idx = parseInt(v);
+                                          if (index === 0) {
+                                            if (idx === rightPlanIdx) setRightPlanIdx(leftPlanIdx);
+                                            setLeftPlanIdx(idx);
+                                          } else {
+                                            if (idx === leftPlanIdx) setLeftPlanIdx(rightPlanIdx);
+                                            setRightPlanIdx(idx);
+                                          }
+                                        }}
+                                      >
+                                        <SelectTrigger className="h-8 w-full text-[11px] font-semibold bg-transparent border-primary/20 hover:bg-accent/50 transition-colors px-1 [&>span]:truncate">
+                                          <SelectValue placeholder={plan.name} />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {staticPlans.map((p, i) => (
+                                            <SelectItem key={p.id} value={i.toString()} className="text-xs">
+                                              {p.name}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                  ) : (
+                                    <span className="text-xl font-medium font-sans leading-none transition-all">{plan.name}</span>
                                   )}
                                 </div>
-                                {frequency === 'yearly' && plan.price.yearly > 0 ? (
-                                  <span className="text-[10px] text-muted-foreground font-mono opacity-50 mt-1">
-                                    ${plan.price.yearly} billed annually
-                                  </span>
-                                ) : (
-                                  <div className="h-4" /> /* Empty spacer for alignment */
+                                {!isMobileView && (
+                                  <p className="text-[11px] text-muted-foreground leading-relaxed text-center w-full max-w-[130px] font-mono opacity-80 min-h-[2.5rem] flex items-center justify-center">
+                                    {plan.description}
+                                  </p>
+                                )}
+                                <div className="flex flex-col items-center mt-3 min-h-[3.5rem] justify-center">
+                                  <div className="flex items-baseline gap-1.5">
+                                    <span className={cn("font-mono font-medium", isMobileView ? "text-lg" : "text-xl")}>
+                                      $<NumberFlow
+                                        value={price}
+                                        format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }}
+                                      />
+                                    </span>
+                                    {plan.id !== 'free' && (
+                                      <span className="text-[10px] text-muted-foreground opacity-60 font-mono">
+                                        /mo
+                                      </span>
+                                    )}
+                                  </div>
+                                  {frequency === 'yearly' && plan.price.yearly > 0 ? (
+                                    <span className={cn(
+                                      "text-[9px] text-muted-foreground font-mono opacity-50 mt-1",
+                                      isMobileView ? "whitespace-normal text-center leading-tight px-1" : "whitespace-nowrap"
+                                    )}>
+                                      ${plan.price.yearly} billed annually
+                                    </span>
+                                  ) : (
+                                    <div className="h-4" />
+                                  )}
+                                </div>
+                              </div>
+
+                              <Button
+                                className={cn(
+                                  "h-8 w-full transition-all text-[10px] font-bold tracking-wider",
+                                  isMobileView ? "w-full px-1" : "max-w-[140px] h-9 text-xs",
+                                  plan.id === 'pro' && !isCurrent ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/10" : ""
+                                )}
+                                variant={plan.id === 'pro' && !isCurrent ? 'default' : 'outline'}
+                                disabled={isCurrent}
+                                onClick={() => handleAction(plan)}
+                                size="sm"
+                              >
+                                {isCurrent ? 'Current' : isUpgrade ? 'Upgrade' : isDowngrade ? 'Downgrade' : 'Choose'}
+                              </Button>
+                            </div>
+                          </TableHead>
+                        );
+                      })}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {featureCategories.map((category) => (
+                      <React.Fragment key={category.name}>
+                        <TableRow className="bg-muted/10 hover:bg-muted/10 border-b-0">
+                          <TableCell colSpan={isMobileView ? 3 : 5} className="py-3 px-6 text-[9px] font-bold uppercase tracking-[0.25em] text-muted-foreground/50 border-b text-left">
+                            {category.name}
+                          </TableCell>
+                        </TableRow>
+                        {category.features.map((feature) => (
+                          <TableRow key={feature} className="hover:bg-muted/5 transition-colors group">
+                            <TableCell className={cn(
+                              "py-4 px-3 sm:px-6 text-foreground/90 border-r text-left transition-all align-middle",
+                              isMobileView ? "text-[10px] leading-tight break-words whitespace-normal px-2" : "text-sm",
+                              "group-hover:bg-muted/5"
+                            )}>
+                              <div className="flex flex-wrap items-center gap-1">
+                                <span className={cn(
+                                  (feature === 'Disable downloads' || feature === 'Custom expiration dates' || feature === 'Password-protected links' || feature === 'Comments on shares' || feature === 'Comment attachments' || feature === 'Share page customization') && "pl-0 sm:pl-4 text-muted-foreground/80 font-normal",
+                                  feature === 'Advanced Integrations' && "whitespace-pre-line"
+                                )}>
+                                  {feature === 'Advanced Integrations' ? (isMobileView ? 'Adv. Integrations' : 'Advanced Integrations\n(API & Webhooks)') : feature}
+                                </span>
+                                {featureTooltips[feature] && (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <button className="text-muted-foreground hover:text-foreground opacity-40 hover:opacity-100 transition-opacity" onClick={(e) => isMobileView && e.currentTarget.focus()}>
+                                        <InfoCircle className="h-3.5 w-3.5" />
+                                      </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="right" className="max-w-[200px] text-center">
+                                      {featureTooltips[feature]}
+                                    </TooltipContent>
+                                  </Tooltip>
                                 )}
                               </div>
-                            </div>
-
-                            <Button
-                              className={cn(
-                                "h-9 w-full max-w-[140px] text-xs font-bold tracking-wider transition-all",
-                                plan.id === 'pro' && !isCurrent ? "bg-primary text-primary-foreground hover:bg-primary/90" : ""
-                              )}
-                              variant={plan.id === 'pro' && !isCurrent ? 'default' : 'outline'}
-                              disabled={isCurrent}
-                              onClick={() => handleAction(plan)}
-                              size="sm"
-                            >
-                              {isCurrent ? 'Current' : isUpgrade ? 'Upgrade' : isDowngrade ? 'Downgrade' : 'Choose'}
-                            </Button>
-                          </div>
-                        </TableHead>
-                      );
-                    })}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {featureCategories.map((category) => (
-                    <React.Fragment key={category.name}>
-                      <TableRow className="bg-muted/20 hover:bg-muted/20 border-b-0">
-                        <TableCell colSpan={5} className="py-2.5 px-6 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60 border-b text-left">
-                          {category.name}
-                        </TableCell>
-                      </TableRow>
-                      {category.features.map((feature) => (
-                        <TableRow key={feature} className="hover:bg-muted/10 transition-colors">
-                          <TableCell className="py-5 px-6 text-sm font-medium text-foreground/90 border-r text-left">
-                            <div className="flex items-center gap-2">
-                              <span className={cn(
-                                (feature === 'Disable downloads' || feature === 'Custom expiration dates' || feature === 'Password-protected links' || feature === 'Comments on shares' || feature === 'Comment attachments' || feature === 'Share page customization') && "pl-4 text-muted-foreground/80 font-normal",
-                                feature === 'Advanced Integrations' && "whitespace-pre-line"
-                              )}>
-                                {feature === 'Advanced Integrations' ? 'Advanced Integrations\n(API & Webhooks)' : feature}
-                              </span>
-                              {featureTooltips[feature] && (
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <button className="text-muted-foreground hover:text-foreground outline-none">
-                                      <InfoCircle className="h-3.5 w-3.5" />
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="right" className="max-w-[200px] text-center">
-                                    {featureTooltips[feature]}
-                                  </TooltipContent>
-                                </Tooltip>
-                              )}
-                            </div>
-                          </TableCell>
-                          {staticPlans.map((plan) => (
-                            <TableCell key={`${plan.id}-${feature}`} className={cn(
-                              "text-center py-5 px-2 border-b",
-                              plan.id === 'pro' && "bg-muted/30 border-x border-primary/10"
-                            )}>
-                              {typeof plan.features[feature] === 'string' ? (
-                                <span className="text-sm font-mono font-medium">{plan.features[feature]}</span>
-                              ) : plan.features[feature] ? (
-                                <div className="flex justify-center">
-                                  {feature === 'Verified Source' ? (
-                                    <IconRosetteDiscountCheckFilled className="text-background size-5 fill-sky-500" />
-                                  ) : (
-                                    <Check className="h-4.5 w-4.5 text-emerald-500" strokeWidth={3} />
-                                  )}
-                                </div>
-                              ) : (
-                                <div className="flex justify-center">
-                                  <X className="h-4.5 w-4.5 text-muted-foreground/15" strokeWidth={3} />
-                                </div>
-                              )}
                             </TableCell>
-                          ))}
-                        </TableRow>
-                      ))}
-                    </React.Fragment>
-                  ))}
-                </TableBody>
-              </Table>
+                            {(isMobileView ? [staticPlans[leftPlanIdx], staticPlans[rightPlanIdx]] : staticPlans).map((plan) => (
+                              <TableCell key={`${plan.id}-${feature}`} className={cn(
+                                "text-center py-4 px-2 border-b transition-all",
+                                plan.id === 'pro' && "bg-muted/10 border-x border-primary/5"
+                              )}>
+                                {typeof plan.features[feature] === 'string' ? (
+                                  <span className={cn("font-mono font-medium", isMobileView ? "text-xs" : "text-sm")}>{plan.features[feature]}</span>
+                                ) : plan.features[feature] ? (
+                                  <div className="flex justify-center">
+                                    {feature === 'Verified Source' ? (
+                                      <IconRosetteDiscountCheckFilled className={cn("text-background fill-sky-500", isMobileView ? "size-4" : "size-5")} />
+                                    ) : (
+                                      <Check className={cn("text-emerald-500", isMobileView ? "h-3.5 w-3.5" : "h-4.5 w-4.5")} strokeWidth={3} />
+                                    )}
+                                  </div>
+                                ) : (
+                                  <div className="flex justify-center">
+                                    <X className={cn("text-muted-foreground/10", isMobileView ? "h-3.5 w-3.5" : "h-4.5 w-4.5")} strokeWidth={3} />
+                                  </div>
+                                )}
+                              </TableCell>
+                            ))}
+                          </TableRow>
+                        ))}
+                      </React.Fragment>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </FormCard>
           </Section>
 
@@ -776,17 +842,19 @@ const BillingPage = () => {
               <FormCard>
                 <div className="divide-y">
                   {history.invoices.map((invoice) => (
-                    <div key={invoice.id} className="flex items-center justify-between p-5 px-8 text-sm hover:bg-muted/20 transition-colors">
-                      <div className="flex items-center gap-5">
-                        <div className="rounded-full bg-muted p-2.5">
+                    <div key={invoice.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 px-4 sm:px-8 gap-4 text-sm hover:bg-muted/20 transition-colors">
+                      <div className="flex items-center gap-4 sm:gap-5">
+                        <div className="rounded-full bg-muted p-2.5 shrink-0">
                           <History className="h-4.5 w-4.5 text-muted-foreground/70" />
                         </div>
-                        <div className="flex flex-col gap-0.5">
-                          <span className="font-medium text-sm text-foreground/90">{new Date(invoice.created * 1000).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                        <div className="flex flex-col gap-0.5 min-w-0">
+                          <span className="font-medium text-sm text-foreground/90 truncate">
+                            {new Date(invoice.created * 1000).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                          </span>
                           <span className="text-[10px] text-muted-foreground font-mono opacity-60 tracking-wider">#{invoice.number.split('-').pop()}</span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-8">
+                      <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-4 sm:gap-8">
                         <span className="font-mono font-medium tabular-nums text-foreground/80 text-base">
                           ${(invoice.amount / 100).toFixed(2)} <span className="text-[10px] uppercase ml-1 opacity-40">{invoice.currency}</span>
                         </span>
@@ -794,7 +862,7 @@ const BillingPage = () => {
                           variant="ghost"
                           size="icon"
                           asChild
-                          className="h-9 w-9 text-muted-foreground hover:bg-muted hover:text-foreground"
+                          className="h-9 w-9 text-muted-foreground hover:bg-muted hover:text-foreground shrink-0"
                         >
                           <a href={invoice.invoicePdf} target="_blank" rel="noopener noreferrer">
                             <ExternalLink className="h-4 w-4" />
