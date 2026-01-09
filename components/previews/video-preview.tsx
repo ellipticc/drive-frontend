@@ -32,7 +32,9 @@ export function VideoPreview({
   onProgress,
   onError,
   isLoading: externalIsLoading,
-  setIsLoading: setExternalIsLoading
+  setIsLoading: setExternalIsLoading,
+  fileName,
+  filename
 }: VideoPreviewProps) {
   const [internalIsLoading, setInternalIsLoading] = useState(false)
   const [internalError, setInternalError] = useState<string | null>(null)
@@ -53,35 +55,20 @@ export function VideoPreview({
         setInternalError(null)
         setVideoUrl(null)
 
-        let result;
+        // Dynamically import StreamManager to avoid SSR issues if any
+        const { StreamManager } = await import("@/lib/streaming");
 
-        // 1. Download & Decrypt
-        if (onGetShareCEK) {
-          const shareCekRaw = await onGetShareCEK()
-          const shareCek = new Uint8Array(shareCekRaw);
+        // 1. Register file for streaming (gets metadata, keys, and prepares SW mapping)
+        await StreamManager.getInstance().registerFile(fileId, shareDetails, onGetShareCEK);
 
-          let fileCek = shareCek;
+        if (!isMounted) return;
 
-          if (shareDetails) {
-            if (!shareDetails.is_folder && shareDetails.wrapped_cek && shareDetails.nonce_wrap) {
-              try {
-                fileCek = new Uint8Array(decryptData(shareDetails.wrapped_cek, shareCek, shareDetails.nonce_wrap));
-              } catch (e) {
-                console.error('Failed to unwrap file key:', e);
-              }
-            }
-          }
+        // 2. Construct Stream URL
+        // Format: /stream/:fileId/:filename
+        // The Service Worker intercepts this path
+        const safeName = (filename || fileName || 'video.mp4').replace(/\//g, '_');
+        url = `/stream/${fileId}/${safeName}`;
 
-          result = await downloadEncryptedFileWithCEK(fileId, fileCek, onProgress, abortController.signal)
-        } else {
-          result = await downloadEncryptedFile(fileId, undefined, onProgress, abortController.signal)
-        }
-
-        if (!isMounted) return
-
-        // 2. Create Blob URL
-        const blob = new Blob([result.blob], { type: mimetype || mimeType || 'video/mp4' });
-        url = URL.createObjectURL(blob);
         setVideoUrl(url)
 
       } catch (err) {
@@ -100,9 +87,9 @@ export function VideoPreview({
     return () => {
       isMounted = false
       abortController.abort()
-      if (url) URL.revokeObjectURL(url)
+      // No need to revoke Blob URL since we use a virtual stream path
     }
-  }, [fileId, onGetShareCEK, setIsLoading, onProgress, onError, shareDetails, mimetype, mimeType])
+  }, [fileId, onGetShareCEK, setIsLoading, onProgress, onError, shareDetails, mimetype, mimeType, fileName, filename])
 
   if (error) {
     return (

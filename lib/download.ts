@@ -187,7 +187,7 @@ export interface DownloadResult {
 /**
  * Process decryption and decompression in the Download Worker
  */
-const processDecryptInWorker = (
+export const processDecryptInWorker = (
   encryptedChunk: Uint8Array,
   key: Uint8Array,
   nonce: string,
@@ -224,7 +224,7 @@ const verifyIntegrityInWorker = async (fileData: Uint8Array): Promise<string> =>
 /**
  * Get the chunk index from a chunk object (handles both chunkIndex and index properties)
  */
-function getChunkIndex(chunk: DownloadChunk): number {
+export function getChunkIndex(chunk: DownloadChunk): number {
   return chunk.chunkIndex ?? chunk.index ?? 0;
 }
 
@@ -435,7 +435,7 @@ export async function downloadEncryptedFile(
 /**
  * Initialize download session by fetching URLs and metadata from backend
  */
-async function initializeDownloadSession(fileId: string): Promise<DownloadSession> {
+export async function initializeDownloadSession(fileId: string): Promise<DownloadSession> {
   const response = await apiClient.getDownloadUrls(fileId);
 
   if (!response.success || !response.data) {

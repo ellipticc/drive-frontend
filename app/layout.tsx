@@ -13,6 +13,7 @@ import { SessionPingProvider } from "@/components/session-ping-provider";
 import { NotificationProvider } from "@/components/notifications/notification-provider";
 import { LanguageProvider } from "@/lib/i18n/language-context";
 import { ThemeConfiguration } from "@/components/theme-configuration";
+import { ServiceWorkerRegister } from "@/components/service-worker-register";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
@@ -235,6 +236,7 @@ export default function RootLayout({
                       <GlobalUploadProvider>
                         <TooltipProvider>
                           <ThemeConfiguration />
+                          <ServiceWorkerRegister />
                           <SessionPingProvider />
                           <ConditionalLayout>{children}</ConditionalLayout>
                           <Toaster
