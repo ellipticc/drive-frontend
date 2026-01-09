@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { apiClient, RecentItem as ApiRecentItem } from '@/lib/api';
 import { decryptFilename } from '@/lib/crypto';
 import { masterKeyManager } from '@/lib/master-key';
@@ -24,26 +24,25 @@ const MAX_ITEMS = 15;
 
 export function useRecentFiles(folderId?: string | null) {
     const [recentItems, setRecentItems] = useState<RecentItem[]>([]);
-    const [isVisible, setIsVisible] = useState(true);
-    const [isLoaded, setIsLoaded] = useState(false);
-
-    // Load from localStorage on mount
-    useEffect(() => {
+    const [isVisible, setIsVisible] = useState<boolean>(() => {
+        if (typeof window === 'undefined') return true;
         try {
             const storedVisibility = localStorage.getItem(VISIBILITY_KEY);
-            if (storedVisibility !== null) {
-                setIsVisible(JSON.parse(storedVisibility));
-            }
-        } catch (e) {
-            console.error('Failed to load recent files visibility', e);
-        } finally {
-            setIsLoaded(true);
+            return storedVisibility !== null ? JSON.parse(storedVisibility) : true;
+        } catch {
+            return true;
         }
-    }, []);
+    });
+
+    const lastFetchRef = useRef<string | null>(null);
 
     // Sync with backend on mount and when folderId changes
     useEffect(() => {
         const fetchBackendRecent = async () => {
+            const fetchKey = folderId || 'global';
+            if (lastFetchRef.current === fetchKey) return;
+            lastFetchRef.current = fetchKey;
+
             try {
                 // Only fetch if authenticated (simple check: valid token)
                 if (!apiClient.getAuthToken()) return;
@@ -88,13 +87,12 @@ export function useRecentFiles(folderId?: string | null) {
                 }
             } catch (error) {
                 console.error('Failed to fetch recent files from backend', error);
+                lastFetchRef.current = null; // Allow retry on error
             }
         };
 
-        if (isLoaded) {
-            fetchBackendRecent();
-        }
-    }, [isLoaded, folderId]);
+        fetchBackendRecent();
+    }, [folderId]);
 
     // Save items to localStorage whenever they change (redundant with the effects above but good for manual updates)
     // Actually we don't need a separate effect to save to LS if we do it in setters.
@@ -163,7 +161,6 @@ export function useRecentFiles(folderId?: string | null) {
     return {
         recentItems,
         isVisible,
-        isLoaded,
         addRecent,
         removeRecent,
         clearRecent,

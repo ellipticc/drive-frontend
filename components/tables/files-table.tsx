@@ -272,7 +272,11 @@ export const Table01DividerLineSm = ({
 
 
     // Folder navigation state
-    const [currentFolderId, setCurrentFolderId] = useState<string>('root');
+    const [currentFolderId, setCurrentFolderId] = useState<string>(() => {
+        if (typeof window === 'undefined') return 'root';
+        const segments = window.location.pathname.replace(/^\//, '').split('/').filter(Boolean);
+        return segments.length > 0 ? segments[segments.length - 1] : 'root';
+    });
     const [folderPath, setFolderPath] = useState<Array<{ id: string, name: string }>>([{ id: 'root', name: t('sidebar.myFiles') }]);
     const [isInitialLoad, setIsInitialLoad] = useState(true);
 
@@ -293,7 +297,8 @@ export const Table01DividerLineSm = ({
 
     // View mode state
     const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
-    const { recentItems, isVisible: isRecentVisible, toggleVisibility: toggleRecentVisibility, addRecent } = useRecentFiles(currentFolderId);
+    // Folder-specific recents. Only fetch for current folder if not root.
+    const { recentItems, isVisible: isRecentVisible, toggleVisibility: toggleRecentVisibility, addRecent } = useRecentFiles(currentFolderId === 'root' ? null : currentFolderId);
 
     // Save view mode to localStorage when it changes
     const handleViewModeChange = useCallback((newViewMode: 'table' | 'grid') => {
@@ -599,7 +604,7 @@ export const Table01DividerLineSm = ({
         if (urlSegments.length === 0) {
             // Root folder
             // console.log('Loading root folder');
-            setCurrentFolderId('root');
+            if (currentFolderId !== 'root') setCurrentFolderId('root');
             setFolderPath([{ id: 'root', name: t('sidebar.myFiles') }]);
             setIsInitialLoad(false);
             return;
@@ -784,6 +789,9 @@ export const Table01DividerLineSm = ({
         setFiles(prev => prev.filter(file => file.id !== fileId));
     }, []));
 
+    // Track current fetch ID to prevent race conditions
+    const fetchIdRef = useRef<number>(0);
+
     const refreshFiles = useCallback(async (folderId: string = currentFolderId, force: boolean = false) => {
         const fetchKey = `${folderId}-${page}`;
         if (!force && lastFetchRef.current === fetchKey) {
@@ -791,6 +799,9 @@ export const Table01DividerLineSm = ({
             return;
         }
         lastFetchRef.current = fetchKey;
+
+        // Increment fetch ID to invalidate previous requests
+        const currentFetchId = ++fetchIdRef.current;
 
         let success = false;
         try {
@@ -801,8 +812,16 @@ export const Table01DividerLineSm = ({
                 setIsFetching(true);
             }
             setError(null);
-            // console.log(`Loading folder contents for: ${folderId}, page: ${page}`);
+            // console.log(`Loading folder contents for: ${folderId}, page: ${page} (Fetch ID: ${currentFetchId})`);
+
             const response = await apiClient.getFolderContents(folderId, { page, limit });
+
+            // Check if this request is stale
+            if (currentFetchId !== fetchIdRef.current) {
+                // console.log(`Ignoring stale response for fetch ID ${currentFetchId}`);
+                return;
+            }
+
             // console.log(`Folder contents response:`, response);
             if (response.success && response.data) {
                 // Update pagination info from API response
@@ -890,6 +909,10 @@ export const Table01DividerLineSm = ({
                         };
                     })))
                 ];
+
+                // Double check staleness after decryption promise (async ops taking time)
+                if (currentFetchId !== fetchIdRef.current) return;
+
                 // console.log(`Loaded ${combinedItems.length} items`);
                 setFiles(combinedItems);
             } else {
@@ -900,9 +923,11 @@ export const Table01DividerLineSm = ({
                     setError(`Folder not found or access denied. Redirecting to root folder...`);
                     // Redirect to root after a short delay
                     setTimeout(() => {
-                        router.replace('/', { scroll: false });
-                        setCurrentFolderId('root');
-                        setFolderPath([{ id: 'root', name: 'My Files' }]);
+                        if (currentFetchId === fetchIdRef.current) {
+                            router.replace('/', { scroll: false });
+                            setCurrentFolderId('root');
+                            setFolderPath([{ id: 'root', name: 'My Files' }]);
+                        }
                     }, 2000);
                 } else {
                     setError(errorMessage);
@@ -914,29 +939,43 @@ export const Table01DividerLineSm = ({
             // Handle network errors or other exceptions
             const errorMessage = err instanceof Error ? err.message : 'Failed to load files';
             // console.error(`Exception loading folder contents: ${errorMessage}`);
+
+            if (currentFetchId !== fetchIdRef.current) return;
+
             if (errorMessage.includes('404') || errorMessage.includes('not found') || errorMessage.includes('access denied') || errorMessage.includes('forbidden')) {
                 setError(`Folder not found or access denied. Redirecting to root folder...`);
                 setTimeout(() => {
-                    router.replace('/', { scroll: false });
-                    setCurrentFolderId('root');
-                    setFolderPath([{ id: 'root', name: 'My Files' }]);
+                    // Check again before redirecting
+                    if (currentFetchId === fetchIdRef.current) {
+                        router.replace('/', { scroll: false });
+                        setCurrentFolderId('root');
+                        setFolderPath([{ id: 'root', name: 'My Files' }]);
+                    }
                 }, 2000);
             } else {
                 setError(errorMessage);
             }
         } finally {
-            if (!success) {
-                lastFetchRef.current = null;
+            // Only update loading state if this is the LATEST request
+            if (currentFetchId === fetchIdRef.current) {
+                if (!success) {
+                    lastFetchRef.current = null;
+                }
+                setIsLoading(false);
+                setIsFetching(false);
             }
-            setIsLoading(false);
-            setIsFetching(false);
         }
     }, [currentFolderId, page, limit, apiClient, router]);
 
     // Load files when folder or page changes
     useEffect(() => {
+        // Prevent root fetch if we are not on the root page
+        if (currentFolderId === 'root' && pathname !== '/') {
+            // console.log(`Skipping root fetch because pathname is ${pathname}`);
+            return;
+        }
         refreshFiles();
-    }, [currentFolderId, page, refreshFiles]);
+    }, [currentFolderId, page, refreshFiles, pathname]);
 
     // Register for file replaced events to refresh the file list
     useOnFileReplaced(useCallback(() => {
@@ -955,14 +994,15 @@ export const Table01DividerLineSm = ({
             type: 'folder'
         });
         const newPath = [...folderPath, { id: folderId, name: folderName }];
-        startTransition(() => {
-            setFiles([]);
-            setIsLoading(true);
-            setCurrentFolderId(folderId);
-            setFolderPath(newPath);
-            updateUrl(newPath);
-            setSelectedItems(new Set()); // Clear selection when navigating to new folder
-        });
+
+        // Immediate updates without transition
+        setFiles([]);
+        setPage(1); // Reset page to 1
+        setIsLoading(true);
+        setCurrentFolderId(folderId);
+        setFolderPath(newPath);
+        updateUrl(newPath);
+        setSelectedItems(new Set()); // Clear selection when navigating to new folder
     };
 
     // Navigate to parent folder
@@ -970,13 +1010,14 @@ export const Table01DividerLineSm = ({
         if (folderPath.length > 1) {
             const newPath = folderPath.slice(0, -1);
             const parentFolder = newPath[newPath.length - 1];
-            startTransition(() => {
-                setFiles([]);
-                setIsLoading(true);
-                setCurrentFolderId(parentFolder.id);
-                setFolderPath(newPath);
-                updateUrl(newPath);
-            });
+
+            // Immediate updates without transition
+            setFiles([]);
+            setPage(1); // Reset page to 1
+            setIsLoading(true);
+            setCurrentFolderId(parentFolder.id);
+            setFolderPath(newPath);
+            updateUrl(newPath);
         }
     };
 
@@ -987,14 +1028,15 @@ export const Table01DividerLineSm = ({
             if (folderId === currentFolderId) return;
 
             const newPath = folderPath.slice(0, folderIndex + 1);
-            startTransition(() => {
-                setFiles([]);
-                setIsLoading(true);
-                setCurrentFolderId(folderId);
-                setFolderPath(newPath);
-                updateUrl(newPath);
-                setSelectedItems(new Set()); // Clear selection when navigating to new folder
-            });
+
+            // Immediate updates without transition
+            setFiles([]);
+            setPage(1); // Reset page to 1
+            setIsLoading(true);
+            setCurrentFolderId(folderId);
+            setFolderPath(newPath);
+            updateUrl(newPath);
+            setSelectedItems(new Set()); // Clear selection when navigating to new folder
         }
     };
 
@@ -2372,8 +2414,8 @@ export const Table01DividerLineSm = ({
 
     return (
         <div className="flex flex-col h-full bg-background mt-1">
-            {/* Suggested Files Section */}
-            {!isLoading && !error && (
+            {/* Suggested Files Section - Show only in subfolders, not in global (root) */}
+            {!isLoading && !error && currentFolderId !== 'root' && (
                 <SuggestedFiles
                     items={recentItems}
                     isVisible={isRecentVisible}
