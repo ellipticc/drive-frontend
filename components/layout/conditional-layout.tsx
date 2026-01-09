@@ -28,7 +28,7 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   }
 
   // For authenticated routes, render with sidebar
-  const isLockedOnBilling = deviceLimitReached && pathname === '/billing';
+  const isLockedOnBilling = deviceLimitReached && pathname === '/pricing';
 
   return (
     <SidebarProvider

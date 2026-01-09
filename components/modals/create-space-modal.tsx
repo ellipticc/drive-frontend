@@ -182,7 +182,7 @@ export function CreateSpaceModal({
                                 label: "Upgrade",
                                 onClick: () => {
                                     onOpenChange(false);
-                                    router.push('/billing');
+                                    router.push('/pricing');
                                 }
                             },
                             duration: 5000,

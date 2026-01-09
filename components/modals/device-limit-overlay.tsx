@@ -50,7 +50,7 @@ export function DeviceLimitOverlay() {
                     <Button
                         variant="outline"
                         onClick={() => {
-                            window.location.href = '/billing';
+                            window.location.href = '/pricing';
                         }}
                         size="lg"
                         className="w-full font-medium"

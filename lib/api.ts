@@ -2263,6 +2263,7 @@ class ApiClient {
       quotaBytes: number;
       percentUsed: number;
     };
+    hasUsedTrial: boolean;
   }>> {
     return this.request('/billing/subscription');
   }

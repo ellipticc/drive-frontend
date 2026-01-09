@@ -36,7 +36,7 @@ export function SiteHeader({ onSearch, onFileUpload, onFolderUpload }: SiteHeade
   const handleUpgradeClick = () => {
     isUpgradeDismissedGlobal = true
     setForceUpdate(prev => prev + 1)
-    window.open('/billing', '_blank')
+    window.open('/pricing', '_blank')
   }
 
   const isFreePlan = deviceQuota?.planName === 'Free'

@@ -21,7 +21,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
   const hasCheckedAuthRef = useRef(false);
 
   // Define public routes that don't require authentication
-  const publicRoutes = ['/login', '/signup', '/register', '/otp', '/recover', '/recover/otp', '/recover/reset', '/backup', '/totp', '/totp/recovery', '/terms-of-service', '/privacy-policy', '/billing'];
+  const publicRoutes = ['/login', '/signup', '/register', '/otp', '/recover', '/recover/otp', '/recover/reset', '/backup', '/totp', '/totp/recovery', '/terms-of-service', '/privacy-policy', '/pricing'];
   const isPublic = publicRoutes.includes(pathname) || pathname.startsWith('/s/');
 
   useLayoutEffect(() => {

@@ -232,7 +232,7 @@ export const AppSidebar = React.memo(function AppSidebar({
               size="sm"
               className="w-full mt-3 text-xs bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground duration-200 ease-linear dark:bg-white dark:text-black dark:hover:bg-gray-200"
               onClick={() => {
-                router.push('/billing')
+                router.push('/pricing')
               }}
             >
               <IconDatabaseImport className="size-4" />

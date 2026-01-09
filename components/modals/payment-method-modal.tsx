@@ -67,7 +67,7 @@ export function PaymentMethodModal({
                         <IconCurrencyBitcoin className="mr-3 h-5 w-5 text-muted-foreground" />
                         <div className="flex flex-col items-start gap-0.5">
                             <span className="font-medium text-base">Cryptocurrency</span>
-                            <span className="text-xs text-muted-foreground font-normal">Bitcoin, ETH, USDT & more</span>
+                            <span className="text-xs text-muted-foreground font-normal">Bitcoin, ETH, USDT & more (no trial)</span>
                         </div>
                     </Button>
 

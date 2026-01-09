@@ -1430,7 +1430,7 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
               <Alert className="mb-2 bg-muted/50 border-border text-muted-foreground flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <AlertDescription className="text-muted-foreground whitespace-nowrap">
-                    <a href="/billing" className="hover:underline font-medium underline-offset-4">Upgrade to Ellipticc Pro to enable all link settings</a>
+                    <a href="/pricing" className="hover:underline font-medium underline-offset-4">Upgrade to Ellipticc Pro to enable all link settings</a>
                   </AlertDescription>
                 </div>
               </Alert>
@@ -1912,7 +1912,7 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
             <div className="mx-8 mb-8 p-4 bg-primary/5 border border-primary/10 rounded-xl text-center">
               <p className="text-xs text-primary font-bold uppercase tracking-wider">
                 Full history & analytics available for Pro users.
-                <a href="/billing" className="underline ml-2 hover:opacity-80 transition-opacity">Upgrade now</a>
+                <a href="/pricing" className="underline ml-2 hover:opacity-80 transition-opacity">Upgrade now</a>
               </p>
             </div>
           )}

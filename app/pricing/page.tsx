@@ -7,6 +7,7 @@ import {
   IconLoader2 as Loader2,
   IconCheck as Check,
   IconExternalLink as ExternalLink,
+  IconDownload as Download,
   IconHistory as History,
   IconX as X,
   IconInfoCircle as InfoCircle,
@@ -61,6 +62,8 @@ import {
 import { apiClient, Subscription, BillingUsage, SubscriptionHistory } from '@/lib/api';
 import { useUser } from '@/components/user-context';
 import { cn, formatFileSize } from '@/lib/utils';
+import { PricingTable } from '@/components/ui/pricing-table';
+
 import React from 'react';
 
 import {
@@ -115,12 +118,13 @@ const staticPlans: TransformedPlan[] = [
       yearlyEquivalent: 0,
     },
     description: 'Essential for personal use',
-    storage: '5 GB',
-    quotaBytes: 5 * 1024 * 1024 * 1024,
+    storage: '2 GB',
+    quotaBytes: 2 * 1024 * 1024 * 1024,
     features: {
-      'Storage Quota': '5 GB',
+      'Storage Quota': '2 GB',
       'Spaces': '2',
       'Devices Limit': '2',
+      'Device Labeling': false,
       'Trash Retention': '30 days',
       'Zero Knowledge Architecture': true,
       'Post-Quantum Cryptography': true,
@@ -139,7 +143,9 @@ const staticPlans: TransformedPlan[] = [
       'Comment attachments': false,
       'Share page customization': false,
       'Real-time Collaboration': false,
+      'Encrypted File Requests': false,
       'File Versioning': 'No',
+      'Advanced Tagging': false,
       'Theme Customization': false,
       'Advanced Integrations': false,
       'Security Events': '7 days',
@@ -156,17 +162,18 @@ const staticPlans: TransformedPlan[] = [
     name: 'Plus',
     rank: 1,
     price: {
-      monthly: 8.99,
-      yearly: 83.89,
-      yearlyEquivalent: 6.99,
+      monthly: 5.99,
+      yearly: 57.50,
+      yearlyEquivalent: 4.79,
     },
     description: 'Perfect for getting started',
-    storage: '500 GB',
-    quotaBytes: 500 * 1024 * 1024 * 1024,
+    storage: '200 GB',
+    quotaBytes: 200 * 1024 * 1024 * 1024,
     features: {
-      'Storage Quota': '500 GB',
+      'Storage Quota': '200 GB',
       'Spaces': '5',
       'Devices Limit': '5',
+      'Device Labeling': true,
       'Trash Retention': '60 days',
       'Zero Knowledge Architecture': true,
       'Post-Quantum Cryptography': true,
@@ -185,7 +192,9 @@ const staticPlans: TransformedPlan[] = [
       'Comment attachments': false,
       'Share page customization': false,
       'Real-time Collaboration': true,
+      'Encrypted File Requests': true,
       'File Versioning': '30 days',
+      'Advanced Tagging': true,
       'Theme Customization': true,
       'Advanced Integrations': false,
       'Security Events': '30 days',
@@ -193,8 +202,8 @@ const staticPlans: TransformedPlan[] = [
     },
     cta: 'Upgrade to Plus',
     stripePriceIds: {
-      monthly: 'price_1SMxROKvH1nJPb5H75KlOnJu',
-      yearly: 'price_1SMxSZKvH1nJPb59KA9xwPP',
+      monthly: 'price_1SnnAbKvH1nJPb5HFaeR3r1T',
+      yearly: 'price_1SnnB3KvH1nJPb5HOzg1ZoeD',
     },
   },
   {
@@ -203,17 +212,18 @@ const staticPlans: TransformedPlan[] = [
     rank: 2,
     price: {
       monthly: 13.99,
-      yearly: 131.89,
-      yearlyEquivalent: 10.99,
+      yearly: 134.30,
+      yearlyEquivalent: 11.19,
     },
     description: 'Ideal for power users',
-    storage: '1 TB',
-    quotaBytes: 1024 * 1024 * 1024 * 1024,
+    storage: '500 GB',
+    quotaBytes: 500 * 1024 * 1024 * 1024,
     popular: true,
     features: {
-      'Storage Quota': '1 TB',
+      'Storage Quota': '500 GB',
       'Spaces': '10',
       'Devices Limit': '10',
+      'Device Labeling': true,
       'Trash Retention': '90 days',
       'Zero Knowledge Architecture': true,
       'Post-Quantum Cryptography': true,
@@ -232,7 +242,9 @@ const staticPlans: TransformedPlan[] = [
       'Comment attachments': true,
       'Share page customization': true,
       'Real-time Collaboration': true,
+      'Encrypted File Requests': true,
       'File Versioning': '60 days',
+      'Advanced Tagging': true,
       'Theme Customization': true,
       'Advanced Integrations': true,
       'Security Events': '60 days',
@@ -240,8 +252,8 @@ const staticPlans: TransformedPlan[] = [
     },
     cta: 'Upgrade to Pro',
     stripePriceIds: {
-      monthly: 'price_1SMxUfKvH1nJPb5HwlIETqMq',
-      yearly: 'price_1SMxVVKvH1nJPb5HYL17MYFr',
+      monthly: 'price_1SnnBNKvH1nJPb5HTHDeNWdS',
+      yearly: 'price_1SnnCEKvH1nJPb5HzMXUp10Z',
     },
   },
   {
@@ -249,9 +261,9 @@ const staticPlans: TransformedPlan[] = [
     name: 'Unlimited',
     rank: 3,
     price: {
-      monthly: 19.99,
-      yearly: 203.89,
-      yearlyEquivalent: 16.99,
+      monthly: 23.99,
+      yearly: 230.30,
+      yearlyEquivalent: 19.19,
     },
     description: 'For teams and enterprises',
     storage: '2 TB',
@@ -260,6 +272,7 @@ const staticPlans: TransformedPlan[] = [
       'Storage Quota': '2 TB',
       'Spaces': 'Unlimited',
       'Devices Limit': 'Unlimited',
+      'Device Labeling': true,
       'Trash Retention': 'No limit',
       'Zero Knowledge Architecture': true,
       'Post-Quantum Cryptography': true,
@@ -278,7 +291,9 @@ const staticPlans: TransformedPlan[] = [
       'Comment attachments': true,
       'Share page customization': true,
       'Real-time Collaboration': true,
+      'Encrypted File Requests': true,
       'File Versioning': '60 days',
+      'Advanced Tagging': true,
       'Theme Customization': true,
       'Advanced Integrations': true,
       'Security Events': 'Unlimited',
@@ -286,8 +301,8 @@ const staticPlans: TransformedPlan[] = [
     },
     cta: 'Upgrade to Unlimited',
     stripePriceIds: {
-      monthly: 'price_1SMxW8KvH1nJPb5HimvRSCLS',
-      yearly: 'price_1SMxXEKvH1nJPb5HFzDxPu6R',
+      monthly: 'price_1SnnCeKvH1nJPb5HbOrEUqm2',
+      yearly: 'price_1SnnCzKvH1nJPb5Howw5DH1W',
     },
   },
 ];
@@ -303,11 +318,11 @@ const featureCategories = [
   },
   {
     name: 'Collaborative Sharing',
-    features: ['Shared links', 'Advanced link settings', 'Disable downloads', 'Custom expiration dates', 'Password-protected links', 'Comments on shares', 'Comment attachments', 'Share page customization', 'Real-time Collaboration', 'File Versioning']
+    features: ['Shared links', 'Advanced link settings', 'Disable downloads', 'Custom expiration dates', 'Password-protected links', 'Encrypted File Requests', 'Comments on shares', 'Comment attachments', 'Share page customization', 'Real-time Collaboration', 'File Versioning']
   },
   {
-    name: 'Management & Support',
-    features: ['Theme Customization', 'Advanced Integrations', 'Security Events', 'Support']
+    name: 'Advanced Management',
+    features: ['Device Labeling', 'Advanced Tagging', 'Theme Customization', 'Advanced Integrations', 'Security Events', 'Support']
   }
 ];
 
@@ -315,6 +330,7 @@ const featureTooltips: Record<string, string> = {
   'Storage Quota': 'The total amount of encrypted storage space allocated to your account.',
   'Spaces': 'Dedicated environments to organize projects and collaborate with specific sets of users.',
   'Devices Limit': 'The maximum number of devices you can use to access your account simultaneously.',
+  'Device Labeling': 'Assign custom names to your devices for easier identification in the dashboard.',
   'Trash Retention': 'How long deleted files are kept in the trash before being permanently removed.',
   'Zero Knowledge Architecture': 'Architecture where the service provider has no knowledge of the keys used to encrypt user data.',
   'Post-Quantum Cryptography': 'State-of-the-art encryption designed to remain secure even against future quantum computer attacks.',
@@ -329,11 +345,13 @@ const featureTooltips: Record<string, string> = {
   'Disable downloads': 'Restrict shared links to view-only mode, preventing recipients from saving the file.',
   'Custom expiration dates': 'Set a specific timeframe after which a shared link will automatically become invalid.',
   'Password-protected links': 'Require a unique password for anyone attempting to access your shared link.',
+  'Encrypted File Requests': 'Create a secure link for others to upload files directly to your encrypted storage. (In Development)',
   'Comments on shares': 'Enable encrypted conversation directly on the shared file page for streamlined feedback.',
   'Comment attachments': 'Allow users to attach supporting files directly within the comment threads of a share.',
   'Share page customization': 'Remove platform branding and apply your own custom themes, backgrounds, and accents (Planned).',
   'Real-time Collaboration': 'Collaborate with others in real-time with presence indicators and live updates (Planned).',
   'File Versioning': 'Track changes and restore previous versions of your files at any time (Planned).',
+  'Advanced Tagging': 'Organize files with custom tags, color-coding, and perform advanced tag-based searches.',
   'Theme Customization': 'Personalize your interface with custom color themes and layout preferences (In Development).',
   'Advanced Integrations': 'Build custom workflows and automate your storage with our developer API and real-time webhooks (Planned).',
   'Security Events': 'A comprehensive log of all security-related activities across your account.',
@@ -346,6 +364,7 @@ const BillingPage = () => {
   const [frequency, setFrequency] = useState<'monthly' | 'yearly'>('monthly');
   const [loading, setLoading] = useState(true);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [hasUsedTrial, setHasUsedTrial] = useState<boolean>(false);
   const [usage, setUsage] = useState<BillingUsage | null>(null);
   const [history, setHistory] = useState<SubscriptionHistory | null>(null);
 
@@ -365,6 +384,28 @@ const BillingPage = () => {
   const [leftPlanIdx, setLeftPlanIdx] = useState(0); // Default: Free
   const [rightPlanIdx, setRightPlanIdx] = useState(2); // Default: Pro
   const [isMobileView, setIsMobileView] = useState(false);
+
+  const [isStickyEnabled, setIsStickyEnabled] = useState(false);
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      // Activate when near bottom (within 300px)
+      if (!isStickyEnabled && scrollTop + clientHeight >= scrollHeight - 300) {
+        setIsStickyEnabled(true);
+      }
+      else if (isStickyEnabled && scrollTop < 100) {
+        setIsStickyEnabled(false);
+      }
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [isStickyEnabled]);
 
   useEffect(() => {
     const checkMobile = () => setIsMobileView(window.innerWidth < 1024);
@@ -422,8 +463,8 @@ const BillingPage = () => {
         const priceId = plan.stripePriceIds[frequency];
         const response = await apiClient.createCheckoutSession({
           priceId,
-          successUrl: `${window.location.origin}/billing?success=true`,
-          cancelUrl: `${window.location.origin}/billing?canceled=true`,
+          successUrl: `${window.location.origin}/pricing?success=true`,
+          cancelUrl: `${window.location.origin}/pricing?canceled=true`,
         });
 
         if (response.success && response.data?.url) {
@@ -484,6 +525,7 @@ const BillingPage = () => {
         if (subRes.success && subRes.data) {
           setSubscription(subRes.data.subscription);
           setUsage(subRes.data.usage);
+          setHasUsedTrial(subRes.data.hasUsedTrial);
         }
         if (historyRes.success && historyRes.data) {
           setHistory(historyRes.data);
@@ -499,6 +541,7 @@ const BillingPage = () => {
     fetchData();
   }, []);
 
+
   const handleConfirmCancel = () => {
     setShowCancelConfirm(false);
     setShowCancelReason(true);
@@ -512,7 +555,7 @@ const BillingPage = () => {
 
     setIsSubmittingCancel(true);
     try {
-      // 1. Submit reason to backend (Discord)
+      // 1. Submit reason to backend
       const reasonRes = await apiClient.cancelSubscriptionWithReason({
         reason: cancelReason,
         details: cancelDetails
@@ -564,7 +607,7 @@ const BillingPage = () => {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto">
+      <div ref={scrollRef} className="flex-1 overflow-auto">
         <SectionGroup variant="full">
           {/* Usage Section */}
           <Section>
@@ -581,7 +624,13 @@ const BillingPage = () => {
                     <FormCardDescription className="text-base text-muted-foreground/80">
                       {currentPlan.toLowerCase() === 'free'
                         ? 'You are currently on the free plan.'
-                        : `Your next renewal is on ${new Date(subscription!.currentPeriodEnd * 1000).toLocaleDateString()}.`}
+                        : subscription?.cancelAtPeriodEnd
+                          ? (subscription.currentPeriodEnd
+                            ? `Your ${subscription.status === 'trialing' ? 'trial' : 'plan'} will expire on ${new Date(subscription.currentPeriodEnd * 1000).toLocaleDateString()}.`
+                            : `Your ${subscription.status === 'trialing' ? 'trial' : 'plan'} is scheduled for termination.`)
+                          : (subscription?.currentPeriodEnd
+                            ? `Your next renewal is on ${new Date(subscription.currentPeriodEnd * 1000).toLocaleDateString()}.`
+                            : 'Subscription status active.')}
                     </FormCardDescription>
                   </div>
                   <div className="flex items-center">
@@ -655,13 +704,14 @@ const BillingPage = () => {
               </div>
             )}
 
-            <FormCard className="overflow-hidden shadow-sm border-primary/5">
-              <div className="overflow-x-auto no-scrollbar">
-                <Table className={cn("w-full transition-all duration-300", isMobileView ? "table-fixed min-w-[320px]" : "table-fixed min-w-[1000px]")}>
+            <FormCard className="shadow-sm border-primary/5">
+              <div className="w-full">
+                <PricingTable className={cn("w-full transition-all duration-300", isMobileView ? "table-fixed min-w-[320px]" : "table-fixed min-w-[1000px]")}>
                   <TableHeader>
                     <TableRow className="hover:bg-transparent border-b">
                       <TableHead className={cn(
-                        "py-12 px-6 text-sm font-medium text-muted-foreground border-r text-left bg-muted/5 align-middle",
+                        "py-12 px-6 text-sm font-medium text-muted-foreground border-r text-left align-middle bg-background transition-all duration-300",
+                        isStickyEnabled ? "sticky top-0 z-20 shadow-[0_1px_0_0_rgba(0,0,0,0.05)]" : "relative",
                         isMobileView ? "w-[40%] text-xs px-3 whitespace-normal break-words" : "w-[20%]"
                       )}>
                         Features comparison
@@ -674,9 +724,10 @@ const BillingPage = () => {
 
                         return (
                           <TableHead key={`${plan.id}-${index}`} className={cn(
-                            "text-center py-8 align-top transition-all duration-300",
+                            "text-center py-8 align-top transition-all duration-300 bg-background",
+                            isStickyEnabled ? "sticky top-0 z-20 shadow-[0_1px_0_0_rgba(0,0,0,0.05)]" : "relative",
                             isMobileView ? "w-[30%] px-1" : "w-[20%] px-4",
-                            plan.id === 'pro' && "bg-muted/30 border-x border-primary/10 shadow-[inset_0_4px_12px_-4px_rgba(var(--primary),0.05)]"
+                            plan.id === 'pro' && "border-x border-primary/10 after:absolute after:inset-y-0 after:left-0 after:w-px after:bg-primary/10 after:content-[''] before:absolute before:inset-y-0 before:right-0 before:w-px before:bg-primary/10 before:content-['']"
                           )}>
                             <div className="flex flex-col gap-4 items-center w-full">
                               <div className="flex flex-col gap-1.5 items-center w-full">
@@ -755,7 +806,15 @@ const BillingPage = () => {
                                 onClick={() => handleAction(plan)}
                                 size="sm"
                               >
-                                {isCurrent ? 'Current' : isUpgrade ? 'Upgrade' : isDowngrade ? 'Downgrade' : 'Choose'}
+                                {isCurrent
+                                  ? 'Current'
+                                  : (!hasUsedTrial && isUpgrade && plan.id !== 'free')
+                                    ? '7-Day Free Trial'
+                                    : isUpgrade
+                                      ? 'Upgrade'
+                                      : isDowngrade
+                                        ? 'Downgrade'
+                                        : 'Choose'}
                               </Button>
                             </div>
                           </TableHead>
@@ -771,7 +830,7 @@ const BillingPage = () => {
                             {category.name}
                           </TableCell>
                         </TableRow>
-                        {category.features.map((feature) => (
+                        {featureCategories.flatMap(c => c.name === category.name ? c.features : []).map((feature) => (
                           <TableRow key={feature} className="hover:bg-muted/5 transition-colors group">
                             <TableCell className={cn(
                               "py-4 px-3 sm:px-6 text-foreground/90 border-r text-left transition-all align-middle",
@@ -780,7 +839,7 @@ const BillingPage = () => {
                             )}>
                               <div className="flex flex-wrap items-center gap-1">
                                 <span className={cn(
-                                  (feature === 'Disable downloads' || feature === 'Custom expiration dates' || feature === 'Password-protected links' || feature === 'Comments on shares' || feature === 'Comment attachments' || feature === 'Share page customization') && "pl-0 sm:pl-4 text-muted-foreground/80 font-normal",
+                                  "text-foreground/90",
                                   feature === 'Advanced Integrations' && "whitespace-pre-line"
                                 )}>
                                   {feature === 'Advanced Integrations' ? (isMobileView ? 'Adv. Integrations' : 'Advanced Integrations\n(API & Webhooks)') : feature}
@@ -826,53 +885,141 @@ const BillingPage = () => {
                       </React.Fragment>
                     ))}
                   </TableBody>
-                </Table>
+                </PricingTable>
               </div>
             </FormCard>
           </Section>
 
           {/* Billing History Section */}
-          {history && history.invoices.length > 0 && (
+          {history && (history.history?.length > 0 || history.invoices?.length > 0) && (
             <Section>
               <SectionHeader>
                 <SectionTitle>History</SectionTitle>
-                <SectionDescription>Your recent invoices.</SectionDescription>
+                <SectionDescription>Your recent subscription activity and invoices.</SectionDescription>
               </SectionHeader>
 
-              <FormCard>
-                <div className="divide-y">
-                  {history.invoices.map((invoice) => (
-                    <div key={invoice.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 px-4 sm:px-8 gap-4 text-sm hover:bg-muted/20 transition-colors">
-                      <div className="flex items-center gap-4 sm:gap-5">
-                        <div className="rounded-full bg-muted p-2.5 shrink-0">
-                          <History className="h-4.5 w-4.5 text-muted-foreground/70" />
-                        </div>
-                        <div className="flex flex-col gap-0.5 min-w-0">
-                          <span className="font-medium text-sm text-foreground/90 truncate">
-                            {new Date(invoice.created * 1000).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground font-mono opacity-60 tracking-wider">#{invoice.number.split('-').pop()}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-4 sm:gap-8">
-                        <span className="font-mono font-medium tabular-nums text-foreground/80 text-base">
-                          ${(invoice.amount / 100).toFixed(2)} <span className="text-[10px] uppercase ml-1 opacity-40">{invoice.currency}</span>
-                        </span>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          asChild
-                          className="h-9 w-9 text-muted-foreground hover:bg-muted hover:text-foreground shrink-0"
-                        >
-                          <a href={invoice.invoicePdf} target="_blank" rel="noopener noreferrer">
-                            <ExternalLink className="h-4 w-4" />
-                          </a>
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </FormCard>
+              <div className="space-y-8">
+                {/* Subscription History Table */}
+                {history.history && history.history.length > 0 && (
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-semibold px-1">Subscription Record</h4>
+                    <FormCard className="p-0 overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-muted/30 hover:bg-muted/30">
+                            <TableHead className="w-[200px] px-4 py-3 text-[11px] uppercase tracking-wider font-bold align-middle">Plan</TableHead>
+                            <TableHead className="px-4 py-3 text-[11px] uppercase tracking-wider font-bold align-middle">Status</TableHead>
+                            <TableHead className="px-4 py-3 text-[11px] uppercase tracking-wider font-bold align-middle">Amount</TableHead>
+                            <TableHead className="px-4 py-3 text-[11px] uppercase tracking-wider font-bold align-middle">Billing Cycle</TableHead>
+                            <TableHead className="text-right px-4 py-3 text-[11px] uppercase tracking-wider font-bold align-middle">Date</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {history.history.map((sub: any) => (
+                            <TableRow key={sub.id} className="hover:bg-muted/20 transition-colors">
+                              <TableCell className="px-4 py-3 align-middle">
+                                <div className="flex flex-col gap-0.5">
+                                  <span className="font-medium text-sm">{sub.planName}</span>
+                                  <span className="text-[10px] text-muted-foreground uppercase font-mono opacity-60 tracking-tight">{sub.interval}ly</span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="px-4 py-3 align-middle">
+                                <span className={cn(
+                                  "inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-tight",
+                                  sub.status === 'active'
+                                    ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
+                                    : sub.status === 'canceled'
+                                      ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                                      : sub.status === 'past_due'
+                                        ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
+                                        : 'bg-slate-100 dark:bg-slate-900/30 text-slate-700 dark:text-slate-400'
+                                )}>
+                                  {sub.status === 'active' ? 'Active' : sub.status === 'canceled' ? 'Cancelled' : sub.status === 'past_due' ? 'Past Due' : sub.status}
+                                  {sub.cancelAtPeriodEnd && ' (Expiring)'}
+                                </span>
+                              </TableCell>
+                              <TableCell className="px-4 py-3 align-middle">
+                                <div className="flex flex-col gap-0.5">
+                                  <span className="text-sm font-mono font-medium">${sub.amount.toFixed(2)}</span>
+                                  <span className="text-[9px] text-muted-foreground uppercase opacity-50">{sub.currency}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="px-4 py-3 text-sm text-foreground/70 capitalize align-middle">
+                                {sub.interval}ly
+                              </TableCell>
+                              <TableCell className="px-4 py-3 text-right text-xs text-muted-foreground font-mono align-middle">
+                                {new Date(sub.created * 1000).toLocaleDateString()}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </FormCard>
+                  </div>
+                )}
+
+                {/* Invoices Table */}
+                {history.invoices && history.invoices.length > 0 && (
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-semibold px-1">Recent Invoices</h4>
+                    <FormCard className="p-0 overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-muted/30 hover:bg-muted/30">
+                            <TableHead className="w-[30%] px-4 py-3 text-[11px] uppercase tracking-wider font-bold align-middle">Invoice #</TableHead>
+                            <TableHead className="px-4 py-3 text-[11px] uppercase tracking-wider font-bold align-middle">Status</TableHead>
+                            <TableHead className="px-4 py-3 text-[11px] uppercase tracking-wider font-bold align-middle">Amount</TableHead>
+                            <TableHead className="text-right px-4 py-3 text-[11px] uppercase tracking-wider font-bold align-middle">Date</TableHead>
+                            <TableHead className="text-right px-4 py-3 text-[11px] uppercase tracking-wider font-bold align-middle">Action</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {history.invoices.map((invoice) => (
+                            <TableRow key={invoice.id} className="hover:bg-muted/20 transition-colors">
+                              <TableCell className="px-4 py-3 font-mono text-[11px] text-muted-foreground align-middle">
+                                {invoice.id}
+                              </TableCell>
+                              <TableCell className="px-4 py-3 align-middle">
+                                <span className={cn(
+                                  "inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-tight",
+                                  invoice.status === 'paid'
+                                    ? 'bg-emerald-100 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400'
+                                    : 'bg-yellow-100 dark:bg-yellow-950/30 text-yellow-600 dark:text-yellow-400'
+                                )}>
+                                  {invoice.status}
+                                </span>
+                              </TableCell>
+                              <TableCell className="px-4 py-3 text-sm font-mono font-medium align-middle">
+                                ${invoice.amount ? (invoice.amount / 100).toFixed(2) : '0.00'}
+                              </TableCell>
+                              <TableCell className="px-4 py-3 text-right text-xs text-muted-foreground font-mono align-middle">
+                                {new Date(invoice.created * 1000).toLocaleDateString()}
+                              </TableCell>
+                              <TableCell className="px-4 py-3 text-right align-middle">
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                      onClick={() => window.open(invoice.invoicePdf, '_blank')}
+                                    >
+                                      <Download className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    Download PDF Invoice
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </FormCard>
+                  </div>
+                )}
+              </div>
             </Section>
           )}
         </SectionGroup>

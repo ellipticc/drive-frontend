@@ -40,7 +40,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     const pathname = usePathname();
 
     // Define public routes where notification check should be skipped
-    const publicRoutes = ['/login', '/signup', '/register', '/otp', '/recover', '/recover/otp', '/recover/reset', '/backup', '/totp', '/totp/recovery', '/terms-of-service', '/privacy-policy', '/billing'];
+    const publicRoutes = ['/login', '/signup', '/register', '/otp', '/recover', '/recover/otp', '/recover/reset', '/backup', '/totp', '/totp/recovery', '/terms-of-service', '/privacy-policy', '/pricing'];
     const isPublic = publicRoutes.includes(pathname) || pathname.startsWith('/s/');
 
     const checkUnseenStatus = useCallback(async () => {

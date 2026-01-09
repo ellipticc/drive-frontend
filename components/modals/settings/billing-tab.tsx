@@ -108,8 +108,8 @@ export function BillingTab({
                                             <span className="text-sm text-muted-foreground">Cancellation:</span>
                                             <span className="text-sm text-red-600 font-medium">
                                                 {subscription.currentPeriodEnd
-                                                    ? `Cancels ${new Date(subscription.currentPeriodEnd).toLocaleDateString()}`
-                                                    : 'Scheduled for cancellation'
+                                                    ? `${subscription.status === 'trialing' ? 'Trial ends' : 'Expiring'} ${new Date(subscription.currentPeriodEnd * 1000).toLocaleDateString()}`
+                                                    : 'Scheduled for termination'
                                                 }
                                             </span>
                                         </div>
@@ -117,8 +117,8 @@ export function BillingTab({
                                     {!subscription.cancelAtPeriodEnd && subscription.currentPeriodEnd && (
                                         <div className="flex items-center justify-between">
                                             <span className="text-sm text-muted-foreground">Next billing:</span>
-                                            <span className="text-sm font-medium">
-                                                {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
+                                            <span className="text-sm font-medium font-mono">
+                                                {new Date(subscription.currentPeriodEnd * 1000).toLocaleDateString()}
                                             </span>
                                         </div>
                                     )}
@@ -229,8 +229,8 @@ export function BillingTab({
                                 </AlertDialog>
                             ) : subscription?.cancelAtPeriodEnd ? (
                                 <div className="flex-1 p-3 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-                                    <p className="text-sm text-yellow-800 dark:text-yellow-200 text-center">
-                                        Subscription will be cancelled on {subscription.currentPeriodEnd ? new Date(subscription.currentPeriodEnd * 1000).toLocaleDateString() : 'the end of billing period'}
+                                    <p className="text-sm text-yellow-800 dark:text-yellow-200 text-center font-medium">
+                                        Your {subscription.status === 'trialing' ? 'trial' : 'subscription'} will expire on {subscription.currentPeriodEnd ? new Date(subscription.currentPeriodEnd * 1000).toLocaleDateString() : 'the end of the period'}
                                     </p>
                                 </div>
                             ) : null}
@@ -251,7 +251,7 @@ export function BillingTab({
                                 )}
                             </Button>
                             <Button
-                                onClick={() => window.location.href = '/billing'}
+                                onClick={() => window.location.href = '/pricing'}
                                 className="flex-1"
                             >
                                 {subscription ? 'Change Plan' : 'Upgrade Plan'}
