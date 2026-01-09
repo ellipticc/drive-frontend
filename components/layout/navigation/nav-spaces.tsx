@@ -161,7 +161,12 @@ const SpaceIconRenderer = ({
                 <IconPlanet size={size} className="text-blue-500" />
             ) : (() => {
                 const TablerIcon = (iconName && (TablerIcons as any)[iconName]) || TablerIcons.IconFolder;
-                return <TablerIcon size={size} className={getSpaceColorClass(color)} />;
+                const isHex = color?.startsWith('#');
+                return <TablerIcon
+                    size={size}
+                    className={!isHex ? getSpaceColorClass(color) : ""}
+                    style={isHex ? { color } : undefined}
+                />;
             })()}
         </div>
     );
@@ -756,7 +761,7 @@ export function NavSpaces() {
                                     This will permanently delete the space "{selectedSpace.name}". This action cannot be undone.
                                 </DialogDescription>
                             </DialogHeader>
-                            <DialogFooter className="gap-2 sm:gap-0">
+                            <DialogFooter className="gap-2">
                                 <Button variant="outline" onClick={() => setIsDeleteOpen(false)}>Cancel</Button>
                                 <Button variant="destructive" onClick={handleDeleteSpace}>
                                     Delete

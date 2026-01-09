@@ -17,14 +17,31 @@ import { encryptFilename } from "@/lib/crypto"
 import { masterKeyManager } from "@/lib/master-key"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
-import {
-    Collapsible,
-    CollapsibleContent,
-    CollapsibleTrigger,
-} from "@/components/ui/collapsible"
 import * as TablerIcons from "@tabler/icons-react"
-import { IconChevronDown, IconSearch } from "@tabler/icons-react"
+import { IconChevronDown } from "@tabler/icons-react"
 import { useRouter } from "next/navigation"
+import {
+    ColorPicker,
+    ColorPickerContent,
+    ColorPickerTrigger,
+    ColorPickerArea,
+    ColorPickerHueSlider,
+    ColorPickerAlphaSlider,
+    ColorPickerInput,
+} from "@/components/ui/color-picker"
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+} from "@/components/ui/command"
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover"
 
 interface CreateSpaceModalProps {
     open: boolean
@@ -33,33 +50,6 @@ interface CreateSpaceModalProps {
     editSpace?: { id: string; name: string; color?: string; icon?: string } | null
 }
 
-const COLORS = [
-    // Standard
-    { name: 'blue', class: 'bg-blue-500' },
-    { name: 'red', class: 'bg-red-500' },
-    { name: 'green', class: 'bg-green-500' },
-    { name: 'yellow', class: 'bg-yellow-500' },
-    { name: 'purple', class: 'bg-purple-500' },
-    { name: 'orange', class: 'bg-orange-500' },
-    { name: 'pink', class: 'bg-pink-500' },
-    { name: 'indigo', class: 'bg-indigo-500' },
-    { name: 'cyan', class: 'bg-cyan-500' },
-    { name: 'teal', class: 'bg-teal-500' },
-    { name: 'lime', class: 'bg-lime-500' },
-    { name: 'amber', class: 'bg-amber-500' },
-    { name: 'stone', class: 'bg-stone-600' },
-    { name: 'gray', class: 'bg-gray-500' },
-    { name: 'slate', class: 'bg-slate-700' },
-    // Vibrants
-    { name: 'emerald', class: 'bg-emerald-500' },
-    { name: 'violet', class: 'bg-violet-600' },
-    { name: 'fuchsia', class: 'bg-fuchsia-500' },
-    { name: 'rose', class: 'bg-rose-500' },
-    { name: 'sky', class: 'bg-sky-400' },
-    { name: 'zinc', class: 'bg-zinc-800' },
-    { name: 'white', class: 'bg-white border-muted' },
-    { name: 'black', class: 'bg-black' },
-]
 
 const FEATURED_ICONS = [
     'IconFolder', 'IconFile', 'IconStar', 'IconHeart', 'IconBookmark',
@@ -81,20 +71,17 @@ export function CreateSpaceModal({
     editSpace = null
 }: CreateSpaceModalProps) {
     const [spaceName, setSpaceName] = useState("")
-    const [selectedColor, setSelectedColor] = useState("blue")
+    const [selectedColor, setSelectedColor] = useState("#3b82f6")
     const [selectedIcon, setSelectedIcon] = useState("IconFolder")
     const [isLoading, setIsLoading] = useState(false)
-    const [isColorsOpen, setIsColorsOpen] = useState(false)
-    const [isIconsOpen, setIsIconsOpen] = useState(false)
     const [iconSearch, setIconSearch] = useState("")
+    const [isIconPopoverOpen, setIsIconPopoverOpen] = useState(false)
 
     useEffect(() => {
         if (open) {
             setSpaceName(editSpace?.name || "")
-            setSelectedColor(editSpace?.color || "blue")
+            setSelectedColor(editSpace?.color || "#3b82f6") // Default to blue hex
             setSelectedIcon(editSpace?.icon || "IconFolder")
-            setIsColorsOpen(false)
-            setIsIconsOpen(false)
             setIconSearch("")
         }
     }, [open, editSpace])
@@ -111,7 +98,7 @@ export function CreateSpaceModal({
         if (!editSpace) return spaceName.trim() !== ""
         return (
             spaceName.trim() !== editSpace.name ||
-            selectedColor !== (editSpace.color || "blue") ||
+            selectedColor.toLowerCase() !== (editSpace.color || "#3b82f6").toLowerCase() ||
             selectedIcon !== (editSpace.icon || "IconFolder")
         )
     }
@@ -139,7 +126,7 @@ export function CreateSpaceModal({
                     updates.nameSalt = filenameSalt
                 }
 
-                if (selectedColor !== (editSpace.color || "blue")) {
+                if (selectedColor.toLowerCase() !== (editSpace.color || "#3b82f6").toLowerCase()) {
                     updates.color = selectedColor
                 }
 
@@ -224,95 +211,98 @@ export function CreateSpaceModal({
                         />
                     </div>
 
-                    <Collapsible open={isColorsOpen} onOpenChange={setIsColorsOpen} className="grid gap-2">
-                        <div className="flex items-center justify-between">
-                            <Label>Space Color</Label>
-                            <CollapsibleTrigger asChild>
-                                <Button variant="ghost" size="sm" className="w-9 p-0">
-                                    <IconChevronDown className={cn("h-4 w-4 transition-transform duration-200", isColorsOpen && "rotate-180")} />
-                                    <span className="sr-only">Toggle colors</span>
-                                </Button>
-                            </CollapsibleTrigger>
-                        </div>
-                        <div className="flex items-center gap-3 p-2 border rounded-md bg-muted/30">
-                            <div className={cn("w-6 h-6 rounded-full", COLORS.find(c => c.name === selectedColor)?.class || "bg-blue-500")} />
-                            <span className="text-sm font-medium capitalize">{selectedColor}</span>
-                        </div>
-                        <CollapsibleContent className="space-y-2">
-                            <div className="grid grid-cols-7 gap-2 pt-2">
-                                {COLORS.map((color) => (
-                                    <button
-                                        key={color.name}
-                                        type="button"
-                                        onClick={() => setSelectedColor(color.name)}
-                                        className={cn(
-                                            "w-full aspect-square rounded-full transition-all duration-200 border-2",
-                                            color.class,
-                                            selectedColor === color.name
-                                                ? "border-primary scale-110 shadow-sm"
-                                                : "border-transparent opacity-60 hover:opacity-100"
-                                        )}
-                                        title={color.name.charAt(0).toUpperCase() + color.name.slice(1)}
-                                    />
-                                ))}
-                            </div>
-                        </CollapsibleContent>
-                    </Collapsible>
+                    <div className="grid gap-2">
+                        <Label>Space Options</Label>
+                        <div className="flex gap-3">
+                            {/* COLOR PICKER */}
+                            <ColorPicker value={selectedColor} onValueChange={setSelectedColor}>
+                                <ColorPickerTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        className="flex-1 h-12 justify-between px-3 hover:bg-accent/40 group bg-card border-muted-foreground/10"
+                                    >
+                                        <div className="flex items-center gap-2.5">
+                                            <div
+                                                className="w-5 h-5 rounded-full shadow-sm ring-1 ring-border"
+                                                style={{ backgroundColor: selectedColor }}
+                                            />
+                                            <div className="flex flex-col items-start gap-0.5">
+                                                <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Color</span>
+                                                <span className="text-sm font-mono tabular-nums font-medium min-w-[75px]">{selectedColor.toUpperCase()}</span>
+                                            </div>
+                                        </div>
+                                        <IconChevronDown size={14} className="text-muted-foreground group-hover:text-foreground transition-colors" />
+                                    </Button>
+                                </ColorPickerTrigger>
+                                <ColorPickerContent className="w-[300px]">
+                                    <ColorPickerArea />
+                                    <ColorPickerHueSlider />
+                                    <ColorPickerAlphaSlider />
+                                    <ColorPickerInput />
+                                </ColorPickerContent>
+                            </ColorPicker>
 
-                    <Collapsible open={isIconsOpen} onOpenChange={setIsIconsOpen} className="grid gap-2">
-                        <div className="flex items-center justify-between">
-                            <Label>Space Icon</Label>
-                            <CollapsibleTrigger asChild>
-                                <Button variant="ghost" size="sm" className="w-9 p-0">
-                                    <IconChevronDown className={cn("h-4 w-4 transition-transform duration-200", isIconsOpen && "rotate-180")} />
-                                    <span className="sr-only">Toggle icons</span>
-                                </Button>
-                            </CollapsibleTrigger>
+                            {/* ICON PICKER */}
+                            <Popover open={isIconPopoverOpen} onOpenChange={setIsIconPopoverOpen}>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        className="flex-1 h-12 justify-between px-3 hover:bg-accent/40 group bg-card border-muted-foreground/10"
+                                    >
+                                        <div className="flex items-center gap-2.5">
+                                            <div className="w-8 h-8 rounded-lg bg-muted/40 flex items-center justify-center shrink-0">
+                                                <SelectedIconComponent className="w-5 h-5" style={{ color: selectedColor }} />
+                                            </div>
+                                            <div className="flex flex-col items-start gap-0.5 overflow-hidden">
+                                                <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Icon</span>
+                                                <span className="text-sm font-medium truncate">{selectedIcon.replace('Icon', '')}</span>
+                                            </div>
+                                        </div>
+                                        <IconChevronDown size={14} className="text-muted-foreground group-hover:text-foreground transition-colors" />
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[300px] p-0" align="end">
+                                    <Command shouldFilter={false}>
+                                        <CommandInput
+                                            placeholder="Search icons..."
+                                            value={iconSearch}
+                                            onValueChange={setIconSearch}
+                                        />
+                                        <CommandList className="max-h-[300px]">
+                                            <CommandEmpty>No icons found.</CommandEmpty>
+                                            <CommandGroup
+                                                heading="Icons"
+                                                className="[&_[cmdk-group-items]]:grid [&_[cmdk-group-items]]:grid-cols-5 [&_[cmdk-group-items]]:gap-1 [&_[cmdk-group-items]]:p-2"
+                                            >
+                                                {filteredIcons.map((iconName) => {
+                                                    const IconComponent = (TablerIcons[iconName as keyof typeof TablerIcons] as any) || TablerIcons.IconFolder
+                                                    return (
+                                                        <CommandItem
+                                                            key={iconName}
+                                                            value={iconName}
+                                                            onSelect={() => {
+                                                                setSelectedIcon(iconName)
+                                                                setIsIconPopoverOpen(false)
+                                                            }}
+                                                            className={cn(
+                                                                "flex flex-col items-center justify-center p-2 rounded-md transition-all cursor-pointer aspect-square border-0 aria-selected:bg-primary/10 aria-selected:text-primary",
+                                                                selectedIcon === iconName && "bg-primary/10 text-primary ring-2 ring-primary ring-inset"
+                                                            )}
+                                                        >
+                                                            <IconComponent className="h-5 w-5" />
+                                                            <span className="sr-only">{iconName}</span>
+                                                        </CommandItem>
+                                                    )
+                                                })}
+                                            </CommandGroup>
+                                        </CommandList>
+                                    </Command>
+                                </PopoverContent>
+                            </Popover>
                         </div>
-                        <div className="flex items-center gap-3 p-2 border rounded-md bg-muted/30">
-                            <SelectedIconComponent className="h-5 w-5" />
-                            <span className="text-sm font-medium">{selectedIcon.replace('Icon', '')}</span>
-                        </div>
-                        <CollapsibleContent className="space-y-3">
-                            <div className="relative pt-2">
-                                <IconSearch className="absolute left-2.5 top-4.5 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    placeholder="Search icons..."
-                                    value={iconSearch}
-                                    onChange={(e) => setIconSearch(e.target.value)}
-                                    className="pl-9"
-                                />
-                            </div>
-                            <div className="grid grid-cols-6 gap-2 max-h-[200px] overflow-y-auto p-1">
-                                {filteredIcons.map((iconName) => {
-                                    const IconComponent = (TablerIcons[iconName as keyof typeof TablerIcons] as any) || TablerIcons.IconFolder
-                                    return (
-                                        <button
-                                            key={iconName}
-                                            type="button"
-                                            onClick={() => setSelectedIcon(iconName)}
-                                            className={cn(
-                                                "p-2 rounded-md flex items-center justify-center transition-all duration-200 border hover:bg-muted aspect-square",
-                                                selectedIcon === iconName
-                                                    ? "border-primary bg-primary/10 text-primary"
-                                                    : "border-transparent text-muted-foreground"
-                                            )}
-                                            title={iconName.replace('Icon', '')}
-                                        >
-                                            <IconComponent className="h-5 w-5" />
-                                        </button>
-                                    )
-                                })}
-                                {filteredIcons.length === 0 && (
-                                    <div className="col-span-6 py-4 text-center text-xs text-muted-foreground">
-                                        No icons found matching "{iconSearch}"
-                                    </div>
-                                )}
-                            </div>
-                        </CollapsibleContent>
-                    </Collapsible>
+                    </div>
                 </div>
-                <DialogFooter className="gap-2 sm:gap-0">
+                <DialogFooter className="gap-2">
                     <Button
                         type="button"
                         variant="ghost"
