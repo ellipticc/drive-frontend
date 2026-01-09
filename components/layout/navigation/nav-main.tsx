@@ -1,31 +1,26 @@
 "use client"
 
-import { IconFolderDown, IconFileUpload, IconPlus, IconFolderPlus, IconBrandGoogleDrive, type Icon } from "@tabler/icons-react"
-import { useState } from "react"
+import { IconChevronRight, IconLoader2, type Icon } from "@tabler/icons-react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { useLanguage } from "@/lib/i18n/language-context"
-import { useGoogleDrive } from "@/hooks/use-google-drive"
+import { apiClient, FolderContentItem } from "@/lib/api"
+import { decryptFilename } from "@/lib/crypto"
+import { masterKeyManager } from "@/lib/master-key"
+import { NavFolder } from "./nav-folder"
+import { cn } from "@/lib/utils"
 
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu"
 import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
 } from "@/components/ui/sidebar"
-import { CreateFolderModal } from "@/components/modals/create-folder-modal"
 
 export function NavMain({
   items,
-  onFileUpload,
-  onFolderUpload,
 }: {
   items: {
     title: string
@@ -33,21 +28,71 @@ export function NavMain({
     icon?: Icon
     id?: string
   }[]
-  onFileUpload?: () => void
-  onFolderUpload?: () => void
 }) {
   const { t } = useLanguage()
   const router = useRouter()
   const pathname = usePathname()
-  const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false)
-  const { openPicker } = useGoogleDrive()
 
-  const handleFileUpload = () => {
-    onFileUpload?.()
-  }
+  // States for "My files" expansion
+  const [isMyFilesExpanded, setIsMyFilesExpanded] = useState(() => {
+    if (typeof window !== "undefined") {
+      return sessionStorage.getItem("my-files-expanded") === "true"
+    }
+    return false
+  })
+  const [rootSubfolders, setRootSubfolders] = useState<FolderContentItem[]>([])
+  const [isLoadingFolders, setIsLoadingFolders] = useState(false)
+  const [hasLoadedRoot, setHasLoadedRoot] = useState(false)
+  const [isMyFilesLeaf, setIsMyFilesLeaf] = useState(false)
 
-  const handleFolderUpload = () => {
-    onFolderUpload?.()
+  const fetchRootFolders = useCallback(async () => {
+    if (hasLoadedRoot) return
+    setIsLoadingFolders(true)
+    try {
+      const response = await apiClient.getFolderContents("root")
+      if (response.success && response.data) {
+        const masterKey = masterKeyManager.hasMasterKey() ? masterKeyManager.getMasterKey() : null
+        const decrypted = await Promise.all(
+          response.data.folders.map(async (f) => {
+            let name = "Encrypted Folder"
+            try {
+              if (masterKey) {
+                name = await decryptFilename(f.encryptedName, f.nameSalt, masterKey)
+              }
+            } catch (err) {
+              console.error("Failed sidebar decrypt", err)
+            }
+            return { ...f, name }
+          })
+        )
+        setRootSubfolders(decrypted)
+        setHasLoadedRoot(true)
+        if (decrypted.length === 0) {
+          setIsMyFilesLeaf(true)
+          setIsMyFilesExpanded(false)
+        }
+      } else {
+        setIsMyFilesLeaf(true)
+      }
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setIsLoadingFolders(false)
+    }
+  }, [hasLoadedRoot])
+
+  useEffect(() => {
+    if (isMyFilesExpanded && !hasLoadedRoot) {
+      fetchRootFolders()
+    }
+  }, [isMyFilesExpanded, hasLoadedRoot, fetchRootFolders])
+
+  const toggleMyFiles = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const next = !isMyFilesExpanded
+    setIsMyFilesExpanded(next)
+    sessionStorage.setItem("my-files-expanded", String(next))
   }
 
   const handleNavigate = (url: string) => {
@@ -60,53 +105,57 @@ export function NavMain({
     <SidebarGroup>
       <SidebarGroupContent className="flex flex-col gap-2">
         <SidebarMenu>
-          <SidebarMenuItem className="flex items-center gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <SidebarMenuButton
-                  tooltip={t("common.new")}
-                  className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground min-w-8 duration-200 ease-linear"
-                >
-                  <IconPlus />
-                  <span>{t("common.new")}</span>
-                </SidebarMenuButton>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-48">
-                <DropdownMenuItem onClick={handleFileUpload} className="cursor-pointer">
-                  <IconFileUpload className="me-2 h-4 w-4" />
-                  {t("files.uploadFile")}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleFolderUpload} className="cursor-pointer">
-                  <IconFolderDown className="me-2 h-4 w-4" />
-                  {t("files.uploadFolder")}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={openPicker} className="cursor-pointer">
-                  <IconBrandGoogleDrive className="me-2 h-4 w-4" stroke={1.5} />
-                  Import from Google Drive
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setIsCreateFolderOpen(true)} className="cursor-pointer">
-                  <IconFolderPlus className="me-2 h-4 w-4" />
-                  {t("files.newFolder")}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <CreateFolderModal
-              open={isCreateFolderOpen}
-              onOpenChange={setIsCreateFolderOpen}
-              onFolderCreated={() => {
-                // Refresh logic if needed
-                router.refresh()
-              }}
-            />
-          </SidebarMenuItem>
-        </SidebarMenu>
-        <SidebarMenu>
           {items.map((item) => (
             <SidebarMenuItem key={item.title}>
-              {item.id === 'trash' ? (
+              {item.id === 'my-files' ? (
+                <div className="space-y-1">
+                  <SidebarMenuButton
+                    tooltip={item.title}
+                    isActive={pathname === item.url || (pathname !== '/' && !['/photos', '/shared', '/trash'].includes(pathname))}
+                    onClick={() => handleNavigate(item.url)}
+                    className="cursor-pointer relative pr-8"
+                  >
+                    {item.icon && <item.icon className="shrink-0" />}
+                    <span>{item.title}</span>
+                    {!isMyFilesLeaf && (
+                      <div
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          toggleMyFiles(e)
+                        }}
+                        className="absolute right-1 top-1/2 -translate-y-1/2 p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded-sm transition-colors text-muted-foreground/40 hover:text-muted-foreground z-20"
+                      >
+                        <IconChevronRight
+                          className={cn("size-3.5 transition-transform duration-200", isMyFilesExpanded && "rotate-90")}
+                        />
+                      </div>
+                    )}
+                  </SidebarMenuButton>
+
+                  {isMyFilesExpanded && (
+                    <SidebarMenuSub className="ml-3.5 border-l border-border/50">
+                      {isLoadingFolders ? (
+                        <div className="flex items-center gap-2 px-2 py-1 text-[10px] text-muted-foreground italic">
+                          <IconLoader2 className="size-3 animate-spin" />
+                          {t("sidebar.loading")}
+                        </div>
+                      ) : rootSubfolders.length > 0 ? (
+                        rootSubfolders.map((folder) => (
+                          <NavFolder
+                            key={folder.id}
+                            folder={{ id: folder.id, name: folder.name || "Untitled", parentId: folder.parentId }}
+                          />
+                        ))
+                      ) : hasLoadedRoot ? (
+                        <div className="px-2 py-1 text-[10px] text-muted-foreground/60 italic">
+                          {t("sidebar.empty")}
+                        </div>
+                      ) : null}
+                    </SidebarMenuSub>
+                  )}
+                </div>
+              ) : item.id === 'trash' ? (
                 <SidebarMenuButton
                   tooltip={item.title}
                   isActive={pathname === item.url}

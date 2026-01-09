@@ -69,6 +69,8 @@ export const dictionaries = {
             addItem: "Add Item",
             moveToSpace: "Move to Space",
             removeFromSpace: "Remove from Space",
+            loading: "Loading...",
+            empty: "Empty",
         },
         files: {
             name: "Name",
@@ -191,6 +193,8 @@ export const dictionaries = {
             addItem: "Ajouter un élément",
             moveToSpace: "Déplacer vers l'espace",
             removeFromSpace: "Retirer de l'espace",
+            loading: "Chargement...",
+            empty: "Vide",
         },
         files: {
             name: "Nom",
@@ -313,6 +317,8 @@ export const dictionaries = {
             addItem: "Agregar elemento",
             moveToSpace: "Mover al espacio",
             removeFromSpace: "Quitar del espacio",
+            loading: "Cargando...",
+            empty: "Vacío",
         },
         files: {
             name: "Nombre",
@@ -435,6 +441,8 @@ export const dictionaries = {
             addItem: "Element hinzufügen",
             moveToSpace: "In Bereich verschieben",
             removeFromSpace: "Aus Bereich entfernen",
+            loading: "Wird geladen...",
+            empty: "Leer",
         },
         files: {
             name: "Name",

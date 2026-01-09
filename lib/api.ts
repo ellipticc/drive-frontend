@@ -1273,7 +1273,9 @@ class ApiClient {
     const query = new URLSearchParams();
     if (params?.page) query.append('page', params.page.toString());
     if (params?.limit) query.append('limit', params.limit.toString());
-    return this.request(`/folders/${normalizedFolderId}/contents?${query.toString()}`);
+    const queryString = query.toString();
+    const endpoint = `/folders/${normalizedFolderId}/contents${queryString ? `?${queryString}` : ''}`;
+    return this.request(endpoint);
   }
 
   // Get folder contents recursively (including all nested folders and files)

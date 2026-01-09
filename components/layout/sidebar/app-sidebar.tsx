@@ -21,6 +21,7 @@ import { NavMain } from "@/components/layout/navigation/nav-main"
 import { NavSecondary } from "@/components/layout/navigation/nav-secondary"
 import { NavUser } from "@/components/layout/navigation/nav-user"
 import { NavSpaces } from "@/components/layout/navigation/nav-spaces"
+import { NavNew } from "@/components/layout/navigation/nav-new"
 import {
   Sidebar,
   SidebarContent,
@@ -185,23 +186,23 @@ export const AppSidebar = React.memo(function AppSidebar({
 
   return (
     <Sidebar collapsible="icon" {...props}>
-      <SidebarHeader>
+      <SidebarHeader className="gap-2 p-2">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
               asChild
-              className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
               <a href="#">
                 <IconCaretLeftRightFilled className="!size-5" />
-                <span className="text-base font-geist-mono break-all">ellipticc</span>
+                <span className="text-base font-geist-mono break-all leading-none">ellipticc</span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
+        <NavNew onFileUpload={handleFileUpload} onFolderUpload={handleFolderUpload} />
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} onFileUpload={handleFileUpload} onFolderUpload={handleFolderUpload} />
+        <NavMain items={data.navMain} />
         <NavSpaces />
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
