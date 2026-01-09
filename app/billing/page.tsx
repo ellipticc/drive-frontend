@@ -788,7 +788,7 @@ const BillingPage = () => {
                                 {featureTooltips[feature] && (
                                   <Tooltip>
                                     <TooltipTrigger asChild>
-                                      <button className="text-muted-foreground hover:text-foreground opacity-40 hover:opacity-100 transition-opacity" onClick={(e) => isMobileView && e.currentTarget.focus()}>
+                                      <button className="text-muted-foreground hover:text-foreground opacity-40 hover:opacity-100 transition-opacity focus:outline-none [-webkit-tap-highlight-color:transparent]">
                                         <InfoCircle className="h-3.5 w-3.5" />
                                       </button>
                                     </TooltipTrigger>

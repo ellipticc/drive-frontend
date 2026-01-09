@@ -18,20 +18,66 @@ function TooltipProvider({
   )
 }
 
+const TooltipContext = React.createContext<{
+  isMobile: boolean
+  open: boolean
+  setOpen: (open: boolean) => void
+} | null>(null)
+
 function Tooltip({
+  children,
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Root>) {
+  const [open, setOpen] = React.useState(false)
+  const [isMobile, setIsMobile] = React.useState(false)
+
+  React.useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.matchMedia("(max-width: 1024px)").matches)
+    }
+    checkMobile()
+    window.addEventListener("resize", checkMobile)
+    return () => window.removeEventListener("resize", checkMobile)
+  }, [])
+
   return (
-    <TooltipProvider>
-      <TooltipPrimitive.Root data-slot="tooltip" {...props} />
-    </TooltipProvider>
+    <TooltipContext.Provider value={{ isMobile, open, setOpen }}>
+      <TooltipProvider>
+        <TooltipPrimitive.Root
+          {...props}
+          open={isMobile ? open : props.open}
+          onOpenChange={(val) => {
+            setOpen(val)
+            props.onOpenChange?.(val)
+          }}
+        >
+          {children}
+        </TooltipPrimitive.Root>
+      </TooltipProvider>
+    </TooltipContext.Provider>
   )
 }
 
 function TooltipTrigger({
+  className,
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Trigger>) {
-  return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />
+  const context = React.useContext(TooltipContext)
+
+  return (
+    <TooltipPrimitive.Trigger
+      data-slot="tooltip-trigger"
+      className={cn("focus:outline-none select-none [-webkit-tap-highlight-color:transparent]", className)}
+      {...props}
+      onClick={(e) => {
+        if (context?.isMobile) {
+          // On mobile, toggle the open state on click
+          context.setOpen(!context.open)
+        }
+        props.onClick?.(e)
+      }}
+    />
+  )
 }
 
 function TooltipContent({
