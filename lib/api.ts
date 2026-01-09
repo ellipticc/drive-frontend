@@ -1146,12 +1146,16 @@ class ApiClient {
     folderId?: string;
     limit?: number;
     offset?: number;
+    page?: number;
   }): Promise<ApiResponse<{
     files: FileItem[];
     pagination: {
       limit: number;
       offset: number;
-      hasMore: boolean;
+      page: number;
+      total: number;
+      totalPages: number;
+      hasMore: boolean; // Keep for backward compatibility if possible, or calculate it
     };
   }>> {
     const queryParams = new URLSearchParams();
@@ -1163,6 +1167,9 @@ class ApiClient {
     }
     if (params?.offset !== undefined) {
       queryParams.append('offset', params.offset.toString());
+    }
+    if (params?.page !== undefined) {
+      queryParams.append('page', params.page.toString());
     }
 
     const queryString = queryParams.toString();
@@ -1251,12 +1258,22 @@ class ApiClient {
   }
 
   // Get folder contents (both files and folders)
-  async getFolderContents(folderId: string = 'root'): Promise<ApiResponse<{
+  // Get folder contents (both files and folders)
+  async getFolderContents(folderId: string = 'root', params?: { page?: number; limit?: number }): Promise<ApiResponse<{
     folders: FolderContentItem[];
     files: FileContentItem[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
   }>> {
     const normalizedFolderId = folderId === 'root' ? 'root' : folderId;
-    return this.request(`/folders/${normalizedFolderId}/contents`);
+    const query = new URLSearchParams();
+    if (params?.page) query.append('page', params.page.toString());
+    if (params?.limit) query.append('limit', params.limit.toString());
+    return this.request(`/folders/${normalizedFolderId}/contents?${query.toString()}`);
   }
 
   // Get folder contents recursively (including all nested folders and files)
@@ -1676,26 +1693,54 @@ class ApiClient {
     });
   }
 
-  async getMyShares(): Promise<ApiResponse<ShareItem[]>> {
-    return this.request('/shares/mine');
+  async getMyShares(params?: { page?: number; limit?: number }): Promise<ApiResponse<{
+    data: ShareItem[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  } | ShareItem[]>> {
+    const query = new URLSearchParams();
+    if (params?.page) query.append('page', params.page.toString());
+    if (params?.limit) query.append('limit', params.limit.toString());
+
+    // If no params, preserve backward compatibility
+    if (!params?.page && !params?.limit) {
+      return this.request('/shares/mine');
+    }
+
+    return this.request(`/shares/mine?${query.toString()}`);
   }
 
-  async getReceivedShares(): Promise<ApiResponse<{
-    id: string;
-    fileId: string;
-    fileName: string;
-    fileSize: number;
-    sharedAt: string;
-    sharedBy: {
+  async getReceivedShares(params?: { page?: number; limit?: number }): Promise<ApiResponse<{
+    data: {
       id: string;
-      name?: string;
-      email: string;
+      fileId: string;
+      fileName: string;
+      fileSize: number;
+      sharedAt: string;
+      sharedBy: {
+        id: string;
+        name?: string;
+        email: string;
+      };
+      permissions: string;
+      revoked: boolean;
+      linkSecret?: string;
+    }[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
     };
-    permissions: string;
-    revoked: boolean;
-    linkSecret?: string;
-  }[]>> {
-    return this.request('/shares/received');
+  }>> {
+    const query = new URLSearchParams();
+    if (params?.page) query.append('page', params.page.toString());
+    if (params?.limit) query.append('limit', params.limit.toString());
+    return this.request(`/shares/received?${query.toString()}`);
   }
 
   async reportShare(shareId: string, data: {
@@ -1891,23 +1936,45 @@ class ApiClient {
     return this.request(endpoint);
   }
 
-  async getTrashFolders(): Promise<ApiResponse<{
-    id: string;
-    encryptedName: string;
-    nameSalt: string;
-    parentId: string | null;
-    path: string;
-    createdAt: string;
-    updatedAt: string;
-    deletedAt: string;
-  }[]>> {
-    const response = await this.request('/folders/trash/list');
-    // The backend returns {folders: [...], files: [...]}, but we only want folders
-    if (response.success && response.data && (response.data as { folders?: unknown[] }).folders) {
-      const folders = (response.data as { folders?: { id: string; encryptedName: string; nameSalt: string; parentId: string | null; path: string; createdAt: string; updatedAt: string; deletedAt: string; }[] }).folders || [];
+  async getTrashFolders(params?: { page?: number; limit?: number }): Promise<ApiResponse<{
+    data: {
+      id: string;
+      encryptedName: string;
+      nameSalt: string;
+      parentId: string | null;
+      path: string;
+      createdAt: string;
+      updatedAt: string;
+      deletedAt: string;
+    }[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  }>> {
+    const query = new URLSearchParams();
+    if (params?.page) query.append('page', params.page.toString());
+    if (params?.limit) query.append('limit', params.limit.toString());
+
+    const response = await this.request(`/folders/trash/list?${query.toString()}`);
+
+    if (response.success && response.data) {
+      const folders = (response.data as { folders?: any[] }).folders || [];
+      const pagination = (response.data as any).pagination || {
+        page: params?.page || 1,
+        limit: params?.limit || 50,
+        total: folders.length,
+        totalPages: 1
+      };
+
       return {
         success: true,
-        data: folders
+        data: {
+          data: folders as any[],
+          pagination
+        }
       };
     }
     return {
@@ -1915,7 +1982,6 @@ class ApiClient {
       error: response.error || 'Failed to fetch trash folders'
     };
   }
-
   async deleteFilePermanently(fileId: string): Promise<ApiResponse<{ message: string; storageFreed: number }>> {
     const idempotencyKey = generateIdempotencyKey('deleteFilePermanent', fileId);
     const headers = addIdempotencyKey({}, idempotencyKey);

@@ -76,10 +76,15 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
     const [selectedItemForDetails, setSelectedItemForDetails] = useState<{ id: string; name: string; type: "file" | "folder" } | null>(null);
     const [bulkDeleteModalOpen, setBulkDeleteModalOpen] = useState(false);
 
-    // Load trash items on component mount
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalItems, setTotalItems] = useState(0);
+    const limit = 50;
+
+    // Load trash items on component mount or page change
     useEffect(() => {
         refreshTrash();
-    }, []);
+    }, [page]);
 
     // Refresh trash items
     const refreshTrash = async () => {
@@ -93,8 +98,8 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
 
             try {
                 [filesResponse, foldersResponse] = await Promise.all([
-                    apiClient.getTrashFiles(),
-                    apiClient.getTrashFolders()
+                    apiClient.getTrashFiles({ page, limit }),
+                    apiClient.getTrashFolders({ page, limit })
                 ]);
             } catch (fetchErr) {
                 console.error('Error fetching trash items:', fetchErr);
@@ -104,6 +109,25 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
             }
 
             if (filesResponse?.success && foldersResponse?.success) {
+                // Update pagination info
+                let filePages = 1;
+                let folderPages = 1;
+                let fileTotal = 0;
+                let folderTotal = 0;
+
+                if (filesResponse.data && 'pagination' in filesResponse.data) {
+                    filePages = filesResponse.data.pagination.totalPages;
+                    fileTotal = filesResponse.data.pagination.total;
+                }
+
+                if (foldersResponse.data && 'pagination' in (foldersResponse.data as any)) {
+                    folderPages = (foldersResponse.data as any).pagination.totalPages;
+                    folderTotal = (foldersResponse.data as any).pagination.total;
+                }
+
+                setTotalPages(Math.max(filePages, folderPages));
+                setTotalItems(fileTotal + folderTotal);
+
                 // Get master key for filename decryption - we ALWAYS have access to it
                 let masterKey: Uint8Array | null = null;
                 try {
@@ -119,8 +143,9 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                 }
 
                 // Decrypt files synchronously since we have master key
+                const filesData = (filesResponse.data && 'files' in filesResponse.data) ? filesResponse.data.files : [];
                 const decryptedFiles = await Promise.all(
-                    ((filesResponse.data?.files || []) as unknown as FileContentItem[]).map(async (file: FileContentItem) => {
+                    (filesData as unknown as FileContentItem[]).map(async (file: FileContentItem) => {
                         let decryptedName = '(Unnamed file)';
 
                         // Try to decrypt filename if encrypted data is available
@@ -150,8 +175,9 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                 );
 
                 // Decrypt folders synchronously since we have master key
+                const foldersData = (foldersResponse.data && 'data' in (foldersResponse.data as any)) ? (foldersResponse.data as any).data : (foldersResponse.data || []);
                 const decryptedFolders = await Promise.all(
-                    ((foldersResponse.data || []) as FolderContentItem[]).map(async (folder: FolderContentItem) => {
+                    (foldersData as FolderContentItem[]).map(async (folder: FolderContentItem) => {
                         let decryptedName = '(Unnamed folder)';
 
                         // Try to decrypt folder name if encrypted data is available
@@ -176,7 +202,10 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                 );
 
                 // Combine all items
-                const allItems = [...decryptedFiles, ...decryptedFolders];
+                // Only show folders on first page to avoid duplication, or always show them?
+                // For now, always showing them as per previous behavior, but this might be weird if pagination is only for files.
+                // Ideally we should probably split them or paginate better, but sticking to simple file pagination.
+                const allItems = [...decryptedFolders, ...decryptedFiles];
                 setTrashItems(allItems);
             } else {
                 setError('Failed to load trash items');
@@ -703,8 +732,33 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                         </Table>
                     </div>
                 )}
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                    <div className="flex items-center justify-between px-4 py-3 border-t bg-card rounded-b-lg">
+                        <div className="text-sm text-muted-foreground">
+                            Page {page} of {totalPages} ({totalItems} items)
+                        </div>
+                        <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setPage(p => Math.max(1, p - 1))}
+                                disabled={page === 1 || isLoading}
+                            >
+                                Previous
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                                disabled={page === totalPages || isLoading}
+                            >
+                                Next
+                            </Button>
+                        </div>
+                    </div>
+                )}
             </TableCard.Root>
-
             <DetailsModal
                 itemId={selectedItemForDetails?.id || ""}
                 itemName={selectedItemForDetails?.name || ""}

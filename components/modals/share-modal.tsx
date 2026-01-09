@@ -526,7 +526,8 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
       // Check if there's an existing active share for this item
       const response = await apiClient.getMyShares()
       if (response.success && response.data) {
-        const existingShare = response.data.find((share: any) =>
+        const shares = Array.isArray(response.data) ? response.data : response.data.data;
+        const existingShare = shares.find((share: any) =>
           share.fileId === itemId && !share.revoked
         )
         if (existingShare) {
@@ -917,7 +918,8 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
       // First check if there's already a share for this item
       const mySharesResponse = await apiClient.getMyShares()
       if (mySharesResponse.success && mySharesResponse.data) {
-        const existingShare = mySharesResponse.data.find((share: any) =>
+        const shares = Array.isArray(mySharesResponse.data) ? mySharesResponse.data : mySharesResponse.data.data;
+        const existingShare = shares.find((share: any) =>
           share.fileId === itemId && !share.revoked
         )
 

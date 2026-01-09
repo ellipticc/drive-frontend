@@ -62,14 +62,14 @@ export default function PhotosPage() {
         else setIsLoading(true)
 
         try {
-            const response = await apiClient.getPhotos(500, 0)
+            const response = await apiClient.getPhotos(100, 0)
             if (response.success && response.data) {
                 const raw = response.data;
                 setRawItems(raw);
 
                 // Decrypt all filenames
                 const masterKey = masterKeyManager.getMasterKey();
-                const decryptedItems = await Promise.all(raw.map(async (item) => {
+                const decryptedItems = await Promise.all(raw.map(async (item: any) => {
                     try {
                         const decryptedName = await decryptFilename(
                             item.encryptedFilename,

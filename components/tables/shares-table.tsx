@@ -33,7 +33,7 @@ import { FileIcon } from "../file-icon";
 import { TruncatedNameTooltip } from "./truncated-name-tooltip";
 
 
-export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
+export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: string; mode?: 'sent' | 'received' }) => {
     const isMobile = useIsMobile();
     const { startFileDownload, startBulkDownload } = useGlobalUpload();
 
@@ -45,6 +45,12 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
     const [shares, setShares] = useState<ShareItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    // Pagination state
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalItems, setTotalItems] = useState(0);
+    const limit = 50;
 
     // Selection state
     const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
@@ -60,20 +66,63 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
     const [selectedItemForRename, setSelectedItemForRename] = useState<{ id: string; name: string; type: "file" | "folder" } | null>(null);
 
 
-    // Load shares on component mount
+    // Load shares on component mount or when page/mode changes
     useEffect(() => {
         refreshShares();
-    }, []);
+    }, [page, mode]);
 
     // Refresh shares
     const refreshShares = async () => {
         try {
             setIsLoading(true);
             setError(null);
-            // console.log('Loading shares...');
-            const response = await apiClient.getMyShares();
-            // console.log('Shares response:', response);
+
+            let response;
+            if (mode === 'received') {
+                response = await apiClient.getReceivedShares();
+            } else {
+                response = await apiClient.getMyShares({ page, limit });
+            }
+
             if (response.success && response.data) {
+                let sharesData: ShareItem[] = [];
+
+                if ('pagination' in response.data) {
+                    sharesData = response.data.data as ShareItem[];
+                    setTotalPages(response.data.pagination.totalPages);
+                    setTotalItems(response.data.pagination.total);
+
+                    // Map received shares if needed
+                    if (mode === 'received') {
+                        sharesData = sharesData.map((item: any) => ({
+                            id: item.id,
+                            fileId: item.fileId,
+                            fileName: item.fileName,
+                            fileSize: item.fileSize,
+                            createdAt: item.sharedAt, // Map sharedAt to createdAt
+                            permissions: item.permissions,
+                            revoked: item.revoked,
+                            linkSecret: item.linkSecret,
+                            // Defaults for missing fields
+                            views: 0,
+                            downloads: 0,
+                            folderPath: item.folderPath || '',
+                            isFolder: item.isFolder || false,
+                            recipients: [],
+                            has_password: false,
+                            // Initialize other optional ShareItem fields
+                            mimeType: item.mimeType,
+                            encryptedFilename: item.encryptedFilename,
+                            filenameSalt: item.filenameSalt
+                        })) as ShareItem[];
+                    }
+                } else {
+                    sharesData = response.data as ShareItem[];
+                    // No pagination returned (should not happen with new API)
+                    setTotalPages(1);
+                    setTotalItems(sharesData.length);
+                }
+
                 // Get master key for filename decryption
                 let masterKey: Uint8Array | null = null;
                 try {
@@ -83,7 +132,7 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                 }
 
                 // Decrypt filenames and folder paths in shares
-                const sharesWithDecryptedNames = await Promise.all(response.data.map(async (share: ShareItem) => {
+                const sharesWithDecryptedNames = await Promise.all(sharesData.map(async (share: ShareItem) => {
                     let displayName = share.fileName || '';
                     let displayPath = share.folderPath || '';
 
@@ -694,6 +743,33 @@ export const SharesTable = ({ searchQuery }: { searchQuery?: string }) => {
                                     </div>
                                 </div>
                             ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                    <div className="flex items-center justify-between px-4 py-3 border-t bg-card rounded-b-lg">
+                        <div className="text-sm text-muted-foreground">
+                            Page {page} of {totalPages} ({totalItems} items)
+                        </div>
+                        <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setPage(p => Math.max(1, p - 1))}
+                                disabled={page === 1 || isLoading}
+                            >
+                                Previous
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                                disabled={page === totalPages || isLoading}
+                            >
+                                Next
+                            </Button>
                         </div>
                     </div>
                 )}

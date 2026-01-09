@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState, useRef, useEffect, useCallback } from "react";
+import React, { useMemo, useState, useRef, useEffect, useCallback, useTransition } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { DotsVertical } from "@untitledui/icons";
 import type { SortDescriptor, Selection } from "react-aria-components";
@@ -245,7 +245,22 @@ export const Table01DividerLineSm = ({
 
     const [files, setFiles] = useState<FileItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isFetching, setIsFetching] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [isPending, startTransition] = useTransition();
+
+    // Track last fetch to prevent duplicates
+    const lastFetchRef = useRef<string | null>(null);
+
+    // Pagination state
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalItems, setTotalItems] = useState(0);
+    const limit = 50;
+
+    // Keep a ref to files for reading in callbacks without triggering updates
+    const filesRef = useRef(files);
+    filesRef.current = files;
 
     // Create a memoized map for efficient file lookups
     const filesMap = useMemo(() => {
@@ -587,8 +602,6 @@ export const Table01DividerLineSm = ({
             setCurrentFolderId('root');
             setFolderPath([{ id: 'root', name: t('sidebar.myFiles') }]);
             setIsInitialLoad(false);
-            // Load files for root folder
-            refreshFiles('root');
             return;
         }
 
@@ -630,8 +643,6 @@ export const Table01DividerLineSm = ({
                         setCurrentFolderId('root');
                         setFolderPath([{ id: 'root', name: t('sidebar.myFiles') }]);
                         setIsInitialLoad(false);
-                        // Load files for root folder
-                        await refreshFiles('root');
                         return;
                     }
                 }
@@ -640,10 +651,6 @@ export const Table01DividerLineSm = ({
                 setCurrentFolderId(currentId);
                 setFolderPath(currentPath);
                 setIsInitialLoad(false);
-
-                // Load files for the current folder
-                // console.log(`Loading contents for folder: ${currentId}`);
-                await refreshFiles(currentId);
             } catch {
                 console.error('Error parsing URL path:', error);
                 // On error, redirect to root
@@ -651,8 +658,6 @@ export const Table01DividerLineSm = ({
                 setCurrentFolderId('root');
                 setFolderPath([{ id: 'root', name: 'My Files' }]);
                 setIsInitialLoad(false);
-                // Load files for root folder
-                await refreshFiles('root');
             }
         };
 
@@ -779,14 +784,32 @@ export const Table01DividerLineSm = ({
         setFiles(prev => prev.filter(file => file.id !== fileId));
     }, []));
 
-    const refreshFiles = useCallback(async (folderId: string = currentFolderId) => {
+    const refreshFiles = useCallback(async (folderId: string = currentFolderId, force: boolean = false) => {
+        const fetchKey = `${folderId}-${page}`;
+        if (!force && lastFetchRef.current === fetchKey) {
+            // Already fetching this data or already fetched
+            return;
+        }
+        lastFetchRef.current = fetchKey;
+
+        let success = false;
         try {
-            setIsLoading(true);
+            // Only show full loading if files are empty (check ref to avoid dependency loop)
+            if (filesRef.current.length === 0) {
+                setIsLoading(true);
+            } else {
+                setIsFetching(true);
+            }
             setError(null);
-            // console.log(`Loading folder contents for: ${folderId}`);
-            const response = await apiClient.getFolderContents(folderId);
+            // console.log(`Loading folder contents for: ${folderId}, page: ${page}`);
+            const response = await apiClient.getFolderContents(folderId, { page, limit });
             // console.log(`Folder contents response:`, response);
             if (response.success && response.data) {
+                // Update pagination info from API response
+                if (response.data.pagination) {
+                    setTotalPages(response.data.pagination.totalPages);
+                    setTotalItems(response.data.pagination.total);
+                }
                 // Get master key for filename decryption
                 let masterKey: Uint8Array | null = null;
                 try {
@@ -885,6 +908,7 @@ export const Table01DividerLineSm = ({
                     setError(errorMessage);
                 }
             }
+            success = true;
         } catch (err) {
             // console.error('Error refreshing files:', err);
             // Handle network errors or other exceptions
@@ -901,29 +925,44 @@ export const Table01DividerLineSm = ({
                 setError(errorMessage);
             }
         } finally {
+            if (!success) {
+                lastFetchRef.current = null;
+            }
             setIsLoading(false);
+            setIsFetching(false);
         }
-    }, [currentFolderId, apiClient, router]);
+    }, [currentFolderId, page, limit, apiClient, router]);
+
+    // Load files when folder or page changes
+    useEffect(() => {
+        refreshFiles();
+    }, [currentFolderId, page, refreshFiles]);
 
     // Register for file replaced events to refresh the file list
     useOnFileReplaced(useCallback(() => {
 
         // Refresh the current folder contents
-        refreshFiles();
-    }, [refreshFiles]));
+        refreshFiles(currentFolderId, true);
+    }, [refreshFiles, currentFolderId]));
 
     // Navigate to a folder
     const navigateToFolder = async (folderId: string, folderName: string) => {
+        if (folderId === currentFolderId) return;
+
         addRecent({
             id: folderId,
             name: folderName,
             type: 'folder'
         });
         const newPath = [...folderPath, { id: folderId, name: folderName }];
-        setCurrentFolderId(folderId);
-        setFolderPath(newPath);
-        updateUrl(newPath);
-        setSelectedItems(new Set()); // Clear selection when navigating to new folder
+        startTransition(() => {
+            setFiles([]);
+            setIsLoading(true);
+            setCurrentFolderId(folderId);
+            setFolderPath(newPath);
+            updateUrl(newPath);
+            setSelectedItems(new Set()); // Clear selection when navigating to new folder
+        });
     };
 
     // Navigate to parent folder
@@ -931,9 +970,13 @@ export const Table01DividerLineSm = ({
         if (folderPath.length > 1) {
             const newPath = folderPath.slice(0, -1);
             const parentFolder = newPath[newPath.length - 1];
-            setCurrentFolderId(parentFolder.id);
-            setFolderPath(newPath);
-            updateUrl(newPath);
+            startTransition(() => {
+                setFiles([]);
+                setIsLoading(true);
+                setCurrentFolderId(parentFolder.id);
+                setFolderPath(newPath);
+                updateUrl(newPath);
+            });
         }
     };
 
@@ -941,11 +984,17 @@ export const Table01DividerLineSm = ({
     const navigateToPath = async (folderId: string) => {
         const folderIndex = folderPath.findIndex(f => f.id === folderId);
         if (folderIndex !== -1) {
+            if (folderId === currentFolderId) return;
+
             const newPath = folderPath.slice(0, folderIndex + 1);
-            setCurrentFolderId(folderId);
-            setFolderPath(newPath);
-            updateUrl(newPath);
-            setSelectedItems(new Set()); // Clear selection when navigating to new folder
+            startTransition(() => {
+                setFiles([]);
+                setIsLoading(true);
+                setCurrentFolderId(folderId);
+                setFolderPath(newPath);
+                updateUrl(newPath);
+                setSelectedItems(new Set()); // Clear selection when navigating to new folder
+            });
         }
     };
 
@@ -2369,7 +2418,7 @@ export const Table01DividerLineSm = ({
                     />
                 )}
 
-                {isLoading ? (
+                {isLoading || (isPending && files.length === 0) ? (
                     <div className="flex items-center justify-center py-8">
                         <div className="text-center space-y-4">
                             <IconLoader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-muted-foreground" />
@@ -2395,7 +2444,18 @@ export const Table01DividerLineSm = ({
                         </div>
                     </div>
                 ) : (
-                    <>
+                    <div className="relative h-full">
+                        {/* Smooth Top Progress Bar for background fetching */}
+                        {(isFetching || isPending) && (
+                            <div className="absolute top-0 left-0 right-0 z-50 h-[2px] bg-primary/20 overflow-hidden">
+                                <motion.div
+                                    className="h-full bg-primary"
+                                    initial={{ width: "0%" }}
+                                    animate={{ width: "100%" }}
+                                    transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                                />
+                            </div>
+                        )}
                         {viewMode === 'table' ? (
                             <DndContext
                                 sensors={sensors}
@@ -2912,7 +2972,34 @@ export const Table01DividerLineSm = ({
                                 )}
                             </div>
                         )}
-                    </>
+                    </div>
+                )
+                }
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                    <div className="flex items-center justify-between px-4 py-3 border-t bg-card rounded-b-lg">
+                        <div className="text-sm text-muted-foreground">
+                            Page {page} of {totalPages} ({totalItems} items)
+                        </div>
+                        <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setPage(p => Math.max(1, p - 1))}
+                                disabled={page === 1 || isLoading}
+                            >
+                                Previous
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                                disabled={page === totalPages || isLoading}
+                            >
+                                Next
+                            </Button>
+                        </div>
+                    </div>
                 )}
             </TableCard.Root>
 
