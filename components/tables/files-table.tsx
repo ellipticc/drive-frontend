@@ -2519,7 +2519,7 @@ export const Table01DividerLineSm = ({
                                                     className={`transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}
                                                 />
                                             </Table.Head>
-                                            <Table.Head id="name" isRowHeader allowsSorting={selectedItems.size === 0} className="w-full max-w-0 pointer-events-none cursor-default" align="left">
+                                            <Table.Head id="name" isRowHeader allowsSorting={true} className="w-full max-w-0 pointer-events-none cursor-default" align="left">
                                                 {selectedItems.size > 0 ? (
                                                     <span className="text-xs font-semibold whitespace-nowrap text-foreground px-1.5 py-1">{selectedItems.size} selected</span>
                                                 ) : (
@@ -2527,17 +2527,17 @@ export const Table01DividerLineSm = ({
                                                 )}
                                             </Table.Head>
                                             <Table.Head id="starred" align="center" className={`hidden md:table-cell w-16 ${visibleColumns.has('starred') ? '' : '[&>*]:invisible pointer-events-none cursor-default'}`} />
-                                            <Table.Head id="modified" allowsSorting={selectedItems.size === 0} align="right" className={`hidden md:table-cell ${visibleColumns.has('modified') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
+                                            <Table.Head id="modified" allowsSorting={true} align="right" className={`hidden md:table-cell w-40 ${visibleColumns.has('modified') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
                                                 <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>{t("files.modified")}</span>
                                             </Table.Head>
-                                            <Table.Head id="size" allowsSorting={selectedItems.size === 0} align="right" className={`hidden md:table-cell ${visibleColumns.has('size') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
+                                            <Table.Head id="size" allowsSorting={true} align="right" className={`hidden md:table-cell w-28 ${visibleColumns.has('size') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
                                                 <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>{t("files.size")}</span>
                                             </Table.Head>
-                                            <Table.Head id="checksum" allowsSorting={selectedItems.size === 0} align="right" className={`hidden md:table-cell ${visibleColumns.has('checksum') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
+                                            <Table.Head id="checksum" allowsSorting={true} align="right" className={`hidden md:table-cell w-32 ${visibleColumns.has('checksum') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
                                                 <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>{t("files.checksum")}</span>
                                             </Table.Head>
                                             <Table.Head id="shared" align="center" className={`hidden md:table-cell w-16 ${visibleColumns.has('shared') ? '' : '[&>*]:invisible pointer-events-none cursor-default'}`} />
-                                            <Table.Head id="actions" align="right" />
+                                            <Table.Head id="actions" align="right" className="w-12 px-2" />
                                         </Table.Header>
 
                                         <Table.Body dependencies={[visibleColumns, selectedItems.size, rowVirtualizer.getVirtualItems()]}>
@@ -2622,17 +2622,17 @@ export const Table01DividerLineSm = ({
                                                                 </TooltipContent>
                                                             </Tooltip>
                                                         </Table.Cell>
-                                                        <Table.Cell className={`hidden md:table-cell text-right ${visibleColumns.has('modified') ? '' : '[&>*]:invisible'} px-4`}>
+                                                        <Table.Cell className={`hidden md:table-cell text-right w-40 ${visibleColumns.has('modified') ? '' : '[&>*]:invisible'} px-4`}>
                                                             <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
                                                                 {formatDate(item.createdAt)}
                                                             </span>
                                                         </Table.Cell>
-                                                        <Table.Cell className={`hidden md:table-cell text-right ${visibleColumns.has('size') ? '' : '[&>*]:invisible'} px-4`}>
+                                                        <Table.Cell className={`hidden md:table-cell text-right w-28 ${visibleColumns.has('size') ? '' : '[&>*]:invisible'} px-4`}>
                                                             <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
                                                                 {item.type === 'folder' ? '--' : formatFileSize(item.size || 0)}
                                                             </span>
                                                         </Table.Cell>
-                                                        <Table.Cell className={`hidden md:table-cell text-right ${visibleColumns.has('checksum') ? '' : '[&>*]:invisible'} px-4`}>
+                                                        <Table.Cell className={`hidden md:table-cell text-right w-32 ${visibleColumns.has('checksum') ? '' : '[&>*]:invisible'} px-4`}>
                                                             {item.type === 'folder' ? (
                                                                 <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">N/A</span>
                                                             ) : item.shaHash ? (
