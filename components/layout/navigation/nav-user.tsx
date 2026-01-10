@@ -231,7 +231,7 @@ export function NavUser({
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger>
                     <IconBrightnessFilled className="h-4 w-4" />
-                    <span className="ml-2">{t("theme.appearance", { defaultValue: "Appearance" })}</span>
+                    <span>{t("theme.appearance", { defaultValue: "Appearance" })}</span>
                   </DropdownMenuSubTrigger>
                   <DropdownMenuSubContent>
                     <DropdownMenuItem onClick={() => handleThemeChange("light")}>
