@@ -40,10 +40,9 @@ import {
     IconChevronLeft,
     IconChevronRight,
     IconLogout,
-    IconShield,
     IconUserCog,
-    IconShield as Shield,
-    IconUserShield as ShieldUser
+    IconUserShield as ShieldUser,
+    IconChartAreaLine
 } from "@tabler/icons-react"
 import { getUAInfo, getOSIcon, getBrowserIcon } from './device-icons'
 import { apiClient } from "@/lib/api"
@@ -138,6 +137,10 @@ interface SecurityTabProps {
     // Revoked Toggle
     showRevoked: boolean;
     setShowRevoked: (val: boolean) => void;
+    // Privacy
+    usageDiagnosticsEnabled: boolean;
+    crashReportsEnabled: boolean;
+    handleUpdatePrivacySettings: (analytics: boolean, crashReports: boolean) => void;
 }
 
 export function SecurityTab(props: SecurityTabProps) {
@@ -152,7 +155,8 @@ export function SecurityTab(props: SecurityTabProps) {
         userDevices, isLoadingDevices, devicesTotal, devicesPage, devicesTotalPages, loadUserDevices, handleRevokeDevice, editingDeviceId, setEditingDeviceId, editNameValue, setEditNameValue, handleUpdateDeviceName, devicePlan,
         securityEvents, isLoadingSecurityEvents, detailedEventsEnabled, activityMonitorEnabled, handleUpdateSecurityPreferences, showDisableMonitorDialog, setShowDisableMonitorDialog, handleWipeSecurityEvents, handleDownloadSecurityEvents, loadSecurityEvents, securityEventsTotal, securityEventsPage, securityEventsHasMore, setSecurityEvents, setSecurityEventsTotal, setSecurityEventsHasMore,
         handleLogout, isLoggingOut, setShowDeleteModal,
-        showRevoked, setShowRevoked
+        showRevoked, setShowRevoked,
+        usageDiagnosticsEnabled, crashReportsEnabled, handleUpdatePrivacySettings
     } = props;
 
     const [copiedCodes, setCopiedCodes] = useState(false);
@@ -1044,6 +1048,77 @@ export function SecurityTab(props: SecurityTabProps) {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Privacy Section */}
+            <div className="border-t pt-6 space-y-4">
+                <div className="flex items-center gap-2">
+                    <IconChartAreaLine className="h-5 w-5 text-muted-foreground" />
+                    <h3 className="text-lg font-semibold">Privacy and data collection</h3>
+                </div>
+
+                <p className="text-sm text-muted-foreground">
+                    To continuously improve our services, we sometimes collect data to monitor the proper functioning of our applications. This information is not shared with any 3rd-party services.
+                </p>
+
+                <div className="space-y-4">
+                    <div className="flex items-center justify-between p-3 rounded-2xl bg-muted/30 border border-transparent hover:border-border transition-all">
+                        <div className="space-y-0.5">
+                            <div className="flex items-center gap-2">
+                                <Label htmlFor="usage-diagnostics" className="text-sm font-semibold cursor-pointer">
+                                    Collect usage diagnostics
+                                </Label>
+                                <TooltipProvider>
+                                    <Tooltip delayDuration={0}>
+                                        <TooltipTrigger asChild>
+                                            <IconInfoCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>This setting controls Google Analytics</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                Allow collection of anonymous usage data
+                            </p>
+                        </div>
+                        <Switch
+                            id="usage-diagnostics"
+                            checked={usageDiagnosticsEnabled}
+                            onCheckedChange={(checked) => handleUpdatePrivacySettings(checked, crashReportsEnabled)}
+                        />
+                    </div>
+
+                    <div className="flex items-center justify-between p-3 rounded-2xl bg-muted/30 border border-transparent hover:border-border transition-all">
+                        <div className="space-y-0.5">
+                            <div className="flex items-center gap-2">
+                                <Label htmlFor="crash-reports" className="text-sm font-semibold cursor-pointer">
+                                    Send crash reports
+                                </Label>
+                                <TooltipProvider>
+                                    <Tooltip delayDuration={0}>
+                                        <TooltipTrigger asChild>
+                                            <IconInfoCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>This setting controls Sentry Error Logging</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                Automatically send error reports to help fix issues
+                            </p>
+                        </div>
+                        <Switch
+                            id="crash-reports"
+                            checked={crashReportsEnabled}
+                            onCheckedChange={(checked) => handleUpdatePrivacySettings(usageDiagnosticsEnabled, checked)}
+                        />
+                    </div>
+                </div>
+            </div>
+
 
             {/* Account Actions Section */}
             <div className="border-t pt-6 space-y-4">

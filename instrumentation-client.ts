@@ -9,8 +9,13 @@ function hashUserId(id: string | number | undefined): string | undefined {
   return id ? btoa(String(id)).substring(0, 12) : undefined;
 }
 
-// Only initialize Sentry in production to avoid blocking issues in development
-if (process.env.NODE_ENV === 'production' && process.env.NEXT_PUBLIC_SENTRY_DSN) {
+// Check privacy settings from localStorage (default to true/enabled)
+const crashReportsEnabled = typeof window !== 'undefined'
+  ? localStorage.getItem('privacy_crash_reports') !== 'false'
+  : true;
+
+// Only initialize Sentry in production to avoid blocking issues in development AND if enabled by user
+if (process.env.NODE_ENV === 'production' && process.env.NEXT_PUBLIC_SENTRY_DSN && crashReportsEnabled) {
   Sentry.init({
     dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
 
@@ -44,26 +49,11 @@ if (process.env.NODE_ENV === 'production' && process.env.NEXT_PUBLIC_SENTRY_DSN)
       }
       return event;
     },
-  });
-} else {
-  // In development or when DSN is not set, provide a no-op Sentry object
-  // to prevent errors when Sentry methods are called
-  const noop = () => { };
-  const noopSentry = {
-    captureException: noop,
-    captureMessage: noop,
-    captureEvent: noop,
-    addBreadcrumb: noop,
-    setUser: noop,
-    setTag: noop,
-    setContext: noop,
-    withScope: (fn: (...args: unknown[]) => unknown) => fn(),
-    startTransaction: () => ({ finish: noop }),
-    configureScope: (fn: (...args: unknown[]) => unknown) => fn(),
-  };
 
-  // Replace Sentry with no-op in development
-  Object.assign(Sentry, noopSentry);
+  });
 }
+
+// Sentry handles uninitialized state gracefully (no-ops), so we don't need to manually shim it.
+// Attempting to Object.assign(Sentry, ...) fails because module namespaces are immutable.
 
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;

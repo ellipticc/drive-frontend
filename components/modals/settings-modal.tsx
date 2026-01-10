@@ -284,6 +284,10 @@ export function SettingsModal({
   const [showDisableMonitorDialog, setShowDisableMonitorDialog] = useState(false)
   const [showRevoked, setShowRevoked] = useState(false)
 
+  // Privacy settings state
+  const [usageDiagnosticsEnabled, setUsageDiagnosticsEnabled] = useState(true)
+  const [crashReportsEnabled, setCrashReportsEnabled] = useState(true)
+
   // Recovery codes state
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([])
   const [showRecoveryCodesModal, setShowRecoveryCodesModal] = useState(false)
@@ -832,6 +836,14 @@ export function SettingsModal({
       if (response.success && response.data) {
         setActivityMonitorEnabled(response.data.activityMonitorEnabled)
         setDetailedEventsEnabled(response.data.detailedEventsEnabled)
+        setUsageDiagnosticsEnabled(response.data.usageDiagnosticsEnabled ?? true)
+        setCrashReportsEnabled(response.data.crashReportsEnabled ?? true)
+
+        // Sync to localStorage for initialization scripts
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('privacy_usage_diagnostics', String(response.data.usageDiagnosticsEnabled ?? true))
+          localStorage.setItem('privacy_crash_reports', String(response.data.crashReportsEnabled ?? true))
+        }
       }
     } catch (error) {
       console.error('Failed to load security preferences:', error)
@@ -841,7 +853,13 @@ export function SettingsModal({
   // Update security preferences
   const handleUpdateSecurityPreferences = async (activity: boolean, detailed: boolean) => {
     try {
-      const response = await apiClient.updateSecurityPreferences(activity, detailed)
+      // Include current privacy settings state
+      const response = await apiClient.updateSecurityPreferences(
+        activity,
+        detailed,
+        usageDiagnosticsEnabled,
+        crashReportsEnabled
+      )
       if (response.success) {
         setActivityMonitorEnabled(activity)
         setDetailedEventsEnabled(detailed)
@@ -1454,6 +1472,64 @@ export function SettingsModal({
     }
   }
 
+  // Handle privacy settings update
+  const handleUpdatePrivacySettings = async (analytics: boolean, crashReports: boolean) => {
+    // Optimistic update
+    setUsageDiagnosticsEnabled(analytics)
+    setCrashReportsEnabled(crashReports)
+
+    // Store previous values for rollback
+    const prevAnalytics = usageDiagnosticsEnabled
+    const prevCrashReports = crashReportsEnabled
+
+    try {
+      // 1. Persist to backend FIRST (fail fast)
+      // Pass existing activity settings
+      const response = await apiClient.updateSecurityPreferences(
+        activityMonitorEnabled, // These variables are from state in this component scope
+        detailedEventsEnabled,
+        analytics,
+        crashReports
+      )
+
+      if (!response.success) {
+        throw new Error(response.error || "Failed to persist settings")
+      }
+
+      // 3. Update Client-Side Services
+
+      // Google Analytics
+      if (typeof window !== 'undefined' && (window as any).gtag) {
+        (window as any).gtag('consent', 'update', {
+          'analytics_storage': analytics ? 'granted' : 'denied'
+        });
+      }
+
+      // Update local storage for privacy settings
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('privacy_crash_reports', crashReports ? 'true' : 'false');
+        localStorage.setItem('privacy_usage_diagnostics', analytics ? 'true' : 'false');
+      }
+
+      // If any privacy setting changed, we reload to ensure clean state initialization
+      // This guarantees Sentry is excluded and GA consent is set correctly at start time
+      if (crashReports !== prevCrashReports || analytics !== prevAnalytics) {
+        toast.loading("Applying changes and reloading...", { duration: 2000 });
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
+      }
+
+    } catch (error) {
+      console.error("Failed to update privacy settings:", error)
+      toast.error("Failed to save privacy settings")
+
+      // Revert optimistic update
+      setUsageDiagnosticsEnabled(prevAnalytics)
+      setCrashReportsEnabled(prevCrashReports)
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       {externalOpen === undefined && externalOnOpenChange === undefined ? (
@@ -1647,6 +1723,9 @@ export function SettingsModal({
                   detailedEventsEnabled={detailedEventsEnabled}
                   activityMonitorEnabled={activityMonitorEnabled}
                   handleUpdateSecurityPreferences={handleUpdateSecurityPreferences}
+                  usageDiagnosticsEnabled={usageDiagnosticsEnabled}
+                  crashReportsEnabled={crashReportsEnabled}
+                  handleUpdatePrivacySettings={handleUpdatePrivacySettings}
                   showDisableMonitorDialog={showDisableMonitorDialog}
                   setShowDisableMonitorDialog={setShowDisableMonitorDialog}
                   handleWipeSecurityEvents={handleWipeSecurityEvents}

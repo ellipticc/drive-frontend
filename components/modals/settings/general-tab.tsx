@@ -379,6 +379,12 @@ export function GeneralTab({
                     </p>
                 </div>
             </div>
+            {/* User ID Section */}
+            <div className="border-t pt-6 flex justify-center">
+                <p className="text-xs font-mono text-muted-foreground bg-muted/50 px-3 py-1 rounded-full">
+                    User ID: {user?.id}
+                </p>
+            </div>
         </div >
     )
 }

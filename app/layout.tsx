@@ -196,8 +196,25 @@ export default function RootLayout({
           {`
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', 'G-NSQ52X2GM3');
+            
+            // Check privacy settings (default to true)
+            var usageDiagnosticsEnabled = true;
+            try {
+              if (localStorage.getItem('privacy_usage_diagnostics') === 'false') {
+                usageDiagnosticsEnabled = false;
+              }
+            } catch(e) {}
+
+            // Set default consent
+            gtag('consent', 'default', {
+              'analytics_storage': usageDiagnosticsEnabled ? 'granted' : 'denied',
+              'ad_storage': usageDiagnosticsEnabled ? 'granted' : 'denied'
+            });
+
+            if (usageDiagnosticsEnabled) {
+              gtag('js', new Date());
+              gtag('config', 'G-NSQ52X2GM3');
+            }
           `}
         </Script>
       </head>
