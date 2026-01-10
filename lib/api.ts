@@ -84,6 +84,7 @@ export interface FileInfo {
   shaHash: string | null;
   folderId: string | null;
   is_shared: boolean;
+  tags?: Tag[];
   encryption?: {
     iv: string;
     salt: string;
@@ -103,6 +104,15 @@ export interface FolderInfo {
   createdAt: string;
   updatedAt: string;
   is_shared: boolean;
+  tags?: Tag[];
+}
+
+export interface Tag {
+  id: string;
+  encrypted_name: string;
+  name_salt: string;
+  color?: string;
+  decryptedName?: string;
 }
 
 export interface DownloadUrlsResponse {
@@ -236,6 +246,7 @@ export interface FileItem {
   fileNoncePrefix?: string;
   lockedUntil?: string | null;
   retentionMode?: string | null;
+  tags?: Tag[];
 }
 
 export interface RecentItem {
@@ -701,6 +712,82 @@ class ApiClient {
       };
     }
   }
+
+  async getThumbnailBlob(fileId: string): Promise<Blob | null> {
+    const endpoint = `/photos/${fileId}/thumbnail`;
+    const requestUrl = `${this.baseURL}${endpoint}`;
+
+    const config: RequestInit = {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json'
+      },
+      credentials: 'include'
+    };
+
+    const token = this.getToken();
+    if (token) {
+      if (this.isTokenExpired(token)) {
+        return null;
+      }
+      (config.headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+    }
+
+    if (typeof window !== 'undefined') {
+      const deviceId = localStorage.getItem('device_id');
+      const publicKey = await getDevicePublicKey().catch(() => null);
+
+      if (deviceId && publicKey) {
+        const timestamp = Date.now().toString();
+
+        // Replicate fullPath logic from request method to match backend expectation
+        let fullPath = endpoint;
+        if (!endpoint.startsWith('http')) {
+          try {
+            const urlObj = new URL(requestUrl);
+            fullPath = urlObj.pathname + urlObj.search;
+          } catch {
+            fullPath = endpoint;
+          }
+        }
+
+        const message = `GET:${fullPath}:${timestamp}`;
+
+        try {
+          const signature = await signWithDeviceKey(message);
+          const headers = config.headers as Record<string, string>;
+          headers['X-Device-Id'] = deviceId;
+          headers['X-Device-Signature'] = signature;
+          headers['X-Device-Timestamp'] = timestamp;
+        } catch (e) {
+          console.error("Failed to sign thumbnail request", e);
+        }
+      }
+    }
+
+    try {
+      const response = await fetch(requestUrl, config);
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.url) {
+          const blobResponse = await fetch(result.url);
+          if (blobResponse.ok) {
+            return await blobResponse.blob();
+          }
+        }
+      }
+      // If 404, just return null (no thumbnail)
+      if (response.status === 404) return null;
+
+      console.warn(`Thumbnail fetch failed: ${response.status}`);
+      return null;
+    } catch (e) {
+      console.error("Error fetching thumbnail:", e);
+      return null;
+    }
+  }
+
+
 
   private getToken(): string | null {
     if (typeof window === 'undefined') return null;
@@ -3148,6 +3235,37 @@ class ApiClient {
 
   async trackBackupVerified(): Promise<ApiResponse<{ success: boolean }>> {
     return this.request('/backup/verified', { method: 'POST' });
+  }
+
+  // Tag management
+  async attachTag(data: {
+    fileId?: string;
+    folderId?: string;
+    encryptedName: string;
+    nameSalt: string;
+    color?: string;
+  }): Promise<ApiResponse<Tag>> {
+    return this.request('/tags/attach', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async detachTag(tagId: string, data: { fileId?: string; folderId?: string }): Promise<ApiResponse<{ success: boolean }>> {
+    return this.request(`/tags/detach/${tagId}`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteTag(tagId: string): Promise<ApiResponse<{ success: boolean }>> {
+    return this.request(`/tags/${tagId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getTags(): Promise<ApiResponse<Tag[]>> {
+    return this.request('/tags');
   }
 
   async deleteAccount(reason?: string, details?: string): Promise<ApiResponse<{

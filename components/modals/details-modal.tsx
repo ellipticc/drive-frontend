@@ -22,10 +22,38 @@ import {
   IconCopy,
   IconCheck,
   IconLock,
+  IconTag,
+  IconPlus,
+  IconX,
+  IconInfoCircle,
+  IconHistory,
+  IconSignature,
 } from "@tabler/icons-react"
 import { toast } from "sonner"
-import { apiClient, FileInfo, FolderInfo } from "@/lib/api"
+import { apiClient, FileInfo, FolderInfo, Tag } from "@/lib/api"
 import { truncateFilename } from "@/lib/utils"
+import {
+  Combobox,
+  ComboboxInput,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxItem,
+  ComboboxGroup,
+  ComboboxGroupLabel,
+  ComboboxSeparator,
+} from "@/components/ui/combobox"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import { encryptFilename } from "@/lib/crypto"
+import { masterKeyManager } from "@/lib/master-key"
+import { Badge } from "@/components/ui/badge"
+import { unwrapCEK } from "@/lib/download"
+import { decryptData } from "@/lib/crypto"
+import { keyManager } from "@/lib/key-manager"
 
 interface ItemDetails {
   filename?: string;
@@ -51,9 +79,13 @@ interface ItemDetails {
   shaHash?: string | null;
   lockedUntil?: string | null;
   retentionMode?: string | null;
+  tags?: Tag[];
+  width?: number;
+  height?: number;
 }
 import { decryptFilename } from "@/lib/crypto"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { useRouter, usePathname, useSearchParams } from "next/navigation"
 
 interface DetailsModalProps {
   children?: React.ReactNode
@@ -72,6 +104,9 @@ export function DetailsModal({
   open: externalOpen,
   onOpenChange: externalOnOpenChange
 }: DetailsModalProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const isMobile = useIsMobile();
   const [internalOpen, setInternalOpen] = useState(false)
   const [itemDetails, setItemDetails] = useState<ItemDetails | null>(null)
@@ -85,6 +120,13 @@ export function DetailsModal({
     error?: string
     status?: string
   } | null>(null)
+  const [tags, setTags] = useState<Tag[]>([])
+  const [availableTags, setAvailableTags] = useState<Tag[]>([])
+  const [isTagging, setIsTagging] = useState(false)
+  const [tagInput, setTagInput] = useState("")
+
+  // NEW: Thumbnail state
+  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
 
   const open = externalOpen ?? internalOpen
   const setOpen = externalOnOpenChange ?? setInternalOpen
@@ -95,10 +137,9 @@ export function DetailsModal({
     }
   }, [open, itemId])
 
-  // Decrypt filename when itemDetails changes
+  // Decrypt filename
   useEffect(() => {
     const decryptFilenameAsync = async () => {
-      // Handle different field names for files vs folders
       const encryptedName = itemDetails?.encrypted_filename || itemDetails?.encryptedFilename
       const filenameSalt = itemDetails?.filename_salt || itemDetails?.nameSalt
 
@@ -120,14 +161,12 @@ export function DetailsModal({
         setDecryptedFilename(null)
       }
     }
-
     decryptFilenameAsync()
   }, [itemDetails])
 
-  // Decrypt path when itemDetails changes
+  // Decrypt path
   useEffect(() => {
     const decryptPathAsync = async () => {
-      // Handle different field names for path
       const encryptedPath = itemDetails?.encrypted_path || itemDetails?.encryptedPath
       const pathSalt = itemDetails?.path_salt || itemDetails?.pathSalt
 
@@ -149,16 +188,87 @@ export function DetailsModal({
         setDecryptedPath(null)
       }
     }
-
     decryptPathAsync()
   }, [itemDetails])
+
+  // NEW: Effect to load thumbnail securely with decryption
+  useEffect(() => {
+    let objectUrl: string | null = null;
+    let isMounted = true;
+
+    const loadThumbnail = async () => {
+      // Check if itemDetails mentions a thumbnail exists
+      // Cast to any to access potential database fields
+      const details = itemDetails as any;
+      const hasThumbnail = details && details.thumbnail_path;
+
+      if (open && itemId && itemType === 'file' && hasThumbnail) {
+        try {
+          // 1. Fetch encrypted blob
+          const blob = await apiClient.getThumbnailBlob(itemId);
+          if (!blob || !isMounted) return;
+
+          // 2. Get User Keys
+          const keys = await keyManager.getUserKeys();
+
+          // 3. Get Encryption Metadata from itemDetails
+          const encryption = {
+            wrappedCek: details.wrapped_cek || details.wrappedCek,
+            kyberCiphertext: details.kyber_ciphertext || details.kyberCiphertext,
+            nonceWrapKyber: details.nonce_wrap_kyber || details.nonceWrapKyber || details.nonce_wrap,
+          };
+
+          if (!encryption.wrappedCek || !encryption.kyberCiphertext) {
+            console.warn("DetailsModal: Missing encryption metadata for thumbnail");
+            return;
+          }
+
+          try {
+            // 4. Unwrap Content Encryption Key
+            const cek = await unwrapCEK(encryption as any, keys.keypairs);
+
+            // 5. Read Blob string "encryptedData:nonce"
+            const text = await blob.text();
+
+            if (text.includes(':') && text.length < 20000000) {
+              const parts = text.split(':');
+              if (parts.length === 2) {
+                const [encryptedData, nonce] = parts;
+
+                // 6. Decrypt
+                const decryptedData = decryptData(encryptedData, cek, nonce);
+                const decryptedBlob = new Blob([decryptedData as any], { type: 'image/jpeg' });
+
+                objectUrl = URL.createObjectURL(decryptedBlob);
+                if (isMounted) setThumbnailUrl(objectUrl);
+                return;
+              }
+            }
+          } catch (e) {
+            console.error("DetailsModal: Thumbnail decryption failed", e);
+          }
+
+        } catch (error) {
+          console.error("DetailsModal: Error loading thumbnail:", error);
+        }
+      } else {
+        if (isMounted) setThumbnailUrl(null);
+      }
+    }
+
+    loadThumbnail();
+
+    return () => {
+      isMounted = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    }
+  }, [open, itemId, itemDetails, itemType]);
 
   const loadItemDetailsAndVerify = async () => {
     try {
       setIsLoading(true)
       setSignatureStatus(null)
 
-      // Load item details
       let response
       if (itemType === "file") {
         response = await apiClient.getFileInfo(itemId)
@@ -167,14 +277,11 @@ export function DetailsModal({
       }
 
       if (response.success && response.data) {
-        // Handle nested data structure for files and folders
         const dataObj = response.data as { file?: FileInfo; folder?: FolderInfo };
         const details = itemType === "file" ? (dataObj.file as ItemDetails | undefined) : (dataObj.folder as ItemDetails | undefined) || (response.data as ItemDetails)
         setItemDetails(details as ItemDetails | null)
-        // Note: No success toast shown when details are loaded
       }
 
-      // Auto-verify signature
       let verifyResponse
       if (itemType === "file") {
         verifyResponse = await apiClient.verifyFileSignature(itemId)
@@ -216,6 +323,134 @@ export function DetailsModal({
     }
   }
 
+  // Load available tags
+  useEffect(() => {
+    if (open) {
+      fetchAvailableTags()
+    }
+  }, [open])
+
+  const fetchAvailableTags = async () => {
+    try {
+      const response = await apiClient.getTags()
+      if (response.success && response.data) {
+        const masterKey = masterKeyManager.getMasterKey()
+        const decryptedTags = await Promise.all(
+          response.data.map(async (tag: Tag) => {
+            try {
+              const decrypted = await decryptFilename(tag.encrypted_name, tag.name_salt, masterKey)
+              return { ...tag, decryptedName: decrypted }
+            } catch {
+              return { ...tag, decryptedName: "[Encrypted Tag]" }
+            }
+          })
+        )
+        setAvailableTags(decryptedTags)
+      }
+    } catch (error) {
+      console.error("Failed to fetch available tags:", error)
+    }
+  }
+
+  // Decrypt item tags
+  useEffect(() => {
+    const decryptItemTags = async () => {
+      const rawTags = (itemDetails as any)?.tags as Tag[] || []
+      const masterKey = masterKeyManager.getMasterKey()
+      const decrypted = await Promise.all(
+        rawTags.map(async (tag) => {
+          try {
+            const name = await decryptFilename(tag.encrypted_name, tag.name_salt, masterKey)
+            return { ...tag, decryptedName: name }
+          } catch {
+            return { ...tag, decryptedName: "[Encrypted Tag]" }
+          }
+        })
+      )
+      setTags(decrypted)
+    }
+    if (itemDetails) {
+      decryptItemTags()
+    }
+  }, [itemDetails])
+
+  const handlePreview = () => {
+    if (itemType !== 'file' || !itemId) return;
+
+    // Set the 'preview' URL param to trigger the FullPagePreviewModal in the parent
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('preview', itemId);
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+
+    // Close the details modal to avoid UI overlap
+    setOpen(false);
+  };
+
+  const handleAddTag = async (tagName: string) => {
+    const trimmed = tagName.trim()
+    if (!trimmed) return
+
+    if (trimmed.length < 2) {
+      toast.error("Tag is too short (min 2 chars)")
+      return
+    }
+    if (trimmed.length > 50) {
+      toast.error("Tag is too long (max 50 chars)")
+      return
+    }
+    if (tags.some(t => t.decryptedName?.toLowerCase() === trimmed.toLowerCase())) {
+      setTagInput("")
+      return
+    }
+
+    setIsTagging(true)
+    try {
+      const masterKey = masterKeyManager.getMasterKey()
+      const { encryptedFilename, filenameSalt } = await encryptFilename(trimmed, masterKey)
+
+      const response = await apiClient.attachTag({
+        [itemType === 'file' ? 'fileId' : 'folderId']: itemId,
+        encryptedName: encryptedFilename,
+        nameSalt: filenameSalt,
+        color: 'slate' // Default color
+      })
+
+      if (response.success) {
+        toast.success(`Tag "${tagName}" attached`)
+        setTagInput("")
+        loadItemDetailsAndVerify()
+        fetchAvailableTags()
+      } else {
+        toast.error(response.error || "Failed to attach tag")
+      }
+    } catch (error) {
+      console.error("Failed to add tag:", error)
+      toast.error("Encryption error while adding tag")
+    } finally {
+      setIsTagging(false)
+    }
+  }
+
+  const handleDetachTag = async (tagId: string, tagName: string) => {
+    try {
+      const response = await apiClient.detachTag(tagId, {
+        [itemType === 'file' ? 'fileId' : 'folderId']: itemId
+      })
+      if (response.success) {
+        toast.success(`Tag "${tagName}" removed`)
+        loadItemDetailsAndVerify()
+      } else {
+        toast.error(response.error || "Failed to remove tag")
+      }
+    } catch (error) {
+      console.error("Failed to detach tag:", error)
+    }
+  }
+
+  const handleTagClick = (tagName: string) => {
+    toast.info(`Filtering by tag: ${tagName}`)
+  }
+
   const copyToClipboard = (text: string, hashId: string) => {
     navigator.clipboard.writeText(text)
     setCopiedHashId(hashId)
@@ -225,7 +460,6 @@ export function DetailsModal({
 
   const downloadAsJSON = () => {
     try {
-      // Download the entire /verify endpoint response
       const verifyResponse = {
         itemDetails,
         signatureVerification: signatureStatus,
@@ -252,24 +486,18 @@ export function DetailsModal({
   const formatDate = (date: string | number | undefined) => {
     if (!date) return "Unknown";
     try {
-      // Handle different date formats
       let dateObj: Date;
       if (typeof date === "string") {
-        // Try parsing as ISO string first
         dateObj = new Date(date);
         if (isNaN(dateObj.getTime())) {
-          // If that fails, try as timestamp string
           dateObj = new Date(parseInt(date));
         }
       } else {
-        // Assume it's a timestamp in seconds
         dateObj = new Date(date * 1000);
       }
-
       if (isNaN(dateObj.getTime())) {
         return "Invalid date";
       }
-
       return dateObj.toLocaleDateString("en-US", {
         year: "numeric",
         month: "short",
@@ -306,9 +534,29 @@ export function DetailsModal({
         children
       )}
       <SheetContent side="right" aria-describedby="details-modal-description" className={`${isMobile ? 'w-full sm:max-w-md' : 'sm:max-w-md'} flex flex-col p-0`}>
+        <SheetTitle className="sr-only">Details for {itemName}</SheetTitle>
         <SheetDescription id="details-modal-description" className="sr-only">
           Details for {itemType} {itemName}
         </SheetDescription>
+
+        {/* Sticky Header Zone */}
+        {/* We place the header here, outside of scrollable content, to keep it fixed. 
+            It has a z-index and background to sit above content if needed, though they don't overlap. 
+            The pr-8 ensures we don't overlap with the SheetClose button. */}
+        <div className="flex-shrink-0 z-10 bg-background pt-4 px-6 pb-0 relative">
+          <SheetHeader className="text-left">
+            <div className="flex items-center gap-2 mb-2 pr-8">
+              <div className="text-primary">
+                <IconInfoCircle className="h-4 w-4" />
+              </div>
+              <span className="text-sm font-semibold tracking-tight text-muted-foreground uppercase leading-none mt-0.5">
+                Item Properties
+              </span>
+            </div>
+            <Separator className="opacity-50" />
+          </SheetHeader>
+        </div>
+
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
             <div className="flex flex-col items-center gap-2">
@@ -318,208 +566,346 @@ export function DetailsModal({
           </div>
         ) : itemDetails ? (
           <div className="flex flex-col h-full overflow-hidden">
-            <div className="flex-1 overflow-y-auto">
-              <div className="space-y-6 p-6">
-                <SheetHeader className="text-left">
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 rounded-lg bg-muted">
-                      {itemType === "file" ? (
-                        <IconFile className="h-5 w-5 text-foreground flex-shrink-0" />
-                      ) : (
-                        <IconFolder className="h-5 w-5 text-foreground flex-shrink-0" />
-                      )}
+            <div className="flex-1 overflow-y-auto scrollbar-none pt-4">
+              <div className="space-y-6">
+
+                {/* Preview Area */}
+                <div className="px-6 flex flex-col items-center justify-center py-4">
+                  <TooltipProvider delayDuration={0}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div
+                          className="rounded-2xl bg-white dark:bg-zinc-900 border shadow-sm flex items-center justify-center mb-4 overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary/20 transition-all group"
+                          style={{
+                            width: itemDetails?.width && itemDetails?.height
+                              ? (itemDetails.width > itemDetails.height ? '160px' : (itemDetails.width < itemDetails.height ? '96px' : '128px'))
+                              : '128px',
+                            height: itemDetails?.width && itemDetails?.height
+                              ? (itemDetails.width > itemDetails.height ? '90px' : (itemDetails.width < itemDetails.height ? '128px' : '128px'))
+                              : '128px',
+                          }}
+                          onClick={handlePreview}
+                        >
+                          {thumbnailUrl ? (
+                            <img
+                              src={thumbnailUrl}
+                              alt="Thumbnail"
+                              className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                              draggable={false}
+                              onDragStart={(e) => e.preventDefault()}
+                            />
+                          ) : (
+                            <div className="flex w-full h-full items-center justify-center">
+                              {itemType === "file" ? (
+                                <IconFile className="h-10 w-10 text-muted-foreground opacity-20" />
+                              ) : (
+                                <IconFolder className="h-10 w-10 text-muted-foreground opacity-20" />
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        <p className="text-xs">Preview</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+
+                  <h3 className="text-lg font-bold text-center break-all px-4 line-clamp-2">
+                    {decryptedFilename || itemName}
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
+                    {itemType === "file" ? (
+                      <>
+                        <span className="font-medium text-foreground">{itemDetails.mimetype || 'File'}</span>
+                        <span className="opacity-30">•</span>
+                        <span>{itemDetails.size ? formatBytes(itemDetails.size) : '0 B'}</span>
+                      </>
+                    ) : (
+                      <span className="font-medium text-foreground">Folder</span>
+                    )}
+                  </p>
+                </div>
+
+                <div className="px-6 space-y-6">
+                  {/* Tags Section */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 w-full">
+                        <IconTag className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground">Tags</span>
+                        <div className="flex items-center gap-1.5 ml-auto">
+                          <span className="text-[10px] text-muted-foreground mr-1">Who can see my tags?</span>
+                          <TooltipProvider delayDuration={0}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button className="text-muted-foreground hover:text-foreground transition-colors outline-none focus:ring-1 ring-ring rounded-full">
+                                  <IconInfoCircle className="h-3 w-3" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent side="left" className="max-w-[200px] text-xs">
+                                Tags are <b>end-to-end encrypted</b>. Only you and users with access to this file can see or edit these tags.
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0 pr-6">
-                      <SheetTitle className="text-lg font-semibold break-words leading-tight">
-                        {itemName}
-                      </SheetTitle>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {itemType === "file" ? "File Details" : "Folder Details"}
-                      </p>
+
+                    <div className="flex flex-wrap gap-1.5 min-h-[2.5rem] p-2 rounded-lg border bg-muted/20 focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary/30 transition-all">
+                      {tags.map((tag) => (
+                        <Badge
+                          key={tag.id}
+                          variant="secondary"
+                          className="pl-2 pr-1 h-7 flex items-center gap-1 hover:bg-muted cursor-pointer group"
+                          onClick={() => handleTagClick(tag.decryptedName || "")}
+                        >
+                          <span className="max-w-[100px] truncate">{tag.decryptedName}</span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDetachTag(tag.id, tag.decryptedName || "");
+                            }}
+                            className="p-0.5 hover:bg-muted-foreground/20 rounded-full transition-colors opacity-60 hover:opacity-100"
+                          >
+                            <IconX className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ))}
+
+                      <Combobox
+                        value={tagInput}
+                        onValueChange={setTagInput}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && tagInput) {
+                            e.preventDefault();
+                            handleAddTag(tagInput);
+                          }
+                        }}
+                      >
+                        <ComboboxInput
+                          placeholder={tags.length === 0 ? "# Add a tag" : ""}
+                          className="border-none bg-transparent h-7 p-0 focus-visible:ring-0 text-xs flex-1 min-w-[80px]"
+                        />
+                        <ComboboxContent>
+                          {!tagInput && (
+                            <div className="py-6 text-center text-xs text-muted-foreground px-2">
+                              <p>Use words that will help you or teammates find this file.</p>
+                            </div>
+                          )}
+                          <ComboboxEmpty>No matching tags found.</ComboboxEmpty>
+                          <ComboboxGroup>
+                            <ComboboxGroupLabel>Suggestions</ComboboxGroupLabel>
+                            {availableTags
+                              .filter(t => !tags.some(existing => existing.id === t.id))
+                              .filter(t => !tagInput || t.decryptedName?.toLowerCase().includes(tagInput.toLowerCase()))
+                              .slice(0, 5)
+                              .map(tag => (
+                                <ComboboxItem
+                                  key={tag.id}
+                                  value={tag.decryptedName || ""}
+                                  onSelect={() => handleAddTag(tag.decryptedName || "")}
+                                  className="text-xs"
+                                >
+                                  <IconTag className="mr-2 h-3 w-3 opacity-50" />
+                                  {tag.decryptedName}
+                                </ComboboxItem>
+                              ))
+                            }
+                          </ComboboxGroup>
+                          {tagInput && (
+                            <>
+                              {availableTags.length > 0 && <ComboboxSeparator />}
+                              <ComboboxGroup>
+                                <ComboboxItem
+                                  value={tagInput}
+                                  onSelect={() => handleAddTag(tagInput)}
+                                  className="text-xs"
+                                >
+                                  <IconPlus className="mr-2 h-3 w-3" />
+                                  Create tag "{tagInput}"
+                                </ComboboxItem>
+                              </ComboboxGroup>
+                            </>
+                          )}
+                        </ComboboxContent>
+                      </Combobox>
                     </div>
                   </div>
-                </SheetHeader>
 
-                {/* Signature Status Badge */}
-                {signatureStatus && (
-                  <div className={`flex flex-col gap-2 p-4 rounded-xl border transition-colors ${signatureStatus.verified === true
-                    ? "border-emerald-500/20 bg-emerald-500/5 dark:bg-emerald-500/10"
-                    : signatureStatus.status === "unsigned"
-                      ? "border-border bg-muted/50"
-                      : "border-amber-500/20 bg-amber-500/5 dark:bg-amber-500/10"
-                    }`}>
-                    <div className="flex items-center gap-2.5">
-                      <div className={`p-1.5 rounded-full ${signatureStatus.verified === true
-                        ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
-                        : signatureStatus.status === "unsigned"
-                          ? "bg-muted text-muted-foreground"
-                          : "bg-amber-500/20 text-amber-600 dark:text-amber-400"
-                        }`}>
-                        {signatureStatus.verified === true ? (
-                          <IconShieldCheck className="h-4 w-4 flex-shrink-0" />
-                        ) : (
-                          <IconAlertCircle className="h-4 w-4 flex-shrink-0" />
+                  {/* Metadata Grid */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-1.5">
+                      <IconHistory className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground">Properties</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4 bg-muted/10 p-4 rounded-xl border border-border/50">
+                      {/* Name */}
+                      <div className="flex justify-between items-start gap-4">
+                        <span className="text-xs text-muted-foreground">Full Name</span>
+                        <span className="text-xs font-medium text-right break-all max-w-[200px]">
+                          {decryptedFilename || itemName}
+                        </span>
+                      </div>
+
+                      {/* Path */}
+                      <div className="flex justify-between items-center gap-4 border-t border-border/50 pt-3">
+                        <span className="text-xs text-muted-foreground">Location</span>
+                        <span className="text-xs font-medium text-right">
+                          {itemType === "folder" && (itemDetails.parentId === null || itemDetails.parentId === undefined) ? 'Root' : (decryptedPath || itemDetails.path || 'Root')}
+                        </span>
+                      </div>
+
+                      {/* ID */}
+                      <div className="flex justify-between items-center gap-4 border-t border-border/50 pt-3 group">
+                        <span className="text-xs text-muted-foreground">ID</span>
+                        <button
+                          onClick={() => copyToClipboard(itemId, "id")}
+                          className="flex items-center gap-1.5 hover:text-primary transition-colors"
+                        >
+                          <span className="text-[10px] font-mono opacity-60">
+                            {truncateMiddle(itemId, 16)}
+                          </span>
+                          {copiedHashId === "id" ? <IconCheck className="h-3 w-3 text-emerald-500" /> : <IconCopy className="h-3 w-3 opacity-0 group-hover:opacity-100" />}
+                        </button>
+                      </div>
+
+                      {/* Dates */}
+                      <div className="flex justify-between items-center gap-4 border-t border-border/50 pt-3">
+                        <span className="text-xs text-muted-foreground">Created</span>
+                        <span className="text-xs font-medium text-right">{formatDate(itemDetails.created_at || itemDetails.createdAt)}</span>
+                      </div>
+                      <div className="flex justify-between items-center gap-4 border-t border-border/50 pt-3">
+                        <span className="text-xs text-muted-foreground">Modified</span>
+                        <span className="text-xs font-medium text-right">{formatDate(itemDetails.updatedAt || itemDetails.updated_at || itemDetails.createdAt || itemDetails.created_at)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Digital Integrity Section */}
+                  <div className="space-y-4 pb-4">
+
+                    {/* Fixed Digital Integrity Header Layout */}
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-1.5">
+                        <IconSignature className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground">Digital Integrity</span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {signatureStatus?.verified && (
+                          <Badge variant="outline" className="text-[10px] border-emerald-500/30 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 py-0 h-5">Verified</Badge>
                         )}
+                        <TooltipProvider delayDuration={0}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button className="text-muted-foreground hover:text-foreground transition-colors outline-none focus:ring-1 ring-ring rounded-full">
+                                <IconInfoCircle className="h-3 w-3" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="left" className="max-w-[260px] text-xs">
+                              Verification ensures this file hasn't been tampered with since upload. The signature confirms the uploader's identity using cryptographic keys.
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-semibold leading-none ${signatureStatus.verified === true
-                          ? "text-emerald-900 dark:text-emerald-100"
-                          : signatureStatus.status === "unsigned"
-                            ? "text-foreground"
-                            : "text-amber-900 dark:text-amber-100"
-                          }`}>
-                          {signatureStatus.verified === true
-                            ? "Verified Signature"
+                    </div>
+                    {/* End Fixed Digital Integrity Header */}
+
+                    {signatureStatus && (
+                      <div className={`p-4 rounded-xl border transition-colors ${signatureStatus.verified === true
+                        ? "border-emerald-500/20 bg-emerald-500/5 dark:bg-emerald-500/10"
+                        : signatureStatus.status === "unsigned"
+                          ? "border-border bg-muted/5"
+                          : "border-amber-500/20 bg-amber-500/5 dark:bg-amber-500/10"
+                        }`}>
+                        <div className="flex items-center gap-2.5">
+                          <div className={`p-1.5 rounded-full ${signatureStatus.verified === true
+                            ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
                             : signatureStatus.status === "unsigned"
-                              ? "No Signature"
-                              : "Invalid Signature"}
-                        </p>
-                      </div>
-                    </div>
-                    {signatureStatus.verified === true && signatureStatus.signerEmail && (
-                      <p className="text-xs text-muted-foreground ml-9">
-                        Verified as uploaded by <span className="font-medium text-foreground">{signatureStatus.signerEmail}</span>
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                <Separator />
-
-                {/* Details Section */}
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 gap-4">
-                    {/* Name */}
-                    <div className="space-y-1">
-                      <span className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground">Original Name</span>
-                      <p className="text-sm font-medium break-all">
-                        {decryptedFilename || itemDetails.filename || itemDetails.encryptedFilename || itemName}
-                      </p>
-                    </div>
-
-                    {/* Path */}
-                    <div className="space-y-1">
-                      <span className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground">Location</span>
-                      <p className="text-sm font-medium">
-                        {itemType === "folder" && (itemDetails.parentId === null || itemDetails.parentId === undefined) ? 'Root' : (decryptedPath || itemDetails.path || 'Root')}
-                      </p>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      {/* Type */}
-                      <div className="space-y-1">
-                        <span className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground">Type</span>
-                        <p className="text-sm font-medium capitalize">{itemType}</p>
-                      </div>
-
-                      {/* Shared */}
-                      <div className="space-y-1">
-                        <span className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground">Shared</span>
-                        <p className="text-sm font-medium">{itemDetails.is_shared ? 'Yes' : 'No'}</p>
-                      </div>
-                    </div>
-
-                    {itemType === "file" && (
-                      <div className="grid grid-cols-2 gap-4">
-                        {/* Size */}
-                        <div className="space-y-1">
-                          <span className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground">Size</span>
-                          <p className="text-sm font-medium">{itemDetails.size ? formatBytes(itemDetails.size) : '-'}</p>
-                        </div>
-
-                        {/* Mimetype */}
-                        <div className="space-y-1">
-                          <span className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground">Format</span>
-                          <p className="text-sm font-medium truncate">{itemDetails.mimetype || 'Unknown'}</p>
+                              ? "bg-muted text-muted-foreground"
+                              : "bg-amber-500/20 text-amber-600 dark:text-amber-400"
+                            }`}>
+                            {signatureStatus.verified === true ? <IconShieldCheck className="h-4 w-4 shrink-0" /> : <IconAlertCircle className="h-4 w-4 shrink-0" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold leading-tight">
+                              {signatureStatus.verified === true ? "Cryptographic Proof Valid" : signatureStatus.status === "unsigned" ? "No Signature Attached" : "Verification Failed"}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                              {signatureStatus.verified === true ? (
+                                <>Signed by <span className="font-bold text-foreground">{signatureStatus.signerEmail}</span></>
+                              ) : signatureStatus.status === "unsigned" ? (
+                                "Zero-knowledge encryption active without signature."
+                              ) : (
+                                signatureStatus.error
+                              )}
+                            </p>
+                          </div>
                         </div>
                       </div>
                     )}
 
-                    <Separator />
-
-                    {/* Timeline */}
-                    <div className="space-y-3">
-                      <span className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground">Timeline</span>
-
-                      <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center shrink-0">
-                          <IconCalendar className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs text-muted-foreground">Created</p>
-                          <p className="text-sm font-medium">{formatDate(itemDetails.created_at || itemDetails.createdAt)}</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center shrink-0">
-                          <IconCalendar className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs text-muted-foreground">Last modified</p>
-                          <p className="text-sm font-medium">{formatDate(itemDetails.updatedAt || itemDetails.updated_at || itemDetails.createdAt || itemDetails.created_at)}</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Security & Hash */}
                     {itemType === "file" && itemDetails.sha_hash && (
-                      <div className="space-y-3 pt-2">
-                        <span className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground">Security Proof (SHA-256)</span>
-                        <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border group">
-                          <code className="text-xs font-mono text-muted-foreground flex-1 break-all">
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between px-1">
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase opacity-60">File Digest (SHA-512)</p>
+                        </div>
+                        <div className="relative group">
+                          <code className="block p-3 text-[10px] font-mono text-muted-foreground bg-muted/30 border rounded-lg break-all">
                             {itemDetails.sha_hash}
                           </code>
-                          <Button
-                            onClick={() => itemDetails?.sha_hash && copyToClipboard(itemDetails.sha_hash, "hash")}
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                          <button
+                            onClick={() => itemDetails?.sha_hash && copyToClipboard(itemDetails.sha_hash, "hashsha")}
+                            className="absolute top-2 right-2 p-1.5 bg-background/80 backdrop-blur-sm border rounded-md opacity-0 group-hover:opacity-100 transition-all shadow-sm"
                           >
-                            {copiedHashId === "hash" ? (
-                              <IconCheck className="h-4 w-4 text-emerald-600" />
-                            ) : (
-                              <IconCopy className="h-4 w-4" />
-                            )}
-                          </Button>
+                            {copiedHashId === "hashsha" ? <IconCheck className="h-3 w-3 text-emerald-500" /> : <IconCopy className="h-3 w-3" />}
+                          </button>
                         </div>
                       </div>
                     )}
+                  </div>
 
-                    {/* Retention Policy */}
-                    {itemDetails.lockedUntil && new Date(itemDetails.lockedUntil) > new Date() && (
+                  {/* Governance Section */}
+                  {(itemDetails.lockedUntil && new Date(itemDetails.lockedUntil) > new Date()) && (
+                    <div className="space-y-4 pb-6">
+                      <div className="flex items-center gap-1.5">
+                        <IconLock className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground">Governance</span>
+                      </div>
                       <div className="flex items-center gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
-                        <div className="h-10 w-10 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0 text-amber-600 dark:text-amber-400">
+                        <div className="h-10 w-10 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0 text-amber-600 dark:text-amber-400 scale-90">
                           <IconLock className="h-5 w-5" />
                         </div>
                         <div className="flex-1">
-                          <p className="text-xs font-bold text-amber-700 dark:text-amber-500 uppercase tracking-tighter">Retention Lock Active</p>
+                          <p className="text-[10px] font-bold text-amber-700 dark:text-amber-500 uppercase tracking-tighter">Retention Lock Active</p>
                           <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
                             Immutable until {formatDate(itemDetails.lockedUntil)}
                           </p>
                         </div>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* Actions - Fixed at bottom */}
-            <div className="p-6 border-t bg-muted/20">
+            {/* Actions Panel */}
+            <div className="p-6 border-t bg-background/50 backdrop-blur-md">
               <div className="flex gap-3">
                 <Button
                   onClick={downloadAsJSON}
                   variant="outline"
-                  className="flex-1 h-10"
+                  className="flex-1 h-11 rounded-xl font-medium shadow-sm hover:bg-primary/5 hover:text-primary hover:border-primary/30 transition-all"
                 >
                   <IconDownload className="h-4 w-4 mr-2" />
-                  Audit Proof (JSON)
+                  Audit Proof
                 </Button>
                 <Button
                   onClick={() => setOpen(false)}
                   variant="secondary"
-                  className="h-10"
+                  className="px-6 h-11 rounded-xl font-medium"
                 >
                   Close
                 </Button>
@@ -528,9 +914,10 @@ export function DetailsModal({
           </div>
         ) : (
           <div className="flex items-center justify-center h-full">
-            <span className="text-sm text-muted-foreground">No details found for this item.</span>
+            <span className="text-sm text-muted-foreground">No details found.</span>
           </div>
         )}
+
       </SheetContent>
     </Sheet>
   )
