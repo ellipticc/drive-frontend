@@ -26,6 +26,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { IconFolder, IconInfoCircle, IconTrash as IconTrashAlt, IconX } from "@tabler/icons-react";
 import { apiClient, FileContentItem, FolderContentItem } from "@/lib/api";
 import { TableSkeleton } from "@/components/tables/table-skeleton";
@@ -64,8 +65,22 @@ interface TrashItem {
 }
 
 export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
-    const { updateStorage } = useUser();
+    const { user, updateStorage } = useUser();
     const isMobile = useIsMobile();
+
+    // Calculate retention period text based on user plan
+    const retentionText = useMemo(() => {
+        const plan = user?.plan || 'Free';
+        if (plan.includes('Unlimited')) return "Items in trash are never automatically deleted.";
+
+        // Handle "Ellipticc Plus" or "Plus"
+        let days = 30; // Default Free
+        if (plan.includes('Plus')) days = 60;
+        if (plan.includes('Pro')) days = 90;
+
+        return `Items in trash are permanently deleted after ${days} days.`;
+    }, [user?.plan]);
+
     const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({
         column: "deletedAt",
         direction: "descending",
@@ -531,7 +546,19 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
         <>
             <TableCard.Root size="sm">
                 <TableCard.Header
-                    title="Trash"
+                    title={
+                        <div className="flex items-center gap-2">
+                            <span>Trash</span>
+                            <Tooltip>
+                                <TooltipTrigger className="cursor-default">
+                                    <IconInfoCircle className="h-4 w-4 text-muted-foreground/70 hover:text-muted-foreground transition-colors" />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>{retentionText}</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </div>
+                    }
                     contentTrailing={
                         <div className="flex items-center gap-1.5 md:gap-2">
                             <Button

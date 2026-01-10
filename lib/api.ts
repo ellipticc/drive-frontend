@@ -8,6 +8,7 @@ export interface UserData {
   name: string;
   email: string;
   avatar?: string;
+  plan?: string;
   // Legacy or API-provided snake_case fields
   account_salt?: string;
   encrypted_master_key_password?: string;

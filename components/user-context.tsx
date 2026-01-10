@@ -10,6 +10,7 @@ interface UserData {
   id: string;
   name: string;
   email: string;
+  plan?: string;
   avatar?: string;
   storage?: {
     used_bytes: number;
