@@ -39,6 +39,8 @@ import {
     IconInfoCircle,
     IconChevronLeft,
     IconChevronRight,
+    IconChevronDown,
+    IconChevronUp,
     IconLogout,
     IconUserCog,
     IconUserShield as ShieldUser,
@@ -47,6 +49,8 @@ import {
 import { getUAInfo, getOSIcon, getBrowserIcon } from './device-icons'
 import { apiClient } from "@/lib/api"
 import { toast } from "sonner"
+// @ts-ignore
+import JSONHighlighter from 'react-json-syntax-highlighter'
 
 interface SecurityTabProps {
     user: any;
@@ -141,7 +145,20 @@ interface SecurityTabProps {
     usageDiagnosticsEnabled: boolean;
     crashReportsEnabled: boolean;
     handleUpdatePrivacySettings: (analytics: boolean, crashReports: boolean) => void;
+    userPlan: string; // Added userPlan
+    isMobile: boolean; // Added isMobile
 }
+
+const JsonHighlighter = ({ data }: { data: any }) => {
+    return (
+        <div className="json-theme-custom rounded-xl overflow-hidden border border-muted-foreground/10 bg-muted/20">
+            <JSONHighlighter
+                obj={data}
+                className="text-[11px] font-mono p-4"
+            />
+        </div>
+    );
+};
 
 export function SecurityTab(props: SecurityTabProps) {
     const {
@@ -156,16 +173,18 @@ export function SecurityTab(props: SecurityTabProps) {
         securityEvents, isLoadingSecurityEvents, detailedEventsEnabled, activityMonitorEnabled, handleUpdateSecurityPreferences, showDisableMonitorDialog, setShowDisableMonitorDialog, handleWipeSecurityEvents, handleDownloadSecurityEvents, loadSecurityEvents, securityEventsTotal, securityEventsPage, securityEventsHasMore, setSecurityEvents, setSecurityEventsTotal, setSecurityEventsHasMore,
         handleLogout, isLoggingOut, setShowDeleteModal,
         showRevoked, setShowRevoked,
-        usageDiagnosticsEnabled, crashReportsEnabled, handleUpdatePrivacySettings
+        usageDiagnosticsEnabled, crashReportsEnabled, handleUpdatePrivacySettings,
+        userPlan, isMobile
     } = props;
 
+    const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
     const [copiedCodes, setCopiedCodes] = useState(false);
     const [copiedSecret, setCopiedSecret] = useState(false);
     const [showWipeDialog, setShowWipeDialog] = useState(false);
 
-    // Check export access
-    // Check export access
-    const hasExportAccess = (user?.plan || 'Free').includes('Pro') || (user?.plan || 'Free').includes('Unlimited');
+    // Check plan access (Pro & Unlimited)
+    const isPaid = (userPlan || 'Free').includes('Pro') || (userPlan || 'Free').includes('Unlimited');
+    const hasExportAccess = isPaid;
 
     // Auto-scroll to device manager if requested
     React.useEffect(() => {
@@ -771,7 +790,27 @@ export function SecurityTab(props: SecurityTabProps) {
                             <IconActivity className="h-5 w-5 text-muted-foreground" />
                             <h3 className="text-lg font-semibold">Activity Monitor</h3>
                         </div>
-                        <p className="text-sm text-muted-foreground mt-1">Review security-related activity on your account</p>
+                        <div className="flex items-center gap-2 mt-1">
+                            <p className="text-sm text-muted-foreground">Review security-related activity on your account</p>
+                            <TooltipProvider>
+                                <Tooltip delayDuration={0}>
+                                    <TooltipTrigger asChild>
+                                        <IconInfoCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                                    </TooltipTrigger>
+                                    <TooltipContent side="right">
+                                        <p className="text-xs">
+                                            {(() => {
+                                                const planName = devicePlan?.name || 'Free';
+                                                if (planName.includes('Unlimited')) return "Events are never automatically deleted";
+                                                if (planName.includes('Pro')) return "Events are automatically deleted after 60 days";
+                                                if (planName.includes('Plus')) return "Events are automatically deleted after 30 days";
+                                                return "Events are automatically deleted after 7 days";
+                                            })()}
+                                        </p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        </div>
                     </div>
                     <div className="flex items-center gap-2">
                         <TooltipProvider>
@@ -895,71 +934,169 @@ export function SecurityTab(props: SecurityTabProps) {
                                         </td>
                                     </tr>
                                 ) : (
-                                    securityEvents.map((event: any) => (
-                                        <tr key={event.id} className="hover:bg-muted/30 transition-colors">
-                                            <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                                    securityEvents.map((event: any) => {
+                                        const isExpanded = expandedEventId === event.id;
+                                        const { osIcon, osName, browserIcon, browserName } = getUAInfo(event.userAgent);
+
+                                        const PaidField = ({ label, value, tooltip = "Available on Pro and Unlimited" }: { label: string, value: string | React.ReactNode, tooltip?: string }) => (
+                                            <div className="flex justify-between items-center py-2 border-b border-muted last:border-0">
+                                                <span className="text-xs font-medium text-muted-foreground">{label}</span>
                                                 <TooltipProvider>
-                                                    <Tooltip>
+                                                    <Tooltip delayDuration={0}>
                                                         <TooltipTrigger asChild>
-                                                            <span className="cursor-help underline decoration-dotted decoration-muted-foreground/30">
-                                                                {event.id.substring(0, 8)}...
+                                                            <span className={`text-xs font-mono transition-all ${!isPaid ? 'blur-[3.5px] select-none cursor-help' : ''}`}>
+                                                                {isPaid ? (value || 'N/A') : '••••••••••••'}
                                                             </span>
                                                         </TooltipTrigger>
-                                                        <TooltipContent side="top">
-                                                            <p className="font-mono text-xs">{event.id}</p>
-                                                        </TooltipContent>
+                                                        {!isPaid && <TooltipContent side="top">{tooltip}</TooltipContent>}
                                                     </Tooltip>
                                                 </TooltipProvider>
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <div className="flex flex-col">
-                                                    <span className="font-medium text-sm capitalize">
-                                                        {event.eventType.replace(/_/g, ' ')}
-                                                    </span>
-                                                    <div className="flex items-center gap-1.5 mt-0.5">
-                                                        {(() => {
-                                                            const { osIcon, osName, browserIcon, browserName } = getUAInfo(event.userAgent);
-                                                            return (
-                                                                <>
-                                                                    <TooltipProvider>
-                                                                        <Tooltip>
-                                                                            <TooltipTrigger className="flex items-center">{osIcon}</TooltipTrigger>
-                                                                            <TooltipContent side="top"><p className="text-xs">{osName}</p></TooltipContent>
-                                                                        </Tooltip>
-                                                                    </TooltipProvider>
-                                                                    <TooltipProvider>
-                                                                        <Tooltip>
-                                                                            <TooltipTrigger className="flex items-center">{browserIcon}</TooltipTrigger>
-                                                                            <TooltipContent side="top"><p className="text-xs">{browserName}</p></TooltipContent>
-                                                                        </Tooltip>
-                                                                    </TooltipProvider>
-                                                                </>
-                                                            );
-                                                        })()}
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <div className="flex flex-col">
-                                                    <span className="text-sm">{event.location || 'Unknown'}</span>
-                                                    <span className="text-xs font-mono text-muted-foreground">
-                                                        {detailedEventsEnabled ? event.ipAddress : '••••••••••••'}
-                                                    </span>
-                                                </div>
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <span className={`text-xs font-bold uppercase py-0.5 px-1.5 rounded ${event.status === 'success'
-                                                    ? 'text-emerald-600 bg-emerald-100/50 dark:bg-emerald-950/30'
-                                                    : 'text-red-500 bg-red-100/50 dark:bg-red-950/30'
-                                                    }`}>
-                                                    {event.status}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-3 text-right text-xs text-muted-foreground whitespace-nowrap">
-                                                {formatSessionDate(event.createdAt)}
-                                            </td>
-                                        </tr>
-                                    ))
+                                            </div>
+                                        );
+
+                                        return (
+                                            <React.Fragment key={event.id}>
+                                                <tr
+                                                    className="hover:bg-muted/30 transition-colors cursor-pointer group"
+                                                    onClick={() => setExpandedEventId(isExpanded ? null : event.id)}
+                                                >
+                                                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                                                        <div className="flex items-center gap-2">
+                                                            {isExpanded ? <IconChevronUp className="h-3 w-3" /> : <IconChevronDown className="h-3 w-3" />}
+                                                            <TooltipProvider>
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <span className="cursor-help underline decoration-dotted decoration-muted-foreground/30">
+                                                                            {event.id.substring(0, 8)}...
+                                                                        </span>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent side="top">
+                                                                        <p className="font-mono text-xs">{event.id}</p>
+                                                                    </TooltipContent>
+                                                                </Tooltip>
+                                                            </TooltipProvider>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex flex-col">
+                                                            <span className="font-medium text-sm capitalize">
+                                                                {event.eventType.replace(/_/g, ' ')}
+                                                            </span>
+                                                            <div className="flex items-center gap-1.5 mt-0.5">
+                                                                <TooltipProvider>
+                                                                    <Tooltip delayDuration={0}>
+                                                                        <TooltipTrigger className={`flex items-center ${!isPaid ? 'blur-[3px] scale-95' : ''}`}>
+                                                                            {osIcon}
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent side="top">
+                                                                            <p className="text-xs">{isPaid ? osName : "Upgrade for device details"}</p>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                </TooltipProvider>
+                                                                <TooltipProvider>
+                                                                    <Tooltip delayDuration={0}>
+                                                                        <TooltipTrigger className={`flex items-center ${!isPaid ? 'blur-[3px] scale-95' : ''}`}>
+                                                                            {browserIcon}
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent side="top">
+                                                                            <p className="text-xs">{isPaid ? browserName : "Upgrade for browser details"}</p>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                </TooltipProvider>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex flex-col">
+                                                            <span className="text-sm font-mono whitespace-nowrap">
+                                                                {detailedEventsEnabled ? event.ipAddress : '••••••••••••'}
+                                                            </span>
+                                                            {!isPaid && (
+                                                                <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">Location Restricted</span>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <span className={`text-xs font-bold uppercase py-0.5 px-1.5 rounded ${event.status === 'success'
+                                                            ? 'text-emerald-600 bg-emerald-100/50 dark:bg-emerald-950/30'
+                                                            : 'text-red-500 bg-red-100/50 dark:bg-red-950/30'
+                                                            }`}>
+                                                            {event.status}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right text-xs text-muted-foreground whitespace-nowrap">
+                                                        {formatSessionDate(event.createdAt)}
+                                                    </td>
+                                                </tr>
+                                                {isExpanded && (
+                                                    <tr className="bg-muted/10 border-b">
+                                                        <td colSpan={5} className="px-8 py-6">
+                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                                                <div className="space-y-4">
+                                                                    <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Network & Location</h4>
+                                                                    <div className="bg-background/50 rounded-xl p-4 border border-muted/50">
+                                                                        <PaidField label="Detailed Location" value={event.city ? `${event.city}, ${event.region}, ${event.country}` : 'N/A'} />
+                                                                        <PaidField label="ASN / ISP" value={event.asn ? `${event.asn} (${event.isp})` : 'N/A'} />
+                                                                        <PaidField label="IP Type" value={event.ipType} />
+                                                                        <PaidField label="Proxy / VPN / Tor" value={(event.isVpn || event.isProxy || event.isTor) ? (
+                                                                            <span className="text-red-500 font-bold uppercase text-[10px]">
+                                                                                {[event.isVpn && 'VPN', event.isProxy && 'Proxy', event.isTor && 'Tor'].filter(Boolean).join(' + ')}
+                                                                            </span>
+                                                                        ) : 'None Detected'} />
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="space-y-4">
+                                                                    <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Session & Risk Analytics</h4>
+                                                                    <div className="bg-background/50 rounded-xl p-4 border border-muted/50">
+                                                                        <PaidField label="Session Type" value={event.sessionType} />
+                                                                        <PaidField label="Token Type" value={event.tokenType} />
+                                                                        <PaidField
+                                                                            label="Risk Level"
+                                                                            value={
+                                                                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${event.riskLevel === 'low' ? 'text-emerald-500 bg-emerald-500/10' :
+                                                                                    event.riskLevel === 'medium' ? 'text-orange-500 bg-orange-500/10' :
+                                                                                        'text-red-500 bg-red-500/10'
+                                                                                    }`}>
+                                                                                    {event.riskLevel || 'Low'}
+                                                                                </span>
+                                                                            }
+                                                                        />
+                                                                        <div className="flex flex-col gap-2 pt-2">
+                                                                            <span className="text-[10px] uppercase font-bold text-muted-foreground">Risk Signals</span>
+                                                                            <div className="flex flex-wrap gap-1">
+                                                                                {isPaid ? (
+                                                                                    (event.riskSignals && event.riskSignals.length > 0) ? (
+                                                                                        event.riskSignals.map((sig: string, idx: number) => (
+                                                                                            <span key={idx} className="px-1.5 py-0.5 rounded bg-muted text-[10px] border border-muted-foreground/20">
+                                                                                                {sig}
+                                                                                            </span>
+                                                                                        ))
+                                                                                    ) : <span className="text-[10px] text-muted-foreground italic">No anomalies detected</span>
+                                                                                ) : (
+                                                                                    <span className="blur-sm text-[10px]">•••••••••••• ••••••••</span>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="mt-8 space-y-4">
+                                                                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                                                                    Additional Metadata
+                                                                    {!isPaid && <span className="bg-primary/10 text-primary text-[9px] px-1.5 py-0.5 rounded-full border border-primary/20">Pro Feature</span>}
+                                                                </h4>
+                                                                <div className={`transition-all ${!isPaid ? 'blur-[5px] select-none pointer-events-none' : ''}`}>
+                                                                    <JsonHighlighter data={event.additionalData} />
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </React.Fragment>
+                                        );
+                                    })
                                 )}
                             </tbody>
                         </table>
@@ -1064,7 +1201,7 @@ export function SecurityTab(props: SecurityTabProps) {
                     <div className="flex items-center justify-between p-3 rounded-2xl bg-muted/30 border border-transparent hover:border-border transition-all">
                         <div className="space-y-0.5">
                             <div className="flex items-center gap-2">
-                                <Label htmlFor="usage-diagnostics" className="text-sm font-semibold cursor-pointer">
+                                <Label className="text-sm font-semibold">
                                     Collect usage diagnostics
                                 </Label>
                                 <TooltipProvider>
@@ -1092,7 +1229,7 @@ export function SecurityTab(props: SecurityTabProps) {
                     <div className="flex items-center justify-between p-3 rounded-2xl bg-muted/30 border border-transparent hover:border-border transition-all">
                         <div className="space-y-0.5">
                             <div className="flex items-center gap-2">
-                                <Label htmlFor="crash-reports" className="text-sm font-semibold cursor-pointer">
+                                <Label className="text-sm font-semibold">
                                     Send crash reports
                                 </Label>
                                 <TooltipProvider>

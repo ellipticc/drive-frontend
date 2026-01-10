@@ -960,11 +960,6 @@ export function SettingsModal({
     }
   }
 
-
-
-
-
-
   // Copy referral code to clipboard
   const handleCopyReferralCode = async () => {
     try {
@@ -1657,6 +1652,8 @@ export function SettingsModal({
               {activeTab === "security" && (
                 <SecurityTab
                   user={user}
+                  userPlan={user?.plan || "Free"}
+                  isMobile={isMobile}
                   setShowEmailModal={setShowEmailModal}
                   setShowPasswordModal={setShowPasswordModal}
 
