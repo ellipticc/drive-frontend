@@ -30,6 +30,7 @@ import {
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/base/checkbox/checkbox";
+import { Input } from "@/components/ui/input";
 import { decryptFilename, encryptFilename, computeFilenameHmac, createSignedFileManifest, createSignedFolderManifest, decryptUserPrivateKeys } from "@/lib/crypto";
 import { apiClient, FileItem, FolderContentItem, FileContentItem, PQCKeypairs } from "@/lib/api";
 import { toast } from "sonner";
@@ -175,8 +176,60 @@ const DraggableDroppableRow = React.memo(React.forwardRef<HTMLTableRowElement, {
             {children}
         </Table.Row>
     );
+
 }));
 DraggableDroppableRow.displayName = "DraggableDroppableRow";
+
+const RenameButton = ({
+    onClick,
+    className
+}: {
+    onClick: (e: React.MouseEvent) => void,
+    className?: string
+}) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const timeoutRef = useRef<any>(null);
+
+    const handleMouseEnter = () => {
+        timeoutRef.current = setTimeout(() => {
+            setIsOpen(true);
+        }, 300);
+    };
+
+    const handleMouseLeave = () => {
+        if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+            timeoutRef.current = null;
+        }
+        setIsOpen(false);
+    };
+
+    useEffect(() => {
+        return () => {
+            if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        };
+    }, []);
+
+    return (
+        <Tooltip open={isOpen}>
+            <TooltipTrigger asChild>
+                <button
+                    type="button"
+                    tabIndex={-1}
+                    onClick={onClick}
+                    onMouseEnter={handleMouseEnter}
+                    onMouseLeave={handleMouseLeave}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    className={className}
+                >
+                    <IconEdit className="h-3.5 w-3.5" />
+                </button>
+            </TooltipTrigger>
+            <TooltipContent>Rename</TooltipContent>
+        </Tooltip>
+    );
+};
 
 export const Table01DividerLineSm = ({
     searchQuery,
@@ -404,7 +457,8 @@ export const Table01DividerLineSm = ({
 
             if (successCount > 0) {
                 toast.success(`Moved ${successCount} item${successCount > 1 ? 's' : ''} to folder`);
-                refreshFiles();
+                // Optimistically remove moved items from the view
+                setFiles(prev => prev.filter(f => !items.some(i => i.id === f.id)));
                 setSelectedItems(new Set());
             }
             if (errorCount > 0) {
@@ -421,6 +475,9 @@ export const Table01DividerLineSm = ({
     }, [currentFolderId, setGlobalCurrentFolderId]);
     const [renameModalOpen, setRenameModalOpen] = useState(false);
     const [selectedItemForRename, setSelectedItemForRename] = useState<{ id: string; name: string; type: "file" | "folder" } | null>(null);
+    const [inlineRenameId, setInlineRenameId] = useState<string | null>(null);
+    const [inlineRenameValue, setInlineRenameValue] = useState("");
+    const [isInlineRenaming, setIsInlineRenaming] = useState(false);
 
     // Rename conflict state
     const [renameConflictOpen, setRenameConflictOpen] = useState(false);
@@ -1439,6 +1496,59 @@ export const Table01DividerLineSm = ({
         handleContextMenuClose();
     };
 
+    const handleInlineRenameSubmit = async (item: FileItem) => {
+        const newName = inlineRenameValue.trim();
+
+        // If unchanged or empty, cancel without API call
+        if (!newName || newName === item.name) {
+            setInlineRenameId(null);
+            setIsInlineRenaming(false);
+            return;
+        }
+
+        setIsInlineRenaming(true);
+        try {
+            const response = await apiClient.getProfile();
+            if (!response.success || !response.data?.user?.crypto_keypairs) {
+                throw new Error("Failed to load crypto keys");
+            }
+            const userData = response.data.user;
+
+            if (!masterKeyManager.hasMasterKey()) {
+                throw new Error("Session expired");
+            }
+
+            const privateKeys = await decryptUserPrivateKeys(userData as unknown as UserData);
+
+            let signedManifest;
+            if (item.type === 'folder') {
+                signedManifest = await createSignedFolderManifest(newName, null, {
+                    ed25519PrivateKey: privateKeys.ed25519PrivateKey,
+                    ed25519PublicKey: privateKeys.ed25519PublicKey,
+                    dilithiumPrivateKey: privateKeys.dilithiumPrivateKey,
+                    dilithiumPublicKey: privateKeys.dilithiumPublicKey
+                });
+            } else {
+                signedManifest = await createSignedFileManifest(newName, null, {
+                    ed25519PrivateKey: privateKeys.ed25519PrivateKey,
+                    ed25519PublicKey: privateKeys.ed25519PublicKey,
+                    dilithiumPrivateKey: privateKeys.dilithiumPrivateKey,
+                    dilithiumPublicKey: privateKeys.dilithiumPublicKey
+                });
+            }
+
+            // Pass the item directly since state update might be too slow
+            await handleRename({ ...signedManifest, requestedName: newName }, item);
+        } catch (error) {
+            console.error('Inline rename error:', error);
+            toast.error("Failed to rename item");
+        } finally {
+            // Only clear if we are still targeting this item (avoid race conditions)
+            setInlineRenameId(prev => prev === item.id ? null : prev);
+            setIsInlineRenaming(false);
+        }
+    };
+
     const handleRename = async (data: string | ({
         manifestHash: string;
         manifestCreatedAt: number;
@@ -1453,8 +1563,9 @@ export const Table01DividerLineSm = ({
         encryptedName?: string;
         nameSalt?: string;
         requestedName?: string;
-    })) => {
-        if (!selectedItemForRename) return;
+    }), targetItemArg?: { id: string, name: string, type: "file" | "folder" } | null) => {
+        const targetItem = targetItemArg || selectedItemForRename;
+        if (!targetItem) return;
 
         try {
             let response;
@@ -1465,7 +1576,7 @@ export const Table01DividerLineSm = ({
             // Check if this is a file manifest (has encryptedFilename) or folder manifest (has encryptedName)
             if ('encryptedFilename' in data && data.encryptedFilename) {
                 // File manifest
-                response = await apiClient.renameFile(selectedItemForRename.id, data as unknown as {
+                response = await apiClient.renameFile(targetItem.id, data as unknown as {
                     encryptedFilename: string;
                     filenameSalt: string;
                     manifestHash: string;
@@ -1479,7 +1590,7 @@ export const Table01DividerLineSm = ({
                 });
             } else if ('encryptedName' in data && data.encryptedName) {
                 // Folder manifest
-                response = await apiClient.renameFolder(selectedItemForRename.id, data as unknown as {
+                response = await apiClient.renameFolder(targetItem.id, data as unknown as {
                     encryptedName: string;
                     nameSalt: string;
                     manifestHash: string;
@@ -1496,8 +1607,22 @@ export const Table01DividerLineSm = ({
             }
 
             if (response.success) {
-                toast.success(`${selectedItemForRename.type} renamed successfully`);
-                refreshFiles(); // Refresh the file list
+                // Optimistic update
+                if (typeof data !== 'string' && data.requestedName) {
+                    const newName = data.requestedName;
+                    setFiles(prev => prev.map(f => f.id === targetItem.id ? { ...f, name: newName } : f));
+                    if (targetItemArg) {
+                        // Was inline rename
+                        toast.success(`Renamed to ${newName}`);
+                    } else {
+                        // Was modal rename
+                        toast.success(`${targetItem.type} renamed successfully`);
+                    }
+                } else {
+                    toast.success("Renamed successfully");
+                    refreshFiles(); // Fallback if name unknown
+                }
+
                 setRenameModalOpen(false);
                 setSelectedItemForRename(null);
             } else {
@@ -1508,13 +1633,13 @@ export const Table01DividerLineSm = ({
 
                 if (isConflict) {
                     // If it's a folder rename conflict, show conflict modal with details
-                    if (selectedItemForRename?.type === 'folder') {
+                    if (targetItem.type === 'folder') {
                         const requestedName = data?.requestedName || '';
                         // Try to locate the existing folder in the current listing
                         const existingFolder = files.find(f => f.type === 'folder' && f.name === requestedName);
 
                         const conflictItem = {
-                            id: selectedItemForRename.id,
+                            id: targetItem.id,
                             name: requestedName,
                             type: 'folder' as const,
                             existingPath: existingFolder?.path || '',
@@ -1532,14 +1657,14 @@ export const Table01DividerLineSm = ({
                         toast.error('A file or folder with this name already exists');
                     }
                 } else {
-                    toast.error(`Failed to rename ${selectedItemForRename.type}`);
+                    toast.error(`Failed to rename ${targetItem.type}`);
                     setRenameModalOpen(false);
                     setSelectedItemForRename(null);
                 }
             }
         } catch (error) {
             console.error('Rename error:', error);
-            toast.error(`Failed to rename ${selectedItemForRename.type}`);
+            toast.error(`Failed to rename ${targetItem.type}`);
             setRenameModalOpen(false);
             setSelectedItemForRename(null);
         }
@@ -2612,10 +2737,48 @@ export const Table01DividerLineSm = ({
                                                                         <FileIcon mimeType={item.mimeType} filename={item.name} className="h-4 w-4 inline-block" />
                                                                     )}
                                                                 </div>
-                                                                <TruncatedNameTooltip
-                                                                    name={item.name}
-                                                                    className="text-sm font-medium whitespace-nowrap text-foreground cursor-default flex-1 min-w-0"
-                                                                />
+                                                                <div className="flex items-center gap-1.5 flex-1 min-w-0 group/name-cell">
+                                                                    {inlineRenameId === item.id ? (
+                                                                        <Input
+                                                                            autoFocus
+                                                                            spellCheck={false}
+                                                                            autoComplete="off"
+                                                                            value={inlineRenameValue}
+                                                                            onChange={(e) => setInlineRenameValue(e.target.value)}
+                                                                            onClick={(e) => e.stopPropagation()}
+                                                                            onMouseDown={(e) => e.stopPropagation()}
+                                                                            onPointerDown={(e) => e.stopPropagation()}
+                                                                            onKeyDown={(e) => {
+                                                                                if (e.key === 'Enter') {
+                                                                                    e.preventDefault();
+                                                                                    e.currentTarget.blur();
+                                                                                }
+                                                                                if (e.key === 'Escape') {
+                                                                                    e.stopPropagation();
+                                                                                    setInlineRenameId(null);
+                                                                                }
+                                                                            }}
+                                                                            onBlur={() => handleInlineRenameSubmit(item)}
+                                                                            className="h-7 py-0 px-1 text-sm font-medium focus-visible:ring-1 focus-visible:ring-offset-0 bg-background"
+                                                                            disabled={isInlineRenaming}
+                                                                        />
+                                                                    ) : (
+                                                                        <>
+                                                                            <TruncatedNameTooltip
+                                                                                name={item.name}
+                                                                                className="text-sm font-medium whitespace-nowrap text-foreground cursor-default min-w-0 flex-initial"
+                                                                            />
+                                                                            <RenameButton
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    setInlineRenameId(item.id);
+                                                                                    setInlineRenameValue(item.name);
+                                                                                }}
+                                                                                className="opacity-0 group-hover/name-cell:opacity-100 p-1 transition-all text-muted-foreground hover:text-primary shrink-0 ml-0.5"
+                                                                            />
+                                                                        </>
+                                                                    )}
+                                                                </div>
                                                                 {item.lockedUntil && new Date(item.lockedUntil) > new Date() && (
                                                                     <Tooltip>
                                                                         <TooltipTrigger asChild>
@@ -2944,12 +3107,44 @@ export const Table01DividerLineSm = ({
                                                     {getFileIcon(item.mimeType || '', item.type, item.name, "h-12 w-12")}
                                                 </div>
 
-                                                {/* File name */}
-                                                <TruncatedNameTooltip
-                                                    name={item.name}
-                                                    className="text-sm font-medium text-center text-foreground line-clamp-2 break-words w-full cursor-default"
-                                                    maxTooltipWidth="300px"
-                                                />
+                                                {inlineRenameId === item.id ? (
+                                                    <Input
+                                                        autoFocus
+                                                        value={inlineRenameValue}
+                                                        onChange={(e) => setInlineRenameValue(e.target.value)}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') handleInlineRenameSubmit(item);
+                                                            if (e.key === 'Escape') setInlineRenameId(null);
+                                                        }}
+                                                        onBlur={() => handleInlineRenameSubmit(item)}
+                                                        className="h-7 py-0 px-1 text-sm font-medium focus-visible:ring-1 text-center"
+                                                        disabled={isInlineRenaming}
+                                                    />
+                                                ) : (
+                                                    <div className="relative w-full group/grid-name">
+                                                        <TruncatedNameTooltip
+                                                            name={item.name}
+                                                            className="text-sm font-medium text-center text-foreground line-clamp-2 break-words w-full cursor-default"
+                                                            maxTooltipWidth="300px"
+                                                        />
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setInlineRenameId(item.id);
+                                                                        setInlineRenameValue(item.name);
+                                                                    }}
+                                                                    className="absolute -right-6 top-1/2 -translate-y-1/2 opacity-0 group-hover/grid-name:opacity-100 p-1 hover:bg-accent rounded transition-all text-muted-foreground hover:text-primary shrink-0"
+                                                                >
+                                                                    <IconEdit className="h-3.5 w-3.5" />
+                                                                </button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>Rename</TooltipContent>
+                                                        </Tooltip>
+                                                    </div>
+                                                )}
 
                                                 {/* File size or folder indicator */}
                                                 <p className="text-xs text-muted-foreground text-center">
