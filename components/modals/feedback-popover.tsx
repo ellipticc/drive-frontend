@@ -24,12 +24,14 @@ interface FeedbackPopoverProps {
 export function FeedbackPopover({ children, open, onOpenChange }: FeedbackPopoverProps) {
     const [text, setText] = React.useState("")
     const [sending, setSending] = React.useState(false)
+    const isSendingRef = React.useRef(false)
     const pathname = usePathname()
 
     // Reset text when popover closes
     React.useEffect(() => {
         if (!open) {
             setText("")
+            isSendingRef.current = false
         }
     }, [open])
 
@@ -62,16 +64,17 @@ export function FeedbackPopover({ children, open, onOpenChange }: FeedbackPopove
 
         document.addEventListener("keydown", down)
         return () => document.removeEventListener("keydown", down)
-    }, [open, text, onOpenChange])
+    }, [open, text, onOpenChange, sending])
 
     const handleSend = async () => {
-        if (!text.trim() || sending) return
+        if (!text.trim() || sending || isSendingRef.current) return
         if (text.length > 1000) {
             toast.error("Message too long (max 1000 characters)")
             return
         }
 
         setSending(true)
+        isSendingRef.current = true
         try {
             const response = await apiClient.sendFeedback({
                 message: text,
@@ -88,6 +91,7 @@ export function FeedbackPopover({ children, open, onOpenChange }: FeedbackPopove
         } catch (e) {
             console.error("Feedback error:", e)
             toast.error("Failed to send feedback. Please try again.")
+            isSendingRef.current = false // Reset on error so user can retry
         } finally {
             setSending(false)
         }
