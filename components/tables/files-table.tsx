@@ -2863,11 +2863,17 @@ export const Table01DividerLineSm = ({
                                                             {item.is_shared && (
                                                                 <Tooltip>
                                                                     <TooltipTrigger asChild>
-                                                                        <div className="flex justify-center">
-                                                                            <div className="bg-primary/10 text-primary rounded-full p-1">
-                                                                                <IconShare3 className="h-3.5 w-3.5 text-blue-500" />
-                                                                            </div>
-                                                                        </div>
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                handleShareClick(item.id, item.name, item.type);
+                                                                            }}
+                                                                            onMouseDown={(e) => e.stopPropagation()}
+                                                                            onPointerDown={(e) => e.stopPropagation()}
+                                                                            className="flex items-center justify-center cursor-pointer hover:bg-accent rounded-sm p-1 transition-colors ml-auto mr-2"
+                                                                        >
+                                                                            <IconShare3 className="h-4 w-4 text-blue-500" />
+                                                                        </button>
                                                                     </TooltipTrigger>
                                                                     <TooltipContent>
                                                                         <p>{t("files.manageShare")}</p>
