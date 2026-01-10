@@ -900,22 +900,26 @@ export function SettingsModal({
   // Download security history
   const handleDownloadSecurityEvents = async () => {
     try {
-      const response = await apiClient.getSecurityEvents(1000, 0) // Get more for download
-      if (response.success && response.data) {
-        const events = response.data.events
-        const blob = new Blob([JSON.stringify(events, null, 2)], { type: 'application/json' })
+      // Call with format='csv'
+      const response = await apiClient.getSecurityEvents(10000, 0, 'csv')
+
+      if (response.success && response.data?.csv) {
+        const blob = new Blob([response.data.csv], { type: 'text/csv;charset=utf-8;' })
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url
-        a.download = `security-history-${new Date().toISOString().split('T')[0]}.json`
+        a.download = response.data.filename || `security-events-${new Date().toISOString().split('T')[0]}.csv`
         document.body.appendChild(a)
         a.click()
         document.body.removeChild(a)
         URL.revokeObjectURL(url)
+        toast.success("Events exported successfully")
+      } else {
+        toast.error(response.error || "Failed to download security events")
       }
     } catch (error) {
       console.error('Failed to download security history:', error)
-      toast.error("Failed to download security history")
+      toast.error("Failed to download security events")
     }
   }
 

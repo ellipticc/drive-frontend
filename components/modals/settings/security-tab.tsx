@@ -159,6 +159,10 @@ export function SecurityTab(props: SecurityTabProps) {
     const [copiedSecret, setCopiedSecret] = useState(false);
     const [showWipeDialog, setShowWipeDialog] = useState(false);
 
+    // Check export access
+    // Check export access
+    const hasExportAccess = (user?.plan || 'Free').includes('Pro') || (user?.plan || 'Free').includes('Unlimited');
+
     // Auto-scroll to device manager if requested
     React.useEffect(() => {
         if (typeof window !== 'undefined' && window.location.hash.includes('scroll=device-manager')) {
@@ -766,34 +770,59 @@ export function SecurityTab(props: SecurityTabProps) {
                         <p className="text-sm text-muted-foreground mt-1">Review security-related activity on your account</p>
                     </div>
                     <div className="flex items-center gap-2">
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => loadSecurityEvents(1)}
-                            disabled={isLoadingSecurityEvents}
-                            className="h-8 w-8 p-0"
-                            title="Reload"
-                        >
-                            <IconRefresh className={`h-4 w-4 ${isLoadingSecurityEvents ? 'animate-spin' : ''}`} />
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setShowWipeDialog(true)}
-                            className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
-                            title="Wipe security history"
-                        >
-                            <IconTrash className="h-4 w-4" />
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={handleDownloadSecurityEvents}
-                            className="h-8 w-8 p-0"
-                            title="Download security history"
-                        >
-                            <IconDownload className="h-4 w-4" />
-                        </Button>
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => loadSecurityEvents(1)}
+                                        disabled={isLoadingSecurityEvents}
+                                        className="h-8 w-8 p-0"
+                                    >
+                                        <IconRefresh className={`h-4 w-4 ${isLoadingSecurityEvents ? 'animate-spin' : ''}`} />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Refresh Events</TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => setShowWipeDialog(true)}
+                                        className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
+                                    >
+                                        <IconTrash className="h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Clear History</TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <div className="inline-block">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={handleDownloadSecurityEvents}
+                                            disabled={!hasExportAccess}
+                                            className={`h-8 w-8 p-0 ${!hasExportAccess ? 'opacity-50' : ''}`}
+                                        >
+                                            <IconDownload className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    {hasExportAccess ? "Export CSV" : "Export available on Pro & Unlimited plans"}
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
                     </div>
                 </div>
 

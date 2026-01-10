@@ -3089,11 +3089,14 @@ class ApiClient {
     return this.request(`/shares/${shareId}/comments/banned`);
   }
 
-  async getSecurityEvents(limit = 10, offset = 0): Promise<ApiResponse<{
+  async getSecurityEvents(limit = 10, offset = 0, format?: string): Promise<ApiResponse<{
     events: SecurityEvent[];
-    pagination: { total: number; limit: number; offset: number; hasMore: boolean }
+    pagination: { total: number; limit: number; offset: number; hasMore: boolean };
+    csv?: string;
+    filename?: string;
   }>> {
-    return this.request(`/auth/security/events?limit=${limit}&offset=${offset}`, {
+    const query = `limit=${limit}&offset=${offset}${format ? `&format=${format}` : ''}`;
+    return this.request(`/auth/security/events?${query}`, {
       method: 'GET',
     });
   }
