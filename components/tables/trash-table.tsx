@@ -98,6 +98,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
     const [detailsModalOpen, setDetailsModalOpen] = useState(false);
     const [selectedItemForDetails, setSelectedItemForDetails] = useState<{ id: string; name: string; type: "file" | "folder" } | null>(null);
     const [bulkDeleteModalOpen, setBulkDeleteModalOpen] = useState(false);
+    const [isDeletingAll, setIsDeletingAll] = useState(false);
 
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
@@ -318,13 +319,18 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
         }
     };
 
-    const handleRestoreAll = async () => {
-        if (trashItems.length === 0) return;
+    const handleRestoreBulk = async () => {
+        const hasSelection = selectedItems.size > 0;
+        const itemsToRestore = hasSelection
+            ? Array.from(selectedItems).map(id => trashItems.find(item => item.id === id)).filter(Boolean) as TrashItem[]
+            : trashItems;
+
+        if (itemsToRestore.length === 0) return;
 
         try {
             // Separate files and folders
-            const fileIds = trashItems.filter(item => item.type === 'file').map(item => item.id);
-            const folderIds = trashItems.filter(item => item.type === 'folder').map(item => item.id);
+            const fileIds = itemsToRestore.filter(item => item.type === 'file').map(item => item.id);
+            const folderIds = itemsToRestore.filter(item => item.type === 'folder').map(item => item.id);
 
             // Make bulk API calls
             const promises = [];
@@ -339,11 +345,13 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
             const allSuccessful = results.every(result => result.success);
 
             if (allSuccessful) {
-                // Clear trash view immediately
-                setTrashItems([]);
+                // Clear items from view immediately
+                const restoredIds = new Set(itemsToRestore.map(i => i.id));
+                setTrashItems(prev => prev.filter(item => !restoredIds.has(item.id)));
+                setSelectedItems(new Set());
 
                 // Show toast with undo option
-                toast(`All ${trashItems.length} items restored successfully`, {
+                toast(hasSelection ? `${itemsToRestore.length} items restored successfully` : `All ${itemsToRestore.length} items restored successfully`, {
                     action: {
                         label: "Undo",
                         onClick: async () => {
@@ -352,7 +360,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                                 const moveBackResponse = await apiClient.moveToTrash(folderIds, fileIds);
 
                                 if (moveBackResponse.success) {
-                                    toast.success(`All items moved back to trash`);
+                                    toast.success(`Items moved back to trash`);
                                     refreshTrash(); // Refresh to show items back in trash
                                 } else {
                                     toast.error(`Failed to move items back to trash`);
@@ -374,21 +382,31 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
             }
         } catch (error) {
             console.error('Bulk restore error:', error);
-            toast.error('Failed to restore all items');
+            toast.error(hasSelection ? 'Failed to restore selected items' : 'Failed to restore all items');
             await refreshTrash();
         }
     };
 
-    const handleDeleteAll = () => {
-        if (trashItems.length === 0) return;
+    const handleDeleteBulk = () => {
+        const hasSelection = selectedItems.size > 0;
+        if (!hasSelection && trashItems.length === 0) return;
+
+        setIsDeletingAll(!hasSelection);
         setBulkDeleteModalOpen(true);
     };
 
     const confirmBulkDelete = async () => {
         try {
+            // Determine which items to delete
+            const itemsToProcess = isDeletingAll
+                ? trashItems
+                : trashItems.filter(item => selectedItems.has(item.id));
+
+            if (itemsToProcess.length === 0) return;
+
             // Separate files and folders
-            const fileIds = trashItems.filter(item => item.type === 'file').map(item => item.id);
-            const folderIds = trashItems.filter(item => item.type === 'folder').map(item => item.id);
+            const fileIds = itemsToProcess.filter(item => item.type === 'file').map(item => item.id);
+            const folderIds = itemsToProcess.filter(item => item.type === 'folder').map(item => item.id);
 
             // Make bulk API calls
             const promises = [];
@@ -411,9 +429,16 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
             });
 
             if (allSuccessful) {
-                // Clear trash view immediately
-                setTrashItems([]);
-                toast.success(`All ${trashItems.length} items permanently deleted`);
+                // Clear items from view immediately
+                const deletedIds = new Set(itemsToProcess.map(i => i.id));
+                setTrashItems(prev => prev.filter(item => !deletedIds.has(item.id)));
+                setSelectedItems(prev => {
+                    const next = new Set(prev);
+                    deletedIds.forEach(id => next.delete(id));
+                    return next;
+                });
+
+                toast.success(isDeletingAll ? `All items permanently deleted` : `${itemsToProcess.length} items permanently deleted`);
 
                 // Update storage instantly
                 if (totalStorageFreed > 0) {
@@ -432,10 +457,11 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
             }
         } catch (error) {
             console.error('Bulk delete error:', error);
-            toast.error('Failed to delete all items');
+            toast.error(isDeletingAll ? 'Failed to delete all items' : 'Failed to delete selected items');
             await refreshTrash();
         } finally {
             setBulkDeleteModalOpen(false);
+            setIsDeletingAll(false);
         }
     };
 
@@ -564,20 +590,20 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                             <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={handleRestoreAll}
-                                disabled={trashItems.length === 0}
-                                className="h-8 w-8 p-0"
-                                title="Restore All"
+                                onClick={handleRestoreBulk}
+                                disabled={trashItems.length === 0 && selectedItems.size === 0}
+                                className={`h-8 w-8 p-0 ${selectedItems.size > 0 ? 'bg-primary/10 text-primary' : ''}`}
+                                title={selectedItems.size > 0 ? `Restore ${selectedItems.size} Selected` : "Restore All"}
                             >
                                 <IconRestore className="h-3.5 w-3.5" />
                             </Button>
                             <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={handleDeleteAll}
-                                disabled={trashItems.length === 0}
-                                className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                title="Delete All"
+                                onClick={handleDeleteBulk}
+                                disabled={trashItems.length === 0 && selectedItems.size === 0}
+                                className={`h-8 w-8 p-0 text-destructive hover:text-destructive ${selectedItems.size > 0 ? 'bg-destructive/10' : 'hover:bg-destructive/10'}`}
+                                title={selectedItems.size > 0 ? `Delete ${selectedItems.size} Selected` : "Delete All"}
                             >
                                 <IconTrash className="h-3.5 w-3.5" />
                             </Button>
@@ -816,12 +842,17 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
             />
 
             {/* Bulk Delete Confirmation Dialog */}
-            <Dialog open={bulkDeleteModalOpen} onOpenChange={setBulkDeleteModalOpen}>
+            <Dialog open={bulkDeleteModalOpen} onOpenChange={(open) => {
+                setBulkDeleteModalOpen(open);
+                if (!open) setIsDeletingAll(false);
+            }}>
                 <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
-                        <DialogTitle>Delete All Items</DialogTitle>
+                        <DialogTitle>{isDeletingAll ? 'Delete All Items' : `Delete ${selectedItems.size} Items`}</DialogTitle>
                         <DialogDescription>
-                            Are you sure you want to permanently delete all items? This action cannot be undone.
+                            {isDeletingAll
+                                ? "Are you sure you want to permanently delete all items in the current view? This action cannot be undone."
+                                : `Are you sure you want to permanently delete the ${selectedItems.size} selected items? This action cannot be undone.`}
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
@@ -829,7 +860,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                             Cancel
                         </Button>
                         <Button variant="destructive" onClick={confirmBulkDelete}>
-                            Delete All
+                            {isDeletingAll ? 'Delete All' : 'Delete Selected'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -837,9 +868,6 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
 
             <ActionBar
                 open={selectedItems.size > 0}
-                onOpenChange={(open) => {
-                    if (!open) setSelectedItems(new Set());
-                }}
             >
                 <ActionBarSelection>
                     {selectedItems.size} selected
@@ -847,29 +875,21 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                 <ActionBarSeparator />
                 <ActionBarGroup>
                     <ActionBarItem
-                        onClick={async () => {
-                            const itemsToRestore = Array.from(selectedItems).map(id => trashItems.find(item => item.id === id)).filter(Boolean) as TrashItem[];
-                            for (const item of itemsToRestore) {
-                                await handleRestoreClick(item.id, item.name, item.type);
-                            }
-                            setSelectedItems(new Set());
-                        }}
+                        onClick={handleRestoreBulk}
                     >
                         <IconRestore className="h-4 w-4 mr-2" />
                         Restore
                     </ActionBarItem>
                     <ActionBarItem
                         variant="destructive"
-                        onClick={() => {
-                            setBulkDeleteModalOpen(true);
-                        }}
+                        onClick={handleDeleteBulk}
                     >
                         <IconTrashAlt className="h-4 w-4 mr-2" />
                         Delete
                     </ActionBarItem>
                 </ActionBarGroup>
                 <ActionBarSeparator />
-                <ActionBarClose>
+                <ActionBarClose onClick={() => setSelectedItems(new Set())}>
                     <IconX className="h-4 w-4" />
                 </ActionBarClose>
             </ActionBar>
