@@ -7,7 +7,12 @@ import {
   IconLogout,
   IconBellRinging,
   IconSettings,
-  IconRosetteDiscountCheckFilled
+  IconRosetteDiscountCheckFilled,
+  IconSun,
+  IconMoon,
+  IconDeviceDesktop,
+  IconDeviceMobile,
+  IconBrightnessFilled
 } from "@tabler/icons-react"
 
 import {
@@ -23,6 +28,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu"
 import {
   SidebarMenu,
@@ -30,6 +38,8 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { useTheme } from "next-themes"
+import { useUser } from "@/components/user-context"
 import { apiClient } from "@/lib/api"
 import { masterKeyManager } from "@/lib/master-key"
 import { getDiceBearAvatar } from "@/lib/avatar"
@@ -82,11 +92,14 @@ export function NavUser({
     email: string
     avatar: string
     is_checkmarked?: boolean
+    connectedDevicesCount?: number
   }
 }) {
   /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
   const { isMobile } = useSidebar()
   const { t } = useLanguage()
+  const { setTheme, theme } = useTheme()
+  const { updateUser, refetch } = useUser()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const { hasUnread } = useNotifications()
@@ -97,6 +110,21 @@ export function NavUser({
     // Clear URL hash when closing from nav-user - use location.hash to trigger hashchange
     if (!open) {
       window.location.hash = ''
+    }
+  }
+
+  const handleThemeChange = async (newTheme: string) => {
+    setTheme(newTheme)
+
+    // If sync is on, disable it because user is making a manual choice
+    if (user.id) { // Simple check, assumption is theme_sync might be on
+      try {
+        // We interact with useUser's updateUser/refetch if available, checking API logic from ThemeToggle
+        await apiClient.updateProfile({ theme_sync: false });
+        await refetch();
+      } catch (err) {
+        console.error("Failed to disable theme sync:", err);
+      }
     }
   }
 
@@ -191,6 +219,38 @@ export function NavUser({
                   </div>
                   {t("settings.notifications")}
                 </DropdownMenuItem>
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup>
+                <DropdownMenuItem onClick={() => {
+                  window.location.hash = '#settings/Security?scroll=device-manager'
+                }}>
+                  <IconDeviceMobile />
+                  {user.connectedDevicesCount || 1} {t("devices.connected", { defaultValue: "devices connected" })}
+                </DropdownMenuItem>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <IconBrightnessFilled className="h-4 w-4" />
+                    <span className="ml-2">{t("theme.appearance", { defaultValue: "Appearance" })}</span>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    <DropdownMenuItem onClick={() => handleThemeChange("light")}>
+                      <IconSun className="mr-2 h-4 w-4" />
+                      <span>{t("theme.light", { defaultValue: "Light" })}</span>
+                      {theme === 'light' && <IconRosetteDiscountCheckFilled className="ml-auto h-4 w-4" />}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleThemeChange("dark")}>
+                      <IconMoon className="mr-2 h-4 w-4" />
+                      <span>{t("theme.dark", { defaultValue: "Dark" })}</span>
+                      {theme === 'dark' && <IconRosetteDiscountCheckFilled className="ml-auto h-4 w-4" />}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleThemeChange("system")}>
+                      <IconDeviceDesktop className="mr-2 h-4 w-4" />
+                      <span>{t("theme.system", { defaultValue: "System" })}</span>
+                      {theme === 'system' && <IconRosetteDiscountCheckFilled className="ml-auto h-4 w-4" />}
+                    </DropdownMenuItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout}>

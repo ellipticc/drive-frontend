@@ -22,6 +22,7 @@ export interface UserData {
   theme_sync?: boolean;
   is_verified?: boolean;
   is_checkmarked?: boolean;
+  connectedDevicesCount?: number;
 
   storage?: {
     used_bytes: number;

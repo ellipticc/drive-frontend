@@ -159,6 +159,18 @@ export function SecurityTab(props: SecurityTabProps) {
     const [copiedSecret, setCopiedSecret] = useState(false);
     const [showWipeDialog, setShowWipeDialog] = useState(false);
 
+    // Auto-scroll to device manager if requested
+    React.useEffect(() => {
+        if (typeof window !== 'undefined' && window.location.hash.includes('scroll=device-manager')) {
+            setTimeout(() => {
+                const element = document.getElementById('device-manager-section');
+                if (element) {
+                    element.scrollIntoView({ behavior: 'smooth' });
+                }
+            }, 500);
+        }
+    }, [isLoadingDevices]);
+
     const handleCopySecret = () => {
         if (!totpSecret) return;
         navigator.clipboard.writeText(totpSecret);
@@ -528,7 +540,7 @@ export function SecurityTab(props: SecurityTabProps) {
             </div>
 
             {/* Device Manager Section */}
-            <div className="border-t pt-6 space-y-4">
+            <div id="device-manager-section" className="border-t pt-6 space-y-4">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <IconUserCog className="h-5 w-5 text-muted-foreground" />

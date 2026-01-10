@@ -152,7 +152,7 @@ export function SettingsModal({
 
       // Navigate to the correct tab
       if (hash.includes('/')) {
-        const tabFromHash = hash.replace('#settings/', '').toLowerCase()
+        const tabFromHash = hash.replace('#settings/', '').split('?')[0].toLowerCase()
         // Find the matching tab ID
         const matchingTab = data.nav.find(tab =>
           tab.name.toLowerCase() === tabFromHash || tab.id === tabFromHash
@@ -200,7 +200,7 @@ export function SettingsModal({
     if (typeof window !== 'undefined') {
       const hash = window.location.hash
       if (hash.startsWith('#settings/')) {
-        const tabFromHash = hash.replace('#settings/', '')
+        const tabFromHash = hash.replace('#settings/', '').split('?')[0]
         // Capitalize first letter to match our tab IDs
         return tabFromHash.charAt(0).toUpperCase() + tabFromHash.slice(1).toLowerCase()
       }
