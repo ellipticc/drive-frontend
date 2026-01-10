@@ -73,6 +73,7 @@
         "react-dom": "19.2.0",
         "react-i18next": "^16.5.1",
         "react-image-crop": "^11.0.10",
+        "react-json-syntax-highlighter": "^0.1.17",
         "recharts": "^2.15.4",
         "sonner": "^2.0.7",
         "styled-components": "^6.1.19",
@@ -1728,6 +1729,8 @@
     "react-image-crop": ["react-image-crop@11.0.10", "", { "peerDependencies": { "react": ">=16.13.1" } }, "sha512-+5FfDXUgYLLqBh1Y/uQhIycpHCbXkI50a+nbfkB1C0xXXUTwkisHDo2QCB1SQJyHCqIuia4FeyReqXuMDKWQTQ=="],
 
     "react-is": ["react-is@18.3.1", "", {}, "sha512-/LLMVyas0ljjAtoYiPqYiL8VWXzUUdThrmU5+n20DZv+a+ClRoevUzw5JxU+Ieh5/c87ytoTBV9G1FiKfNJdmg=="],
+
+    "react-json-syntax-highlighter": ["react-json-syntax-highlighter@0.1.17", "", { "dependencies": { "prop-types": "^15.6.1" }, "peerDependencies": { "react": "^0.14.0 || ^15.0.0-0 || ^16.4.2", "react-dom": "^0.14.0 || ^15.0.0-0 || ^16.4.2" } }, "sha512-lprmIG1qfrPCs3E26/R7oGcZ7vfpJbVmZ6eMRL/rFadlqI1J3mm40GXwPZIMcPOIS4CeOiC12wBbL36KKDvDGg=="],
 
     "react-remove-scroll": ["react-remove-scroll@2.7.1", "", { "dependencies": { "react-remove-scroll-bar": "^2.3.7", "react-style-singleton": "^2.2.3", "tslib": "^2.1.0", "use-callback-ref": "^1.3.3", "use-sidecar": "^1.1.3" }, "peerDependencies": { "@types/react": "*", "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc" } }, "sha512-HpMh8+oahmIdOuS5aFKKY6Pyog+FNaZV/XyJOq7b4YFwsFHe5yYfdbIalI4k3vU2nSDql7YskmUseHsRrJqIPA=="],
 
