@@ -277,6 +277,7 @@ export interface FolderContentItem {
   is_starred: boolean;
   lockedUntil?: string | null;
   retentionMode?: string | null;
+  tags?: Tag[];
 }
 
 export interface FileContentItem {
@@ -304,6 +305,7 @@ export interface FileContentItem {
   is_starred: boolean;
   lockedUntil?: string | null;
   retentionMode?: string | null;
+  tags?: Tag[];
 }
 
 export interface ShareItem {

@@ -24,9 +24,10 @@ interface SiteHeaderProps {
   onSearch?: (query: string) => void
   onFileUpload?: () => void
   onFolderUpload?: () => void
+  searchValue?: string
 }
 
-export function SiteHeader({ onSearch, onFileUpload, onFolderUpload }: SiteHeaderProps) {
+export function SiteHeader({ onSearch, onFileUpload, onFolderUpload, searchValue }: SiteHeaderProps) {
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false)
   const [, setForceUpdate] = useState(0)
   const { deviceQuota } = useUser()
@@ -56,6 +57,7 @@ export function SiteHeader({ onSearch, onFileUpload, onFolderUpload }: SiteHeade
             type="search"
             placeholder="Search files and folders..."
             className="pl-9 pr-4"
+            value={searchValue || ""}
             onChange={(e) => onSearch?.(e.target.value)}
           />
         </div>

@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useCallback, useMemo } from "react"
+import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import {
     IconPhoto,
     IconPlayerPlay,
@@ -21,6 +22,8 @@ import { toast } from "sonner"
 import { keyManager } from "@/lib/key-manager"
 import { masterKeyManager } from "@/lib/master-key"
 import { SiteHeader } from "@/components/layout/header/site-header"
+import { useUser } from "@/components/user-context"
+import { Tag } from "@/lib/api"
 
 interface MediaItem {
     id: string
@@ -43,15 +46,38 @@ interface MediaItem {
         kyberCiphertext: string
         nonceWrapKyber: string
     }
+    tags?: Tag[]
 }
 
 export default function PhotosPage() {
+    const router = useRouter()
+    const pathname = usePathname()
+    const searchParams = useSearchParams()
+    const { deviceQuota } = useUser()
+    const isFreePlan = deviceQuota?.planName === 'Free'
     const [rawItems, setRawItems] = useState<any[]>([])
     const [mediaItems, setMediaItems] = useState<MediaItem[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [isRefreshing, setIsRefreshing] = useState(false)
     const [searchQuery, setSearchQuery] = useState("")
     const [viewMode, setViewMode] = useState<'comfortable' | 'compact'>('comfortable')
+
+    // Sync search param from URL
+    useEffect(() => {
+        const q = searchParams.get('q');
+        setSearchQuery(q || "");
+    }, [searchParams]);
+
+    const handleSearch = (query: string) => {
+        setSearchQuery(query)
+        const params = new URLSearchParams(searchParams.toString())
+        if (query) {
+            params.set('q', query)
+        } else {
+            params.delete('q')
+        }
+        router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+    }
 
     // Preview state
     const [previewFile, setPreviewFile] = useState<PreviewFileItem | null>(null)
@@ -76,7 +102,22 @@ export default function PhotosPage() {
                             item.filenameSalt,
                             masterKey
                         );
-                        return { ...item, filename: decryptedName };
+                        // Decrypt tags if available
+                        const decryptedTags = item.tags ? await Promise.all(item.tags.map(async (tag: any) => {
+                            try {
+                                const decryptedTagName = await decryptFilename(
+                                    tag.encrypted_name || tag.encryptedName,
+                                    tag.name_salt || tag.nameSalt,
+                                    masterKey
+                                );
+                                return { ...tag, decryptedName: decryptedTagName };
+                            } catch (err) {
+                                console.error(`Failed to decrypt tag name:`, err);
+                                return tag;
+                            }
+                        })) : [];
+
+                        return { ...item, filename: decryptedName, tags: decryptedTags };
                     } catch (err) {
                         console.error(`Failed to decrypt filename for ${item.id}:`, err);
                         return { ...item, filename: "Encrypted File" };
@@ -101,10 +142,44 @@ export default function PhotosPage() {
     }, [fetchAndDecryptPhotos])
 
     const filteredItems = useMemo(() => {
+        const query = searchQuery.toLowerCase().trim();
+        if (!query) return mediaItems;
+
+        // Tag search (#tag)
+        if (query.startsWith('#')) {
+            if (isFreePlan) {
+                return mediaItems;
+            }
+
+            const tagQuery = query.substring(1).trim();
+            if (!tagQuery) return mediaItems;
+
+            return mediaItems.filter(item => {
+                return item.tags?.some((tag: any) => {
+                    const decryptedName = (tag.decryptedName || tag.name || "").toLowerCase();
+                    const encryptedName = (tag.encrypted_name || tag.encryptedName || "").toLowerCase();
+                    return decryptedName.includes(tagQuery);
+                });
+            });
+        }
+
         return mediaItems.filter(item =>
-            item.filename.toLowerCase().includes(searchQuery.toLowerCase())
+            item.filename.toLowerCase().includes(query)
         )
-    }, [mediaItems, searchQuery])
+    }, [mediaItems, searchQuery, isFreePlan])
+
+    // Paywall for tag search
+    useEffect(() => {
+        if (searchQuery.startsWith('#') && isFreePlan) {
+            toast.error("Advanced Tag Search is a paid feature!", {
+                description: "Upgrade your plan to filter by tags and organize files smarter.",
+                action: {
+                    label: "Upgrade",
+                    onClick: () => window.open('/pricing', '_blank')
+                }
+            })
+        }
+    }, [searchQuery, isFreePlan])
 
     // Group items by date
     const groupedItems = useMemo(() => {
@@ -161,7 +236,7 @@ export default function PhotosPage() {
 
     return (
         <div className="flex flex-col h-full bg-background">
-            <SiteHeader onSearch={setSearchQuery} />
+            <SiteHeader onSearch={handleSearch} searchValue={searchQuery} />
 
             <div className="flex flex-col flex-1 overflow-hidden">
                 {/* Secondary Header / Controls */}

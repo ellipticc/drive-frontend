@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from "react"
-import { useSearchParams } from "next/navigation"
+import { useSearchParams, usePathname, useRouter } from "next/navigation"
 import { SectionCards } from "@/components/shared/section-cards"
 import { SiteHeader } from "@/components/layout/header/site-header"
 import { Table01DividerLineSm } from "@/components/tables/files-table"
@@ -14,6 +14,8 @@ import { useUser } from "@/components/user-context"
 
 export default function Home() {
   const { user } = useUser()
+  const router = useRouter()
+  const pathname = usePathname()
   const [searchQuery, setSearchQuery] = useState("")
   const [uploadHandlers, setUploadHandlers] = useState<{ handleFileUpload: () => void; handleFolderUpload: () => void } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -152,7 +154,20 @@ export default function Home() {
 
   const handleSearch = (query: string) => {
     setSearchQuery(query)
+    const params = new URLSearchParams(searchParams.toString())
+    if (query) {
+      params.set('q', query)
+    } else {
+      params.delete('q')
+    }
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false })
   }
+
+  // Sync search param from URL
+  useEffect(() => {
+    const q = searchParams.get('q');
+    setSearchQuery(q || "");
+  }, [searchParams]);
 
   return (
     <SidebarInset
@@ -171,6 +186,7 @@ export default function Home() {
     >
       <SiteHeader
         onSearch={handleSearch}
+        searchValue={searchQuery}
         onFileUpload={uploadHandlers?.handleFileUpload}
         onFolderUpload={uploadHandlers?.handleFolderUpload}
       />

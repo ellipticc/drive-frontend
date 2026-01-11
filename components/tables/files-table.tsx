@@ -267,6 +267,19 @@ export const Table01DividerLineSm = ({
         }
     }, [searchQuery, isFreePlan, router]);
 
+    // Debounce search query to prevent excessive API calls
+    const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
+
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedQuery(searchQuery);
+        }, 300); // 300ms debounce
+
+        return () => {
+            clearTimeout(handler);
+        };
+    }, [searchQuery]);
+
     // Column visibility state
     const [visibleColumns, setVisibleColumns] = useState<Set<string>>(new Set(['starred', 'modified', 'size', 'shared']));
     const [isPreferencesLoaded, setIsPreferencesLoaded] = useState(false);
@@ -889,114 +902,221 @@ export const Table01DividerLineSm = ({
             setError(null);
             // console.log(`Loading folder contents for: ${folderId}, page: ${page} (Fetch ID: ${currentFetchId})`);
 
-            const response = await apiClient.getFolderContents(folderId, { page, limit });
+            // Determine search mode
+            const isGlobalSearch = !!debouncedQuery && debouncedQuery.trim().length > 0;
+            // currentFetchId is already defined above
 
-            // Check if this request is stale
-            if (currentFetchId !== fetchIdRef.current) {
-                // console.log(`Ignoring stale response for fetch ID ${currentFetchId}`);
-                return;
-            }
+            let response;
 
-            // console.log(`Folder contents response:`, response);
-            if (response.success && response.data) {
-                // Update pagination info from API response
-                if (response.data.pagination) {
-                    setTotalPages(response.data.pagination.totalPages);
-                    setTotalItems(response.data.pagination.total);
-                }
-                // Get master key for filename decryption
-                let masterKey: Uint8Array | null = null;
+            // Arrays to hold accumulated data
+            let allFiles: FileContentItem[] = [];
+            let allFolders: FolderContentItem[] = [];
+
+            if (isGlobalSearch) {
+                // GLOBAL SEARCH MODE: Pagination Loop
+
+                // Show feedback if this might take a moment
+                const toastId = toast.loading("Searching all files...");
+
                 try {
-                    masterKey = masterKeyManager.getMasterKey();
+                    let pageToFetch = 1;
+                    // Use a larger limit for search to reduce round trips
+                    const searchLimit = 500;
+                    let hasMore = true;
+
+                    while (hasMore) {
+                        // Check if search was cancelled/changed
+                        if (currentFetchId !== fetchIdRef.current) {
+                            toast.dismiss(toastId);
+                            return;
+                        }
+
+                        // Fetch batch
+                        const res = await apiClient.getFiles({ page: pageToFetch, limit: searchLimit });
+
+                        if (!res.success || !res.data) {
+                            throw new Error(res.error || "Failed to search files");
+                        }
+
+                        const data = res.data as { files: FileItem[], pagination: any };
+                        // Map FileItem to FileContentItem structure if needed, preserving tags
+                        const batchFiles = (data.files || []).map((f: any) => ({
+                            ...f,
+                            type: 'file',
+                            filename: f.filename || f.name,
+                            encryptedFilename: f.encryptedFilename || f.encrypted_filename,
+                            filenameSalt: f.filenameSalt || f.filename_salt,
+                            createdAt: f.createdAt || f.created_at,
+                            updatedAt: f.updatedAt || f.updated_at,
+                            tags: f.tags // CRITICAL: Preserve tags!
+                        })) as FileContentItem[];
+
+                        allFiles = [...allFiles, ...batchFiles];
+
+                        // Check pagination
+                        if (data.pagination && pageToFetch < data.pagination.totalPages) {
+                            pageToFetch++;
+                        } else {
+                            hasMore = false;
+                        }
+
+                        // Safety break for extremely large accounts (e.g. > 10k files) to prevent browser hang
+                        if (allFiles.length > 5000) {
+                            hasMore = false;
+                            toast("Search limited to first 5000 files", { icon: "⚠️" });
+                        }
+                    }
+
+                    // Search completed successfully
+                    toast.success(`Found ${allFiles.length} files`, { id: toastId });
+
+                    // Set pagination to "all in one page" for the table view
+                    setTotalPages(1);
+                    setTotalItems(allFiles.length);
+
                 } catch (err) {
-                    console.warn('Could not retrieve master key for filename decryption', err);
+                    toast.error("Search failed", { id: toastId });
+                    throw err;
                 }
 
-                // Combine folders and files into a single array
-                const combinedItems: FileItem[] = [
-                    ...(await Promise.all((response.data.folders || []).map(async (folder: FolderContentItem) => {
-                        // Use plaintext name if available, only decrypt if necessary
-                        let displayName = folder.name || '';
+            } else {
+                // STANDARD FOLDER MODE: Single Page Fetch
+                response = await apiClient.getFolderContents(folderId, { page, limit });
 
-                        // Only decrypt if plaintext name is not available
-                        if (!displayName && folder.encryptedName && folder.nameSalt && masterKey) {
-                            try {
-                                displayName = await decryptFilename(folder.encryptedName, folder.nameSalt, masterKey);
-                            } catch (err) {
-                                console.warn(`Failed to decrypt folder name for folder ${folder.id}:`, err);
-                                // Fall back to showing partial encrypted name with ellipsis
-                                displayName = folder.encryptedName?.substring(0, 20) + '...' || '(Unnamed)';
-                            }
-                        }
-
-                        // Final fallback
-                        if (!displayName) {
-                            displayName = folder.encryptedName || '(Unnamed)';
-                        }
-
-                        return {
-                            id: folder.id,
-                            name: displayName,
-                            parentId: folder.parentId,
-                            path: folder.path,
-                            type: 'folder' as const,
-                            createdAt: folder.createdAt,
-                            updatedAt: folder.updatedAt,
-                            is_shared: folder.is_shared || false,
-                            is_starred: folder.is_starred || false
-                        };
-                    }))),
-                    ...(await Promise.all((response.data.files || []).map(async (file: FileContentItem) => {
-                        // Use plaintext name if available, only decrypt if necessary
-                        let displayName = file.filename || '';
-
-                        // Only decrypt if plaintext name is not available
-                        if (!displayName && file.encryptedFilename && file.filenameSalt && masterKey) {
-                            try {
-                                displayName = await decryptFilename(file.encryptedFilename, file.filenameSalt, masterKey);
-                            } catch (err) {
-                                console.warn(`Failed to decrypt filename for file ${file.id}:`, err);
-                                // Fall back to showing partial encrypted name with ellipsis
-                                displayName = file.encryptedFilename?.substring(0, 20) + '...' || '(Unnamed)';
-                            }
-                        }
-
-                        // Final fallback
-                        if (!displayName) {
-                            displayName = file.encryptedFilename || '(Unnamed)';
-                        }
-
-                        return {
-                            id: file.id,
-                            name: displayName,
-                            filename: file.filename,
-                            encryptedFilename: file.encryptedFilename,
-                            filenameSalt: file.filenameSalt,
-                            size: file.size,
-                            mimeType: file.mimeType,
-                            folderId: file.folderId,
-                            type: 'file' as const,
-                            createdAt: file.createdAt,
-                            updatedAt: file.updatedAt,
-                            shaHash: file.shaHash,
-                            is_shared: file.is_shared || false,
-                            is_starred: file.is_starred || false
-                        };
-                    })))
-                ];
-
-                // Double check staleness after decryption promise (async ops taking time)
                 if (currentFetchId !== fetchIdRef.current) return;
 
-                // console.log(`Loaded ${combinedItems.length} items`);
-                setFiles(combinedItems);
-            } else {
-                // Handle API errors
-                const errorMessage = response.error || 'Failed to load files';
-                // console.error(`Failed to load folder contents: ${errorMessage}`);
-                if (errorMessage.includes('404') || errorMessage.includes('not found') || errorMessage.includes('access denied') || errorMessage.includes('forbidden')) {
-                    setError(`Folder not found or access denied. Redirecting to root folder...`);
-                    // Redirect to root after a short delay
+                if (response.success && response.data) {
+                    allFiles = response.data.files || [];
+                    allFolders = response.data.folders || [];
+                    if (response.data.pagination) {
+                        setTotalPages(response.data.pagination.totalPages);
+                        setTotalItems(response.data.pagination.total);
+                    }
+                } else {
+                    throw new Error(response.error || "Failed to load files");
+                }
+            }
+
+            // --- Decryption & Processing ---
+
+            // Get master key for filename decryption
+            let masterKey: Uint8Array | null = null;
+            try {
+                masterKey = masterKeyManager.getMasterKey();
+            } catch (err) {
+                console.warn('Could not retrieve master key for filename decryption', err);
+            }
+
+            // Decrypt folders (only for folder mode usually, but harmless for global if any)
+            const decryptedFolders = await Promise.all(allFolders.map(async (folder: FolderContentItem) => {
+                let displayName = folder.name || '';
+                if (!displayName && folder.encryptedName && folder.nameSalt && masterKey) {
+                    try {
+                        displayName = await decryptFilename(folder.encryptedName, folder.nameSalt, masterKey);
+                    } catch (err) {
+                        displayName = 'Encrypted Folder';
+                    }
+                }
+
+                return {
+                    id: folder.id,
+                    name: displayName || 'Unnamed Folder',
+                    parentId: folder.parentId,
+                    path: folder.path,
+                    type: 'folder' as const,
+                    createdAt: folder.createdAt,
+                    updatedAt: folder.updatedAt,
+                    is_shared: folder.is_shared || false,
+                    is_starred: folder.is_starred || false,
+                    tags: folder.tags ? await Promise.all(folder.tags.map(async (tag: any) => {
+                        if (tag.decryptedName) return tag;
+                        const tEncName = tag.encrypted_name || tag.encryptedName;
+                        const tSalt = tag.name_salt || tag.nameSalt;
+
+                        if (masterKey && tEncName && tSalt) {
+                            try {
+                                const decrypted = await decryptFilename(tEncName, tSalt, masterKey);
+                                return { ...tag, decryptedName: decrypted };
+                            } catch {
+                                return tag;
+                            }
+                        }
+                        return tag;
+                    })) : undefined
+                };
+            }));
+
+            // Decrypt files
+            const decryptedFiles = await Promise.all(allFiles.map(async (file: FileContentItem) => {
+                // Use plaintext name if available, only decrypt if necessary
+                let displayName = file.filename || '';
+
+                // Only decrypt if plaintext name is not available
+                if (!displayName && file.encryptedFilename && file.filenameSalt && masterKey) {
+                    try {
+                        displayName = await decryptFilename(file.encryptedFilename, file.filenameSalt, masterKey);
+                    } catch (err) {
+                        displayName = file.encryptedFilename?.substring(0, 20) + '...' || '(Unnamed)';
+                    }
+                }
+
+                // Final fallback
+                if (!displayName) {
+                    displayName = file.encryptedFilename || '(Unnamed)';
+                }
+
+                return {
+                    id: file.id,
+                    name: displayName,
+                    filename: file.filename,
+                    encryptedFilename: file.encryptedFilename,
+                    filenameSalt: file.filenameSalt,
+                    size: file.size,
+                    mimeType: file.mimeType,
+                    folderId: file.folderId,
+                    type: 'file' as const,
+                    createdAt: file.createdAt,
+                    updatedAt: file.updatedAt,
+                    shaHash: file.shaHash,
+                    is_shared: file.is_shared || false,
+                    is_starred: file.is_starred || false,
+                    tags: file.tags ? await Promise.all(file.tags.map(async (tag: any) => {
+                        // Already decrypted?
+                        if (tag.decryptedName) return tag;
+
+                        const tEncName = tag.encrypted_name || tag.encryptedName;
+                        const tSalt = tag.name_salt || tag.nameSalt;
+
+                        if (masterKey && tEncName && tSalt) {
+                            try {
+                                const decrypted = await decryptFilename(tEncName, tSalt, masterKey);
+                                return { ...tag, decryptedName: decrypted };
+                            } catch {
+                                return tag;
+                            }
+                        }
+                        return tag;
+                    })) : undefined
+                };
+            }));
+
+            // Check staleness again before setting state
+            if (currentFetchId !== fetchIdRef.current) return;
+
+            setFiles([...decryptedFolders, ...decryptedFiles]);
+            success = true;
+
+        } catch (err) {
+            // Error handling logic
+            const errorMessage = err instanceof Error ? err.message : 'Failed to load files';
+
+            if (currentFetchId !== fetchIdRef.current) return;
+
+            // Logic for redirect if folder not found (only in folder mode usually)
+            if (errorMessage.includes('404') || errorMessage.includes('not found')) {
+                // Only redirect if we were trying to look at a specific folder, not searching
+                if (!debouncedQuery) {
+                    setError(`Folder not found. Redirecting...`);
                     setTimeout(() => {
                         if (currentFetchId === fetchIdRef.current) {
                             router.replace('/', { scroll: false });
@@ -1005,33 +1125,12 @@ export const Table01DividerLineSm = ({
                         }
                     }, 2000);
                 } else {
-                    setError(errorMessage);
+                    setError("Search failed: " + errorMessage);
                 }
-            }
-            success = true;
-        } catch (err) {
-            // console.error('Error refreshing files:', err);
-            // Handle network errors or other exceptions
-            const errorMessage = err instanceof Error ? err.message : 'Failed to load files';
-            // console.error(`Exception loading folder contents: ${errorMessage}`);
-
-            if (currentFetchId !== fetchIdRef.current) return;
-
-            if (errorMessage.includes('404') || errorMessage.includes('not found') || errorMessage.includes('access denied') || errorMessage.includes('forbidden')) {
-                setError(`Folder not found or access denied. Redirecting to root folder...`);
-                setTimeout(() => {
-                    // Check again before redirecting
-                    if (currentFetchId === fetchIdRef.current) {
-                        router.replace('/', { scroll: false });
-                        setCurrentFolderId('root');
-                        setFolderPath([{ id: 'root', name: 'My Files' }]);
-                    }
-                }, 2000);
             } else {
                 setError(errorMessage);
             }
         } finally {
-            // Only update loading state if this is the LATEST request
             if (currentFetchId === fetchIdRef.current) {
                 if (!success) {
                     lastFetchRef.current = null;
@@ -1042,7 +1141,7 @@ export const Table01DividerLineSm = ({
         }
     }, [currentFolderId, page, limit, apiClient, router]);
 
-    // Load files when folder or page changes
+    // Load files when folder or page changes, or when search query changes
     useEffect(() => {
         // Prevent root fetch if we are not on the root page
         if (currentFolderId === 'root' && pathname !== '/') {
@@ -1050,7 +1149,7 @@ export const Table01DividerLineSm = ({
             return;
         }
         refreshFiles();
-    }, [currentFolderId, page, refreshFiles, pathname]);
+    }, [currentFolderId, page, refreshFiles, pathname, debouncedQuery]);
 
     // Register for file replaced events to refresh the file list
     useOnFileReplaced(useCallback(() => {
@@ -1058,6 +1157,8 @@ export const Table01DividerLineSm = ({
         // Refresh the current folder contents
         refreshFiles(currentFolderId, true);
     }, [refreshFiles, currentFolderId]));
+
+
 
     // Navigate to a folder
     const navigateToFolder = async (folderId: string, folderName: string) => {
@@ -1836,13 +1937,20 @@ export const Table01DividerLineSm = ({
                 return sortedItems; // Paywall handled by useEffect
             }
 
-            const tagQuery = query.substring(1);
+            const tagQuery = query.substring(1).trim();
+            // console.log(`[TagSearch] Query: "${tagQuery}"`); 
             if (!tagQuery) return sortedItems;
 
             return sortedItems.filter(item => {
-                return item.tags?.some(tag =>
-                    tag.decryptedName?.toLowerCase().includes(tagQuery)
-                ) || item.name.toLowerCase().includes(query);
+                // Check tags
+                const hasMatchingTag = item.tags?.some((tag: any) => {
+                    const decryptedName = (tag.decryptedName || tag.name || "").toLowerCase();
+                    const encryptedName = (tag.encrypted_name || tag.encryptedName || "").toLowerCase();
+                    // console.log(`[TagSearch] Checking item "${item.name}" tag: decrypted="${decryptedName}", encrypted="${encryptedName}" vs query="${tagQuery}"`);
+                    return decryptedName.includes(tagQuery);
+                });
+
+                return hasMatchingTag;
             });
         }
 
@@ -3369,6 +3477,7 @@ export const Table01DividerLineSm = ({
                 itemType={selectedItemForDetails?.type || "file"}
                 open={detailsModalOpen}
                 onOpenChange={setDetailsModalOpen}
+                onTagsUpdated={() => refreshFiles(currentFolderId, true)}
             />
 
             <MoveToFolderModal

@@ -4,23 +4,42 @@ import { useState, useLayoutEffect } from "react"
 import { SiteHeader } from "@/components/layout/header/site-header"
 import { TrashTable } from "@/components/tables/trash-table"
 import { useGlobalUpload } from "@/components/global-upload-context"
+import { useEffect } from "react"
+import { useSearchParams, usePathname, useRouter } from "next/navigation"
 
 export default function Trash() {
   const [searchQuery, setSearchQuery] = useState("")
   const { handleFileUpload, handleFolderUpload } = useGlobalUpload()
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
+
+  const handleSearch = (query: string) => {
+    setSearchQuery(query)
+    const params = new URLSearchParams(searchParams.toString())
+    if (query) {
+      params.set('q', query)
+    } else {
+      params.delete('q')
+    }
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+  }
+
+  // Sync search param from URL
+  useEffect(() => {
+    const q = searchParams.get('q');
+    setSearchQuery(q || "");
+  }, [searchParams]);
 
   useLayoutEffect(() => {
     document.title = "Trash - Ellipticc Drive"
   }, [])
 
-  const handleSearch = (query: string) => {
-    setSearchQuery(query)
-  }
-
   return (
     <>
       <SiteHeader
         onSearch={handleSearch}
+        searchValue={searchQuery}
         onFileUpload={handleFileUpload}
         onFolderUpload={handleFolderUpload}
       />

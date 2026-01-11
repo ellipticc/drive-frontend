@@ -4,19 +4,38 @@ import { useState } from "react"
 import { SiteHeader } from "@/components/layout/header/site-header"
 import { SharesTable } from "@/components/tables/shares-table"
 import { useGlobalUpload } from "@/components/global-upload-context"
+import { useEffect } from "react"
+import { useSearchParams, usePathname, useRouter } from "next/navigation"
 
 export default function SharedWithMe() {
   const [searchQuery, setSearchQuery] = useState("")
   const { handleFileUpload, handleFolderUpload } = useGlobalUpload()
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
 
   const handleSearch = (query: string) => {
     setSearchQuery(query)
+    const params = new URLSearchParams(searchParams.toString())
+    if (query) {
+      params.set('q', query)
+    } else {
+      params.delete('q')
+    }
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false })
   }
+
+  // Sync search param from URL
+  useEffect(() => {
+    const q = searchParams.get('q');
+    setSearchQuery(q || "");
+  }, [searchParams]);
 
   return (
     <>
       <SiteHeader
         onSearch={handleSearch}
+        searchValue={searchQuery}
         onFileUpload={handleFileUpload}
         onFolderUpload={handleFolderUpload}
       />

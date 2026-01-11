@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react"
-import { useSearchParams } from "next/navigation"
+import { useSearchParams, usePathname, useRouter } from "next/navigation"
 import { SiteHeader } from "@/components/layout/header/site-header"
 import { Table01DividerLineSm } from "@/components/tables/files-table"
 import { DragDropOverlay } from "@/components/drag-drop-overlay"
@@ -18,6 +18,8 @@ interface ExtendedFile extends File {
 export default function Home() {
   useOnboarding()
   const { user, deviceLimitReached } = useUser()
+  const router = useRouter()
+  const pathname = usePathname()
   const [searchQuery, setSearchQuery] = useState("")
   const fileInputRef = useRef<HTMLInputElement>(null)
   const folderInputRef = useRef<HTMLInputElement>(null)
@@ -55,7 +57,7 @@ export default function Home() {
   // Sync search param from URL
   useEffect(() => {
     const q = searchParams.get('q');
-    if (q) setSearchQuery(q);
+    setSearchQuery(q || "");
   }, [searchParams]);
 
   // Handle drag and drop files
@@ -151,6 +153,13 @@ export default function Home() {
 
   const handleSearch = (query: string) => {
     setSearchQuery(query)
+    const params = new URLSearchParams(searchParams.toString())
+    if (query) {
+      params.set('q', query)
+    } else {
+      params.delete('q')
+    }
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false })
   }
 
   const handleFileUpload = () => {
@@ -165,6 +174,7 @@ export default function Home() {
     <>
       <SiteHeader
         onSearch={handleSearch}
+        searchValue={searchQuery}
         onFileUpload={handleFileUpload}
         onFolderUpload={handleFolderUpload}
       />

@@ -98,6 +98,7 @@ interface DetailsModalProps {
   itemType?: "file" | "folder"
   open?: boolean
   onOpenChange?: (open: boolean) => void
+  onTagsUpdated?: () => void
 }
 
 export function DetailsModal({
@@ -106,7 +107,8 @@ export function DetailsModal({
   itemName = "example-file.pdf",
   itemType = "file",
   open: externalOpen,
-  onOpenChange: externalOnOpenChange
+  onOpenChange: externalOnOpenChange,
+  onTagsUpdated
 }: DetailsModalProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -443,6 +445,7 @@ export function DetailsModal({
         setTagInput("")
         loadItemDetailsAndVerify(true)
         fetchAvailableTags()
+        onTagsUpdated?.()
       } else {
         toast.error(response.error || "Failed to attach tag")
       }
@@ -478,6 +481,7 @@ export function DetailsModal({
       if (response.success) {
         loadItemDetailsAndVerify(true)
         fetchAvailableTags()
+        onTagsUpdated?.()
       } else {
         toast.error(response.error || "Failed to attach tag")
       }
@@ -494,6 +498,7 @@ export function DetailsModal({
       })
       if (response.success) {
         loadItemDetailsAndVerify(true)
+        onTagsUpdated?.()
       } else {
         toast.error(response.error || "Failed to remove tag")
       }
