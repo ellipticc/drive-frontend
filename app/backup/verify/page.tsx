@@ -150,7 +150,7 @@ export default function VerifyBackupPage() {
     }
 
     return (
-        <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
+        <div className="min-h-screen bg-muted flex items-center justify-center p-4 relative overflow-hidden">
             {/* Background elements for premium feel */}
             <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
                 <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/20 rounded-full blur-[100px]" />
@@ -192,7 +192,7 @@ export default function VerifyBackupPage() {
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-8 pt-6">
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-3 gap-3">
                         {words.map((word, index) => {
                             const isMissing = missingIndices.has(index)
                             const isFilled = word.length > 0
@@ -200,8 +200,8 @@ export default function VerifyBackupPage() {
 
                             return (
                                 <div key={index} className="relative group perspective-1000">
-                                    <span className="absolute left-2 top-1.5 text-[9px] font-bold text-muted-foreground/40 uppercase tracking-widest select-none pointer-events-none">
-                                        {String(index + 1).padStart(2, '0')}
+                                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] font-medium text-muted-foreground/50 select-none pointer-events-none transition-colors duration-200 group-focus-within:text-primary/70 z-10">
+                                        {String(index + 1).padStart(2, '0')}.
                                     </span>
                                     <Input
                                         ref={el => { inputRefs.current[index] = el }}
@@ -211,12 +211,12 @@ export default function VerifyBackupPage() {
                                         onKeyDown={(e) => handleKeyDown(index, e)}
                                         disabled={isLoading || !isMissing}
                                         className={cn(
-                                            "pl-7 pr-2 h-12 text-sm font-semibold transition-all duration-300 ease-out border shadow-sm",
+                                            "pl-7 pr-2 h-10 text-sm font-medium transition-all duration-200 ease-in-out border border-input/50 shadow-sm",
                                             !isMissing
                                                 ? "bg-muted/30 text-muted-foreground/70 border-transparent select-none cursor-default opacity-80"
-                                                : "bg-background border-border/60 hover:border-primary/40 focus:border-primary focus:ring-4 focus:ring-primary/10",
-                                            isMissing && isFilled && isCorrect === true && "border-green-500/50 ring-2 ring-green-500/10 text-green-600 dark:text-green-400 bg-green-500/[0.03]",
-                                            isMissing && isFilled && isCorrect === false && "border-red-500/50 ring-2 ring-red-500/10 text-red-600 dark:text-red-400 bg-red-500/[0.03]"
+                                                : "bg-secondary/20 focus:bg-background focus:border-primary/50 focus:ring-2 focus:ring-primary/10",
+                                            isMissing && isFilled && isCorrect === true && "border-green-500/50 text-green-600 dark:text-green-400 bg-green-500/5",
+                                            isMissing && isFilled && isCorrect === false && "border-red-500/50 text-red-600 dark:text-red-400 bg-red-500/5"
                                         )}
                                         autoComplete="off"
                                         autoCapitalize="off"
@@ -225,13 +225,13 @@ export default function VerifyBackupPage() {
                                     />
                                     {isMissing && (
                                         <div className={cn(
-                                            "absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none transition-all duration-500 ease-spring scale-0 opacity-0",
+                                            "absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none transition-all duration-300 scale-0 opacity-0",
                                             isFilled && "scale-100 opacity-100"
                                         )}>
                                             {isCorrect === true ? (
-                                                <div className="h-2 w-2 rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.6)] animate-pulse" />
+                                                <div className="h-1.5 w-1.5 rounded-full bg-green-500/80 shadow-[0_0_6px_rgba(34,197,94,0.4)]" />
                                             ) : isCorrect === false ? (
-                                                <div className="h-2 w-2 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.6)]" />
+                                                <div className="h-1.5 w-1.5 rounded-full bg-red-500/80 shadow-[0_0_6px_rgba(239,68,68,0.4)]" />
                                             ) : null}
                                         </div>
                                     )}
@@ -244,13 +244,13 @@ export default function VerifyBackupPage() {
                         <Button
                             onClick={handleVerify}
                             disabled={isLoading || words.some(w => !w)}
-                            className="w-full h-14 text-lg font-bold shadow-[0_10px_30px_rgba(var(--primary),0.2)] hover:shadow-[0_15px_40px_rgba(var(--primary),0.3)] hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all duration-200"
+                            className="w-full h-11 text-base shadow-lg hover:shadow-xl transition-all"
                         >
                             {isLoading ? (
-                                <span className="flex items-center gap-3">
-                                    <IconLoader2 className="animate-spin w-5 h-5" /> Verifying Security...
+                                <span className="flex items-center gap-2">
+                                    <IconLoader2 className="animate-spin w-4 h-4" /> Verifying Security...
                                 </span>
-                            ) : "Securely Verify & Finish"}
+                            ) : "Verify & Finish"}
                         </Button>
                     </div>
                 </CardContent>

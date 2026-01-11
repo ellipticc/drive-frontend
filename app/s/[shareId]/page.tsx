@@ -870,7 +870,7 @@ export default function SharedDownloadPage() {
                 <div className="flex size-6 items-center justify-center rounded-md">
                   <IconCaretLeftRightFilled className="!size-5" />
                 </div>
-                <span className="text-base font-mono">ellipticc</span>
+                <span className="text-base font-geist-mono">ellipticc</span>
               </Link>
             </div>
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2">
@@ -903,7 +903,7 @@ export default function SharedDownloadPage() {
                 <div className="flex size-6 items-center justify-center rounded-md">
                   <IconCaretLeftRightFilled className="!size-5" />
                 </div>
-                <span className="text-base font-mono">ellipticc</span>
+                <span className="text-base font-geist-mono">ellipticc</span>
               </Link>
             </div>
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2">
@@ -1002,7 +1002,7 @@ export default function SharedDownloadPage() {
               <div className="flex size-6 items-center justify-center rounded-md">
                 <IconCaretLeftRightFilled className="!size-5" />
               </div>
-              <span className="text-base font-mono">ellipticc</span>
+              <span className="text-base font-geist-mono">ellipticc</span>
             </Link>
           </div>
 
