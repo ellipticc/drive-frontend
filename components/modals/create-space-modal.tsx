@@ -236,7 +236,7 @@ export function CreateSpaceModal({
                                         <IconChevronDown size={14} className="text-muted-foreground group-hover:text-foreground transition-colors" />
                                     </Button>
                                 </ColorPickerTrigger>
-                                <ColorPickerContent className="w-[360]">
+                                <ColorPickerContent className="w-[360px]">
                                     <ColorPickerArea />
                                     <div className="flex items-center gap-2">
                                         <ColorPickerEyeDropper />

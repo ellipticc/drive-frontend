@@ -25,6 +25,7 @@ import {
     SidebarMenuButton,
 } from "@/components/ui/sidebar"
 import { CreateFolderModal } from "@/components/modals/create-folder-modal"
+import { useGlobalUpload } from "@/components/global-upload-context"
 
 interface NavNewProps {
     onFileUpload?: () => void
@@ -36,6 +37,7 @@ export function NavNew({ onFileUpload, onFolderUpload }: NavNewProps) {
     const router = useRouter()
     const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false)
     const { openPicker } = useGoogleDrive()
+    const { notifyFileAdded } = useGlobalUpload()
 
     return (
         <>
@@ -78,8 +80,12 @@ export function NavNew({ onFileUpload, onFolderUpload }: NavNewProps) {
             <CreateFolderModal
                 open={isCreateFolderOpen}
                 onOpenChange={setIsCreateFolderOpen}
-                onFolderCreated={() => {
-                    router.refresh()
+                onFolderCreated={(folder) => {
+                    if (folder) {
+                        notifyFileAdded(folder)
+                    } else {
+                        router.refresh()
+                    }
                 }}
             />
         </>

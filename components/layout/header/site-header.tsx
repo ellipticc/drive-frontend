@@ -17,6 +17,8 @@ import { useRouter } from "next/navigation"
 import { useUser } from "@/components/user-context"
 import { useGoogleDrive } from "@/hooks/use-google-drive"
 
+import { useGlobalUpload } from "@/components/global-upload-context"
+
 // Use a module-level variable to persist dismissal across SPA navigation but reset on page refresh
 let isUpgradeDismissedGlobal = false;
 
@@ -33,6 +35,7 @@ export function SiteHeader({ onSearch, onFileUpload, onFolderUpload, searchValue
   const { deviceQuota } = useUser()
   const router = useRouter()
   const { openPicker } = useGoogleDrive()
+  const { notifyFileAdded } = useGlobalUpload()
 
   const handleUpgradeClick = () => {
     isUpgradeDismissedGlobal = true
@@ -105,10 +108,12 @@ export function SiteHeader({ onSearch, onFileUpload, onFolderUpload, searchValue
           <CreateFolderModal
             open={isCreateFolderOpen}
             onOpenChange={setIsCreateFolderOpen}
-            onFolderCreated={() => {
-              // Refresh logic if needed, usually live via context/sockets or swr revalidation
-              // For now, we rely on the component's internal logic or parent refresh
-              router.refresh()
+            onFolderCreated={(folder) => {
+              if (folder) {
+                notifyFileAdded(folder)
+              } else {
+                router.refresh()
+              }
             }}
           />
 

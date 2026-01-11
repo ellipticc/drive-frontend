@@ -58,6 +58,7 @@ interface GlobalUploadContextType {
   // File addition callback for incremental updates
   registerOnFileAdded: (callback: (file: FileItem) => void) => void;
   unregisterOnFileAdded: (callback: (file: FileItem) => void) => void;
+  notifyFileAdded: (file: FileItem) => void;
 
   // File deletion callback for incremental updates
   registerOnFileDeleted: (callback: (fileId: string) => void) => void;
@@ -603,6 +604,10 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
 
   const unregisterOnFileAdded = useCallback((callback: (file: FileItem) => void) => {
     onFileAddedCallbacksRef.current.delete(callback);
+  }, []);
+
+  const notifyFileAdded = useCallback((file: FileItem) => {
+    onFileAddedCallbacksRef.current.forEach(callback => callback(file));
   }, []);
 
   const registerOnFileDeleted = useCallback((callback: (fileId: string) => void) => {
@@ -1195,6 +1200,7 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
     unregisterOnUploadComplete,
     registerOnFileAdded,
     unregisterOnFileAdded,
+    notifyFileAdded,
     registerOnFileDeleted,
     unregisterOnFileDeleted,
     registerOnFileReplaced,

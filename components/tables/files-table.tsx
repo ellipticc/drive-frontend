@@ -315,7 +315,7 @@ export const Table01DividerLineSm = ({
         startUploadWithFolders,
         startFileDownload,
         startFolderDownload,
-
+        notifyFileAdded,
         startBulkDownload
     } = useGlobalUpload();
 
@@ -1328,6 +1328,8 @@ export const Table01DividerLineSm = ({
     };
 
     const handleMoveToTrashClick = async (itemId: string, itemName: string, itemType: "file" | "folder") => {
+        const itemToRestore = filesMap.get(itemId);
+
         try {
             let response;
             if (itemType === 'file') {
@@ -1367,7 +1369,11 @@ export const Table01DividerLineSm = ({
 
                                 if (restoreResponse.success) {
                                     toast.success(t("files.restored", { type: itemType }));
-                                    refreshFiles(); // Refresh to show the restored item
+                                    if (itemToRestore) {
+                                        notifyFileAdded(itemToRestore);
+                                    } else {
+                                        refreshFiles(); // Fallback
+                                    }
                                 } else {
                                     toast.error(t("files.restoreFailed", { type: itemType }));
                                     refreshFiles(); // Refresh anyway to show current state
@@ -1391,10 +1397,7 @@ export const Table01DividerLineSm = ({
 
     // Bulk move to trash handler
     const handleBulkMoveToTrash = useCallback(async () => {
-        const selectedItemsArray = Array.from(selectedItems).map(id => {
-            const item = filesMap.get(id);
-            return item ? { id: item.id, name: item.name, type: item.type } : null;
-        }).filter(Boolean) as Array<{ id: string, name: string, type: "file" | "folder" }>;
+        const selectedItemsArray = Array.from(selectedItems).map(id => filesMap.get(id)).filter(Boolean) as FileItem[];
 
         if (selectedItemsArray.length === 0) return;
 
@@ -1432,7 +1435,13 @@ export const Table01DividerLineSm = ({
                             if (folderIds.length > 0) {
                                 await apiClient.restoreFoldersFromTrash(folderIds);
                             }
-                            refreshFiles();
+
+                            // Optimistically add items back
+                            if (selectedItemsArray.length > 0) {
+                                selectedItemsArray.forEach(item => notifyFileAdded(item));
+                            } else {
+                                refreshFiles();
+                            }
                         },
                     },
                 });
@@ -1445,7 +1454,7 @@ export const Table01DividerLineSm = ({
             // console.error('Bulk move to trash error:', error);
             toast.error(`Failed to move items to trash`);
         }
-    }, [selectedItems, apiClient, setFiles, setSelectedItems, toast, refreshFiles, currentFolderId, navigateToParent]);
+    }, [selectedItems, apiClient, setFiles, setSelectedItems, toast, refreshFiles, currentFolderId, navigateToParent, filesMap, notifyFileAdded, t]);
 
     // Bulk move handler
     const handleBulkMoveToFolderClick = useCallback(() => {
@@ -2381,7 +2390,13 @@ export const Table01DividerLineSm = ({
                 <>
                     <CreateFolderModal
                         parentId={currentFolderId === 'root' ? null : currentFolderId}
-                        onFolderCreated={() => refreshFiles()}
+                        onFolderCreated={(folder) => {
+                            if (folder) {
+                                notifyFileAdded(folder);
+                            } else {
+                                refreshFiles();
+                            }
+                        }}
                     >
                         <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title={t("files.newFolder")}>
                             <IconFolderPlus className="h-3.5 w-3.5" />
@@ -2608,7 +2623,7 @@ export const Table01DividerLineSm = ({
                 </>
             );
         }
-    }, [selectedItems, filesMap, viewMode, currentFolderId, refreshFiles, handleFolderUpload, handleFileUpload, handleBulkDownload, handlePreviewClick, handleShareClick, handleBulkMoveToTrash, handleViewModeChange, handleRenameClick, handleDetailsClick, setSharePickerModalOpen, setSelectedItemsForMoveToFolder, setMoveToFolderModalOpen, visibleColumns, isMobile]);
+    }, [selectedItems, filesMap, viewMode, currentFolderId, refreshFiles, handleFolderUpload, handleFileUpload, handleBulkDownload, handlePreviewClick, handleShareClick, handleBulkMoveToTrash, handleViewModeChange, handleRenameClick, handleDetailsClick, setSharePickerModalOpen, setSelectedItemsForMoveToFolder, setMoveToFolderModalOpen, visibleColumns, isMobile, notifyFileAdded]);
 
     // Memoize the onSelectionChange callback to prevent unnecessary re-renders
     const handleTableSelectionChange = useCallback((keys: Selection) => {

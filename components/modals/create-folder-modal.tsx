@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { apiClient, PQCKeypairs } from "@/lib/api"
+import { apiClient, PQCKeypairs, FileItem } from "@/lib/api"
 import { createSignedFolderManifest, decryptUserPrivateKeys } from "@/lib/crypto"
 import { masterKeyManager } from "@/lib/master-key"
 import { toast } from "sonner"
@@ -23,7 +23,7 @@ import { useLanguage } from "@/lib/i18n/language-context"
 interface CreateFolderModalProps {
   children?: React.ReactNode
   parentId?: string | null
-  onFolderCreated?: () => void
+  onFolderCreated?: (folder?: FileItem) => void
 }
 
 interface UserData {
@@ -133,11 +133,24 @@ export function CreateFolderModal({ children, parentId = null, onFolderCreated, 
         ...signedManifest
       })
 
-      if (response.success) {
+      if (response.success && response.data) {
         toast.success(t("files.folderCreated"))
+
+        const newFolder: FileItem = {
+          id: response.data.id,
+          name: folderName.trim(),
+          type: 'folder',
+          parentId: response.data.parentId,
+          path: response.data.path,
+          createdAt: response.data.createdAt,
+          updatedAt: response.data.updatedAt,
+          is_shared: false,
+          is_starred: false
+        }
+
         setFolderName("")
         setOpen(false)
-        onFolderCreated?.()
+        onFolderCreated?.(newFolder)
       } else {
         const isConflict = response.error?.toLowerCase().includes('409') || response.error?.toLowerCase().includes('conflict') || response.error?.toLowerCase().includes('already exists')
         if (isConflict) {
