@@ -17,7 +17,7 @@ import { format, isToday, isYesterday, parseISO } from "date-fns"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { FullPagePreviewModal, PreviewFileItem } from "@/components/previews/full-page-preview-modal"
-import { downloadFileToBrowser, unwrapCEK } from "@/lib/download"
+import { downloadFileToBrowser, unwrapCEK, DownloadEncryption } from "@/lib/download"
 import { toast } from "sonner"
 import { keyManager } from "@/lib/key-manager"
 import { masterKeyManager } from "@/lib/master-key"
@@ -25,9 +25,8 @@ import { SiteHeader } from "@/components/layout/header/site-header"
 import { useUser } from "@/components/user-context"
 import { Tag } from "@/lib/api"
 
-interface MediaItem {
+interface RawPhotoItem {
     id: string
-    filename: string // Plaintext filename after decryption
     encryptedFilename: string
     filenameSalt: string
     mimeType: string
@@ -49,13 +48,17 @@ interface MediaItem {
     tags?: Tag[]
 }
 
+interface MediaItem extends RawPhotoItem {
+    filename: string // Plaintext filename after decryption
+}
+
 export default function PhotosPage() {
     const router = useRouter()
     const pathname = usePathname()
     const searchParams = useSearchParams()
     const { deviceQuota } = useUser()
     const isFreePlan = deviceQuota?.planName === 'Free'
-    const [rawItems, setRawItems] = useState<any[]>([])
+    const [rawItems, setRawItems] = useState<unknown[]>([])
     const [mediaItems, setMediaItems] = useState<MediaItem[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [isRefreshing, setIsRefreshing] = useState(false)
@@ -95,19 +98,19 @@ export default function PhotosPage() {
 
                 // Decrypt all filenames
                 const masterKey = masterKeyManager.getMasterKey();
-                const decryptedItems = await Promise.all(raw.map(async (item: any) => {
+                const decryptedItems = await Promise.all(raw.map(async (item: unknown) => {
+                    const photoItem = item as RawPhotoItem;
                     try {
                         const decryptedName = await decryptFilename(
-                            item.encryptedFilename,
-                            item.filenameSalt,
+                            photoItem.encryptedFilename,
+                            photoItem.filenameSalt,
                             masterKey
                         );
-                        // Decrypt tags if available
-                        const decryptedTags = item.tags ? await Promise.all(item.tags.map(async (tag: any) => {
+                        const decryptedTags = photoItem.tags ? await Promise.all(photoItem.tags.map(async (tag: Tag) => {
                             try {
                                 const decryptedTagName = await decryptFilename(
-                                    tag.encrypted_name || tag.encryptedName,
-                                    tag.name_salt || tag.nameSalt,
+                                    tag.encrypted_name,
+                                    tag.name_salt,
                                     masterKey
                                 );
                                 return { ...tag, decryptedName: decryptedTagName };
@@ -117,10 +120,10 @@ export default function PhotosPage() {
                             }
                         })) : [];
 
-                        return { ...item, filename: decryptedName, tags: decryptedTags };
+                        return { ...photoItem, filename: decryptedName, tags: decryptedTags };
                     } catch (err) {
-                        console.error(`Failed to decrypt filename for ${item.id}:`, err);
-                        return { ...item, filename: "Encrypted File" };
+                        console.error(`Failed to decrypt filename for ${photoItem.id}:`, err);
+                        return { ...photoItem, filename: "Encrypted File" };
                     }
                 }));
 
@@ -155,9 +158,9 @@ export default function PhotosPage() {
             if (!tagQuery) return mediaItems;
 
             return mediaItems.filter(item => {
-                return item.tags?.some((tag: any) => {
-                    const decryptedName = (tag.decryptedName || tag.name || "").toLowerCase();
-                    const encryptedName = (tag.encrypted_name || tag.encryptedName || "").toLowerCase();
+                return item.tags?.some((tag: Tag) => {
+                    const decryptedName = (tag.decryptedName || "").toLowerCase();
+                    const encryptedName = (tag.encrypted_name || "").toLowerCase();
                     return decryptedName.includes(tagQuery);
                 });
             });
@@ -391,7 +394,7 @@ function MediaCard({ item, onClick, viewMode }: { item: MediaItem, onClick: () =
                     nonceWrapKyber: item.encryption.nonceWrapKyber,
                     algorithm: 'v3-hybrid-pqc',
                     version: '3.0'
-                } as any, userKeys.keypairs)
+                } as DownloadEncryption, userKeys.keypairs)
 
                 const decryptedBytes = decryptData(encryptedPart, cek, noncePart)
                 const decryptedBlob = new Blob([decryptedBytes.buffer.slice(decryptedBytes.byteOffset, decryptedBytes.byteOffset + decryptedBytes.byteLength) as ArrayBuffer], { type: 'image/jpeg' })

@@ -554,9 +554,10 @@ export async function unwrapCEK(encryption: DownloadEncryption, keypairs: UserKe
  * Assemble decrypted chunks into a single file blob
  */
 async function assembleFile(decryptedChunks: Uint8Array[], mimetype: string): Promise<Blob> {
-  // OPTIMIZATION: Construct Blob directly from chunks. 
-  // This avoids creating a duplicate Uint8Array of the entire file, saving massive memory and CPU.
-  return new Blob(decryptedChunks as any, { type: mimetype });
+  // OPTIMIZATION: Construct Blob directly from chunks.
+  // Normalize chunks to ArrayBufferView to satisfy Blob typing and avoid SharedArrayBuffer issues.
+  const normalized = decryptedChunks.map((c) => new Uint8Array(c));
+  return new Blob(normalized, { type: mimetype });
 }
 
 /**

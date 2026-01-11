@@ -6,7 +6,7 @@ import { DotsVertical } from "@untitledui/icons";
 import type { SortDescriptor, Selection } from "react-aria-components";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Button } from "@/components/ui/button";
-import { IconFolderPlus, IconFolderDown, IconFileUpload, IconShare3, IconListDetails, IconDownload, IconFolder, IconEdit, IconInfoCircle, IconTrash, IconFile, IconHome, IconChevronRight, IconLink, IconEye, IconLayoutColumns, IconCopy, IconStar, IconStarFilled, IconLoader2, IconGrid3x3, IconLock, IconX } from "@tabler/icons-react";
+import { IconFolderPlus, IconFolderDown, IconFileUpload, IconShare3, IconListDetails, IconDownload, IconFolder, IconEdit, IconInfoCircle, IconTrash, IconChevronRight, IconLink, IconEye, IconLayoutColumns, IconCopy, IconStar, IconStarFilled, IconLoader2, IconGrid3x3, IconLock, IconX } from "@tabler/icons-react";
 import dynamic from "next/dynamic";
 
 const CreateFolderModal = dynamic(() => import("@/components/modals/create-folder-modal").then(mod => mod.CreateFolderModal));
@@ -32,7 +32,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/base/checkbox/checkbox";
 import { Input } from "@/components/ui/input";
 import { decryptFilename, encryptFilename, computeFilenameHmac, createSignedFileManifest, createSignedFolderManifest, decryptUserPrivateKeys } from "@/lib/crypto";
-import { apiClient, FileItem, FolderContentItem, FileContentItem, PQCKeypairs } from "@/lib/api";
+import { apiClient, FileItem, FolderContentItem, FileContentItem, PQCKeypairs, Tag } from "@/lib/api";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { FullPagePreviewModal } from "@/components/previews/full-page-preview-modal";
@@ -116,6 +116,7 @@ const DraggableDroppableRow = React.memo(React.forwardRef<HTMLTableRowElement, {
     isDraggingSomewhere: boolean;
     children: React.ReactNode;
     onContextMenu: (e: React.MouseEvent, item: FileItem) => void;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     [key: string]: any;
 }>(({
     item,
@@ -130,8 +131,7 @@ const DraggableDroppableRow = React.memo(React.forwardRef<HTMLTableRowElement, {
         attributes,
         listeners,
         setNodeRef: setDragRef,
-        isDragging,
-        transform
+        isDragging
     } = useDraggable({
         id: item.id,
         data: { type: 'move', item }
@@ -194,7 +194,7 @@ const RenameButton = ({
     className?: string
 }) => {
     const [isOpen, setIsOpen] = useState(false);
-    const timeoutRef = useRef<any>(null);
+    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const handleMouseEnter = () => {
         timeoutRef.current = setTimeout(() => {
@@ -339,7 +339,7 @@ export const Table01DividerLineSm = ({
     const [isLoading, setIsLoading] = useState(true);
     const [isFetching, setIsFetching] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [isPending, startTransition] = useTransition();
+    const [isPending] = useTransition();
 
     // Track last fetch to prevent duplicates
     const lastFetchRef = useRef<string | null>(null);
@@ -604,7 +604,8 @@ export const Table01DividerLineSm = ({
 
             // If not in current folder, check recentItems (for suggestions from other folders)
             if (!file && recentItems) {
-                const recent = recentItems.find(r => r.id === previewId && r.type === 'file');
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const recent = recentItems.find((r: any) => r.id === previewId && r.type === 'file');
                 if (recent) {
                     file = {
                         id: recent.id,
@@ -946,8 +947,9 @@ export const Table01DividerLineSm = ({
                             throw new Error(res.error || "Failed to search files");
                         }
 
-                        const data = res.data as { files: FileItem[], pagination: any };
+                        const data = res.data as { files: FileItem[], pagination: unknown };
                         // Map FileItem to FileContentItem structure if needed, preserving tags
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         const batchFiles = (data.files || []).map((f: any) => ({
                             ...f,
                             type: 'file',
@@ -962,7 +964,8 @@ export const Table01DividerLineSm = ({
                         allFiles = [...allFiles, ...batchFiles];
 
                         // Check pagination
-                        if (data.pagination && pageToFetch < data.pagination.totalPages) {
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        if (data.pagination && pageToFetch < (data.pagination as any).totalPages) {
                             pageToFetch++;
                         } else {
                             hasMore = false;
@@ -1021,7 +1024,7 @@ export const Table01DividerLineSm = ({
                 if (!displayName && folder.encryptedName && folder.nameSalt && masterKey) {
                     try {
                         displayName = await decryptFilename(folder.encryptedName, folder.nameSalt, masterKey);
-                    } catch (err) {
+                    } catch {
                         displayName = 'Encrypted Folder';
                     }
                 }
@@ -1036,10 +1039,12 @@ export const Table01DividerLineSm = ({
                     updatedAt: folder.updatedAt,
                     is_shared: folder.is_shared || false,
                     is_starred: folder.is_starred || false,
-                    tags: folder.tags ? await Promise.all(folder.tags.map(async (tag: any) => {
+                    tags: folder.tags ? await Promise.all(folder.tags.map(async (tag: Tag) => {
                         if (tag.decryptedName) return tag;
-                        const tEncName = tag.encrypted_name || tag.encryptedName;
-                        const tSalt = tag.name_salt || tag.nameSalt;
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        const tEncName = tag.encrypted_name || (tag as any).encryptedName;
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        const tSalt = tag.name_salt || (tag as any).nameSalt;
 
                         if (masterKey && tEncName && tSalt) {
                             try {
@@ -1063,7 +1068,7 @@ export const Table01DividerLineSm = ({
                 if (!displayName && file.encryptedFilename && file.filenameSalt && masterKey) {
                     try {
                         displayName = await decryptFilename(file.encryptedFilename, file.filenameSalt, masterKey);
-                    } catch (err) {
+                    } catch {
                         displayName = file.encryptedFilename?.substring(0, 20) + '...' || '(Unnamed)';
                     }
                 }
@@ -1088,12 +1093,14 @@ export const Table01DividerLineSm = ({
                     shaHash: file.shaHash,
                     is_shared: file.is_shared || false,
                     is_starred: file.is_starred || false,
-                    tags: file.tags ? await Promise.all(file.tags.map(async (tag: any) => {
+                    tags: file.tags ? await Promise.all(file.tags.map(async (tag: Tag) => {
                         // Already decrypted?
                         if (tag.decryptedName) return tag;
 
-                        const tEncName = tag.encrypted_name || tag.encryptedName;
-                        const tSalt = tag.name_salt || tag.nameSalt;
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        const tEncName = tag.encrypted_name || (tag as any).encryptedName;
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        const tSalt = tag.name_salt || (tag as any).nameSalt;
 
                         if (masterKey && tEncName && tSalt) {
                             try {
@@ -1960,9 +1967,9 @@ export const Table01DividerLineSm = ({
 
             return sortedItems.filter(item => {
                 // Check tags
-                const hasMatchingTag = item.tags?.some((tag: any) => {
-                    const decryptedName = (tag.decryptedName || tag.name || "").toLowerCase();
-                    const encryptedName = (tag.encrypted_name || tag.encryptedName || "").toLowerCase();
+                const hasMatchingTag = item.tags?.some((tag: Tag) => {
+                    const decryptedName = (tag.decryptedName || "").toLowerCase();
+                    // const encryptedName = (tag.encrypted_name || tag.encryptedName || "").toLowerCase();
                     // console.log(`[TagSearch] Checking item "${item.name}" tag: decrypted="${decryptedName}", encrypted="${encryptedName}" vs query="${tagQuery}"`);
                     return decryptedName.includes(tagQuery);
                 });
@@ -1989,7 +1996,7 @@ export const Table01DividerLineSm = ({
 
         if (currentIndex === -1) return;
 
-        let newIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
+        const newIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
 
         // Ensure bounds
         if (newIndex >= 0 && newIndex < previewableFiles.length) {
@@ -2161,7 +2168,9 @@ export const Table01DividerLineSm = ({
                         : await apiClient.copyFolder(item.id, copyDestinationFolderId, {
                             nameHmac,
                             ...(signedManifest ? {
+                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                 encryptedName: (signedManifest as any).encryptedName,
+                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                 nameSalt: (signedManifest as any).nameSalt,
                                 manifestHash: signedManifest.manifestHash,
                                 manifestSignatureEd25519: signedManifest.manifestSignatureEd25519,

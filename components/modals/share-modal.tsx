@@ -45,6 +45,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 import { getUAInfo } from "./settings/device-icons"
 import { format, startOfToday } from "date-fns"
 import { truncateFilename } from "@/lib/utils"
+import Link from "next/link"
 
 const getFlagEmoji = (countryCode: string | null) => {
   if (!countryCode || countryCode.length !== 2) return "🌐";
@@ -55,7 +56,7 @@ const getFlagEmoji = (countryCode: string | null) => {
   return String.fromCodePoint(...codePoints);
 }
 
-import type { FileTreeItem, FolderTreeItem, FileInfo, FolderInfo, ShareAccessLog } from '@/lib/api'
+import type { FileTreeItem, FolderTreeItem, FileInfo, FolderInfo, ShareAccessLog, ShareItem } from '@/lib/api'
 
 // Helper function to build encrypted manifest for folder shares
 // Returns an object (not JSON string) so createShare can serialize it correctly
@@ -527,7 +528,7 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
       const response = await apiClient.getMyShares()
       if (response.success && response.data) {
         const shares = Array.isArray(response.data) ? response.data : response.data.data;
-        const existingShare = shares.find((share: any) =>
+        const existingShare = shares.find((share: ShareItem) =>
           share.fileId === itemId && !share.revoked
         )
         if (existingShare) {
@@ -919,7 +920,7 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
       const mySharesResponse = await apiClient.getMyShares()
       if (mySharesResponse.success && mySharesResponse.data) {
         const shares = Array.isArray(mySharesResponse.data) ? mySharesResponse.data : mySharesResponse.data.data;
-        const existingShare = shares.find((share: any) =>
+        const existingShare = shares.find((share: ShareItem) =>
           share.fileId === itemId && !share.revoked
         )
 
@@ -1430,7 +1431,7 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
               <Alert className="mb-2 bg-muted/50 border-border text-muted-foreground flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <AlertDescription className="text-muted-foreground whitespace-nowrap">
-                    <a href="/pricing" className="hover:underline font-medium underline-offset-4">Upgrade to Ellipticc Pro to enable all link settings</a>
+                    <Link href="/pricing" className="hover:underline font-medium underline-offset-4">Upgrade to Ellipticc Pro to enable all link settings</Link>
                   </AlertDescription>
                 </div>
               </Alert>
@@ -1912,7 +1913,7 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
             <div className="mx-8 mb-8 p-4 bg-primary/5 border border-primary/10 rounded-xl text-center">
               <p className="text-xs text-primary font-bold uppercase tracking-wider">
                 Full history & analytics available for Pro users.
-                <a href="/pricing" className="underline ml-2 hover:opacity-80 transition-opacity">Upgrade now</a>
+                <Link href="/pricing" className="underline ml-2 hover:opacity-80 transition-opacity">Upgrade now</Link>
               </p>
             </div>
           )}

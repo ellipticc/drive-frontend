@@ -102,7 +102,6 @@ self.onmessage = async (e: MessageEvent) => {
       hasher.init();
 
       const chunkSize = 4 * 1024 * 1024; // 4MB
-      // @ts-ignore - FileReaderSync is available in Worker
       const reader = new FileReaderSync();
 
       // Read file in chunks

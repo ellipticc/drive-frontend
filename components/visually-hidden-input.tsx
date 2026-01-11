@@ -42,15 +42,6 @@ function VisuallyHiddenInput<T = InputValue>(
     previous: isCheckInput ? checked : value,
   });
 
-  const prevValue = React.useMemo(() => {
-    const currentValue = isCheckInput ? checked : value;
-    if (prevValueRef.current.value !== currentValue) {
-      prevValueRef.current.previous = prevValueRef.current.value;
-      prevValueRef.current.value = currentValue;
-    }
-    return prevValueRef.current.previous;
-  }, [isCheckInput, value, checked]);
-
   const [controlSize, setControlSize] = React.useState<{
     width?: number;
     height?: number;
@@ -107,23 +98,30 @@ function VisuallyHiddenInput<T = InputValue>(
     const propertyKey = isCheckInput ? "checked" : "value";
     const eventType = isCheckInput ? "click" : "input";
     const currentValue = isCheckInput ? checked : value;
+    const previousValue = prevValueRef.current.value;
 
-    const serializedCurrentValue = isCheckInput
-      ? checked
-      : typeof value === "object" && value !== null
-        ? JSON.stringify(value)
-        : value;
+    if (previousValue !== currentValue) {
+      // Update ref
+      prevValueRef.current.previous = previousValue;
+      prevValueRef.current.value = currentValue;
 
-    const descriptor = Object.getOwnPropertyDescriptor(inputProto, propertyKey);
+      // Dispatch event
+      const serializedCurrentValue = isCheckInput
+        ? checked
+        : typeof value === "object" && value !== null
+          ? JSON.stringify(value)
+          : value;
 
-    const setter = descriptor?.set;
+      const descriptor = Object.getOwnPropertyDescriptor(inputProto, propertyKey);
+      const setter = descriptor?.set;
 
-    if (prevValue !== currentValue && setter) {
-      const event = new Event(eventType, { bubbles });
-      setter.call(input, serializedCurrentValue);
-      input.dispatchEvent(event);
+      if (setter) {
+        const event = new Event(eventType, { bubbles });
+        setter.call(input, serializedCurrentValue);
+        input.dispatchEvent(event);
+      }
     }
-  }, [prevValue, value, checked, bubbles, isCheckInput]);
+  }, [isCheckInput, value, checked, bubbles]);
 
   const composedStyle = React.useMemo<React.CSSProperties>(() => {
     return {

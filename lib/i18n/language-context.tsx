@@ -24,6 +24,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
     // Sync state with i18n instance
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setLanguageState(i18nInstance.language as Language);
     }, [i18nInstance.language]);
 

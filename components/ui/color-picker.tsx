@@ -543,6 +543,7 @@ function ColorPicker(props: ColorPickerProps) {
     onFormatChange,
   });
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const store = React.useMemo<Store>(() => {
     return {
       subscribe: (cb) => {
@@ -624,16 +625,15 @@ function ColorPicker(props: ColorPickerProps) {
   );
 }
 
-interface ColorPickerImplProps
-  extends Omit<
-    ColorPickerProps,
-    | "defaultValue"
-    | "onValueChange"
-    | "onOpenChange"
-    | "format"
-    | "defaultFormat"
-    | "onFormatChange"
-  > { }
+type ColorPickerImplProps = Omit<
+  ColorPickerProps,
+  | "defaultValue"
+  | "onValueChange"
+  | "onOpenChange"
+  | "format"
+  | "defaultFormat"
+  | "onFormatChange"
+>
 
 function ColorPickerImpl(props: ColorPickerImplProps) {
   const {

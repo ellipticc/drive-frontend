@@ -14,7 +14,7 @@ interface NotificationsTabProps {
     setLoginNotifications: (val: boolean) => void;
     setFileShareNotifications: (val: boolean) => void;
     setBillingNotifications: (val: boolean) => void;
-    saveNotificationPreferences: (prefs: any) => Promise<void>;
+    saveNotificationPreferences: (prefs: Record<string, boolean>) => Promise<void>;
     isLoadingNotificationPrefs: boolean;
 }
 

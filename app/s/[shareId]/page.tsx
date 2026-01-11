@@ -634,7 +634,7 @@ export default function SharedDownloadPage() {
         // 2. Download loop
         let completedFiles = 0;
         let totalDownloadedBytes = 0;
-        let totalBytes = allFiles.reduce((acc, f) => acc + Number(f.size), 0);
+        const totalBytes = allFiles.reduce((acc, f) => acc + Number(f.size), 0);
 
         setDownloadProgress({
           stage: 'initializing',
@@ -1541,7 +1541,7 @@ export default function SharedDownloadPage() {
             const currentIndex = currentFolderContents.files.findIndex(f => f.id === previewFile.id);
             if (currentIndex === -1) return;
 
-            let nextIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
+            const nextIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
             if (nextIndex < 0) return;
             if (nextIndex >= currentFolderContents.files.length) return;
 
@@ -1554,7 +1554,7 @@ export default function SharedDownloadPage() {
           hasNext={currentFolderContents.files.findIndex(f => f.id === previewFile.id) < currentFolderContents.files.length - 1}
           onDownload={(file) => {
             const a = document.createElement('a');
-            a.href = (file as any).blobUrl;
+            a.href = file.blobUrl!;
             a.download = file.name;
             document.body.appendChild(a);
             a.click();

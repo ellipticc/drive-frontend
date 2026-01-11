@@ -5,6 +5,43 @@ import { IconPlayerPlay as Play, IconPlayerPause as Pause, IconVolume as Volume2
 import { Button } from "@/components/ui/button"
 import { downloadEncryptedFileWithCEK, downloadEncryptedFile, DownloadProgress } from "@/lib/download"
 import { decryptData } from "@/lib/crypto"
+import type { ShareItem } from "@/lib/api"
+
+interface ShareContext extends Partial<ShareItem> {
+  is_folder?: boolean;
+  wrapped_cek?: string;
+  nonce_wrap?: string;
+  // Include ShareItem properties for dashboard compatibility
+  fileId?: string;
+  fileName?: string;
+  fileSize?: number;
+  createdAt?: string;
+  expiresAt?: string;
+  permissions?: string;
+  revoked?: boolean;
+  linkSecret?: string;
+  views?: number;
+  maxViews?: number;
+  maxDownloads?: number;
+  downloads?: number;
+  folderPath?: string;
+  mimeType?: string;
+  encryptedFilename?: string;
+  filenameSalt?: string;
+  folderPathSalt?: string;
+  recipients?: Array<{
+    id: string;
+    userId?: string;
+    email?: string;
+    name?: string;
+    status: string;
+    createdAt: string;
+    revokedAt?: string;
+  }>;
+  has_password?: boolean;
+  comments_enabled?: boolean | number;
+  comments_locked?: boolean | number;
+}
 
 interface AudioPreviewProps {
   fileId: string
@@ -16,7 +53,7 @@ interface AudioPreviewProps {
   filename?: string
 
   // Optional for dashboard usage
-  shareDetails?: any
+  shareDetails?: ShareContext
   onGetShareCEK?: () => Promise<Uint8Array>
 
   // Callbacks

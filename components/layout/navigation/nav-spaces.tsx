@@ -187,10 +187,10 @@ function SortableSpaceItem({
 }: {
     space: Space & { items?: SpaceItem[] },
     onFetchItems: (id: string) => void,
-    onEdit?: (space: any) => void,
-    onDelete?: (space: any) => void,
-    onAdd: (space: any) => void,
-    onItemClick: (e: any, item: any) => void,
+    onEdit?: (space: { id: string; name: string; color?: string; icon?: string }) => void,
+    onDelete?: (space: { id: string; name: string }) => void,
+    onAdd: (space: { id: string; name: string }) => void,
+    onItemClick: (e: React.MouseEvent, item: SpaceItem) => void,
     onRemoveItem: (spaceId: string, itemId: string) => void,
     onMoveItem: (spaceId: string, itemId: string, targetId: string) => void,
     onNewSpace: () => void,
@@ -758,7 +758,7 @@ export function NavSpaces() {
                             <DialogHeader>
                                 <DialogTitle>Are you sure?</DialogTitle>
                                 <DialogDescription>
-                                    This will permanently delete the space "{selectedSpace.name}". This action cannot be undone.
+                                    This will permanently delete the space &quot;{selectedSpace.name}&quot;. This action cannot be undone.
                                 </DialogDescription>
                             </DialogHeader>
                             <DialogFooter className="gap-2">

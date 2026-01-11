@@ -115,7 +115,7 @@ interface TableRootProps extends AriaTableProps, Omit<ComponentPropsWithRef<"tab
 
 interface TableRootProps extends AriaTableProps, Omit<ComponentPropsWithRef<"table">, "className" | "slot" | "style"> {
     size?: "sm" | "md";
-    dependencies?: any[];
+    dependencies?: React.DependencyList;
 }
 
 const TableRoot = ({ className, size = "md", onSelectionChange, ...props }: TableRootProps) => {

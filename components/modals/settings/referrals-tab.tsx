@@ -18,6 +18,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip"
+import type { Referral } from "@/lib/api"
 
 const formatStorageSize = (bytes: number) => {
     if (bytes === 0) return '0 B'
@@ -59,8 +60,8 @@ interface ReferralsTabProps {
     referralsPage: number;
     referralsTotal: number;
     loadReferralData: (page: number) => void;
-    recentReferrals: any[];
-    referralStats: any;
+    recentReferrals: Referral[];
+    referralStats: Record<string, unknown> | null;
 }
 
 export function ReferralsTab({
@@ -152,7 +153,7 @@ export function ReferralsTab({
                         {recentReferrals && recentReferrals.length > 0 && (
                             <div className="border-t pt-6 space-y-4">
                                 <div className="flex items-center justify-between">
-                                    <h3 className="text-sm font-semibold">Referral History ({formatStorageSize((referralStats?.totalEarningsMB || 0) * 1024 * 1024)} of 10GB free space earned)</h3>
+                                    <h3 className="text-sm font-semibold">Referral History ({formatStorageSize((referralStats?.totalEarningsMB as number || 0) * 1024 * 1024)} of 10GB free space earned)</h3>
                                     {referralsTotal > 5 && (
                                         <div className="flex items-center gap-2 px-4 py-1.5 bg-muted/40 rounded-full border border-border/50 shadow-sm transition-all hover:bg-muted/60">
                                             <Button
@@ -194,17 +195,17 @@ export function ReferralsTab({
                                         </thead>
                                         <tbody className="divide-y">
                                             {recentReferrals.map((referral) => (
-                                                <tr key={referral.referral_id || referral.referred_user_id} className="hover:bg-muted/30 transition-colors">
+                                                <tr key={referral.referred_user_id} className="hover:bg-muted/30 transition-colors">
                                                     <td className="px-4 py-3 min-w-[100px]">
                                                         <TooltipProvider>
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>
                                                                     <span className="cursor-help underline decoration-dotted decoration-muted-foreground/30 font-mono text-[10px] text-muted-foreground/60">
-                                                                        {referral.referral_id ? `${referral.referral_id.substring(0, 8)}...` : 'N/A'}
+                                                                        {referral.referred_user_id ? `${referral.referred_user_id.substring(0, 8)}...` : 'N/A'}
                                                                     </span>
                                                                 </TooltipTrigger>
                                                                 <TooltipContent side="top">
-                                                                    <p className="font-mono text-xs">{referral.referral_id || 'No ID available'}</p>
+                                                                    <p className="font-mono text-xs">{referral.referred_user_id || 'No ID available'}</p>
                                                                 </TooltipContent>
                                                             </Tooltip>
                                                         </TooltipProvider>
@@ -213,9 +214,9 @@ export function ReferralsTab({
                                                         <div className="flex items-center gap-3">
                                                             <Avatar className="h-8 w-8 flex-shrink-0 border bg-background">
                                                                 <AvatarImage
-                                                                    src={referral.avatar_url || getDiceBearAvatar(referral.referred_user_id || `deleted-${referral.referral_id}`, 32)}
-                                                                    alt={`${referral.referred_name || 'Deleted User'}'s avatar`}
-                                                                    className={referral.is_deleted ? "grayscale opacity-70" : ""}
+                                                                    src={referral.avatar_url || getDiceBearAvatar(referral.referred_user_id || `deleted-${referral.referred_user_id}`, 32)}
+                                                                    alt={`${referral.referred_name || 'User'}'s avatar`}
+                                                                    className=""
                                                                     onError={(e) => {
                                                                         (e.target as HTMLImageElement).src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
                                                                     }}
@@ -225,9 +226,8 @@ export function ReferralsTab({
                                                                 </AvatarFallback>
                                                             </Avatar>
                                                             <div className="min-w-0 flex flex-col">
-                                                                <p className={`font-medium text-sm truncate ${referral.is_deleted ? "text-muted-foreground italic" : ""}`}>
+                                                                <p className="font-medium text-sm truncate">
                                                                     {referral.referred_name}
-                                                                    {referral.is_deleted && <span className="ml-1 text-[10px] opacity-70">(Deleted)</span>}
                                                                 </p>
                                                             </div>
                                                         </div>

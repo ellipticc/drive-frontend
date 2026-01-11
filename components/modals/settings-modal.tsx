@@ -76,6 +76,17 @@ import { useIsMobile } from "@/hooks/use-mobile"
 import { compressAvatar } from "@/lib/image"
 import { useLanguage } from "@/lib/i18n/language-context"
 
+interface Session {
+  id: string;
+  ip_address: string;
+  user_agent: string;
+  device_info: Record<string, unknown>;
+  is_revoked: boolean;
+  last_active: string;
+  created_at: string;
+  isCurrent: boolean;
+}
+
 interface SettingsModalProps {
   children?: React.ReactNode
   open?: boolean
@@ -251,7 +262,7 @@ export function SettingsModal({
 
   // Session management state
   const [sessionExpiry, setSessionExpiry] = useState("5184000")
-  const [userSessions, setUserSessions] = useState<any[]>([])
+  const [userSessions, setUserSessions] = useState<Session[]>([])
   const [isLoadingSessions, setIsLoadingSessions] = useState(false)
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
   const [showRevokeAllDialog, setShowRevokeAllDialog] = useState(false)
@@ -260,7 +271,20 @@ export function SettingsModal({
   const [sessionsTotal, setSessionsTotal] = useState(0)
 
   // Device management state
-  const [userDevices, setUserDevices] = useState<any[]>([])
+  interface Device {
+    id: string;
+    device_name?: string;
+    is_revoked?: boolean;
+    last_active?: string;
+    ip_address?: string;
+    user_agent?: string;
+    os?: string;
+    browser?: string;
+    location?: string;
+    is_current?: boolean;
+  }
+
+  const [userDevices, setUserDevices] = useState<Device[]>([])
   const [isLoadingDevices, setIsLoadingDevices] = useState(false)
   const [devicesPage, setDevicesPage] = useState(1)
   const [devicesTotalPages, setDevicesTotalPages] = useState(1)
@@ -1494,8 +1518,8 @@ export function SettingsModal({
       // 3. Update Client-Side Services
 
       // Google Analytics
-      if (typeof window !== 'undefined' && (window as any).gtag) {
-        (window as any).gtag('consent', 'update', {
+      if (typeof window !== 'undefined' && (window as unknown as { gtag?: unknown }).gtag) {
+        ((window as unknown as { gtag?: unknown }).gtag as (command: string, targetId: string, config: unknown) => void)('consent', 'update', {
           'analytics_storage': analytics ? 'granted' : 'denied'
         });
       }

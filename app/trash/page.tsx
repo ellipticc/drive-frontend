@@ -28,6 +28,7 @@ export default function Trash() {
   // Sync search param from URL
   useEffect(() => {
     const q = searchParams.get('q');
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSearchQuery(q || "");
   }, [searchParams]);
 

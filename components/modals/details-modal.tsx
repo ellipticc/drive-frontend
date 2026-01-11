@@ -54,7 +54,7 @@ import {
 import { encryptFilename } from "@/lib/crypto"
 import { masterKeyManager } from "@/lib/master-key"
 import { Badge } from "@/components/ui/badge"
-import { unwrapCEK } from "@/lib/download"
+import { unwrapCEK, DownloadEncryption } from "@/lib/download"
 import { decryptData } from "@/lib/crypto"
 import { keyManager } from "@/lib/key-manager"
 import { useUser } from "@/components/user-context"
@@ -208,8 +208,8 @@ export function DetailsModal({
 
     const loadThumbnail = async () => {
       // Check if itemDetails mentions a thumbnail exists
-      // Cast to any to access potential database fields
-      const details = itemDetails as any;
+      // Cast to Record to access potential database fields
+      const details = itemDetails as Record<string, unknown>;
       const hasThumbnail = details && details.thumbnail_path;
 
       if (open && itemId && itemType === 'file' && hasThumbnail) {
@@ -235,7 +235,7 @@ export function DetailsModal({
 
           try {
             // 4. Unwrap Content Encryption Key
-            const cek = await unwrapCEK(encryption as any, keys.keypairs);
+            const cek = await unwrapCEK(encryption as DownloadEncryption, keys.keypairs);
 
             // 5. Read Blob string "encryptedData:nonce"
             const text = await blob.text();
@@ -247,7 +247,7 @@ export function DetailsModal({
 
                 // 6. Decrypt
                 const decryptedData = decryptData(encryptedData, cek, nonce);
-                const decryptedBlob = new Blob([decryptedData as any], { type: 'image/jpeg' });
+                const decryptedBlob = new Blob([new Uint8Array(decryptedData)], { type: 'image/jpeg' });
 
                 objectUrl = URL.createObjectURL(decryptedBlob);
                 if (isMounted) setThumbnailUrl(objectUrl);
@@ -371,7 +371,7 @@ export function DetailsModal({
   // Decrypt item tags
   useEffect(() => {
     const decryptItemTags = async () => {
-      const rawTags = (itemDetails as any)?.tags as Tag[] || []
+      const rawTags = itemDetails?.tags as Tag[] || []
       const masterKey = masterKeyManager.getMasterKey()
       const decrypted = await Promise.all(
         rawTags.map(async (tag) => {
@@ -800,7 +800,7 @@ export function DetailsModal({
                                       className="text-xs"
                                     >
                                       <IconPlus className="mr-2 h-3 w-3" />
-                                      Create tag "# {tagInput}"
+                                      Create tag &quot;# {tagInput}&quot;
                                     </CommandItem>
                                   </CommandGroup>
                                 </>
@@ -884,7 +884,7 @@ export function DetailsModal({
                               </button>
                             </TooltipTrigger>
                             <TooltipContent side="left" className="max-w-[260px] text-xs">
-                              Verification ensures this file hasn't been <b>tampered</b> with since upload. The <b>signature</b> confirms the uploader's identity using <b>cryptographic keys</b>.
+                              Verification ensures this file hasn&apos;t been <b>tampered</b> with since upload. The <b>signature</b> confirms the uploader&apos;s identity using <b>cryptographic keys</b>.
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>

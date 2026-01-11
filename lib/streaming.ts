@@ -8,6 +8,7 @@ import {
     unwrapCEK,
     DownloadProgress
 } from './download';
+import type { ShareItem } from './api';
 import { keyManager } from './key-manager';
 
 interface StreamRequest {
@@ -50,7 +51,7 @@ export class StreamManager {
         return StreamManager.instance;
     }
 
-    public async registerFile(fileId: string, shareDetails?: any, onGetShareCEK?: () => Promise<Uint8Array>) {
+    public async registerFile(fileId: string, shareDetails?: ShareItem, onGetShareCEK?: () => Promise<Uint8Array>) {
         // Check if already registered
         if (this.sessions.has(fileId)) return;
 
@@ -63,13 +64,15 @@ export class StreamManager {
             // Handle Share CEK vs User CEK
             if (onGetShareCEK) {
                 const shareCekRaw = await onGetShareCEK();
-                let shareCek = new Uint8Array(shareCekRaw);
+                const shareCek = new Uint8Array(shareCekRaw);
 
                 // Unwrap if needed
-                if (shareDetails && !shareDetails.is_folder && shareDetails.wrapped_cek && shareDetails.nonce_wrap) {
+                if (shareDetails && !(((shareDetails as any).is_folder) ?? shareDetails.isFolder) && ((shareDetails as any).wrapped_cek) && ((shareDetails as any).nonce_wrap)) {
                     const { decryptData } = await import('./crypto');
                     try {
-                        cek = new Uint8Array(decryptData(shareDetails.wrapped_cek, shareCek, shareDetails.nonce_wrap));
+                        const wrapped = (shareDetails as any).wrapped_cek;
+                        const nonce = (shareDetails as any).nonce_wrap;
+                        cek = new Uint8Array(decryptData(wrapped, shareCek, nonce));
                     } catch (e) {
                         console.error('Failed to unwrap shared file key', e);
                         throw e;
@@ -136,9 +139,9 @@ export class StreamManager {
         try {
             const result = await this.fetchRange(fileId, start, end);
             port.postMessage(result, result.content ? [result.content] : []);
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('[StreamManager] Error handling range:', err);
-            port.postMessage({ success: false, error: err.message });
+            port.postMessage({ success: false, error: err instanceof Error ? err.message : String(err) });
         }
     }
 

@@ -7,9 +7,15 @@ import { toast } from 'sonner'
 // Types for Google API
 declare global {
     interface Window {
-        gapi: any
-        google: any
+        gapi: unknown
+        google: unknown
     }
+}
+
+interface BlobSlice {
+    size: number;
+    type: string;
+    arrayBuffer: () => Promise<ArrayBuffer>;
 }
 
 const SCOPES = 'https://www.googleapis.com/auth/drive.readonly'
@@ -36,7 +42,7 @@ class GoogleRemoteFile {
     ) { }
 
     // Mimic Blob.slice - returns a synchronous object that allows asynchronous reading
-    slice(start?: number, end?: number): any {
+    slice(start?: number, end?: number): BlobSlice {
         const s = start || 0;
         const e = end !== undefined ? end : this.size;
 
@@ -103,11 +109,11 @@ export function useGoogleDrive() {
 
                 // Initialize gapi
                 await new Promise<void>((resolve) => {
-                    window.gapi.load('client:picker', resolve)
+                    (window as any).gapi.load('client:picker', resolve)
                 })
 
                 // Initialize Token Client
-                const client = window.google.accounts.oauth2.initTokenClient({
+                const client = (window as any).google.accounts.oauth2.initTokenClient({
                     client_id: GOOGLE_CLIENT_ID,
                     scope: SCOPES,
                     callback: '', // Defined at request time
@@ -124,21 +130,22 @@ export function useGoogleDrive() {
         loadScripts()
     }, [])
 
-    const handlePickerCallback = async (data: any, accessToken: string) => {
-        if (data.action === window.google.picker.Action.PICKED) {
-            const documents = data[window.google.picker.Response.DOCUMENTS]
+    const handlePickerCallback = async (data: unknown, accessToken: string) => {
+        const d = data as any;
+        if (d.action === (window as any).google.picker.Action.PICKED) {
+            const documents = d[(window as any).google.picker.Response.DOCUMENTS]
 
             let successCount = 0
-            const virtualFiles: any[] = []
+            const virtualFiles: GoogleRemoteFile[] = []
 
             for (const doc of documents) {
                 try {
-                    const fileId = doc[window.google.picker.Document.ID]
-                    const fileName = doc[window.google.picker.Document.NAME]
-                    let fileMime = doc[window.google.picker.Document.MIME_TYPE]
+                    const fileId = doc[(window as any).google.picker.Document.ID]
+                    const fileName = doc[(window as any).google.picker.Document.NAME]
+                    let fileMime = doc[(window as any).google.picker.Document.MIME_TYPE]
 
                     // Initial size check
-                    let fileSize = doc[window.google.picker.Document.SIZE_BYTES] ??
+                    let fileSize = doc[(window as any).google.picker.Document.SIZE_BYTES] ??
                         doc.sizeBytes ??
                         doc.fileSize ??
                         doc.size ??
@@ -186,7 +193,7 @@ export function useGoogleDrive() {
             if (successCount > 0) {
                 // Pass the virtual files to the upload pipeline
                 // The pipeline will fetch chunks on-demand via GoogleRemoteFile.slice().arrayBuffer()
-                // @ts-ignore - casting virtual files to File[] as they satisfy the required interface
+                // @ts-expect-error - casting virtual files to File[] as they satisfy the required interface
                 startUploadWithFiles(virtualFiles, null)
 
                 openModal()
@@ -202,28 +209,30 @@ export function useGoogleDrive() {
         }
 
         // Request access token
-        tokenClient.callback = async (response: any) => {
-            if (response.error !== undefined) {
-                throw (response)
+        // eslint-disable-next-line react-hooks/immutability
+        tokenClient.callback = async (response: unknown) => {
+            const r = response as any;
+            if (r.error !== undefined) {
+                throw (r)
             }
 
-            const accessToken = response.access_token
+            const accessToken = r.access_token
 
-            if (!window.gapi.client) {
+            if (!(window as any).gapi.client) {
                 // ensure gapi client is ready, sometimes load is slow
-                await new Promise<void>((resolve) => window.gapi.load('client:picker', resolve));
+                await new Promise<void>((resolve) => (window as any).gapi.load('client:picker', resolve));
             }
 
-            const view = new window.google.picker.View(window.google.picker.ViewId.DOCS)
+            const view = new (window as any).google.picker.View((window as any).google.picker.ViewId.DOCS)
 
-            const picker = new window.google.picker.PickerBuilder()
+            const picker = new (window as any).google.picker.PickerBuilder()
                 .setDeveloperKey(GOOGLE_API_KEY)
                 .setAppId(GOOGLE_CLIENT_ID)
                 .setOAuthToken(accessToken)
                 .addView(view)
-                .addView(new window.google.picker.DocsUploadView())
-                .enableFeature(window.google.picker.Feature.MULTISELECT_ENABLED)
-                .setCallback((data: any) => handlePickerCallback(data, accessToken))
+                .addView(new (window as any).google.picker.DocsUploadView())
+                .enableFeature((window as any).google.picker.Feature.MULTISELECT_ENABLED)
+                .setCallback((data: unknown) => handlePickerCallback(data, accessToken))
                 .build()
 
             picker.setVisible(true)

@@ -72,6 +72,7 @@ export function FullPagePreviewModal({
     // Reset state when file changes
     useEffect(() => {
         if (file?.id) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setIsLoading(true)
             setDownloadProgress(null)
         }

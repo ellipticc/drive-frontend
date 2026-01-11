@@ -48,8 +48,20 @@ import {
 } from "@tabler/icons-react"
 import { getUAInfo, getOSIcon, getBrowserIcon } from './device-icons'
 import { apiClient } from "@/lib/api"
+import type { UserData, SecurityEvent } from "@/lib/api"
+
+interface Session {
+  id: string;
+  ip_address: string;
+  user_agent: string;
+  device_info: Record<string, unknown>;
+  is_revoked: boolean;
+  last_active: string;
+  created_at: string;
+  isCurrent: boolean;
+}
 import { toast } from "sonner"
-// @ts-ignore
+// @ts-expect-error JSONHighlighter has no type definitions
 import JSONHighlighter from 'react-json-syntax-highlighter'
 import dynamic from 'next/dynamic'
 import { UAParser } from 'ua-parser-js'
@@ -59,8 +71,27 @@ const MapComponent = dynamic(() => import('./map-component'), {
     loading: () => <div className="h-full w-full bg-muted animate-pulse rounded-xl" />
 })
 
+interface Device {
+    id: string;
+    device_name?: string;
+    is_revoked?: boolean;
+    last_active?: string;
+    ip_address?: string;
+    user_agent?: string;
+    os?: string;
+    browser?: string;
+    location?: string;
+    is_current?: boolean;
+}
+
+interface DevicePlan {
+    name: string;
+    maxDevices: number;
+    currentDevices: number;
+}
+
 interface SecurityTabProps {
-    user: any;
+    user: UserData | null;
     setShowEmailModal: (val: boolean) => void;
     setShowPasswordModal: (val: boolean) => void;
 
@@ -95,7 +126,7 @@ interface SecurityTabProps {
     setSessionExpiry: (val: string) => void;
 
     // Sessions
-    userSessions: any[];
+    userSessions: Session[];
     isLoadingSessions: boolean;
     sessionsTotal: number;
     sessionsPage: number;
@@ -108,7 +139,7 @@ interface SecurityTabProps {
     handleRevokeAllSessions: () => void;
 
     // Devices
-    userDevices: any[];
+    userDevices: Device[];
     isLoadingDevices: boolean;
     devicesTotal: number;
     devicesPage: number;
@@ -120,10 +151,10 @@ interface SecurityTabProps {
     editNameValue: string;
     setEditNameValue: (val: string) => void;
     handleUpdateDeviceName: (id: string, name: string) => void;
-    devicePlan: any;
+    devicePlan: DevicePlan | null;
 
     // Activity
-    securityEvents: any[];
+    securityEvents: SecurityEvent[];
     isLoadingSecurityEvents: boolean;
     detailedEventsEnabled: boolean;
     activityMonitorEnabled: boolean;
@@ -136,7 +167,7 @@ interface SecurityTabProps {
     securityEventsTotal: number;
     securityEventsPage: number;
     securityEventsHasMore: boolean;
-    setSecurityEvents: (val: any[]) => void;
+    setSecurityEvents: (val: SecurityEvent[]) => void;
     setSecurityEventsTotal: (val: number) => void;
     setSecurityEventsHasMore: (val: boolean) => void;
 
@@ -156,7 +187,7 @@ interface SecurityTabProps {
     isMobile: boolean; // Added isMobile
 }
 
-const JsonHighlighter = ({ data }: { data: any }) => {
+const JsonHighlighter = ({ data }: { data: unknown }) => {
     return (
         <div className="json-theme-custom rounded-xl overflow-hidden border border-muted-foreground/10 bg-muted/20">
             <JSONHighlighter
@@ -684,8 +715,8 @@ export function SecurityTab(props: SecurityTabProps) {
                                                                         value={editNameValue}
                                                                         onChange={(e) => setEditNameValue(e.target.value.slice(0, 30))}
                                                                         onBlur={() => {
-                                                                            const dev = userDevices.find((d: any) => d.id === editingDeviceId);
-                                                                            if (dev && editNameValue.trim() !== dev.device_name) {
+                                                                            const dev = userDevices.find((d) => d.id === editingDeviceId);
+                                                                            if (dev && editNameValue.trim() !== (dev.device_name || '')) {
                                                                                 handleUpdateDeviceName(dev.id, editNameValue);
                                                                             } else {
                                                                                 setEditingDeviceId(null);
@@ -693,8 +724,8 @@ export function SecurityTab(props: SecurityTabProps) {
                                                                         }}
                                                                         onKeyDown={(e) => {
                                                                             if (e.key === 'Enter') {
-                                                                                const dev = userDevices.find((d: any) => d.id === editingDeviceId);
-                                                                                if (dev && editNameValue.trim() !== dev.device_name) {
+                                                                                const dev = userDevices.find((d) => d.id === editingDeviceId);
+                                                                                if (dev && editNameValue.trim() !== (dev.device_name || '')) {
                                                                                     handleUpdateDeviceName(dev.id, editNameValue);
                                                                                 } else {
                                                                                     setEditingDeviceId(null);
@@ -754,7 +785,7 @@ export function SecurityTab(props: SecurityTabProps) {
                                                 </div>
                                             </td>
                                             <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">
-                                                {formatSessionDate(device.last_active)}
+                                                {formatSessionDate(device.last_active ?? null)}
                                             </td>
                                             <td className="px-4 py-3 text-right">
                                                 <div className="flex items-center justify-end gap-2">
@@ -959,7 +990,7 @@ export function SecurityTab(props: SecurityTabProps) {
                                         </td>
                                     </tr>
                                 ) : (
-                                    securityEvents.map((event: any) => {
+                                    securityEvents.map((event: SecurityEvent) => {
                                         const isExpanded = expandedEventId === event.id;
                                         const { osIcon, osName, browserIcon, browserName } = getUAInfo(event.userAgent);
 
@@ -1074,8 +1105,8 @@ export function SecurityTab(props: SecurityTabProps) {
                                                                 <div className="space-y-4">
                                                                     <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Session & Risk Analytics</h4>
                                                                     <div className="bg-background/50 rounded-xl p-4 border border-muted/50">
-                                                                        <PaidField label="Session Type" value={event.sessionType} />
-                                                                        <PaidField label="Token Type" value={event.tokenType} />
+                                                                        <PaidField label="Session Type" value={String(event.additionalData?.sessionType ?? 'N/A')} />
+                                                                        <PaidField label="Token Type" value={String(event.additionalData?.tokenType ?? 'N/A')} />
                                                                         <PaidField
                                                                             label="Risk Level"
                                                                             value={
@@ -1091,8 +1122,8 @@ export function SecurityTab(props: SecurityTabProps) {
                                                                             <span className="text-[10px] uppercase font-bold text-muted-foreground">Risk Signals</span>
                                                                             <div className="flex flex-wrap gap-1">
                                                                                 {isPaid ? (
-                                                                                    (event.riskSignals && event.riskSignals.length > 0) ? (
-                                                                                        event.riskSignals.map((sig: string, idx: number) => (
+                                                                                    (((event.additionalData?.riskSignals) as string[] | undefined) || []).length > 0 ? (
+                                                                                        (((event.additionalData?.riskSignals) as string[]) || []).map((sig: string, idx: number) => (
                                                                                             <span key={idx} className="px-1.5 py-0.5 rounded bg-muted text-[10px] border border-muted-foreground/20">
                                                                                                 {sig}
                                                                                             </span>

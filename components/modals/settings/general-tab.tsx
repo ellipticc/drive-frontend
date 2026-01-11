@@ -29,9 +29,11 @@ import { cn } from "@/lib/utils"
 import { getDiceBearAvatar } from "@/lib/avatar"
 import { getInitials } from "@/components/layout/navigation/nav-user"
 import { useLanguage } from "@/lib/i18n/language-context"
+import type { UserData } from "@/lib/api"
+import type { Language } from "@/lib/i18n/dictionaries"
 
 interface GeneralTabProps {
-    user: any;
+    user: UserData | null;
     displayName: string;
     setDisplayName: (val: string) => void;
     originalName: string;
@@ -222,7 +224,7 @@ export function GeneralTab({
                     </Label>
                     <div className="flex items-center gap-2">
                         <IconLanguage className="h-4 w-4 text-muted-foreground" />
-                        <Select value={language} onValueChange={(val) => setLanguage(val as any)}>
+                        <Select value={language} onValueChange={(val) => setLanguage(val as Language)}>
                             <SelectTrigger id="language-select" className="w-full max-w-xs">
                                 <SelectValue />
                             </SelectTrigger>

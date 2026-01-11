@@ -1,7 +1,7 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
 
-interface FormCardProps extends React.ComponentPropsWithoutRef<"div"> { }
+type FormCardProps = React.ComponentPropsWithoutRef<"div">
 
 function FormCard({ className, ...props }: FormCardProps) {
     return (
@@ -15,7 +15,7 @@ function FormCard({ className, ...props }: FormCardProps) {
     )
 }
 
-interface FormCardHeaderProps extends React.ComponentPropsWithoutRef<"div"> { }
+type FormCardHeaderProps = React.ComponentPropsWithoutRef<"div">
 
 function FormCardHeader({ className, ...props }: FormCardHeaderProps) {
     return (
@@ -29,7 +29,7 @@ function FormCardHeader({ className, ...props }: FormCardHeaderProps) {
     )
 }
 
-interface FormCardTitleProps extends React.ComponentPropsWithoutRef<"h3"> { }
+type FormCardTitleProps = React.ComponentPropsWithoutRef<"h3">
 
 function FormCardTitle({ className, ...props }: FormCardTitleProps) {
     return (
@@ -40,7 +40,7 @@ function FormCardTitle({ className, ...props }: FormCardTitleProps) {
     )
 }
 
-interface FormCardDescriptionProps extends React.ComponentPropsWithoutRef<"p"> { }
+type FormCardDescriptionProps = React.ComponentPropsWithoutRef<"p">
 
 function FormCardDescription({ className, ...props }: FormCardDescriptionProps) {
     return (
@@ -51,7 +51,7 @@ function FormCardDescription({ className, ...props }: FormCardDescriptionProps) 
     )
 }
 
-interface FormCardContentProps extends React.ComponentPropsWithoutRef<"div"> { }
+type FormCardContentProps = React.ComponentPropsWithoutRef<"div">
 
 function FormCardContent({ className, ...props }: FormCardContentProps) {
     return (
@@ -59,7 +59,7 @@ function FormCardContent({ className, ...props }: FormCardContentProps) {
     )
 }
 
-interface FormCardFooterProps extends React.ComponentPropsWithoutRef<"div"> { }
+type FormCardFooterProps = React.ComponentPropsWithoutRef<"div">
 
 function FormCardFooter({ className, ...props }: FormCardFooterProps) {
     return (
@@ -70,7 +70,7 @@ function FormCardFooter({ className, ...props }: FormCardFooterProps) {
     )
 }
 
-interface FormCardSeparatorProps extends React.ComponentPropsWithoutRef<"div"> { }
+type FormCardSeparatorProps = React.ComponentPropsWithoutRef<"div">
 
 function FormCardSeparator({ className, ...props }: FormCardSeparatorProps) {
     return (

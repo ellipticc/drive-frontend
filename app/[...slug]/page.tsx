@@ -73,11 +73,11 @@ export default function Home() {
     });
 
     const regularFiles = validFiles.filter(file => {
-      const relativePath = (file as any).webkitRelativePath || '';
+      const relativePath = (file as File & { webkitRelativePath?: string }).webkitRelativePath || '';
       return !relativePath; // Files with no relative path (root files)
     })
     const folderFiles = validFiles.filter(file => {
-      const relativePath = (file as any).webkitRelativePath || '';
+      const relativePath = (file as File & { webkitRelativePath?: string }).webkitRelativePath || '';
       return !!relativePath; // Files with relative path (inside folder structure)
     })
 

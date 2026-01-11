@@ -683,7 +683,7 @@ const BillingPage = () => {
                   <SectionTitle>Plans</SectionTitle>
                   <SectionDescription>Choose the best plan for you.</SectionDescription>
                 </div>
-                <Tabs defaultValue={frequency} onValueChange={(v) => setFrequency(v as any)} className="mb-1">
+                <Tabs defaultValue={frequency} onValueChange={(v) => setFrequency(v as 'monthly' | 'yearly')} className="mb-1">
                   <TabsList className="h-9 p-1">
                     <TabsTrigger value="monthly" className="h-7 px-4 text-xs font-medium">Monthly</TabsTrigger>
                     <TabsTrigger value="yearly" className="h-7 px-4 text-xs font-medium">
@@ -915,7 +915,7 @@ const BillingPage = () => {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {history.history.map((sub: any) => (
+                          {history.history.map((sub: SubscriptionHistory['history'][0]) => (
                             <TableRow key={sub.id} className="hover:bg-muted/20 transition-colors">
                               <TableCell className="px-4 py-3 align-middle">
                                 <div className="flex flex-col gap-0.5">
@@ -1056,7 +1056,7 @@ const BillingPage = () => {
           <DialogHeader>
             <DialogTitle>Reason for cancellation</DialogTitle>
             <DialogDescription>
-              We're sorry to see you go. Help us improve by telling us why you're cancelling.
+              We&apos;re sorry to see you go. Help us improve by telling us why you&apos;re cancelling.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">

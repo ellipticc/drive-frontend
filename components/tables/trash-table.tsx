@@ -144,9 +144,9 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                     fileTotal = filesResponse.data.pagination.total;
                 }
 
-                if (foldersResponse.data && 'pagination' in (foldersResponse.data as any)) {
-                    folderPages = (foldersResponse.data as any).pagination.totalPages;
-                    folderTotal = (foldersResponse.data as any).pagination.total;
+                if (foldersResponse.data && 'pagination' in (foldersResponse.data as Record<string, unknown>)) {
+                    folderPages = ((foldersResponse.data as Record<string, unknown>).pagination as Record<string, unknown>).totalPages as number;
+                    folderTotal = ((foldersResponse.data as Record<string, unknown>).pagination as Record<string, unknown>).total as number;
                 }
 
                 setTotalPages(Math.max(filePages, folderPages));
@@ -199,7 +199,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                 );
 
                 // Decrypt folders synchronously since we have master key
-                const foldersData = (foldersResponse.data && 'data' in (foldersResponse.data as any)) ? (foldersResponse.data as any).data : (foldersResponse.data || []);
+                const foldersData = (foldersResponse.data && 'data' in (foldersResponse.data as Record<string, unknown>)) ? (foldersResponse.data as Record<string, unknown>).data : (foldersResponse.data || []);
                 const decryptedFolders = await Promise.all(
                     (foldersData as FolderContentItem[]).map(async (folder: FolderContentItem) => {
                         let decryptedName = '(Unnamed folder)';

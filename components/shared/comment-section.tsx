@@ -401,7 +401,7 @@ export function CommentSection({ shareId, shareCek, currentUser, isOwner, classN
                     }
                 }
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Failed to submit comment:', err);
             toast.error('Failed to submit comment');
         } finally {
@@ -514,7 +514,7 @@ export function CommentSection({ shareId, shareCek, currentUser, isOwner, classN
 
     // Organize comments into threads
     const threadedComments = useMemo(() => {
-        let sorted = [...comments];
+        const sorted = [...comments];
 
         // Root grouping logic
         const map = new Map<string, DecryptedComment[]>();
@@ -727,7 +727,7 @@ export function CommentSection({ shareId, shareCek, currentUser, isOwner, classN
                         </SheetHeader>
                     </TooltipProvider>
 
-                    <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/10 hover:scrollbar-thumb-muted-foreground/20" ref={scrollAreaRef as any}>
+                    <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/10 hover:scrollbar-thumb-muted-foreground/20" ref={scrollAreaRef}>
                         <div className="p-4 pb-24 flex flex-col">
                             <div className="flex items-center justify-center py-2 px-1 mb-6">
                                 <div className="h-px bg-muted flex-1" />

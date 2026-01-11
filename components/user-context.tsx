@@ -152,8 +152,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
       const response = await apiClient.getProfile();
 
       // Extract device quota and limit status
-      const limitReached = (response as any).limitReached || (response.data as any)?.limitReached || false;
-      const quota = (response as any).deviceQuota || (response.data as any)?.deviceQuota;
+      const limitReached = response.data?.limitReached || false;
+      const quota = response.data?.deviceQuota;
 
       setDeviceLimitReached(limitReached);
       if (quota) {
@@ -174,13 +174,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
               userData.subscription = {
                 ...sub,
                 cancelAtPeriodEnd: typeof sub.cancelAtPeriodEnd === 'boolean' ? (sub.cancelAtPeriodEnd ? 1 : 0) : sub.cancelAtPeriodEnd,
-                currentPeriodStart: sub.currentPeriodStart,
-                currentPeriodEnd: sub.currentPeriodEnd,
+                currentPeriodStart: String(sub.currentPeriodStart),
+                currentPeriodEnd: String(sub.currentPeriodEnd),
                 plan: {
                   ...sub.plan,
                   interval: (sub.plan as any).interval || 'month'
                 }
-              } as any;
+              };
               lastSubFetchTime.current = now;
             }
           } catch (subError) {
@@ -245,7 +245,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         console.log('UserProvider: Failed to fetch user profile:', response.error);
 
         // If it's just a device limit, we continue but mark it
-        if (!(response as any).limitReached) {
+        if (!response.data?.limitReached) {
           throw new Error(response.error || 'Failed to fetch user');
         }
       }

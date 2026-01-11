@@ -120,7 +120,7 @@ export function CreateSpaceModal({
             const masterKey = masterKeyManager.getMasterKey()
 
             if (editSpace) {
-                const updates: any = {}
+                const updates: Record<string, unknown> = {}
 
                 if (spaceName.trim() !== editSpace.name) {
                     const { encryptedFilename, filenameSalt } = await encryptFilename(spaceName.trim(), masterKey)
@@ -137,7 +137,7 @@ export function CreateSpaceModal({
                 }
 
                 if (Object.keys(updates).length > 0) {
-                    const response = await apiClient.renameSpace(editSpace.id, updates)
+                    const response = await apiClient.renameSpace(editSpace.id, updates as { encryptedName: string; nameSalt: string; icon?: string; color?: string })
                     if (response.success) {
                         toast.success("Space updated")
                         onOpenChange(false)
@@ -163,7 +163,7 @@ export function CreateSpaceModal({
                     onOpenChange(false)
                     onSpaceCreated?.()
                 } else {
-                    const errorData = response.data as any;
+                    const errorData = response.data as Record<string, unknown>;
                     if (errorData?.error_code === 'SPACE_LIMIT_REACHED') {
                         toast.error(`Space limit reached`, {
                             description: `You have used ${errorData.currentUsage} of ${errorData.limit} spaces on the ${errorData.plan} plan. Upgrade to create more.`,
@@ -189,7 +189,7 @@ export function CreateSpaceModal({
         }
     }
 
-    const SelectedIconComponent = (TablerIcons[selectedIcon as keyof typeof TablerIcons] as any) || TablerIcons.IconFolder
+    const SelectedIconComponent = (TablerIcons[selectedIcon as keyof typeof TablerIcons] as React.ComponentType<{ className?: string }>) || TablerIcons.IconFolder
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -260,8 +260,8 @@ export function CreateSpaceModal({
                                         className="flex-1 h-12 justify-between px-3 hover:bg-accent/40 group bg-card border-muted-foreground/10"
                                     >
                                         <div className="flex items-center gap-2.5">
-                                            <div className="w-8 h-8 rounded-lg bg-muted/40 flex items-center justify-center shrink-0">
-                                                <SelectedIconComponent className="w-5 h-5" style={{ color: selectedColor }} />
+                                            <div className="w-8 h-8 rounded-lg bg-muted/40 flex items-center justify-center shrink-0" style={{ color: selectedColor }}>
+                                                <SelectedIconComponent className="w-5 h-5" />
                                             </div>
                                             <div className="flex flex-col items-start gap-0.5 overflow-hidden">
                                                 <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Icon</span>
@@ -285,7 +285,7 @@ export function CreateSpaceModal({
                                                 className="[&_[cmdk-group-items]]:grid [&_[cmdk-group-items]]:grid-cols-5 [&_[cmdk-group-items]]:gap-1 [&_[cmdk-group-items]]:p-2"
                                             >
                                                 {filteredIcons.map((iconName) => {
-                                                    const IconComponent = (TablerIcons[iconName as keyof typeof TablerIcons] as any) || TablerIcons.IconFolder
+                                                    const IconComponent = (TablerIcons[iconName as keyof typeof TablerIcons] as React.ComponentType<{ className?: string }>) || TablerIcons.IconFolder
                                                     return (
                                                         <CommandItem
                                                             key={iconName}

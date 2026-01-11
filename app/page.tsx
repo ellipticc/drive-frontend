@@ -72,11 +72,11 @@ export default function Home() {
     });
 
     const regularFiles = validFiles.filter(file => {
-      const relativePath = (file as any).webkitRelativePath || '';
+      const relativePath = (file as File & { webkitRelativePath?: string }).webkitRelativePath || '';
       return !relativePath;
     })
     const folderFiles = validFiles.filter(file => {
-      const relativePath = (file as any).webkitRelativePath || '';
+      const relativePath = (file as File & { webkitRelativePath?: string }).webkitRelativePath || '';
       return !!relativePath;
     })
 

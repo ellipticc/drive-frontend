@@ -103,6 +103,7 @@ export interface FolderInfo {
   parentId: string | null;
   createdAt: string;
   updatedAt: string;
+  deletedAt?: string;
   is_shared: boolean;
   tags?: Tag[];
 }
@@ -452,7 +453,7 @@ export interface SecurityEvent {
   location: string;
   userAgent: string;
   createdAt: string;
-  additionalData?: any;
+  additionalData?: Record<string, unknown>;
   latitude?: number;
   longitude?: number;
   city?: string;
@@ -1188,7 +1189,7 @@ class ApiClient {
       id: string;
       ip_address: string;
       user_agent: string;
-      device_info: any;
+      device_info: Record<string, unknown>;
       is_revoked: boolean;
       last_active: string;
       created_at: string;
@@ -1873,7 +1874,7 @@ class ApiClient {
       language: navigator.language,
       platform: navigator.platform,
       hardwareConcurrency: navigator.hardwareConcurrency,
-      deviceMemory: (navigator as any).deviceMemory,
+      deviceMemory: (navigator as Navigator & { deviceMemory?: number }).deviceMemory,
       touchSupport: 'ontouchstart' in window || navigator.maxTouchPoints > 0,
       fingerprint: fingerprint
     };
@@ -1908,14 +1909,14 @@ class ApiClient {
     });
   }
 
-  async reorderSpaces(spaceIds: string[]): Promise<ApiResponse<any>> {
+  async reorderSpaces(spaceIds: string[]): Promise<ApiResponse<unknown>> {
     return this.request('/spaces/reorder', {
       method: 'POST',
       body: JSON.stringify({ spaceIds })
     });
   }
 
-  async getPhotos(limit = 100, offset = 0): Promise<ApiResponse<any[]>> {
+  async getPhotos(limit = 100, offset = 0): Promise<ApiResponse<unknown[]>> {
     return this.request(`/photos?limit=${limit}&offset=${offset}`, {
       method: 'GET'
     });
@@ -1937,7 +1938,7 @@ class ApiClient {
     fileIds?: string[];
     folderIds?: string[];
     isStarred: boolean
-  }): Promise<ApiResponse<any>> {
+  }): Promise<ApiResponse<unknown>> {
     const intent = `${data.fileId || data.folderId || (data.fileIds?.join(',')) || (data.folderIds?.join(','))}:${data.isStarred}:${Date.now()}`;
     const idempotencyKey = generateIdempotencyKey('setItemStarred', intent);
     const headers = addIdempotencyKey({}, idempotencyKey);
@@ -1986,13 +1987,13 @@ class ApiClient {
     });
   }
 
-  async removeItemFromSpace(spaceId: string, itemId: string): Promise<ApiResponse<any>> {
+  async removeItemFromSpace(spaceId: string, itemId: string): Promise<ApiResponse<unknown>> {
     return this.request(`/spaces/${spaceId}/items/${itemId}`, {
       method: 'DELETE',
     });
   }
 
-  async moveItemToSpace(spaceId: string, itemId: string, targetSpaceId: string): Promise<ApiResponse<any>> {
+  async moveItemToSpace(spaceId: string, itemId: string, targetSpaceId: string): Promise<ApiResponse<unknown>> {
     const idempotencyKey = generateIdempotencyKey('moveItemToSpace', `${spaceId}:${itemId}:${targetSpaceId}:${Date.now()}`);
     const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/spaces/${spaceId}/items/${itemId}/move`, {
@@ -2066,8 +2067,8 @@ class ApiClient {
     const response = await this.request(`/folders/trash/list?${query.toString()}`);
 
     if (response.success && response.data) {
-      const folders = (response.data as { folders?: any[] }).folders || [];
-      const pagination = (response.data as any).pagination || {
+      const folders = (response.data as { folders?: FolderInfo[] }).folders || [];
+      const pagination = (response.data as { pagination?: { total: number; page: number; limit: number; totalPages: number } }).pagination || {
         page: params?.page || 1,
         limit: params?.limit || 50,
         total: folders.length,
@@ -2077,7 +2078,12 @@ class ApiClient {
       return {
         success: true,
         data: {
-          data: folders as any[],
+          data: folders.map(f => ({
+            ...f,
+            encryptedName: f.encryptedName || '',
+            nameSalt: f.nameSalt || '',
+            deletedAt: f.deletedAt || ''
+          })),
           pagination
         }
       };
@@ -2167,7 +2173,7 @@ class ApiClient {
   }): Promise<ApiResponse<{
     success: boolean;
     message: string;
-    file: any;
+    file: FileInfo;
     conflictingItemId?: string;
   }>> {
     const idempotencyKey = generateIdempotencyKey('copyFile', `${fileId}:${folderId}:${options?.filename || ''}`);
@@ -2822,7 +2828,7 @@ class ApiClient {
       language: navigator.language,
       platform: navigator.platform,
       hardwareConcurrency: navigator.hardwareConcurrency,
-      deviceMemory: (navigator as any).deviceMemory,
+      deviceMemory: (navigator as Navigator & { deviceMemory?: number }).deviceMemory,
       touchSupport: 'ontouchstart' in window || navigator.maxTouchPoints > 0,
       fingerprint: fingerprint // Store the Thumbmark hash
     };

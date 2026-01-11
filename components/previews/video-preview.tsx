@@ -4,6 +4,43 @@ import { useEffect, useState } from "react"
 import { IconLoader2 as Loader2, IconAlertCircle as AlertCircle, IconPlayerPlay as PlayCircle } from "@tabler/icons-react"
 import { downloadEncryptedFileWithCEK, downloadEncryptedFile, DownloadProgress } from "@/lib/download"
 import { decryptData } from "@/lib/crypto"
+import type { ShareItem } from "@/lib/api"
+
+interface ShareContext extends Partial<ShareItem> {
+  is_folder?: boolean;
+  wrapped_cek?: string;
+  nonce_wrap?: string;
+  // Include ShareItem properties for dashboard compatibility
+  fileId?: string;
+  fileName?: string;
+  fileSize?: number;
+  createdAt?: string;
+  expiresAt?: string;
+  permissions?: string;
+  revoked?: boolean;
+  linkSecret?: string;
+  views?: number;
+  maxViews?: number;
+  maxDownloads?: number;
+  downloads?: number;
+  folderPath?: string;
+  mimeType?: string;
+  encryptedFilename?: string;
+  filenameSalt?: string;
+  folderPathSalt?: string;
+  recipients?: Array<{
+    id: string;
+    userId?: string;
+    email?: string;
+    name?: string;
+    status: string;
+    createdAt: string;
+    revokedAt?: string;
+  }>;
+  has_password?: boolean;
+  comments_enabled?: boolean | number;
+  comments_locked?: boolean | number;
+}
 
 interface VideoPreviewProps {
   fileId: string
@@ -13,7 +50,7 @@ interface VideoPreviewProps {
   fileName?: string
   filename?: string
 
-  shareDetails?: any
+  shareDetails?: ShareContext
   onGetShareCEK?: () => Promise<Uint8Array>
 
   onProgress?: (progress: DownloadProgress) => void
@@ -59,7 +96,7 @@ export function VideoPreview({
         const { StreamManager } = await import("@/lib/streaming");
 
         // 1. Register file for streaming (gets metadata, keys, and prepares SW mapping)
-        await StreamManager.getInstance().registerFile(fileId, shareDetails, onGetShareCEK);
+        await StreamManager.getInstance().registerFile(fileId, shareDetails as unknown as ShareItem | undefined, onGetShareCEK);
 
         if (!isMounted) return;
 

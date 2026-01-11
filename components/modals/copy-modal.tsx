@@ -395,8 +395,8 @@ export function CopyModal({ children, itemId = "", itemName = "item", itemType =
                         response = await apiClient.copyFolder(item.id, destFolderId, {
                             nameHmac,
                             ...(signedManifest ? {
-                                encryptedName: (signedManifest as any).encryptedName,
-                                nameSalt: (signedManifest as any).nameSalt,
+                                encryptedName: (signedManifest as Record<string, unknown>).encryptedName as string,
+                                nameSalt: (signedManifest as Record<string, unknown>).nameSalt as string,
                                 manifestHash: signedManifest.manifestHash,
                                 manifestSignatureEd25519: signedManifest.manifestSignatureEd25519,
                                 manifestPublicKeyEd25519: signedManifest.manifestPublicKeyEd25519,
@@ -415,7 +415,7 @@ export function CopyModal({ children, itemId = "", itemName = "item", itemType =
                     } else {
                         // Check for conflict specific codes
                         // ApiClient wraps error responses in data
-                        const responseData = response.data as Record<string, any> | undefined;
+                        const responseData = response.data as Record<string, unknown> | undefined;
                         const errorCode = responseData?.code;
 
                         if (errorCode === 'CONFLICT_FILE_EXISTS' || errorCode === 'CONFLICT_FOLDER_EXISTS') {
@@ -423,7 +423,7 @@ export function CopyModal({ children, itemId = "", itemName = "item", itemType =
                                 id: item.id,
                                 name: item.name,
                                 type: item.type,
-                                conflictingItemId: responseData?.conflictingItemId
+                                conflictingItemId: responseData?.conflictingItemId as string | undefined
                             })
                         } else {
                             errorCount++

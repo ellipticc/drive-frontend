@@ -21,7 +21,7 @@ function SectionGroup({ className, variant = "default", ...props }: SectionGroup
     )
 }
 
-interface SectionProps extends React.ComponentPropsWithoutRef<"section"> { }
+type SectionProps = React.ComponentPropsWithoutRef<"section">
 
 function Section({ className, ...props }: SectionProps) {
     return (
@@ -29,7 +29,7 @@ function Section({ className, ...props }: SectionProps) {
     )
 }
 
-interface SectionHeaderProps extends React.ComponentPropsWithoutRef<"div"> { }
+type SectionHeaderProps = React.ComponentPropsWithoutRef<"div">
 
 function SectionHeader({ className, ...props }: SectionHeaderProps) {
     return (
@@ -37,7 +37,7 @@ function SectionHeader({ className, ...props }: SectionHeaderProps) {
     )
 }
 
-interface SectionTitleProps extends React.ComponentPropsWithoutRef<"h2"> { }
+type SectionTitleProps = React.ComponentPropsWithoutRef<"h2">
 
 function SectionTitle({ className, ...props }: SectionTitleProps) {
     return (
@@ -51,7 +51,7 @@ function SectionTitle({ className, ...props }: SectionTitleProps) {
     )
 }
 
-interface SectionDescriptionProps extends React.ComponentPropsWithoutRef<"p"> { }
+type SectionDescriptionProps = React.ComponentPropsWithoutRef<"p">
 
 function SectionDescription({ className, ...props }: SectionDescriptionProps) {
     return (

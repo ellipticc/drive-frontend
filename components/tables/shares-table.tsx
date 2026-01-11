@@ -101,12 +101,12 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
 
                     // Map received shares if needed
                     if (mode === 'received') {
-                        sharesData = sharesData.map((item: any) => ({
+                        sharesData = sharesData.map((item: ShareItem) => ({
                             id: item.id,
                             fileId: item.fileId,
                             fileName: item.fileName,
                             fileSize: item.fileSize,
-                            createdAt: item.sharedAt, // Map sharedAt to createdAt
+                            createdAt: (item as any).sharedAt || item.createdAt, // Map sharedAt to createdAt
                             permissions: item.permissions,
                             revoked: item.revoked,
                             linkSecret: item.linkSecret,

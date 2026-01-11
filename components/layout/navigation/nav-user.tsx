@@ -95,7 +95,7 @@ export function NavUser({
     connectedDevicesCount?: number
   }
 }) {
-  /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
+   
   const { isMobile } = useSidebar()
   const { t } = useLanguage()
   const { setTheme, theme } = useTheme()

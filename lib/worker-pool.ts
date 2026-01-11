@@ -4,18 +4,17 @@
  * Used to limit concurrent Web Worker usage for heavy cryptographic operations
  */
 
-export interface WorkerTask<T = any> {
-    message: any;
+export interface WorkerTask<T = unknown> {
+    message: unknown;
     transferables?: Transferable[];
     resolve: (value: T) => void;
-    reject: (reason?: any) => void;
+    reject: (reason?: unknown) => void;
 }
 
 export class WorkerPool {
     private workers: Worker[] = [];
     private freeWorkers: Worker[] = [];
-    private taskQueue: WorkerTask[] = [];
-    private workerFactory: () => Worker;
+    private taskQueue: WorkerTask<any>[] = [];    private workerFactory: () => Worker;
     private maxWorkers: number;
 
     constructor(workerFactory: () => Worker, maxWorkers: number = navigator.hardwareConcurrency || 4) {
@@ -23,14 +22,14 @@ export class WorkerPool {
         this.maxWorkers = maxWorkers;
     }
 
-    public execute<T>(message: any, transferables?: Transferable[]): Promise<T> {
+    public execute<T>(message: unknown, transferables?: Transferable[]): Promise<T> {
         return new Promise((resolve, reject) => {
             const task: WorkerTask<T> = { message, transferables, resolve, reject };
             this.schedule(task);
         });
     }
 
-    private schedule(task: WorkerTask) {
+    private schedule(task: WorkerTask<any>) {
         if (this.freeWorkers.length > 0 || this.workers.length < this.maxWorkers) {
             this.runTask(task);
         } else {
@@ -38,7 +37,7 @@ export class WorkerPool {
         }
     }
 
-    private runTask(task: WorkerTask) {
+    private runTask(task: WorkerTask<any>) {
         let worker: Worker | undefined;
 
         if (this.freeWorkers.length > 0) {
@@ -64,7 +63,7 @@ export class WorkerPool {
 
         worker.onmessage = (e) => {
             const { id, success, result, error } = e.data;
-            if (id === task.message.id) {
+            if (id === (task.message as any).id) {
                 if (success) {
                     task.resolve(result);
                 } else {
@@ -84,7 +83,7 @@ export class WorkerPool {
 
     private processNext() {
         if (this.taskQueue.length > 0 && (this.freeWorkers.length > 0 || this.workers.length < this.maxWorkers)) {
-            const task = this.taskQueue.shift()!;
+            const task = this.taskQueue.shift()! as WorkerTask<any>;
             this.runTask(task);
         }
     }

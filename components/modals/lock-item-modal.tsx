@@ -76,9 +76,9 @@ export function LockItemModal({
             } else {
                 toast.error(response.error || `Failed to lock ${itemType}`)
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error("Failed to lock item:", error)
-            toast.error(error.message || `Failed to lock ${itemType}`)
+            toast.error(error instanceof Error ? error.message : `Failed to lock ${itemType}`)
         } finally {
             setIsLoading(false)
         }

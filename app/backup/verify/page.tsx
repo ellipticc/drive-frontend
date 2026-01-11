@@ -27,6 +27,7 @@ export default function VerifyBackupPage() {
             router.replace('/backup')
             return
         }
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setOriginalMnemonic(mnemonic)
 
         // 2. Initialize Puzzle

@@ -17,7 +17,7 @@ export async function deriveCommentKey(shareCek: Uint8Array): Promise<Uint8Array
 
     const ikm = await crypto.subtle.importKey(
         'raw',
-        shareCek as any,
+        new Uint8Array(shareCek),
         { name: 'HKDF' },
         false,
         ['deriveBits']

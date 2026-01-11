@@ -271,7 +271,7 @@ export async function uploadEncryptedFile(
           const uploadUrl = session.uploadUrls[i];
           const response = await fetch(uploadUrl, {
             method: 'PUT',
-            body: new Blob([processed.encryptedData as any]),
+            body: new Blob([new Uint8Array(processed.encryptedData)]),
             headers: {
               'Content-Type': 'application/octet-stream',
               'Content-MD5': processed.md5 // Required for Object Lock
