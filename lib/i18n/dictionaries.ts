@@ -123,6 +123,11 @@ export const dictionaries = {
             dropToMove: "Drop to move to folder '{{folder}}'",
             dragToMove: "Drag over a folder to move",
             moreItems: "more items",
+            noSearchResultsTitle: "No results found",
+            noSearchResultsDescription: "Try a different search term or check your spelling.",
+            noRootFilesTitle: "Your drive is empty",
+            noFilesTitle: "This folder is empty",
+            noFilesDescription: "Upload your first file or create a folder to get started.",
         }
     },
     fr: {
@@ -247,6 +252,11 @@ export const dictionaries = {
             dropToMove: "Relâchez pour déplacer vers le dossier '{{folder}}'",
             dragToMove: "Faites glisser sur un dossier pour déplacer",
             moreItems: "autres éléments",
+            noSearchResultsTitle: "Aucun résultat trouvé",
+            noSearchResultsDescription: "Essayez un autre terme de recherche ou vérifiez l'orthographe.",
+            noRootFilesTitle: "Votre drive est vide",
+            noFilesTitle: "Ce dossier est vide",
+            noFilesDescription: "Téléversez votre premier fichier ou créez un dossier pour commencer.",
         }
     },
     es: {
@@ -371,6 +381,11 @@ export const dictionaries = {
             dropToMove: "Soltar para mover a la carpeta '{{folder}}'",
             dragToMove: "Arrastra sobre una carpeta para mover",
             moreItems: "más elementos",
+            noSearchResultsTitle: "No se encontraron resultados",
+            noSearchResultsDescription: "Pruebe con un término de búsqueda diferente o verifique su ortografía.",
+            noRootFilesTitle: "Su unidad está vacía",
+            noFilesTitle: "Esta carpeta está vacía",
+            noFilesDescription: "Suba su primer archivo o cree una carpeta para comenzar.",
         }
     },
     de: {
@@ -495,6 +510,11 @@ export const dictionaries = {
             dropToMove: "Zum Verschieben in Ordner '{{folder}}' ablegen",
             dragToMove: "Über einen Ordner ziehen zum Verschieben",
             moreItems: "weitere Elemente",
+            noSearchResultsTitle: "Keine Ergebnisse gefunden",
+            noSearchResultsDescription: "Versuchen Sie es mit einem anderen Suchbegriff oder überprüfen Sie Ihre Rechtschreibung.",
+            noRootFilesTitle: "Dein Drive ist leer",
+            noFilesTitle: "Dieser Ordner ist leer",
+            noFilesDescription: "Laden Sie Ihre erste Datei hoch oder erstellen Sie einen Ordner, um loszulegen.",
         }
     }
 } as const;

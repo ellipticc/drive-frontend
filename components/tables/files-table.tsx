@@ -71,6 +71,14 @@ import {
     ActionBarClose,
     ActionBarSeparator,
 } from "@/components/ui/action-bar";
+import {
+    Empty,
+    EmptyContent,
+    EmptyDescription,
+    EmptyHeader,
+    EmptyTitle,
+    EmptyMedia,
+} from "@/components/ui/empty";
 
 /**
  * DropHelper: Fixed bottom center overlay that appears during drag
@@ -2017,8 +2025,48 @@ export const Table01DividerLineSm = ({
         overscan: 5, // Render 5 items outside of view
     });
 
-
-
+    const emptyState = (
+        <div className="flex flex-col items-center justify-center py-20 px-4">
+            <Empty>
+                <EmptyMedia variant="icon">
+                    {deferredQuery ? (
+                        <IconX className="h-12 w-12 text-muted-foreground/40" />
+                    ) : (
+                        <IconFolder className="h-12 w-12 text-muted-foreground/40" />
+                    )}
+                </EmptyMedia>
+                <EmptyHeader>
+                    <EmptyTitle>
+                        {deferredQuery
+                            ? t("files.noSearchResultsTitle") || "No results found"
+                            : currentFolderId === 'root'
+                                ? t("files.noRootFilesTitle") || "Your drive is empty"
+                                : t("files.noFilesTitle") || "This folder is empty"}
+                    </EmptyTitle>
+                    <EmptyDescription>
+                        {deferredQuery
+                            ? t("files.noSearchResultsDescription") || "Try a different search term or check your spelling."
+                            : t("files.noFilesDescription") || "Upload your first file or create a folder to get started."}
+                    </EmptyDescription>
+                </EmptyHeader>
+                {!deferredQuery && (
+                    <EmptyContent className="flex gap-2">
+                        <Button onClick={handleFileUpload}>
+                            <IconFileUpload className="mr-2 h-4 w-4" />
+                            {t("files.uploadFile")}
+                        </Button>
+                        <Button variant="outline" onClick={() => {
+                            const createFolderButton = document.querySelector('[data-create-folder-trigger]') as HTMLElement;
+                            if (createFolderButton) createFolderButton.click();
+                        }}>
+                            <IconFolderPlus className="mr-2 h-4 w-4" />
+                            {t("files.newFolder")}
+                        </Button>
+                    </EmptyContent>
+                )}
+            </Empty>
+        </div>
+    );
 
     const handleCopyConflict = (items: Array<{ id: string; name: string; type: "file" | "folder"; conflictingItemId?: string }>, destinationFolderId: string | null) => {
         setCopyConflictItems(items.map(item => ({
@@ -2398,7 +2446,7 @@ export const Table01DividerLineSm = ({
                             }
                         }}
                     >
-                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title={t("files.newFolder")}>
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title={t("files.newFolder")} data-create-folder-trigger>
                             <IconFolderPlus className="h-3.5 w-3.5" />
                         </Button>
                     </CreateFolderModal>
@@ -2819,321 +2867,328 @@ export const Table01DividerLineSm = ({
                                     <Table aria-label="Files" selectionMode="multiple" selectionBehavior="replace" sortDescriptor={sortDescriptor} onSortChange={setSortDescriptor} selectedKeys={selectedItems} onSelectionChange={handleTableSelectionChange}
                                         onContextMenu={(e: React.MouseEvent) => handleContextMenu(e)}
                                     >
-                                        <Table.Header className="group">
-                                            <Table.Head className="w-10 text-center pl-2 md:pl-4 pr-0">
-                                                <Checkbox
-                                                    slot="selection"
-                                                    className={`transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}
-                                                />
-                                            </Table.Head>
-                                            <Table.Head id="name" isRowHeader allowsSorting={true} className="w-full max-w-0 pointer-events-none cursor-default" align="left">
-                                                {selectedItems.size > 0 ? (
-                                                    <span className="text-xs font-semibold whitespace-nowrap text-foreground px-1.5 py-1">{selectedItems.size} selected</span>
-                                                ) : (
-                                                    <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto">{t("files.name")}</span>
+                                        {filteredItems.length > 0 && (
+                                            <Table.Header className="group">
+                                                <Table.Head className="w-10 text-center pl-2 md:pl-4 pr-0">
+                                                    <Checkbox
+                                                        slot="selection"
+                                                        className={`transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}
+                                                    />
+                                                </Table.Head>
+                                                <Table.Head id="name" isRowHeader allowsSorting={true} className="w-full max-w-0 pointer-events-none cursor-default" align="left">
+                                                    {selectedItems.size > 0 ? (
+                                                        <span className="text-xs font-semibold whitespace-nowrap text-foreground px-1.5 py-1">{selectedItems.size} selected</span>
+                                                    ) : (
+                                                        <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto">{t("files.name")}</span>
+                                                    )}
+                                                </Table.Head>
+                                                <Table.Head id="starred" align="center" className={`hidden md:table-cell w-16 ${visibleColumns.has('starred') ? '' : '[&>*]:invisible pointer-events-none cursor-default'}`} />
+                                                <Table.Head id="modified" allowsSorting={true} align="right" className={`hidden md:table-cell w-40 ${visibleColumns.has('modified') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
+                                                    <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>{t("files.modified")}</span>
+                                                </Table.Head>
+                                                <Table.Head id="size" allowsSorting={true} align="right" className={`hidden md:table-cell w-28 ${visibleColumns.has('size') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
+                                                    <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>{t("files.size")}</span>
+                                                </Table.Head>
+                                                <Table.Head id="checksum" allowsSorting={true} align="right" className={`hidden md:table-cell w-32 ${visibleColumns.has('checksum') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
+                                                    <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>{t("files.checksum")}</span>
+                                                </Table.Head>
+                                                <Table.Head id="shared" align="center" className={`hidden md:table-cell w-16 ${visibleColumns.has('shared') ? '' : '[&>*]:invisible pointer-events-none cursor-default'}`} />
+                                                <Table.Head id="actions" align="right" className="w-12 px-2" />
+                                            </Table.Header>
+                                        )}
+
+
+                                        {filteredItems.length > 0 ? (
+                                            <Table.Body dependencies={[visibleColumns, selectedItems.size, rowVirtualizer.getVirtualItems()]}>
+                                                {/* Top Spacer */}
+                                                {rowVirtualizer.getVirtualItems().length > 0 && rowVirtualizer.getVirtualItems()[0].start > 0 && (
+                                                    <Table.Row id="spacer-top" className="hover:bg-transparent border-0 focus-visible:outline-none">
+                                                        <Table.Cell colSpan={8} style={{ height: rowVirtualizer.getVirtualItems()[0].start, padding: 0 }} />
+                                                    </Table.Row>
                                                 )}
-                                            </Table.Head>
-                                            <Table.Head id="starred" align="center" className={`hidden md:table-cell w-16 ${visibleColumns.has('starred') ? '' : '[&>*]:invisible pointer-events-none cursor-default'}`} />
-                                            <Table.Head id="modified" allowsSorting={true} align="right" className={`hidden md:table-cell w-40 ${visibleColumns.has('modified') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
-                                                <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>{t("files.modified")}</span>
-                                            </Table.Head>
-                                            <Table.Head id="size" allowsSorting={true} align="right" className={`hidden md:table-cell w-28 ${visibleColumns.has('size') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
-                                                <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>{t("files.size")}</span>
-                                            </Table.Head>
-                                            <Table.Head id="checksum" allowsSorting={true} align="right" className={`hidden md:table-cell w-32 ${visibleColumns.has('checksum') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
-                                                <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>{t("files.checksum")}</span>
-                                            </Table.Head>
-                                            <Table.Head id="shared" align="center" className={`hidden md:table-cell w-16 ${visibleColumns.has('shared') ? '' : '[&>*]:invisible pointer-events-none cursor-default'}`} />
-                                            <Table.Head id="actions" align="right" className="w-12 px-2" />
-                                        </Table.Header>
 
-                                        <Table.Body dependencies={[visibleColumns, selectedItems.size, rowVirtualizer.getVirtualItems()]}>
-                                            {/* Top Spacer */}
-                                            {rowVirtualizer.getVirtualItems().length > 0 && rowVirtualizer.getVirtualItems()[0].start > 0 && (
-                                                <Table.Row id="spacer-top" className="hover:bg-transparent border-0 focus-visible:outline-none">
-                                                    <Table.Cell colSpan={8} style={{ height: rowVirtualizer.getVirtualItems()[0].start, padding: 0 }} />
-                                                </Table.Row>
-                                            )}
+                                                {rowVirtualizer.getVirtualItems().map((virtualItem) => {
+                                                    const item = filteredItems[virtualItem.index];
+                                                    const isSelected = selectedItems.has(item.id);
+                                                    const isDraggingSomewhere = !!activeDragItem;
 
-                                            {rowVirtualizer.getVirtualItems().map((virtualItem) => {
-                                                const item = filteredItems[virtualItem.index];
-                                                const isSelected = selectedItems.has(item.id);
-                                                const isDraggingSomewhere = !!activeDragItem;
-
-                                                return (
-                                                    <DraggableDroppableRow
-                                                        key={item.id}
-                                                        id={item.id}
-                                                        item={item}
-                                                        isSelected={isSelected}
-                                                        isDraggingSomewhere={isDraggingSomewhere}
-                                                        onDoubleClick={item.type === 'folder' ? () => handleFolderDoubleClick(item.id, item.name) : (item.type === 'file' ? () => handlePreviewClick(item.id, item.name, item.mimeType) : undefined)}
-                                                        className="group hover:bg-muted/50 transition-colors duration-150"
-                                                        onContextMenu={handleContextMenu}
-                                                        // Ensure the row height is tracked
-                                                        data-index={virtualItem.index}
-                                                        ref={rowVirtualizer.measureElement}
-                                                    >
-                                                        <Table.Cell className="w-10 text-center pl-2 md:pl-4 pr-0">
-                                                            <Checkbox
-                                                                slot="selection"
-                                                                className={`transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}
-                                                            />
-                                                        </Table.Cell>
-                                                        <Table.Cell className="w-full max-w-0">
-                                                            <div className="flex items-center gap-2 min-w-0">
-                                                                <div className="text-base">
-                                                                    {item.type === 'folder' ? (
-                                                                        <IconFolder className="h-4 w-4 text-blue-500 inline-block" />
-                                                                    ) : (
-                                                                        <FileIcon mimeType={item.mimeType} filename={item.name} className="h-4 w-4 inline-block" />
-                                                                    )}
-                                                                </div>
-                                                                <div className="flex items-center gap-1.5 flex-1 min-w-0 group/name-cell">
-                                                                    {inlineRenameId === item.id ? (
-                                                                        <Input
-                                                                            autoFocus
-                                                                            spellCheck={false}
-                                                                            autoComplete="off"
-                                                                            value={inlineRenameValue}
-                                                                            onChange={(e) => setInlineRenameValue(e.target.value)}
-                                                                            onClick={(e) => e.stopPropagation()}
-                                                                            onMouseDown={(e) => e.stopPropagation()}
-                                                                            onPointerDown={(e) => e.stopPropagation()}
-                                                                            onKeyDown={(e) => {
-                                                                                if (e.key === 'Enter') {
-                                                                                    e.preventDefault();
-                                                                                    e.currentTarget.blur();
-                                                                                }
-                                                                                if (e.key === 'Escape') {
-                                                                                    e.stopPropagation();
-                                                                                    setInlineRenameId(null);
-                                                                                }
-                                                                            }}
-                                                                            onBlur={() => handleInlineRenameSubmit(item)}
-                                                                            className="h-7 py-0 px-1 text-sm font-medium focus-visible:ring-1 focus-visible:ring-offset-0 bg-background"
-                                                                            disabled={isInlineRenaming}
-                                                                        />
-                                                                    ) : (
-                                                                        <>
-                                                                            <TruncatedNameTooltip
-                                                                                name={item.name}
-                                                                                className="text-sm font-medium whitespace-nowrap text-foreground cursor-default min-w-0 flex-initial"
-                                                                            />
-                                                                            <RenameButton
-                                                                                onClick={(e) => {
-                                                                                    e.stopPropagation();
-                                                                                    setInlineRenameId(item.id);
-                                                                                    setInlineRenameValue(item.name);
-                                                                                }}
-                                                                                className="opacity-0 group-hover/name-cell:opacity-100 p-1 transition-all text-muted-foreground hover:text-primary shrink-0 ml-0.5"
-                                                                            />
-                                                                        </>
-                                                                    )}
-                                                                </div>
-                                                                {item.lockedUntil && new Date(item.lockedUntil) > new Date() && (
-                                                                    <Tooltip>
-                                                                        <TooltipTrigger asChild>
-                                                                            <IconLock className="h-3.5 w-3.5 text-amber-500 shrink-0 ml-1" />
-                                                                        </TooltipTrigger>
-                                                                        <TooltipContent>
-                                                                            <p>{t("files.locked", { date: new Date(item.lockedUntil).toLocaleDateString() })}</p>
-                                                                        </TooltipContent>
-                                                                    </Tooltip>
-                                                                )}
-                                                            </div>
-                                                        </Table.Cell>
-                                                        <Table.Cell className={`hidden md:table-cell px-1 w-16 text-center ${visibleColumns.has('starred') ? '' : '[&>*]:invisible'}`}>
-                                                            <Tooltip>
-                                                                <TooltipTrigger asChild>
-                                                                    <button
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            handleStarClick(item.id, item.type, item.is_starred || false);
-                                                                        }}
-                                                                        onMouseDown={(e) => e.stopPropagation()}
-                                                                        onPointerDown={(e) => e.stopPropagation()}
-                                                                        className="flex items-center justify-center cursor-pointer hover:bg-accent rounded-sm p-1 transition-colors ml-auto mr-2"
-                                                                    >
-                                                                        {item.is_starred ? (
-                                                                            <IconStarFilled className="h-4 w-4 text-foreground" />
+                                                    return (
+                                                        <DraggableDroppableRow
+                                                            key={item.id}
+                                                            id={item.id}
+                                                            item={item}
+                                                            isSelected={isSelected}
+                                                            isDraggingSomewhere={isDraggingSomewhere}
+                                                            onDoubleClick={item.type === 'folder' ? () => handleFolderDoubleClick(item.id, item.name) : (item.type === 'file' ? () => handlePreviewClick(item.id, item.name, item.mimeType) : undefined)}
+                                                            className="group hover:bg-muted/50 transition-colors duration-150"
+                                                            onContextMenu={handleContextMenu}
+                                                            // Ensure the row height is tracked
+                                                            data-index={virtualItem.index}
+                                                            ref={rowVirtualizer.measureElement}
+                                                        >
+                                                            <Table.Cell className="w-10 text-center pl-2 md:pl-4 pr-0">
+                                                                <Checkbox
+                                                                    slot="selection"
+                                                                    className={`transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}
+                                                                />
+                                                            </Table.Cell>
+                                                            <Table.Cell className="w-full max-w-0">
+                                                                <div className="flex items-center gap-2 min-w-0">
+                                                                    <div className="text-base">
+                                                                        {item.type === 'folder' ? (
+                                                                            <IconFolder className="h-4 w-4 text-blue-500 inline-block" />
                                                                         ) : (
-                                                                            <IconStar className="h-4 w-4 text-muted-foreground/40 hover:text-foreground/80" />
+                                                                            <FileIcon mimeType={item.mimeType} filename={item.name} className="h-4 w-4 inline-block" />
                                                                         )}
-                                                                    </button>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent>
-                                                                    <p>{item.is_starred ? t("files.starred.remove") : t("files.starred.add")}</p>
-                                                                </TooltipContent>
-                                                            </Tooltip>
-                                                        </Table.Cell>
-                                                        <Table.Cell className={`hidden md:table-cell text-right w-40 ${visibleColumns.has('modified') ? '' : '[&>*]:invisible'} px-4`}>
-                                                            <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
-                                                                {formatDate(item.createdAt)}
-                                                            </span>
-                                                        </Table.Cell>
-                                                        <Table.Cell className={`hidden md:table-cell text-right w-28 ${visibleColumns.has('size') ? '' : '[&>*]:invisible'} px-4`}>
-                                                            <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
-                                                                {item.type === 'folder' ? '--' : formatFileSize(item.size || 0)}
-                                                            </span>
-                                                        </Table.Cell>
-                                                        <Table.Cell className={`hidden md:table-cell text-right w-32 ${visibleColumns.has('checksum') ? '' : '[&>*]:invisible'} px-4`}>
-                                                            {item.type === 'folder' ? (
-                                                                <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">N/A</span>
-                                                            ) : item.shaHash ? (
+                                                                    </div>
+                                                                    <div className="flex items-center gap-1.5 flex-1 min-w-0 group/name-cell">
+                                                                        {inlineRenameId === item.id ? (
+                                                                            <Input
+                                                                                autoFocus
+                                                                                spellCheck={false}
+                                                                                autoComplete="off"
+                                                                                value={inlineRenameValue}
+                                                                                onChange={(e) => setInlineRenameValue(e.target.value)}
+                                                                                onClick={(e) => e.stopPropagation()}
+                                                                                onMouseDown={(e) => e.stopPropagation()}
+                                                                                onPointerDown={(e) => e.stopPropagation()}
+                                                                                onKeyDown={(e) => {
+                                                                                    if (e.key === 'Enter') {
+                                                                                        e.preventDefault();
+                                                                                        e.currentTarget.blur();
+                                                                                    }
+                                                                                    if (e.key === 'Escape') {
+                                                                                        e.stopPropagation();
+                                                                                        setInlineRenameId(null);
+                                                                                    }
+                                                                                }}
+                                                                                onBlur={() => handleInlineRenameSubmit(item)}
+                                                                                className="h-7 py-0 px-1 text-sm font-medium focus-visible:ring-1 focus-visible:ring-offset-0 bg-background"
+                                                                                disabled={isInlineRenaming}
+                                                                            />
+                                                                        ) : (
+                                                                            <>
+                                                                                <TruncatedNameTooltip
+                                                                                    name={item.name}
+                                                                                    className="text-sm font-medium whitespace-nowrap text-foreground cursor-default min-w-0 flex-initial"
+                                                                                />
+                                                                                <RenameButton
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        setInlineRenameId(item.id);
+                                                                                        setInlineRenameValue(item.name);
+                                                                                    }}
+                                                                                    className="opacity-0 group-hover/name-cell:opacity-100 p-1 transition-all text-muted-foreground hover:text-primary shrink-0 ml-0.5"
+                                                                                />
+                                                                            </>
+                                                                        )}
+                                                                    </div>
+                                                                    {item.lockedUntil && new Date(item.lockedUntil) > new Date() && (
+                                                                        <Tooltip>
+                                                                            <TooltipTrigger asChild>
+                                                                                <IconLock className="h-3.5 w-3.5 text-amber-500 shrink-0 ml-1" />
+                                                                            </TooltipTrigger>
+                                                                            <TooltipContent>
+                                                                                <p>{t("files.locked", { date: new Date(item.lockedUntil).toLocaleDateString() })}</p>
+                                                                            </TooltipContent>
+                                                                        </Tooltip>
+                                                                    )}
+                                                                </div>
+                                                            </Table.Cell>
+                                                            <Table.Cell className={`hidden md:table-cell px-1 w-16 text-center ${visibleColumns.has('starred') ? '' : '[&>*]:invisible'}`}>
                                                                 <Tooltip>
                                                                     <TooltipTrigger asChild>
                                                                         <button
-                                                                            className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer font-mono whitespace-nowrap"
                                                                             onClick={(e) => {
                                                                                 e.stopPropagation();
-                                                                                navigator.clipboard.writeText(item.shaHash!);
-                                                                                setCopiedHashId(item.id);
-                                                                                setTimeout(() => setCopiedHashId(null), 300);
-                                                                            }}
-                                                                        >
-                                                                            {item.shaHash.substring(0, 5)}...{item.shaHash.substring(item.shaHash.length - 5)}
-                                                                        </button>
-                                                                    </TooltipTrigger>
-                                                                    <TooltipContent
-                                                                        className="max-w-none whitespace-nowrap font-[var(--font-jetbrains-mono)] font-semibold tracking-wider"
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            navigator.clipboard.writeText(item.shaHash!);
-                                                                            setCopiedHashId(item.id);
-                                                                            setTimeout(() => setCopiedHashId(null), 500);
-                                                                        }}
-                                                                    >
-                                                                        <p className={`text-xs cursor-pointer transition-all duration-300 ${copiedHashId === item.id ? 'animate-pulse bg-primary/20 text-primary scale-105' : ''}`}>{item.shaHash}</p>
-                                                                    </TooltipContent>
-                                                                </Tooltip>
-                                                            ) : (
-                                                                <span className="text-xs text-muted-foreground font-mono break-all">N/A</span>
-                                                            )}
-                                                        </Table.Cell>
-                                                        <Table.Cell className={`hidden md:table-cell px-1 w-16 text-center ${visibleColumns.has('shared') ? '' : '[&>*]:invisible'}`}>
-                                                            {item.is_shared && (
-                                                                <Tooltip>
-                                                                    <TooltipTrigger asChild>
-                                                                        <button
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                handleShareClick(item.id, item.name, item.type);
+                                                                                handleStarClick(item.id, item.type, item.is_starred || false);
                                                                             }}
                                                                             onMouseDown={(e) => e.stopPropagation()}
                                                                             onPointerDown={(e) => e.stopPropagation()}
                                                                             className="flex items-center justify-center cursor-pointer hover:bg-accent rounded-sm p-1 transition-colors ml-auto mr-2"
                                                                         >
-                                                                            <IconShare3 className="h-4 w-4 text-blue-500" />
+                                                                            {item.is_starred ? (
+                                                                                <IconStarFilled className="h-4 w-4 text-foreground" />
+                                                                            ) : (
+                                                                                <IconStar className="h-4 w-4 text-muted-foreground/40 hover:text-foreground/80" />
+                                                                            )}
                                                                         </button>
                                                                     </TooltipTrigger>
                                                                     <TooltipContent>
-                                                                        <p>{t("files.manageShare")}</p>
+                                                                        <p>{item.is_starred ? t("files.starred.remove") : t("files.starred.add")}</p>
                                                                     </TooltipContent>
                                                                 </Tooltip>
-                                                            )}
-                                                        </Table.Cell>
-                                                        <Table.Cell className="px-2 md:px-3 w-10 md:w-12">
-                                                            <div className={`flex justify-end gap-0.5 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-200`}>
-                                                                <DropdownMenu>
-                                                                    <DropdownMenuTrigger asChild id={filteredItems.indexOf(item) === 0 ? "tour-file-actions" : undefined}>
-                                                                        <Button
-                                                                            size="sm"
-                                                                            variant="ghost"
-                                                                            className="h-8 w-8 p-0"
-                                                                            onClick={(e) => e.stopPropagation()}
-                                                                            onMouseDown={(e) => e.stopPropagation()}
-                                                                            onPointerDown={(e) => e.stopPropagation()}
+                                                            </Table.Cell>
+                                                            <Table.Cell className={`hidden md:table-cell text-right w-40 ${visibleColumns.has('modified') ? '' : '[&>*]:invisible'} px-4`}>
+                                                                <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
+                                                                    {formatDate(item.createdAt)}
+                                                                </span>
+                                                            </Table.Cell>
+                                                            <Table.Cell className={`hidden md:table-cell text-right w-28 ${visibleColumns.has('size') ? '' : '[&>*]:invisible'} px-4`}>
+                                                                <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
+                                                                    {item.type === 'folder' ? '--' : formatFileSize(item.size || 0)}
+                                                                </span>
+                                                            </Table.Cell>
+                                                            <Table.Cell className={`hidden md:table-cell text-right w-32 ${visibleColumns.has('checksum') ? '' : '[&>*]:invisible'} px-4`}>
+                                                                {item.type === 'folder' ? (
+                                                                    <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">N/A</span>
+                                                                ) : item.shaHash ? (
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <button
+                                                                                className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer font-mono whitespace-nowrap"
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    navigator.clipboard.writeText(item.shaHash!);
+                                                                                    setCopiedHashId(item.id);
+                                                                                    setTimeout(() => setCopiedHashId(null), 300);
+                                                                                }}
+                                                                            >
+                                                                                {item.shaHash.substring(0, 5)}...{item.shaHash.substring(item.shaHash.length - 5)}
+                                                                            </button>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent
+                                                                            className="max-w-none whitespace-nowrap font-[var(--font-jetbrains-mono)] font-semibold tracking-wider"
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                navigator.clipboard.writeText(item.shaHash!);
+                                                                                setCopiedHashId(item.id);
+                                                                                setTimeout(() => setCopiedHashId(null), 500);
+                                                                            }}
                                                                         >
-                                                                            <DotsVertical className="h-4 w-4" />
-                                                                        </Button>
-                                                                    </DropdownMenuTrigger>
-                                                                    <DropdownMenuContent align="end" className="w-48">
-                                                                        <DropdownMenuItem onClick={() => handleDownloadClick(item.id, item.name, item.type)}>
-                                                                            <IconDownload className="h-4 w-4 mr-2" />
-                                                                            {t("files.download")}
-                                                                        </DropdownMenuItem>
-                                                                        {item.type === 'file' && (
-                                                                            <DropdownMenuItem onClick={() => handlePreviewClick(item.id, item.name, item.mimeType)}>
-                                                                                <IconEye className="h-4 w-4 mr-2" />
-                                                                                {t("files.preview")}
+                                                                            <p className={`text-xs cursor-pointer transition-all duration-300 ${copiedHashId === item.id ? 'animate-pulse bg-primary/20 text-primary scale-105' : ''}`}>{item.shaHash}</p>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                ) : (
+                                                                    <span className="text-xs text-muted-foreground font-mono break-all">N/A</span>
+                                                                )}
+                                                            </Table.Cell>
+                                                            <Table.Cell className={`hidden md:table-cell px-1 w-16 text-center ${visibleColumns.has('shared') ? '' : '[&>*]:invisible'}`}>
+                                                                {item.is_shared && (
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <button
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    handleShareClick(item.id, item.name, item.type);
+                                                                                }}
+                                                                                onMouseDown={(e) => e.stopPropagation()}
+                                                                                onPointerDown={(e) => e.stopPropagation()}
+                                                                                className="flex items-center justify-center cursor-pointer hover:bg-accent rounded-sm p-1 transition-colors ml-auto mr-2"
+                                                                            >
+                                                                                <IconShare3 className="h-4 w-4 text-blue-500" />
+                                                                            </button>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent>
+                                                                            <p>{t("files.manageShare")}</p>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                )}
+                                                            </Table.Cell>
+                                                            <Table.Cell className="px-2 md:px-3 w-10 md:w-12">
+                                                                <div className={`flex justify-end gap-0.5 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-200`}>
+                                                                    <DropdownMenu>
+                                                                        <DropdownMenuTrigger asChild id={filteredItems.indexOf(item) === 0 ? "tour-file-actions" : undefined}>
+                                                                            <Button
+                                                                                size="sm"
+                                                                                variant="ghost"
+                                                                                className="h-8 w-8 p-0"
+                                                                                onClick={(e) => e.stopPropagation()}
+                                                                                onMouseDown={(e) => e.stopPropagation()}
+                                                                                onPointerDown={(e) => e.stopPropagation()}
+                                                                            >
+                                                                                <DotsVertical className="h-4 w-4" />
+                                                                            </Button>
+                                                                        </DropdownMenuTrigger>
+                                                                        <DropdownMenuContent align="end" className="w-48">
+                                                                            <DropdownMenuItem onClick={() => handleDownloadClick(item.id, item.name, item.type)}>
+                                                                                <IconDownload className="h-4 w-4 mr-2" />
+                                                                                {t("files.download")}
                                                                             </DropdownMenuItem>
-                                                                        )}
-                                                                        <DropdownMenuItem onClick={() => handleShareClick(item.id, item.name, item.type)}>
-                                                                            <IconShare3 className="h-4 w-4 mr-2" />
-                                                                            {t("files.share")}
-                                                                        </DropdownMenuItem>
-                                                                        <DropdownMenuItem onClick={() => handleStarClick(item.id, item.type, item.is_starred || false)}>
-                                                                            {item.is_starred ? (
-                                                                                <>
-                                                                                    <IconStarFilled className="h-4 w-4 mr-2 text-foreground" />
-                                                                                    {t("files.starred.remove")}
-                                                                                </>
-                                                                            ) : (
-                                                                                <>
-                                                                                    <IconStar className="h-4 w-4 mr-2" />
-                                                                                    {t("files.starred.add")}
-                                                                                </>
+                                                                            {item.type === 'file' && (
+                                                                                <DropdownMenuItem onClick={() => handlePreviewClick(item.id, item.name, item.mimeType)}>
+                                                                                    <IconEye className="h-4 w-4 mr-2" />
+                                                                                    {t("files.preview")}
+                                                                                </DropdownMenuItem>
                                                                             )}
-                                                                        </DropdownMenuItem>
-                                                                        <DropdownMenuSeparator />
-                                                                        <DropdownMenuItem onClick={() => handleMoveToFolderClick(item.id, item.name, item.type)}>
-                                                                            <IconFolder className="h-4 w-4 me-2" />
-                                                                            {t("files.move")}
-                                                                        </DropdownMenuItem>
-                                                                        <DropdownMenuItem onClick={() => handleCopyClick(item.id, item.name, item.type)}>
-                                                                            <IconCopy className="h-4 w-4 me-2" />
-                                                                            {t("files.copyTo")}
-                                                                        </DropdownMenuItem>
-                                                                        <DropdownMenuItem onClick={() => handleRenameClick(item.id, item.name, item.type)}>
-                                                                            <IconEdit className="h-4 w-4 me-2" />
-                                                                            {t("files.rename")}
-                                                                        </DropdownMenuItem>
-                                                                        <DropdownMenuItem onClick={() => handleDetailsClick(item.id, item.name, item.type)}>
-                                                                            <IconInfoCircle className="h-4 w-4 mr-2" />
-                                                                            {t("files.details")}
-                                                                        </DropdownMenuItem>
-                                                                        <DropdownMenuItem onClick={() => handleLockClick(item.id, item.name, item.type)}>
-                                                                            <IconLock className="h-4 w-4 mr-2" />
-                                                                            {t("files.retention")}
-                                                                        </DropdownMenuItem>
-                                                                        <DropdownMenuSeparator />
-                                                                        <DropdownMenuItem
-                                                                            onClick={() => handleMoveToTrashClick(item.id, item.name, item.type)}
-                                                                            variant="destructive"
-                                                                            disabled={!!(item.lockedUntil && new Date(item.lockedUntil) > new Date())}
-                                                                        >
-                                                                            <IconTrash className="h-4 w-4 mr-2" />
-                                                                            {t("files.moveToTrash")}
-                                                                            {item.lockedUntil && new Date(item.lockedUntil) > new Date() && (
-                                                                                <IconLock className="h-3 w-3 ml-auto opacity-50" />
-                                                                            )}
-                                                                        </DropdownMenuItem>
-                                                                    </DropdownMenuContent>
-                                                                </DropdownMenu>
-                                                            </div>
-                                                        </Table.Cell>
-                                                    </DraggableDroppableRow>
-                                                );
-                                            })}
+                                                                            <DropdownMenuItem onClick={() => handleShareClick(item.id, item.name, item.type)}>
+                                                                                <IconShare3 className="h-4 w-4 mr-2" />
+                                                                                {t("files.share")}
+                                                                            </DropdownMenuItem>
+                                                                            <DropdownMenuItem onClick={() => handleStarClick(item.id, item.type, item.is_starred || false)}>
+                                                                                {item.is_starred ? (
+                                                                                    <>
+                                                                                        <IconStarFilled className="h-4 w-4 mr-2 text-foreground" />
+                                                                                        {t("files.starred.remove")}
+                                                                                    </>
+                                                                                ) : (
+                                                                                    <>
+                                                                                        <IconStar className="h-4 w-4 mr-2" />
+                                                                                        {t("files.starred.add")}
+                                                                                    </>
+                                                                                )}
+                                                                            </DropdownMenuItem>
+                                                                            <DropdownMenuSeparator />
+                                                                            <DropdownMenuItem onClick={() => handleMoveToFolderClick(item.id, item.name, item.type)}>
+                                                                                <IconFolder className="h-4 w-4 me-2" />
+                                                                                {t("files.move")}
+                                                                            </DropdownMenuItem>
+                                                                            <DropdownMenuItem onClick={() => handleCopyClick(item.id, item.name, item.type)}>
+                                                                                <IconCopy className="h-4 w-4 me-2" />
+                                                                                {t("files.copyTo")}
+                                                                            </DropdownMenuItem>
+                                                                            <DropdownMenuItem onClick={() => handleRenameClick(item.id, item.name, item.type)}>
+                                                                                <IconEdit className="h-4 w-4 me-2" />
+                                                                                {t("files.rename")}
+                                                                            </DropdownMenuItem>
+                                                                            <DropdownMenuItem onClick={() => handleDetailsClick(item.id, item.name, item.type)}>
+                                                                                <IconInfoCircle className="h-4 w-4 mr-2" />
+                                                                                {t("files.details")}
+                                                                            </DropdownMenuItem>
+                                                                            <DropdownMenuItem onClick={() => handleLockClick(item.id, item.name, item.type)}>
+                                                                                <IconLock className="h-4 w-4 mr-2" />
+                                                                                {t("files.retention")}
+                                                                            </DropdownMenuItem>
+                                                                            <DropdownMenuSeparator />
+                                                                            <DropdownMenuItem
+                                                                                onClick={() => handleMoveToTrashClick(item.id, item.name, item.type)}
+                                                                                variant="destructive"
+                                                                                disabled={!!(item.lockedUntil && new Date(item.lockedUntil) > new Date())}
+                                                                            >
+                                                                                <IconTrash className="h-4 w-4 mr-2" />
+                                                                                {t("files.moveToTrash")}
+                                                                                {item.lockedUntil && new Date(item.lockedUntil) > new Date() && (
+                                                                                    <IconLock className="h-3 w-3 ml-auto opacity-50" />
+                                                                                )}
+                                                                            </DropdownMenuItem>
+                                                                        </DropdownMenuContent>
+                                                                    </DropdownMenu>
+                                                                </div>
+                                                            </Table.Cell>
+                                                        </DraggableDroppableRow>
+                                                    );
+                                                })}
 
-                                            {/* Bottom Spacer */}
-                                            {rowVirtualizer.getVirtualItems().length > 0 && (
-                                                (() => {
-                                                    const lastItem = rowVirtualizer.getVirtualItems()[rowVirtualizer.getVirtualItems().length - 1];
-                                                    const bottomSpace = rowVirtualizer.getTotalSize() - lastItem.end;
-                                                    if (bottomSpace > 0) {
-                                                        return (
-                                                            <Table.Row id="spacer-bottom" className="hover:bg-transparent border-0 focus-visible:outline-none">
-                                                                <Table.Cell colSpan={8} style={{ height: bottomSpace, padding: 0 }} />
-                                                            </Table.Row>
-                                                        );
-                                                    }
-                                                    return null;
-                                                })()
-                                            )}
-                                        </Table.Body>
+                                                {/* Bottom Spacer */}
+                                                {rowVirtualizer.getVirtualItems().length > 0 && (
+                                                    (() => {
+                                                        const lastItem = rowVirtualizer.getVirtualItems()[rowVirtualizer.getVirtualItems().length - 1];
+                                                        const bottomSpace = rowVirtualizer.getTotalSize() - lastItem.end;
+                                                        if (bottomSpace > 0) {
+                                                            return (
+                                                                <Table.Row id="spacer-bottom" className="hover:bg-transparent border-0 focus-visible:outline-none">
+                                                                    <Table.Cell colSpan={8} style={{ height: bottomSpace, padding: 0 }} />
+                                                                </Table.Row>
+                                                            );
+                                                        }
+                                                        return null;
+                                                    })()
+                                                )}
+                                            </Table.Body>
+
+                                        ) : null}
                                     </Table>
+                                    {filteredItems.length === 0 && emptyState}
                                 </div>
                                 <DragOverlay
                                     modifiers={isMobile ? [] : [snapCenterToCursor]}
@@ -3388,12 +3443,7 @@ export const Table01DividerLineSm = ({
                                 </div>
 
                                 {filteredItems.length === 0 && (
-                                    <div className="flex items-center justify-center py-12">
-                                        <div className="text-center">
-                                            <IconFile className="h-12 w-12 mx-auto mb-4 text-muted-foreground" id={filteredItems.length === 0 ? "tour-file-actions" : undefined} />
-                                            <p className="text-sm text-muted-foreground">No files found</p>
-                                        </div>
-                                    </div>
+                                    emptyState
                                 )}
                             </div>
                         )}
