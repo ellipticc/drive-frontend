@@ -51,6 +51,13 @@ import { apiClient } from "@/lib/api"
 import { toast } from "sonner"
 // @ts-ignore
 import JSONHighlighter from 'react-json-syntax-highlighter'
+import dynamic from 'next/dynamic'
+import { UAParser } from 'ua-parser-js'
+
+const MapComponent = dynamic(() => import('./map-component'), {
+    ssr: false,
+    loading: () => <div className="h-full w-full bg-muted animate-pulse rounded-xl" />
+})
 
 interface SecurityTabProps {
     user: any;
@@ -1078,6 +1085,56 @@ export function SecurityTab(props: SecurityTabProps) {
                                                                                 )}
                                                                             </div>
                                                                         </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8 items-stretch">
+                                                                <div className="space-y-4 flex flex-col">
+                                                                    <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Device Information</h4>
+                                                                    <div className="bg-background/50 rounded-xl p-4 border border-muted/50 flex-1 flex flex-col justify-center">
+                                                                        {(() => {
+                                                                            const parser = new UAParser(event.userAgent);
+                                                                            const uaResult = parser.getResult();
+                                                                            return (
+                                                                                <>
+                                                                                    <PaidField label="Browser Name" value={uaResult.browser.name} />
+                                                                                    <PaidField label="Browser Version" value={uaResult.browser.version} />
+                                                                                    <PaidField label="Engine" value={`${uaResult.engine.name || 'N/A'} ${uaResult.engine.version || ''}`} />
+                                                                                    <PaidField label="OS Name" value={uaResult.os.name} />
+                                                                                    <PaidField label="OS Version" value={uaResult.os.version} />
+                                                                                    <PaidField label="Device Vendor" value={uaResult.device.vendor} />
+                                                                                    <PaidField label="Device Model" value={uaResult.device.model} />
+                                                                                    <PaidField label="Device Type" value={uaResult.device.type || 'Desktop'} />
+                                                                                    <PaidField label="CPU Architecture" value={uaResult.cpu.architecture} />
+                                                                                </>
+                                                                            )
+                                                                        })()}
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="space-y-4 flex flex-col">
+                                                                    <div className="flex items-center justify-between">
+                                                                        <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Location Map</h4>
+                                                                        {!isPaid && <span className="text-[10px] bg-primary/10 text-primary border border-primary/20 px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider">Pro Feature</span>}
+                                                                    </div>
+                                                                    <div className={`bg-background/50 rounded-xl overflow-hidden border border-muted/50 h-[400px] relative ${!isPaid ? 'pointer-events-none' : ''}`}>
+                                                                        <div className={`h-full w-full transition-all duration-500 ${!isPaid ? 'blur-[6px] scale-105' : ''}`}>
+                                                                            <MapComponent
+                                                                                lat={event.latitude || 0}
+                                                                                lng={event.longitude || 0}
+                                                                                popupText={`${event.city || 'Unknown'}, ${event.country || ''}`}
+                                                                            />
+                                                                        </div>
+                                                                        {!isPaid && (
+                                                                            <div className="absolute inset-0 flex items-center justify-center z-10">
+                                                                                <div className="bg-background/80 backdrop-blur-sm p-4 rounded-xl border shadow-lg max-w-[240px] text-center">
+                                                                                    <IconLock className="h-6 w-6 mx-auto text-muted-foreground mb-2" />
+                                                                                    <p className="font-semibold text-sm mb-1">Detailed Map View</p>
+                                                                                    <p className="text-xs text-muted-foreground">Upgrade to Pro to view exact location maps for every security event.</p>
+                                                                                </div>
+                                                                            </div>
+                                                                        )}
                                                                     </div>
                                                                 </div>
                                                             </div>

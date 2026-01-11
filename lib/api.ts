@@ -453,6 +453,18 @@ export interface SecurityEvent {
   userAgent: string;
   createdAt: string;
   additionalData?: any;
+  latitude?: number;
+  longitude?: number;
+  city?: string;
+  country?: string;
+  region?: string;
+  asn?: string;
+  isp?: string;
+  ipType?: string;
+  isVpn?: boolean;
+  isProxy?: boolean;
+  isTor?: boolean;
+  riskLevel?: string;
 }
 
 export interface ShareAccessLog {
