@@ -52,6 +52,12 @@ export default function Home() {
     initializeKeyManager()
   }, [user])
 
+  // Sync search param from URL
+  useEffect(() => {
+    const q = searchParams.get('q');
+    if (q) setSearchQuery(q);
+  }, [searchParams]);
+
   // Handle drag and drop files
   const handleDrop = useCallback((files: File[] | FileList) => {
     const fileArray = Array.isArray(files) ? files as ExtendedFile[] : Array.from(files) as ExtendedFile[]

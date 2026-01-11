@@ -31,17 +31,20 @@ import {
 } from "@tabler/icons-react"
 import { toast } from "sonner"
 import { apiClient, FileInfo, FolderInfo, Tag } from "@/lib/api"
-import { truncateFilename } from "@/lib/utils"
 import {
-  Combobox,
-  ComboboxInput,
-  ComboboxContent,
-  ComboboxEmpty,
-  ComboboxItem,
-  ComboboxGroup,
-  ComboboxGroupLabel,
-  ComboboxSeparator,
-} from "@/components/ui/combobox"
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from "@/components/ui/command"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import {
   Tooltip,
   TooltipContent,
@@ -54,6 +57,7 @@ import { Badge } from "@/components/ui/badge"
 import { unwrapCEK } from "@/lib/download"
 import { decryptData } from "@/lib/crypto"
 import { keyManager } from "@/lib/key-manager"
+import { useUser } from "@/components/user-context"
 
 interface ItemDetails {
   filename?: string;
@@ -108,6 +112,7 @@ export function DetailsModal({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const isMobile = useIsMobile();
+  const { user, deviceQuota } = useUser()
   const [internalOpen, setInternalOpen] = useState(false)
   const [itemDetails, setItemDetails] = useState<ItemDetails | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -124,12 +129,15 @@ export function DetailsModal({
   const [availableTags, setAvailableTags] = useState<Tag[]>([])
   const [isTagging, setIsTagging] = useState(false)
   const [tagInput, setTagInput] = useState("")
+  const [openCombobox, setOpenCombobox] = useState(false)
 
   // NEW: Thumbnail state
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
 
   const open = externalOpen ?? internalOpen
   const setOpen = externalOnOpenChange ?? setInternalOpen
+
+  const isFreePlan = (deviceQuota?.planName === 'Free' || !user?.subscription) && user?.plan !== 'pro' && user?.plan !== 'plus' && user?.plan !== 'unlimited';
 
   useEffect(() => {
     if (open && itemId) {
@@ -264,10 +272,12 @@ export function DetailsModal({
     }
   }, [open, itemId, itemDetails, itemType]);
 
-  const loadItemDetailsAndVerify = async () => {
+  const loadItemDetailsAndVerify = async (silent = false) => {
     try {
-      setIsLoading(true)
-      setSignatureStatus(null)
+      if (!silent) {
+        setIsLoading(true)
+        setSignatureStatus(null)
+      }
 
       let response
       if (itemType === "file") {
@@ -281,6 +291,8 @@ export function DetailsModal({
         const details = itemType === "file" ? (dataObj.file as ItemDetails | undefined) : (dataObj.folder as ItemDetails | undefined) || (response.data as ItemDetails)
         setItemDetails(details as ItemDetails | null)
       }
+
+      if (silent) return;
 
       let verifyResponse
       if (itemType === "file") {
@@ -313,13 +325,15 @@ export function DetailsModal({
       }
     } catch (error) {
       console.error("Failed to load details or verify:", error)
-      setSignatureStatus({
-        verified: false,
-        error: "Verification failed",
-        status: "error"
-      })
+      if (!silent) {
+        setSignatureStatus({
+          verified: false,
+          error: "Verification failed",
+          status: "error"
+        })
+      }
     } finally {
-      setIsLoading(false)
+      if (!silent) setIsLoading(false)
     }
   }
 
@@ -403,6 +417,16 @@ export function DetailsModal({
       return
     }
 
+    if (isFreePlan && tags.length >= 5) {
+      toast.error("Free plan is limited to 5 tags per item. Upgrade to a paid plan for unlimited tags!", {
+        action: {
+          label: "Upgrade",
+          onClick: () => router.push('/pricing')
+        }
+      })
+      return
+    }
+
     setIsTagging(true)
     try {
       const masterKey = masterKeyManager.getMasterKey()
@@ -416,9 +440,8 @@ export function DetailsModal({
       })
 
       if (response.success) {
-        toast.success(`Tag "${tagName}" attached`)
         setTagInput("")
-        loadItemDetailsAndVerify()
+        loadItemDetailsAndVerify(true)
         fetchAvailableTags()
       } else {
         toast.error(response.error || "Failed to attach tag")
@@ -431,14 +454,46 @@ export function DetailsModal({
     }
   }
 
+  const handleAttachExistingTag = async (tag: Tag) => {
+    if (tags.some(t => t.id === tag.id)) return;
+
+    if (isFreePlan && tags.length >= 5) {
+      toast.error("Free plan is limited to 5 tags per item. Upgrade to a paid plan for unlimited tags!", {
+        action: {
+          label: "Upgrade",
+          onClick: () => router.push('/pricing')
+        }
+      })
+      return
+    }
+
+    try {
+      const response = await apiClient.attachTag({
+        [itemType === 'file' ? 'fileId' : 'folderId']: itemId,
+        encryptedName: tag.encrypted_name,
+        nameSalt: tag.name_salt,
+        color: tag.color || 'slate'
+      })
+
+      if (response.success) {
+        loadItemDetailsAndVerify(true)
+        fetchAvailableTags()
+      } else {
+        toast.error(response.error || "Failed to attach tag")
+      }
+    } catch (error) {
+      console.error("Failed to attach existing tag:", error)
+      toast.error("Failed to attach tag")
+    }
+  }
+
   const handleDetachTag = async (tagId: string, tagName: string) => {
     try {
       const response = await apiClient.detachTag(tagId, {
         [itemType === 'file' ? 'fileId' : 'folderId']: itemId
       })
       if (response.success) {
-        toast.success(`Tag "${tagName}" removed`)
-        loadItemDetailsAndVerify()
+        loadItemDetailsAndVerify(true)
       } else {
         toast.error(response.error || "Failed to remove tag")
       }
@@ -448,7 +503,10 @@ export function DetailsModal({
   }
 
   const handleTagClick = (tagName: string) => {
-    toast.info(`Filtering by tag: ${tagName}`)
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('q', `#${tagName}`);
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    setOpen(false);
   }
 
   const copyToClipboard = (text: string, hashId: string) => {
@@ -540,9 +598,6 @@ export function DetailsModal({
         </SheetDescription>
 
         {/* Sticky Header Zone */}
-        {/* We place the header here, outside of scrollable content, to keep it fixed. 
-            It has a z-index and background to sit above content if needed, though they don't overlap. 
-            The pr-8 ensures we don't overlap with the SheetClose button. */}
         <div className="flex-shrink-0 z-10 bg-background pt-4 px-6 pb-0 relative">
           <SheetHeader className="text-left">
             <div className="flex items-center gap-2 mb-2 pr-8">
@@ -571,45 +626,36 @@ export function DetailsModal({
 
                 {/* Preview Area */}
                 <div className="px-6 flex flex-col items-center justify-center py-4">
-                  <TooltipProvider delayDuration={0}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div
-                          className="rounded-2xl bg-white dark:bg-zinc-900 border shadow-sm flex items-center justify-center mb-4 overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary/20 transition-all group"
-                          style={{
-                            width: itemDetails?.width && itemDetails?.height
-                              ? (itemDetails.width > itemDetails.height ? '160px' : (itemDetails.width < itemDetails.height ? '96px' : '128px'))
-                              : '128px',
-                            height: itemDetails?.width && itemDetails?.height
-                              ? (itemDetails.width > itemDetails.height ? '90px' : (itemDetails.width < itemDetails.height ? '128px' : '128px'))
-                              : '128px',
-                          }}
-                          onClick={handlePreview}
-                        >
-                          {thumbnailUrl ? (
-                            <img
-                              src={thumbnailUrl}
-                              alt="Thumbnail"
-                              className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                              draggable={false}
-                              onDragStart={(e) => e.preventDefault()}
-                            />
-                          ) : (
-                            <div className="flex w-full h-full items-center justify-center">
-                              {itemType === "file" ? (
-                                <IconFile className="h-10 w-10 text-muted-foreground opacity-20" />
-                              ) : (
-                                <IconFolder className="h-10 w-10 text-muted-foreground opacity-20" />
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent side="top">
-                        <p className="text-xs">Preview</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                  <div
+                    className="rounded-2xl bg-white dark:bg-zinc-900 border shadow-sm flex items-center justify-center mb-4 overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary/20 transition-all group"
+                    style={{
+                      width: itemDetails?.width && itemDetails?.height
+                        ? (itemDetails.width > itemDetails.height ? '160px' : (itemDetails.width < itemDetails.height ? '96px' : '128px'))
+                        : '128px',
+                      height: itemDetails?.width && itemDetails?.height
+                        ? (itemDetails.width > itemDetails.height ? '90px' : (itemDetails.width < itemDetails.height ? '128px' : '128px'))
+                        : '128px',
+                    }}
+                    onClick={handlePreview}
+                  >
+                    {thumbnailUrl ? (
+                      <img
+                        src={thumbnailUrl}
+                        alt="Thumbnail"
+                        className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                        draggable={false}
+                        onDragStart={(e) => e.preventDefault()}
+                      />
+                    ) : (
+                      <div className="flex w-full h-full items-center justify-center">
+                        {itemType === "file" ? (
+                          <IconFile className="h-10 w-10 text-muted-foreground opacity-20" />
+                        ) : (
+                          <IconFolder className="h-10 w-10 text-muted-foreground opacity-20" />
+                        )}
+                      </div>
+                    )}
+                  </div>
 
                   <h3 className="text-lg font-bold text-center break-all px-4 line-clamp-2">
                     {decryptedFilename || itemName}
@@ -652,15 +698,23 @@ export function DetailsModal({
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-1.5 min-h-[2.5rem] p-2 rounded-lg border bg-muted/20 focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary/30 transition-all">
+                    <div
+                      className="flex flex-wrap gap-1.5 min-h-[2.5rem] p-2 rounded-lg border bg-muted/20 focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary/30 transition-all cursor-text items-center"
+                      onClick={() => {
+                        if (!openCombobox) setOpenCombobox(true);
+                      }}
+                    >
                       {tags.map((tag) => (
                         <Badge
                           key={tag.id}
                           variant="secondary"
                           className="pl-2 pr-1 h-7 flex items-center gap-1 hover:bg-muted cursor-pointer group"
-                          onClick={() => handleTagClick(tag.decryptedName || "")}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleTagClick(tag.decryptedName || "")
+                          }}
                         >
-                          <span className="max-w-[100px] truncate">{tag.decryptedName}</span>
+                          <span className="max-w-[100px] truncate state-text-muted-foreground"># {tag.decryptedName}</span>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -673,63 +727,83 @@ export function DetailsModal({
                         </Badge>
                       ))}
 
-                      <Combobox
-                        value={tagInput}
-                        onValueChange={setTagInput}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && tagInput) {
-                            e.preventDefault();
-                            handleAddTag(tagInput);
-                          }
-                        }}
-                      >
-                        <ComboboxInput
-                          placeholder={tags.length === 0 ? "# Add a tag" : ""}
-                          className="border-none bg-transparent h-7 p-0 focus-visible:ring-0 text-xs flex-1 min-w-[80px]"
-                        />
-                        <ComboboxContent>
-                          {!tagInput && (
-                            <div className="py-6 text-center text-xs text-muted-foreground px-2">
-                              <p>Use words that will help you or teammates find this file.</p>
-                            </div>
-                          )}
-                          <ComboboxEmpty>No matching tags found.</ComboboxEmpty>
-                          <ComboboxGroup>
-                            <ComboboxGroupLabel>Suggestions</ComboboxGroupLabel>
-                            {availableTags
-                              .filter(t => !tags.some(existing => existing.id === t.id))
-                              .filter(t => !tagInput || t.decryptedName?.toLowerCase().includes(tagInput.toLowerCase()))
-                              .slice(0, 5)
-                              .map(tag => (
-                                <ComboboxItem
-                                  key={tag.id}
-                                  value={tag.decryptedName || ""}
-                                  onSelect={() => handleAddTag(tag.decryptedName || "")}
-                                  className="text-xs"
-                                >
-                                  <IconTag className="mr-2 h-3 w-3 opacity-50" />
-                                  {tag.decryptedName}
-                                </ComboboxItem>
-                              ))
-                            }
-                          </ComboboxGroup>
-                          {tagInput && (
-                            <>
-                              {availableTags.length > 0 && <ComboboxSeparator />}
-                              <ComboboxGroup>
-                                <ComboboxItem
-                                  value={tagInput}
-                                  onSelect={() => handleAddTag(tagInput)}
-                                  className="text-xs"
-                                >
-                                  <IconPlus className="mr-2 h-3 w-3" />
-                                  Create tag "{tagInput}"
-                                </ComboboxItem>
-                              </ComboboxGroup>
-                            </>
-                          )}
-                        </ComboboxContent>
-                      </Combobox>
+                      <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            role="combobox"
+                            aria-expanded={openCombobox}
+                            className="h-7 border-none bg-transparent hover:bg-muted/50 p-2 text-xs font-normal text-muted-foreground min-w-[2px] px-1 flex-grow justify-start"
+                          >
+                            {tags.length === 0 && !openCombobox && "Add tags..."}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[200px] p-0" align="start">
+                          <Command shouldFilter={false}>
+                            <CommandInput
+                              placeholder="Search or create tag..."
+                              value={tagInput}
+                              onValueChange={setTagInput}
+                            />
+                            <CommandList>
+                              {!tagInput && (
+                                <div className="py-6 text-center text-xs text-muted-foreground px-2">
+                                  <p>Use words that will help you or teammates find this file.</p>
+                                </div>
+                              )}
+
+                              {tagInput && availableTags.length === 0 && (
+                                <CommandEmpty>No matching tags found.</CommandEmpty>
+                              )}
+
+                              {availableTags.length > 0 && (
+                                <CommandGroup heading="Suggestions">
+                                  {availableTags
+                                    .filter((t) => !tags.some((existing) => existing.id === t.id))
+                                    .filter((t) => !tagInput || t.decryptedName?.toLowerCase().includes(tagInput.toLowerCase()))
+                                    .slice(0, 5)
+                                    .map((tag) => (
+                                      <CommandItem
+                                        key={tag.id}
+                                        value={tag.decryptedName || ""}
+                                        onSelect={() => {
+                                          handleAttachExistingTag(tag)
+                                          setTagInput("")
+                                          setOpenCombobox(false)
+                                        }}
+                                        className="text-xs"
+                                      >
+                                        <IconTag className="mr-2 h-3 w-3 opacity-50" />
+                                        # {tag.decryptedName}
+                                      </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                              )}
+
+                              {tagInput && (
+                                <>
+                                  <CommandSeparator />
+                                  <CommandGroup>
+                                    <CommandItem
+                                      value={`create:${tagInput}`}
+                                      onSelect={() => {
+                                        handleAddTag(tagInput)
+                                        setTagInput("")
+                                        setOpenCombobox(false)
+                                      }}
+                                      className="text-xs"
+                                    >
+                                      <IconPlus className="mr-2 h-3 w-3" />
+                                      Create tag "# {tagInput}"
+                                    </CommandItem>
+                                  </CommandGroup>
+                                </>
+                              )}
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
                     </div>
                   </div>
 
@@ -805,7 +879,7 @@ export function DetailsModal({
                               </button>
                             </TooltipTrigger>
                             <TooltipContent side="left" className="max-w-[260px] text-xs">
-                              Verification ensures this file hasn't been tampered with since upload. The signature confirms the uploader's identity using cryptographic keys.
+                              Verification ensures this file hasn't been <b>tampered</b> with since upload. The <b>signature</b> confirms the uploader's identity using <b>cryptographic keys</b>.
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>

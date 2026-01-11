@@ -45,6 +45,7 @@ import { useRecentFiles, RecentItem } from "@/hooks/use-recent-files";
 import { SuggestedFiles } from "@/components/files/suggested-files";
 import { TruncatedNameTooltip } from "@/components/tables/truncated-name-tooltip";
 import { cx } from "@/utils/cx";
+import { useUser } from "@/components/user-context";
 import {
     DndContext,
     DragOverlay,
@@ -98,9 +99,6 @@ const DropHelper = ({ folderName, isVisible }: { folderName: string | null; isVi
     );
 };
 
-/**
- * DraggableRow: Wrapper for Table.Row that makes it draggable and optionally droppable
- */
 /**
  * DraggableRow: Wrapper for Table.Row that makes it draggable and optionally droppable
  */
@@ -249,11 +247,25 @@ export const Table01DividerLineSm = ({
     onUploadHandlersReady?: (handlers: { handleFileUpload: () => void; handleFolderUpload: () => void }) => void
 }) => {
     const { t } = useLanguage();
+    const { user, deviceQuota } = useUser();
     const router = useRouter();
     const pathname = usePathname();
     const isMobile = useIsMobile();
     const searchParams = useSearchParams();
     const STORAGE_KEY = 'files-table-visible-columns';
+
+    const isFreePlan = (deviceQuota?.planName === 'Free' || !user?.subscription) && user?.plan !== 'pro' && user?.plan !== 'plus' && user?.plan !== 'unlimited';
+
+    useEffect(() => {
+        if (searchQuery?.startsWith('#') && isFreePlan) {
+            toast.error("Advanced Tag Search is a paid feature!", {
+                action: {
+                    label: "Upgrade",
+                    onClick: () => router.push('/pricing')
+                }
+            });
+        }
+    }, [searchQuery, isFreePlan, router]);
 
     // Column visibility state
     const [visibleColumns, setVisibleColumns] = useState<Set<string>>(new Set(['starred', 'modified', 'size', 'shared']));
@@ -1817,10 +1829,27 @@ export const Table01DividerLineSm = ({
         }
 
         const query = deferredQuery.toLowerCase().trim();
+
+        // Tag search (#tag)
+        if (query.startsWith('#')) {
+            if (isFreePlan) {
+                return sortedItems; // Paywall handled by useEffect
+            }
+
+            const tagQuery = query.substring(1);
+            if (!tagQuery) return sortedItems;
+
+            return sortedItems.filter(item => {
+                return item.tags?.some(tag =>
+                    tag.decryptedName?.toLowerCase().includes(tagQuery)
+                ) || item.name.toLowerCase().includes(query);
+            });
+        }
+
         return sortedItems.filter(item =>
             item.name.toLowerCase().includes(query)
         );
-    }, [sortedItems, deferredQuery]);
+    }, [sortedItems, deferredQuery, isFreePlan]);
 
     // Preview navigation logic
     const getPreviewableFiles = useCallback(() => {
