@@ -28,6 +28,8 @@ import {
     ColorPickerHueSlider,
     ColorPickerAlphaSlider,
     ColorPickerInput,
+    ColorPickerEyeDropper,
+    ColorPickerFormatSelect,
 } from "@/components/ui/color-picker"
 import {
     Command,
@@ -234,11 +236,19 @@ export function CreateSpaceModal({
                                         <IconChevronDown size={14} className="text-muted-foreground group-hover:text-foreground transition-colors" />
                                     </Button>
                                 </ColorPickerTrigger>
-                                <ColorPickerContent className="w-[300px]">
+                                <ColorPickerContent className="w-[360]">
                                     <ColorPickerArea />
-                                    <ColorPickerHueSlider />
-                                    <ColorPickerAlphaSlider />
-                                    <ColorPickerInput />
+                                    <div className="flex items-center gap-2">
+                                        <ColorPickerEyeDropper />
+                                        <div className="flex flex-1 flex-col gap-2">
+                                            <ColorPickerHueSlider />
+                                            <ColorPickerAlphaSlider />
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <ColorPickerFormatSelect />
+                                        <ColorPickerInput />
+                                    </div>
                                 </ColorPickerContent>
                             </ColorPicker>
 
