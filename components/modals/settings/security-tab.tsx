@@ -16,6 +16,15 @@ import {
     TooltipTrigger,
     TooltipProvider
 } from "@/components/ui/tooltip"
+import { Badge } from "@/components/ui/badge"
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from "@/components/ui/card"
+import { PasswordInput } from "@/components/ui/password-input"
 import {
     Dialog,
     DialogContent,
@@ -44,21 +53,29 @@ import {
     IconLogout,
     IconUserCog,
     IconUserShield as ShieldUser,
-    IconChartAreaLine
+    IconChartAreaLine,
+    IconKey,
+    IconRotate,
+    IconAlertCircle,
+    IconEye,
+    IconEyeOff,
+    IconFingerprint
 } from "@tabler/icons-react"
 import { getUAInfo, getOSIcon, getBrowserIcon } from './device-icons'
 import { apiClient } from "@/lib/api"
+import { masterKeyManager } from "@/lib/master-key"
+import OPAQUE, { OPAQUELogin } from "@/lib/opaque"
 import type { UserData, SecurityEvent } from "@/lib/api"
 
 interface Session {
-  id: string;
-  ip_address: string;
-  user_agent: string;
-  device_info: Record<string, unknown>;
-  is_revoked: boolean;
-  last_active: string;
-  created_at: string;
-  isCurrent: boolean;
+    id: string;
+    ip_address: string;
+    user_agent: string;
+    device_info: Record<string, unknown>;
+    is_revoked: boolean;
+    last_active: string;
+    created_at: string;
+    isCurrent: boolean;
 }
 import { toast } from "sonner"
 // @ts-expect-error JSONHighlighter has no type definitions
@@ -184,7 +201,6 @@ interface SecurityTabProps {
     crashReportsEnabled: boolean;
     handleUpdatePrivacySettings: (analytics: boolean, crashReports: boolean) => void;
     userPlan: string; // Added userPlan
-    isMobile: boolean; // Added isMobile
 }
 
 const JsonHighlighter = ({ data }: { data: unknown }) => {
@@ -197,6 +213,7 @@ const JsonHighlighter = ({ data }: { data: unknown }) => {
         </div>
     );
 };
+
 
 export function SecurityTab(props: SecurityTabProps) {
     const {
@@ -212,13 +229,21 @@ export function SecurityTab(props: SecurityTabProps) {
         handleLogout, isLoggingOut, setShowDeleteModal,
         showRevoked, setShowRevoked,
         usageDiagnosticsEnabled, crashReportsEnabled, handleUpdatePrivacySettings,
-        userPlan, isMobile
+        userPlan
     } = props;
 
     const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
     const [copiedCodes, setCopiedCodes] = useState(false);
     const [copiedSecret, setCopiedSecret] = useState(false);
     const [showWipeDialog, setShowWipeDialog] = useState(false);
+
+    // Master Key Reveal/Export state
+    const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+    const [revealPassword, setRevealPassword] = useState("");
+    const [isRevealing, setIsRevealing] = useState(false);
+    const [revealedKey, setRevealedKey] = useState<{ key: string; salt: string } | null>(null);
+    const [showKey, setShowKey] = useState(false);
+    const [isRotating, setIsRotating] = useState(false);
 
     // Check plan access (Pro & Unlimited)
     const isPaid = (userPlan || 'Free').includes('Pro') || (userPlan || 'Free').includes('Unlimited');
@@ -281,9 +306,73 @@ export function SecurityTab(props: SecurityTabProps) {
         return `${day}/${month}/${year} ${strHours}:${minutes} ${ampm}`
     }
 
+    const handleRevealMasterKey = async () => {
+        if (!revealPassword) {
+            toast.error("Please enter your password");
+            return;
+        }
+
+        if (!user?.email) {
+            toast.error("User email not found");
+            return;
+        }
+
+        setIsRevealing(true);
+        try {
+            // 1. Validate password with OPAQUE (manual steps to control reporting)
+            try {
+                const loginFlow = new OPAQUELogin();
+                const { startLoginRequest } = await loginFlow.step1(revealPassword);
+                const { loginResponse } = await loginFlow.step2(user.email, startLoginRequest);
+                // Step 3 verifies the server response - throws if password is wrong
+                await loginFlow.step3(loginResponse);
+            } catch (opaqueErr) {
+                console.error("OPAQUE validation failed:", opaqueErr);
+                throw new Error("Incorrect password");
+            }
+
+            // 2. Derive key locally for display
+            const salt = masterKeyManager.getAccountSalt();
+            if (!salt) throw new Error("Account salt not found");
+
+            // Derive key to ensure we have the correct one cached/derived
+            await masterKeyManager.deriveAndCacheMasterKey(revealPassword, salt);
+            const key = masterKeyManager.getMasterKey();
+
+            // Convert to hex for display
+            const keyHex = Array.from(key).map(b => b.toString(16).padStart(2, '0')).join('');
+
+            setRevealedKey({ key: keyHex, salt });
+            setShowKey(true);
+
+            // Track success event
+            await apiClient.trackMasterKeyRevealed();
+            toast.success("Master Key revealed successfully");
+        } catch (err) {
+            console.error(err);
+            const errorMsg = err instanceof Error ? err.message : "Failed to reveal Master Key";
+            toast.error(errorMsg === "Incorrect password" ? "Incorrect password" : "Failed to reveal Master Key");
+
+            // Report failure
+            await apiClient.trackMasterKeyRevealFailed(errorMsg);
+        } finally {
+            setIsRevealing(false);
+        }
+    };
+
+    const handleRotateIdentity = () => {
+        setIsRotating(true);
+        setTimeout(() => {
+            setIsRotating(false);
+            toast.info("Identity Rotation", {
+                description: "This feature is currently in development. It will allow you to rotate your cryptographic identity without losing data access."
+            });
+        }, 1500);
+    };
+
     return (
         <div className="space-y-6">
-            <h2 className="text-xl font-semibold">Security</h2>
+            <h2 className="text-xl font-semibold">Security & Privacy</h2>
 
 
 
@@ -368,6 +457,7 @@ export function SecurityTab(props: SecurityTabProps) {
                     </Button>
                 )}
             </div>
+
 
             {/* Session Duration Configuration Section */}
             <div className="flex items-center justify-between border-t pt-6">
@@ -1292,6 +1382,110 @@ export function SecurityTab(props: SecurityTabProps) {
                 </DialogContent>
             </Dialog>
 
+            {/* Master Key & Cryptographic Identity Section */}
+            <div className="border-t pt-6 space-y-4">
+                <div className="flex items-center gap-3">
+                    <IconFingerprint className="h-5 w-5 text-muted-foreground" />
+                    <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                            <p className="font-medium">Master Key & Cryptographic Identity</p>
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Badge variant="secondary" className="text-[10px] font-bold uppercase tracking-wider h-5 flex items-center gap-1">
+                                            <IconShieldLock className="h-3 w-3" />
+                                            Zero-Knowledge
+                                        </Badge>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p className="text-xs">Your keys never leave your device. Only you can access your data.</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                            Manage the root of your encryption and your digital identity.
+                        </p>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Card className="bg-muted/30 border-dashed hover:bg-muted/50 transition-colors">
+                        <CardHeader className="pb-2">
+                            <div className="flex items-center justify-between">
+                                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                                    <IconRotate className="h-4 w-4 text-primary" />
+                                    Identity Rotation
+                                </CardTitle>
+                                <Badge variant="secondary" className="text-[9px]">BETA</Badge>
+                            </div>
+                            <CardDescription className="text-xs">
+                                Replace your current cryptographic identity with a new one.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full text-xs h-8"
+                                onClick={handleRotateIdentity}
+                                disabled={isRotating}
+                            >
+                                {isRotating ? (
+                                    <IconLoader2 className="h-3.5 w-3.5 animate-spin mr-2" />
+                                ) : (
+                                    <IconRefresh className="h-3.5 w-3.5 mr-2" />
+                                )}
+                                Rotate Identity
+                            </Button>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="bg-muted/30 border-dashed hover:bg-muted/50 transition-colors">
+                        <CardHeader className="pb-2">
+                            <div className="flex items-center justify-between">
+                                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                                    <IconKey className="h-4 w-4 text-primary" />
+                                    Export Master Key
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <IconInfoCircle className="h-4 w-4 text-muted-foreground cursor-help hover:text-primary transition-all ml-1" />
+                                            </TooltipTrigger>
+                                            <TooltipContent side="top">
+                                                <p className="text-xs">Securely export your root encryption key</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                </CardTitle>
+                            </div>
+                            <CardDescription className="text-xs">
+                                Download your root encryption key for emergency recovery.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full text-xs h-8"
+                                onClick={() => setIsExportModalOpen(true)}
+                            >
+                                <IconDownload className="h-3.5 w-3.5 mr-2" />
+                                Export Key
+                            </Button>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <div className="flex items-center gap-2 p-3 bg-amber-500/5 border border-amber-500/20 rounded-lg text-amber-600 dark:text-amber-400">
+                    <IconAlertCircle className="h-4 w-4 flex-shrink-0" />
+                    <p className="text-[11px] font-medium leading-tight">
+                        Warning: Your Master Key is the ONLY way to recover your data if you lose access to your account.
+                        Keep it in a safe, offline location.
+                    </p>
+                </div>
+            </div>
+
             {/* Privacy Section */}
             <div className="border-t pt-6 space-y-4">
                 <div className="flex items-center gap-2">
@@ -1513,6 +1707,127 @@ export function SecurityTab(props: SecurityTabProps) {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </div >
+            {/* Master Key Export Modal */}
+            <Dialog open={isExportModalOpen} onOpenChange={(open) => {
+                setIsExportModalOpen(open);
+                if (!open) {
+                    setRevealPassword("");
+                    setRevealedKey(null);
+                    setShowKey(false);
+                }
+            }}>
+                <DialogContent className="sm:max-w-[450px]">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <IconKey className="h-5 w-5 text-primary" />
+                            Export Master Key
+                        </DialogTitle>
+                        <DialogDescription>
+                            Your Master Key is the root of your zero-knowledge encryption.
+                            Revealing it requires your account password.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {!revealedKey ? (
+                        <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="reveal-password">Verify Account Password</Label>
+                                <PasswordInput
+                                    id="reveal-password"
+                                    placeholder="Enter your password"
+                                    value={revealPassword}
+                                    onChange={(e) => setRevealPassword(e.target.value)}
+                                    autoFocus
+                                    onKeyDown={(e) => e.key === 'Enter' && handleRevealMasterKey()}
+                                />
+                            </div>
+                            <div className="flex items-start gap-2 p-3 bg-red-500/5 border border-red-500/20 rounded-lg text-red-600 dark:text-red-400">
+                                <IconAlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                                <p className="text-xs leading-normal">
+                                    NEVER share this key with anyone. Ellipticc employees will never ask for your Master Key.
+                                </p>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="space-y-6 py-4">
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <Label className="text-xs uppercase tracking-wider text-muted-foreground font-bold">Your Master Key</Label>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-6 px-2 text-[10px]"
+                                        onClick={() => setShowKey(!showKey)}
+                                    >
+                                        {showKey ? <><IconEyeOff className="h-3 w-3 mr-1" /> Hide</> : <><IconEye className="h-3 w-3 mr-1" /> Show</>}
+                                    </Button>
+                                </div>
+                                <div className="relative group">
+                                    <div className={`p-4 rounded-xl border bg-muted/50 font-mono text-[11px] break-all leading-relaxed transition-all duration-300 ${!showKey ? 'blur-md select-none' : ''}`}>
+                                        {revealedKey.key}
+                                    </div>
+                                    {showKey && (
+                                        <Button
+                                            variant="secondary"
+                                            size="sm"
+                                            className="absolute top-2 right-2 h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(revealedKey.key);
+                                                toast.success("Master Key copied");
+                                            }}
+                                        >
+                                            <IconCopy className="h-3.5 w-3.5" />
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="space-y-3">
+                                <Label className="text-xs uppercase tracking-wider text-muted-foreground font-bold">Account Salt</Label>
+                                <div className="relative group">
+                                    <div className="p-3 rounded-xl border bg-muted/50 font-mono text-[11px] break-all">
+                                        {revealedKey.salt}
+                                    </div>
+                                    <Button
+                                        variant="secondary"
+                                        size="sm"
+                                        className="absolute top-1.5 right-1.5 h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(revealedKey.salt);
+                                            toast.success("Account Salt copied");
+                                        }}
+                                    >
+                                        <IconCopy className="h-3.5 w-3.5" />
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 p-3 bg-secondary/30 rounded-lg">
+                                <IconInfoCircle className="h-4 w-4 text-muted-foreground" />
+                                <p className="text-[10px] text-muted-foreground leading-normal">
+                                    Both the Master Key and Account Salt are required to manually reconstruct your encryption environment.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    <DialogFooter>
+                        {!revealedKey ? (
+                            <Button
+                                className="w-full"
+                                onClick={handleRevealMasterKey}
+                                disabled={isRevealing || !revealPassword}
+                            >
+                                {isRevealing ? <><IconLoader2 className="h-4 w-4 animate-spin mr-2" /> Verifying...</> : "Verify & Reveal"}
+                            </Button>
+                        ) : (
+                            <Button className="w-full" onClick={() => setIsExportModalOpen(false)}>
+                                Done
+                            </Button>
+                        )}
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </div>
     )
 }

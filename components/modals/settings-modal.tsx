@@ -97,7 +97,7 @@ interface SettingsModalProps {
 const data = {
   nav: [
     { name: "General", icon: IconUserCog, id: "general" },
-    { name: "Security", icon: IconLockSquareRounded, id: "security" },
+    { name: "Security & Privacy", icon: IconLockSquareRounded, id: "security" },
     { name: "Billing", icon: IconCoin, id: "billing" },
     { name: "Notifications", icon: IconBell, id: "notifications" },
     { name: "Referrals", icon: IconGift, id: "referrals" },
@@ -122,7 +122,7 @@ export function SettingsModal({
 
   const navItems = [
     { name: t("settings.general"), icon: IconUserCog, id: "general" },
-    { name: t("settings.security"), icon: IconLockSquareRounded, id: "security" },
+    { name: t("settings.security") || "Security & Privacy", icon: IconLockSquareRounded, id: "security" },
     { name: t("settings.billing"), icon: IconCoin, id: "billing" },
     { name: t("settings.notifications"), icon: IconBell, id: "notifications" },
     { name: t("settings.referrals"), icon: IconGift, id: "referrals" },
@@ -1677,7 +1677,6 @@ export function SettingsModal({
                 <SecurityTab
                   user={user}
                   userPlan={user?.plan || "Free"}
-                  isMobile={isMobile}
                   setShowEmailModal={setShowEmailModal}
                   setShowPasswordModal={setShowPasswordModal}
 

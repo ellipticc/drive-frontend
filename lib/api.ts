@@ -3257,6 +3257,25 @@ class ApiClient {
     return this.request('/backup/verified', { method: 'POST' });
   }
 
+  // Master Key & OPAQUE Tracking
+  async trackMasterKeyRevealed(): Promise<ApiResponse<{ success: boolean }>> {
+    return this.request('/auth/security/mk/revealed', { method: 'POST' });
+  }
+
+  async trackMasterKeyRevealFailed(reason: string): Promise<ApiResponse<{ success: boolean }>> {
+    return this.request('/auth/security/mk/failed', {
+      method: 'POST',
+      body: JSON.stringify({ reason })
+    });
+  }
+
+  async reportOpaqueFailure(flow: string, stage: string, error: string): Promise<ApiResponse<{ success: boolean }>> {
+    return this.request('/auth/security/opaque/failure', {
+      method: 'POST',
+      body: JSON.stringify({ flow, stage, error, timestamp: new Date().toISOString() })
+    });
+  }
+
   // Tag management
   async attachTag(data: {
     fileId?: string;
