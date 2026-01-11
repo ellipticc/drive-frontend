@@ -889,29 +889,47 @@ export function SecurityTab(props: SecurityTabProps) {
                                 }
                             }}
                         />
-                        <Label className="text-sm font-medium">Activity monitor</Label>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        <Switch
-                            id="detailed-events-toggle"
-                            checked={detailedEventsEnabled}
-                            onCheckedChange={(checked) => handleUpdateSecurityPreferences(activityMonitorEnabled, checked)}
-                        />
                         <div className="flex items-center gap-1.5">
-                            <Label className="text-sm font-medium">Enable detailed events</Label>
+                            <Label className="text-sm font-medium">Activity monitor</Label>
                             <TooltipProvider>
-                                <Tooltip>
+                                <Tooltip delayDuration={0}>
                                     <TooltipTrigger>
                                         <IconInfoCircle className="h-3.5 w-3.5 text-muted-foreground" />
                                     </TooltipTrigger>
                                     <TooltipContent>
-                                        <p className="text-[10px]">Enabling detailed events records the IP address for each event.</p>
+                                        <p className="text-[10px]">Master switch for all security logging. Disabling this completely stops all event tracking.</p>
                                     </TooltipContent>
                                 </Tooltip>
                             </TooltipProvider>
                         </div>
                     </div>
+
+                    {activityMonitorEnabled && (
+                        <div className="flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-300">
+                            <Switch
+                                id="detailed-events-toggle"
+                                checked={detailedEventsEnabled}
+                                onCheckedChange={(checked) => handleUpdateSecurityPreferences(activityMonitorEnabled, checked)}
+                            />
+                            <div className="flex items-center gap-1.5">
+                                <Label className="text-sm font-medium">Ellipticc Vigil</Label>
+                                <TooltipProvider>
+                                    <Tooltip delayDuration={0}>
+                                        <TooltipTrigger>
+                                            <IconInfoCircle className="h-3.5 w-3.5 text-muted-foreground" />
+                                        </TooltipTrigger>
+                                        <TooltipContent className="max-w-[280px]">
+                                            <p className="text-[10px]">
+                                                Our advanced threat monitoring system. Enabling this allows tracking of detailed device info, IP addresses, and location maps for security analysis.
+                                                <br /><br />
+                                                Untoggle this to stop tracking detailed metadata (you will still see basic security events).
+                                            </p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 <div className="border rounded-lg overflow-hidden bg-card">

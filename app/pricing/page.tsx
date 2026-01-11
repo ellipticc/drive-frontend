@@ -132,7 +132,7 @@ const staticPlans: TransformedPlan[] = [
       'File Vault': false,
       'Verified Source': false,
       'Suspicious Activity Alerts': false,
-      'Sentry: Advanced Analysis': false,
+      'Vigil: Advanced Analysis': false,
       'Export security events': false,
       'Shared links': true,
       'Advanced link settings': false,
@@ -181,7 +181,7 @@ const staticPlans: TransformedPlan[] = [
       'File Vault': false,
       'Verified Source': true,
       'Suspicious Activity Alerts': false,
-      'Sentry: Advanced Analysis': false,
+      'Vigil: Advanced Analysis': false,
       'Export security events': false,
       'Shared links': true,
       'Advanced link settings': true,
@@ -231,7 +231,7 @@ const staticPlans: TransformedPlan[] = [
       'File Vault': true,
       'Verified Source': true,
       'Suspicious Activity Alerts': false,
-      'Sentry: Advanced Analysis': true,
+      'Vigil: Advanced Analysis': true,
       'Export security events': true,
       'Shared links': true,
       'Advanced link settings': true,
@@ -280,7 +280,7 @@ const staticPlans: TransformedPlan[] = [
       'File Vault': true,
       'Verified Source': true,
       'Suspicious Activity Alerts': true,
-      'Sentry: Advanced Analysis': true,
+      'Vigil: Advanced Analysis': true,
       'Export security events': true,
       'Shared links': true,
       'Advanced link settings': true,
@@ -314,7 +314,7 @@ const featureCategories = [
   },
   {
     name: 'Privacy & Security',
-    features: ['Zero Knowledge Architecture', 'Post-Quantum Cryptography', 'End-to-End Encryption', 'File Vault', 'Verified Source', 'Suspicious Activity Alerts', 'Sentry: Advanced Analysis', 'Export security events']
+    features: ['Zero Knowledge Architecture', 'Post-Quantum Cryptography', 'End-to-End Encryption', 'File Vault', 'Verified Source', 'Suspicious Activity Alerts', 'Vigil: Advanced Analysis', 'Export security events']
   },
   {
     name: 'Collaborative Sharing',
@@ -338,7 +338,7 @@ const featureTooltips: Record<string, string> = {
   'File Vault': 'An additional high-security layer for sensitive files, requiring extra authentication.',
   'Verified Source': 'Cryptographic proof that a file was uploaded by a verified and authentic identity.',
   'Suspicious Activity Alerts': 'Real-time notifications for unusual login attempts, mass deletions, or potential ransomware behavior.',
-  'Sentry: Advanced Analysis': 'Deep analytical view of security events including GeoIP, ISP, Device fingerprinting, and potential attack vectors.',
+  'Vigil: Advanced Analysis': 'Deep analytical view of security events including GeoIP, ISP, Device fingerprinting, and potential attack vectors.',
   'Export security events': 'Export your security logs and audit trails into JSON or CSV formats for external processing.',
   'Shared links': 'Generate secure URLs to share files or folders with anyone, even without an account.',
   'Advanced link settings': 'A suite of professional tools to control how your shared content is accessed.',
