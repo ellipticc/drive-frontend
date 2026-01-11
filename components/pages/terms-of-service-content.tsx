@@ -27,7 +27,7 @@ export function TermsOfServiceContent() {
               <div className="flex size-6 items-center justify-center rounded-md">
                 <IconCaretLeftRightFilled className="!size-5" />
               </div>
-              <span className="text-base font-mono">ellipticc</span>
+              <span className="text-base font-geist-mono select-none">ellipticc</span>
             </Link>
           </div>
           <div className="flex items-center">
@@ -126,7 +126,7 @@ export function TermsOfServiceContent() {
                     If payment is not successfully received by the end of the 20-day Grace Period, your account will automatically downgrade to the <strong>Free Plan</strong>.
                   </p>
                   <ul className="list-disc list-inside space-y-2 mt-3 text-base">
-                    <li>If your storage usage is <strong>below</strong> the Free Plan limit (e.g., 5GB), your service continues normally.</li>
+                    <li>If your storage usage is <strong>below</strong> the Free Plan limit (e.g., 2GB), your service continues normally.</li>
                     <li>If your storage usage <strong>exceeds</strong> the Free Plan limit, your account will enter a <strong>Restricted Access (Read-Only)</strong> state. You will be able to view and download your files, but you will not be able to upload new files or edit existing ones.</li>
                   </ul>
                 </div>

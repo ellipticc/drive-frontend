@@ -42,7 +42,7 @@ export default function RecoverPage() {
       <div className="flex w-full max-w-sm flex-col gap-6">
         <Link href="#" className="flex items-center gap-2 self-center font-medium">
           <IconCaretLeftRightFilled className="!size-5" />
-          <span className="text-base font-geist-mono break-all">ellipticc</span>
+          <span className="text-base font-geist-mono select-none break-all">ellipticc</span>
         </Link>
 
         <Card>

@@ -80,7 +80,7 @@ export default function BackupPage() {
       <div className="absolute top-6 left-6 flex items-center gap-4">
         <Link href="/" className="flex items-center gap-2 font-medium no-underline border-none bg-transparent hover:bg-transparent focus:outline-none">
           <IconCaretLeftRightFilled className="!size-5" />
-          <span className="text-base font-geist-mono break-all">ellipticc</span>
+          <span className="text-base font-geist-mono select-none break-all">ellipticc</span>
         </Link>
       </div>
       <div className="absolute top-6 right-6">

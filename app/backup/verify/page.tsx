@@ -160,7 +160,7 @@ export default function VerifyBackupPage() {
             <div className="absolute top-6 left-6 z-10 flex items-center gap-4">
                 <Link href="/" className="flex items-center gap-2 font-medium no-underline border-none bg-transparent hover:bg-transparent focus:outline-none group">
                     <IconCaretLeftRightFilled className="!size-6 text-primary transition-transform group-hover:rotate-12" />
-                    <span className="text-lg font-geist-mono tracking-tighter">ellipticc</span>
+                    <span className="text-lg font-geist-mono select-none tracking-tighter">ellipticc</span>
                 </Link>
             </div>
 

@@ -27,7 +27,7 @@ export function PrivacyPolicyContent() {
               <div className="flex size-6 items-center justify-center rounded-md">
                 <IconCaretLeftRightFilled className="!size-5" />
               </div>
-              <span className="text-base font-mono">ellipticc</span>
+              <span className="text-base font-geist-mono select-none">ellipticc</span>
             </Link>
           </div>
           <div className="flex items-center">

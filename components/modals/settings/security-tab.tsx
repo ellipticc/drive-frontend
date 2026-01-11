@@ -583,7 +583,7 @@ export function SecurityTab(props: SecurityTabProps) {
                                 <p className="font-medium">Device Manager</p>
                                 {devicePlan && (
                                     <span className="text-[10px] bg-primary/10 text-primary border border-primary/20 px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider">
-                                        {devicePlan.currentDevices}/{devicePlan.maxDevices} {devicePlan.name} Slots
+                                        {devicePlan.currentDevices}/{devicePlan.name === 'Unlimited' ? 'Unlimited' : devicePlan.maxDevices} {devicePlan.name !== 'Unlimited' ? devicePlan.name : ''} Slots
                                     </span>
                                 )}
                             </div>

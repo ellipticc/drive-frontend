@@ -651,7 +651,7 @@ const BillingPage = () => {
                   <BillingProgress
                     label="Storage Usage"
                     current={formatFileSize(usage?.usedBytes || 0)}
-                    total={formatFileSize(usage?.quotaBytes || 1073741824)}
+                    total={formatFileSize(usage?.quotaBytes || 2147483648)}
                     progress={usage?.percentUsed}
                   />
                 </div>
@@ -1039,7 +1039,7 @@ const BillingPage = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will cancel your current {currentPlan} subscription. You will retain your benefits until the end of your current billing period, after which your account will revert to the Free tier with a 5GB storage limit.
+              This will cancel your current {currentPlan} subscription. You will retain your benefits until the end of your current billing period, after which your account will revert to the Free tier with a 2GB storage limit.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -20,7 +20,7 @@ export function DeviceLimitOverlay() {
             <div className="flex items-center justify-between p-6">
                 <div className="flex items-center gap-2">
                     <IconCaretLeftRightFilled className="w-6 h-6" />
-                    <span className="font-mono text-lg font-medium">ellipticc</span>
+                    <span className="font-geist-mono select-none text-lg font-medium">ellipticc</span>
                 </div>
                 <ThemeToggle />
             </div>
@@ -32,7 +32,7 @@ export function DeviceLimitOverlay() {
                 <h1 className="text-2xl font-semibold mb-2">Device Limit Reached</h1>
 
                 <p className="text-muted-foreground mb-8">
-                    Your <span className="font-medium text-foreground">{deviceQuota?.planName || 'Free'}</span> plan is limited to <span className="font-medium text-foreground">{deviceQuota?.maxDevices || 2}</span> devices.
+                    Your <span className="font-medium text-foreground">{deviceQuota?.planName || 'Free'}</span> plan is {deviceQuota?.planName === 'Unlimited' ? 'effectively unlimited' : <>limited to <span className="font-medium text-foreground">{deviceQuota?.maxDevices || 2}</span> devices</>}.
                     Please revoke an unused device to continue using this session.
                 </p>
 

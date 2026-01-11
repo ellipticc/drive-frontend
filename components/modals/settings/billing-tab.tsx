@@ -145,7 +145,7 @@ export function BillingTab({
                                     </div>
                                     <div className="flex items-center justify-between">
                                         <span className="text-sm text-muted-foreground">Storage:</span>
-                                        <span className="text-sm font-medium">5GB included</span>
+                                        <span className="text-sm font-medium">2GB included</span>
                                     </div>
                                 </div>
                             )}
@@ -266,7 +266,7 @@ export function BillingTab({
                                     Important Information
                                 </h4>
                                 <ul className="text-xs text-blue-700 dark:text-blue-300 space-y-1">
-                                    <li>• You cannot cancel your subscription if you&apos;re using more than 5GB of storage</li>
+                                    <li>• You cannot cancel your subscription if you&apos;re using more than 2GB of storage</li>
                                     <li>• When cancelled, you&apos;ll keep access until the end of your billing period</li>
                                     <li>• No future charges will be made after cancellation</li>
                                     <li>• You can reactivate your subscription at any time before it expires</li>

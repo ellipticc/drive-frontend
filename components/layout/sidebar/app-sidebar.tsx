@@ -115,10 +115,10 @@ export const AppSidebar = React.memo(function AppSidebar({
   const [isAuthenticated, setIsAuthenticated] = React.useState(false)
   const [storage, setStorage] = React.useState({
     used_bytes: 0,
-    quota_bytes: 3221225472, // 3GB default
+    quota_bytes: 2147483648, // 2GB default
     percent_used: 0,
     used_readable: "0 Bytes",
-    quota_readable: "3 GB"
+    quota_readable: "2 GB"
   })
 
   React.useEffect(() => {
@@ -194,7 +194,7 @@ export const AppSidebar = React.memo(function AppSidebar({
             >
               <a href="#">
                 <IconCaretLeftRightFilled className="!size-5" />
-                <span className="text-base font-geist-mono break-all leading-none">ellipticc</span>
+                <span className="text-base font-geist-mono select-none break-all leading-none">ellipticc</span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
