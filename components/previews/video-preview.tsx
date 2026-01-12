@@ -95,6 +95,25 @@ export function VideoPreview({
         // Dynamically import StreamManager to avoid SSR issues if any
         const { StreamManager } = await import("@/lib/streaming");
 
+        // Ensure Service Worker is active and controlling the page
+        if ('serviceWorker' in navigator) {
+          await navigator.serviceWorker.ready;
+
+          // Wait if not controlled yet (first load)
+          let attempts = 0;
+          while (!navigator.serviceWorker.controller && attempts < 15) {
+            console.log(`[VideoPreview] SW not controlling yet, waiting (attempt ${attempts + 1})...`);
+            await new Promise(r => setTimeout(r, 150));
+            attempts++;
+          }
+
+          if (!navigator.serviceWorker.controller) {
+            console.warn("[VideoPreview] SW still not controlling after multiple attempts. Stream might fail.");
+          } else {
+            console.log("[VideoPreview] SW is controlling the page. Proceeding with registration.");
+          }
+        }
+
         // 1. Register file for streaming (gets metadata, keys, and prepares SW mapping)
         await StreamManager.getInstance().registerFile(fileId, shareDetails as unknown as ShareItem | undefined, onGetShareCEK);
 

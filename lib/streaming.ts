@@ -35,12 +35,17 @@ const ENCRYPTION_OVERHEAD = 16;
 export class StreamManager {
     private static instance: StreamManager;
     private sessions: Map<string, { session: DownloadSession, cek: Uint8Array }> = new Map();
+    private pendingRegistrations: Map<string, Promise<void>> = new Map();
     private chunkMaps: Map<string, Array<{ index: number, start: number, end: number, encryptedSize: number }>> = new Map();
     private activeFetches: Map<string, Promise<Uint8Array>> = new Map();
 
     private constructor() {
         if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
             navigator.serviceWorker.addEventListener('message', this.handleMessage.bind(this));
+            // Ensure we start receiving messages immediately
+            if (navigator.serviceWorker.startMessages) {
+                navigator.serviceWorker.startMessages();
+            }
         }
     }
 
@@ -53,49 +58,67 @@ export class StreamManager {
 
     public async registerFile(fileId: string, shareDetails?: ShareItem, onGetShareCEK?: () => Promise<Uint8Array>) {
         // Check if already registered
-        if (this.sessions.has(fileId)) return;
+        if (this.sessions.has(fileId)) {
+            console.log(`[StreamManager] File ${fileId} already registered.`);
+            return;
+        }
 
-        try {
-            // Initialize full session from backend (metadata + URLs)
-            const session = await initializeDownloadSession(fileId);
+        // If registration is in progress, wait for it
+        if (this.pendingRegistrations.has(fileId)) {
+            console.log(`[StreamManager] Waiting for existing registration of ${fileId}...`);
+            return this.pendingRegistrations.get(fileId);
+        }
 
-            let cek: Uint8Array;
+        const registrationPromise = (async () => {
+            try {
+                console.log(`[StreamManager] Initializing registration for ${fileId}...`);
+                // Initialize full session from backend (metadata + URLs)
+                const session = await initializeDownloadSession(fileId);
+                console.log(`[StreamManager] Download session initialized for ${fileId}. Getting keys...`);
 
-            // Handle Share CEK vs User CEK
-            if (onGetShareCEK) {
-                const shareCekRaw = await onGetShareCEK();
-                const shareCek = new Uint8Array(shareCekRaw);
+                let cek: Uint8Array;
 
-                // Unwrap if needed
-                if (shareDetails && !(((shareDetails as any).is_folder) ?? shareDetails.isFolder) && ((shareDetails as any).wrapped_cek) && ((shareDetails as any).nonce_wrap)) {
-                    const { decryptData } = await import('./crypto');
-                    try {
-                        const wrapped = (shareDetails as any).wrapped_cek;
-                        const nonce = (shareDetails as any).nonce_wrap;
-                        cek = new Uint8Array(decryptData(wrapped, shareCek, nonce));
-                    } catch (e) {
-                        console.error('Failed to unwrap shared file key', e);
-                        throw e;
+                // Handle Share CEK vs User CEK
+                if (onGetShareCEK) {
+                    const shareCekRaw = await onGetShareCEK();
+                    const shareCek = new Uint8Array(shareCekRaw);
+
+                    // Unwrap if needed
+                    if (shareDetails && !(((shareDetails as any).is_folder) ?? shareDetails.isFolder) && ((shareDetails as any).wrapped_cek) && ((shareDetails as any).nonce_wrap)) {
+                        const { decryptData } = await import('./crypto');
+                        try {
+                            const wrapped = (shareDetails as any).wrapped_cek;
+                            const nonce = (shareDetails as any).nonce_wrap;
+                            cek = new Uint8Array(decryptData(wrapped, shareCek, nonce));
+                        } catch (e) {
+                            console.error('Failed to unwrap shared file key', e);
+                            throw e;
+                        }
+                    } else {
+                        cek = shareCek;
                     }
                 } else {
-                    cek = shareCek;
+                    // Standard User Key Unwrap
+                    if (!session.encryption) throw new Error('No encryption metadata');
+                    const keys = await keyManager.getUserKeys();
+                    cek = await unwrapCEK(session.encryption, keys.keypairs);
                 }
-            } else {
-                // Standard User Key Unwrap
-                if (!session.encryption) throw new Error('No encryption metadata');
-                const keys = await keyManager.getUserKeys();
-                cek = await unwrapCEK(session.encryption, keys.keypairs);
+
+                this.sessions.set(fileId, { session, cek });
+                this.buildChunkMap(fileId, session);
+
+                console.log(`[StreamManager] Successfully registered ${fileId}. Size: ${session.size}`);
+
+            } catch (err) {
+                console.error('[StreamManager] Failed to register file:', err);
+                throw err;
+            } finally {
+                this.pendingRegistrations.delete(fileId);
             }
+        })();
 
-            this.sessions.set(fileId, { session, cek });
-            this.buildChunkMap(fileId, session);
-
-            console.log(`[StreamManager] Registered file ${fileId} for streaming. Size: ${session.size}`);
-
-        } catch (err) {
-            console.error('[StreamManager] Failed to register file:', err);
-            throw err;
-        }
+        this.pendingRegistrations.set(fileId, registrationPromise);
+        return registrationPromise;
     }
 
     private buildChunkMap(fileId: string, session: DownloadSession) {
@@ -103,28 +126,31 @@ export class StreamManager {
         const map = [];
         let offset = 0;
 
-        for (const chunk of sortedChunks) {
+        for (let i = 0; i < sortedChunks.length; i++) {
+            const chunk = sortedChunks[i];
             let plaintextLimit = 0;
 
             if (chunk.isCompressed && chunk.compressionOriginalSize) {
                 plaintextLimit = chunk.compressionOriginalSize;
             } else {
-                // Assume overhead. If chunk.size is fetched size
                 plaintextLimit = Math.max(0, chunk.size - ENCRYPTION_OVERHEAD);
+            }
+
+            // For the last chunk, ensure it covers perfectly to the reported file size
+            if (i === sortedChunks.length - 1) {
+                const remaining = session.size - offset;
+                if (remaining > 0 && Math.abs(remaining - plaintextLimit) < 100) {
+                    plaintextLimit = remaining;
+                }
             }
 
             map.push({
                 index: getChunkIndex(chunk),
                 start: offset,
-                end: offset + plaintextLimit, // Exclusive end?
+                end: offset + plaintextLimit,
                 encryptedSize: chunk.size
             });
             offset += plaintextLimit;
-        }
-
-        // Safety: Adjust last chunk to match file size exactly if close
-        if (Math.abs(offset - session.size) < 100) {
-            // likely just overhead calc differences or alignment
         }
 
         this.chunkMaps.set(fileId, map);
@@ -134,22 +160,36 @@ export class StreamManager {
         if (!event.data || event.data.type !== 'STREAM_REQUEST') return;
 
         const { requestId, fileId, start, end } = event.data as StreamRequest;
+        console.log(`[StreamManager] Received STREAM_REQUEST ${requestId} for ${fileId}, range: ${start}-${end || ''}`);
         const port = event.ports[0];
 
         try {
+            // If this file is currently being registered in this tab, wait for it
+            if (this.pendingRegistrations.has(fileId)) {
+                console.log(`[StreamManager] Received request for ${fileId} while registration is pending. Waiting...`);
+                await this.pendingRegistrations.get(fileId);
+            }
+
             const result = await this.fetchRange(fileId, start, end);
-            port.postMessage(result, result.content ? [result.content] : []);
+
+            if (result.success || this.sessions.has(fileId)) {
+                port.postMessage(result, result.content ? [result.content] : []);
+            } else {
+                port.postMessage({ success: false, requestId });
+            }
         } catch (err: unknown) {
             console.error('[StreamManager] Error handling range:', err);
-            port.postMessage({ success: false, error: err instanceof Error ? err.message : String(err) });
+            port.postMessage({ success: false, error: err instanceof Error ? err.message : String(err), requestId });
         }
     }
 
     public async fetchRange(fileId: string, start: number, explicitEnd?: number): Promise<StreamResponse> {
+        console.log(`[StreamManager] fetchRange called for ${fileId}, start: ${start}, end: ${explicitEnd}`);
         const data = this.sessions.get(fileId);
         const map = this.chunkMaps.get(fileId);
 
         if (!data || !map) {
+            console.error(`[StreamManager] fetchRange failed: ${fileId} not registered or map missing.`);
             return { success: false, error: 'File not registered' };
         }
 
