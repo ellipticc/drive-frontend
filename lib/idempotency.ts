@@ -5,34 +5,29 @@
  * to ensure retry safety and prevent duplicate resource creation.
  */
 
-import { v5 as uuidv5 } from 'uuid';
-
-// Fixed namespace for deterministic UUID v5 generation
-const IDEMPOTENCY_NAMESPACE = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
- * Generate idempotency key for creation operations
- * For creates: use the resource ID directly (fileId/folderId)
+ * Generate idempotency key for creation operations 
+ * (Industry Standard: Use a random UUID per action instance)
  */
-export function generateIdempotencyKeyForCreate(resourceId: string): string {
-  return resourceId;
+export function generateIdempotencyKeyForCreate(): string {
+  return uuidv4();
 }
 
 /**
  * Generate idempotency key for non-creation operations
- * Uses UUID v5 (deterministic) so same logical operation always gets same key
- * Format: operationType:deterministicIntent
+ * (Industry Standard: Use a random UUID per action instance)
  */
-export function generateIdempotencyKey(operationType: string, identifier: string): string {
-  const deterministicIntent = uuidv5(identifier, IDEMPOTENCY_NAMESPACE);
-  return `${operationType}:${deterministicIntent}`;
+export function generateIdempotencyKey(): string {
+  return uuidv4();
 }
 
 /**
  * Add idempotency key to fetch request headers
  * @param headers Existing headers object
  * @param idempotencyKey The idempotency key
- * @returns Updated headers with Idempotency-Key
+ * @returns Updated headers with X-Idempotency-Key
  */
 export function addIdempotencyKey(
   headers: Record<string, string>,
@@ -40,7 +35,7 @@ export function addIdempotencyKey(
 ): Record<string, string> {
   return {
     ...headers,
-    'Idempotency-Key': idempotencyKey,
+    'X-Idempotency-Key': idempotencyKey,
   };
 }
 
@@ -65,26 +60,3 @@ export async function makeFetchWithIdempotency(
     headers,
   });
 }
-
-/**
- * Example usage in API calls:
- *
- * // When creating a file (deterministic by resource ID)
- * const fileId = crypto.randomUUID();
- * const response = await makeFetchWithIdempotency(
- *   '/api/v1/files/initialize',
- *   {
- *     method: 'POST',
- *     body: JSON.stringify({ ...fileData, clientFileId: fileId }),
- *     headers: { 'Content-Type': 'application/json' }
- *   },
- *   fileId
- * );
- *
- * // When renaming a file (deterministic by operation + identifier)
- * const renameKey = generateIdempotencyKey('renameFile', `${fileId}:${newNameHmac}`);
- * // Same operation will always get same key, even across retries/page reloads
- *
- * // User can safely retry ANY request with the same Idempotency-Key
- * // Server will return existing result if Idempotency-Key matches
- */
