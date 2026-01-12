@@ -304,6 +304,36 @@ export function SecurityTab(props: SecurityTabProps) {
         URL.revokeObjectURL(url)
     }
 
+    const handleDownloadMasterKey = () => {
+        if (!revealedKey || !user) return;
+
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const fileName = `MK-${user.id}-${timestamp}.txt`;
+        const content = `Ellipticc Drive - Master Key Export
+----------------------------------------
+Date: ${new Date().toLocaleString()}
+User ID: ${user.id}
+Email: ${user.email}
+
+Master Key: ${revealedKey.key}
+Account Salt: ${revealedKey.salt}
+
+CRITICAL: Keep this file in a safe, offline location. Anyone with access to this key can decrypt your data.
+----------------------------------------`;
+
+        const blob = new Blob([content], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        toast.success("Master Key downloaded successfully");
+    };
+
     const formatSessionDate = (dateString: string | null) => {
         if (!dateString) return '-'
         const date = new Date(dateString)
@@ -1999,14 +2029,24 @@ export function SecurityTab(props: SecurityTabProps) {
                             <div className="space-y-3">
                                 <div className="flex items-center justify-between">
                                     <Label className="text-xs uppercase tracking-wider text-muted-foreground font-bold">Your Master Key</Label>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-6 px-2 text-[10px]"
-                                        onClick={() => setShowKey(!showKey)}
-                                    >
-                                        {showKey ? <><IconEyeOff className="h-3 w-3 mr-1" /> Hide</> : <><IconEye className="h-3 w-3 mr-1" /> Show</>}
-                                    </Button>
+                                    <div className="flex items-center gap-2">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-6 px-2 text-[10px] text-primary hover:text-primary hover:bg-primary/10"
+                                            onClick={handleDownloadMasterKey}
+                                        >
+                                            <IconDownload className="h-3 w-3 mr-1" /> Download
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-6 px-2 text-[10px]"
+                                            onClick={() => setShowKey(!showKey)}
+                                        >
+                                            {showKey ? <><IconEyeOff className="h-3 w-3 mr-1" /> Hide</> : <><IconEye className="h-3 w-3 mr-1" /> Show</>}
+                                        </Button>
+                                    </div>
                                 </div>
                                 <div className="relative group">
                                     <div className={`p-4 rounded-xl border bg-muted/50 font-mono text-[11px] break-all leading-relaxed transition-all duration-300 ${!showKey ? 'blur-md select-none' : ''}`}>
