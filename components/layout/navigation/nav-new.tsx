@@ -8,7 +8,8 @@ import {
     IconFileUpload,
     IconFolderDown,
     IconBrandGoogleDrive,
-    IconFolderPlus
+    IconFolderPlus,
+    IconStackFilled
 } from "@tabler/icons-react"
 import { useLanguage } from "@/lib/i18n/language-context"
 import { useGoogleDrive } from "@/hooks/use-google-drive"
@@ -71,6 +72,10 @@ export function NavNew({ onFileUpload, onFolderUpload }: NavNewProps) {
                             <DropdownMenuItem onClick={() => setIsCreateFolderOpen(true)} className="cursor-pointer">
                                 <IconFolderPlus className="me-2 h-4 w-4" />
                                 {t("files.newFolder")}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => router.push('/paper/new')} className="cursor-pointer">
+                                <IconStackFilled className="me-2 h-4 w-4" />
+                                {t("files.newPaper")}
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>

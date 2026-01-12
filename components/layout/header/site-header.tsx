@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
-import { IconSearch, IconFileUpload, IconFolderDown, IconPlus, IconFolderPlus, IconBrandGoogleDrive } from "@tabler/icons-react"
+import { IconSearch, IconFileUpload, IconFolderDown, IconPlus, IconFolderPlus, IconBrandGoogleDrive, IconStackFilled } from "@tabler/icons-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -101,6 +101,10 @@ export function SiteHeader({ onSearch, onFileUpload, onFolderUpload, searchValue
               <DropdownMenuItem onClick={() => setIsCreateFolderOpen(true)}>
                 <IconFolderPlus className="h-4 w-4 mr-2" />
                 New Folder
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push('/paper/new')}>
+                <IconStackFilled className="h-4 w-4 mr-2" />
+                New Paper
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
