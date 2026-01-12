@@ -31,13 +31,13 @@ jobs:
             cd /root/nextjs-frontend
             
             # Install dependencies
-            npm install
+            npm install --legacy-peer-deps
             
             # Build the Next.js app
             PORT=3001 npx next build
             
             echo "🔄 Restarting Frontend..."
-            # Using your specific PM2 command to ensure port 3001
+            # PM2 command to start or reload server
             pm2 reload frontend || pm2 start npm --name "frontend" -- run start -- --port 3001
             
             echo "✅ Deployment Complete!"
