@@ -1,4 +1,4 @@
-name: Deploy to Debian VPS
+name: Deploy Frontend to Debian VPS
 
 on:
   push:
@@ -11,27 +11,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Sync Backend to VPS
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          source: "backend/*"
-          target: "/root/drive"
-          strip_components: 1
-          exclude: "**/node_modules,**/.git"
-
       - name: Sync Frontend to VPS
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          source: "drive/*"
+          source: "drive"
           target: "/root/nextjs-frontend"
           strip_components: 1
-          exclude: "**/node_modules,**/.git,**/.next"
 
       - name: Build and Restart via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -40,19 +28,17 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            # 1. Backend Update
-            echo "📦 Updating Backend in /root/drive..."
-            cd /root/drive
-            npm install --production
-            pm2 reload backend || pm2 start server.js --name "backend"
-            
-            # 2. Frontend Update
             echo "🚀 Building Frontend in /root/nextjs-frontend..."
             cd /root/nextjs-frontend
+            
+            # Install dependencies
             npm install
+            
+            # Build the Next.js app
             PORT=3001 npx next build
             
             echo "🔄 Restarting Frontend..."
+            # Using your specific PM2 command to ensure port 3001
             pm2 reload frontend || pm2 start npm --name "frontend" -- run start -- --port 3001
             
             echo "✅ Deployment Complete!"
@@ -61,12 +47,12 @@ jobs:
         if: success()
         run: |
           curl -H "Content-Type: application/json" \
-               -d '{"content": "🚀 **Deployment Successful!**\n**Project:** Ellipticc Drive\n**Branch:** `${{ github.ref_name }}`\n**Commit:** `${{ github.event.head_commit.message }}`\n**Status:** Fixed Up!"}' \
+               -d '{"content": "🚀 **Frontend Deployment Successful!**\n**Project:** Ellipticc Drive\n**Branch:** `${{ github.ref_name }}`\n**Status:** Frontend is live on VPS!"}' \
                ${{ secrets.DISCORD_WEBHOOK_URL }}
 
       - name: Notify Discord on Failure
         if: failure()
         run: |
           curl -H "Content-Type: application/json" \
-               -d '{"content": "⚠️ **Deployment Failed!**\n**Project:** Ellipticc Drive\n**Check Logs:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"}' \
+               -d '{"content": "⚠️ **Frontend Deployment Failed!**\n**Project:** Ellipticc Drive\n**Check Logs:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"}' \
                ${{ secrets.DISCORD_WEBHOOK_URL }}
