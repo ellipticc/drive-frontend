@@ -410,6 +410,37 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
         );
     };
 
+    // Keyboard shortcuts
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Only handle shortcuts when not typing in an input
+            if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+                return;
+            }
+
+            // Prevent background actions if any modal/dialog is open
+            if (document.querySelector('[role="dialog"]') || document.querySelector('.radix-dialog-content')) {
+                return;
+            }
+
+            // Select all (Ctrl+A)
+            if (e.ctrlKey && e.key === 'a' && !e.shiftKey && !e.altKey) {
+                e.preventDefault();
+                setSelectedItems(new Set(filteredItems.map(item => item.id)));
+                return;
+            }
+
+            // Clear selection (Escape)
+            if (e.key === 'Escape') {
+                setSelectedItems(new Set());
+                return;
+            }
+        };
+
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [filteredItems]);
+
     if (isLoading) {
         return (
             <TableSkeleton

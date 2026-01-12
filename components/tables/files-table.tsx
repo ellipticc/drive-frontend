@@ -2729,6 +2729,11 @@ export const Table01DividerLineSm = ({
                 return;
             }
 
+            // Prevent background actions if any modal/dialog is open
+            if (document.querySelector('[role="dialog"]') || document.querySelector('.radix-dialog-content')) {
+                return;
+            }
+
             // Select all (Ctrl+A)
             if (e.ctrlKey && e.key === 'a' && !e.shiftKey && !e.altKey) {
                 e.preventDefault();

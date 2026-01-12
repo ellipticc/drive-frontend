@@ -117,10 +117,6 @@ export function NavMain({
                         // Force simple navigation to root
                         if (pathname === '/') return; // Already there
                         handleNavigate('/');
-                        if (!isMyFilesExpanded) {
-                          setIsMyFilesExpanded(true);
-                          sessionStorage.setItem("my-files-expanded", "true");
-                        }
                       } else {
                         handleNavigate(item.url);
                       }

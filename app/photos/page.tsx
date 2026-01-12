@@ -86,6 +86,9 @@ export default function PhotosPage() {
     const [previewFile, setPreviewFile] = useState<PreviewFileItem | null>(null)
     const [previewIndex, setPreviewIndex] = useState(-1)
 
+    // Selection state
+    const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
+
     const fetchAndDecryptPhotos = useCallback(async (refresh = false) => {
         if (refresh) setIsRefreshing(true)
         else setIsLoading(true)
