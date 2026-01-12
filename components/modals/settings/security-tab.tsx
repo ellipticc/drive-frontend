@@ -683,31 +683,6 @@ export function SecurityTab(props: SecurityTabProps) {
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
-                        {sessionsTotal > 5 && (
-                            <div className="flex items-center gap-2">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-8 w-8 p-0"
-                                    onClick={() => loadUserSessions(sessionsPage - 1)}
-                                    disabled={sessionsPage === 1}
-                                >
-                                    <IconChevronLeft className="h-4 w-4" />
-                                </Button>
-                                <span className="text-xs text-muted-foreground whitespace-nowrap">
-                                    Page {sessionsPage} of {sessionsTotalPages}
-                                </span>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-8 w-8 p-0"
-                                    onClick={() => loadUserSessions(sessionsPage + 1)}
-                                    disabled={sessionsPage >= sessionsTotalPages}
-                                >
-                                    <IconChevronRight className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        )}
                         <Dialog open={showRevokeAllDialog} onOpenChange={setShowRevokeAllDialog}>
                             <DialogTrigger asChild>
                                 <Button
@@ -836,6 +811,36 @@ export function SecurityTab(props: SecurityTabProps) {
                         </table>
                     </div>
                 </div>
+                {sessionsTotal > 5 && (
+                    <div className="flex items-center justify-between mt-4">
+                        <p className="text-xs text-muted-foreground">
+                            Showing {userSessions.length} of {sessionsTotal} sessions
+                        </p>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                onClick={() => loadUserSessions(sessionsPage - 1)}
+                                disabled={sessionsPage === 1 || isLoadingSessions}
+                            >
+                                <IconChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <span className="text-xs text-muted-foreground min-w-[3rem] text-center">
+                                Page {sessionsPage} of {sessionsTotalPages}
+                            </span>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                onClick={() => loadUserSessions(sessionsPage + 1)}
+                                disabled={sessionsPage >= sessionsTotalPages || isLoadingSessions}
+                            >
+                                <IconChevronRight className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Device Manager Section */}
@@ -856,31 +861,6 @@ export function SecurityTab(props: SecurityTabProps) {
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
-                        {devicesTotal > 5 && (
-                            <div className="flex items-center gap-2">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-8 w-8 p-0"
-                                    onClick={() => loadUserDevices(devicesPage - 1)}
-                                    disabled={devicesPage === 1}
-                                >
-                                    <IconChevronLeft className="h-4 w-4" />
-                                </Button>
-                                <span className="text-xs text-muted-foreground whitespace-nowrap">
-                                    Page {devicesPage} of {devicesTotalPages}
-                                </span>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-8 w-8 p-0"
-                                    onClick={() => loadUserDevices(devicesPage + 1)}
-                                    disabled={devicesPage >= devicesTotalPages}
-                                >
-                                    <IconChevronRight className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        )}
                     </div>
                 </div>
 
@@ -912,7 +892,7 @@ export function SecurityTab(props: SecurityTabProps) {
                                 ) : (
                                     userDevices.map((device) => (
                                         <tr key={device.id} className={`hover:bg-muted/30 transition-colors ${device.is_revoked ? 'opacity-50' : ''}`}>
-                                            <td className="px-4 py-3 font-mono text-[10px] text-muted-foreground">
+                                            <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
                                                 <TooltipProvider>
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
@@ -1052,6 +1032,36 @@ export function SecurityTab(props: SecurityTabProps) {
                         </table>
                     </div>
                 </div>
+                {devicesTotal > 5 && (
+                    <div className="flex items-center justify-between mt-4">
+                        <p className="text-xs text-muted-foreground">
+                            Showing {userDevices.length} of {devicesTotal} devices
+                        </p>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                onClick={() => loadUserDevices(devicesPage - 1)}
+                                disabled={devicesPage === 1 || isLoadingDevices}
+                            >
+                                <IconChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <span className="text-xs text-muted-foreground min-w-[3rem] text-center">
+                                Page {devicesPage} of {devicesTotalPages}
+                            </span>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                onClick={() => loadUserDevices(devicesPage + 1)}
+                                disabled={devicesPage >= devicesTotalPages || isLoadingDevices}
+                            >
+                                <IconChevronRight className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Activity Monitor Section */}
@@ -1462,7 +1472,7 @@ export function SecurityTab(props: SecurityTabProps) {
                                 <IconChevronLeft className="h-4 w-4" />
                             </Button>
                             <span className="text-xs text-muted-foreground min-w-[3rem] text-center">
-                                Page {securityEventsPage}
+                                Page {securityEventsPage} of {Math.ceil(securityEventsTotal / 10)}
                             </span>
                             <Button
                                 variant="outline"
