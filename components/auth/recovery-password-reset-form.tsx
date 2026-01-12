@@ -9,7 +9,7 @@ import { apiClient } from "@/lib/api"
 import { toast } from "sonner"
 import { OPAQUERegistration } from "@/lib/opaque"
 import { deriveEncryptionKey, encryptData, encryptRecoveryKey, encryptMasterKeyWithRecoveryKey, deriveRecoveryKeyEncryptionKey, generateMasterKeyVerificationHash } from "@/lib/crypto"
-import { xchacha20poly1305 } from "@noble/ciphers/chacha"
+import { xchacha20poly1305 } from "@noble/ciphers/chacha.js"
 
 interface RecoveryPasswordResetFormProps {
   email: string

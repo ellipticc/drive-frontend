@@ -29,7 +29,7 @@ interface MoveToFolderModalProps {
   items?: Array<{ id: string; name: string; type: "file" | "folder" }> // For bulk operations
   open?: boolean
   onOpenChange?: (open: boolean) => void
-  onItemMoved?: () => void
+  onItemMoved?: (movedItemIds?: string[]) => void
 }
 
 interface Folder {
@@ -61,7 +61,7 @@ export function MoveToFolderModal({ children, itemId = "", itemName = "item", it
   const isBulkOperation = items && items.length > 0
   const operationItems = isBulkOperation ? items : [{ id: itemId, name: itemName, type: itemType }]
   const operationTitle = isBulkOperation ? `Move ${operationItems.length} item${operationItems.length > 1 ? 's' : ''} to Folder` : `Move to Folder`
-  const operationDescription = isBulkOperation 
+  const operationDescription = isBulkOperation
     ? `Choose a destination folder for ${operationItems.length} selected item${operationItems.length > 1 ? 's' : ''}.`
     : `Choose a destination folder for "${truncateFilename(itemName)}".`
 
@@ -126,20 +126,20 @@ export function MoveToFolderModal({ children, itemId = "", itemName = "item", it
             children: [], // Start with empty children, load lazily
             hasExploredChildren: false // Haven't tried to load children yet
           }))
-        
+
         // Add root folder
         const rootFolder: Folder = {
-          id: "root", 
-          name: "My Files", 
-          parentId: null, 
-          path: "/", 
-          createdAt: "", 
+          id: "root",
+          name: "My Files",
+          parentId: null,
+          path: "/",
+          createdAt: "",
           updatedAt: "",
           isExpanded: true,
           level: 0,
           children: rootFolders
         }
-        
+
         setFolders([rootFolder])
       } else {
         toast.error(`Failed to load folders: ${response.error}`)
@@ -173,7 +173,7 @@ export function MoveToFolderModal({ children, itemId = "", itemName = "item", it
         try {
           // Get subfolders of this folder
           const response = await apiClient.getFolderContents(folder.id)
-          
+
           if (response.success && response.data) {
             // Get master key for filename decryption
             let masterKey: Uint8Array | null = null;
@@ -215,16 +215,16 @@ export function MoveToFolderModal({ children, itemId = "", itemName = "item", it
             }))
 
             // Update the folder with its children
-            setFolders(prev => updateFolderInTree(prev, folder.id, { 
-              isExpanded: true, 
+            setFolders(prev => updateFolderInTree(prev, folder.id, {
+              isExpanded: true,
               isLoading: false,
               children: subfolders,
               hasExploredChildren: true
             }))
           } else {
             // No children or error, mark as explored and expand
-            setFolders(prev => updateFolderInTree(prev, folder.id, { 
-              isExpanded: true, 
+            setFolders(prev => updateFolderInTree(prev, folder.id, {
+              isExpanded: true,
               isLoading: false,
               hasExploredChildren: true
             }))
@@ -232,8 +232,8 @@ export function MoveToFolderModal({ children, itemId = "", itemName = "item", it
         } catch {
           // console.error('Failed to load subfolders:', error)
           // Mark as explored and expand anyway
-          setFolders(prev => updateFolderInTree(prev, folder.id, { 
-            isExpanded: true, 
+          setFolders(prev => updateFolderInTree(prev, folder.id, {
+            isExpanded: true,
             isLoading: false,
             hasExploredChildren: true
           }))
@@ -261,14 +261,13 @@ export function MoveToFolderModal({ children, itemId = "", itemName = "item", it
     return folderList.flatMap(folder => {
       const indentLevel = folder.level || 0
       const canExpand = folder.id !== 'root' // Root folder doesn't need chevron
-      
+
       return [
         <div key={folder.id}>
           <button
             onClick={() => setSelectedFolder(folder.id)}
-            className={`flex items-center gap-2 w-full p-2 rounded-md text-left hover:bg-accent transition-colors ${
-              selectedFolder === folder.id ? "bg-accent ring-1 ring-ring" : ""
-            }`}
+            className={`flex items-center gap-2 w-full p-2 rounded-md text-left hover:bg-accent transition-colors ${selectedFolder === folder.id ? "bg-accent ring-1 ring-ring" : ""
+              }`}
             style={{ paddingLeft: `${8 + indentLevel * 20}px` }}
           >
             {canExpand ? (
@@ -350,7 +349,9 @@ export function MoveToFolderModal({ children, itemId = "", itemName = "item", it
 
       setSelectedFolder(null)
       setOpen(false)
-      onItemMoved?.() // Refresh the parent component
+      // Pass the successfully moved item IDs to the parent for optimistic update
+      const successfulIds = results.filter(r => r.success).map(r => operationItems.find(i => i.name === r.item)?.id).filter(Boolean) as string[];
+      onItemMoved?.(successfulIds) // Refresh the parent component
     } catch {
       // console.error("Failed to move items:", error)
       toast.error(`Failed to move items`)

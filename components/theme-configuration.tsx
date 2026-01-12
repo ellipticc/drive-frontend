@@ -9,10 +9,6 @@ export function ThemeConfiguration() {
     const { theme, setTheme } = useTheme();
 
     useEffect(() => {
-        if (!user) return;
-
-        // Apply appearance theme (skin) class
-        const skin = user.appearance_theme || 'default';
         const allSkins = [
             'cosmic-night',
             'claude',
@@ -24,6 +20,27 @@ export function ThemeConfiguration() {
             'mocha-mousse',
             'quantum-rose'
         ];
+
+        // Fallback: If user didn't load yet, ensure cookie theme is applied (prevents hydration wipe)
+        if (!user) {
+            try {
+                const match = document.cookie.match(/appearance_theme=([^;]+)/);
+                if (match) {
+                    const skin = match[1];
+                    if (skin && skin !== 'default' && allSkins.includes(skin)) {
+                        if (!document.documentElement.classList.contains(skin)) {
+                            document.documentElement.classList.add(skin);
+                        }
+                    }
+                }
+            } catch (e) {
+                // Ignore cookie errors
+            }
+            return;
+        }
+
+        // Apply appearance theme (skin) class
+        const skin = user.appearance_theme || 'default';
 
         // Only update classes if the skin has actually changed
         if (!document.documentElement.classList.contains(skin) || (skin === 'default' && allSkins.some(s => document.documentElement.classList.contains(s)))) {
@@ -45,7 +62,7 @@ export function ThemeConfiguration() {
             // Only force dark if we're stuck in system mode with sync OFF
             setTheme('dark');
         }
-    }, [user?.appearance_theme, user?.theme_sync, theme, setTheme]);
+    }, [user, user?.appearance_theme, user?.theme_sync, theme, setTheme]);
 
     return null;
 }

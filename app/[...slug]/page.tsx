@@ -170,20 +170,7 @@ export default function Home() {
   }, [searchParams]);
 
   return (
-    <SidebarInset
-      onDragEnter={(e) => {
-        if (!searchParams.get('preview')) {
-          setIsDragOverlayVisible(true)
-        }
-      }}
-      onDragOver={(e) => e.preventDefault()}
-      onDrop={(e) => {
-        e.preventDefault()
-        if (!searchParams.get('preview')) {
-          handleDrop(e.dataTransfer.files)
-        }
-      }}
-    >
+    <>
       <SiteHeader
         onSearch={handleSearch}
         searchValue={searchQuery}
@@ -240,6 +227,6 @@ export default function Home() {
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       />
-    </SidebarInset>
+    </>
   )
 }

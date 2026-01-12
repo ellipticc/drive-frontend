@@ -1200,6 +1200,30 @@ export const Table01DividerLineSm = ({
         refreshFiles(currentFolderId, true);
     }, [refreshFiles, currentFolderId]));
 
+    // Register for file added events (e.g. from upload or create folder)
+    useOnFileAdded(useCallback((file: FileItem) => {
+        // Only add if it belongs to current folder
+        const targetFolderId = currentFolderId === 'root' ? null : currentFolderId;
+
+        // Handle both null and undefined for root comparison
+        const fileParentId = file.parentId || null;
+
+        if (fileParentId === targetFolderId) {
+            setFiles(prev => {
+                // Avoid duplicates
+                if (prev.some(f => f.id === file.id)) return prev;
+                return [file, ...prev];
+            });
+            setTotalItems(prev => prev + 1);
+        }
+    }, [currentFolderId]));
+
+    // Register for file deleted events
+    useOnFileDeleted(useCallback((fileId: string) => {
+        setFiles(prev => prev.filter(f => f.id !== fileId));
+        setTotalItems(prev => Math.max(0, prev - 1));
+    }, []));
+
 
 
     // Navigate to a folder
@@ -2794,7 +2818,10 @@ export const Table01DividerLineSm = ({
     }, [addRecent, handlePreviewClick, router]);
 
     return (
-        <div className="flex flex-col h-full bg-background mt-1">
+        <div className={cn(
+            "flex flex-col h-full bg-background mt-1",
+            currentFolderId !== 'root' && "rounded-xl shadow-xs ring-1 ring-border overflow-hidden bg-card"
+        )}>
             {/* Suggested Files Section - Show only in subfolders, not in global (root) */}
             {currentFolderId !== 'root' && user?.show_suggestions !== false && (
                 <SuggestedFiles
@@ -2828,7 +2855,7 @@ export const Table01DividerLineSm = ({
                 </div>
             )}
 
-            <TableCard.Root size="sm" className={cx(isMobile && "rounded-none border-x-0 ring-0 shadow-none border-t-0")}>
+            <TableCard.Root size="sm" className={cx(isMobile ? "rounded-none border-x-0 ring-0 shadow-none border-t-0" : "rounded-xl border shadow-sm")}>
                 {!isMobile && (
                     <TableCard.Header
                         title={renderBreadcrumbs()}
@@ -3575,7 +3602,10 @@ export const Table01DividerLineSm = ({
                 items={selectedItemsForMoveToFolder}
                 open={moveToFolderModalOpen}
                 onOpenChange={setMoveToFolderModalOpen}
-                onItemMoved={() => {
+                onItemMoved={(movedItemIds) => {
+                    if (movedItemIds && movedItemIds.length > 0) {
+                        setFiles(prev => prev.filter(f => !movedItemIds.includes(f.id)));
+                    }
                     setSelectedItems(new Set()); // Clear selection after moving items
                     refreshFiles();
                 }}

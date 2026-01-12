@@ -3,7 +3,7 @@ import { decryptData } from '@/lib/crypto';
 // Helper to decrypt filename using share CEK
 export async function decryptShareFilename(encryptedFilename: string, nonce: string, shareCek: Uint8Array): Promise<string> {
     try {
-        const { xchacha20poly1305 } = await import('@noble/ciphers/chacha');
+        const { xchacha20poly1305 } = await import('@noble/ciphers/chacha.js');
 
         const encrypted = new Uint8Array(atob(encryptedFilename).split('').map(c => c.charCodeAt(0)));
         const nonceBytes = new Uint8Array(atob(nonce).split('').map(c => c.charCodeAt(0)));
@@ -48,7 +48,7 @@ export function looksLikeEncryptedName(name: string): boolean {
 // Format: encryptedData:nonce (both base64), salt is used to derive a key from share CEK
 export async function decryptManifestItemName(encryptedName: string, nameSalt: string, shareCek: Uint8Array, itemType?: string): Promise<string> {
     try {
-        const { xchacha20poly1305 } = await import('@noble/ciphers/chacha');
+        const { xchacha20poly1305 } = await import('@noble/ciphers/chacha.js');
 
         // Parse encrypted name format: "encryptedData:nonce" (both in base64)
         const [encryptedPart, noncePart] = encryptedName.split(':');
@@ -222,7 +222,7 @@ export async function verifySharePassword(password: string, saltPw: string): Pro
     const xchachaKey = derivedBytes.slice(0, 32);
 
     // Decrypt share CEK using XChaCha20-Poly1305
-    const { xchacha20poly1305 } = await import('@noble/ciphers/chacha');
+    const { xchacha20poly1305 } = await import('@noble/ciphers/chacha.js');
     const shareCekBytes = xchacha20poly1305(xchachaKey, nonce).decrypt(ciphertext);
     const shareCek = new Uint8Array(shareCekBytes);
 

@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 
-import { xchacha20poly1305 } from '@noble/ciphers/chacha';
+import { xchacha20poly1305 } from '@noble/ciphers/chacha.js';
 
 // Helper for hex string to Uint8Array
 function hexToUint8Array(hex: string): Uint8Array {

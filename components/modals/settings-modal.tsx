@@ -1676,7 +1676,8 @@ export function SettingsModal({
                         setAppearanceTheme(oldTheme);
                         updateUser({ appearance_theme: oldTheme });
                       } else {
-                        await refetch();
+                        // Don't refetch immediately as backend might return stale data
+                        // await refetch();
                       }
                     } catch (err) {
                       toast.error("Failed to update theme preference");

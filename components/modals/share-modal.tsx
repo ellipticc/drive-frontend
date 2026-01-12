@@ -127,7 +127,7 @@ async function buildEncryptedFolderManifest(
 
     const { encryptData } = await import('@/lib/crypto');
     const { decryptFilename } = await import('@/lib/crypto');
-    const { xchacha20poly1305 } = await import('@noble/ciphers/chacha');
+    const { xchacha20poly1305 } = await import('@noble/ciphers/chacha.js');
 
     // Get master key for decrypting names from API
     const masterKey = masterKeyManager.getMasterKey();
@@ -767,7 +767,7 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
         const xchachaKey = derivedBytes.slice(0, 32)
         const nonce = crypto.getRandomValues(new Uint8Array(24))
 
-        const { xchacha20poly1305 } = await import('@noble/ciphers/chacha')
+        const { xchacha20poly1305 } = await import('@noble/ciphers/chacha.js')
         const xchaCiphertext = xchacha20poly1305(xchachaKey, nonce).encrypt(shareCek)
         const nonceB64 = btoa(String.fromCharCode(...nonce))
         const ciphertextB64 = btoa(String.fromCharCode(...xchaCiphertext))
@@ -1060,7 +1060,7 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
         const xchachaKey = derivedBytes.slice(0, 32)
         const nonce = crypto.getRandomValues(new Uint8Array(24))
 
-        const { xchacha20poly1305 } = await import('@noble/ciphers/chacha')
+        const { xchacha20poly1305 } = await import('@noble/ciphers/chacha.js')
         const xchaCiphertext = xchacha20poly1305(xchachaKey, nonce).encrypt(shareCek)
         const nonceB64 = btoa(String.fromCharCode(...nonce))
         const ciphertextB64 = btoa(String.fromCharCode(...xchaCiphertext))

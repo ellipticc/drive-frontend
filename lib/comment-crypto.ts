@@ -2,7 +2,7 @@
  * Cryptographic helpers for end-to-end encrypted comments.
  * All comments are encrypted client-side using a key derived from the share CEK.
  */
-import { xchacha20poly1305 } from '@noble/ciphers/chacha';
+import { xchacha20poly1305 } from '@noble/ciphers/chacha.js';
 import * as ed from '@noble/ed25519';
 import { sha512 } from '@noble/hashes/sha2.js';
 

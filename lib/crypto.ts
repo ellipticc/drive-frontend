@@ -10,7 +10,7 @@ import { wordlist } from '@scure/bip39/wordlists/english.js';
 import { sha512 } from '@noble/hashes/sha2.js';
 import { ml_kem768 } from '@noble/post-quantum/ml-kem.js';
 import { ml_dsa65 } from '@noble/post-quantum/ml-dsa.js';
-import { xchacha20poly1305 } from '@noble/ciphers/chacha';
+import { xchacha20poly1305 } from '@noble/ciphers/chacha.js';
 
 // Configure SHA-512 for noble/ed25519
 import * as ed from '@noble/ed25519';
