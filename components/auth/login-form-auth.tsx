@@ -277,43 +277,45 @@ export function LoginFormAuth({
       // Derive and cache master key for the session
       try {
         const ud = userData as UserData;
-        if (ud.crypto_keypairs?.accountSalt) {
-          // Check if user has password-encrypted master key (new path)
-          if (ud.encrypted_master_key_password && ud.master_key_password_nonce) {
+
+        // Resolve Master Key fields, prioritizing new ones
+        const udAny = ud as any;
+        const encryptedMasterKey = udAny.encryptedMasterKey || ud.encrypted_master_key_password;
+        const masterKeyNonce = udAny.masterKeyNonce || ud.master_key_password_nonce;
+        const accountSalt = udAny.masterKeySalt || ud.crypto_keypairs?.accountSalt || ud.account_salt;
+
+        if (accountSalt) {
+          // Check if user has password-encrypted master key
+          if (encryptedMasterKey && masterKeyNonce) {
             const { deriveEncryptionKey, decryptData } = await import("@/lib/crypto")
 
             // Derive password-based encryption key using account salt
             const passwordDerivedKey = await deriveEncryptionKey(
               formData.password,
-              ud.crypto_keypairs.accountSalt as string
+              accountSalt
             )
 
             // Decrypt the Master Key using password-derived key
             try {
               const masterKeyBytes = await decryptData(
-                ud.encrypted_master_key_password,
+                encryptedMasterKey,
                 passwordDerivedKey,
-                ud.master_key_password_nonce
+                masterKeyNonce
               )
 
               // Cache the decrypted master key
-              if (ud.crypto_keypairs?.accountSalt) {
-                masterKeyManager.cacheExistingMasterKey(masterKeyBytes, ud.crypto_keypairs.accountSalt as string)
-              }
+              masterKeyManager.cacheExistingMasterKey(masterKeyBytes, accountSalt)
             } catch (decryptError) {
               console.error('Failed to decrypt password-encrypted master key:', decryptError)
               setError("Incorrect password")
               return
             }
           } else {
-            if (ud.crypto_keypairs?.accountSalt) {
-              await masterKeyManager.deriveAndCacheMasterKey(
-                formData.password,
-                ud.crypto_keypairs.accountSalt as string
-              );
-            } else {
-              throw new Error('Missing account salt');
-            }
+            // Fallback to legacy derivation (no encrypted master key yet)
+            await masterKeyManager.deriveAndCacheMasterKey(
+              formData.password,
+              accountSalt
+            );
           }
         } else {
           throw new Error('No account salt found in user profile');

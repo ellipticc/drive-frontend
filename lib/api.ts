@@ -15,6 +15,8 @@ export interface UserData {
   master_key_password_nonce?: string;
   encryptedMasterKey?: string;
   masterKeySalt?: string;
+  masterKeyNonce?: string;
+  masterKeyVersion?: number;
   sessionDuration?: number;
   authMethod?: string;
   onboarding_completed?: boolean;
@@ -1067,6 +1069,10 @@ class ApiClient {
    */
   async changePassword(data: {
     newOpaquePasswordFile: string;  // New OPAQUE registration record from OPAQUE step 3
+    encryptedMasterKey?: string;
+    masterKeySalt?: string;
+    masterKeyNonce?: string;
+    masterKeyVersion?: number;
   }): Promise<ApiResponse> {
     const idempotencyKey = generateIdempotencyKey('changePassword', data.newOpaquePasswordFile);
     const headers = addIdempotencyKey({}, idempotencyKey);

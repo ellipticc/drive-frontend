@@ -64,7 +64,8 @@ import {
 import { getUAInfo, getOSIcon, getBrowserIcon } from './device-icons'
 import { apiClient } from "@/lib/api"
 import { masterKeyManager } from "@/lib/master-key"
-import OPAQUE, { OPAQUELogin } from "@/lib/opaque"
+import OPAQUE, { OPAQUELogin, OPAQUERegistration } from "@/lib/opaque"
+import { deriveEncryptionKey, encryptData, generateKeyDerivationSalt } from "@/lib/crypto"
 import type { UserData, SecurityEvent } from "@/lib/api"
 
 interface Session {
@@ -210,6 +211,8 @@ const JsonHighlighter = ({ data }: { data: unknown }) => {
                 obj={data}
                 className="text-[11px] font-mono p-4"
             />
+
+
         </div>
     );
 };
@@ -244,6 +247,13 @@ export function SecurityTab(props: SecurityTabProps) {
     const [revealedKey, setRevealedKey] = useState<{ key: string; salt: string } | null>(null);
     const [showKey, setShowKey] = useState(false);
     const [isRotating, setIsRotating] = useState(false);
+
+    // Password Change State (Local)
+    const [showChangePasswordDialog, setShowChangePasswordDialog] = useState(false);
+    const [currentPassword, setCurrentPassword] = useState("");
+    const [newPassword, setNewPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
+    const [isChangingPassword, setIsChangingPassword] = useState(false);
 
     // Check plan access (Pro & Unlimited)
     const isPaid = (userPlan || 'Free').includes('Pro') || (userPlan || 'Free').includes('Unlimited');
@@ -360,6 +370,137 @@ export function SecurityTab(props: SecurityTabProps) {
         }
     };
 
+    const handleChangePassword = async () => {
+        if (!currentPassword || !newPassword || !confirmPassword) {
+            toast.error("Please fill in all fields");
+            return;
+        }
+
+        if (newPassword !== confirmPassword) {
+            toast.error("New passwords do not match");
+            return;
+        }
+
+        if (newPassword.length < 8) {
+            toast.error("New password must be at least 8 characters");
+            return;
+        }
+
+        setIsChangingPassword(true);
+
+        try {
+            // Ensure user email is available
+            const userEmail = user?.email;
+            if (!userEmail) {
+                toast.error("User email not found. Cannot change password.");
+                setIsChangingPassword(false);
+                return;
+            }
+
+            // Critical: Ensure we have the Master Key before proceeding
+            // If we don't have it, we can't re-encrypt it, leading to data loss
+            if (!masterKeyManager.hasMasterKey()) {
+                toast.error("Security session expired. Please log out and log in again to change your password.");
+                setIsChangingPassword(false);
+                return;
+            }
+
+            // 1. Verify current password with OPAQUE (client-side)
+            const opaqueLogin = new OPAQUELogin();
+
+            try {
+                // Step 1: Start login request
+                const { startLoginRequest } = await opaqueLogin.step1(currentPassword);
+
+                // Step 2: Get server response (using helper that calls the correct endpoint)
+                const { loginResponse } = await opaqueLogin.step2(userEmail, startLoginRequest);
+
+                // Step 3: Finish login (verify password)
+                // This will throw if the server response doesn't match our derived key
+                await opaqueLogin.step3(loginResponse);
+
+            } catch (err) {
+                console.error("Password verification failed:", err);
+                toast.error("Incorrect current password");
+                // Report failure if possible (best effort)
+                if (apiClient.reportOpaqueFailure) {
+                    apiClient.reportOpaqueFailure("PASSWORD_CHANGE", "VERIFICATION", "Incorrect password");
+                }
+                setIsChangingPassword(false);
+                return;
+            }
+
+            // 2. Generate new OPAQUE registration record
+            let newOpaquePasswordFile: string;
+
+            try {
+                const opaqueReg = new OPAQUERegistration();
+                const { registrationRequest } = await opaqueReg.step1(newPassword);
+                const { registrationResponse } = await opaqueReg.step2(userEmail, registrationRequest);
+                const { registrationRecord } = await opaqueReg.step3(registrationResponse);
+                newOpaquePasswordFile = registrationRecord;
+            } catch (err) {
+                console.error("Failed to generate new OPAQUE record:", err);
+                toast.error("Failed to prepare new password security. Please try again.");
+                setIsChangingPassword(false);
+                return;
+            }
+
+            // 3. Re-encrypt Master Key
+            let newEncryptedMasterKey: string | undefined;
+            let newSalt: string | undefined;
+            let newNonce: string | undefined;
+
+            if (masterKeyManager.hasMasterKey()) {
+                try {
+                    const masterKey = masterKeyManager.getMasterKey();
+                    newSalt = generateKeyDerivationSalt();
+                    const newKek = await deriveEncryptionKey(newPassword, newSalt);
+                    const { encryptedData, nonce } = encryptData(masterKey, newKek);
+                    newEncryptedMasterKey = encryptedData;
+                    newNonce = nonce;
+                } catch (err) {
+                    console.error("Failed to re-encrypt master key:", err);
+                    toast.error("Security error: Could not re-encrypt master key.");
+                    setIsChangingPassword(false);
+                    return;
+                }
+            }
+
+            // 4. Send to backend
+            const response = await apiClient.changePassword({
+                newOpaquePasswordFile,
+                encryptedMasterKey: newEncryptedMasterKey,
+                masterKeySalt: newSalt,
+                masterKeyNonce: newNonce,
+                masterKeyVersion: 1
+            });
+
+            if (response.success) {
+                toast.success("Password changed successfully. Please log in again.");
+                setShowChangePasswordDialog(false);
+                // Clear sensitive data
+                masterKeyManager.clearMasterKey();
+                setCurrentPassword("");
+                setNewPassword("");
+                setConfirmPassword("");
+
+                // Force logout
+                setTimeout(() => {
+                    window.location.href = '/login';
+                }, 1500);
+            } else {
+                toast.error(response.error || "Failed to change password");
+            }
+
+        } catch (error) {
+            console.error("Password change error:", error);
+            toast.error("An unexpected error occurred");
+        } finally {
+            setIsChangingPassword(false);
+        }
+    };
+
     const handleRotateIdentity = () => {
         setIsRotating(true);
         setTimeout(() => {
@@ -406,7 +547,7 @@ export function SecurityTab(props: SecurityTabProps) {
                 <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setShowPasswordModal(true)}
+                    onClick={() => setShowChangePasswordDialog(true)}
                 >
                     Change
                 </Button>
@@ -1591,6 +1732,78 @@ export function SecurityTab(props: SecurityTabProps) {
                 </div>
             </div>
 
+            {/* Password Change Dialog */}
+            <Dialog open={showChangePasswordDialog} onOpenChange={(open) => {
+                if (!open && !isChangingPassword) {
+                    setShowChangePasswordDialog(false);
+                    setCurrentPassword("");
+                    setNewPassword("");
+                    setConfirmPassword("");
+                }
+            }}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Change Password</DialogTitle>
+                        <DialogDescription>
+                            Enter your current password and a new strong password.
+                            This will re-encrypt your Master Key and log you out of all devices.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={(e) => { e.preventDefault(); handleChangePassword(); }}>
+                        <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="current-password">Current Password</Label>
+                                <PasswordInput
+                                    id="current-password"
+                                    name="current-password"
+                                    autoComplete="current-password"
+                                    value={currentPassword}
+                                    onChange={(e) => setCurrentPassword(e.target.value)}
+                                    placeholder="Enter current password"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="new-password">New Password</Label>
+                                <PasswordInput
+                                    id="new-password"
+                                    name="new-password"
+                                    autoComplete="new-password"
+                                    value={newPassword}
+                                    onChange={(e) => setNewPassword(e.target.value)}
+                                    placeholder="Enter new password (min 8 chars)"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="confirm-password">Confirm New Password</Label>
+                                <PasswordInput
+                                    id="confirm-password"
+                                    name="confirm-password"
+                                    autoComplete="new-password"
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    placeholder="Confirm new password"
+                                />
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => setShowChangePasswordDialog(false)} disabled={isChangingPassword}>
+                                Cancel
+                            </Button>
+                            <Button type="submit" disabled={isChangingPassword}>
+                                {isChangingPassword ? (
+                                    <>
+                                        <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
+                                        Updating...
+                                    </>
+                                ) : (
+                                    "Change Password"
+                                )}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
             {/* TOTP Modals - Setup */}
             <Dialog open={showTOTPSetup} onOpenChange={setShowTOTPSetup}>
                 <DialogContent>
@@ -1729,25 +1942,41 @@ export function SecurityTab(props: SecurityTabProps) {
                     </DialogHeader>
 
                     {!revealedKey ? (
-                        <div className="space-y-4 py-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="reveal-password">Verify Account Password</Label>
-                                <PasswordInput
-                                    id="reveal-password"
-                                    placeholder="Enter your password"
-                                    value={revealPassword}
-                                    onChange={(e) => setRevealPassword(e.target.value)}
-                                    autoFocus
-                                    onKeyDown={(e) => e.key === 'Enter' && handleRevealMasterKey()}
-                                />
+                        <form onSubmit={(e) => { e.preventDefault(); handleRevealMasterKey(); }}>
+                            <div className="space-y-4 py-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="reveal-password">Verify Account Password</Label>
+                                    <PasswordInput
+                                        id="reveal-password"
+                                        name="password"
+                                        autoComplete="current-password"
+                                        placeholder="Enter your password"
+                                        value={revealPassword}
+                                        onChange={(e) => setRevealPassword(e.target.value)}
+                                        autoFocus
+                                    />
+                                </div>
+                                <div className="flex items-start gap-2 p-3 bg-red-500/5 border border-red-500/20 rounded-lg text-red-600 dark:text-red-400">
+                                    <IconAlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                                    <p className="text-xs leading-normal">
+                                        NEVER share this key with anyone. Ellipticc employees will never ask for your Master Key.
+                                    </p>
+                                </div>
                             </div>
-                            <div className="flex items-start gap-2 p-3 bg-red-500/5 border border-red-500/20 rounded-lg text-red-600 dark:text-red-400">
-                                <IconAlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                                <p className="text-xs leading-normal">
-                                    NEVER share this key with anyone. Ellipticc employees will never ask for your Master Key.
-                                </p>
-                            </div>
-                        </div>
+                            <DialogFooter className="pt-2">
+                                <Button type="button" variant="outline" onClick={() => setIsExportModalOpen(false)}>Cancel</Button>
+                                <Button type="submit" disabled={isRevealing}>
+                                    {isRevealing ? (
+                                        <>
+                                            <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
+                                            Verifying...
+                                        </>
+                                    ) : (
+                                        "Reveal Key"
+                                    )}
+                                </Button>
+                            </DialogFooter>
+                        </form>
                     ) : (
                         <div className="space-y-6 py-4">
                             <div className="space-y-3">
