@@ -26,6 +26,11 @@ export interface UserData {
   is_verified?: boolean;
   is_checkmarked?: boolean;
   connectedDevicesCount?: number;
+  show_suggestions?: boolean;
+  date_format?: string;
+  time_format?: string;
+  auto_timezone?: boolean;
+  timezone?: string;
 
   storage?: {
     used_bytes: number;
@@ -1014,6 +1019,11 @@ class ApiClient {
     language?: string;
     appearance_theme?: string;
     theme_sync?: boolean;
+    show_suggestions?: boolean;
+    date_format?: string;
+    time_format?: string;
+    auto_timezone?: boolean;
+    timezone?: string;
   }): Promise<ApiResponse> {
     const idempotencyKey = generateIdempotencyKey('updateProfile', JSON.stringify(data));
     const headers = addIdempotencyKey({}, idempotencyKey);

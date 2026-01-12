@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useMemo, useState, useRef, useEffect, useCallback, useTransition } from "react";
+import { useFormatter } from "@/hooks/use-formatter";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { format as formatDateFns } from 'date-fns';
 import { DotsVertical } from "@untitledui/icons";
 import type { SortDescriptor, Selection } from "react-aria-components";
 import { Table, TableCard } from "@/components/application/table/table";
@@ -326,6 +328,7 @@ export const Table01DividerLineSm = ({
         notifyFileAdded,
         startBulkDownload
     } = useGlobalUpload();
+    const { formatDate } = useFormatter();
 
     // Current folder context
     const { setCurrentFolderId: setGlobalCurrentFolderId } = useCurrentFolder();
@@ -724,7 +727,7 @@ export const Table01DividerLineSm = ({
                     if (response.success && response.data) {
                         // Decrypt folder name if encrypted fields are present
                         let displayName = response.data.name || '';
-                        if (response.data.encryptedName && response.data.nameSalt) {
+                        if (response.data.encryptedName && response.data.nameSalt && masterKeyManager.hasMasterKey()) {
                             try {
                                 const masterKey = masterKeyManager.getMasterKey();
                                 displayName = await decryptFilename(response.data.encryptedName, response.data.nameSalt, masterKey);
@@ -764,7 +767,7 @@ export const Table01DividerLineSm = ({
         };
 
         buildFolderPathFromUrl();
-    }, [pathname, isInitialLoad, router]);
+    }, [pathname, isInitialLoad, router, t]);
 
     // Start file uploads with progress tracking
     const startUploads = async (files: File[]) => {
@@ -858,7 +861,7 @@ export const Table01DividerLineSm = ({
                 setFiles(prev => [newFile, ...prev]);
 
                 // Asynchronously decrypt the filename and update the file
-                if (fileData.encryptedFilename && fileData.filenameSalt) {
+                if (fileData.encryptedFilename && fileData.filenameSalt && masterKeyManager.hasMasterKey()) {
                     (async () => {
                         try {
                             const masterKey = masterKeyManager.getMasterKey();
@@ -1154,7 +1157,7 @@ export const Table01DividerLineSm = ({
                 setIsFetching(false);
             }
         }
-    }, [currentFolderId, page, limit, apiClient, router]);
+    }, [currentFolderId, page, limit, apiClient, router, debouncedQuery]);
 
     // Load files when folder or page changes, or when search query changes
     useEffect(() => {
@@ -1888,18 +1891,6 @@ export const Table01DividerLineSm = ({
         return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
     };
 
-    // Format date
-    const formatDate = (dateString: string): string => {
-        const date = new Date(dateString);
-        return date.toLocaleString(undefined, {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: true
-        });
-    };
 
     // Get file icon based on mime type or type
     const getFileIcon = (mimeType: string, type: string, name: string, className = "h-4 w-4") => {
@@ -2779,7 +2770,7 @@ export const Table01DividerLineSm = ({
     return (
         <div className="flex flex-col h-full bg-background mt-1">
             {/* Suggested Files Section - Show only in subfolders, not in global (root) */}
-            {!isLoading && !error && currentFolderId !== 'root' && (
+            {!isLoading && !error && currentFolderId !== 'root' && user?.show_suggestions !== false && (
                 <SuggestedFiles
                     items={recentItems}
                     isVisible={isRecentVisible}

@@ -204,6 +204,10 @@ export function SettingsModal({
   const [croppingFile, setCroppingFile] = useState<File | null>(null)
   const [appearanceTheme, setAppearanceTheme] = useState("default")
   const [themeSync, setThemeSync] = useState(true)
+  const [showSuggestions, setShowSuggestions] = useState(true)
+  const [dateFormat, setDateFormat] = useState("MM/DD/YYYY")
+  const [autoTimezone, setAutoTimezone] = useState(true)
+  const [timezone, setTimezone] = useState("UTC")
 
   // Tab state - initialize from URL hash or initialTab prop
   const [activeTab, setActiveTab] = useState(() => {
@@ -379,6 +383,21 @@ export function SettingsModal({
       }
       if (user.theme_sync !== undefined) {
         setThemeSync(user.theme_sync);
+      }
+      if (user.show_suggestions !== undefined) {
+        setShowSuggestions(user.show_suggestions);
+      }
+      if (user.date_format) {
+        setDateFormat(user.date_format);
+      }
+      if (user.time_format) {
+        setDateTimePreference(user.time_format);
+      }
+      if (user.auto_timezone !== undefined) {
+        setAutoTimezone(user.auto_timezone);
+      }
+      if (user.timezone) {
+        setTimezone(user.timezone);
       }
     }
   }, [user]);
@@ -1647,29 +1666,150 @@ export function SettingsModal({
                   setTheme={setTheme}
                   appearanceTheme={appearanceTheme}
                   setAppearanceTheme={async (newTheme) => {
+                    const oldTheme = appearanceTheme;
                     setAppearanceTheme(newTheme);
                     updateUser({ appearance_theme: newTheme });
                     try {
-                      await apiClient.updateProfile({ appearance_theme: newTheme });
+                      const response = await apiClient.updateProfile({ appearance_theme: newTheme });
+                      if (!response.success) {
+                        toast.error(response.error || "Failed to update theme preference");
+                        setAppearanceTheme(oldTheme);
+                        updateUser({ appearance_theme: oldTheme });
+                      } else {
+                        await refetch();
+                      }
                     } catch (err) {
                       toast.error("Failed to update theme preference");
+                      setAppearanceTheme(oldTheme);
+                      updateUser({ appearance_theme: oldTheme });
                     }
                   }}
                   themeSync={themeSync}
                   setThemeSync={async (sync) => {
+                    const oldSync = themeSync;
+                    const oldTheme = theme;
                     setThemeSync(sync);
                     updateUser({ theme_sync: sync });
                     try {
                       if (sync) {
                         setTheme('system');
                       }
-                      await apiClient.updateProfile({ theme_sync: sync });
+                      const response = await apiClient.updateProfile({ theme_sync: sync });
+                      if (!response.success) {
+                        toast.error(response.error || "Failed to update sync setting");
+                        setThemeSync(oldSync);
+                        updateUser({ theme_sync: oldSync });
+                        if (oldTheme) setTheme(oldTheme);
+                      } else {
+                        await refetch();
+                      }
                     } catch (err) {
                       toast.error("Failed to update sync setting");
+                      setThemeSync(oldSync);
+                      updateUser({ theme_sync: oldSync });
+                      if (oldTheme) setTheme(oldTheme);
                     }
                   }}
                   dateTimePreference={dateTimePreference}
-                  setDateTimePreference={setDateTimePreference}
+                  setDateTimePreference={async (val) => {
+                    const oldVal = dateTimePreference;
+                    setDateTimePreference(val);
+                    updateUser({ time_format: val });
+                    try {
+                      const response = await apiClient.updateProfile({ time_format: val });
+                      if (!response.success) {
+                        toast.error(response.error || "Failed to update time format");
+                        setDateTimePreference(oldVal);
+                        updateUser({ time_format: oldVal });
+                      } else {
+                        await refetch();
+                      }
+                    } catch (err) {
+                      toast.error("Failed to update time format");
+                      setDateTimePreference(oldVal);
+                      updateUser({ time_format: oldVal });
+                    }
+                  }}
+                  showSuggestions={showSuggestions}
+                  setShowSuggestions={async (val) => {
+                    const oldVal = showSuggestions;
+                    setShowSuggestions(val);
+                    updateUser({ show_suggestions: val });
+                    try {
+                      const response = await apiClient.updateProfile({ show_suggestions: val });
+                      if (!response.success) {
+                        toast.error(response.error || "Failed to update suggestions preference");
+                        setShowSuggestions(oldVal);
+                        updateUser({ show_suggestions: oldVal });
+                      } else {
+                        await refetch();
+                      }
+                    } catch (err) {
+                      toast.error("Failed to update suggestions preference");
+                      setShowSuggestions(oldVal);
+                      updateUser({ show_suggestions: oldVal });
+                    }
+                  }}
+                  dateFormat={dateFormat}
+                  setDateFormat={async (val) => {
+                    const oldVal = dateFormat;
+                    setDateFormat(val);
+                    updateUser({ date_format: val });
+                    try {
+                      const response = await apiClient.updateProfile({ date_format: val });
+                      if (!response.success) {
+                        toast.error(response.error || "Failed to update date format");
+                        setDateFormat(oldVal);
+                        updateUser({ date_format: oldVal });
+                      } else {
+                        await refetch();
+                      }
+                    } catch (err) {
+                      toast.error("Failed to update date format");
+                      setDateFormat(oldVal);
+                      updateUser({ date_format: oldVal });
+                    }
+                  }}
+                  autoTimezone={autoTimezone}
+                  setAutoTimezone={async (val) => {
+                    const oldVal = autoTimezone;
+                    setAutoTimezone(val);
+                    updateUser({ auto_timezone: val });
+                    try {
+                      const response = await apiClient.updateProfile({ auto_timezone: val });
+                      if (!response.success) {
+                        toast.error(response.error || "Failed to update timezone setting");
+                        setAutoTimezone(oldVal);
+                        updateUser({ auto_timezone: oldVal });
+                      } else {
+                        await refetch();
+                      }
+                    } catch (err) {
+                      toast.error("Failed to update timezone setting");
+                      setAutoTimezone(oldVal);
+                      updateUser({ auto_timezone: oldVal });
+                    }
+                  }}
+                  timezone={timezone}
+                  setTimezone={async (val) => {
+                    const oldVal = timezone;
+                    setTimezone(val);
+                    updateUser({ timezone: val });
+                    try {
+                      const response = await apiClient.updateProfile({ timezone: val });
+                      if (!response.success) {
+                        toast.error(response.error || "Failed to update timezone");
+                        setTimezone(oldVal);
+                        updateUser({ timezone: oldVal });
+                      } else {
+                        await refetch();
+                      }
+                    } catch (err) {
+                      toast.error("Failed to update timezone");
+                      setTimezone(oldVal);
+                      updateUser({ timezone: oldVal });
+                    }
+                  }}
                 />
               )}
 

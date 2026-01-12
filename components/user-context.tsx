@@ -32,6 +32,11 @@ interface UserData {
   theme_sync?: boolean;
   is_verified?: boolean;
   is_checkmarked?: boolean;
+  show_suggestions?: boolean;
+  date_format?: string;
+  time_format?: string;
+  auto_timezone?: boolean;
+  timezone?: string;
   subscription?: {
     id: string;
     status: string;

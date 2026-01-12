@@ -43,6 +43,22 @@ export const dictionaries = {
                 "24h": "24-hour",
                 desc: "Choose how time is displayed throughout the application.",
             },
+            suggestions: {
+                label: "Suggested for you",
+                desc: "Show recommended files based on your activity",
+            },
+            dateFormat: {
+                label: "Date Format",
+                desc: "Select your preferred date display format",
+            },
+            autoTimezone: {
+                label: "Automatic time zone",
+                desc: "Set time zone automatically based on your location",
+            },
+            timezone: {
+                label: "Select Time Zone",
+                desc: "Manually select your time zone",
+            },
             notifications: "Notifications",
             referrals: "Referrals",
             close: "Close settings",
@@ -172,6 +188,22 @@ export const dictionaries = {
                 "12h": "12 heures (AM/PM)",
                 "24h": "24 heures",
                 desc: "Choisissez comment l'heure est affichée dans l'application.",
+            },
+            suggestions: {
+                label: "Suggéré pour vous",
+                desc: "Afficher les fichiers recommandés en fonction de votre activité",
+            },
+            dateFormat: {
+                label: "Format de date",
+                desc: "Sélectionnez votre format d'affichage de date préféré",
+            },
+            autoTimezone: {
+                label: "Fuseau horaire automatique",
+                desc: "Définir le fuseau horaire automatiquement en fonction de votre emplacement",
+            },
+            timezone: {
+                label: "Sélectionner le fuseau horaire",
+                desc: "Sélectionnez manuellement votre fuseau horaire",
             },
             notifications: "Notifications",
             referrals: "Parrainages",
@@ -303,6 +335,22 @@ export const dictionaries = {
                 "24h": "24 horas",
                 desc: "Elija cómo se muestra la hora en toda la aplicación.",
             },
+            suggestions: {
+                label: "Sugerido para ti",
+                desc: "Mostrar archivos recomendados según tu actividad",
+            },
+            dateFormat: {
+                label: "Formato de fecha",
+                desc: "Seleccione su formato de visualización de fecha preferido",
+            },
+            autoTimezone: {
+                label: "Zona horaria automática",
+                desc: "Establecer la zona horaria automáticamente según su ubicación",
+            },
+            timezone: {
+                label: "Seleccionar zona horaria",
+                desc: "Seleccione manualmente su zona horaria",
+            },
             notifications: "Notificaciones",
             referrals: "Referidos",
             close: "Cerrar configuración",
@@ -432,6 +480,22 @@ export const dictionaries = {
                 "12h": "12-Stunden (AM/PM)",
                 "24h": "24-Stunden",
                 desc: "Wählen Sie, wie die Uhrzeit in der Anwendung angezeigt werden soll.",
+            },
+            suggestions: {
+                label: "Für Sie vorgeschlagen",
+                desc: "Empfohlene Dateien basierend auf Ihrer Aktivität anzeigen",
+            },
+            dateFormat: {
+                label: "Datumsformat",
+                desc: "Wählen Sie Ihr bevorzugtes Datumsformat aus",
+            },
+            autoTimezone: {
+                label: "Automatische Zeitzone",
+                desc: "Zeitzone automatisch basierend auf Ihrem Standort einstellen",
+            },
+            timezone: {
+                label: "Zeitzone auswählen",
+                desc: "Wählen Sie Ihre Zeitzone manuell aus",
             },
             notifications: "Benachrichtigungen",
             referrals: "Empfehlungen",

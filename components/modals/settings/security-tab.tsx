@@ -1,3 +1,4 @@
+import { useFormatter } from "@/hooks/use-formatter";
 import React, { useState } from 'react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -237,6 +238,8 @@ export function SecurityTab(props: SecurityTabProps) {
         usageDiagnosticsEnabled, crashReportsEnabled, handleUpdatePrivacySettings,
         userPlan
     } = props;
+
+    const { formatDate } = useFormatter();
 
     const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
     const [copiedCodes, setCopiedCodes] = useState(false);
@@ -808,7 +811,7 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                                 {session.ip_address}
                                             </td>
                                             <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">
-                                                {formatSessionDate(session.created_at)}
+                                                {formatDate(session.created_at)}
                                             </td>
                                             <td className="px-4 py-3 text-right">
                                                 <div className="flex items-center justify-end gap-2">
@@ -1029,7 +1032,7 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                                 </div>
                                             </td>
                                             <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">
-                                                {formatSessionDate(device.last_active ?? null)}
+                                                {formatDate(device.last_active)}
                                             </td>
                                             <td className="px-4 py-3 text-right">
                                                 <div className="flex items-center justify-end gap-2">
@@ -1355,7 +1358,7 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                                         </span>
                                                     </td>
                                                     <td className="px-4 py-3 text-right text-xs text-muted-foreground whitespace-nowrap">
-                                                        {formatSessionDate(event.createdAt)}
+                                                        {formatDate(event.createdAt)}
                                                     </td>
                                                 </tr>
                                                 {isExpanded && (

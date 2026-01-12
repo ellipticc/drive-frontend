@@ -1,3 +1,5 @@
+"use client";
+
 import React from 'react'
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -18,6 +20,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { useFormatter } from "@/hooks/use-formatter";
 import type { Referral } from "@/lib/api"
 
 const formatStorageSize = (bytes: number) => {
@@ -26,27 +29,6 @@ const formatStorageSize = (bytes: number) => {
     const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
     const i = Math.floor(Math.log(bytes) / Math.log(k))
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
-}
-
-const formatTimeAgo = (dateString: string | null) => {
-    if (!dateString) return '-'
-    const date = new Date(dateString)
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-    const diffMins = Math.floor(diffMs / (1000 * 60))
-
-    if (diffDays > 0) return `${diffDays}d ago`
-    if (diffHours > 0) return `${diffHours}h ago`
-    if (diffMins > 0) return `${diffMins}m ago`
-    return 'just now'
-}
-
-// Helper for email display
-const getDisplayNameFromEmail = (email: string) => {
-    if (!email) return 'Unknown User'
-    return email.split('@')[0]
 }
 
 interface ReferralsTabProps {
@@ -78,6 +60,7 @@ export function ReferralsTab({
     recentReferrals,
     referralStats
 }: ReferralsTabProps) {
+    const { formatDate } = useFormatter();
     return (
         <div className="space-y-6">
             <h2 className="text-xl font-semibold">Referral Program</h2>
@@ -248,8 +231,8 @@ export function ReferralsTab({
                                                     <td className="px-4 py-3 text-center min-w-[120px] hidden xs:table-cell">
                                                         <p className="text-xs text-muted-foreground">
                                                             {referral.status === 'completed' && referral.completed_at
-                                                                ? formatTimeAgo(referral.completed_at)
-                                                                : formatTimeAgo(referral.created_at)}
+                                                                ? formatDate(referral.completed_at)
+                                                                : formatDate(referral.created_at)}
                                                         </p>
                                                     </td>
                                                 </tr>

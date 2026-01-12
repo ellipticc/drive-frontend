@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo, useState, useEffect, useRef } from "react";
+import { useFormatter } from "@/hooks/use-formatter";
 import dynamic from "next/dynamic";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
@@ -43,6 +44,7 @@ import {
 export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: string; mode?: 'sent' | 'received' }) => {
     const isMobile = useIsMobile();
     const { startFileDownload, startBulkDownload } = useGlobalUpload();
+    const { formatDate } = useFormatter();
 
     const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({
         column: "createdAt",
@@ -279,26 +281,6 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
         }
     };
 
-    // Format file size
-
-
-    // Format date
-    const formatDate = (dateString: string): string => {
-        const date = new Date(dateString);
-        const month = (date.getMonth() + 1).toString().padStart(2, '0');
-        const day = date.getDate().toString().padStart(2, '0');
-        const year = date.getFullYear();
-        const time = date.toLocaleTimeString('en-US', {
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: true
-        });
-
-        return `${month}/${day}/${year} ${time}`;
-    };
-
-
-
     const sortedItems = useMemo(() => {
         return shares.sort((a, b) => {
 
@@ -415,54 +397,17 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
     };
 
     const renderHeaderIcons = () => {
-        const hasSelection = selectedItems.size > 0;
-
-        if (!hasSelection) {
-            // Default state - no selection
-            return (
-                <>
-                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={handleShareRoot}>
-                        <IconShare3 className="h-3.5 w-3.5" />
-                    </Button>
-                    <div className="h-5 w-px bg-border mx-1" />
-                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleViewModeChange(viewMode === 'table' ? 'grid' : 'table')}>
-                        {viewMode === 'table' ? <IconGrid3x3 className="h-3.5 w-3.5" /> : <IconListDetails className="h-3.5 w-3.5" />}
-                    </Button>
-                </>
-            );
-        } else {
-            // Selected items state - show bulk operation icons
-            return (
-                <>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={handleBulkDownload}>
-                                <IconDownload className="h-3.5 w-3.5" />
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Download selected</TooltipContent>
-                    </Tooltip>
-                    <div className="h-5 w-px bg-border mx-1" />
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={handleBulkRevoke}>
-                                <IconX className="h-3.5 w-3.5" />
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Revoke selected shares</TooltipContent>
-                    </Tooltip>
-                    <div className="h-5 w-px bg-border mx-1" />
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleViewModeChange(viewMode === 'table' ? 'grid' : 'table')}>
-                                {viewMode === 'table' ? <IconGrid3x3 className="h-3.5 w-3.5" /> : <IconListDetails className="h-3.5 w-3.5" />}
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>{viewMode === 'table' ? 'Grid view' : 'Table view'}</TooltipContent>
-                    </Tooltip>
-                </>
-            );
-        }
+        return (
+            <>
+                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={handleShareRoot}>
+                    <IconShare3 className="h-3.5 w-3.5" />
+                </Button>
+                <div className="h-5 w-px bg-border mx-1" />
+                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleViewModeChange(viewMode === 'table' ? 'grid' : 'table')}>
+                    {viewMode === 'table' ? <IconGrid3x3 className="h-3.5 w-3.5" /> : <IconListDetails className="h-3.5 w-3.5" />}
+                </Button>
+            </>
+        );
     };
 
     if (isLoading) {
@@ -549,17 +494,17 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                                     </Table.Head>
                                 )}
                                 {!isMobile && (
-                                    <Table.Head id="createdAt" allowsSorting align="right" className={`pointer-events-none cursor-default min-w-[120px] ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
+                                    <Table.Head id="createdAt" allowsSorting align="right" className={`pointer-events-none cursor-default min-w-[120px] ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
                                         <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Created at</span>
                                     </Table.Head>
                                 )}
                                 {!isMobile && (
-                                    <Table.Head id="downloads" allowsSorting align="right" className={`pointer-events-none cursor-default min-w-[80px] ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
+                                    <Table.Head id="downloads" allowsSorting align="right" className={`pointer-events-none cursor-default min-w-[80px] ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
                                         <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Download Count</span>
                                     </Table.Head>
                                 )}
                                 {!isMobile && (
-                                    <Table.Head id="expiresAt" allowsSorting align="right" className={`pointer-events-none cursor-default min-w-[120px] ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''}`}>
+                                    <Table.Head id="expiresAt" allowsSorting align="right" className={`pointer-events-none cursor-default min-w-[120px] ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
                                         <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Expires at</span>
                                     </Table.Head>
                                 )}
@@ -607,28 +552,28 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                                             </Table.Cell>
                                             {!isMobile && (
                                                 <Table.Cell className="text-left min-w-[120px] max-w-[200px]">
-                                                    <span className="text-xs text-muted-foreground font-[var(--font-jetbrains-mono)] font-semibold tracking-wider whitespace-nowrap truncate block">
+                                                    <span className="text-xs text-muted-foreground font-mono whitespace-nowrap truncate block">
                                                         {item.folderPath || 'Root'}
                                                     </span>
                                                 </Table.Cell>
                                             )}
                                             {!isMobile && (
-                                                <Table.Cell className="text-right">
-                                                    <span className="text-xs text-muted-foreground font-[var(--font-jetbrains-mono)] font-semibold tracking-wider whitespace-nowrap">
+                                                <Table.Cell className="text-right px-4">
+                                                    <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
                                                         {formatDate(item.createdAt)}
                                                     </span>
                                                 </Table.Cell>
                                             )}
                                             {!isMobile && (
-                                                <Table.Cell className="text-right">
-                                                    <span className="text-xs text-muted-foreground font-[var(--font-jetbrains-mono)] font-semibold tracking-wider whitespace-nowrap">
+                                                <Table.Cell className="text-right px-4">
+                                                    <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
                                                         {item.downloads}
                                                     </span>
                                                 </Table.Cell>
                                             )}
                                             {!isMobile && (
-                                                <Table.Cell className="text-right">
-                                                    <span className="text-xs text-muted-foreground font-[var(--font-jetbrains-mono)] font-semibold tracking-wider whitespace-nowrap">
+                                                <Table.Cell className="text-right px-4">
+                                                    <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
                                                         {item.expiresAt ? formatDate(item.expiresAt) : 'Never'}
                                                     </span>
                                                 </Table.Cell>
@@ -709,7 +654,16 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                                 <div
                                     key={item.id}
                                     className={`group relative bg-card rounded-lg border border-border p-4 hover:bg-muted/50 transition-all duration-200 cursor-pointer ${selectedItems.has(item.id) ? 'ring-2 ring-primary bg-muted' : ''}`}
-                                    onClick={() => setSelectedItems(new Set([item.id]))}
+                                    onClick={(e) => {
+                                        if (e.ctrlKey || e.metaKey) {
+                                            const newSelected = new Set(selectedItems);
+                                            if (newSelected.has(item.id)) newSelected.delete(item.id);
+                                            else newSelected.add(item.id);
+                                            setSelectedItems(newSelected);
+                                        } else {
+                                            setSelectedItems(new Set([item.id]));
+                                        }
+                                    }}
                                     onDoubleClick={() => handleDetailsClick(item.fileId, item.fileName, item.isFolder ? 'folder' : 'file')}
                                 >
                                     <div className="flex flex-col items-center text-center space-y-2">
@@ -744,7 +698,7 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                                                 {item.folderPath}
                                             </p>
                                             <p className="text-xs text-muted-foreground">
-                                                {new Date(item.createdAt).toLocaleDateString()}
+                                                {formatDate(item.createdAt)}
                                             </p>
                                         </div>
                                     </div>
@@ -781,6 +735,32 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                     </div>
                 )}
             </TableCard.Root >
+
+            <ActionBar
+                open={selectedItems.size > 0}
+            >
+                <ActionBarSelection>
+                    {selectedItems.size} selected
+                </ActionBarSelection>
+                <ActionBarSeparator />
+                <ActionBarGroup>
+                    <ActionBarItem onClick={handleBulkDownload}>
+                        <IconDownload className="h-4 w-4 mr-2" />
+                        Download
+                    </ActionBarItem>
+                    <ActionBarItem
+                        variant="destructive"
+                        onClick={handleBulkRevoke}
+                    >
+                        <IconX className="h-4 w-4 mr-2" />
+                        Revoke
+                    </ActionBarItem>
+                </ActionBarGroup>
+                <ActionBarSeparator />
+                <ActionBarClose onClick={() => setSelectedItems(new Set())}>
+                    <IconX className="h-4 w-4" />
+                </ActionBarClose>
+            </ActionBar>
 
             <ShareModal
                 itemId={selectedItemForShare?.id || ""}

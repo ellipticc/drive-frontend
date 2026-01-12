@@ -1,4 +1,4 @@
-import React from 'react'
+import { useFormatter } from "@/hooks/use-formatter";
 import { Button } from "@/components/ui/button"
 import {
     AlertDialog,
@@ -67,6 +67,7 @@ export function BillingTab({
     subsTotalPages,
     invoicesTotalPages
 }: BillingTabProps) {
+    const { formatDate } = useFormatter();
     return (
         <div className="space-y-6">
             <h2 className="text-xl font-semibold">Billing & Subscription</h2>
@@ -108,7 +109,7 @@ export function BillingTab({
                                             <span className="text-sm text-muted-foreground">Cancellation:</span>
                                             <span className="text-sm text-red-600 font-medium">
                                                 {subscription.currentPeriodEnd
-                                                    ? `${subscription.status === 'trialing' ? 'Trial ends' : 'Expiring'} ${new Date(subscription.currentPeriodEnd * 1000).toLocaleDateString()}`
+                                                    ? `${subscription.status === 'trialing' ? 'Trial ends' : 'Expiring'} ${formatDate(subscription.currentPeriodEnd * 1000)}`
                                                     : 'Scheduled for termination'
                                                 }
                                             </span>
@@ -118,7 +119,7 @@ export function BillingTab({
                                         <div className="flex items-center justify-between">
                                             <span className="text-sm text-muted-foreground">Next billing:</span>
                                             <span className="text-sm font-medium font-mono">
-                                                {new Date(subscription.currentPeriodEnd * 1000).toLocaleDateString()}
+                                                {formatDate(subscription.currentPeriodEnd * 1000)}
                                             </span>
                                         </div>
                                     )}
@@ -230,7 +231,7 @@ export function BillingTab({
                             ) : subscription?.cancelAtPeriodEnd ? (
                                 <div className="flex-1 p-3 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
                                     <p className="text-sm text-yellow-800 dark:text-yellow-200 text-center font-medium">
-                                        Your {subscription.status === 'trialing' ? 'trial' : 'subscription'} will expire on {subscription.currentPeriodEnd ? new Date(subscription.currentPeriodEnd * 1000).toLocaleDateString() : 'the end of the period'}
+                                        Your {subscription.status === 'trialing' ? 'trial' : 'subscription'} will expire on {subscription.currentPeriodEnd ? formatDate(subscription.currentPeriodEnd * 1000) : 'the end of the period'}
                                     </p>
                                 </div>
                             ) : null}
@@ -378,7 +379,7 @@ export function BillingTab({
                                                                     <p className="text-xs capitalize">{sub.interval}ly</p>
                                                                 </td>
                                                                 <td className="px-4 py-3 text-right min-w-[120px]">
-                                                                    <p className="text-xs">{new Date(sub.created * 1000).toLocaleDateString()}</p>
+                                                                    <p className="text-xs">{formatDate(sub.created * 1000)}</p>
                                                                 </td>
                                                             </tr>
                                                         ))}
@@ -445,7 +446,7 @@ export function BillingTab({
                                                                 </td>
                                                                 <td className="px-4 py-3 text-left text-sm">${invoice.amount.toFixed(2)}</td>
                                                                 <td className="px-4 py-3 text-right text-xs text-muted-foreground">
-                                                                    {new Date(invoice.created * 1000).toLocaleDateString()}
+                                                                    {formatDate(invoice.created * 1000)}
                                                                 </td>
                                                                 <td className="px-4 py-3 text-right">
                                                                     <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => window.open(invoice.invoicePdf, '_blank')}>

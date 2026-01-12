@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo, useState, useEffect, useRef } from "react";
+import { useFormatter } from "@/hooks/use-formatter";
 import dynamic from "next/dynamic";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { DotsVertical } from "@untitledui/icons";
@@ -29,6 +30,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { IconFolder, IconInfoCircle, IconTrash as IconTrashAlt, IconX } from "@tabler/icons-react";
 import { apiClient, FileContentItem, FolderContentItem } from "@/lib/api";
+import { formatFileSize } from "@/lib/utils";
 import { TableSkeleton } from "@/components/tables/table-skeleton";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -66,6 +68,7 @@ interface TrashItem {
 
 export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
     const { user, updateStorage } = useUser();
+    const { formatDate } = useFormatter();
     const isMobile = useIsMobile();
 
     // Calculate retention period text based on user plan
@@ -465,14 +468,6 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
         }
     };
 
-    // Format file size
-    const formatFileSize = (bytes: number): string => {
-        if (bytes === 0) return '0 B';
-        const k = 1024;
-        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-    };
 
     // Filter items based on search query
     const deferredQuery = React.useDeferredValue(searchQuery);
@@ -722,14 +717,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                                             {!isMobile && (
                                                 <Table.Cell className="text-right h-12">
                                                     <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
-                                                        {new Date(item.deletedAt).toLocaleString('en-US', {
-                                                            month: '2-digit',
-                                                            day: '2-digit',
-                                                            year: 'numeric',
-                                                            hour: 'numeric',
-                                                            minute: '2-digit',
-                                                            hour12: true
-                                                        })}
+                                                        {formatDate(item.deletedAt)}
                                                     </span>
                                                 </Table.Cell>
                                             )}
