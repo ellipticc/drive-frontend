@@ -377,13 +377,12 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                 throw new Error("Incorrect password");
             }
 
-            // 2. Derive key locally for display
-            const salt = masterKeyManager.getAccountSalt();
-            if (!salt) throw new Error("Account salt not found");
-
-            // Derive key to ensure we have the correct one cached/derived
-            await masterKeyManager.deriveAndCacheMasterKey(revealPassword, salt);
+            // 2. Retrieve the cached master key (already unwrapped and verified during login)
+            if (!masterKeyManager.hasMasterKey()) {
+                throw new Error("Master key not active in current session");
+            }
             const key = masterKeyManager.getMasterKey();
+            const salt = masterKeyManager.getAccountSalt() || "Unknown";
 
             // Convert to hex for display
             const keyHex = Array.from(key).map(b => b.toString(16).padStart(2, '0')).join('');

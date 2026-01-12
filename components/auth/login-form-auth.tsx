@@ -278,8 +278,34 @@ export function LoginFormAuth({
       try {
         const ud = userData as UserData;
         if (ud.crypto_keypairs?.accountSalt) {
-          // Check if user has password-encrypted master key (new path)
-          if (ud.encrypted_master_key_password && ud.master_key_password_nonce) {
+          // Check if user has encrypted master key (Main Path - supports Password Change / Key Rotation)
+          if (ud.encryptedMasterKey && ud.masterKeySalt && ud.masterKeyNonce) {
+            const { deriveEncryptionKey, decryptData } = await import("@/lib/crypto")
+
+            // Derive password-based encryption key using the NEW master key salt (not the old registration salt)
+            const passwordDerivedKey = await deriveEncryptionKey(
+              formData.password,
+              ud.masterKeySalt
+            )
+
+            // Decrypt the Master Key
+            try {
+              const masterKeyBytes = await decryptData(
+                ud.encryptedMasterKey,
+                passwordDerivedKey,
+                ud.masterKeyNonce
+              )
+
+              // Cache the decrypted master key with the CURRENT (new) salt
+              masterKeyManager.cacheExistingMasterKey(masterKeyBytes, ud.masterKeySalt)
+            } catch (decryptError) {
+              console.error('Failed to decrypt master key:', decryptError)
+              setError("Incorrect password or corrupted key")
+              return
+            }
+          }
+          // Legacy/Fallback Path: Check if user has password-encrypted master key (Older implementation)
+          else if (ud.encrypted_master_key_password && ud.master_key_password_nonce) {
             const { deriveEncryptionKey, decryptData } = await import("@/lib/crypto")
 
             // Derive password-based encryption key using account salt
@@ -306,7 +332,10 @@ export function LoginFormAuth({
               return
             }
           } else {
+            // Direct Derivation (Legacy Mode - registration only)
+            // This is where it fails if password changed because it uses the OLD salt from registration
             if (ud.crypto_keypairs?.accountSalt) {
+              console.warn("Using legacy direct derivation mode. This may fail if password was changed.");
               await masterKeyManager.deriveAndCacheMasterKey(
                 formData.password,
                 ud.crypto_keypairs.accountSalt as string
