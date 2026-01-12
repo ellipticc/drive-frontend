@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -277,45 +277,43 @@ export function LoginFormAuth({
       // Derive and cache master key for the session
       try {
         const ud = userData as UserData;
-
-        // Resolve Master Key fields, prioritizing new ones
-        const udAny = ud as any;
-        const encryptedMasterKey = udAny.encryptedMasterKey || ud.encrypted_master_key_password;
-        const masterKeyNonce = udAny.masterKeyNonce || ud.master_key_password_nonce;
-        const accountSalt = udAny.masterKeySalt || ud.crypto_keypairs?.accountSalt || ud.account_salt;
-
-        if (accountSalt) {
-          // Check if user has password-encrypted master key
-          if (encryptedMasterKey && masterKeyNonce) {
+        if (ud.crypto_keypairs?.accountSalt) {
+          // Check if user has password-encrypted master key (new path)
+          if (ud.encrypted_master_key_password && ud.master_key_password_nonce) {
             const { deriveEncryptionKey, decryptData } = await import("@/lib/crypto")
 
             // Derive password-based encryption key using account salt
             const passwordDerivedKey = await deriveEncryptionKey(
               formData.password,
-              accountSalt
+              ud.crypto_keypairs.accountSalt as string
             )
 
             // Decrypt the Master Key using password-derived key
             try {
               const masterKeyBytes = await decryptData(
-                encryptedMasterKey,
+                ud.encrypted_master_key_password,
                 passwordDerivedKey,
-                masterKeyNonce
+                ud.master_key_password_nonce
               )
 
               // Cache the decrypted master key
-              masterKeyManager.cacheExistingMasterKey(masterKeyBytes, accountSalt)
+              if (ud.crypto_keypairs?.accountSalt) {
+                masterKeyManager.cacheExistingMasterKey(masterKeyBytes, ud.crypto_keypairs.accountSalt as string)
+              }
             } catch (decryptError) {
               console.error('Failed to decrypt password-encrypted master key:', decryptError)
               setError("Incorrect password")
               return
             }
           } else {
-            // Fallback to legacy derivation (no encrypted master key yet)
-            await masterKeyManager.deriveAndCacheMasterKey(
-              formData.password,
-              accountSalt
-            );
+            if (ud.crypto_keypairs?.accountSalt) {
+              await masterKeyManager.deriveAndCacheMasterKey(
+                formData.password,
+                ud.crypto_keypairs.accountSalt as string
+              );
+            } else {
+              throw new Error('Missing account salt');
+            }
           }
         } else {
           throw new Error('No account salt found in user profile');
@@ -435,7 +433,7 @@ export function LoginFormAuth({
             <PasswordInput
               id="password"
               name="password"
-              placeholder="••••••••"
+              placeholder="●●●●●●●●●●●"
               required
               autoComplete="current-password"
               value={formData.password}

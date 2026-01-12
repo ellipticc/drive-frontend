@@ -84,10 +84,13 @@ import JSONHighlighter from 'react-json-syntax-highlighter'
 import dynamic from 'next/dynamic'
 import { UAParser } from 'ua-parser-js'
 
-const MapComponent = dynamic(() => import('./map-component'), {
-    ssr: false,
-    loading: () => <div className="h-full w-full bg-muted animate-pulse rounded-xl" />
-})
+import {
+    Map,
+    MapMarker,
+    MapPopup,
+    MapTileLayer,
+    MapZoomControl,
+} from "@/components/ui/map"
 
 interface Device {
     id: string;
@@ -1400,11 +1403,15 @@ export function SecurityTab(props: SecurityTabProps) {
                                                                     </div>
                                                                     <div className={`bg-background/50 rounded-xl overflow-hidden border border-muted/50 h-[400px] relative ${!isPaid ? 'pointer-events-none' : ''}`}>
                                                                         <div className={`h-full w-full transition-all duration-500 ${!isPaid ? 'blur-[6px] scale-105' : ''}`}>
-                                                                            <MapComponent
-                                                                                lat={event.latitude || 0}
-                                                                                lng={event.longitude || 0}
-                                                                                popupText={`${event.city || 'Unknown'}, ${event.country || ''}`}
-                                                                            />
+                                                                            <Map
+                                                                                center={[event.latitude || 0, event.longitude || 0]}
+                                                                                zoom={14}
+                                                                                className="h-full w-full z-0"
+                                                                            >
+                                                                                <MapTileLayer />
+                                                                                <MapZoomControl />
+                                                                                <MapMarker position={[event.latitude || 0, event.longitude || 0]} />
+                                                                            </Map>
                                                                         </div>
                                                                         {!isPaid && (
                                                                             <div className="absolute inset-0 flex items-center justify-center z-10">
@@ -1639,7 +1646,7 @@ export function SecurityTab(props: SecurityTabProps) {
                 </p>
 
                 <div className="space-y-4">
-                    <div className="flex items-center justify-between p-3 rounded-2xl bg-muted/30 border border-transparent hover:border-border transition-all">
+                    <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30 border border-dashed transition-all">
                         <div className="space-y-0.5">
                             <div className="flex items-center gap-2">
                                 <Label className="text-sm font-semibold">
@@ -1667,7 +1674,7 @@ export function SecurityTab(props: SecurityTabProps) {
                         />
                     </div>
 
-                    <div className="flex items-center justify-between p-3 rounded-2xl bg-muted/30 border border-transparent hover:border-border transition-all">
+                    <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30 border border-dashed transition-all">
                         <div className="space-y-0.5">
                             <div className="flex items-center gap-2">
                                 <Label className="text-sm font-semibold">
@@ -1965,7 +1972,7 @@ export function SecurityTab(props: SecurityTabProps) {
                             </div>
                             <DialogFooter className="pt-2">
                                 <Button type="button" variant="outline" onClick={() => setIsExportModalOpen(false)}>Cancel</Button>
-                                <Button type="submit" disabled={isRevealing}>
+                                <Button type="submit" disabled={isRevealing || !revealPassword}>
                                     {isRevealing ? (
                                         <>
                                             <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
@@ -2037,24 +2044,15 @@ export function SecurityTab(props: SecurityTabProps) {
                                     Both the Master Key and Account Salt are required to manually reconstruct your encryption environment.
                                 </p>
                             </div>
+                            <DialogFooter className="pt-2">
+                                <Button className="w-full" onClick={() => setIsExportModalOpen(false)}>
+                                    Done
+                                </Button>
+                            </DialogFooter>
                         </div>
                     )}
 
-                    <DialogFooter>
-                        {!revealedKey ? (
-                            <Button
-                                className="w-full"
-                                onClick={handleRevealMasterKey}
-                                disabled={isRevealing || !revealPassword}
-                            >
-                                {isRevealing ? <><IconLoader2 className="h-4 w-4 animate-spin mr-2" /> Verifying...</> : "Verify & Reveal"}
-                            </Button>
-                        ) : (
-                            <Button className="w-full" onClick={() => setIsExportModalOpen(false)}>
-                                Done
-                            </Button>
-                        )}
-                    </DialogFooter>
+
                 </DialogContent>
             </Dialog>
         </div>

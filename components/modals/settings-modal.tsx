@@ -122,7 +122,7 @@ export function SettingsModal({
 
   const navItems = [
     { name: t("settings.general"), icon: IconUserCog, id: "general" },
-    { name: t("settings.security") || "Security & Privacy", icon: IconLockSquareRounded, id: "security" },
+    { name: "Security & Privacy", icon: IconLockSquareRounded, id: "security" }, // Updated label
     { name: t("settings.billing"), icon: IconCoin, id: "billing" },
     { name: t("settings.notifications"), icon: IconBell, id: "notifications" },
     { name: t("settings.referrals"), icon: IconGift, id: "referrals" },
