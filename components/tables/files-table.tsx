@@ -47,6 +47,7 @@ import { useRecentFiles, RecentItem } from "@/hooks/use-recent-files";
 import { SuggestedFiles } from "@/components/files/suggested-files";
 import { TruncatedNameTooltip } from "@/components/tables/truncated-name-tooltip";
 import { cx } from "@/utils/cx";
+import { cn } from "@/lib/utils";
 import { useUser } from "@/components/user-context";
 import {
     DndContext,
@@ -691,83 +692,100 @@ export const Table01DividerLineSm = ({
     // Update URL when folder navigation changes
     const updateUrl = (newFolderPath: Array<{ id: string, name: string }>) => {
         const urlPath = buildUrlPath(newFolderPath);
-        router.replace(urlPath, { scroll: false });
+        router.push(urlPath, { scroll: false });
     };
 
-    // Initialize folder navigation from URL
+    // Initialize and sync folder navigation from URL
     useEffect(() => {
-        if (!isInitialLoad) return;
-
         const urlSegments = parseUrlPath(pathname);
-        // console.log(`URL parsing: pathname="${pathname}", segments:`, urlSegments);
+        const urlLastId = urlSegments.length > 0 ? urlSegments[urlSegments.length - 1] : 'root';
+
+        // Prevent update loops if state matches URL
+        if (urlLastId === currentFolderId) {
+            if (isInitialLoad) setIsInitialLoad(false);
+            return;
+        }
+
+        // --- Optimistic Update ---
+        const newPath = [{ id: 'root', name: t('sidebar.myFiles') }];
+        let needsFetch = false;
 
         if (urlSegments.length === 0) {
-            // Root folder
-            // console.log('Loading root folder');
-            if (currentFolderId !== 'root') setCurrentFolderId('root');
-            setFolderPath([{ id: 'root', name: t('sidebar.myFiles') }]);
+            // Root
+            setCurrentFolderId('root');
+            setFolderPath(newPath);
             setIsInitialLoad(false);
             return;
         }
 
-        // Build folder path from URL segments
-        const buildFolderPathFromUrl = async () => {
+        // Reconstruct path from existing state if possible
+        for (let i = 0; i < urlSegments.length; i++) {
+            const segmentId = urlSegments[i];
+            const known = folderPath.length > i + 1 ? folderPath[i + 1] : null;
+
+            if (known && known.id === segmentId) {
+                newPath.push(known);
+            } else {
+                newPath.push({ id: segmentId, name: '...' });
+                needsFetch = true;
+            }
+        }
+
+        // Apply Optimistic State
+        setCurrentFolderId(urlLastId);
+        setFolderPath(newPath);
+
+        if (!needsFetch) {
+            setIsInitialLoad(false);
+            return;
+        }
+
+        // --- Fetch Missing Data ---
+        const resolvePath = async () => {
             try {
-                const currentPath = [{ id: 'root', name: t('sidebar.myFiles') }];
-                let currentId = 'root';
+                const resolvedPath = [{ id: 'root', name: t('sidebar.myFiles') }];
 
                 for (const segment of urlSegments) {
                     if (segment === 'root') continue;
 
-                    // console.log(`Getting info for folder: ${segment}`);
-                    // Get folder info to get the name
-                    const response = await apiClient.getFolderInfo(segment);
-                    // console.log(`Folder info response for ${segment}:`, response);
+                    // Reuse existing if known/valid
+                    const existing = newPath.find(p => p.id === segment && p.name !== '...');
+                    if (existing) {
+                        resolvedPath.push(existing);
+                        continue;
+                    }
 
+                    // Fetch
+                    const response = await apiClient.getFolderInfo(segment);
                     if (response.success && response.data) {
-                        // Decrypt folder name if encrypted fields are present
                         let displayName = response.data.name || '';
                         if (response.data.encryptedName && response.data.nameSalt && masterKeyManager.hasMasterKey()) {
                             try {
                                 const masterKey = masterKeyManager.getMasterKey();
                                 displayName = await decryptFilename(response.data.encryptedName, response.data.nameSalt, masterKey);
-                            } catch (err) {
-                                console.warn(`Failed to decrypt folder name for breadcrumb ${segment}:`, err);
-                                // Fall back to encrypted name if decryption fails
+                            } catch {
                                 displayName = response.data.name || response.data.encryptedName;
                             }
                         }
-
-                        // console.log(`Folder ${segment} found: ${displayName}`);
-                        currentPath.push({ id: segment, name: displayName });
-                        currentId = segment;
-                    } else {
-                        // Invalid folder ID, redirect to root
-                        // console.warn(`Invalid folder ID in URL: ${segment}, response:`, response);
-                        router.replace('/', { scroll: false });
-                        setCurrentFolderId('root');
-                        setFolderPath([{ id: 'root', name: t('sidebar.myFiles') }]);
-                        setIsInitialLoad(false);
-                        return;
+                        resolvedPath.push({ id: segment, name: displayName });
                     }
                 }
 
-                // console.log(`Setting folder path:`, currentPath);
-                setCurrentFolderId(currentId);
-                setFolderPath(currentPath);
+                // Final update with names
+                setFolderPath(resolvedPath);
                 setIsInitialLoad(false);
-            } catch {
-                console.error('Error parsing URL path:', error);
-                // On error, redirect to root
+
+            } catch (err) {
                 router.replace('/', { scroll: false });
                 setCurrentFolderId('root');
-                setFolderPath([{ id: 'root', name: 'My Files' }]);
+                setFolderPath([{ id: 'root', name: t('sidebar.myFiles') }]);
                 setIsInitialLoad(false);
             }
         };
 
-        buildFolderPathFromUrl();
-    }, [pathname, isInitialLoad, router, t]);
+        resolvePath();
+
+    }, [pathname, currentFolderId, isInitialLoad, router, t]);
 
     // Start file uploads with progress tracking
     const startUploads = async (files: File[]) => {
@@ -894,6 +912,12 @@ export const Table01DividerLineSm = ({
 
     const refreshFiles = useCallback(async (folderId: string = currentFolderId, force: boolean = false) => {
         const fetchKey = `${folderId}-${page}`;
+
+        // Prevent fetching for reserved routes or headers
+        if (['shared', 'trash', 'photos', 'recent', 'settings', 'admin', 'help', 'feedback'].includes(folderId)) {
+            return;
+        }
+
         if (!force && lastFetchRef.current === fetchKey) {
             // Already fetching this data or already fetched
             return;
@@ -1190,7 +1214,6 @@ export const Table01DividerLineSm = ({
         const newPath = [...folderPath, { id: folderId, name: folderName }];
 
         // Immediate updates without transition
-        setFiles([]);
         setPage(1); // Reset page to 1
         setIsLoading(true);
         setCurrentFolderId(folderId);
@@ -1206,7 +1229,6 @@ export const Table01DividerLineSm = ({
             const parentFolder = newPath[newPath.length - 1];
 
             // Immediate updates without transition
-            setFiles([]);
             setPage(1); // Reset page to 1
             setIsLoading(true);
             setCurrentFolderId(parentFolder.id);
@@ -1224,7 +1246,6 @@ export const Table01DividerLineSm = ({
             const newPath = folderPath.slice(0, folderIndex + 1);
 
             // Immediate updates without transition
-            setFiles([]);
             setPage(1); // Reset page to 1
             setIsLoading(true);
             setCurrentFolderId(folderId);
@@ -2286,7 +2307,7 @@ export const Table01DividerLineSm = ({
     const renderBreadcrumbs = useCallback(() => {
         return (
             <Breadcrumb className="flex-1 min-w-0">
-                <BreadcrumbList className="flex-nowrap overflow-x-auto pb-0 gap-0.5 sm:gap-1 no-scrollbar animate-in fade-in slide-in-from-left-2 duration-300">
+                <BreadcrumbList className="flex-nowrap overflow-x-auto pb-0 gap-0.5 sm:gap-1 no-scrollbar duration-300">
                     {folderPath.map((folder, index) => {
                         const isLast = index === folderPath.length - 1;
                         const label = index === 0 ? "My Files" : folder.name;
@@ -2770,7 +2791,7 @@ export const Table01DividerLineSm = ({
     return (
         <div className="flex flex-col h-full bg-background mt-1">
             {/* Suggested Files Section - Show only in subfolders, not in global (root) */}
-            {!isLoading && !error && currentFolderId !== 'root' && user?.show_suggestions !== false && (
+            {currentFolderId !== 'root' && user?.show_suggestions !== false && (
                 <SuggestedFiles
                     items={recentItems}
                     isVisible={isRecentVisible}
@@ -2815,7 +2836,7 @@ export const Table01DividerLineSm = ({
                     />
                 )}
 
-                {isLoading || (isPending && files.length === 0) ? (
+                {(isLoading || isPending) && files.length === 0 ? (
                     <div className="flex items-center justify-center py-8">
                         <div className="text-center space-y-4">
                             <IconLoader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-muted-foreground" />
@@ -2841,7 +2862,7 @@ export const Table01DividerLineSm = ({
                         </div>
                     </div>
                 ) : (
-                    <div className="relative h-full">
+                    <div className={cn("relative h-full transition-opacity duration-200", (isFetching || isPending) && "opacity-60")}>
                         {/* Smooth Top Progress Bar for background fetching */}
                         {(isFetching || isPending) && (
                             <div className="absolute top-0 left-0 right-0 z-50 h-[2px] bg-primary/20 overflow-hidden">

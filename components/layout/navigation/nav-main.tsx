@@ -111,8 +111,20 @@ export function NavMain({
                 <div className="space-y-1">
                   <SidebarMenuButton
                     tooltip={item.title}
-                    isActive={pathname === item.url || (pathname !== '/' && !['/photos', '/shared', '/trash'].includes(pathname))}
-                    onClick={() => handleNavigate(item.url)}
+                    isActive={pathname === item.url || (item.url === '/' && pathname === '/')}
+                    onClick={(e) => {
+                      if (item.url === '/') {
+                        // Force simple navigation to root
+                        if (pathname === '/') return; // Already there
+                        handleNavigate('/');
+                        if (!isMyFilesExpanded) {
+                          setIsMyFilesExpanded(true);
+                          sessionStorage.setItem("my-files-expanded", "true");
+                        }
+                      } else {
+                        handleNavigate(item.url);
+                      }
+                    }}
                     className="cursor-pointer relative pr-8"
                   >
                     {item.icon && <item.icon className="shrink-0" />}
