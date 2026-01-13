@@ -1,13 +1,22 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
-import { IconPhoto, IconPlayerPlay, IconLoader2, IconCircle, IconCircleCheckFilled } from "@tabler/icons-react"
+
+import { IconPhoto, IconPlayerPlay, IconLoader2, IconSquare, IconSquareCheckFilled, IconDotsVertical, IconDownload, IconTrash, IconShare, IconFolderSymlink, IconCopy, IconStar, IconPencil, IconFolderPlus } from "@tabler/icons-react"
 import { apiClient } from "@/lib/api"
 import { decryptData } from "@/lib/crypto"
 import { unwrapCEK, DownloadEncryption } from "@/lib/download"
 import { keyManager } from "@/lib/key-manager"
 import { format, parseISO } from "date-fns"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+    DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu"
+import { Button } from "@/components/ui/button"
 
 export interface GalleryItemProps {
     item: any
@@ -17,9 +26,10 @@ export interface GalleryItemProps {
     onPreview: () => void
     viewMode: 'comfortable' | 'compact'
     index: number
+    onAction: (action: string, item: any) => void
 }
 
-export function GalleryItem({ item, isSelected, isSelectionMode, onSelect, onPreview, viewMode, index }: GalleryItemProps) {
+export function GalleryItem({ item, isSelected, isSelectionMode, onSelect, onPreview, viewMode, onAction }: GalleryItemProps) {
     const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null)
     const [isDecrypting, setIsDecrypting] = useState(false)
     const [hasError, setHasError] = useState(false)
@@ -147,17 +157,14 @@ export function GalleryItem({ item, isSelected, isSelectionMode, onSelect, onPre
                 <img
                     src={thumbnailUrl}
                     alt={item.filename}
-                    className={`
-                        w-full h-full object-cover transition-transform duration-500 z-10 relative
-                        ${isSelected ? 'scale-105' : 'group-hover:scale-105'}
-                    `}
+                    className="w-full h-full object-cover z-10 relative"
                     loading="lazy"
                 />
             )}
 
-            {/* Video Indicator */}
+            {/* Video Indicator - Moved to Bottom Right */}
             {isVideo && (
-                <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-black/50 backdrop-blur-sm rounded-md text-[10px] text-white font-medium z-20 flex items-center gap-1">
+                <div className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/60 backdrop-blur-[2px] rounded-sm text-[10px] text-white/90 font-medium z-20 flex items-center gap-1 shadow-sm">
                     <IconPlayerPlay className="h-3 w-3 fill-current" />
                     {item.duration ? (
                         <span>
@@ -166,6 +173,55 @@ export function GalleryItem({ item, isSelected, isSelectionMode, onSelect, onPre
                     ) : null}
                 </div>
             )}
+
+            {/* Star Indicator */}
+            {item.isStarred && (
+                <div className="absolute top-2 left-10 z-20 text-yellow-400 drop-shadow-md">
+                    <IconStar className="h-5 w-5 fill-yellow-400 text-yellow-500" />
+                </div>
+            )}
+
+            {/* Context Menu - Top Right */}
+            <div className={`absolute top-2 right-2 z-30 opacity-0 group-hover:opacity-100 transition-opacity ${isSelectionMode ? 'hidden' : ''}`}>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full bg-black/20 hover:bg-black/40 text-white hover:text-white backdrop-blur-[1px]">
+                            <IconDotsVertical className="h-4 w-4" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onAction('preview', item) }}>
+                            <IconPhoto className="mr-2 h-4 w-4" /> Preview
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onAction('download', item) }}>
+                            <IconDownload className="mr-2 h-4 w-4" /> Download
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onAction('share', item) }}>
+                            <IconShare className="mr-2 h-4 w-4" /> Share
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onAction('star', item) }}>
+                            <IconStar className="mr-2 h-4 w-4" /> Add to Favorites
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onAction('move', item) }}>
+                            <IconFolderSymlink className="mr-2 h-4 w-4" /> Move to...
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onAction('copy', item) }}>
+                            <IconCopy className="mr-2 h-4 w-4" /> Make a copy
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onAction('rename', item) }}>
+                            <IconPencil className="mr-2 h-4 w-4" /> Rename
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onAction('addToSpace', item) }}>
+                            <IconFolderPlus className="mr-2 h-4 w-4" /> Add to space
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={(e) => { e.stopPropagation(); onAction('delete', item) }}>
+                            <IconTrash className="mr-2 h-4 w-4" /> Delete
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
 
             {/* Selection Checkbox Overlay */}
             <div
@@ -176,10 +232,10 @@ export function GalleryItem({ item, isSelected, isSelectionMode, onSelect, onPre
                 onClick={handleCheckboxClick}
             >
                 {isSelected ? (
-                    <IconCircleCheckFilled className="h-6 w-6 text-primary bg-white rounded-full" />
+                    <IconSquareCheckFilled className="h-6 w-6 text-primary bg-background rounded-sm" />
                 ) : (
-                    <div className="bg-black/20 hover:bg-black/40 backdrop-blur-[1px] rounded-full p-0.5 transition-colors">
-                        <IconCircle className="h-5 w-5 text-white/80" stroke={1.5} />
+                    <div className="text-white/70 hover:text-white transition-colors drop-shadow-md">
+                        <IconSquare className="h-6 w-6" stroke={2} />
                     </div>
                 )}
             </div>

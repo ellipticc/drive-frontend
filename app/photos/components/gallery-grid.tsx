@@ -1,20 +1,20 @@
 "use client"
 
-import React, { useMemo, useRef, useState, useEffect } from "react"
+import React, { useMemo, useRef } from "react"
 import { useVirtualizer } from "@tanstack/react-virtual"
 import { format, parseISO, isToday, isYesterday } from "date-fns"
 import { IconCalendar } from "@tabler/icons-react"
 import { GalleryItem } from "./gallery-item"
-import { useWindowSize } from "@/hooks/use-window-size"
 
 interface GalleryGridProps {
     groupedItems: { [key: string]: any[] }
     sortedDates: string[]
-    viewMode: 'comfortable' | 'compact'
+    zoomLevel: number // Number of columns (User slider: 2 - 10)
     selectedIds: Set<string>
     isSelectionMode: boolean
     onSelect: (id: string, rangeSelect: boolean) => void
     onPreview: (item: any) => void
+    onAction: (action: string, item: any) => void
 }
 
 type VirtualRow =
@@ -24,39 +24,15 @@ type VirtualRow =
 export function GalleryGrid({
     groupedItems,
     sortedDates,
-    viewMode,
+    zoomLevel,
     selectedIds,
     isSelectionMode,
     onSelect,
-    onPreview
+    onPreview,
+    onAction
 }: GalleryGridProps) {
     const parentRef = useRef<HTMLDivElement>(null)
-    const [columnCount, setColumnCount] = useState(4)
-
-    // Responsive columns
-    useEffect(() => {
-        const updateColumns = () => {
-            const width = window.innerWidth
-            // Adjust based on viewMode and screen width
-            if (viewMode === 'comfortable') {
-                if (width >= 1536) setColumnCount(6)      // 2xl
-                else if (width >= 1280) setColumnCount(5) // xl
-                else if (width >= 1024) setColumnCount(4) // lg
-                else if (width >= 768) setColumnCount(3)  // md
-                else setColumnCount(2)                    // sm
-            } else { // compact
-                if (width >= 1536) setColumnCount(12)
-                else if (width >= 1280) setColumnCount(10)
-                else if (width >= 1024) setColumnCount(8)
-                else if (width >= 768) setColumnCount(6)
-                else setColumnCount(4)
-            }
-        }
-
-        updateColumns()
-        window.addEventListener('resize', updateColumns)
-        return () => window.removeEventListener('resize', updateColumns)
-    }, [viewMode])
+    const columnCount = Math.max(2, Math.min(12, zoomLevel)) // Clamp between 2 and 12
 
     // Flatten data into rows
     const virtualRows = useMemo(() => {
@@ -91,18 +67,17 @@ export function GalleryGrid({
         getScrollElement: () => parentRef.current,
         estimateSize: (index) => {
             const row = virtualRows[index]
-            if (row.type === 'header') return 60 // Header height
+            if (row.type === 'header') return 48 // Reduced header height (was 60)
 
             const width = typeof window !== 'undefined' ? window.innerWidth : 1200
-            let itemWidth = 0
-            if (viewMode === 'comfortable') {
-                // minus padding / gaps
-                itemWidth = (width - 48) / columnCount
-            } else {
-                itemWidth = (width - 48) / columnCount
-            }
+            const gap = 8 // Reduced gap (was 24/8)
+            const padding = 32 // px-4 * 2 = 32 approx? No, px-6 is 48. Let's assume px-4 (16px * 2 = 32).
 
-            return itemWidth + (viewMode === 'comfortable' ? 24 : 8) // + gap
+            // Allow for scrollbar width approx 16px
+            const availableWidth = width - 48 // px-6 is 24px left + 24px right = 48px
+
+            const itemWidth = (availableWidth - (gap * (columnCount - 1))) / columnCount
+            return itemWidth + gap
         },
         overscan: 5,
     })
@@ -111,7 +86,7 @@ export function GalleryGrid({
         const date = parseISO(dateStr)
         if (isToday(date)) return "Today"
         if (isYesterday(date)) return "Yesterday"
-        return format(date, 'MMMM d, yyyy')
+        return format(date, 'EEE, MMM d, yyyy')
     }
 
     return (
@@ -137,39 +112,36 @@ export function GalleryGrid({
                                 height: `${virtualRow.size}px`,
                                 transform: `translateY(${virtualRow.start}px)`,
                             }}
-                            className={row.type === 'header' ? "px-6 py-4" : `px-6 ${viewMode === 'comfortable' ? 'pb-6' : 'pb-2'}`}
+                            className={row.type === 'header' ? "px-6 pt-4 pb-2" : "px-6 pb-2"}
                         >
                             {row.type === 'header' ? (
-                                <div className="flex items-center gap-2 pb-2 border-b">
-                                    <IconCalendar className="h-4 w-4 text-primary" />
-                                    <h2 className="font-semibold text-base text-foreground">
+                                <div className="flex items-center gap-3">
+                                    <h2 className="font-medium text-sm text-foreground">
                                         {formatDateHeader(row.date)}
                                     </h2>
-                                    <span className="text-xs text-muted-foreground ml-2">
-                                        {row.count} items
-                                    </span>
                                 </div>
                             ) : (
                                 <div
                                     className="grid w-full"
                                     style={{
                                         gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
-                                        gap: viewMode === 'comfortable' ? '24px' : '8px'
+                                        gap: '8px' // Fixed small gap
                                     }}
                                 >
                                     {row.items.map((item, idx) => (
                                         <GalleryItem
                                             key={item.id}
                                             item={item}
-                                            index={idx} // This index is row-relative, not global. If needed global, we'd need to map differently.
+                                            index={idx}
                                             isSelected={selectedIds.has(item.id)}
                                             isSelectionMode={isSelectionMode}
-                                            onSelect={() => onSelect(item.id, true)} // True means allowing Shift+Click logic (handled in hook or page)
+                                            onSelect={() => onSelect(item.id, true)}
                                             onPreview={() => onPreview(item)}
-                                            viewMode={viewMode}
+                                            viewMode="comfortable" // Always comfortable/square now
+                                            onAction={onAction}
                                         />
                                     ))}
-                                    {/* Fill empty spots if last row */}
+                                    {/* Fill empty spots if last row (optional for grid but good for flex behaviors) */}
                                     {Array.from({ length: columnCount - row.items.length }).map((_, i) => (
                                         <div key={`empty-${i}`} />
                                     ))}

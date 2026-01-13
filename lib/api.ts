@@ -1684,6 +1684,51 @@ class ApiClient {
     return this.request(`/shares/${shareId}`);
   }
 
+  // Spaces & Starring
+
+  async starFile(fileId: string): Promise<ApiResponse<{ success: boolean }>> {
+    const idempotencyKey = generateIdempotencyKey();
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request('/files/spaced', {
+      method: 'POST',
+      body: JSON.stringify({ fileId, isStarred: true }),
+      headers
+    });
+  }
+
+  async unstarFile(fileId: string): Promise<ApiResponse<{ success: boolean }>> {
+    const idempotencyKey = generateIdempotencyKey();
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request('/files/spaced', {
+      method: 'POST',
+      body: JSON.stringify({ fileId, isStarred: false }),
+      headers
+    });
+  }
+
+  // Renaming Alias (for consistency with frontend calls)
+  async updateFile(fileId: string, data: {
+    encryptedFilename?: string;
+    filenameSalt?: string;
+    nameHmac?: string;
+    // Manifest fields
+    manifestHash?: string;
+    manifestSignatureEd25519?: string;
+    manifestPublicKeyEd25519?: string;
+    manifestSignatureDilithium?: string;
+    manifestPublicKeyDilithium?: string;
+    manifestCreatedAt?: number;
+    algorithmVersion?: string;
+  }): Promise<ApiResponse<{ success: boolean }>> {
+    const idempotencyKey = generateIdempotencyKey();
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request(`/files/${fileId}/rename`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+      headers
+    });
+  }
+
   async bulkMoveToTrash(fileIds: string[]): Promise<ApiResponse<{
     message: string;
     movedCount: number;
@@ -1994,500 +2039,500 @@ class ApiClient {
   }
 
   // Trash operations
-  async getTrashFiles(params ?: {
-      page?: number;
-      limit?: number;
-    }): Promise < ApiResponse < {
-      files: {
-        id: string;
-        filename: string;
-        encryptedFilename: string;
-        filenameSalt: string;
-        mimetype: string;
-        size: number;
-        shaHash: string | null;
-        chunkCount: number;
-        createdAt: string;
-        updatedAt: string;
-        deletedAt: string;
-      }[];
-      pagination: {
-        page: number;
-        limit: number;
-        total: number;
-        totalPages: number;
-      };
-    } >> {
-      const queryParams = new URLSearchParams();
-      if(params?.page !== undefined) {
-  queryParams.append('page', params.page.toString());
-}
-if (params?.limit !== undefined) {
-  queryParams.append('limit', params.limit.toString());
-}
-
-const queryString = queryParams.toString();
-const endpoint = `/files/trash${queryString ? `?${queryString}` : ''}`;
-
-return this.request(endpoint);
-  }
-
-  async getTrashFolders(params ?: { page?: number; limit?: number }): Promise < ApiResponse < {
-  data: {
-    id: string;
-    encryptedName: string;
-    nameSalt: string;
-    parentId: string | null;
-    path: string;
-    createdAt: string;
-    updatedAt: string;
-    deletedAt: string;
-  }[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
-} >> {
-  const query = new URLSearchParams();
-  if(params?.page) query.append('page', params.page.toString());
-  if(params?.limit) query.append('limit', params.limit.toString());
-
-  const response = await this.request(`/folders/trash/list?${query.toString()}`);
-
-  if(response.success && response.data) {
-  const folders = (response.data as { folders?: FolderInfo[] }).folders || [];
-  const pagination = (response.data as { pagination?: { total: number; page: number; limit: number; totalPages: number } }).pagination || {
-    page: params?.page || 1,
-    limit: params?.limit || 50,
-    total: folders.length,
-    totalPages: 1
-  };
-
-  return {
-    success: true,
-    data: {
-      data: folders.map(f => ({
-        ...f,
-        encryptedName: f.encryptedName || '',
-        nameSalt: f.nameSalt || '',
-        deletedAt: f.deletedAt || ''
-      })),
-      pagination
+  async getTrashFiles(params?: {
+    page?: number;
+    limit?: number;
+  }): Promise<ApiResponse<{
+    files: {
+      id: string;
+      filename: string;
+      encryptedFilename: string;
+      filenameSalt: string;
+      mimetype: string;
+      size: number;
+      shaHash: string | null;
+      chunkCount: number;
+      createdAt: string;
+      updatedAt: string;
+      deletedAt: string;
+    }[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  }>> {
+    const queryParams = new URLSearchParams();
+    if (params?.page !== undefined) {
+      queryParams.append('page', params.page.toString());
     }
-  };
-}
-return {
-  success: false,
-  error: response.error || 'Failed to fetch trash folders'
-};
+    if (params?.limit !== undefined) {
+      queryParams.append('limit', params.limit.toString());
+    }
+
+    const queryString = queryParams.toString();
+    const endpoint = `/files/trash${queryString ? `?${queryString}` : ''}`;
+
+    return this.request(endpoint);
   }
-  async deleteFilePermanently(fileId: string): Promise < ApiResponse < { message: string; storageFreed: number } >> {
-  const idempotencyKey = generateIdempotencyKey();
-  const headers = addIdempotencyKey({}, idempotencyKey);
-  return this.request(`/files/trash/delete`, {
-    method: 'POST',
-    body: JSON.stringify({ fileIds: [fileId] }),
-    headers,
-  });
-}
 
-  async deleteFilesPermanently(fileIds: string[]): Promise < ApiResponse < { message: string; storageFreed: number } >> {
-  // Idempotency uses generated key (random UUID)
-  const idempotencyKey = generateIdempotencyKey();
-  const headers = addIdempotencyKey({}, idempotencyKey);
-  return this.request(`/files/trash/delete`, {
-    method: 'POST',
-    body: JSON.stringify({ fileIds }),
-    headers,
-  });
-} 
+  async getTrashFolders(params?: { page?: number; limit?: number }): Promise<ApiResponse<{
+    data: {
+      id: string;
+      encryptedName: string;
+      nameSalt: string;
+      parentId: string | null;
+      path: string;
+      createdAt: string;
+      updatedAt: string;
+      deletedAt: string;
+    }[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  }>> {
+    const query = new URLSearchParams();
+    if (params?.page) query.append('page', params.page.toString());
+    if (params?.limit) query.append('limit', params.limit.toString());
 
-  async deleteFolderPermanently(folderId: string): Promise < ApiResponse < { message: string; storageFreed: number } >> {
-  const idempotencyKey = generateIdempotencyKey();
-  const headers = addIdempotencyKey({}, idempotencyKey);
-  return this.request(`/folders/trash`, {
-    method: 'DELETE',
-    body: JSON.stringify({ folderIds: [folderId] }),
-    headers,
-  });
-}
+    const response = await this.request(`/folders/trash/list?${query.toString()}`);
 
-  async deleteFoldersPermanently(folderIds: string[]): Promise < ApiResponse < { message: string; storageFreed: number } >> {
-  // Idempotency uses generated key (random UUID)
-  const idempotencyKey = generateIdempotencyKey();
-  const headers = addIdempotencyKey({}, idempotencyKey);
-  return this.request(`/folders/trash`, {
-    method: 'DELETE',
-    body: JSON.stringify({ folderIds }),
-    headers,
-  });
-} 
+    if (response.success && response.data) {
+      const folders = (response.data as { folders?: FolderInfo[] }).folders || [];
+      const pagination = (response.data as { pagination?: { total: number; page: number; limit: number; totalPages: number } }).pagination || {
+        page: params?.page || 1,
+        limit: params?.limit || 50,
+        total: folders.length,
+        totalPages: 1
+      };
 
-  async restoreFilesFromTrash(fileIds: string[]): Promise < ApiResponse < { message: string } >> {
-  // Idempotency uses generated key (random UUID)
-  const idempotencyKey = generateIdempotencyKey();
-  const headers = addIdempotencyKey({}, idempotencyKey);
-  return this.request(`/files/trash/restore`, {
-    method: 'POST',
-    body: JSON.stringify({ fileIds }),
-    headers,
-  });
-} 
+      return {
+        success: true,
+        data: {
+          data: folders.map(f => ({
+            ...f,
+            encryptedName: f.encryptedName || '',
+            nameSalt: f.nameSalt || '',
+            deletedAt: f.deletedAt || ''
+          })),
+          pagination
+        }
+      };
+    }
+    return {
+      success: false,
+      error: response.error || 'Failed to fetch trash folders'
+    };
+  }
+  async deleteFilePermanently(fileId: string): Promise<ApiResponse<{ message: string; storageFreed: number }>> {
+    const idempotencyKey = generateIdempotencyKey();
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request(`/files/trash/delete`, {
+      method: 'POST',
+      body: JSON.stringify({ fileIds: [fileId] }),
+      headers,
+    });
+  }
 
-  async restoreFoldersFromTrash(folderIds: string[]): Promise < ApiResponse < { message: string } >> {
-  // Idempotency uses generated key (random UUID)
-  const idempotencyKey = generateIdempotencyKey();
-  const headers = addIdempotencyKey({}, idempotencyKey);
-  return this.request(`/folders/trash/restore`, {
-    method: 'PUT',
-    body: JSON.stringify({ folderIds }),
-    headers,
-  });
-} 
+  async deleteFilesPermanently(fileIds: string[]): Promise<ApiResponse<{ message: string; storageFreed: number }>> {
+    // Idempotency uses generated key (random UUID)
+    const idempotencyKey = generateIdempotencyKey();
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request(`/files/trash/delete`, {
+      method: 'POST',
+      body: JSON.stringify({ fileIds }),
+      headers,
+    });
+  }
 
-  async copyFile(fileId: string, folderId: string | null, options ?: {
-  filename?: string,
-  encryptedFilename?: string,
-  filenameSalt?: string,
-  nameHmac?: string,
-  // Manifest fields for signed copied file
-  manifestHash?: string,
-  manifestSignatureEd25519?: string,
-  manifestPublicKeyEd25519?: string,
-  manifestSignatureDilithium?: string,
-  manifestPublicKeyDilithium?: string,
-  manifestCreatedAt?: number,
-  algorithmVersion?: string
-}): Promise < ApiResponse < {
-  success: boolean;
-  message: string;
-  file: FileInfo;
-  conflictingItemId?: string;
-} >> {
-  const idempotencyKey = generateIdempotencyKey();
-  const headers = addIdempotencyKey({}, idempotencyKey);
-  return this.request(`/files/${fileId}/copy`, {
-    method: 'POST',
-    body: JSON.stringify({ folderId, ...options }),
-    headers
-  });
-}
+  async deleteFolderPermanently(folderId: string): Promise<ApiResponse<{ message: string; storageFreed: number }>> {
+    const idempotencyKey = generateIdempotencyKey();
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request(`/folders/trash`, {
+      method: 'DELETE',
+      body: JSON.stringify({ folderIds: [folderId] }),
+      headers,
+    });
+  }
 
-  async copyFolder(folderId: string, destinationFolderId: string | null, options ?: {
-  encryptedName?: string,
-  nameSalt?: string,
-  nameHmac?: string,
-  // Manifest fields for signed copied folder
-  manifestHash?: string,
-  manifestSignatureEd25519?: string,
-  manifestPublicKeyEd25519?: string,
-  manifestSignatureDilithium?: string,
-  manifestPublicKeyDilithium?: string,
-  manifestCreatedAt?: number,
-  algorithmVersion?: string
-}): Promise < ApiResponse < {
-  success: boolean;
-  message: string;
-  conflictingItemId?: string;
-} >> {
-  const idempotencyKey = generateIdempotencyKey();
-  const headers = addIdempotencyKey({}, idempotencyKey);
-  return this.request(`/folders/${folderId}/copy`, {
-    method: 'POST',
-    body: JSON.stringify({ destinationFolderId, ...options }),
-    headers
-  });
-}
+  async deleteFoldersPermanently(folderIds: string[]): Promise<ApiResponse<{ message: string; storageFreed: number }>> {
+    // Idempotency uses generated key (random UUID)
+    const idempotencyKey = generateIdempotencyKey();
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request(`/folders/trash`, {
+      method: 'DELETE',
+      body: JSON.stringify({ folderIds }),
+      headers,
+    });
+  }
+
+  async restoreFilesFromTrash(fileIds: string[]): Promise<ApiResponse<{ message: string }>> {
+    // Idempotency uses generated key (random UUID)
+    const idempotencyKey = generateIdempotencyKey();
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request(`/files/trash/restore`, {
+      method: 'POST',
+      body: JSON.stringify({ fileIds }),
+      headers,
+    });
+  }
+
+  async restoreFoldersFromTrash(folderIds: string[]): Promise<ApiResponse<{ message: string }>> {
+    // Idempotency uses generated key (random UUID)
+    const idempotencyKey = generateIdempotencyKey();
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request(`/folders/trash/restore`, {
+      method: 'PUT',
+      body: JSON.stringify({ folderIds }),
+      headers,
+    });
+  }
+
+  async copyFile(fileId: string, folderId: string | null, options?: {
+    filename?: string,
+    encryptedFilename?: string,
+    filenameSalt?: string,
+    nameHmac?: string,
+    // Manifest fields for signed copied file
+    manifestHash?: string,
+    manifestSignatureEd25519?: string,
+    manifestPublicKeyEd25519?: string,
+    manifestSignatureDilithium?: string,
+    manifestPublicKeyDilithium?: string,
+    manifestCreatedAt?: number,
+    algorithmVersion?: string
+  }): Promise<ApiResponse<{
+    success: boolean;
+    message: string;
+    file: FileInfo;
+    conflictingItemId?: string;
+  }>> {
+    const idempotencyKey = generateIdempotencyKey();
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request(`/files/${fileId}/copy`, {
+      method: 'POST',
+      body: JSON.stringify({ folderId, ...options }),
+      headers
+    });
+  }
+
+  async copyFolder(folderId: string, destinationFolderId: string | null, options?: {
+    encryptedName?: string,
+    nameSalt?: string,
+    nameHmac?: string,
+    // Manifest fields for signed copied folder
+    manifestHash?: string,
+    manifestSignatureEd25519?: string,
+    manifestPublicKeyEd25519?: string,
+    manifestSignatureDilithium?: string,
+    manifestPublicKeyDilithium?: string,
+    manifestCreatedAt?: number,
+    algorithmVersion?: string
+  }): Promise<ApiResponse<{
+    success: boolean;
+    message: string;
+    conflictingItemId?: string;
+  }>> {
+    const idempotencyKey = generateIdempotencyKey();
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request(`/folders/${folderId}/copy`, {
+      method: 'POST',
+      body: JSON.stringify({ destinationFolderId, ...options }),
+      headers
+    });
+  }
 
   // Upload operations
   async initializeUploadSession(data: {
-  encryptedFilename: string;
-  filenameSalt: string;
-  mimetype: string;
-  fileSize: number;
-  chunkCount: number;
-  shaHash: string | null;
-  chunks: Array<{
-    index: number;
-    sha256: string;
-    size: number;
-  }>;
-  encryptionIv: string;
-  encryptionSalt: string;
-  dataEncryptionKey: string;
-  wrappedCek: string;
-  fileNoncePrefix: string;
-  folderId?: string | null;
-  manifestHash: string;
-  manifestSignatureEd25519: string;
-  manifestPublicKeyEd25519: string;
-  manifestSignatureDilithium: string;
-  manifestPublicKeyDilithium: string;
-  manifestCreatedAt?: number;
-  algorithmVersion: string;
-  nonceWrapKyber: string;
-  kyberCiphertext: string;
-  kyberPublicKey: string;
-  nameHmac?: string; // Filename HMAC for zero-knowledge duplicate detection
-  forceReplace?: boolean; // Force replace existing file with same HMAC
-  existingFileIdToDelete?: string; // File ID to delete when replacing
-  isKeepBothAttempt?: boolean; // Flag to indicate this is a keepBoth retry scenario
-  clientFileId?: string; // Client-generated fileId for idempotency
-}): Promise < ApiResponse < {
-  sessionId: string;
-  fileId: string;
-  chunkSize: number;
-  chunkCount: number;
-  totalBatches: number;
-  presigned: Array<{
-    index: number;
-    size: number;
-    sha256: string;
-    putUrl: string;
-    objectKey: string;
-  }>;
-  thumbnailPutUrl?: string | null;
-  manifestVerified: boolean;
-  manifestCreatedAt?: number;
-  storageType: string;
-  endpoint: string;
-  existingFileId?: string; // ID of the existing file if conflict detected
-  isKeepBothConflict?: boolean; // Flag to indicate this is a keepBoth retry scenario
-} >> {
-  const idempotencyKey = data.clientFileId
-    ? generateIdempotencyKeyForCreate()
-    : (generateIdempotencyKey() as string);
-  const headers = addIdempotencyKey({}, idempotencyKey);
-  return this.request('/files/upload/presigned/initialize', {
-    method: 'POST',
-    body: JSON.stringify(data),
-    headers,
-  });
-}
+    encryptedFilename: string;
+    filenameSalt: string;
+    mimetype: string;
+    fileSize: number;
+    chunkCount: number;
+    shaHash: string | null;
+    chunks: Array<{
+      index: number;
+      sha256: string;
+      size: number;
+    }>;
+    encryptionIv: string;
+    encryptionSalt: string;
+    dataEncryptionKey: string;
+    wrappedCek: string;
+    fileNoncePrefix: string;
+    folderId?: string | null;
+    manifestHash: string;
+    manifestSignatureEd25519: string;
+    manifestPublicKeyEd25519: string;
+    manifestSignatureDilithium: string;
+    manifestPublicKeyDilithium: string;
+    manifestCreatedAt?: number;
+    algorithmVersion: string;
+    nonceWrapKyber: string;
+    kyberCiphertext: string;
+    kyberPublicKey: string;
+    nameHmac?: string; // Filename HMAC for zero-knowledge duplicate detection
+    forceReplace?: boolean; // Force replace existing file with same HMAC
+    existingFileIdToDelete?: string; // File ID to delete when replacing
+    isKeepBothAttempt?: boolean; // Flag to indicate this is a keepBoth retry scenario
+    clientFileId?: string; // Client-generated fileId for idempotency
+  }): Promise<ApiResponse<{
+    sessionId: string;
+    fileId: string;
+    chunkSize: number;
+    chunkCount: number;
+    totalBatches: number;
+    presigned: Array<{
+      index: number;
+      size: number;
+      sha256: string;
+      putUrl: string;
+      objectKey: string;
+    }>;
+    thumbnailPutUrl?: string | null;
+    manifestVerified: boolean;
+    manifestCreatedAt?: number;
+    storageType: string;
+    endpoint: string;
+    existingFileId?: string; // ID of the existing file if conflict detected
+    isKeepBothConflict?: boolean; // Flag to indicate this is a keepBoth retry scenario
+  }>> {
+    const idempotencyKey = data.clientFileId
+      ? generateIdempotencyKeyForCreate()
+      : (generateIdempotencyKey() as string);
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request('/files/upload/presigned/initialize', {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers,
+    });
+  }
 
   async finalizeUpload(sessionId: string, data: {
-  finalShaHash: string | null;
-  manifestSignature: string;
-  manifestPublicKey: string;
-  manifestSignatureDilithium: string;
-  manifestPublicKeyDilithium: string;
-  manifestCreatedAt: number;
-  algorithmVersion: string;
-  thumbnailData?: string; // Encrypted base64
-  width?: number;
-  height?: number;
-  duration?: number;
-}, fileId ?: string): Promise < ApiResponse < {
-  fileId: string;
-  message: string;
-} >> {
-  // Use fileId with operation prefix as idempotency key to distinguish from initialize
-  const idempotencyKey = fileId ? generateIdempotencyKey() : undefined;
-  const headers = idempotencyKey ? addIdempotencyKey({}, idempotencyKey) : {};
-  return this.request(`/files/upload/presigned/${sessionId}/finalize`, {
-    method: 'POST',
-    body: JSON.stringify(data),
-    headers
-  });
-}
+    finalShaHash: string | null;
+    manifestSignature: string;
+    manifestPublicKey: string;
+    manifestSignatureDilithium: string;
+    manifestPublicKeyDilithium: string;
+    manifestCreatedAt: number;
+    algorithmVersion: string;
+    thumbnailData?: string; // Encrypted base64
+    width?: number;
+    height?: number;
+    duration?: number;
+  }, fileId?: string): Promise<ApiResponse<{
+    fileId: string;
+    message: string;
+  }>> {
+    // Use fileId with operation prefix as idempotency key to distinguish from initialize
+    const idempotencyKey = fileId ? generateIdempotencyKey() : undefined;
+    const headers = idempotencyKey ? addIdempotencyKey({}, idempotencyKey) : {};
+    return this.request(`/files/upload/presigned/${sessionId}/finalize`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers
+    });
+  }
 
   async confirmChunkUploads(sessionId: string, data: {
-  chunks: Array<{
-    index: number;
-    chunkSize: number;
-    sha256Hash?: string;
-    nonce?: string;
-  }>;
-}): Promise < ApiResponse < {
-  totalChunks: number;
-  confirmedChunks: number;
-  failedChunks: number;
-  results: Array<{
-    index: number;
-    success: boolean;
-    size?: number;
-    objectKey?: string;
-    error?: string;
-  }>;
-} >> {
-  // Idempotency uses generated key (random UUID)
-  const idempotencyKey = generateIdempotencyKey();
-  const headers = addIdempotencyKey({}, idempotencyKey);
-  return this.request(`/files/upload/presigned/${sessionId}/confirm-batch`, {
-    method: 'POST',
-    body: JSON.stringify(data),
-    headers,
-  });
-}
+    chunks: Array<{
+      index: number;
+      chunkSize: number;
+      sha256Hash?: string;
+      nonce?: string;
+    }>;
+  }): Promise<ApiResponse<{
+    totalChunks: number;
+    confirmedChunks: number;
+    failedChunks: number;
+    results: Array<{
+      index: number;
+      success: boolean;
+      size?: number;
+      objectKey?: string;
+      error?: string;
+    }>;
+  }>> {
+    // Idempotency uses generated key (random UUID)
+    const idempotencyKey = generateIdempotencyKey();
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request(`/files/upload/presigned/${sessionId}/confirm-batch`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers,
+    });
+  }
 
-  async getDownloadUrls(fileId: string): Promise < ApiResponse < DownloadUrlsResponse >> {
-  return this.request(`/files/download/${fileId}/urls`);
-}
+  async getDownloadUrls(fileId: string): Promise<ApiResponse<DownloadUrlsResponse>> {
+    return this.request(`/files/download/${fileId}/urls`);
+  }
 
   // Billing endpoints
-  async getPricingPlans(): Promise < ApiResponse < {
-  plans: Array<{
-    id: string;
-    name: string;
-    description: string;
-    price: number;
-    currency: string;
-    interval: string;
-    storageQuota: number;
-    features: string[];
-    stripePriceId: string;
-    popular?: boolean;
-  }>;
-} >> {
-  return this.request('/billing/plans');
-}
-
-  async getSubscriptionStatus(): Promise < ApiResponse < {
-  subscription: {
-    id: string;
-    status: string;
-    currentPeriodStart: number;
-    currentPeriodEnd: number;
-    cancelAtPeriodEnd: boolean;
-    plan: {
+  async getPricingPlans(): Promise<ApiResponse<{
+    plans: Array<{
       id: string;
       name: string;
+      description: string;
+      price: number;
+      currency: string;
+      interval: string;
       storageQuota: number;
-    };
-  } | null;
-  usage: {
-    usedBytes: number;
-    quotaBytes: number;
-    percentUsed: number;
-  };
-  hasUsedTrial: boolean;
-} >> {
-  return this.request('/billing/subscription');
-}
+      features: string[];
+      stripePriceId: string;
+      popular?: boolean;
+    }>;
+  }>> {
+    return this.request('/billing/plans');
+  }
 
-  async cancelSubscription(): Promise < ApiResponse < {
-  success: boolean;
-  message: string;
-  cancelledAt?: number;
-} >> {
-  return this.request('/billing/subscription', {
-    method: 'DELETE'
-  });
-}
+  async getSubscriptionStatus(): Promise<ApiResponse<{
+    subscription: {
+      id: string;
+      status: string;
+      currentPeriodStart: number;
+      currentPeriodEnd: number;
+      cancelAtPeriodEnd: boolean;
+      plan: {
+        id: string;
+        name: string;
+        storageQuota: number;
+      };
+    } | null;
+    usage: {
+      usedBytes: number;
+      quotaBytes: number;
+      percentUsed: number;
+    };
+    hasUsedTrial: boolean;
+  }>> {
+    return this.request('/billing/subscription');
+  }
+
+  async cancelSubscription(): Promise<ApiResponse<{
+    success: boolean;
+    message: string;
+    cancelledAt?: number;
+  }>> {
+    return this.request('/billing/subscription', {
+      method: 'DELETE'
+    });
+  }
 
   async cancelSubscriptionWithReason(data: {
-  reason: string;
-  details: string;
-}): Promise < ApiResponse < { success: boolean; message: string } >> {
-  return this.request('/billing/subscription/cancel-reason', {
-    method: 'POST',
-    body: JSON.stringify(data)
-  });
-}
+    reason: string;
+    details: string;
+  }): Promise<ApiResponse<{ success: boolean; message: string }>> {
+    return this.request('/billing/subscription/cancel-reason', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
 
-  async getSubscriptionHistory(params ?: {
-  subsPage?: number;
-  subsLimit?: number;
-  invoicesPage?: number;
-  invoicesLimit?: number;
-}): Promise < ApiResponse < {
-  history: Array<{
-    id: string;
-    status: string;
-    planName: string;
-    amount: number;
-    currency: string;
-    interval: string;
-    currentPeriodStart: number;
-    currentPeriodEnd: number;
-    cancelAtPeriodEnd: boolean;
-    canceledAt: number | null;
-    created: number;
-    endedAt: number | null;
-    provider?: string;
-  }>;
-  invoices: Array<{
-    id: string;
-    number: string;
-    status: string;
-    amount: number;
-    currency: string;
-    created: number;
-    dueDate: number | null;
-    paidAt: number | null;
-    invoicePdf: string;
-    hostedInvoiceUrl: string;
-    subscriptionId: string | null;
-    provider?: string;
-  }>;
-  pagination: {
-    subs: {
-      total: number;
-      page: number;
-      limit: number;
-      totalPages: number;
+  async getSubscriptionHistory(params?: {
+    subsPage?: number;
+    subsLimit?: number;
+    invoicesPage?: number;
+    invoicesLimit?: number;
+  }): Promise<ApiResponse<{
+    history: Array<{
+      id: string;
+      status: string;
+      planName: string;
+      amount: number;
+      currency: string;
+      interval: string;
+      currentPeriodStart: number;
+      currentPeriodEnd: number;
+      cancelAtPeriodEnd: boolean;
+      canceledAt: number | null;
+      created: number;
+      endedAt: number | null;
+      provider?: string;
+    }>;
+    invoices: Array<{
+      id: string;
+      number: string;
+      status: string;
+      amount: number;
+      currency: string;
+      created: number;
+      dueDate: number | null;
+      paidAt: number | null;
+      invoicePdf: string;
+      hostedInvoiceUrl: string;
+      subscriptionId: string | null;
+      provider?: string;
+    }>;
+    pagination: {
+      subs: {
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+      };
+      invoices: {
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+      };
     };
-    invoices: {
-      total: number;
-      page: number;
-      limit: number;
-      totalPages: number;
-    };
-  };
-} >> {
-  const queryParams = new URLSearchParams();
-  if(params?.subsPage) queryParams.append('subsPage', params.subsPage.toString());
-  if(params?.subsLimit) queryParams.append('subsLimit', params.subsLimit.toString());
-  if(params?.invoicesPage) queryParams.append('invoicesPage', params.invoicesPage.toString());
-  if(params?.invoicesLimit) queryParams.append('invoicesLimit', params.invoicesLimit.toString());
+  }>> {
+    const queryParams = new URLSearchParams();
+    if (params?.subsPage) queryParams.append('subsPage', params.subsPage.toString());
+    if (params?.subsLimit) queryParams.append('subsLimit', params.subsLimit.toString());
+    if (params?.invoicesPage) queryParams.append('invoicesPage', params.invoicesPage.toString());
+    if (params?.invoicesLimit) queryParams.append('invoicesLimit', params.invoicesLimit.toString());
 
-  const queryString = queryParams.toString();
-  return this.request(`/billing/history${queryString ? `?${queryString}` : ''}`);
-}
+    const queryString = queryParams.toString();
+    return this.request(`/billing/history${queryString ? `?${queryString}` : ''}`);
+  }
 
   async createCheckoutSession(data: {
-  priceId: string;
-  successUrl: string;
-  cancelUrl: string;
-}): Promise < ApiResponse < {
-  sessionId: string;
-  url: string;
-} >> {
-  const idempotencyKey = generateIdempotencyKey();
-  const headers = addIdempotencyKey({}, idempotencyKey);
-  return this.request('/billing/create-checkout-session', {
-    method: 'POST',
-    body: JSON.stringify(data),
-    headers,
-  });
-}
+    priceId: string;
+    successUrl: string;
+    cancelUrl: string;
+  }): Promise<ApiResponse<{
+    sessionId: string;
+    url: string;
+  }>> {
+    const idempotencyKey = generateIdempotencyKey();
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request('/billing/create-checkout-session', {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers,
+    });
+  }
 
   async createPortalSession(data: {
-  returnUrl: string;
-}): Promise < ApiResponse < {
-  url: string;
-} >> {
-  const idempotencyKey = generateIdempotencyKey();
-  const headers = addIdempotencyKey({}, idempotencyKey);
-  return this.request('/billing/create-portal-session', {
-    method: 'POST',
-    body: JSON.stringify(data),
-    headers,
-  });
-}
+    returnUrl: string;
+  }): Promise<ApiResponse<{
+    url: string;
+  }>> {
+    const idempotencyKey = generateIdempotencyKey();
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request('/billing/create-portal-session', {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers,
+    });
+  }
 
   async createCryptoCheckoutSession(data: {
-  planId: string;
-  price: number;
-  currency?: string;
-  period: 'month' | 'year';
-}): Promise < ApiResponse < {
-  url: string;
-  qr_code?: string;
-} >> {
-  const idempotencyKey = generateIdempotencyKey();
+    planId: string;
+    price: number;
+    currency?: string;
+    period: 'month' | 'year';
+  }): Promise<ApiResponse<{
+    url: string;
+    qr_code?: string;
+  }>> {
+    const idempotencyKey = generateIdempotencyKey();
     const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/billing/crypto/checkout', {
       method: 'POST',
@@ -2520,24 +2565,24 @@ return {
     });
   }
 
-  async verifyTOTPSetup(token: string): Promise < ApiResponse < {
-  recoveryCodes: string[];
-} >> {
-  // Idempotency uses generated key (random UUID)
-  const idempotencyKey = generateIdempotencyKey();
-  const headers = addIdempotencyKey({}, idempotencyKey);
-  return this.request('/totp/verify', {
-    method: 'POST',
-    body: JSON.stringify({ token }),
-    headers,
-  });
-}
+  async verifyTOTPSetup(token: string): Promise<ApiResponse<{
+    recoveryCodes: string[];
+  }>> {
+    // Idempotency uses generated key (random UUID)
+    const idempotencyKey = generateIdempotencyKey();
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request('/totp/verify', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
+      headers,
+    });
+  }
 
-  async disableTOTP(token ?: string, recoveryCode ?: string): Promise < ApiResponse < {
-  message: string;
-} >> {
-  // Idempotency uses generated key (random UUID)
-  const idempotencyKey = generateIdempotencyKey();
+  async disableTOTP(token?: string, recoveryCode?: string): Promise<ApiResponse<{
+    message: string;
+  }>> {
+    // Idempotency uses generated key (random UUID)
+    const idempotencyKey = generateIdempotencyKey();
     const headers = addIdempotencyKey({}, idempotencyKey);
     const body: { token?: string; recoveryCode?: string } = {};
     if (token) body.token = token;
@@ -2564,102 +2609,102 @@ return {
     });
   }
 
-  async autoVerifyTOTP(deviceToken: string): Promise < ApiResponse < {
-  token: string;
-} >> {
-  return this.request('/totp/auto-verify', {
-    method: 'POST',
-    body: JSON.stringify({ deviceToken }),
-  });
-}
+  async autoVerifyTOTP(deviceToken: string): Promise<ApiResponse<{
+    token: string;
+  }>> {
+    return this.request('/totp/auto-verify', {
+      method: 'POST',
+      body: JSON.stringify({ deviceToken }),
+    });
+  }
 
   // Referral endpoints
-  async getReferralInfo(page = 1, limit = 5): Promise < ApiResponse < {
-  referralCode: string;
-  stats: {
-    completedReferrals: number;
-    pendingReferrals: number;
-    totalEarningsMB: number;
-    currentBonusMB: number;
-    maxBonusMB: number;
-    maxReferrals: number;
-    totalReferralsCount: number;
-  };
-  recentReferrals: Array<{
-    referred_user_id: string;
-    referred_name: string;
-    referred_email: string;
-    avatar_url: string;
-    status: string;
-    created_at: string;
-    completed_at: string | null;
-  }>;
-  pagination: {
-    total: number;
-    page: number;
-    limit: number;
-  };
-} >> {
-  return this.request(`/referrals/info?page=${page}&limit=${limit}`);
-}
+  async getReferralInfo(page = 1, limit = 5): Promise<ApiResponse<{
+    referralCode: string;
+    stats: {
+      completedReferrals: number;
+      pendingReferrals: number;
+      totalEarningsMB: number;
+      currentBonusMB: number;
+      maxBonusMB: number;
+      maxReferrals: number;
+      totalReferralsCount: number;
+    };
+    recentReferrals: Array<{
+      referred_user_id: string;
+      referred_name: string;
+      referred_email: string;
+      avatar_url: string;
+      status: string;
+      created_at: string;
+      completed_at: string | null;
+    }>;
+    pagination: {
+      total: number;
+      page: number;
+      limit: number;
+    };
+  }>> {
+    return this.request(`/referrals/info?page=${page}&limit=${limit}`);
+  }
 
-  async getReferralLeaderboard(limit ?: number): Promise < ApiResponse < {
-  leaderboard: Array<{
-    rank: number;
-    name: string;
-    email: string;
-    totalReferrals: number;
-    totalEarningsMB: number;
-    codeCreatedAt: string;
-  }>;
-} >> {
-  return this.request(`/referrals/leaderboard${limit ? `?limit=${limit}` : ''}`);
-}
+  async getReferralLeaderboard(limit?: number): Promise<ApiResponse<{
+    leaderboard: Array<{
+      rank: number;
+      name: string;
+      email: string;
+      totalReferrals: number;
+      totalEarningsMB: number;
+      codeCreatedAt: string;
+    }>;
+  }>> {
+    return this.request(`/referrals/leaderboard${limit ? `?limit=${limit}` : ''}`);
+  }
 
-  async getReferralEarningsHistory(limit ?: number): Promise < ApiResponse < {
-  earnings: Array<{
-    id: string;
-    earningsMB: number;
-    description: string;
-    createdAt: string;
-    referredUser: {
+  async getReferralEarningsHistory(limit?: number): Promise<ApiResponse<{
+    earnings: Array<{
+      id: string;
+      earningsMB: number;
+      description: string;
+      createdAt: string;
+      referredUser: {
+        name: string;
+        email: string;
+      };
+    }>;
+  }>> {
+    return this.request(`/referrals/earnings${limit ? `?limit=${limit}` : ''}`);
+  }
+
+  async validateReferralCode(code: string): Promise<ApiResponse<{
+    valid: boolean;
+    referrer: {
+      id: string;
       name: string;
       email: string;
     };
-  }>;
-} >> {
-  return this.request(`/referrals/earnings${limit ? `?limit=${limit}` : ''}`);
-}
+  }>> {
+    return this.request(`/referrals/validate/${code}`);
+  }
 
-  async validateReferralCode(code: string): Promise < ApiResponse < {
-  valid: boolean;
-  referrer: {
-    id: string;
-    name: string;
-    email: string;
-  };
-} >> {
-  return this.request(`/referrals/validate/${code}`);
-}
+  async verifyDeviceToken(deviceToken: string): Promise<ApiResponse<{
+    isValidDevice: boolean;
+  }>> {
+    const idempotencyKey = generateIdempotencyKey();
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request('/totp/verify-device', {
+      method: 'POST',
+      body: JSON.stringify({ deviceToken }),
+      headers,
+    });
+  }
 
-  async verifyDeviceToken(deviceToken: string): Promise < ApiResponse < {
-  isValidDevice: boolean;
-} >> {
-  const idempotencyKey = generateIdempotencyKey();
-  const headers = addIdempotencyKey({}, idempotencyKey);
-  return this.request('/totp/verify-device', {
-    method: 'POST',
-    body: JSON.stringify({ deviceToken }),
-    headers,
-  });
-} 
-
-  async verifyRecoveryCode(recoveryCode: string, userId ?: string): Promise < ApiResponse < {
-  valid: boolean;
-  token?: string;
-} >> {
-  // Use a unique timestamp-based key for each recovery code attempt to avoid idempotency caching blocking retries
-  const idempotencyKey = generateIdempotencyKey();
+  async verifyRecoveryCode(recoveryCode: string, userId?: string): Promise<ApiResponse<{
+    valid: boolean;
+    token?: string;
+  }>> {
+    // Use a unique timestamp-based key for each recovery code attempt to avoid idempotency caching blocking retries
+    const idempotencyKey = generateIdempotencyKey();
     const headers = addIdempotencyKey({}, idempotencyKey);
     const body: { recoveryCode: string; userId?: string } = { recoveryCode };
     if (userId) body.userId = userId;
@@ -2770,535 +2815,535 @@ return {
 
 
   // Device Authorization
-  async authorizeDevice(publicKey: string): Promise < ApiResponse < {
-  success: boolean;
-  deviceId: string;
-  message: string;
-  warning?: string;
-  limitReached?: boolean;
-  deviceQuota?: {
-    maxDevices: number;
-    planName: string;
-    currentDevices: number;
-  };
-} >> {
-  // Device Recognition (UX only)
-  //
-  // We derive non-persistent browser characteristics to help users
-  // distinguish between their active devices in the security dashboard.
-  // These signals are not used for tracking, profiling, or standalone
-  // authentication decisions. Cryptographic device keys remain the
-  // sole authority for device trust.
-
-  // Use ThumbmarkJS for robust fingerprinting
-  const { getThumbmark } = await import('@thumbmarkjs/thumbmarkjs');
-  const fingerprint = await getThumbmark();
-
-  // Hash the fingerprint for integrity
-  // Ensure fingerprint is a string before hashing
-  const fingerprintStr = typeof fingerprint === 'string' ? fingerprint : JSON.stringify(fingerprint);
-  const fingerprintHash = await this.hashFingerprint(fingerprintStr);
-
-  // Get stored device ID if exists
-  const deviceId = localStorage.getItem('device_id');
-
-  const metadata = {
-    screenRes: `${window.screen.width}x${window.screen.height}`,
-    colorDepth: window.screen.colorDepth,
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    language: navigator.language,
-    platform: navigator.platform,
-    hardwareConcurrency: navigator.hardwareConcurrency,
-    deviceMemory: (navigator as Navigator & { deviceMemory?: number }).deviceMemory,
-    touchSupport: 'ontouchstart' in window || navigator.maxTouchPoints > 0,
-    fingerprint: fingerprint // Store the Thumbmark hash
-  };
-
-  const ua = navigator.userAgent;
-  let browser = 'Unknown';
-  if(ua.indexOf("Firefox") > -1) browser = "Firefox";
-  else if(ua.indexOf("SamsungBrowser") > -1) browser = "Samsung Internet";
-  else if(ua.indexOf("Opera") > -1 || ua.indexOf("OPR") > -1) browser = "Opera";
-  else if(ua.indexOf("Trident") > -1) browser = "Internet Explorer";
-  else if(ua.indexOf("Edge") > -1) browser = "Edge";
-  else if(ua.indexOf("Chrome") > -1) browser = "Chrome";
-  else if(ua.indexOf("Safari") > -1) browser = "Safari";
-
-  let os = "Unknown";
-  if(ua.indexOf("Win") !== -1) os = "Windows";
-  if(ua.indexOf("Mac") !== -1) os = "macOS";
-  if(ua.indexOf("Linux") !== -1) os = "Linux";
-  if(ua.indexOf("Android") !== -1) os = "Android";
-  if(ua.indexOf("like Mac") !== -1) os = "iOS";
-
-  const response = await this.request<{
+  async authorizeDevice(publicKey: string): Promise<ApiResponse<{
     success: boolean;
     deviceId: string;
     message: string;
     warning?: string;
-  }>('/auth/device/authorize', {
-    method: 'POST',
-    body: JSON.stringify({
-      publicKey,
-      deviceId: deviceId || undefined, // Send existing ID if we have it
-      name: `${browser} on ${os}`,
-      type: /Mobi|Android/i.test(ua) ? 'mobile' : 'desktop',
-      browser,
-      os,
-      fingerprintHash,
-      metadata
-    })
-  });
+    limitReached?: boolean;
+    deviceQuota?: {
+      maxDevices: number;
+      planName: string;
+      currentDevices: number;
+    };
+  }>> {
+    // Device Recognition (UX only)
+    //
+    // We derive non-persistent browser characteristics to help users
+    // distinguish between their active devices in the security dashboard.
+    // These signals are not used for tracking, profiling, or standalone
+    // authentication decisions. Cryptographic device keys remain the
+    // sole authority for device trust.
 
-  if(response.success && response.data?.deviceId) {
-  localStorage.setItem('device_id', response.data.deviceId);
-}
+    // Use ThumbmarkJS for robust fingerprinting
+    const { getThumbmark } = await import('@thumbmarkjs/thumbmarkjs');
+    const fingerprint = await getThumbmark();
 
-return response;
+    // Hash the fingerprint for integrity
+    // Ensure fingerprint is a string before hashing
+    const fingerprintStr = typeof fingerprint === 'string' ? fingerprint : JSON.stringify(fingerprint);
+    const fingerprintHash = await this.hashFingerprint(fingerprintStr);
+
+    // Get stored device ID if exists
+    const deviceId = localStorage.getItem('device_id');
+
+    const metadata = {
+      screenRes: `${window.screen.width}x${window.screen.height}`,
+      colorDepth: window.screen.colorDepth,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      language: navigator.language,
+      platform: navigator.platform,
+      hardwareConcurrency: navigator.hardwareConcurrency,
+      deviceMemory: (navigator as Navigator & { deviceMemory?: number }).deviceMemory,
+      touchSupport: 'ontouchstart' in window || navigator.maxTouchPoints > 0,
+      fingerprint: fingerprint // Store the Thumbmark hash
+    };
+
+    const ua = navigator.userAgent;
+    let browser = 'Unknown';
+    if (ua.indexOf("Firefox") > -1) browser = "Firefox";
+    else if (ua.indexOf("SamsungBrowser") > -1) browser = "Samsung Internet";
+    else if (ua.indexOf("Opera") > -1 || ua.indexOf("OPR") > -1) browser = "Opera";
+    else if (ua.indexOf("Trident") > -1) browser = "Internet Explorer";
+    else if (ua.indexOf("Edge") > -1) browser = "Edge";
+    else if (ua.indexOf("Chrome") > -1) browser = "Chrome";
+    else if (ua.indexOf("Safari") > -1) browser = "Safari";
+
+    let os = "Unknown";
+    if (ua.indexOf("Win") !== -1) os = "Windows";
+    if (ua.indexOf("Mac") !== -1) os = "macOS";
+    if (ua.indexOf("Linux") !== -1) os = "Linux";
+    if (ua.indexOf("Android") !== -1) os = "Android";
+    if (ua.indexOf("like Mac") !== -1) os = "iOS";
+
+    const response = await this.request<{
+      success: boolean;
+      deviceId: string;
+      message: string;
+      warning?: string;
+    }>('/auth/device/authorize', {
+      method: 'POST',
+      body: JSON.stringify({
+        publicKey,
+        deviceId: deviceId || undefined, // Send existing ID if we have it
+        name: `${browser} on ${os}`,
+        type: /Mobi|Android/i.test(ua) ? 'mobile' : 'desktop',
+        browser,
+        os,
+        fingerprintHash,
+        metadata
+      })
+    });
+
+    if (response.success && response.data?.deviceId) {
+      localStorage.setItem('device_id', response.data.deviceId);
+    }
+
+    return response;
   }
 
   // Device Management
-  async getDevices(page = 1, limit = 5, onlyActive = true): Promise < ApiResponse < {
-  devices: Array<{
-    id: string;
-    device_name: string;
-    device_type: string;
-    browser: string;
-    os: string;
-    ip_address: string;
-    location: string;
-    last_active: string;
-    created_at: string;
-    is_revoked: boolean;
-    is_current: boolean;
-  }>;
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
-  plan: {
-    name: string;
-    maxDevices: number;
-    currentDevices: number;
-  };
-} >> {
-  return this.request(`/auth/device?page=${page}&limit=${limit}&onlyActive=${onlyActive}`);
-}
-
-  async revokeDevice(deviceId: string): Promise < ApiResponse < {
-  success: boolean;
-  message: string;
-} >> {
-  return this.request(`/auth/device/revoke/${deviceId}`, {
-    method: 'POST'
-  });
-}
-
-  async renameDevice(deviceId: string, name: string): Promise < ApiResponse < {
-  success: boolean;
-  message: string;
-} >> {
-  return this.request(`/auth/device/${deviceId}/name`, {
-    method: 'PATCH',
-    body: JSON.stringify({ name })
-  });
-}
-
-  private async hashFingerprint(data: string): Promise < string > {
-  const msgBuffer = new TextEncoder().encode(data);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-  // File signature verification endpoint
-  async verifyFileSignature(fileId: string): Promise < ApiResponse < {
-  success: boolean;
-  verified: boolean;
-  status: string;
-  message: string;
-  signer: {
-    id: string;
-    email: string;
-    name: string;
-  } | null;
-  signatureResults?: {
-    ed25519: boolean;
-    dilithium: boolean;
-  };
-  signedData?: unknown;
-} >> {
-  return this.request(`/files/${fileId}/verify`);
-}
-
-  // Folder signature verification endpoint
-  async verifyFolderSignature(folderId: string): Promise < ApiResponse < {
-  success: boolean;
-  verified: boolean;
-  status: string;
-  message: string;
-  signer: {
-    id: string;
-    email: string;
-    name: string;
-  } | null;
-  signatureResults?: {
-    ed25519: boolean;
-    dilithium: boolean;
-  };
-} >> {
-  return this.request(`/folders/${folderId}/verify`);
-}
-
-  // Notification endpoints
-  async getNotifications(params ?: {
-  limit?: number;
-  offset?: number;
-}): Promise < ApiResponse < {
-  notifications: Array<{
-    id: string;
-    type: string;
-    title: string;
-    message: string;
-    data: unknown;
-    read_at: string | null;
-    created_at: string;
-  }>;
-  pagination: {
-    limit: number;
-    offset: number;
-    hasMore: boolean;
-  };
-} >> {
-  const queryParams = new URLSearchParams();
-  if(params?.limit !== undefined) {
-  queryParams.append('limit', params.limit.toString());
-}
-if (params?.offset !== undefined) {
-  queryParams.append('offset', params.offset.toString());
-}
-
-const queryString = queryParams.toString();
-const endpoint = `/notifications${queryString ? `?${queryString}` : ''}`;
-
-return this.request(endpoint);
+  async getDevices(page = 1, limit = 5, onlyActive = true): Promise<ApiResponse<{
+    devices: Array<{
+      id: string;
+      device_name: string;
+      device_type: string;
+      browser: string;
+      os: string;
+      ip_address: string;
+      location: string;
+      last_active: string;
+      created_at: string;
+      is_revoked: boolean;
+      is_current: boolean;
+    }>;
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+    plan: {
+      name: string;
+      maxDevices: number;
+      currentDevices: number;
+    };
+  }>> {
+    return this.request(`/auth/device?page=${page}&limit=${limit}&onlyActive=${onlyActive}`);
   }
 
-  async getNotificationStats(): Promise < ApiResponse < {
-  total: number;
-  unread: number;
-} >> {
-  return this.request('/notifications/stats');
-}
+  async revokeDevice(deviceId: string): Promise<ApiResponse<{
+    success: boolean;
+    message: string;
+  }>> {
+    return this.request(`/auth/device/revoke/${deviceId}`, {
+      method: 'POST'
+    });
+  }
 
-  async getUnseenStatus(): Promise < ApiResponse < {
-  hasUnseen: boolean;
-} >> {
-  return this.request('/notifications/status');
-}
+  async renameDevice(deviceId: string, name: string): Promise<ApiResponse<{
+    success: boolean;
+    message: string;
+  }>> {
+    return this.request(`/auth/device/${deviceId}/name`, {
+      method: 'PATCH',
+      body: JSON.stringify({ name })
+    });
+  }
 
-  async markNotificationAsRead(notificationId: string): Promise < ApiResponse < {
-  success: boolean;
-  message: string;
-} >> {
-  return this.request(`/notifications/${notificationId}/read`, {
-    method: 'PUT',
-  });
-}
+  private async hashFingerprint(data: string): Promise<string> {
+    const msgBuffer = new TextEncoder().encode(data);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  }
 
-  async markAllNotificationsAsRead(): Promise < ApiResponse < {
-  success: boolean;
-  message: string;
-  markedCount: number;
-} >> {
-  return this.request('/notifications/read-all', {
-    method: 'PUT',
-  });
-}
+  // File signature verification endpoint
+  async verifyFileSignature(fileId: string): Promise<ApiResponse<{
+    success: boolean;
+    verified: boolean;
+    status: string;
+    message: string;
+    signer: {
+      id: string;
+      email: string;
+      name: string;
+    } | null;
+    signatureResults?: {
+      ed25519: boolean;
+      dilithium: boolean;
+    };
+    signedData?: unknown;
+  }>> {
+    return this.request(`/files/${fileId}/verify`);
+  }
 
-  async deleteNotification(notificationId: string): Promise < ApiResponse < {
-  success: boolean;
-  message: string;
-} >> {
-  return this.request(`/notifications/${notificationId}`, {
-    method: 'DELETE',
-  });
-}
+  // Folder signature verification endpoint
+  async verifyFolderSignature(folderId: string): Promise<ApiResponse<{
+    success: boolean;
+    verified: boolean;
+    status: string;
+    message: string;
+    signer: {
+      id: string;
+      email: string;
+      name: string;
+    } | null;
+    signatureResults?: {
+      ed25519: boolean;
+      dilithium: boolean;
+    };
+  }>> {
+    return this.request(`/folders/${folderId}/verify`);
+  }
 
-  async getNotificationPreferences(): Promise < ApiResponse < {
-  inApp: boolean;
-  email: boolean;
-  login: boolean;
-  fileShare: boolean;
-  billing: boolean;
-} >> {
-  return this.request('/notifications/preferences');
-}
+  // Notification endpoints
+  async getNotifications(params?: {
+    limit?: number;
+    offset?: number;
+  }): Promise<ApiResponse<{
+    notifications: Array<{
+      id: string;
+      type: string;
+      title: string;
+      message: string;
+      data: unknown;
+      read_at: string | null;
+      created_at: string;
+    }>;
+    pagination: {
+      limit: number;
+      offset: number;
+      hasMore: boolean;
+    };
+  }>> {
+    const queryParams = new URLSearchParams();
+    if (params?.limit !== undefined) {
+      queryParams.append('limit', params.limit.toString());
+    }
+    if (params?.offset !== undefined) {
+      queryParams.append('offset', params.offset.toString());
+    }
+
+    const queryString = queryParams.toString();
+    const endpoint = `/notifications${queryString ? `?${queryString}` : ''}`;
+
+    return this.request(endpoint);
+  }
+
+  async getNotificationStats(): Promise<ApiResponse<{
+    total: number;
+    unread: number;
+  }>> {
+    return this.request('/notifications/stats');
+  }
+
+  async getUnseenStatus(): Promise<ApiResponse<{
+    hasUnseen: boolean;
+  }>> {
+    return this.request('/notifications/status');
+  }
+
+  async markNotificationAsRead(notificationId: string): Promise<ApiResponse<{
+    success: boolean;
+    message: string;
+  }>> {
+    return this.request(`/notifications/${notificationId}/read`, {
+      method: 'PUT',
+    });
+  }
+
+  async markAllNotificationsAsRead(): Promise<ApiResponse<{
+    success: boolean;
+    message: string;
+    markedCount: number;
+  }>> {
+    return this.request('/notifications/read-all', {
+      method: 'PUT',
+    });
+  }
+
+  async deleteNotification(notificationId: string): Promise<ApiResponse<{
+    success: boolean;
+    message: string;
+  }>> {
+    return this.request(`/notifications/${notificationId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getNotificationPreferences(): Promise<ApiResponse<{
+    inApp: boolean;
+    email: boolean;
+    login: boolean;
+    fileShare: boolean;
+    billing: boolean;
+  }>> {
+    return this.request('/notifications/preferences');
+  }
 
   async updateNotificationPreferences(preferences: {
-  inApp: boolean;
-  email: boolean;
-  login: boolean;
-  fileShare: boolean;
-  billing: boolean;
-}): Promise < ApiResponse < {
-  success: boolean;
-  message: string;
-} >> {
-  return this.request('/notifications/preferences', {
-    method: 'PUT',
-    body: JSON.stringify(preferences),
-  });
-}
+    inApp: boolean;
+    email: boolean;
+    login: boolean;
+    fileShare: boolean;
+    billing: boolean;
+  }): Promise<ApiResponse<{
+    success: boolean;
+    message: string;
+  }>> {
+    return this.request('/notifications/preferences', {
+      method: 'PUT',
+      body: JSON.stringify(preferences),
+    });
+  }
 
   // Share comment endpoints
-  async getShareComments(shareId: string, page = 1, limit = 20): Promise < ApiResponse < ShareCommentsResponse >> {
-  return this.request(`/shares/${shareId}/comments?page=${page}&limit=${limit}`);
-}
+  async getShareComments(shareId: string, page = 1, limit = 20): Promise<ApiResponse<ShareCommentsResponse>> {
+    return this.request(`/shares/${shareId}/comments?page=${page}&limit=${limit}`);
+  }
 
   async addShareComment(shareId: string, data: {
-  content: string;
-  parentId?: string | null;
-  fingerprint?: string;
-  signature?: string;
-  publicKey?: string;
-}): Promise < ApiResponse < { success: boolean; comment: ShareComment } >> {
-  // Use strictly unique ID for every comment attempt to avoid middleware collisions
-  const idempotencyKey = `${generateIdempotencyKey()}:${Math.random().toString(36).slice(2)}`;
-  const headers = addIdempotencyKey({}, idempotencyKey);
-  return this.request(`/shares/${shareId}/comments`, {
-    method: 'POST',
-    body: JSON.stringify(data),
-    headers,
-  });
+    content: string;
+    parentId?: string | null;
+    fingerprint?: string;
+    signature?: string;
+    publicKey?: string;
+  }): Promise<ApiResponse<{ success: boolean; comment: ShareComment }>> {
+    // Use strictly unique ID for every comment attempt to avoid middleware collisions
+    const idempotencyKey = `${generateIdempotencyKey()}:${Math.random().toString(36).slice(2)}`;
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request(`/shares/${shareId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers,
+    });
   }
 
   async updateShareComment(shareId: string, commentId: string, data: {
-      content: string;
-      fingerprint?: string;
-      signature?: string;
-      publicKey?: string;
-    }): Promise < ApiResponse < { success: boolean; message: string } >> {
-      const idempotencyKey = generateIdempotencyKey();
-      const headers = addIdempotencyKey({}, idempotencyKey);
-      return this.request(`/shares/${shareId}/comments/${commentId}`, {
-        method: 'PATCH',
-        body: JSON.stringify(data),
-        headers,
-      });
-    }
+    content: string;
+    fingerprint?: string;
+    signature?: string;
+    publicKey?: string;
+  }): Promise<ApiResponse<{ success: boolean; message: string }>> {
+    const idempotencyKey = generateIdempotencyKey();
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request(`/shares/${shareId}/comments/${commentId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+      headers,
+    });
+  }
 
-  async deleteShareComment(shareId: string, commentId: string): Promise < ApiResponse < { success: boolean; message: string } >> {
-  const idempotencyKey = generateIdempotencyKey();
-  const headers = addIdempotencyKey({}, idempotencyKey);
-  return this.request(`/shares/${shareId}/comments/${commentId}`, {
-    method: 'DELETE',
-    headers,
-  });
-}
+  async deleteShareComment(shareId: string, commentId: string): Promise<ApiResponse<{ success: boolean; message: string }>> {
+    const idempotencyKey = generateIdempotencyKey();
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request(`/shares/${shareId}/comments/${commentId}`, {
+      method: 'DELETE',
+      headers,
+    });
+  }
 
-  async getShareCommentCount(shareId: string): Promise < ApiResponse < { count: number; isOwner?: boolean; isLocked?: boolean; isEnabled?: boolean } >> {
-  return this.request(`/shares/${shareId}/comments/count`);
-}
+  async getShareCommentCount(shareId: string): Promise<ApiResponse<{ count: number; isOwner?: boolean; isLocked?: boolean; isEnabled?: boolean }>> {
+    return this.request(`/shares/${shareId}/comments/count`);
+  }
 
   async updateShareSettings(shareId: string, settings: {
-  comments_enabled?: boolean;
-  detailed_logging_enabled?: boolean;
-}): Promise < ApiResponse < { success: boolean; message: string } >> {
-  return this.request(`/shares/${shareId}/settings`, {
-    method: 'PATCH',
-    body: JSON.stringify(settings),
-  });
-}
+    comments_enabled?: boolean;
+    detailed_logging_enabled?: boolean;
+  }): Promise<ApiResponse<{ success: boolean; message: string }>> {
+    return this.request(`/shares/${shareId}/settings`, {
+      method: 'PATCH',
+      body: JSON.stringify(settings),
+    });
+  }
 
-  async getShareLogs(shareId: string, page: number = 1, limit: number = 50): Promise < ApiResponse < {
-  logs: ShareAccessLog[];
-  pagination: {
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-  };
-  settings: {
-    detailed_logging_enabled: boolean;
-  };
-} >> {
-  return this.request(`/shares/${shareId}/logs?page=${page}&limit=${limit}`);
-}
+  async getShareLogs(shareId: string, page: number = 1, limit: number = 50): Promise<ApiResponse<{
+    logs: ShareAccessLog[];
+    pagination: {
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+    };
+    settings: {
+      detailed_logging_enabled: boolean;
+    };
+  }>> {
+    return this.request(`/shares/${shareId}/logs?page=${page}&limit=${limit}`);
+  }
 
-  async wipeShareLogs(shareId: string): Promise < ApiResponse < { success: boolean; message: string } >> {
-  const idempotencyKey = generateIdempotencyKey();
-  const headers = addIdempotencyKey({}, idempotencyKey);
-  return this.request(`/shares/${shareId}/logs`, {
-    method: 'DELETE',
-    headers,
-  });
-}
+  async wipeShareLogs(shareId: string): Promise<ApiResponse<{ success: boolean; message: string }>> {
+    const idempotencyKey = generateIdempotencyKey();
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request(`/shares/${shareId}/logs`, {
+      method: 'DELETE',
+      headers,
+    });
+  }
 
-  async lockComments(shareId: string, locked: boolean): Promise < ApiResponse < { success: boolean; locked: boolean } >> {
-  return this.request(`/shares/${shareId}/comments/lock`, {
-    method: 'POST',
-    body: JSON.stringify({ locked }),
-  });
-}
+  async lockComments(shareId: string, locked: boolean): Promise<ApiResponse<{ success: boolean; locked: boolean }>> {
+    return this.request(`/shares/${shareId}/comments/lock`, {
+      method: 'POST',
+      body: JSON.stringify({ locked }),
+    });
+  }
 
-  async setCommentsEnabled(shareId: string, enabled: boolean): Promise < ApiResponse < { success: boolean; enabled: boolean } >> {
-  return this.request(`/shares/${shareId}/comments/enable`, {
-    method: 'POST',
-    body: JSON.stringify({ enabled }),
-  });
-}
+  async setCommentsEnabled(shareId: string, enabled: boolean): Promise<ApiResponse<{ success: boolean; enabled: boolean }>> {
+    return this.request(`/shares/${shareId}/comments/enable`, {
+      method: 'POST',
+      body: JSON.stringify({ enabled }),
+    });
+  }
 
-  async banShareUser(shareId: string, userId: string): Promise < ApiResponse < { success: boolean; message: string } >> {
-  return this.request(`/shares/${shareId}/comments/ban`, {
-    method: 'POST',
-    body: JSON.stringify({ userId }),
-  });
-}
+  async banShareUser(shareId: string, userId: string): Promise<ApiResponse<{ success: boolean; message: string }>> {
+    return this.request(`/shares/${shareId}/comments/ban`, {
+      method: 'POST',
+      body: JSON.stringify({ userId }),
+    });
+  }
 
-  async unbanShareUser(shareId: string, userId: string): Promise < ApiResponse < { success: boolean; message: string } >> {
-  return this.request(`/shares/${shareId}/comments/unban`, {
-    method: 'POST',
-    body: JSON.stringify({ userId }),
-  });
-}
+  async unbanShareUser(shareId: string, userId: string): Promise<ApiResponse<{ success: boolean; message: string }>> {
+    return this.request(`/shares/${shareId}/comments/unban`, {
+      method: 'POST',
+      body: JSON.stringify({ userId }),
+    });
+  }
 
-  async getShareBannedUsers(shareId: string): Promise < ApiResponse < {
-  banned: Array<{
-    id: string;
-    name: string;
-    email: string;
-    avatarUrl: string;
-    bannedAt: string;
-  }>
-} >> {
-  return this.request(`/shares/${shareId}/comments/banned`);
-}
+  async getShareBannedUsers(shareId: string): Promise<ApiResponse<{
+    banned: Array<{
+      id: string;
+      name: string;
+      email: string;
+      avatarUrl: string;
+      bannedAt: string;
+    }>
+  }>> {
+    return this.request(`/shares/${shareId}/comments/banned`);
+  }
 
-  async getSecurityEvents(limit = 10, offset = 0, format ?: string): Promise < ApiResponse < {
-  events: SecurityEvent[];
-  pagination: { total: number; limit: number; offset: number; hasMore: boolean };
-  csv?: string;
-  filename?: string;
-} >> {
-  const query = `limit=${limit}&offset=${offset}${format ? `&format=${format}` : ''}`;
-  return this.request(`/auth/security/events?${query}`, {
-    method: 'GET',
-  });
-}
+  async getSecurityEvents(limit = 10, offset = 0, format?: string): Promise<ApiResponse<{
+    events: SecurityEvent[];
+    pagination: { total: number; limit: number; offset: number; hasMore: boolean };
+    csv?: string;
+    filename?: string;
+  }>> {
+    const query = `limit=${limit}&offset=${offset}${format ? `&format=${format}` : ''}`;
+    return this.request(`/auth/security/events?${query}`, {
+      method: 'GET',
+    });
+  }
 
-  async getSecurityPreferences(): Promise < ApiResponse < {
-  activityMonitorEnabled: boolean;
-  detailedEventsEnabled: boolean;
-  usageDiagnosticsEnabled: boolean;
-  crashReportsEnabled: boolean;
-} >> {
-  return this.request('/auth/security/preferences', {
-    method: 'GET',
-  });
-}
+  async getSecurityPreferences(): Promise<ApiResponse<{
+    activityMonitorEnabled: boolean;
+    detailedEventsEnabled: boolean;
+    usageDiagnosticsEnabled: boolean;
+    crashReportsEnabled: boolean;
+  }>> {
+    return this.request('/auth/security/preferences', {
+      method: 'GET',
+    });
+  }
 
   async updateSecurityPreferences(
-  activityMonitorEnabled: boolean,
-  detailedEventsEnabled: boolean,
-  usageDiagnosticsEnabled ?: boolean,
-  crashReportsEnabled ?: boolean
-): Promise < ApiResponse < {
-  success: boolean;
-  message: string;
-} >> {
-  return this.request('/auth/security/preferences', {
-    method: 'POST',
-    body: JSON.stringify({
-      activityMonitorEnabled,
-      detailedEventsEnabled,
-      usageDiagnosticsEnabled: usageDiagnosticsEnabled ?? true, // Default to true if not provided (though backend handles it too)
-      crashReportsEnabled: crashReportsEnabled ?? true
-    }),
-  });
-}
+    activityMonitorEnabled: boolean,
+    detailedEventsEnabled: boolean,
+    usageDiagnosticsEnabled?: boolean,
+    crashReportsEnabled?: boolean
+  ): Promise<ApiResponse<{
+    success: boolean;
+    message: string;
+  }>> {
+    return this.request('/auth/security/preferences', {
+      method: 'POST',
+      body: JSON.stringify({
+        activityMonitorEnabled,
+        detailedEventsEnabled,
+        usageDiagnosticsEnabled: usageDiagnosticsEnabled ?? true, // Default to true if not provided (though backend handles it too)
+        crashReportsEnabled: crashReportsEnabled ?? true
+      }),
+    });
+  }
 
-  async wipeSecurityEvents(): Promise < ApiResponse < {
-  success: boolean;
-  message: string;
-} >> {
-  return this.request('/auth/security/events/wipe', {
-    method: 'POST',
-  });
-}
+  async wipeSecurityEvents(): Promise<ApiResponse<{
+    success: boolean;
+    message: string;
+  }>> {
+    return this.request('/auth/security/events/wipe', {
+      method: 'POST',
+    });
+  }
 
   // Backup flow tracking
-  async trackBackupViewed(): Promise < ApiResponse < { success: boolean } >> {
-  return this.request('/backup/viewed', { method: 'POST' });
-}
+  async trackBackupViewed(): Promise<ApiResponse<{ success: boolean }>> {
+    return this.request('/backup/viewed', { method: 'POST' });
+  }
 
-  async trackBackupVerified(): Promise < ApiResponse < { success: boolean } >> {
-  return this.request('/backup/verified', { method: 'POST' });
-}
+  async trackBackupVerified(): Promise<ApiResponse<{ success: boolean }>> {
+    return this.request('/backup/verified', { method: 'POST' });
+  }
 
   // Master Key & OPAQUE Tracking
-  async trackMasterKeyRevealed(): Promise < ApiResponse < { success: boolean } >> {
-  return this.request('/auth/security/mk/revealed', { method: 'POST' });
-}
+  async trackMasterKeyRevealed(): Promise<ApiResponse<{ success: boolean }>> {
+    return this.request('/auth/security/mk/revealed', { method: 'POST' });
+  }
 
-  async trackMasterKeyRevealFailed(reason: string): Promise < ApiResponse < { success: boolean } >> {
-  return this.request('/auth/security/mk/failed', {
-    method: 'POST',
-    body: JSON.stringify({ reason })
-  });
-}
+  async trackMasterKeyRevealFailed(reason: string): Promise<ApiResponse<{ success: boolean }>> {
+    return this.request('/auth/security/mk/failed', {
+      method: 'POST',
+      body: JSON.stringify({ reason })
+    });
+  }
 
-  async reportOpaqueFailure(flow: string, stage: string, error: string): Promise < ApiResponse < { success: boolean } >> {
-  return this.request('/auth/security/opaque/failure', {
-    method: 'POST',
-    body: JSON.stringify({ flow, stage, error, timestamp: new Date().toISOString() })
-  });
-}
+  async reportOpaqueFailure(flow: string, stage: string, error: string): Promise<ApiResponse<{ success: boolean }>> {
+    return this.request('/auth/security/opaque/failure', {
+      method: 'POST',
+      body: JSON.stringify({ flow, stage, error, timestamp: new Date().toISOString() })
+    });
+  }
 
   // Tag management
   async attachTag(data: {
-  fileId?: string;
-  folderId?: string;
-  encryptedName: string;
-  nameSalt: string;
-  color?: string;
-}): Promise < ApiResponse < Tag >> {
-  return this.request('/tags/attach', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-}
+    fileId?: string;
+    folderId?: string;
+    encryptedName: string;
+    nameSalt: string;
+    color?: string;
+  }): Promise<ApiResponse<Tag>> {
+    return this.request('/tags/attach', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
 
-  async detachTag(tagId: string, data: { fileId?: string; folderId?: string }): Promise < ApiResponse < { success: boolean } >> {
-  return this.request(`/tags/detach/${tagId}`, {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-}
+  async detachTag(tagId: string, data: { fileId?: string; folderId?: string }): Promise<ApiResponse<{ success: boolean }>> {
+    return this.request(`/tags/detach/${tagId}`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
 
-  async deleteTag(tagId: string): Promise < ApiResponse < { success: boolean } >> {
-  return this.request(`/tags/${tagId}`, {
-    method: 'DELETE',
-  });
-}
+  async deleteTag(tagId: string): Promise<ApiResponse<{ success: boolean }>> {
+    return this.request(`/tags/${tagId}`, {
+      method: 'DELETE',
+    });
+  }
 
-  async getTags(): Promise < ApiResponse < Tag[] >> {
-  return this.request('/tags');
-}
+  async getTags(): Promise<ApiResponse<Tag[]>> {
+    return this.request('/tags');
+  }
 
-  async deleteAccount(reason ?: string, details ?: string): Promise < ApiResponse < {
-  success: boolean;
-} >> {
-  const idempotencyKey = generateIdempotencyKey();
-  const headers = addIdempotencyKey({}, idempotencyKey);
-  return this.request('/auth/delete', {
-    method: 'DELETE',
-    body: JSON.stringify({ reason, details }),
-    headers
-  });
-}
+  async deleteAccount(reason?: string, details?: string): Promise<ApiResponse<{
+    success: boolean;
+  }>> {
+    const idempotencyKey = generateIdempotencyKey();
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request('/auth/delete', {
+      method: 'DELETE',
+      body: JSON.stringify({ reason, details }),
+      headers
+    });
+  }
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);

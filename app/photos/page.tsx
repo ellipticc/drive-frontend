@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from "react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
-import { IconPhoto, IconLoader2, IconRefresh } from "@tabler/icons-react"
+import { IconPhoto, IconLoader2, IconRefresh, IconDownload, IconTrash, IconFolderSymlink, IconX, IconShare, IconCopy, IconStar, IconEye, IconPencil } from "@tabler/icons-react"
 import { apiClient } from "@/lib/api"
 import { decryptFilename } from "@/lib/crypto"
 import { format, parseISO } from "date-fns"
@@ -12,12 +12,27 @@ import { SiteHeader } from "@/components/layout/header/site-header"
 import { useUser } from "@/components/user-context"
 import { Tag } from "@/lib/api"
 import { FullPagePreviewModal, PreviewFileItem } from "@/components/previews/full-page-preview-modal"
-import { downloadFileToBrowser } from "@/lib/download"
+import { downloadFileToBrowser, downloadMultipleItemsAsZip } from "@/lib/download"
 import { useGallerySelection } from "./hooks/use-gallery-selection"
 import { GalleryGrid } from "./components/gallery-grid"
 import { GalleryToolbar } from "./components/gallery-toolbar"
-import { SelectionBar } from "./components/selection-bar"
-import { Button } from "@/components/ui/button"
+import { useGlobalUpload } from "@/components/global-upload-context"
+import {
+    ActionBar,
+    ActionBarSelection,
+    ActionBarGroup,
+    ActionBarItem,
+    ActionBarClose,
+    ActionBarSeparator,
+} from "@/components/ui/action-bar"
+
+// Import Modals
+import { MoveToTrashModal } from "@/components/modals/move-to-trash-modal"
+import { MoveToFolderModal } from "@/components/modals/move-to-folder-modal"
+import { CopyModal } from "@/components/modals/copy-modal"
+import { RenameModal } from "@/components/modals/rename-modal"
+import { ShareModal } from "@/components/modals/share-modal"
+import { SpacePickerModal } from "@/components/modals/space-picker-modal"
 
 interface RawPhotoItem {
     id: string
@@ -40,18 +55,20 @@ interface RawPhotoItem {
         nonceWrapKyber: string
     }
     tags?: Tag[]
+    isStarred?: boolean
 }
 
 interface MediaItem extends RawPhotoItem {
     filename: string // Plaintext filename after decryption
 }
 
-export default function PhotosPage() { // Renamed from Page to PhotosPage for clarity, though default export is what matters
+export default function PhotosPage() {
     const router = useRouter()
     const pathname = usePathname()
     const searchParams = useSearchParams()
-    const { deviceQuota } = useUser()
-    const isFreePlan = deviceQuota?.planName === 'Free'
+    const { user, deviceQuota } = useUser()
+    const isFreePlan = (deviceQuota?.planName === 'Free' || !user?.subscription) && user?.plan !== 'pro' && user?.plan !== 'plus' && user?.plan !== 'unlimited';
+    const { handleFileUpload, handleFolderUpload } = useGlobalUpload()
 
     // Data State
     const [rawItems, setRawItems] = useState<unknown[]>([])
@@ -59,17 +76,46 @@ export default function PhotosPage() { // Renamed from Page to PhotosPage for cl
     const [isLoading, setIsLoading] = useState(true)
     const [isRefreshing, setIsRefreshing] = useState(false)
     const [searchQuery, setSearchQuery] = useState("")
-    const [viewMode, setViewMode] = useState<'comfortable' | 'compact'>('comfortable')
+
+    // View State
+    const [viewMode, setViewMode] = useState<'all' | 'photos' | 'videos' | 'starred'>('all')
+    const [timeScale, setTimeScale] = useState<'years' | 'months' | 'days'>('days')
+    const [zoomLevel, setZoomLevel] = useState(4) // Default column count
 
     // Preview State
     const [previewFile, setPreviewFile] = useState<PreviewFileItem | null>(null)
     const [previewIndex, setPreviewIndex] = useState(-1)
+
+    // Modal States
+    const [isMoveToTrashOpen, setIsMoveToTrashOpen] = useState(false)
+    const [isMoveToFolderOpen, setIsMoveToFolderOpen] = useState(false)
+    const [isCopyOpen, setIsCopyOpen] = useState(false)
+    const [isRenameOpen, setIsRenameOpen] = useState(false)
+    const [isShareOpen, setIsShareOpen] = useState(false)
+    const [isAddToSpaceOpen, setIsAddToSpaceOpen] = useState(false)
+
+    // Active Item(s) State for Modals
+    const [activeItem, setActiveItem] = useState<MediaItem | null>(null)
+    const [bulkActionItems, setBulkActionItems] = useState<Array<{ id: string; name: string; type: "file" | "folder" }>>([])
+
 
     // Sync search param from URL
     useEffect(() => {
         const q = searchParams.get('q');
         setSearchQuery(q || "");
     }, [searchParams]);
+
+    // Check for paid feature usage (Tag Search)
+    useEffect(() => {
+        if (searchQuery?.startsWith('#') && isFreePlan) {
+            toast.error("Advanced Tag Search is a paid feature!", {
+                action: {
+                    label: "Upgrade",
+                    onClick: () => router.push('/pricing')
+                }
+            });
+        }
+    }, [searchQuery, isFreePlan, router]);
 
     const handleSearch = (query: string) => {
         setSearchQuery(query)
@@ -87,12 +133,11 @@ export default function PhotosPage() { // Renamed from Page to PhotosPage for cl
         else setIsLoading(true)
 
         try {
-            const response = await apiClient.getPhotos(1000, 0) // Increased limit for gallery
+            const response = await apiClient.getPhotos(1000, 0)
             if (response.success && response.data) {
                 const raw = response.data;
                 setRawItems(raw);
 
-                // Decrypt all filenames
                 const masterKey = masterKeyManager.getMasterKey();
                 const decryptedItems = await Promise.all(raw.map(async (item: unknown) => {
                     const photoItem = item as RawPhotoItem;
@@ -102,7 +147,6 @@ export default function PhotosPage() { // Renamed from Page to PhotosPage for cl
                             photoItem.filenameSalt,
                             masterKey
                         );
-                        // Decrypt tags if needed (simplified for now)
                         return { ...photoItem, filename: decryptedName };
                     } catch (err) {
                         return { ...photoItem, filename: "Encrypted File" };
@@ -128,18 +172,35 @@ export default function PhotosPage() { // Renamed from Page to PhotosPage for cl
 
     // Filtering
     const filteredItems = useMemo(() => {
-        const query = searchQuery.toLowerCase().trim();
-        if (!query) return mediaItems;
+        let items = mediaItems;
 
-        if (query.startsWith('#') && !isFreePlan) {
-            // Tag logic would go here
-            return mediaItems
+        // 1. Search Query
+        const query = searchQuery.toLowerCase().trim();
+        if (query) {
+            if (query.startsWith('#')) {
+                // Tag Search - Restricted for free plan
+                if (!isFreePlan) {
+                    const tagQuery = query.substring(1);
+                    if (tagQuery) {
+                        items = items.filter(item => item.tags?.some(tag => tag.decryptedName?.toLowerCase().includes(tagQuery)))
+                    }
+                }
+            } else {
+                items = items.filter(item => item.filename.toLowerCase().includes(query))
+            }
         }
 
-        return mediaItems.filter(item =>
-            item.filename.toLowerCase().includes(query)
-        )
-    }, [mediaItems, searchQuery, isFreePlan])
+        // 2. View Mode
+        if (viewMode === 'photos') {
+            items = items.filter(item => item.mimeType.startsWith('image/'))
+        } else if (viewMode === 'videos') {
+            items = items.filter(item => item.mimeType.startsWith('video/'))
+        } else if (viewMode === 'starred') {
+            items = items.filter(item => item.isStarred)
+        }
+
+        return items;
+    }, [mediaItems, searchQuery, viewMode])
 
     // Selection Hook
     const {
@@ -153,14 +214,24 @@ export default function PhotosPage() { // Renamed from Page to PhotosPage for cl
     const groupedItems = useMemo(() => {
         const grouped: { [key: string]: MediaItem[] } = {}
         filteredItems.forEach(item => {
-            const date = format(parseISO(item.createdAt), 'yyyy-MM-dd')
-            if (!grouped[date]) {
-                grouped[date] = []
+            let dateKey = '';
+            const date = parseISO(item.createdAt);
+
+            if (timeScale === 'years') {
+                dateKey = format(date, 'yyyy') // Group by Year
+            } else if (timeScale === 'months') {
+                dateKey = format(date, 'yyyy-MM') // Group by Month
+            } else {
+                dateKey = format(date, 'yyyy-MM-dd') // Group by Day
             }
-            grouped[date].push(item)
+
+            if (!grouped[dateKey]) {
+                grouped[dateKey] = []
+            }
+            grouped[dateKey].push(item)
         })
         return grouped
-    }, [filteredItems])
+    }, [filteredItems, timeScale])
 
     const sortedDates = useMemo(() => {
         return Object.keys(groupedItems).sort((a, b) => b.localeCompare(a))
@@ -168,7 +239,7 @@ export default function PhotosPage() { // Renamed from Page to PhotosPage for cl
 
     // Handlers
     const handlePreview = (item: MediaItem) => {
-        if (isSelectionMode) return; // Don't preview if selecting
+        if (isSelectionMode) return;
         const index = filteredItems.findIndex(i => i.id === item.id)
         setPreviewFile({
             id: item.id,
@@ -178,6 +249,66 @@ export default function PhotosPage() { // Renamed from Page to PhotosPage for cl
             size: item.size
         })
         setPreviewIndex(index)
+    }
+
+    const handleAction = async (action: string, item: MediaItem) => {
+        setActiveItem(item);
+        switch (action) {
+            case 'preview':
+                handlePreview(item);
+                break;
+            case 'download':
+                try {
+                    toast.message(`Downloading ${item.filename}...`)
+                    await downloadFileToBrowser(item.id)
+                    toast.success("Download complete")
+                } catch (e) {
+                    toast.error("Download failed")
+                }
+                break;
+            case 'delete':
+                setIsMoveToTrashOpen(true);
+                break;
+            case 'move':
+                setBulkActionItems([]); // Clear bulk items
+                setIsMoveToFolderOpen(true);
+                break;
+            case 'copy':
+                setBulkActionItems([]); // Clear bulk items
+                setIsCopyOpen(true);
+                break;
+            case 'rename':
+                setIsRenameOpen(true);
+                break;
+            case 'share':
+                setIsShareOpen(true);
+                break;
+            case 'addToSpace':
+                setIsAddToSpaceOpen(true);
+                break;
+            case 'star':
+                try {
+                    // Optimistic update
+                    setMediaItems(prev => prev.map(i =>
+                        i.id === item.id ? { ...i, isStarred: !i.isStarred } : i
+                    ));
+
+                    if (item.isStarred) {
+                        await apiClient.unstarFile(item.id);
+                        toast.success("Removed from favorites");
+                    } else {
+                        await apiClient.starFile(item.id);
+                        toast.success("Added to favorites");
+                    }
+                } catch (e) {
+                    toast.error("Failed to update favorite status");
+                    // Revert optimistic update
+                    setMediaItems(prev => prev.map(i =>
+                        i.id === item.id ? { ...i, isStarred: !i.isStarred } : i
+                    ));
+                }
+                break;
+        }
     }
 
     const handleNavigate = (direction: 'prev' | 'next') => {
@@ -204,49 +335,105 @@ export default function PhotosPage() { // Renamed from Page to PhotosPage for cl
         }
     }
 
-    // Bulk Actions
-    const handleBulkDelete = async () => {
-        if (!confirm(`Are you sure you want to delete ${selectedIds.size} items?`)) return
-
-        const idsToDelete = Array.from(selectedIds)
-        // Optimistic update
-        const remainingItems = mediaItems.filter(item => !selectedIds.has(item.id))
-        setMediaItems(remainingItems)
-        clearSelection()
-
-        try {
-            // Delete one by one for now (or bulk API if available)
-            // Assuming bulk API or promise all
-            await Promise.all(idsToDelete.map(id => apiClient.moveFileToTrash(id)))
-            toast.success("Items moved to trash")
-        } catch (err) {
-            toast.error("Failed to delete some items")
-            fetchAndDecryptPhotos(true) // Revert/Refresh
-        }
+    // Bulk Actions Setup
+    const prepareBulkAction = () => {
+        const items = mediaItems.filter(i => selectedIds.has(i.id)).map(i => ({
+            id: i.id,
+            name: i.filename,
+            type: 'file' as const
+        }));
+        setBulkActionItems(items);
+        setActiveItem(null); // Clear single active item
     }
 
-    const handleBulkDownload = async () => {
-        const idsToDownload = Array.from(selectedIds)
-        if (idsToDownload.length > 5 && !confirm(`Download ${idsToDownload.length} files? This might take a moment.`)) return
+    const handleBulkDelete = () => {
+        prepareBulkAction();
+        if (selectedIds.size === 0) return;
 
-        toast.message(`Starting download for ${idsToDownload.length} files...`)
+        if (confirm(`Are you sure you want to move ${selectedIds.size} items to trash?`)) {
+            handleBulkMoveToTrashExecute();
+        }
+    };
 
-        let successCount = 0
-        for (const id of idsToDownload) {
+    const handleBulkMoveToTrashExecute = async () => {
+        const ids = Array.from(selectedIds);
+        setMediaItems(prev => prev.filter(item => !selectedIds.has(item.id)));
+        clearSelection();
+
+        let successCount = 0;
+        for (const id of ids) {
             try {
-                await downloadFileToBrowser(id)
-                successCount++
-            } catch (err) {
-                console.error(`Failed to download ${id}`, err)
+                await apiClient.moveFileToTrash(id);
+                successCount++;
+            } catch (e) {
+                console.error(`Failed to trash ${id}`, e);
             }
         }
 
-        if (successCount > 0) toast.success(`Downloaded ${successCount} files`)
+        if (successCount > 0) toast.success(`Moved ${successCount} items to trash`);
+    }
+
+    const handleBulkDownload = async () => {
+        const idsToDownload = Array.from(selectedIds);
+        if (idsToDownload.length > 5 && !confirm(`Download ${idsToDownload.length} files? This might take a moment.`)) return;
+
+        toast.message(`Starting download for ${idsToDownload.length} files...`);
+
+        // We can use downloadMultipleItemsAsZip if available, otherwise loop
+        const itemsToDl = mediaItems.filter(i => selectedIds.has(i.id)).map(i => ({ id: i.id, name: i.filename, type: 'file' as const }));
+
+        // Use loop for now as key management relies on it being ready
+        let successCount = 0;
+        for (const id of idsToDownload) {
+            try {
+                await downloadFileToBrowser(id);
+                successCount++;
+            } catch (err) {
+                console.error(`Failed to download ${id}`, err);
+            }
+        }
+        if (successCount > 0) toast.success(`Downloaded ${successCount} files`);
+    };
+
+    const handleBulkMove = () => {
+        prepareBulkAction();
+        setIsMoveToFolderOpen(true);
+    };
+
+    const handleBulkCopy = () => {
+        prepareBulkAction();
+        setIsCopyOpen(true);
+    };
+
+    // Modal Callbacks
+    const onItemMoved = (movedIds?: string[]) => {
+        fetchAndDecryptPhotos(true);
+        clearSelection();
+    };
+
+    const onItemCopied = () => {
+        fetchAndDecryptPhotos(true);
+        clearSelection();
+    }
+
+    const onItemRenamed = (data: any) => {
+        // Update local state with new name
+        if (activeItem && typeof data.requestedName === 'string') {
+            setMediaItems(prev => prev.map(i =>
+                i.id === activeItem.id ? { ...i, filename: data.requestedName } : i
+            ));
+        }
+        fetchAndDecryptPhotos(true); // Refresh to be safe with sync
     }
 
     return (
         <div className="flex flex-col h-full bg-background relative">
-            <SiteHeader onSearch={handleSearch} searchValue={searchQuery} />
+            <SiteHeader
+                onSearch={handleSearch}
+                searchValue={searchQuery}
+                onFileUpload={handleFileUpload}
+                onFolderUpload={handleFolderUpload}
+            />
 
             <div className="flex flex-col flex-1 overflow-hidden relative">
                 <GalleryToolbar
@@ -255,6 +442,10 @@ export default function PhotosPage() { // Renamed from Page to PhotosPage for cl
                     onRefresh={() => fetchAndDecryptPhotos(true)}
                     viewMode={viewMode}
                     setViewMode={setViewMode}
+                    timeScale={timeScale}
+                    setTimeScale={setTimeScale}
+                    zoomLevel={zoomLevel} // This is Column Count (default 4)
+                    setZoomLevel={setZoomLevel}
                 />
 
                 {isLoading ? (
@@ -271,33 +462,43 @@ export default function PhotosPage() { // Renamed from Page to PhotosPage for cl
                         <p className="text-muted-foreground max-w-xs mx-auto mb-6">
                             Upload your first photo to see it in your secure gallery.
                         </p>
-                        <Button onClick={() => fetchAndDecryptPhotos(true)}>
-                            <IconRefresh className="h-4 w-4 mr-2" />
-                            Refresh
-                        </Button>
                     </div>
                 ) : (
                     <GalleryGrid
                         groupedItems={groupedItems}
                         sortedDates={sortedDates}
-                        viewMode={viewMode}
+                        zoomLevel={zoomLevel} // Pass column count
                         selectedIds={selectedIds}
                         isSelectionMode={isSelectionMode}
                         onSelect={(id, range) => toggleSelection(id, true, range)}
                         onPreview={handlePreview}
+                        onAction={handleAction}
                     />
                 )}
 
-                <SelectionBar
-                    selectedCount={selectedIds.size}
-                    onClear={clearSelection}
-                    onDelete={handleBulkDelete}
-                    onDownload={handleBulkDownload}
-                // onMove={() => toast.info("Move feature coming soon!")}
-                />
+                {/* ShadCN Action Bar */}
+                <ActionBar open={selectedIds.size > 0} onOpenChange={(open) => !open && clearSelection()}>
+                    <ActionBarSelection>{selectedIds.size} selected</ActionBarSelection>
+                    <ActionBarSeparator />
+                    <ActionBarGroup>
+                        <ActionBarItem onClick={handleBulkDownload}>
+                            <IconDownload className="mr-2 h-4 w-4" /> Download
+                        </ActionBarItem>
+                        <ActionBarItem onClick={handleBulkMove}>
+                            <IconFolderSymlink className="mr-2 h-4 w-4" /> Move
+                        </ActionBarItem>
+                        <ActionBarItem onClick={handleBulkCopy}>
+                            <IconCopy className="mr-2 h-4 w-4" /> Copy
+                        </ActionBarItem>
+                        <ActionBarItem onClick={handleBulkDelete} className="text-red-500 hover:text-red-600 focus:text-red-600">
+                            <IconTrash className="mr-2 h-4 w-4" /> Delete
+                        </ActionBarItem>
+                    </ActionBarGroup>
+                    <ActionBarSeparator />
+                    <ActionBarClose />
+                </ActionBar>
             </div>
 
-            {/* Lightbox / Preview */}
             <FullPagePreviewModal
                 isOpen={!!previewFile}
                 file={previewFile}
@@ -308,6 +509,83 @@ export default function PhotosPage() { // Renamed from Page to PhotosPage for cl
                 hasNext={previewIndex < filteredItems.length - 1}
                 currentIndex={previewIndex}
                 totalItems={filteredItems.length}
+            />
+
+            {/* Global Modals for Actions */}
+            <MoveToTrashModal
+                open={isMoveToTrashOpen}
+                onOpenChange={setIsMoveToTrashOpen}
+                itemId={activeItem?.id}
+                itemName={activeItem?.filename}
+                itemType="file"
+                onItemMoved={() => {
+                    if (activeItem) {
+                        setMediaItems(prev => prev.filter(i => i.id !== activeItem.id));
+                    }
+                    setIsMoveToTrashOpen(false);
+                }}
+            />
+
+            <MoveToFolderModal
+                open={isMoveToFolderOpen}
+                onOpenChange={setIsMoveToFolderOpen}
+                itemId={activeItem?.id}
+                itemName={activeItem?.filename}
+                itemType="file"
+                items={bulkActionItems.length > 0 ? bulkActionItems : undefined}
+                onItemMoved={onItemMoved}
+            />
+
+            <CopyModal
+                open={isCopyOpen}
+                onOpenChange={setIsCopyOpen}
+                itemId={activeItem?.id}
+                itemName={activeItem?.filename}
+                itemType="file"
+                items={bulkActionItems.length > 0 ? bulkActionItems : undefined}
+                onItemCopied={onItemCopied}
+            />
+
+            <RenameModal
+                open={isRenameOpen}
+                onOpenChange={setIsRenameOpen}
+                itemName={activeItem?.filename}
+                initialName={activeItem?.filename}
+                itemType="file"
+                onRename={async (data) => {
+                    if (!activeItem) return;
+                    try {
+                        // Type assertion to bypass TS check for now as we know the structure from modal
+                        const renameData = data as any;
+                        const response = await apiClient.updateFile(activeItem.id, renameData);
+
+                        if (response.success) {
+                            toast.success("Renamed successfully");
+                            onItemRenamed({ requestedName: renameData.requestedName });
+                        } else {
+                            toast.error(response.error || "Failed to rename");
+                        }
+                    } catch (e) {
+                        toast.error("Failed to rename");
+                    }
+                }}
+            />
+
+            <ShareModal
+                open={isShareOpen}
+                onOpenChange={setIsShareOpen}
+                itemId={activeItem?.id}
+                itemName={activeItem?.filename}
+                itemType="file"
+            />
+
+            <SpacePickerModal
+                open={isAddToSpaceOpen}
+                onOpenChange={setIsAddToSpaceOpen}
+                fileIds={activeItem ? [activeItem.id] : []}
+                onAdded={() => {
+                    // Refresh handled by toast
+                }}
             />
         </div>
     )
