@@ -735,7 +735,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                                                                 fileId={item.id}
                                                                 mimeType={item.mimeType}
                                                                 name={item.name}
-                                                                className="h-6 w-6 inline-block align-middle mr-1"
+                                                                className="h-4 w-4 inline-block"
                                                                 iconClassName="h-4 w-4"
                                                             />
                                                         )}
