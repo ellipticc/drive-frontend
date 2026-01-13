@@ -38,6 +38,7 @@ import { TruncatedNameTooltip } from "./truncated-name-tooltip";
 import { masterKeyManager } from "@/lib/master-key";
 import { decryptFilenameInWorker } from "@/lib/filename-decryption-pool";
 import { useUser } from "@/components/user-context";
+import { FileThumbnail } from "../files/file-thumbnail";
 import { FileIcon } from "../file-icon";
 import {
     ActionBar,
@@ -730,7 +731,13 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                                                         {item.type === 'folder' ? (
                                                             <IconFolder className="h-4 w-4 text-blue-500 inline-block" />
                                                         ) : (
-                                                            <FileIcon mimeType={item.mimeType} filename={item.name} className="h-4 w-4" />
+                                                            <FileThumbnail
+                                                                fileId={item.id}
+                                                                mimeType={item.mimeType}
+                                                                name={item.name}
+                                                                className="h-6 w-6 inline-block align-middle mr-1"
+                                                                iconClassName="h-4 w-4"
+                                                            />
                                                         )}
                                                     </div>
                                                     <TruncatedNameTooltip

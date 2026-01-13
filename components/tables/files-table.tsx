@@ -40,6 +40,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { FullPagePreviewModal } from "@/components/previews/full-page-preview-modal";
 import { useCurrentFolder } from "@/components/current-folder-context";
 import { useOnFileAdded, useOnFileDeleted, useOnFileReplaced, useGlobalUpload } from "@/components/global-upload-context";
+import { FileThumbnail } from "../files/file-thumbnail";
 import { FileIcon } from "@/components/file-icon";
 import { masterKeyManager } from "@/lib/master-key";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -1938,8 +1939,22 @@ export const Table01DividerLineSm = ({
 
 
     // Get file icon based on mime type or type
-    const getFileIcon = (mimeType: string, type: string, name: string, className = "h-4 w-4") => {
+    const getFileIcon = (mimeType: string, type: string, name: string, className = "h-4 w-4", id?: string) => {
         if (type === 'folder') return <IconFolder className={`${className} text-blue-500`} />;
+
+        // If we have an ID, we can try to show a thumbnail
+        if (id) {
+            return (
+                <FileThumbnail
+                    fileId={id}
+                    mimeType={mimeType}
+                    name={name}
+                    className="h-6 w-6 inline-block align-middle mr-1"
+                    iconClassName={className}
+                />
+            );
+        }
+
         return <FileIcon mimeType={mimeType} filename={name} className={className} />;
     };
 
@@ -2990,7 +3005,13 @@ export const Table01DividerLineSm = ({
                                                                         {item.type === 'folder' ? (
                                                                             <IconFolder className="h-4 w-4 text-blue-500 inline-block" />
                                                                         ) : (
-                                                                            <FileIcon mimeType={item.mimeType} filename={item.name} className="h-4 w-4 inline-block" />
+                                                                            <FileThumbnail
+                                                                                fileId={item.id}
+                                                                                mimeType={item.mimeType}
+                                                                                name={item.name}
+                                                                                className="h-6 w-6 inline-block align-middle mr-1"
+                                                                                iconClassName="h-4 w-4"
+                                                                            />
                                                                         )}
                                                                     </div>
                                                                     <div className="flex items-center gap-1.5 flex-1 min-w-0 group/name-cell">
@@ -3368,8 +3389,20 @@ export const Table01DividerLineSm = ({
 
                                             {/* File/Folder icon */}
                                             <div className="flex flex-col items-center gap-3 pt-6">
-                                                <div className="text-4xl">
-                                                    {getFileIcon(item.mimeType || '', item.type, item.name, "h-12 w-12")}
+                                                <div className="text-4xl w-full flex justify-center items-center">
+                                                    {item.type === 'folder' ? (
+                                                        <IconFolder className="h-12 w-12 text-blue-500" />
+                                                    ) : (
+                                                        <div className="w-full aspect-square flex justify-center items-center overflow-hidden rounded-md bg-muted/20">
+                                                            <FileThumbnail
+                                                                fileId={item.id}
+                                                                mimeType={item.mimeType}
+                                                                name={item.name}
+                                                                className="w-full h-full object-cover"
+                                                                iconClassName="h-12 w-12"
+                                                            />
+                                                        </div>
+                                                    )}
                                                 </div>
 
                                                 {inlineRenameId === item.id ? (

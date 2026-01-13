@@ -30,6 +30,7 @@ import { decryptFilenameInWorker } from "@/lib/filename-decryption-pool";
 import { useGlobalUpload } from "@/components/global-upload-context";
 import { masterKeyManager } from "@/lib/master-key";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { FileThumbnail } from "../files/file-thumbnail";
 import { FileIcon } from "../file-icon";
 import { TruncatedNameTooltip } from "./truncated-name-tooltip";
 import {
@@ -572,7 +573,13 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                                                         {item.isFolder ? (
                                                             <IconFolder className="h-4 w-4 text-blue-500 inline-block" />
                                                         ) : (
-                                                            <FileIcon mimeType={item.mimeType} filename={item.fileName} className="h-4 w-4 inline-block" />
+                                                            <FileThumbnail
+                                                                fileId={item.fileId}
+                                                                mimeType={item.mimeType}
+                                                                name={item.fileName}
+                                                                className="h-6 w-6 inline-block align-middle mr-1"
+                                                                iconClassName="h-4 w-4"
+                                                            />
                                                         )}
                                                     </div>
                                                     <TruncatedNameTooltip
@@ -719,11 +726,17 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                                                 }}
                                             />
                                         </div>
-                                        <div className="text-4xl">
+                                        <div className="text-4xl w-full flex justify-center aspect-square items-center overflow-hidden rounded-md mb-2 bg-muted/20">
                                             {item.isFolder ? (
                                                 <IconFolder className="h-12 w-12 text-blue-500" />
                                             ) : (
-                                                <FileIcon mimeType={item.mimeType} filename={item.fileName} className="h-12 w-12" />
+                                                <FileThumbnail
+                                                    fileId={item.fileId}
+                                                    mimeType={item.mimeType}
+                                                    name={item.fileName}
+                                                    className="w-full h-full object-cover"
+                                                    iconClassName="h-12 w-12"
+                                                />
                                             )}
                                         </div>
                                         <div className="flex-1 min-w-0 w-full">
