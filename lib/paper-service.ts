@@ -2,10 +2,10 @@ import apiClient from './api';
 import {
     generateKeyDerivationSalt,
     encryptData,
-    encryptFilename
+    encryptFilename,
+    uint8ArrayToHex
 } from './crypto';
-import { sha256 } from '@noble/hashes/sha2';
-import { bytesToHex } from '@noble/hashes/utils';
+import { sha256 } from '@noble/hashes/sha256.js';
 // Note: We need masterKey directly or via KeyManager
 import { masterKeyManager } from './master-key';
 import type { UserKeypairs } from './key-manager';
@@ -33,7 +33,7 @@ class PaperService {
 
             const fileNoncePrefix = new Uint8Array(12);
             crypto.getRandomValues(fileNoncePrefix);
-            const fileNoncePrefixHex = bytesToHex(fileNoncePrefix); // Use helper
+            const fileNoncePrefixHex = uint8ArrayToHex(fileNoncePrefix); // Use helper
 
             const kyberPubHex = keypairs.kyberPublicKey;
 
@@ -72,7 +72,7 @@ class PaperService {
             // 3. Encrypt and Upload Chunks
             const sha256Hasher = sha256.create();
             sha256Hasher.update(contentBytes);
-            const finalShaHash = bytesToHex(sha256Hasher.digest());
+            const finalShaHash = uint8ArrayToHex(sha256Hasher.digest());
 
             // Create chunks
             for (let i = 0; i < chunkCount; i++) {
