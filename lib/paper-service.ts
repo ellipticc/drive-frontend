@@ -23,10 +23,10 @@ class PaperService {
             const { encryptedFilename, filenameSalt } = await encryptFilename(title, masterKey);
 
             // 2. Encrypt Content
-            const contentStr = JSON.stringify(content || {});
+            const defaultContent = [{ type: 'p', children: [{ text: '' }] }];
+            const contentStr = JSON.stringify(content || defaultContent);
             const { encryptedContent, iv, salt } = await encryptPaperContent(contentStr, masterKey);
 
-            // 3. Send to API
             // 3. Send to API
             const response = await apiClient.createPaper({
                 folderId,

@@ -39,15 +39,25 @@ export default function PaperPage() {
                 const paper = await paperService.getPaper(fileId);
 
                 setPaperTitle(paper.title);
-                let loadedContent: Value | undefined;
-                if (paper.content && Array.isArray(paper.content)) {
-                    loadedContent = paper.content as Value;
-                } else if (paper.content && typeof paper.content === 'object') {
-                    loadedContent = [paper.content] as unknown as Value;
-                } else if (typeof paper.content === 'string') {
-                    loadedContent = [{ children: [{ text: paper.content }], type: 'p' }];
-                } else if (!paper.content || Object.keys(paper.content).length === 0) {
-                    loadedContent = undefined;
+
+                let loadedContent: Value;
+                const rawContent = paper.content;
+
+                if (Array.isArray(rawContent) && rawContent.length > 0) {
+                    // Check if first element is valid (has children or is a known type)
+                    if (rawContent[0] && typeof rawContent[0] === 'object' && 'children' in rawContent[0]) {
+                        loadedContent = rawContent as Value;
+                    } else {
+                        loadedContent = [{ type: 'p', children: [{ text: '' }] }];
+                    }
+                } else if (typeof rawContent === 'string' && rawContent.trim() !== '') {
+                    loadedContent = [{ type: 'p', children: [{ text: rawContent }] }];
+                } else if (rawContent && typeof rawContent === 'object' && 'children' in rawContent) {
+                    // Single node fallback
+                    loadedContent = [rawContent] as unknown as Value;
+                } else {
+                    // Fallback for {}, empty array, null, or invalid structure
+                    loadedContent = [{ type: 'p', children: [{ text: '' }] }];
                 }
 
                 setContent(loadedContent);
