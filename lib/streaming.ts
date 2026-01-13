@@ -84,12 +84,12 @@ export class StreamManager {
                     const shareCek = new Uint8Array(shareCekRaw);
 
                     // Unwrap if needed
-                    if (shareDetails && !(((shareDetails as any).is_folder) ?? shareDetails.isFolder) && ((shareDetails as any).wrapped_cek) && ((shareDetails as any).nonce_wrap)) {
+                    if (shareDetails && !(((shareDetails as { is_folder?: boolean }).is_folder) ?? (shareDetails as { isFolder?: boolean }).isFolder) && ((shareDetails as { wrapped_cek?: Uint8Array }).wrapped_cek) && ((shareDetails as { nonce_wrap?: Uint8Array }).nonce_wrap)) {
                         const { decryptData } = await import('./crypto');
                         try {
-                            const wrapped = (shareDetails as any).wrapped_cek;
-                            const nonce = (shareDetails as any).nonce_wrap;
-                            cek = new Uint8Array(decryptData(wrapped, shareCek, nonce));
+                            const wrapped = (shareDetails as { wrapped_cek?: Uint8Array }).wrapped_cek!;
+                            const nonce = (shareDetails as { nonce_wrap?: Uint8Array }).nonce_wrap!;
+                            cek = new Uint8Array(decryptData(btoa(String.fromCharCode(...Array.from(wrapped))), shareCek, btoa(String.fromCharCode(...Array.from(nonce)))));
                         } catch (e) {
                             console.error('Failed to unwrap shared file key', e);
                             throw e;

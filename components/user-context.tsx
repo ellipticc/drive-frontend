@@ -183,7 +183,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
                 currentPeriodEnd: String(sub.currentPeriodEnd),
                 plan: {
                   ...sub.plan,
-                  interval: (sub.plan as any).interval || 'month'
+                  interval: (sub.plan as { interval?: string }).interval || 'month'
                 }
               };
               lastSubFetchTime.current = now;

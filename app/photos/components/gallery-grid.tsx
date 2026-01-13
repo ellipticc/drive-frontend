@@ -3,23 +3,48 @@
 import React, { useMemo, useRef } from "react"
 import { useVirtualizer } from "@tanstack/react-virtual"
 import { format, parseISO, isToday, isYesterday } from "date-fns"
-import { IconCalendar } from "@tabler/icons-react"
 import { GalleryItem } from "./gallery-item"
+import { Tag } from "@/lib/api"
+
+interface MediaItem {
+    id: string
+    encryptedFilename: string
+    filenameSalt: string
+    mimeType: string
+    size: number
+    createdAt: string
+    thumbnailPath?: string
+    width?: number
+    height?: number
+    duration?: number
+    encryption: {
+        iv: string
+        salt: string
+        wrappedCek: string
+        fileNoncePrefix: string
+        cekNonce: string
+        kyberCiphertext: string
+        nonceWrapKyber: string
+    }
+    tags?: Tag[]
+    isStarred?: boolean
+    filename: string // Plaintext filename after decryption
+}
 
 interface GalleryGridProps {
-    groupedItems: { [key: string]: any[] }
+    groupedItems: { [key: string]: MediaItem[] }
     sortedDates: string[]
     zoomLevel: number // Number of columns (User slider: 2 - 10)
     selectedIds: Set<string>
     isSelectionMode: boolean
     onSelect: (id: string, rangeSelect: boolean) => void
-    onPreview: (item: any) => void
-    onAction: (action: string, item: any) => void
+    onPreview: (item: MediaItem) => void
+    onAction: (action: string, item: MediaItem) => void
 }
 
 type VirtualRow =
     | { type: 'header', date: string, count: number, id: string }
-    | { type: 'items', items: any[], id: string }
+    | { type: 'items', items: MediaItem[], id: string }
 
 export function GalleryGrid({
     groupedItems,
@@ -71,7 +96,6 @@ export function GalleryGrid({
 
             const width = typeof window !== 'undefined' ? window.innerWidth : 1200
             const gap = 8 // Reduced gap (was 24/8)
-            const padding = 32 // px-4 * 2 = 32 approx? No, px-6 is 48. Let's assume px-4 (16px * 2 = 32).
 
             // Allow for scrollbar width approx 16px
             const availableWidth = width - 48 // px-6 is 24px left + 24px right = 48px

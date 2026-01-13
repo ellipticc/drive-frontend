@@ -17,16 +17,42 @@ import {
     DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
+import { Tag } from "@/lib/api"
+
+interface MediaItem {
+    id: string
+    encryptedFilename: string
+    filenameSalt: string
+    mimeType: string
+    size: number
+    createdAt: string
+    thumbnailPath?: string
+    width?: number
+    height?: number
+    duration?: number
+    encryption: {
+        iv: string
+        salt: string
+        wrappedCek: string
+        fileNoncePrefix: string
+        cekNonce: string
+        kyberCiphertext: string
+        nonceWrapKyber: string
+    }
+    tags?: Tag[]
+    isStarred?: boolean
+    filename: string // Plaintext filename after decryption
+}
 
 export interface GalleryItemProps {
-    item: any
+    item: MediaItem
     isSelected: boolean
     isSelectionMode: boolean
     onSelect: () => void
     onPreview: () => void
     viewMode: 'comfortable' | 'compact'
     index: number
-    onAction: (action: string, item: any) => void
+    onAction: (action: string, item: MediaItem) => void
 }
 
 export function GalleryItem({ item, isSelected, isSelectionMode, onSelect, onPreview, viewMode, onAction }: GalleryItemProps) {

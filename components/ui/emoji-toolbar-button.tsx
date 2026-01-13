@@ -253,9 +253,9 @@ function EmojiPickerContent({
   const getRowWidth = settings.perLine.value * settings.buttonSize.value;
 
   const isCategoryVisible = React.useCallback(
-    (categoryId: any) =>
-      visibleCategories.has(categoryId)
-        ? visibleCategories.get(categoryId)
+    (categoryId: string) =>
+      visibleCategories.has(categoryId as EmojiCategoryList)
+        ? visibleCategories.get(categoryId as EmojiCategoryList)
         : false,
     [visibleCategories]
   );

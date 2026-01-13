@@ -14,7 +14,7 @@ export interface WorkerTask<T = unknown> {
 export class WorkerPool {
     private workers: Worker[] = [];
     private freeWorkers: Worker[] = [];
-    private taskQueue: WorkerTask<any>[] = [];    private workerFactory: () => Worker;
+    private taskQueue: WorkerTask<unknown>[] = [];    private workerFactory: () => Worker;
     private maxWorkers: number;
 
     constructor(workerFactory: () => Worker, maxWorkers: number = navigator.hardwareConcurrency || 4) {
@@ -25,11 +25,11 @@ export class WorkerPool {
     public execute<T>(message: unknown, transferables?: Transferable[]): Promise<T> {
         return new Promise((resolve, reject) => {
             const task: WorkerTask<T> = { message, transferables, resolve, reject };
-            this.schedule(task);
+            this.schedule(task as WorkerTask<unknown>);
         });
     }
 
-    private schedule(task: WorkerTask<any>) {
+    private schedule(task: WorkerTask<unknown>) {
         if (this.freeWorkers.length > 0 || this.workers.length < this.maxWorkers) {
             this.runTask(task);
         } else {
@@ -37,7 +37,7 @@ export class WorkerPool {
         }
     }
 
-    private runTask(task: WorkerTask<any>) {
+    private runTask(task: WorkerTask<unknown>) {
         let worker: Worker | undefined;
 
         if (this.freeWorkers.length > 0) {
@@ -63,7 +63,7 @@ export class WorkerPool {
 
         worker.onmessage = (e) => {
             const { id, success, result, error } = e.data;
-            if (id === (task.message as any).id) {
+            if (id === (task.message as { id: string }).id) {
                 if (success) {
                     task.resolve(result);
                 } else {
@@ -83,7 +83,7 @@ export class WorkerPool {
 
     private processNext() {
         if (this.taskQueue.length > 0 && (this.freeWorkers.length > 0 || this.workers.length < this.maxWorkers)) {
-            const task = this.taskQueue.shift()! as WorkerTask<any>;
+            const task = this.taskQueue.shift()! as WorkerTask<unknown>;
             this.runTask(task);
         }
     }

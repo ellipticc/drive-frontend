@@ -333,7 +333,7 @@ function PlaceAutocomplete({
                         )}
                         {hasNoResults && (
                             <CommandEmpty>
-                                Can't find {displayValue}.
+                                Can&apos;t find {displayValue}.
                             </CommandEmpty>
                         )}
                         {results.length > 0 && (

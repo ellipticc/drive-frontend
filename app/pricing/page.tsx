@@ -1,14 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   IconLoader2 as Loader2,
   IconCheck as Check,
   IconExternalLink as ExternalLink,
   IconDownload as Download,
-  IconHistory as History,
   IconX as X,
   IconInfoCircle as InfoCircle,
   IconRosetteDiscountCheckFilled
@@ -61,14 +59,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { apiClient, Subscription, BillingUsage, SubscriptionHistory } from '@/lib/api';
-import { useUser } from '@/components/user-context';
 import { cn, formatFileSize } from '@/lib/utils';
 import { PricingTable } from '@/components/ui/pricing-table';
 
 import React from 'react';
 
 import {
-  SectionGroup,
   Section,
   SectionHeader,
   SectionTitle,
@@ -392,8 +388,6 @@ const featureTooltips: Record<string, string> = {
 };
 
 const BillingPage = () => {
-  const router = useRouter();
-  const { user } = useUser();
   const [frequency, setFrequency] = useState<'monthly' | 'yearly'>('yearly');
   const [loading, setLoading] = useState(true);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
@@ -542,7 +536,7 @@ const BillingPage = () => {
       } else {
         toast.error('Failed to open billing portal');
       }
-    } catch (error) {
+    } catch {
       toast.error('An error occurred');
     }
   };
@@ -608,7 +602,7 @@ const BillingPage = () => {
       } else {
         toast.error(cancelRes.error || 'Failed to cancel subscription');
       }
-    } catch (e) {
+    } catch {
       toast.error('An error occurred during cancellation');
     } finally {
       setIsSubmittingCancel(false);

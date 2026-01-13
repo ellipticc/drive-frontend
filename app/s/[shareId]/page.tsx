@@ -582,7 +582,6 @@ export default function SharedDownloadPage() {
         }
 
         // 2. Download loop
-        let completedFiles = 0;
         let totalDownloadedBytes = 0;
         const totalBytes = allFiles.reduce((acc, f) => acc + Number(f.size), 0);
 
@@ -632,7 +631,6 @@ export default function SharedDownloadPage() {
             blob: result.blob
           });
 
-          completedFiles++;
           totalDownloadedBytes += Number(file.size);
         }
 

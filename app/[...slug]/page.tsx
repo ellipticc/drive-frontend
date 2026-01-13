@@ -6,9 +6,6 @@ import { SectionCards } from "@/components/shared/section-cards"
 import { SiteHeader } from "@/components/layout/header/site-header"
 import { Table01DividerLineSm } from "@/components/tables/files-table"
 import { DragDropOverlay } from "@/components/drag-drop-overlay"
-import {
-  SidebarInset,
-} from "@/components/ui/sidebar"
 import { keyManager } from "@/lib/key-manager"
 import { useUser } from "@/components/user-context"
 

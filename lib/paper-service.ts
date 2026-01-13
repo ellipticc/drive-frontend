@@ -17,7 +17,7 @@ class PaperService {
      */
     async savePaper(
         fileId: string,
-        content: any,
+        content: unknown,
         keypairs: UserKeypairs
     ): Promise<void> {
         try {
@@ -117,7 +117,7 @@ class PaperService {
      */
     async createPaper(
         filename: string,
-        content: any,
+        content: unknown,
         keypairs: UserKeypairs
     ): Promise<{ fileId: string }> {
         const contentStr = JSON.stringify(content);

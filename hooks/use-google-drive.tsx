@@ -74,7 +74,7 @@ class GoogleRemoteFile {
 
 export function useGoogleDrive() {
     const [isApiLoaded, setIsApiLoaded] = useState(false)
-    const [tokenClient, setTokenClient] = useState<any>(null)
+    const [tokenClient, setTokenClient] = useState<unknown>(null)
     const { startUploadWithFiles, openModal } = useGlobalUpload()
 
     // Load Google API scripts
@@ -109,11 +109,11 @@ export function useGoogleDrive() {
 
                 // Initialize gapi
                 await new Promise<void>((resolve) => {
-                    (window as any).gapi.load('client:picker', resolve)
+                    (window as unknown as { gapi: { load: (s: string, cb: () => void) => void } }).gapi.load('client:picker', resolve)
                 })
 
                 // Initialize Token Client
-                const client = (window as any).google.accounts.oauth2.initTokenClient({
+                const client = (window as unknown as { google: { accounts: { oauth2: { initTokenClient: (config: unknown) => unknown } } } }).google.accounts.oauth2.initTokenClient({
                     client_id: GOOGLE_CLIENT_ID,
                     scope: SCOPES,
                     callback: '', // Defined at request time
@@ -210,7 +210,7 @@ export function useGoogleDrive() {
 
         // Request access token
         // eslint-disable-next-line react-hooks/immutability
-        tokenClient.callback = async (response: unknown) => {
+        (tokenClient as any).callback = async (response: unknown) => {
             const r = response as any;
             if (r.error !== undefined) {
                 throw (r)
@@ -240,7 +240,7 @@ export function useGoogleDrive() {
 
         // Trigger OAuth flow if needed, or get token silently
         // prompt: '' will try to use existing session if possible
-        tokenClient.requestAccessToken({ prompt: '' })
+        (tokenClient as any).requestAccessToken({ prompt: '' })
 
     }, [isApiLoaded, tokenClient, startUploadWithFiles, openModal])
 

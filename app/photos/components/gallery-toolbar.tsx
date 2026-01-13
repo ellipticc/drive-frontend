@@ -2,13 +2,12 @@
 
 import React from "react"
 import { Button } from "@/components/ui/button"
-import { IconMinus, IconPlus, IconRefresh, IconSearch } from "@tabler/icons-react"
+import { IconMinus, IconPlus, IconRefresh } from "@tabler/icons-react"
 import { Separator } from "@/components/ui/separator"
 import { Slider } from "@/components/ui/slider"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 
 interface GalleryToolbarProps {
-    itemCount: number
     viewMode: 'all' | 'photos' | 'videos' | 'starred'
     setViewMode: (mode: 'all' | 'photos' | 'videos' | 'starred') => void
     timeScale: 'years' | 'months' | 'days'
@@ -20,7 +19,6 @@ interface GalleryToolbarProps {
 }
 
 export function GalleryToolbar({
-    itemCount,
     viewMode,
     setViewMode,
     timeScale,
@@ -36,7 +34,7 @@ export function GalleryToolbar({
 
             {/* View Filter Group */}
             <div className="flex items-center gap-2">
-                <ToggleGroup type="single" value={viewMode} onValueChange={(val) => val && setViewMode(val as any)}>
+                <ToggleGroup type="single" value={viewMode} onValueChange={(val) => val && setViewMode(val as 'all' | 'photos' | 'videos' | 'starred')}>
                     <ToggleGroupItem value="all" size="sm" className="data-[state=on]:bg-muted data-[state=on]:text-foreground text-muted-foreground hover:bg-transparent hover:text-foreground transition-all rounded-full px-4 h-8 text-xs font-medium">All Items</ToggleGroupItem>
                     <ToggleGroupItem value="photos" size="sm" className="data-[state=on]:bg-muted data-[state=on]:text-foreground text-muted-foreground hover:bg-transparent hover:text-foreground transition-all rounded-full px-4 h-8 text-xs font-medium">Photos</ToggleGroupItem>
                     <ToggleGroupItem value="videos" size="sm" className="data-[state=on]:bg-muted data-[state=on]:text-foreground text-muted-foreground hover:bg-transparent hover:text-foreground transition-all rounded-full px-4 h-8 text-xs font-medium">Videos</ToggleGroupItem>
@@ -48,7 +46,7 @@ export function GalleryToolbar({
 
             {/* Time Scale Group */}
             <div className="flex items-center gap-1">
-                <ToggleGroup type="single" value={timeScale} onValueChange={(val) => val && setTimeScale(val as any)}>
+                <ToggleGroup type="single" value={timeScale} onValueChange={(val) => val && setTimeScale(val as 'years' | 'months' | 'days')}>
                     <ToggleGroupItem value="years" size="sm" className="data-[state=on]:bg-muted data-[state=on]:text-foreground text-muted-foreground hover:bg-transparent hover:text-foreground transition-all rounded-full px-3 h-8 text-xs font-medium">Years</ToggleGroupItem>
                     <ToggleGroupItem value="months" size="sm" className="data-[state=on]:bg-muted data-[state=on]:text-foreground text-muted-foreground hover:bg-transparent hover:text-foreground transition-all rounded-full px-3 h-8 text-xs font-medium">Months</ToggleGroupItem>
                     <ToggleGroupItem value="days" size="sm" className="data-[state=on]:bg-muted data-[state=on]:text-foreground text-muted-foreground hover:bg-transparent hover:text-foreground transition-all rounded-full px-3 h-8 text-xs font-medium">Days</ToggleGroupItem>

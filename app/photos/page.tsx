@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from "react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
-import { IconPhoto, IconLoader2, IconRefresh, IconDownload, IconTrash, IconFolderSymlink, IconX, IconShare, IconCopy, IconStar, IconEye, IconPencil } from "@tabler/icons-react"
+import { IconPhoto, IconLoader2, IconDownload, IconTrash, IconFolderSymlink, IconCopy } from "@tabler/icons-react"
 import { apiClient } from "@/lib/api"
 import { decryptFilename } from "@/lib/crypto"
 import { format, parseISO } from "date-fns"
@@ -12,7 +12,7 @@ import { SiteHeader } from "@/components/layout/header/site-header"
 import { useUser } from "@/components/user-context"
 import { Tag } from "@/lib/api"
 import { FullPagePreviewModal, PreviewFileItem } from "@/components/previews/full-page-preview-modal"
-import { downloadFileToBrowser, downloadMultipleItemsAsZip } from "@/lib/download"
+import { downloadFileToBrowser } from "@/lib/download"
 import { useGallerySelection } from "./hooks/use-gallery-selection"
 import { GalleryGrid } from "./components/gallery-grid"
 import { GalleryToolbar } from "./components/gallery-toolbar"
@@ -71,7 +71,6 @@ export default function PhotosPage() {
     const { handleFileUpload, handleFolderUpload } = useGlobalUpload()
 
     // Data State
-    const [rawItems, setRawItems] = useState<unknown[]>([])
     const [mediaItems, setMediaItems] = useState<MediaItem[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [isRefreshing, setIsRefreshing] = useState(false)
@@ -136,7 +135,6 @@ export default function PhotosPage() {
             const response = await apiClient.getPhotos(1000, 0)
             if (response.success && response.data) {
                 const raw = response.data;
-                setRawItems(raw);
 
                 const masterKey = masterKeyManager.getMasterKey();
                 const decryptedItems = await Promise.all(raw.map(async (item: unknown) => {
@@ -148,7 +146,7 @@ export default function PhotosPage() {
                             masterKey
                         );
                         return { ...photoItem, filename: decryptedName };
-                    } catch (err) {
+                    } catch {
                         return { ...photoItem, filename: "Encrypted File" };
                     }
                 }));
@@ -262,7 +260,7 @@ export default function PhotosPage() {
                     toast.message(`Downloading ${item.filename}...`)
                     await downloadFileToBrowser(item.id)
                     toast.success("Download complete")
-                } catch (e) {
+                } catch {
                     toast.error("Download failed")
                 }
                 break;
@@ -300,7 +298,7 @@ export default function PhotosPage() {
                         await apiClient.starFile(item.id);
                         toast.success("Added to favorites");
                     }
-                } catch (e) {
+                } catch {
                     toast.error("Failed to update favorite status");
                     // Revert optimistic update
                     setMediaItems(prev => prev.map(i =>
@@ -330,7 +328,7 @@ export default function PhotosPage() {
         try {
             await downloadFileToBrowser(file.id)
             toast.success("Download started")
-        } catch (error) {
+        } catch {
             toast.error("Failed to start download")
         }
     }
@@ -379,9 +377,6 @@ export default function PhotosPage() {
 
         toast.message(`Starting download for ${idsToDownload.length} files...`);
 
-        // We can use downloadMultipleItemsAsZip if available, otherwise loop
-        const itemsToDl = mediaItems.filter(i => selectedIds.has(i.id)).map(i => ({ id: i.id, name: i.filename, type: 'file' as const }));
-
         // Use loop for now as key management relies on it being ready
         let successCount = 0;
         for (const id of idsToDownload) {
@@ -406,7 +401,7 @@ export default function PhotosPage() {
     };
 
     // Modal Callbacks
-    const onItemMoved = (movedIds?: string[]) => {
+    const onItemMoved = () => {
         fetchAndDecryptPhotos(true);
         clearSelection();
     };
@@ -437,7 +432,6 @@ export default function PhotosPage() {
 
             <div className="flex flex-col flex-1 overflow-hidden relative">
                 <GalleryToolbar
-                    itemCount={filteredItems.length}
                     isRefreshing={isRefreshing}
                     onRefresh={() => fetchAndDecryptPhotos(true)}
                     viewMode={viewMode}
@@ -565,7 +559,7 @@ export default function PhotosPage() {
                         } else {
                             toast.error(response.error || "Failed to rename");
                         }
-                    } catch (e) {
+                    } catch {
                         toast.error("Failed to rename");
                     }
                 }}

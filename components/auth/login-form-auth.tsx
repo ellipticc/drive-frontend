@@ -381,7 +381,7 @@ export function LoginFormAuth({
 
       // Stop Google Analytics immediately after login
       if (typeof window !== 'undefined') {
-        (window as any).stopTracking?.();
+        (window as { stopTracking?: () => void }).stopTracking?.();
       }
 
       window.dispatchEvent(new CustomEvent('user-login'));

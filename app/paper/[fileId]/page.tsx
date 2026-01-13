@@ -3,13 +3,10 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { PlateEditor } from "@/components/plate-editor";
-import { apiClient } from "@/lib/api";
 import { masterKeyManager } from "@/lib/master-key";
-import { decryptData, encryptData, decryptFilename } from "@/lib/crypto";
-import { IconLoader2, IconArrowLeft, IconCloudCheck, IconCloudUpload } from "@tabler/icons-react";
+import { IconLoader2, IconArrowLeft, IconCloudCheck } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { useUser } from "@/components/user-context";
 import { type Value } from "platejs";
 import { downloadEncryptedFile } from "@/lib/download";
 import { keyManager } from "@/lib/key-manager";
@@ -21,9 +18,7 @@ export default function PaperPage() {
     const fileId = params.fileId as string;
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [title, setTitle] = useState("Untitled");
     const [content, setContent] = useState<Value | undefined>(undefined);
-    const { deviceQuota } = useUser(); // To check offline status or quota if needed
     const saveTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
     // Initial Load
@@ -49,7 +44,7 @@ export default function PaperPage() {
                 try {
                     const json = JSON.parse(jsonStr);
                     setContent(json);
-                } catch (e) {
+                } catch {
                     setContent([{ children: [{ text: jsonStr }], type: 'p' }]);
                 }
 
@@ -112,7 +107,7 @@ export default function PaperPage() {
                     <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
                         <span className="text-primary font-bold text-xs">P</span>
                     </div>
-                    <h1 className="text-lg font-semibold truncate max-w-md">{title}</h1>
+                    <h1 className="text-lg font-semibold truncate max-w-md">Paper</h1>
                 </div>
                 <div className="ml-auto flex items-center gap-4">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">

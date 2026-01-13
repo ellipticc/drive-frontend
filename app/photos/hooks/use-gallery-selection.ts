@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react"
 
-export function useGallerySelection(items: any[]) {
+export function useGallerySelection(items: Array<{id: string}>) {
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
     const [lastSelectedId, setLastSelectedId] = useState<string | null>(null)
 

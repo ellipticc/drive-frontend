@@ -10,7 +10,6 @@ import {
   type UIMessageStreamWriter,
   createUIMessageStream,
   createUIMessageStreamResponse,
-  generateText,
   generateObject,
   Output,
   streamText,
@@ -190,10 +189,10 @@ const getCommentTool = (
     writer: UIMessageStreamWriter<ChatMessage>;
   }
 ) =>
-  tool<{}, void>({
+  tool<Record<string, never>, void>({
     description: 'Comment on the content',
     inputSchema: z.object({}),
-    execute: async (_input, _options) => {
+    execute: async () => {
       const commentSchema = z.object({
         blockId: z
           .string()
@@ -269,10 +268,10 @@ const getTableTool = (
     writer: UIMessageStreamWriter<ChatMessage>;
   }
 ) =>
-  tool<{}, void>({
+  tool<Record<string, never>, void>({
     description: 'Edit table cells',
     inputSchema: z.object({}),
-    execute: async (_input, _options) => {
+    execute: async () => {
       const cellUpdateSchema = z.object({
         content: z
           .string()

@@ -48,7 +48,7 @@ export type MessageDataPart = {
 
 export type Chat = UseChatHelpers<ChatMessage>;
 
-export type ChatMessage = UIMessage<{}, MessageDataPart>;
+export type ChatMessage = UIMessage<Record<string, never>, MessageDataPart>;
 
 export const useChat = () => {
   const editor = useEditorRef();
@@ -90,7 +90,7 @@ export const useChat = () => {
             const body = JSON.parse(init?.body as string);
             const content = body.messages
               .at(-1)
-              .parts.find((p: any) => p.type === 'text')?.text;
+              .parts.find((p: unknown) => (p as { type: string }).type === 'text')?.text;
 
             if (content.includes('Generate a markdown sample')) {
               sample = 'markdown';

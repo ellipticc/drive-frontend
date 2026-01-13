@@ -17,7 +17,7 @@ interface ExtendedFile extends File {
 
 export default function Home() {
   useOnboarding()
-  const { user, deviceLimitReached } = useUser()
+  const { user } = useUser()
   const router = useRouter()
   const pathname = usePathname()
   const [searchQuery, setSearchQuery] = useState("")

@@ -42,7 +42,7 @@ export default function NewPaperPage() {
     // Auto-save debounce
     const onChange = (newValue: Value) => {
         // Only trigger if there is actual content
-        const text = (newValue?.[0]?.children?.[0] as any)?.text;
+        const text = (newValue?.[0]?.children?.[0] as { text?: string })?.text;
         if (typeof text !== 'string' || text.trim() === '') return;
 
         if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
