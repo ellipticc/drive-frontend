@@ -252,7 +252,7 @@ export function GalleryItem({ item, isSelected, isSelectionMode, onSelect, onPre
                             <IconDotsVertical className="h-4 w-4" />
                         </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuContent align="end" side="bottom" className="w-48">
                         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onAction('preview', item) }}>
                             <IconPhoto className="mr-2 h-4 w-4" /> Preview
                         </DropdownMenuItem>

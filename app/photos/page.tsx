@@ -467,6 +467,7 @@ export default function PhotosPage() {
                         onSelect={(id, range) => toggleSelection(id, true, range)}
                         onPreview={handlePreview}
                         onAction={handleAction}
+                        timeScale={timeScale}
                     />
                 )}
 

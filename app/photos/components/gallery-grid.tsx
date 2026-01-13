@@ -40,6 +40,7 @@ interface GalleryGridProps {
     onSelect: (id: string, rangeSelect: boolean) => void
     onPreview: (item: MediaItem) => void
     onAction: (action: string, item: MediaItem) => void
+    timeScale: 'years' | 'months' | 'days'
 }
 
 type VirtualRow =
@@ -54,7 +55,8 @@ export function GalleryGrid({
     isSelectionMode,
     onSelect,
     onPreview,
-    onAction
+    onAction,
+    timeScale
 }: GalleryGridProps) {
     const parentRef = useRef<HTMLDivElement>(null)
     const [containerWidth, setContainerWidth] = React.useState(0)
@@ -118,10 +120,10 @@ export function GalleryGrid({
             const paddingX = 48 // px-6 = 24px * 2 = 48px
 
             const availableWidth = width - paddingX
-            const itemWidth = (availableWidth - (gap * (columnCount - 1))) / columnCount
+            const itemWidth = Math.floor((availableWidth - (gap * (columnCount - 1))) / columnCount)
 
-            // Add slight buffer (1px) to prevent sub-pixel rounding overlaps
-            return itemWidth + gap + 1
+            // Add buffer to prevent sub-pixel rounding overlaps which cause the next row to be pulled up
+            return itemWidth + gap + 2
         },
         overscan: 5,
     })
@@ -130,7 +132,14 @@ export function GalleryGrid({
         const date = parseISO(dateStr)
         if (isToday(date)) return "Today"
         if (isYesterday(date)) return "Yesterday"
-        return format(date, 'MMMM yyyy') // Changed to Month Year format as per image (e.g. October 2025)
+
+        if (timeScale === 'days') {
+            return format(date, 'd MMMM') // e.g. "2 January"
+        } else if (timeScale === 'years') {
+            return format(date, 'yyyy')
+        }
+
+        return format(date, 'MMMM yyyy') // e.g. "January 2026"
     }
 
     return (
