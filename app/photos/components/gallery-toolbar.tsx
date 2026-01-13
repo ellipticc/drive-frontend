@@ -62,12 +62,10 @@ export function GalleryToolbar({
                 </Button>
                 <Slider
                     value={[12 - zoomLevel]}
-
                     min={2}
                     max={10}
                     step={1}
-                    onValueChange={(val) => setZoomLevel(val[0])}
-                    inverted
+                    onValueChange={(val) => setZoomLevel(12 - val[0])}
                 />
 
                 <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full" onClick={() => setZoomLevel(Math.max(2, zoomLevel - 1))}>

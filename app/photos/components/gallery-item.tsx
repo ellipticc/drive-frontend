@@ -2,6 +2,10 @@
 
 import React, { useState, useEffect } from "react"
 
+// Global cache for thumbnails to prevent re-fetching on grid resize/zoom
+const thumbnailCache = new Map<string, { url: string, refCount: number, timeout?: NodeJS.Timeout }>();
+
+
 import { IconPhoto, IconPlayerPlay, IconLoader2, IconSquare, IconSquareCheckFilled, IconDotsVertical, IconDownload, IconTrash, IconShare, IconFolderSymlink, IconCopy, IconStar, IconPencil, IconFolderPlus } from "@tabler/icons-react"
 import { apiClient } from "@/lib/api"
 import { decryptData } from "@/lib/crypto"
@@ -67,8 +71,20 @@ export function GalleryItem({ item, isSelected, isSelectionMode, onSelect, onPre
         async function loadThumbnail() {
             if (!item.thumbnailPath) return
 
-            // If we already have a URL or failed too many times, skip
-            if (thumbnailUrl || hasError) return
+            // Check global cache first
+            const cached = thumbnailCache.get(item.id);
+            if (cached) {
+                if (cached.timeout) {
+                    clearTimeout(cached.timeout);
+                    cached.timeout = undefined;
+                }
+                cached.refCount++;
+                setThumbnailUrl(cached.url);
+                return;
+            }
+
+            // If we already fail too many times, skip
+            if (hasError) return
 
             setIsDecrypting(true)
             try {
@@ -106,7 +122,18 @@ export function GalleryItem({ item, isSelected, isSelectionMode, onSelect, onPre
 
                 if (isMounted) {
                     const url = URL.createObjectURL(decryptedBlob)
-                    setThumbnailUrl(url)
+
+                    // Add to cache
+                    const existing = thumbnailCache.get(item.id);
+                    if (existing) {
+                        // Race condition handled
+                        if (existing.timeout) clearTimeout(existing.timeout);
+                        existing.refCount++;
+                        setThumbnailUrl(existing.url);
+                    } else {
+                        thumbnailCache.set(item.id, { url, refCount: 1 });
+                        setThumbnailUrl(url);
+                    }
                 }
             } catch (err) {
                 console.error("Thumbnail error:", err)
@@ -125,14 +152,24 @@ export function GalleryItem({ item, isSelected, isSelectionMode, onSelect, onPre
 
         return () => {
             isMounted = false
+            // Handle cache ref counting on unmount
+            const entry = thumbnailCache.get(item.id);
+            if (entry) {
+                entry.refCount--;
+                if (entry.refCount <= 0) {
+                    // Delay cleanup to allow for remounting (e.g. grid resize)
+                    entry.timeout = setTimeout(() => {
+                        const current = thumbnailCache.get(item.id);
+                        if (current && current.refCount <= 0) {
+                            URL.revokeObjectURL(current.url);
+                            thumbnailCache.delete(item.id);
+                        }
+                    }, 10000); // 10 seconds cache retention after unmount
+                }
+            }
         }
-    }, [item.id, item.thumbnailPath, retryCount, hasError, thumbnailUrl, item.encryption])
+    }, [item.id, item.thumbnailPath, retryCount, hasError, item.encryption])
 
-    useEffect(() => {
-        return () => {
-            if (thumbnailUrl) URL.revokeObjectURL(thumbnailUrl)
-        }
-    }, [thumbnailUrl])
 
     const isVideo = item.mimeType?.startsWith('video/')
 
@@ -158,7 +195,7 @@ export function GalleryItem({ item, isSelected, isSelectionMode, onSelect, onPre
     return (
         <div
             className={`
-                group relative bg-muted rounded-xl overflow-hidden cursor-pointer select-none
+                group relative bg-muted rounded-2xl overflow-hidden cursor-pointer select-none
                 transition-all duration-200 
                 ${isSelected ? 'ring-2 ring-primary shadow-md scale-[0.98]' : 'hover:shadow-lg'}
                 ${viewMode === 'comfortable' ? 'aspect-square' : 'aspect-square'}
@@ -183,7 +220,7 @@ export function GalleryItem({ item, isSelected, isSelectionMode, onSelect, onPre
                 <img
                     src={thumbnailUrl}
                     alt={item.filename}
-                    className="w-full h-full object-cover z-10 relative"
+                    className="w-full h-full object-cover z-10 relative rounded-2xl"
                     loading="lazy"
                 />
             )}
