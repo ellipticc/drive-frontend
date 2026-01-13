@@ -60,21 +60,6 @@ export function GalleryGrid({
     const [containerWidth, setContainerWidth] = React.useState(0)
     const columnCount = Math.max(2, Math.min(12, zoomLevel)) // Clamp between 2 and 12
 
-    // Dynamic Header Styles based on zoom level (column count)
-    // Fewer columns = Larger images = Larger header & specific spacing to maintain visual anchor
-    const headerStyle = useMemo(() => {
-        if (columnCount <= 4) {
-            // Zoomed In (Large Images)
-            return { height: 80, fontSize: 'text-3xl', padding: 'px-6 pt-8 pb-4' }
-        }
-        if (columnCount <= 8) {
-            // Medium Zoom
-            return { height: 72, fontSize: 'text-xl', padding: 'px-6 pt-8 pb-3' }
-        }
-        // Zoomed Out (Small Images)
-        return { height: 64, fontSize: 'text-base', padding: 'px-6 pt-8 pb-2' }
-    }, [columnCount])
-
     // Resize Observer to get exact container width
     React.useEffect(() => {
         if (!parentRef.current) return
@@ -123,7 +108,7 @@ export function GalleryGrid({
         getScrollElement: () => parentRef.current,
         estimateSize: (index) => {
             const row = virtualRows[index]
-            if (row.type === 'header') return headerStyle.height
+            if (row.type === 'header') return 56 // Fixed height
 
             // Use exact container width or fallback to window if not yet measured
             const width = containerWidth || (typeof window !== 'undefined' ? window.innerWidth : 1200)
@@ -174,11 +159,11 @@ export function GalleryGrid({
                                 transition: 'transform 0.2s ease-out', // Smooth row movement
                                 willChange: 'transform'
                             }}
-                            className={row.type === 'header' ? headerStyle.padding : "px-6 pb-2"}
+                            className={row.type === 'header' ? "px-6 pt-6 pb-2" : "px-6 pb-2"}
                         >
                             {row.type === 'header' ? (
                                 <div className="flex items-center gap-3">
-                                    <h2 className={`font-medium text-foreground/90 transition-all duration-200 ${headerStyle.fontSize}`}>
+                                    <h2 className="font-medium text-base text-foreground/90">
                                         {formatHeaderDate(row.date)}
                                     </h2>
                                 </div>
