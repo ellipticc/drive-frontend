@@ -28,6 +28,10 @@ import {
 import { CreateFolderModal } from "@/components/modals/create-folder-modal"
 import { useGlobalUpload } from "@/components/global-upload-context"
 
+import { paperService } from "@/lib/paper-service"
+import { masterKeyManager } from "@/lib/master-key"
+import { toast } from "sonner"
+
 interface NavNewProps {
     onFileUpload?: () => void
     onFolderUpload?: () => void
@@ -39,6 +43,30 @@ export function NavNew({ onFileUpload, onFolderUpload }: NavNewProps) {
     const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false)
     const { openPicker } = useGoogleDrive()
     const { notifyFileAdded } = useGlobalUpload()
+
+    const handleNewPaper = async () => {
+        try {
+            if (!masterKeyManager.hasMasterKey()) {
+                toast.error("Encryption key missing. Please login.")
+                return
+            }
+
+            toast.info("Creating new paper...")
+
+            const now = new Date()
+            const pad = (n: number) => n.toString().padStart(2, '0')
+            const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+            const timeStr = `${pad(now.getHours())}.${pad(now.getMinutes())}.${pad(now.getSeconds())}`
+            const filename = `Untitled document ${dateStr} ${timeStr}`
+
+            const fileId = await paperService.createPaper(filename, undefined, null)
+
+            router.push(`/paper/${fileId}`)
+        } catch (error) {
+            console.error("Failed to create paper:", error)
+            toast.error("Failed to create paper")
+        }
+    }
 
     return (
         <>
@@ -73,7 +101,7 @@ export function NavNew({ onFileUpload, onFolderUpload }: NavNewProps) {
                                 <IconFolderPlus className="me-2 h-4 w-4" />
                                 {t("files.newFolder")}
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => router.push('/paper/new')} className="cursor-pointer">
+                            <DropdownMenuItem onClick={handleNewPaper} className="cursor-pointer">
                                 <IconStackFilled className="me-2 h-4 w-4" />
                                 {t("files.newPaper")}
                             </DropdownMenuItem>

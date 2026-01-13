@@ -19,11 +19,9 @@ import { useGoogleDrive } from "@/hooks/use-google-drive"
 import { useGlobalUpload } from "@/components/global-upload-context"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
-import { encryptFilename, encryptData } from "@/lib/crypto"
 import { masterKeyManager } from "@/lib/master-key"
-import { format } from "date-fns"
 import { toast } from "sonner"
-import { apiClient } from "@/lib/api"
+import { paperService } from "@/lib/paper-service"
 
 // Use a module-level variable to persist dismissal across SPA navigation but reset on page refresh
 let isUpgradeDismissedGlobal = false;
@@ -59,7 +57,27 @@ export function SiteHeader({ onSearch, onFileUpload, onFolderUpload, searchValue
   }, [cleanUpCallback]);
 
   const handleNewPaper = async () => {
-    router.push('/paper/new');
+    try {
+      if (!masterKeyManager.hasMasterKey()) {
+        toast.error("Encryption key missing. Please login.")
+        return
+      }
+
+      toast.info("Creating new paper...")
+
+      const now = new Date()
+      const pad = (n: number) => n.toString().padStart(2, '0')
+      const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+      const timeStr = `${pad(now.getHours())}.${pad(now.getMinutes())}.${pad(now.getSeconds())}`
+      const filename = `Untitled document ${dateStr} ${timeStr}`
+
+      const fileId = await paperService.createPaper(filename, undefined, null)
+
+      router.push(`/paper/${fileId}`)
+    } catch (error) {
+      console.error("Failed to create paper:", error)
+      toast.error("Failed to create paper")
+    }
   };
 
   const isFreePlan = deviceQuota?.planName === 'Free'
