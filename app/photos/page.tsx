@@ -422,7 +422,7 @@ export default function PhotosPage() {
     }
 
     return (
-        <div className="flex flex-col h-full bg-background relative">
+        <div className="flex flex-col h-full bg-background relative md:rounded-tl-2xl overflow-hidden">
             <SiteHeader
                 onSearch={handleSearch}
                 searchValue={searchQuery}

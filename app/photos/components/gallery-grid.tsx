@@ -57,7 +57,23 @@ export function GalleryGrid({
     onAction
 }: GalleryGridProps) {
     const parentRef = useRef<HTMLDivElement>(null)
+    const [containerWidth, setContainerWidth] = React.useState(0)
     const columnCount = Math.max(2, Math.min(12, zoomLevel)) // Clamp between 2 and 12
+
+    // Resize Observer to get exact container width
+    React.useEffect(() => {
+        if (!parentRef.current) return
+
+        const resizeObserver = new ResizeObserver((entries) => {
+            for (const entry of entries) {
+                setContainerWidth(entry.contentRect.width)
+            }
+        })
+
+        resizeObserver.observe(parentRef.current)
+        return () => resizeObserver.disconnect()
+    }, [])
+
 
     // Flatten data into rows
     const virtualRows = useMemo(() => {
@@ -94,14 +110,16 @@ export function GalleryGrid({
             const row = virtualRows[index]
             if (row.type === 'header') return 48 // Reduced header height (was 60)
 
-            const width = typeof window !== 'undefined' ? window.innerWidth : 1200
-            const gap = 8 // Reduced gap (was 24/8)
+            // Use exact container width or fallback to window if not yet measured
+            const width = containerWidth || (typeof window !== 'undefined' ? window.innerWidth : 1200)
 
-            // Allow for scrollbar width approx 16px
-            const availableWidth = width - 48 // px-6 is 24px left + 24px right = 48px
+            // Critical: Match the gap used in CSS exactly (8px)
+            const gap = 8
+            const paddingX = 48 // px-6 = 24px * 2 = 48px
 
+            const availableWidth = width - paddingX
             const itemWidth = (availableWidth - (gap * (columnCount - 1))) / columnCount
-            return itemWidth + gap
+            return itemWidth + gap // Row height includes the gap below it
         },
         overscan: 5,
     })
@@ -120,6 +138,7 @@ export function GalleryGrid({
                     height: `${rowVirtualizer.getTotalSize()}px`,
                     width: '100%',
                     position: 'relative',
+                    transition: 'height 0.2s ease-out' // Smooth height transition
                 }}
             >
                 {rowVirtualizer.getVirtualItems().map((virtualRow) => {
@@ -135,6 +154,8 @@ export function GalleryGrid({
                                 width: '100%',
                                 height: `${virtualRow.size}px`,
                                 transform: `translateY(${virtualRow.start}px)`,
+                                transition: 'transform 0.2s ease-out', // Smooth row movement
+                                willChange: 'transform'
                             }}
                             className={row.type === 'header' ? "px-6 pt-4 pb-2" : "px-6 pb-2"}
                         >
