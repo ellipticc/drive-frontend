@@ -356,6 +356,22 @@ export interface ShareItem {
   nonce_filename?: string;
   encrypted_foldername?: string;
   nonce_foldername?: string;
+
+  // CamelCase aliases for UI compatibility
+  fileName?: string;
+  fileSize?: number;
+  createdAt?: string;
+  linkSecret?: string;
+  folderPath?: string;
+  folderPathSalt?: string;
+  isFolder?: boolean;
+  encryptedFilename?: string;
+  filenameSalt?: string;
+  expiresAt?: string;
+  views?: number;
+  downloads?: number;
+  mimeType?: string;
+
   recipients: Array<{
     id: string;
     userId?: string;
@@ -1322,6 +1338,15 @@ class ApiClient {
       body: JSON.stringify(data),
       headers,
     });
+  }
+
+  // Fetch recent items (optional folder scoping)
+  async getRecentItems(limit = 15, folderId?: string | null): Promise<ApiResponse<RecentItem[]>> {
+    const queryParams = new URLSearchParams();
+    queryParams.append('limit', limit.toString());
+    if (folderId) queryParams.append('folderId', folderId);
+    const endpoint = `/recent${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return this.request(endpoint);
   }
 
   // Folders endpoints

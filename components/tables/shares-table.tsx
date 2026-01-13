@@ -113,17 +113,23 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                             permissions: item.permissions,
                             revoked: item.revoked,
                             linkSecret: item.linkSecret,
-                            // Defaults for missing fields
-                            views: 0,
-                            downloads: 0,
+                            // Defaults for missing fields and compatibility aliases
+                            views: (item as any).views ?? 0,
+                            downloads: (item as any).downloads ?? 0,
+                            view_count: (item as any).views ?? (item as any).view_count ?? 0,
+                            download_count: (item as any).downloads ?? (item as any).download_count ?? 0,
                             folderPath: item.folderPath || '',
                             isFolder: item.isFolder || false,
-                            recipients: [],
-                            has_password: false,
-                            // Initialize other optional ShareItem fields
-                            mimeType: item.mimeType,
-                            encryptedFilename: item.encryptedFilename,
-                            filenameSalt: item.filenameSalt
+                            recipients: item.recipients || [],
+                            has_password: item.has_password || false,
+                            // Initialize other optional ShareItem fields (snake_case and camelCase aliases)
+                            mimeType: (item as any).mimeType,
+                            encryptedFilename: (item as any).encryptedFilename,
+                            filenameSalt: (item as any).filenameSalt,
+                            encrypted_filename: (item as any).encryptedFilename ?? (item as any).encrypted_filename,
+                            nonce_filename: (item as any).filenameSalt ?? (item as any).nonce_filename,
+                            encrypted_foldername: (item as any).encryptedFolderName ?? (item as any).encrypted_foldername,
+                            nonce_foldername: (item as any).folderPathSalt ?? (item as any).nonce_foldername,
                         })) as ShareItem[];
                     }
                 } else {
@@ -287,13 +293,13 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
 
 
             if (sortDescriptor.column === 'createdAt') {
-                const firstDate = new Date(a.createdAt).getTime();
-                const secondDate = new Date(b.createdAt).getTime();
+                const firstDate = new Date(a.createdAt ?? 0).getTime();
+                const secondDate = new Date(b.createdAt ?? 0).getTime();
                 return sortDescriptor.direction === "descending" ? secondDate - firstDate : firstDate - secondDate;
             }
 
             if (sortDescriptor.column === 'downloads') {
-                return sortDescriptor.direction === "descending" ? b.downloads - a.downloads : a.downloads - b.downloads;
+                return sortDescriptor.direction === "descending" ? b.download_count - a.download_count : a.download_count - b.download_count;
             }
 
             if (sortDescriptor.column === 'fileName') {
@@ -335,8 +341,8 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
 
         const query = deferredQuery.toLowerCase().trim();
         return sortedItems.filter(item =>
-            item.fileName.toLowerCase().includes(query) ||
-            item.folderPath.toLowerCase().includes(query)
+            (item.fileName || '').toLowerCase().includes(query) ||
+            (item.folderPath || '').toLowerCase().includes(query)
         );
     }, [sortedItems, deferredQuery]);
 
@@ -355,11 +361,13 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
 
         try {
             const selectedShares = filteredItems.filter(item => selectedItems.has(item.id));
-            const itemsToDownload = selectedShares.map(item => ({
-                id: item.fileId,
-                name: item.fileName,
-                type: item.isFolder ? 'folder' as const : 'file' as const
-            }));
+            const itemsToDownload = selectedShares
+                .filter(s => s.fileId)
+                .map(item => ({
+                    id: item.fileId!,
+                    name: item.fileName || '',
+                    type: item.isFolder ? 'folder' as const : 'file' as const
+                }));
 
             await startBulkDownload(itemsToDownload);
 
@@ -574,16 +582,16 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                                                             <IconFolder className="h-4 w-4 text-blue-500 inline-block align-middle" />
                                                         ) : (
                                                             <FileThumbnail
-                                                                fileId={item.fileId}
+                                                                fileId={item.fileId!}
                                                                 mimeType={item.mimeType}
-                                                                name={item.fileName}
+                                                                name={item.fileName || ''}
                                                                 className="h-4 w-4 inline-block align-middle"
                                                                 iconClassName="h-4 w-4"
                                                             />
                                                         )}
                                                     </div>
                                                     <TruncatedNameTooltip
-                                                        name={item.fileName}
+                                                        name={item.fileName || ''}
                                                         className="text-sm font-medium truncate text-foreground flex-1 min-w-0"
                                                     />
                                                 </div>
@@ -605,7 +613,7 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                                             {!isMobile && (
                                                 <Table.Cell className="text-right px-4">
                                                     <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
-                                                        {item.downloads}
+                                                        {item.download_count}
                                                     </span>
                                                 </Table.Cell>
                                             )}
@@ -645,18 +653,18 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                                                                 </>
                                                             ) : (
                                                                 <>
-                                                                    <DropdownMenuItem onClick={() => handleDownloadClick(item.id, item.fileId, item.fileName)}>
+                                                                    <DropdownMenuItem onClick={() => item.fileId && handleDownloadClick(item.id, item.fileId, item.fileName || '')}>
                                                                         <IconDownload className="h-4 w-4 mr-2" />
                                                                         Download
                                                                     </DropdownMenuItem>
-                                                                    <DropdownMenuItem onClick={() => handleShareClick(item.fileId, item.fileName, 'file')}>
+                                                                    <DropdownMenuItem onClick={() => item.fileId && handleShareClick(item.fileId, item.fileName || '', 'file')}>
                                                                         <IconShare3 className="h-4 w-4 mr-2" />
                                                                         Share
                                                                     </DropdownMenuItem>
                                                                     <DropdownMenuSeparator />
                                                                 </>
                                                             )}
-                                                            <DropdownMenuItem onClick={() => handleDetailsClick(item.fileId, item.fileName, item.isFolder ? 'folder' : 'file')}>
+                                                            <DropdownMenuItem onClick={() => item.fileId && handleDetailsClick(item.fileId, item.fileName || '', item.isFolder ? 'folder' : 'file')}>
                                                                 <IconInfoCircle className="h-4 w-4 mr-2" />
                                                                 Details
                                                             </DropdownMenuItem>
@@ -709,7 +717,7 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                                             setSelectedItems(new Set([item.id]));
                                         }
                                     }}
-                                    onDoubleClick={() => handleDetailsClick(item.fileId, item.fileName, item.isFolder ? 'folder' : 'file')}
+                                    onDoubleClick={() => item.fileId && handleDetailsClick(item.fileId, item.fileName || '', item.isFolder ? 'folder' : 'file')}
                                 >
                                     <div className="flex flex-col items-center text-center space-y-2">
                                         <div className="absolute top-2 left-2 z-10" onClick={(e) => e.stopPropagation()}>
@@ -731,9 +739,9 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                                                 <IconFolder className="h-12 w-12 text-blue-500" />
                                             ) : (
                                                 <FileThumbnail
-                                                    fileId={item.fileId}
+                                                    fileId={item.fileId!}
                                                     mimeType={item.mimeType}
-                                                    name={item.fileName}
+                                                    name={item.fileName || ''}
                                                     className="w-full h-full object-cover"
                                                     iconClassName="h-12 w-12"
                                                 />
@@ -741,7 +749,7 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                                         </div>
                                         <div className="flex-1 min-w-0 w-full">
                                             <TruncatedNameTooltip
-                                                name={item.fileName}
+                                                name={item.fileName || ''}
                                                 className="text-sm font-medium truncate cursor-default"
                                                 maxTooltipWidth="250px"
                                             />
