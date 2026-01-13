@@ -1,0 +1,57 @@
+name: Deploy Frontend to Debian VPS
+
+on:
+  push:
+    branches: [ main ] 
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Sync Frontend to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: "."
+          target: "/root/nextjs-frontend"
+
+      - name: Build and Restart via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            echo "🚀 Building Frontend in /root/nextjs-frontend..."
+            cd /root/nextjs-frontend
+            
+            # Install dependencies
+            npm install --legacy-peer-deps
+            
+            # Build the Next.js app
+            PORT=3001 npx next build
+            
+            echo "🔄 Restarting Frontend..."
+            # PM2 command to start or reload server
+            pm2 reload frontend || pm2 start npm --name "frontend" -- run start -- --port 3001
+            
+            echo "✅ Deployment Complete!"
+
+      - name: Notify Discord on Success
+        if: success()
+        run: |
+          curl -H "Content-Type: application/json" \
+               -d '{"content": "🚀 **Frontend Deployment Successful!**\n**Project:** Ellipticc Drive\n**Branch:** `${{ github.ref_name }}`\n**Status:** Frontend is live on VPS!"}' \
+               ${{ secrets.DISCORD_WEBHOOK_URL }}
+
+      - name: Notify Discord on Failure
+        if: failure()
+        run: |
+          curl -H "Content-Type: application/json" \
+               -d '{"content": "⚠️ **Frontend Deployment Failed!**\n**Project:** Ellipticc Drive\n**Check Logs:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"}' \
+               ${{ secrets.DISCORD_WEBHOOK_URL }}
