@@ -27,11 +27,12 @@ class PaperService {
             const { encryptedContent, iv, salt } = await encryptPaperContent(contentStr, masterKey);
 
             // 3. Send to API
+            // 3. Send to API
             const response = await apiClient.createPaper({
-                folder_id: folderId,
-                encrypted_title: encryptedFilename,
-                title_salt: filenameSalt,
-                encrypted_content: encryptedContent,
+                folderId,
+                encryptedTitle: encryptedFilename,
+                titleSalt: filenameSalt,
+                encryptedContent: encryptedContent,
                 iv,
                 salt
             });
@@ -123,8 +124,8 @@ class PaperService {
         // 1. Decrypt Title
         let title = 'Untitled Paper';
         try {
-            if (paper.encrypted_title && paper.title_salt) {
-                title = await decryptFilename(paper.encrypted_title, paper.title_salt, masterKey);
+            if (paper.encryptedTitle && paper.titleSalt) {
+                title = await decryptFilename(paper.encryptedTitle, paper.titleSalt, masterKey);
             }
         } catch (e) {
             console.error('Failed to decrypt title', e);
@@ -134,8 +135,8 @@ class PaperService {
         // 2. Decrypt Content
         let content = {};
         try {
-            if (paper.encrypted_content && paper.iv && paper.salt) {
-                const contentStr = await decryptPaperContent(paper.encrypted_content, paper.iv, paper.salt, masterKey);
+            if (paper.encryptedContent && paper.iv && paper.salt) {
+                const contentStr = await decryptPaperContent(paper.encryptedContent, paper.iv, paper.salt, masterKey);
                 if (contentStr) {
                     content = JSON.parse(contentStr);
                 }
@@ -149,9 +150,9 @@ class PaperService {
             id: paper.id,
             title,
             content,
-            folderId: paper.folder_id,
-            createdAt: paper.created_at,
-            updatedAt: paper.updated_at
+            folderId: paper.folderId,
+            createdAt: paper.createdAt,
+            updatedAt: paper.updatedAt
         };
     }
 }
