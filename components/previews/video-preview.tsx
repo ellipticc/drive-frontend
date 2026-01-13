@@ -97,20 +97,28 @@ export function VideoPreview({
 
         // Ensure Service Worker is active and controlling the page
         if ('serviceWorker' in navigator) {
+          // Wait for registration to finish and become active
           await navigator.serviceWorker.ready;
 
-          // Wait if not controlled yet (first load)
-          let attempts = 0;
-          while (!navigator.serviceWorker.controller && attempts < 15) {
-            console.log(`[VideoPreview] SW not controlling yet, waiting (attempt ${attempts + 1})...`);
-            await new Promise(r => setTimeout(r, 150));
-            attempts++;
+          if (!navigator.serviceWorker.controller) {
+            console.debug("[VideoPreview] SW active but not controlling. Waiting for claim...");
+            await new Promise<void>((resolve) => {
+              const onControllerChange = () => {
+                navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
+                resolve();
+              };
+              navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
+
+              // 4s timeout to prevent infinite hang
+              setTimeout(() => {
+                navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
+                resolve();
+              }, 4000);
+            });
           }
 
           if (!navigator.serviceWorker.controller) {
-            console.warn("[VideoPreview] SW still not controlling after multiple attempts. Stream might fail.");
-          } else {
-            console.log("[VideoPreview] SW is controlling the page. Proceeding with registration.");
+            console.warn("[VideoPreview] Service Worker failed to take control. Video playback might fail.");
           }
         }
 

@@ -59,22 +59,22 @@ export class StreamManager {
     public async registerFile(fileId: string, shareDetails?: ShareItem, onGetShareCEK?: () => Promise<Uint8Array>) {
         // Check if already registered
         if (this.sessions.has(fileId)) {
-            console.log(`[StreamManager] File ${fileId} already registered.`);
+            console.debug(`[StreamManager] File ${fileId} already registered.`);
             return;
         }
 
         // If registration is in progress, wait for it
         if (this.pendingRegistrations.has(fileId)) {
-            console.log(`[StreamManager] Waiting for existing registration of ${fileId}...`);
+            console.debug(`[StreamManager] Waiting for existing registration of ${fileId}...`);
             return this.pendingRegistrations.get(fileId);
         }
 
         const registrationPromise = (async () => {
             try {
-                console.log(`[StreamManager] Initializing registration for ${fileId}...`);
+                console.debug(`[StreamManager] Initializing registration for ${fileId}...`);
                 // Initialize full session from backend (metadata + URLs)
                 const session = await initializeDownloadSession(fileId);
-                console.log(`[StreamManager] Download session initialized for ${fileId}. Getting keys...`);
+                console.debug(`[StreamManager] Download session initialized for ${fileId}. Getting keys...`);
 
                 let cek: Uint8Array;
 
@@ -107,7 +107,7 @@ export class StreamManager {
                 this.sessions.set(fileId, { session, cek });
                 this.buildChunkMap(fileId, session);
 
-                console.log(`[StreamManager] Successfully registered ${fileId}. Size: ${session.size}`);
+                console.debug(`[StreamManager] Successfully registered ${fileId}. Size: ${session.size}`);
 
             } catch (err) {
                 console.error('[StreamManager] Failed to register file:', err);
@@ -160,13 +160,13 @@ export class StreamManager {
         if (!event.data || event.data.type !== 'STREAM_REQUEST') return;
 
         const { requestId, fileId, start, end } = event.data as StreamRequest;
-        console.log(`[StreamManager] Received STREAM_REQUEST ${requestId} for ${fileId}, range: ${start}-${end || ''}`);
+        console.debug(`[StreamManager] Received STREAM_REQUEST ${requestId} for ${fileId}, range: ${start}-${end || ''}`);
         const port = event.ports[0];
 
         try {
             // If this file is currently being registered in this tab, wait for it
             if (this.pendingRegistrations.has(fileId)) {
-                console.log(`[StreamManager] Received request for ${fileId} while registration is pending. Waiting...`);
+                console.debug(`[StreamManager] Received request for ${fileId} while registration is pending. Waiting...`);
                 await this.pendingRegistrations.get(fileId);
             }
 
@@ -184,7 +184,7 @@ export class StreamManager {
     }
 
     public async fetchRange(fileId: string, start: number, explicitEnd?: number): Promise<StreamResponse> {
-        console.log(`[StreamManager] fetchRange called for ${fileId}, start: ${start}, end: ${explicitEnd}`);
+        console.debug(`[StreamManager] fetchRange called for ${fileId}, start: ${start}, end: ${explicitEnd}`);
         const data = this.sessions.get(fileId);
         const map = this.chunkMaps.get(fileId);
 
@@ -218,7 +218,7 @@ export class StreamManager {
             return { success: false, error: 'No chunks found for range' };
         }
 
-        console.log(`[StreamManager] Range ${start}-${end} covers chunks: ${chunksToFetch.map(c => c.index).join(',')}`);
+        console.debug(`[StreamManager] Range ${start}-${end} covers chunks: ${chunksToFetch.map(c => c.index).join(',')}`);
 
         // Fetch and decrypt needed chunks
         const buffers: Uint8Array[] = [];

@@ -1,11 +1,15 @@
 const SW_VERSION = '1.0.0';
 
 self.addEventListener('install', (event) => {
+    console.log('[SW] Installing SW version:', SW_VERSION);
     event.waitUntil(self.skipWaiting());
 });
 
 self.addEventListener('activate', (event) => {
-    event.waitUntil(self.clients.claim());
+    console.log('[SW] Activating SW version:', SW_VERSION);
+    event.waitUntil(self.clients.claim().then(() => {
+        console.log('[SW] Clients claimed.');
+    }));
 });
 
 self.addEventListener('fetch', (event) => {
