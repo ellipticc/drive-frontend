@@ -57,6 +57,7 @@ import { Label } from "@/components/ui/label";
 import {
   Tooltip,
   TooltipContent,
+  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { apiClient, Subscription, BillingUsage, SubscriptionHistory } from '@/lib/api';
@@ -129,8 +130,13 @@ const staticPlans: TransformedPlan[] = [
       'Zero Knowledge Architecture': true,
       'Post-Quantum Cryptography': true,
       'End-to-End Encryption': true,
+      'Two-Factor Auth (TOTP)': true,
+      'Secured File Previews': true,
       'File Vault': false,
       'Verified Source': false,
+      'Paper Pages': '3 Pages',
+      'Paper Collaboration': false,
+      'Paper Version History': false,
       'Suspicious Activity Alerts': false,
       'Vigil: Advanced Analysis': false,
       'Export security events': false,
@@ -178,8 +184,13 @@ const staticPlans: TransformedPlan[] = [
       'Zero Knowledge Architecture': true,
       'Post-Quantum Cryptography': true,
       'End-to-End Encryption': true,
+      'Two-Factor Auth (TOTP)': true,
+      'Secured File Previews': true,
       'File Vault': false,
       'Verified Source': true,
+      'Paper Pages': 'Unlimited',
+      'Paper Collaboration': 'Advanced',
+      'Paper Version History': '30 days',
       'Suspicious Activity Alerts': false,
       'Vigil: Advanced Analysis': false,
       'Export security events': false,
@@ -228,8 +239,13 @@ const staticPlans: TransformedPlan[] = [
       'Zero Knowledge Architecture': true,
       'Post-Quantum Cryptography': true,
       'End-to-End Encryption': true,
+      'Two-Factor Auth (TOTP)': true,
+      'Secured File Previews': true,
       'File Vault': true,
       'Verified Source': true,
+      'Paper Pages': 'Unlimited',
+      'Paper Collaboration': 'Advanced',
+      'Paper Version History': '180 days',
       'Suspicious Activity Alerts': false,
       'Vigil: Advanced Analysis': true,
       'Export security events': true,
@@ -277,8 +293,13 @@ const staticPlans: TransformedPlan[] = [
       'Zero Knowledge Architecture': true,
       'Post-Quantum Cryptography': true,
       'End-to-End Encryption': true,
+      'Two-Factor Auth (TOTP)': true,
+      'Secured File Previews': true,
       'File Vault': true,
       'Verified Source': true,
+      'Paper Pages': 'Unlimited',
+      'Paper Collaboration': 'Advanced',
+      'Paper Version History': 'No limit',
       'Suspicious Activity Alerts': true,
       'Vigil: Advanced Analysis': true,
       'Export security events': true,
@@ -292,7 +313,7 @@ const staticPlans: TransformedPlan[] = [
       'Share page customization': true,
       'Real-time Collaboration': true,
       'Encrypted File Requests': true,
-      'File Versioning': '60 days',
+      'File Versioning': 'No limit',
       'Advanced Tagging': true,
       'Theme Customization': true,
       'Advanced Integrations': true,
@@ -309,20 +330,28 @@ const staticPlans: TransformedPlan[] = [
 
 const featureCategories = [
   {
-    name: 'Storage & Essentials',
+    name: 'Storage & Capacity',
     features: ['Storage Quota', 'Spaces', 'Devices Limit', 'Trash Retention']
   },
   {
-    name: 'Privacy & Security',
-    features: ['Zero Knowledge Architecture', 'Post-Quantum Cryptography', 'End-to-End Encryption', 'File Vault', 'Verified Source', 'Suspicious Activity Alerts', 'Vigil: Advanced Analysis', 'Export security events']
+    name: 'Security & Privacy',
+    features: ['Zero Knowledge Architecture', 'Post-Quantum Cryptography', 'End-to-End Encryption', 'Two-Factor Auth (TOTP)', 'Secured File Previews', 'File Vault', 'Verified Source']
   },
   {
-    name: 'Collaborative Sharing',
-    features: ['Shared links', 'Advanced link settings', 'Disable downloads', 'Custom expiration dates', 'Password-protected links', 'Encrypted File Requests', 'Comments on shares', 'Comment attachments', 'Share page customization', 'Real-time Collaboration', 'File Versioning']
+    name: 'Ellipticc Paper (NEW)',
+    features: ['Paper Pages', 'Paper Collaboration', 'Paper Version History']
   },
   {
-    name: 'Advanced Management',
-    features: ['Device Labeling', 'Advanced Tagging', 'Theme Customization', 'Advanced Integrations', 'Security Events', 'Support']
+    name: 'Intelligence & Tracking',
+    features: ['Suspicious Activity Alerts', 'Vigil: Advanced Analysis', 'Export security events', 'Security Events']
+  },
+  {
+    name: 'Sharing & Collaboration',
+    features: ['Shared links', 'Advanced link settings', 'Disable downloads', 'Custom expiration dates', 'Password-protected links', 'Encrypted File Requests', 'Comments on shares', 'Comment attachments', 'File Versioning']
+  },
+  {
+    name: 'Platform & Experience',
+    features: ['Device Labeling', 'Advanced Tagging', 'Theme Customization', 'Advanced Integrations', 'Support']
   }
 ];
 
@@ -335,8 +364,13 @@ const featureTooltips: Record<string, string> = {
   'Zero Knowledge Architecture': 'Architecture where the service provider has no knowledge of the keys used to encrypt user data.',
   'Post-Quantum Cryptography': 'State-of-the-art encryption designed to remain secure even against future quantum computer attacks.',
   'End-to-End Encryption': 'Data is encrypted on the sender\'s device and only decrypted on the recipient\'s device.',
+  'Two-Factor Auth (TOTP)': 'Secure your account with time-based one-time passwords from apps like Authy or Google Authenticator.',
+  'Secured File Previews': 'Preview photos, videos, and documents safely within our encrypted sandbox without ever compromising the source file.',
   'File Vault': 'An additional high-security layer for sensitive files, requiring extra authentication.',
   'Verified Source': 'Cryptographic proof that a file was uploaded by a verified and authentic identity.',
+  'Paper Pages': 'The number of rich text documents you can create and manage in Ellipticc Paper.',
+  'Paper Collaboration': 'Collaborate with team members on rich text documents with different levels of access and live feedback.',
+  'Paper Version History': 'Track changes and revert to older versions of your Ellipticc Paper documents.',
   'Suspicious Activity Alerts': 'Real-time notifications for unusual login attempts, mass deletions, or potential ransomware behavior.',
   'Vigil: Advanced Analysis': 'Deep analytical view of security events including GeoIP, ISP, Device fingerprinting, and potential attack vectors.',
   'Export security events': 'Export your security logs and audit trails into JSON or CSV formats for external processing.',
@@ -345,15 +379,14 @@ const featureTooltips: Record<string, string> = {
   'Disable downloads': 'Restrict shared links to view-only mode, preventing recipients from saving the file.',
   'Custom expiration dates': 'Set a specific timeframe after which a shared link will automatically become invalid.',
   'Password-protected links': 'Require a unique password for anyone attempting to access your shared link.',
-  'Encrypted File Requests': 'Create a secure link for others to upload files directly to your encrypted storage. (In Development)',
+  'Encrypted File Requests': 'Create a secure link for others to upload files directly to your encrypted storage.',
   'Comments on shares': 'Enable encrypted conversation directly on the shared file page for streamlined feedback.',
   'Comment attachments': 'Allow users to attach supporting files directly within the comment threads of a share.',
-  'Share page customization': 'Remove platform branding and apply your own custom themes, backgrounds, and accents (Planned).',
-  'Real-time Collaboration': 'Collaborate with others in real-time with presence indicators and live updates (Planned).',
-  'File Versioning': 'Track changes and restore previous versions of your files at any time (Planned).',
+  'Real-time Collaboration': 'Collaborate with others in real-time with presence indicators and live updates.',
+  'File Versioning': 'Track changes and restore previous versions of your files at any time.',
   'Advanced Tagging': 'Organize files with custom tags, color-coding, and perform advanced tag-based searches.',
-  'Theme Customization': 'Personalize your interface with custom color themes and layout preferences (In Development).',
-  'Advanced Integrations': 'Build custom workflows and automate your storage with our developer API and real-time webhooks (Planned).',
+  'Theme Customization': 'Personalize your interface with custom color themes and layout preferences.',
+  'Advanced Integrations': 'Build custom workflows and automate your storage with our developer API and real-time webhooks.',
   'Security Events': 'A comprehensive log of all security-related activities across your account.',
   'Support': 'Priority access to our technical support team for assistance.'
 };
@@ -593,22 +626,33 @@ const BillingPage = () => {
   return (
     <div className="flex flex-1 flex-col">
       {/* Integrated Header */}
-      <header className="flex h-(--header-height) shrink-0 items-center gap-2 border-b px-4">
-        <SidebarTrigger className="-ml-1" />
-        <Separator
-          orientation="vertical"
-          className="mx-2 data-[orientation=vertical]:h-4"
-        />
-        <div className="flex flex-col">
-          <h1 className="text-lg font-medium leading-none font-sans text-foreground">Billing</h1>
-        </div>
-        <div className="ml-auto flex items-center gap-2">
-          <ThemeToggle />
+      <header className="flex h-(--header-height) shrink-0 items-center justify-between border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">
+        <div className="flex w-full items-center gap-1 px-4 lg:gap-2 lg:px-6">
+          <TooltipProvider delayDuration={0}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <SidebarTrigger className="-ml-1" />
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                <p>Toggle Sidebar <span className="text-muted-foreground ml-1">Ctrl+B</span></p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <Separator
+            orientation="vertical"
+            className="mx-2 data-[orientation=vertical]:h-4"
+          />
+          <div className="flex flex-col">
+            <h1 className="text-lg font-medium leading-none font-sans text-foreground">Billing</h1>
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            <ThemeToggle />
+          </div>
         </div>
       </header>
 
       <div ref={scrollRef} className="flex-1 overflow-auto">
-        <SectionGroup variant="full">
+        <div className="flex flex-1 flex-col gap-8 p-4 lg:gap-12 lg:p-6 w-full">
           {/* Usage Section */}
           <Section>
             <SectionHeader>
@@ -1022,7 +1066,7 @@ const BillingPage = () => {
               </div>
             </Section>
           )}
-        </SectionGroup>
+        </div>
       </div>
 
       <PaymentMethodModal
