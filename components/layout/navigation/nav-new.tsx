@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/sidebar"
 import { CreateFolderModal } from "@/components/modals/create-folder-modal"
 import { useGlobalUpload } from "@/components/global-upload-context"
+import { useCurrentFolder } from "@/components/current-folder-context"
 
 import { paperService } from "@/lib/paper-service"
 import { masterKeyManager } from "@/lib/master-key"
@@ -43,6 +44,7 @@ export function NavNew({ onFileUpload, onFolderUpload }: NavNewProps) {
     const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false)
     const { openPicker } = useGoogleDrive()
     const { notifyFileAdded } = useGlobalUpload()
+    const { currentFolderId } = useCurrentFolder()
 
     const handleNewPaper = async () => {
         try {
@@ -59,7 +61,24 @@ export function NavNew({ onFileUpload, onFolderUpload }: NavNewProps) {
             const timeStr = `${pad(now.getHours())}.${pad(now.getMinutes())}.${pad(now.getSeconds())}`
             const filename = `Untitled document ${dateStr} ${timeStr}`
 
-            const fileId = await paperService.createPaper(filename, undefined, null)
+            // Use currentFolderId if available (convert 'root' to null for API if needed, consistent with other uploaders)
+            // paperService.createPaper expects null for root
+            const parentId = currentFolderId === 'root' ? null : currentFolderId;
+            const fileId = await paperService.createPaper(filename, undefined, parentId)
+
+            // Optimistically notify about the new file
+            notifyFileAdded({
+                id: fileId,
+                name: filename,
+                type: 'paper',
+                parentId: parentId,
+                status: 'active',
+                size: 0,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                is_shared: false,
+                mimeType: 'application/x-paper',
+            } as any)
 
             router.push(`/paper/${fileId}`)
         } catch (error) {
