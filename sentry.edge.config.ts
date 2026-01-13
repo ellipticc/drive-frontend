@@ -15,13 +15,13 @@ if (process.env.NODE_ENV === 'production' && process.env.NEXT_PUBLIC_SENTRY_DSN)
   Sentry.init({
     dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
 
-    // Enable 100% performance tracing
-    tracesSampleRate: 1.0,
+    // Disable performance tracing
+    tracesSampleRate: 0,
 
-    // Capture all console errors and warnings on edge
+    // Capture ONLY console errors, no warnings on edge
     integrations: [
       Sentry.captureConsoleIntegration({
-        levels: ['error', 'warn'],
+        levels: ['error'],
       }),
     ],
 
