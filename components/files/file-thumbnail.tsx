@@ -74,16 +74,12 @@ export function FileThumbnail({
 
             setIsLoading(true);
             try {
-                // 1. Get presigned URL
                 const response = await apiClient.getThumbnailUrl(fileId);
 
-                // If API specifically says no thumbnail or fails
                 if (!response.success || !response.data?.url) {
-                    // Silently fail to fallback icon
                     throw new Error("No thumbnail available");
                 }
 
-                // 2. Fetch encrypted thumbnail
                 const thumbResponse = await fetch(response.data.url);
                 if (!thumbResponse.ok) throw new Error("Failed to download thumbnail");
 
@@ -91,10 +87,8 @@ export function FileThumbnail({
                 const [encryptedPart, noncePart] = encryptedText.split(':');
                 if (!encryptedPart || !noncePart) throw new Error("Invalid thumbnail format");
 
-                // 3. Decrypt
                 let fileEncryption = encryption;
 
-                // Check if we have the necessary PQC keys for decryption
                 const hasPQCKeys = fileEncryption &&
                     'kyberCiphertext' in fileEncryption &&
                     'nonceWrapKyber' in fileEncryption;
@@ -105,8 +99,19 @@ export function FileThumbnail({
 
                     if (fileInfo.success && fileInfo.data?.encryption) {
                         fileEncryption = fileInfo.data.encryption as any;
+                        // Double check keys in fetched info
+                        if (!('kyberCiphertext' in (fileEncryption || {}))) {
+                            // Fallback to getDownloadUrls which guarantees keys
+                            const dlUrls = await apiClient.getDownloadUrls(fileId);
+                            if (dlUrls.success && dlUrls.data?.encryption) {
+                                fileEncryption = dlUrls.data.encryption as any;
+                            }
+                        }
                     } else {
-                        throw new Error("Missing encryption keys for thumbnail");
+                        const dlUrls = await apiClient.getDownloadUrls(fileId);
+                        if (dlUrls.success && dlUrls.data?.encryption) {
+                            fileEncryption = dlUrls.data.encryption as any;
+                        }
                     }
                 }
 
@@ -144,7 +149,7 @@ export function FileThumbnail({
                     }
                 }
             } catch (err) {
-                // console.warn("Thumbnail load failed:", err);
+                console.error(`[FileThumbnail] Error for ${fileId}:`, err);
                 if (retryCount < 2 && isMounted) {
                     setTimeout(() => setRetryCount(prev => prev + 1), 1000 * (retryCount + 1));
                 } else if (isMounted) {
