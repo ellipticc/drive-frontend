@@ -108,7 +108,7 @@ export function GalleryGrid({
         getScrollElement: () => parentRef.current,
         estimateSize: (index) => {
             const row = virtualRows[index]
-            if (row.type === 'header') return 48 // Reduced header height (was 60)
+            if (row.type === 'header') return 64 // 16px (pt-4) + 20px (text) + 28px (padding/margin)
 
             // Use exact container width or fallback to window if not yet measured
             const width = containerWidth || (typeof window !== 'undefined' ? window.innerWidth : 1200)
@@ -119,16 +119,18 @@ export function GalleryGrid({
 
             const availableWidth = width - paddingX
             const itemWidth = (availableWidth - (gap * (columnCount - 1))) / columnCount
-            return itemWidth + gap // Row height includes the gap below it
+
+            // Add slight buffer (1px) to prevent sub-pixel rounding overlaps
+            return itemWidth + gap + 1
         },
         overscan: 5,
     })
 
-    const formatDateHeader = (dateStr: string) => {
+    const formatHeaderDate = (dateStr: string) => {
         const date = parseISO(dateStr)
         if (isToday(date)) return "Today"
         if (isYesterday(date)) return "Yesterday"
-        return format(date, 'EEE, MMM d, yyyy')
+        return format(date, 'MMMM yyyy') // Changed to Month Year format as per image (e.g. October 2025)
     }
 
     return (
@@ -157,12 +159,12 @@ export function GalleryGrid({
                                 transition: 'transform 0.2s ease-out', // Smooth row movement
                                 willChange: 'transform'
                             }}
-                            className={row.type === 'header' ? "px-6 pt-4 pb-2" : "px-6 pb-2"}
+                            className={row.type === 'header' ? "px-6 pt-8 pb-4" : "px-6 pb-2"}
                         >
                             {row.type === 'header' ? (
                                 <div className="flex items-center gap-3">
-                                    <h2 className="font-medium text-sm text-foreground">
-                                        {formatDateHeader(row.date)}
+                                    <h2 className="font-medium text-base text-foreground/90">
+                                        {formatHeaderDate(row.date)}
                                     </h2>
                                 </div>
                             ) : (
