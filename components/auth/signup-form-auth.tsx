@@ -17,7 +17,7 @@ import { useState, useEffect } from "react"
 import { apiClient } from "@/lib/api"
 import { IconLoader2 as Loader2 } from "@tabler/icons-react"
 
-import { useSessionTracking, sessionTrackingUtils } from "@/hooks/useSessionTracking"
+
 import { initializeDeviceKeys } from "@/lib/device-keys"
 
 export function SignupFormAuth({
@@ -35,7 +35,7 @@ export function SignupFormAuth({
     password: "",
     confirmPassword: ""
   })
-  useSessionTracking(true) // Enable session tracking on signup page
+
 
   // Check if user is already authenticated with cached credentials
   useEffect(() => {
@@ -280,11 +280,7 @@ export function SignupFormAuth({
       localStorage.setItem('signup_email', formData.email)
       localStorage.setItem('signup_password', formData.password)
 
-      // Track signup conversion
-      const sessionId = sessionTrackingUtils.getSessionId()
-      if (sessionId) {
-        sessionTrackingUtils.trackConversion(sessionId, 'signup', userId)
-      }
+
 
       // Stop Google Analytics immediately after registration
       if (typeof window !== 'undefined') {

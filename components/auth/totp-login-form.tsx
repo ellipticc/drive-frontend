@@ -24,7 +24,7 @@ import { apiClient } from "@/lib/api"
 import { masterKeyManager } from "@/lib/master-key"
 import { keyManager } from "@/lib/key-manager"
 import { IconLoader2 as Loader2, IconCloudLock } from "@tabler/icons-react"
-import { sessionTrackingUtils } from "@/hooks/useSessionTracking"
+
 
 export function TOTPLoginForm({
   className,
@@ -141,12 +141,7 @@ export function TOTPLoginForm({
         storage.removeItem('login_user_id')
         storage.removeItem('pending_auth_token')
 
-        // Track conversion
-        const sessionId = sessionTrackingUtils.getSessionId()
-        if (sessionId) {
-          sessionTrackingUtils.trackConversion(sessionId, 'login', userId)
-        }
-        sessionTrackingUtils.clearSession()
+
 
         // Redirect
         // Stop Google Analytics immediately after login

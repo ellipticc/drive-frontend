@@ -397,57 +397,7 @@ export default function SharedDownloadPage() {
     }
   }, [shareId, loadShareDetails]);
 
-  // Initialize ingest server session for analytics
-  useEffect(() => {
-    const initializeIngestSession = async () => {
-      try {
-        const ingestBaseUrl = process.env.NEXT_PUBLIC_INGEST_URL || 'https://ingest.ellipticc.com';
-        const sessionUrl = `${ingestBaseUrl}/api/v1/sessions/start`;
 
-        const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
-        // SECURITY: Remove hash fragment containing encryption key before sending to analytics
-        const sanitizedUrl = currentUrl.split('#')[0];
-        const referrer = typeof document !== 'undefined' ? document.referrer : '';
-
-        // Extract UTM parameters from URL if present
-        const urlParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
-        const utmSource = urlParams.get('utm_source');
-        const utmMedium = urlParams.get('utm_medium');
-        const utmCampaign = urlParams.get('utm_campaign');
-
-        const sessionData: { first_landing_url: string; referrer?: string; utm_source?: string; utm_medium?: string; utm_campaign?: string } = {
-          first_landing_url: sanitizedUrl,
-          referrer: referrer || undefined
-        };
-
-        // Add UTM parameters if present
-        if (utmSource) sessionData.utm_source = utmSource;
-        if (utmMedium) sessionData.utm_medium = utmMedium;
-        if (utmCampaign) sessionData.utm_campaign = utmCampaign;
-
-        const response = await fetch(sessionUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(sessionData)
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          if (data.session_id) {
-            // Store session ID in sessionStorage for use in file downloads
-            sessionStorage.setItem(`share_session_${shareId}`, data.session_id);
-          }
-        }
-      } catch (err) {
-        console.warn('Failed to initialize ingest server session:', err);
-        // Non-critical error, don't block share access
-      }
-    };
-
-    if (shareId) {
-      initializeIngestSession();
-    }
-  }, [shareId]);
 
   // Get Share CEK from URL hash or password-protected wrapper
   const getShareCEK = useCallback(async (): Promise<Uint8Array> => {
@@ -722,34 +672,7 @@ export default function SharedDownloadPage() {
           setDownloadProgress(progress);
         }, downloadAbortControllerRef.current.signal, pauseControllerRef.current);
 
-        // ... (ingest tracking and blob download) ...
-        // Track in ingest server RIGHT AFTER download URLs request
-        try {
-          const sessionId = sessionStorage.getItem(`share_session_${shareId}`);
-          if (sessionId) {
-            const ingestBaseUrl = process.env.NEXT_PUBLIC_INGEST_URL || 'https://ingest.ellipticc.com';
-            await fetch(`${ingestBaseUrl}/api/v1/sessions/convert`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                session_id: sessionId,
-                conversion_event: 'share_download',
-                event_data: {
-                  fileId,
-                  fileName: '[encrypted]',
-                  shareId,
-                  timestamp: new Date().toISOString()
-                }
-              })
-            }).catch(err => {
-              console.warn('Failed to track conversion in ingest server:', err);
-              // Don't fail download if ingest tracking fails
-            });
-          }
-        } catch (ingestError) {
-          console.warn('Error tracking ingest session:', ingestError);
-          // Don't fail download if ingest tracking fails
-        }
+
 
         // Track in main backend for webhooks
         await apiClient.trackShareDownload(shareId);

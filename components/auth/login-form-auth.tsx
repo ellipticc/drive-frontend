@@ -21,7 +21,7 @@ import { masterKeyManager } from "@/lib/master-key"
 import { keyManager } from "@/lib/key-manager"
 import { IconLoader2 as Loader2 } from "@tabler/icons-react"
 
-import { useSessionTracking, sessionTrackingUtils } from "@/hooks/useSessionTracking"
+
 import { initializeDeviceKeys } from "@/lib/device-keys"
 
 export function LoginFormAuth({
@@ -37,7 +37,7 @@ export function LoginFormAuth({
     password: ""
   })
   const [keepSignedIn, setKeepSignedIn] = useState(false)
-  useSessionTracking(true) // Enable session tracking on login page
+
 
   // Check if user is already authenticated with cached credentials
   useEffect(() => {
@@ -377,14 +377,7 @@ export function LoginFormAuth({
 
       // Only reach here if TOTP is not enabled or device was remembered
       // Token and auth should already be set at this point
-      // Track login conversion before clearing session
-      const sessionId = sessionTrackingUtils.getSessionId()
-      if (sessionId) {
-        sessionTrackingUtils.trackConversion(sessionId, 'login', userObj.id as string)
-      }
 
-      // Stop session tracking after successful login
-      sessionTrackingUtils.clearSession()
 
       // Stop Google Analytics immediately after login
       if (typeof window !== 'undefined') {
