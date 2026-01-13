@@ -81,7 +81,7 @@ class PaperService {
             }
 
             // 3. Send to API
-            const response = await apiClient.updatePaper(paperId, updateData);
+            const response = await apiClient.savePaper(paperId, updateData);
 
             if (!response.success) {
                 throw new Error(response.error || 'Failed to save paper');
@@ -93,12 +93,22 @@ class PaperService {
     }
 
     /**
-     * Delete a paper
+     * Move a paper to trash (soft delete)
      */
     async deletePaper(paperId: string): Promise<void> {
+        const response = await apiClient.movePaperToTrash(paperId);
+        if (!response.success) {
+            throw new Error(response.error || 'Failed to move paper to trash');
+        }
+    }
+
+    /**
+     * Permanently delete a paper
+     */
+    async deletePaperPermanently(paperId: string): Promise<void> {
         const response = await apiClient.deletePaper(paperId);
         if (!response.success) {
-            throw new Error(response.error || 'Failed to delete paper');
+            throw new Error(response.error || 'Failed to delete paper permanently');
         }
     }
 
@@ -109,7 +119,7 @@ class PaperService {
         id: string;
         title: string;
         content: any;
-        folderId: string;
+        folderId: string | null;
         createdAt: string;
         updatedAt: string;
     }> {

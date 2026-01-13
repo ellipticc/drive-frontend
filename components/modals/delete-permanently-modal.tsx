@@ -20,7 +20,7 @@ interface DeletePermanentlyModalProps {
   children?: React.ReactNode
   itemId?: string
   itemName?: string
-  itemType?: "file" | "folder"
+  itemType?: "file" | "folder" | "paper"
   open?: boolean
   onOpenChange?: (open: boolean) => void
   onItemDeleted?: () => void
@@ -43,6 +43,8 @@ export function DeletePermanentlyModal({ children, itemId = "", itemName = "item
       let response;
       if (itemType === 'file') {
         response = await apiClient.deleteFilePermanently(itemId)
+      } else if (itemType === 'paper') {
+        response = await apiClient.deletePaper(itemId)
       } else {
         response = await apiClient.deleteFolderPermanently(itemId)
       }
@@ -51,10 +53,11 @@ export function DeletePermanentlyModal({ children, itemId = "", itemName = "item
         toast.success(`${itemType} permanently deleted successfully`)
         setOpen(false)
         onItemDeleted?.()
-        
-        // Update storage instantly if storage was freed
-        if (response.data?.storageFreed && response.data.storageFreed > 0) {
-          onStorageFreed?.(response.data.storageFreed)
+
+        // Update storage instantly if storage was freed (files/folders return this)
+        const storageFreed = (response.data as any)?.storageFreed;
+        if (storageFreed && storageFreed > 0) {
+          onStorageFreed?.(storageFreed)
         }
       } else {
         toast.error(`Failed to delete ${itemType}`)

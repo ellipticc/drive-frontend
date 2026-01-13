@@ -483,6 +483,8 @@ export const Table01DividerLineSm = ({
                     if (item.type === 'file') {
                         const nameHmac = await computeFilenameHmac(item.name, destinationFolderId === 'root' ? null : destinationFolderId);
                         response = await apiClient.moveFileToFolder(item.id, destinationFolderId === 'root' ? null : destinationFolderId, nameHmac);
+                    } else if (item.type === 'paper') {
+                        response = await apiClient.movePaperToFolder(item.id, destinationFolderId === 'root' ? null : destinationFolderId);
                     } else {
                         response = await apiClient.moveFolder(item.id, destinationFolderId === 'root' ? null : destinationFolderId);
                     }
@@ -1325,22 +1327,23 @@ export const Table01DividerLineSm = ({
         event.target.value = "";
     };
 
-    const handleRenameClick = useCallback((itemId: string, itemName: string, itemType: "file" | "folder") => {
+    const handleRenameClick = useCallback((itemId: string, itemName: string, itemType: "file" | "folder" | "paper") => {
         setSelectedItemForRename({ id: itemId, name: itemName, type: itemType });
         setRenameModalOpen(true);
     }, [setSelectedItemForRename, setRenameModalOpen]);
 
-    const handleShareClick = useCallback((itemId: string, itemName: string, itemType: "file" | "folder") => {
+    const handleShareClick = useCallback((itemId: string, itemName: string, itemType: "file" | "folder" | "paper") => {
         setSelectedItemForShare({ id: itemId, name: itemName, type: itemType });
         setShareModalOpen(true);
     }, [setSelectedItemForShare, setShareModalOpen]);
 
-    const handleStarClick = useCallback(async (itemId: string, itemType: "file" | "folder", currentStarred: boolean) => {
+    const handleStarClick = useCallback(async (itemId: string, itemType: "file" | "folder" | "paper", currentStarred: boolean) => {
         try {
             const isStarred = !currentStarred;
             const res = await apiClient.setItemStarred({
                 fileId: itemType === 'file' ? itemId : undefined,
                 folderId: itemType === 'folder' ? itemId : undefined,
+                paperId: itemType === 'paper' ? itemId : undefined,
                 isStarred
             });
 
@@ -1359,11 +1362,13 @@ export const Table01DividerLineSm = ({
         }
     }, [apiClient, setFiles]);
 
-    const handleDetailsClick = useCallback(async (itemId: string, itemName: string, itemType: "file" | "folder") => {
+    const handleDetailsClick = useCallback(async (itemId: string, itemName: string, itemType: "file" | "folder" | "paper") => {
         try {
             let response;
             if (itemType === 'file') {
                 response = await apiClient.getFileInfo(itemId);
+            } else if (itemType === 'paper') {
+                response = await apiClient.getPaper(itemId);
             } else {
                 response = await apiClient.getFolderInfo(itemId);
             }
@@ -1382,23 +1387,25 @@ export const Table01DividerLineSm = ({
         }
     }, [apiClient, toast, setSelectedItemForDetails, setDetailsModalOpen]);
 
-    const handleMoveToFolderClick = (itemId: string, itemName: string, itemType: "file" | "folder") => {
+    const handleMoveToFolderClick = (itemId: string, itemName: string, itemType: "file" | "folder" | "paper") => {
         setSelectedItemsForMoveToFolder([{ id: itemId, name: itemName, type: itemType }]);
         setMoveToFolderModalOpen(true);
     };
 
-    const handleCopyClick = (itemId: string, itemName: string, itemType: "file" | "folder") => {
+    const handleCopyClick = (itemId: string, itemName: string, itemType: "file" | "folder" | "paper") => {
         setSelectedItemsForCopy([{ id: itemId, name: itemName, type: itemType }]);
         setCopyModalOpen(true);
     };
 
-    const handleMoveToTrashClick = async (itemId: string, itemName: string, itemType: "file" | "folder") => {
+    const handleMoveToTrashClick = async (itemId: string, itemName: string, itemType: "file" | "folder" | "paper") => {
         const itemToRestore = filesMap.get(itemId);
 
         try {
             let response;
             if (itemType === 'file') {
                 response = await apiClient.moveFileToTrash(itemId);
+            } else if (itemType === 'paper') {
+                response = await apiClient.movePaperToTrash(itemId);
             } else {
                 response = await apiClient.moveFolderToTrash(itemId);
             }
@@ -1428,6 +1435,8 @@ export const Table01DividerLineSm = ({
                                 let restoreResponse;
                                 if (itemType === 'file') {
                                     restoreResponse = await apiClient.restoreFileFromTrash(itemId);
+                                } else if (itemType === 'paper') {
+                                    restoreResponse = await apiClient.restorePapersFromTrash([itemId]);
                                 } else {
                                     restoreResponse = await apiClient.restoreFolderFromTrash(itemId);
                                 }
@@ -1467,12 +1476,13 @@ export const Table01DividerLineSm = ({
         if (selectedItemsArray.length === 0) return;
 
         try {
-            // Separate files and folders
-            const fileIds = selectedItemsArray.filter(item => item.type === 'file' || item.type === 'paper').map(item => item.id);
+            // Separate files, folders and papers
+            const fileIds = selectedItemsArray.filter(item => item.type === 'file').map(item => item.id);
             const folderIds = selectedItemsArray.filter(item => item.type === 'folder').map(item => item.id);
+            const paperIds = selectedItemsArray.filter(item => item.type === 'paper').map(item => item.id);
 
-            // Use unified bulk API for both files and folders
-            const response = await apiClient.moveToTrash(folderIds, fileIds);
+            // Use unified bulk API for files, folders, and papers
+            const response = await apiClient.moveToTrash(folderIds, fileIds, paperIds);
 
             if (response.success) {
                 // Check if the current folder is being trashed - if so, navigate to parent
@@ -1499,6 +1509,10 @@ export const Table01DividerLineSm = ({
                             }
                             if (folderIds.length > 0) {
                                 await apiClient.restoreFoldersFromTrash(folderIds);
+                            }
+                            // Restore papers
+                            if (paperIds && paperIds.length > 0) {
+                                await apiClient.restorePapersFromTrash(paperIds);
                             }
 
                             // Optimistically add items back
@@ -1650,6 +1664,8 @@ export const Table01DividerLineSm = ({
                 case 'preview':
                     if (item.type === 'file') {
                         handlePreviewClick(item.id, item.name, item.mimeType);
+                    } else if (item.type === 'paper') {
+                        router.push(`/paper/${item.id}`);
                     }
                     break;
                 case 'copyLink':

@@ -39,7 +39,6 @@ import { masterKeyManager } from "@/lib/master-key";
 import { decryptFilenameInWorker } from "@/lib/filename-decryption-pool";
 import { useUser } from "@/components/user-context";
 import { FileThumbnail } from "../files/file-thumbnail";
-import { FileIcon } from "../file-icon";
 import {
     ActionBar,
     ActionBarSelection,
@@ -55,16 +54,17 @@ interface TrashItem {
     filename?: string;
     size?: number;
     mimeType?: string;
-    type: 'file' | 'folder';
+    type: 'file' | 'folder' | 'paper';
     createdAt: string;
     updatedAt: string;
     deletedAt: string;
     shaHash?: string | null;
-    // Temporary fields for async decryption
     encryptedFilename?: string;
     filenameSalt?: string;
     encryptedName?: string;
     nameSalt?: string;
+    encryptedTitle?: string;
+    titleSalt?: string;
 }
 
 export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
@@ -98,9 +98,9 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
     const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
 
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-    const [selectedItemForDelete, setSelectedItemForDelete] = useState<{ id: string; name: string; type: "file" | "folder" } | null>(null);
+    const [selectedItemForDelete, setSelectedItemForDelete] = useState<{ id: string; name: string; type: "file" | "folder" | "paper" } | null>(null);
     const [detailsModalOpen, setDetailsModalOpen] = useState(false);
-    const [selectedItemForDetails, setSelectedItemForDetails] = useState<{ id: string; name: string; type: "file" | "folder" } | null>(null);
+    const [selectedItemForDetails, setSelectedItemForDetails] = useState<{ id: string; name: string; type: "file" | "folder" | "paper" } | null>(null);
     const [bulkDeleteModalOpen, setBulkDeleteModalOpen] = useState(false);
     const [isDeletingAll, setIsDeletingAll] = useState(false);
 
@@ -120,28 +120,21 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
             setIsLoading(true);
             setError(null);
 
-            // Fetch both trash files and folders
-            let filesResponse;
-            let foldersResponse;
+            // Fetch trash files, folders and papers
+            const [filesResponse, foldersResponse, papersResponse] = await Promise.all([
+                apiClient.getTrashFiles({ page, limit }),
+                apiClient.getTrashFolders({ page, limit }),
+                apiClient.getTrashPapers({ page, limit })
+            ]);
 
-            try {
-                [filesResponse, foldersResponse] = await Promise.all([
-                    apiClient.getTrashFiles({ page, limit }),
-                    apiClient.getTrashFolders({ page, limit })
-                ]);
-            } catch (fetchErr) {
-                console.error('Error fetching trash items:', fetchErr);
-                setError('Failed to load trash items');
-                setIsLoading(false);
-                return;
-            }
-
-            if (filesResponse?.success && foldersResponse?.success) {
+            if (filesResponse?.success && foldersResponse?.success && papersResponse?.success) {
                 // Update pagination info
                 let filePages = 1;
                 let folderPages = 1;
+                let paperPages = 1;
                 let fileTotal = 0;
                 let folderTotal = 0;
+                let paperTotal = 0;
 
                 if (filesResponse.data && 'pagination' in filesResponse.data) {
                     filePages = filesResponse.data.pagination.totalPages;
@@ -153,8 +146,13 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                     folderTotal = ((foldersResponse.data as Record<string, unknown>).pagination as Record<string, unknown>).total as number;
                 }
 
-                setTotalPages(Math.max(filePages, folderPages));
-                setTotalItems(fileTotal + folderTotal);
+                if (papersResponse.data && 'pagination' in papersResponse.data) {
+                    paperPages = papersResponse.data.pagination.totalPages;
+                    paperTotal = papersResponse.data.pagination.total;
+                }
+
+                setTotalPages(Math.max(filePages, folderPages, paperPages));
+                setTotalItems(fileTotal + folderTotal + paperTotal);
 
                 // Get master key for filename decryption - we ALWAYS have access to it
                 let masterKey: Uint8Array | null = null;
@@ -170,54 +168,18 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                     return;
                 }
 
-                // Decrypt files synchronously since we have master key
-                const filesData = (filesResponse.data && 'files' in filesResponse.data) ? filesResponse.data.files : [];
-                const decryptedFiles = await Promise.all(
-                    (filesData as unknown as FileContentItem[]).map(async (file: FileContentItem) => {
-                        let decryptedName = '(Unnamed file)';
-
-                        // Try to decrypt filename if encrypted data is available
-                        if (file.encryptedFilename && file.filenameSalt) {
-                            try {
-                                decryptedName = await decryptFilenameInWorker(file.encryptedFilename, file.filenameSalt, masterKey);
-                            } catch (err) {
-                                console.warn(`Failed to decrypt filename for file ${file.id}:`, err);
-                                decryptedName = '(Unnamed file)';
-                            }
-                        }
-
-                        return {
-                            id: file.id,
-                            name: decryptedName || '(Unnamed file)',
-                            filename: file.filename,
-                            size: file.size,
-                            mimeType: file.mimetype,
-                            type: 'file' as const,
-                            createdAt: file.created_at || file.createdAt,
-                            updatedAt: file.updated_at || file.updatedAt,
-                            deletedAt: file.deleted_at || file.deletedAt || '' || '',
-                            shaHash: file.sha_hash || file.shaHash,
-                            folderId: file.folder_id || file.folderId,
-                        };
-                    })
-                );
-
                 // Decrypt folders synchronously since we have master key
                 const foldersData = (foldersResponse.data && 'data' in (foldersResponse.data as Record<string, unknown>)) ? (foldersResponse.data as Record<string, unknown>).data : (foldersResponse.data || []);
                 const decryptedFolders = await Promise.all(
-                    (foldersData as FolderContentItem[]).map(async (folder: FolderContentItem) => {
+                    ((foldersData || []) as FolderContentItem[]).map(async (folder: FolderContentItem) => {
                         let decryptedName = '(Unnamed folder)';
-
-                        // Try to decrypt folder name if encrypted data is available
                         if (folder.encryptedName && folder.nameSalt) {
                             try {
-                                decryptedName = await decryptFilenameInWorker(folder.encryptedName, folder.nameSalt, masterKey);
+                                decryptedName = await decryptFilenameInWorker(folder.encryptedName, folder.nameSalt, masterKey!);
                             } catch (err) {
-                                console.warn(`Failed to decrypt folder name for folder ${folder.id}:`, err);
                                 decryptedName = '(Unnamed folder)';
                             }
                         }
-
                         return {
                             id: folder.id,
                             name: decryptedName || '(Unnamed folder)',
@@ -229,11 +191,62 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                     })
                 );
 
+                // Decrypt files synchronously since we have master key
+                const filesData = (filesResponse.data && 'files' in filesResponse.data) ? filesResponse.data.files : [];
+                const decryptedFiles = await Promise.all(
+                    ((filesData || []) as unknown as FileContentItem[]).map(async (file: FileContentItem) => {
+                        let decryptedName = '(Unnamed file)';
+                        if (file.encryptedFilename && file.filenameSalt) {
+                            try {
+                                decryptedName = await decryptFilenameInWorker(file.encryptedFilename, file.filenameSalt, masterKey!);
+                            } catch (err) {
+                                decryptedName = '(Unnamed file)';
+                            }
+                        }
+                        return {
+                            id: file.id,
+                            name: decryptedName || '(Unnamed file)',
+                            filename: file.filename,
+                            size: file.size,
+                            mimeType: file.mimetype,
+                            type: 'file' as const,
+                            createdAt: file.created_at || file.createdAt,
+                            updatedAt: file.updated_at || file.updatedAt,
+                            deletedAt: file.deleted_at || file.deletedAt || '',
+                            shaHash: file.sha_hash || file.shaHash,
+                            folderId: file.folder_id || file.folderId,
+                        };
+                    })
+                );
+
+                // Decrypt papers synchronously since we have master key
+                const papersData = (papersResponse.data && 'papers' in papersResponse.data) ? papersResponse.data.papers : [];
+                const decryptedPapers = await Promise.all(
+                    ((papersData || []) as any[]).map(async (paper: any) => {
+                        let decryptedName = '(Unnamed paper)';
+                        if (paper.encryptedTitle && paper.titleSalt) {
+                            try {
+                                decryptedName = await decryptFilenameInWorker(paper.encryptedTitle, paper.titleSalt, masterKey!);
+                            } catch (err) {
+                                decryptedName = '(Unnamed paper)';
+                            }
+                        }
+                        return {
+                            id: paper.id,
+                            name: decryptedName || '(Unnamed paper)',
+                            type: 'paper' as const,
+                            createdAt: paper.createdAt,
+                            updatedAt: paper.updatedAt,
+                            deletedAt: paper.deletedAt || '',
+                            folderId: paper.folderId,
+                            mimeType: 'application/x-paper',
+                            size: 0
+                        };
+                    })
+                );
+
                 // Combine all items
-                // Only show folders on first page to avoid duplication, or always show them?
-                // For now, always showing them as per previous behavior, but this might be weird if pagination is only for files.
-                // Ideally we should probably split them or paginate better, but sticking to simple file pagination.
-                const allItems = [...decryptedFolders, ...decryptedFiles];
+                const allItems = [...decryptedFolders, ...decryptedFiles, ...decryptedPapers];
                 setTrashItems(allItems);
             } else {
                 setError('Failed to load trash items');
@@ -246,11 +259,13 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
         }
     };
 
-    const handleRestoreClick = async (itemId: string, itemName: string, itemType: "file" | "folder") => {
+    const handleRestoreClick = async (itemId: string, itemName: string, itemType: "file" | "folder" | "paper") => {
         try {
             let response;
             if (itemType === 'file') {
                 response = await apiClient.restoreFileFromTrash(itemId);
+            } else if (itemType === 'paper') {
+                response = await apiClient.restorePaper(itemId);
             } else {
                 response = await apiClient.restoreFolderFromTrash(itemId);
             }
@@ -268,27 +283,29 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                                 let moveBackResponse;
                                 if (itemType === 'file') {
                                     moveBackResponse = await apiClient.moveFileToTrash(itemId);
+                                } else if (itemType === 'paper') {
+                                    moveBackResponse = await apiClient.movePaperToTrash(itemId);
                                 } else {
                                     moveBackResponse = await apiClient.moveFolderToTrash(itemId);
                                 }
 
                                 if (moveBackResponse.success) {
                                     toast.success(`${itemType} moved back to trash`);
-                                    refreshTrash(); // Refresh to show the item back in trash
+                                    refreshTrash();
                                 } else {
                                     toast.error(`Failed to move ${itemType} back to trash`);
-                                    refreshTrash(); // Refresh anyway to show current state
+                                    refreshTrash();
                                 }
                             } catch (error) {
                                 console.error('Move back to trash error:', error);
                                 toast.error(`Failed to move ${itemType} back to trash`);
-                                refreshTrash(); // Refresh anyway to show current state
+                                refreshTrash();
                             }
                         },
                     },
                 });
             } else {
-                toast.error(`Failed to restore ${itemType}`);
+                toast.error(response.error || `Failed to restore ${itemType}`);
             }
         } catch (error) {
             console.error('Restore error:', error);
@@ -296,54 +313,37 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
         }
     };
 
-    const handleDeleteClick = (itemId: string, itemName: string, itemType: "file" | "folder") => {
+    const handleDeleteClick = (itemId: string, itemName: string, itemType: "file" | "folder" | "paper") => {
         setSelectedItemForDelete({ id: itemId, name: itemName, type: itemType });
         setDeleteModalOpen(true);
     };
 
-    const handleDetailsClick = async (itemId: string, itemName: string, itemType: "file" | "folder") => {
-        try {
-            let response;
-            if (itemType === 'file') {
-                response = await apiClient.getFileInfo(itemId);
-            } else {
-                response = await apiClient.getFolderInfo(itemId);
-            }
-
-            if (response.success) {
-                // console.log(`${itemType} details:`, response.data);
-                setSelectedItemForDetails({ id: itemId, name: itemName, type: itemType });
-                setDetailsModalOpen(true);
-            } else {
-                toast.error(`Failed to load ${itemType} details`);
-            }
-        } catch (error) {
-            console.error('Details error:', error);
-            toast.error(`Failed to load ${itemType} details`);
-        }
+    const handleDetailsClick = async (itemId: string, itemName: string, itemType: "file" | "folder" | "paper") => {
+        setSelectedItemForDetails({ id: itemId, name: itemName, type: itemType });
+        setDetailsModalOpen(true);
     };
 
     const handleRestoreBulk = async () => {
         const hasSelection = selectedItems.size > 0;
-        const itemsToRestore = hasSelection
-            ? Array.from(selectedItems).map(id => trashItems.find(item => item.id === id)).filter(Boolean) as TrashItem[]
-            : trashItems;
-
-        if (itemsToRestore.length === 0) return;
+        if (!hasSelection && trashItems.length === 0) return;
 
         try {
-            // Separate files and folders
-            const fileIds = itemsToRestore.filter(item => item.type === 'file').map(item => item.id);
-            const folderIds = itemsToRestore.filter(item => item.type === 'folder').map(item => item.id);
+            // Determine which items to restore
+            const itemsToRestore = hasSelection
+                ? trashItems.filter(item => selectedItems.has(item.id))
+                : trashItems;
 
-            // Make bulk API calls
+            if (itemsToRestore.length === 0) return;
+
+            // Separate files, folders and papers
+            const fileIds = itemsToRestore.filter(i => i.type === 'file').map(i => i.id);
+            const folderIds = itemsToRestore.filter(i => i.type === 'folder').map(i => i.id);
+            const paperIds = itemsToRestore.filter(i => i.type === 'paper').map(i => i.id);
+
             const promises = [];
-            if (fileIds.length > 0) {
-                promises.push(apiClient.restoreFilesFromTrash(fileIds));
-            }
-            if (folderIds.length > 0) {
-                promises.push(apiClient.restoreFoldersFromTrash(folderIds));
-            }
+            if (fileIds.length > 0) promises.push(apiClient.restoreFilesFromTrash(fileIds));
+            if (folderIds.length > 0) promises.push(apiClient.restoreFoldersFromTrash(folderIds));
+            if (paperIds.length > 0) promises.push(apiClient.restorePapersFromTrash(paperIds));
 
             const results = await Promise.all(promises);
             const allSuccessful = results.every(result => result.success);
@@ -355,25 +355,25 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                 setSelectedItems(new Set());
 
                 // Show toast with undo option
-                toast(hasSelection ? `${itemsToRestore.length} items restored successfully` : `All ${itemsToRestore.length} items restored successfully`, {
+                toast(`${itemsToRestore.length} items restored successfully`, {
                     action: {
                         label: "Undo",
                         onClick: async () => {
                             try {
                                 // Move all items back to trash
-                                const moveBackResponse = await apiClient.moveToTrash(folderIds, fileIds);
+                                const moveBackResponse = await apiClient.moveToTrash(folderIds, fileIds, paperIds);
 
                                 if (moveBackResponse.success) {
                                     toast.success(`Items moved back to trash`);
-                                    refreshTrash(); // Refresh to show items back in trash
+                                    refreshTrash();
                                 } else {
                                     toast.error(`Failed to move items back to trash`);
-                                    refreshTrash(); // Refresh anyway to show current state
+                                    refreshTrash();
                                 }
                             } catch (error) {
                                 console.error('Move back to trash error:', error);
                                 toast.error(`Failed to move items back to trash`);
-                                refreshTrash(); // Refresh anyway to show current state
+                                refreshTrash();
                             }
                         },
                     },
@@ -411,11 +411,15 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
             // Separate files and folders
             const fileIds = itemsToProcess.filter(item => item.type === 'file').map(item => item.id);
             const folderIds = itemsToProcess.filter(item => item.type === 'folder').map(item => item.id);
+            const paperIds = itemsToProcess.filter(item => item.type === 'paper').map(item => item.id);
 
             // Make bulk API calls
             const promises = [];
             if (fileIds.length > 0) {
                 promises.push(apiClient.deleteFilesPermanently(fileIds));
+            }
+            if (paperIds.length > 0) {
+                promises.push(apiClient.deletePapersPermanently(paperIds));
             }
             if (folderIds.length > 0) {
                 promises.push(apiClient.deleteFoldersPermanently(folderIds));
@@ -469,7 +473,6 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
         }
     };
 
-
     // Filter items based on search query
     const deferredQuery = React.useDeferredValue(searchQuery);
     const sortedItems = useMemo(() => {
@@ -480,8 +483,6 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
             : trashItems;
 
         return filteredItems.sort((a, b) => {
-
-
             // Handle different column types
             if (sortDescriptor.column === 'deletedAt') {
                 const firstDate = new Date(a.deletedAt).getTime();
@@ -641,7 +642,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                 {trashItems.length === 0 ? (
                     <div className="flex items-center justify-center py-12">
                         <div className="text-center">
-                            <IconTrash className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                            <IconTrashAlt className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                             <p className="text-sm text-muted-foreground">Trash is empty</p>
                         </div>
                     </div>
@@ -733,7 +734,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                                                         ) : (
                                                             <FileThumbnail
                                                                 fileId={item.id}
-                                                                mimeType={item.mimeType}
+                                                                mimeType={item.type === 'paper' ? 'application/x-paper' : item.mimeType}
                                                                 name={item.name}
                                                                 className="h-4 w-4 inline-block align-middle"
                                                                 iconClassName="h-4 w-4"
@@ -748,7 +749,6 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                                             </Table.Cell>
                                             {!isMobile && (
                                                 <Table.Cell className="text-muted-foreground text-sm truncate w-[180px]">
-                                                    {/* Original Location Placeholder - Backend doesn't seem to provide this yet? It was in header though. */}
                                                     --
                                                 </Table.Cell>
                                             )}
@@ -762,7 +762,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                                             {!isMobile && (
                                                 <Table.Cell className="text-right h-12">
                                                     <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
-                                                        {item.type === 'folder' ? '--' : formatFileSize(item.size || 0)}
+                                                        {item.type === 'folder' || item.type === 'paper' ? '--' : formatFileSize(item.size || 0)}
                                                     </span>
                                                 </Table.Cell>
                                             )}
@@ -773,10 +773,8 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                                                             <Button
                                                                 size="sm"
                                                                 variant="ghost"
-                                                                className="h-8 w-8 p-0"
+                                                                className="h-8 w-8 p-0 focus-visible:ring-0 focus-visible:ring-offset-0"
                                                                 onClick={(e) => e.stopPropagation()}
-                                                                onMouseDown={(e) => e.stopPropagation()}
-                                                                onPointerDown={(e) => e.stopPropagation()}
                                                             >
                                                                 <DotsVertical className="h-4 w-4" />
                                                             </Button>
@@ -826,52 +824,26 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                         </Table>
                     </div>
                 )}
-                {/* Pagination Controls */}
-                {totalPages > 1 && (
-                    <div className="flex items-center justify-between px-4 py-3 border-t bg-card rounded-b-lg">
-                        <div className="text-sm text-muted-foreground">
-                            Page {page} of {totalPages} ({totalItems} items)
-                        </div>
-                        <div className="flex gap-2">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setPage(p => Math.max(1, p - 1))}
-                                disabled={page === 1 || isLoading}
-                            >
-                                Previous
-                            </Button>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                                disabled={page === totalPages || isLoading}
-                            >
-                                Next
-                            </Button>
-                        </div>
-                    </div>
-                )}
             </TableCard.Root>
-            <DetailsModal
-                itemId={selectedItemForDetails?.id || ""}
-                itemName={selectedItemForDetails?.name || ""}
-                itemType={selectedItemForDetails?.type || "file"}
-                open={detailsModalOpen}
-                onOpenChange={setDetailsModalOpen}
-            />
 
             <DeletePermanentlyModal
+                open={deleteModalOpen}
+                onOpenChange={setDeleteModalOpen}
                 itemId={selectedItemForDelete?.id || ""}
                 itemName={selectedItemForDelete?.name || ""}
                 itemType={selectedItemForDelete?.type || "file"}
-                open={deleteModalOpen}
-                onOpenChange={setDeleteModalOpen}
                 onItemDeleted={() => {
-                    // Remove the item from trash view immediately (optimistic update)
                     setTrashItems(prevItems => prevItems.filter(item => item.id !== selectedItemForDelete?.id));
                 }}
                 onStorageFreed={(storageFreed) => updateStorage(-storageFreed)}
+            />
+
+            <DetailsModal
+                open={detailsModalOpen}
+                onOpenChange={setDetailsModalOpen}
+                itemId={selectedItemForDetails?.id || ""}
+                itemName={selectedItemForDetails?.name || ""}
+                itemType={selectedItemForDetails?.type || "file"}
             />
 
             {/* Bulk Delete Confirmation Dialog */}

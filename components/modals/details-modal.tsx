@@ -95,7 +95,7 @@ interface DetailsModalProps {
   children?: React.ReactNode
   itemId?: string
   itemName?: string
-  itemType?: "file" | "folder"
+  itemType?: "file" | "folder" | "paper"
   open?: boolean
   onOpenChange?: (open: boolean) => void
   onTagsUpdated?: () => void
@@ -284,14 +284,32 @@ export function DetailsModal({
       let response
       if (itemType === "file") {
         response = await apiClient.getFileInfo(itemId)
+      } else if (itemType === "paper") {
+        response = await apiClient.getPaper(itemId)
       } else {
         response = await apiClient.getFolderInfo(itemId)
       }
 
       if (response.success && response.data) {
-        const dataObj = response.data as { file?: FileInfo; folder?: FolderInfo };
-        const details = itemType === "file" ? (dataObj.file as ItemDetails | undefined) : (dataObj.folder as ItemDetails | undefined) || (response.data as ItemDetails)
-        setItemDetails(details as ItemDetails | null)
+        let details: ItemDetails | null = null;
+        if (itemType === "file") {
+          details = (response.data as any).file as ItemDetails;
+        } else if (itemType === "paper") {
+          const p = response.data as any;
+          details = {
+            id: p.id,
+            encryptedFilename: p.encryptedTitle,
+            nameSalt: p.titleSalt,
+            createdAt: p.createdAt,
+            updatedAt: p.updatedAt,
+            parentId: p.folderId,
+            mimetype: 'application/x-paper',
+            size: 0 // Papers are small metadata
+          } as ItemDetails;
+        } else {
+          details = ((response.data as any).folder as ItemDetails) || (response.data as ItemDetails);
+        }
+        setItemDetails(details)
       }
 
       if (silent) return;
@@ -391,12 +409,16 @@ export function DetailsModal({
   }, [itemDetails])
 
   const handlePreview = () => {
-    if (itemType !== 'file' || !itemId) return;
+    if (itemType === 'folder' || !itemId) return;
 
-    // Set the 'preview' URL param to trigger the FullPagePreviewModal in the parent
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('preview', itemId);
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    if (itemType === 'paper') {
+      router.push(`/paper/${itemId}`);
+    } else {
+      // Set the 'preview' URL param to trigger the FullPagePreviewModal in the parent
+      const params = new URLSearchParams(searchParams.toString());
+      params.set('preview', itemId);
+      router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    }
 
     // Close the details modal to avoid UI overlap
     setOpen(false);

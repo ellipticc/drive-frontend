@@ -152,6 +152,26 @@ export interface DownloadUrlsResponse {
   storageType: string;
 }
 
+export interface CreateShareParams {
+  file_id?: string;
+  folder_id?: string;
+  paper_id?: string;
+  wrapped_cek?: string;
+  nonce_wrap?: string;
+  has_password: boolean;
+  salt_pw?: string;
+  expires_at?: string;
+  max_views?: number;
+  max_downloads?: number;
+  permissions?: 'read' | 'write' | 'admin';
+  comments_enabled?: boolean;
+  encrypted_filename?: string;
+  nonce_filename?: string;
+  encrypted_foldername?: string;
+  nonce_foldername?: string;
+  encrypted_manifest?: { encryptedData: string; nonce: string };
+}
+
 export interface ApiResponse<T = unknown> {
   success: boolean;
   message?: string;
@@ -312,30 +332,30 @@ export interface FileContentItem {
   is_shared: boolean;
   is_starred: boolean;
   lockedUntil?: string | null;
-  retentionMode?: string | null;
   tags?: Tag[];
 }
 
 export interface ShareItem {
   id: string;
-  fileId: string;
-  fileName: string;
-  fileSize: number;
-  createdAt: string;
-  expiresAt?: string;
-  permissions: string;
+  fileId?: string;
+  folderId?: string;
+  paperId?: string;
+  wrappedCek?: string;
+  nonceWrap?: string;
+  has_password: boolean;
+  salt_pw?: string;
+  expires_at?: string;
+  max_views?: number;
+  max_downloads?: number;
+  view_count: number;
+  download_count: number;
+  permissions: 'read' | 'write' | 'admin';
   revoked: boolean;
-  linkSecret?: string;
-  views: number;
-  maxViews?: number;
-  maxDownloads?: number;
-  downloads: number;
-  folderPath: string;
-  isFolder: boolean;
-  mimeType?: string;
-  encryptedFilename?: string;
-  filenameSalt?: string;
-  folderPathSalt?: string;
+  comments_enabled?: boolean;
+  encrypted_filename?: string;
+  nonce_filename?: string;
+  encrypted_foldername?: string;
+  nonce_foldername?: string;
   recipients: Array<{
     id: string;
     userId?: string;
@@ -345,9 +365,6 @@ export interface ShareItem {
     createdAt: string;
     revokedAt?: string;
   }>;
-  has_password: boolean;
-  comments_enabled?: boolean | number;
-  comments_locked?: boolean | number;
 }
 
 export interface ShareComment {
@@ -1297,12 +1314,6 @@ class ApiClient {
   }
 
   // Recent items endpoints
-  async getRecentItems(limit = 20, folderId?: string | null): Promise<ApiResponse<RecentItem[]>> {
-    const query = new URLSearchParams({ limit: limit.toString() });
-    if (folderId && folderId !== 'root') query.append('folderId', folderId);
-    return this.request(`/recent?${query.toString()}`);
-  }
-
   async addRecentItem(data: { id: string; type: 'file' | 'folder' }): Promise<ApiResponse> {
     const idempotencyKey = generateIdempotencyKey();
     const headers = addIdempotencyKey({}, idempotencyKey);
@@ -1593,29 +1604,7 @@ class ApiClient {
     return this.request(`/folders/${folderId}`);
   }
 
-  // Sharing operations
-  async createShare(data: {
-    file_id?: string;
-    folder_id?: string;
-    wrapped_cek?: string; // Optional for true E2EE
-    nonce_wrap?: string;  // Optional for true E2EE
-    has_password?: boolean;
-    salt_pw?: string;
-    expires_at?: string;
-    max_views?: number;
-    max_downloads?: number;
-    permissions?: string;
-    comments_enabled?: boolean;
-    kyber_ciphertext?: string;
-    kyber_public_key?: string;
-    kyber_wrapped_cek?: string;
-    nonce_wrap_kyber?: string;
-    encrypted_filename?: string; // Filename encrypted with share CEK
-    nonce_filename?: string;  // Nonce for filename encryption
-    encrypted_foldername?: string; // Folder name encrypted with share CEK
-    nonce_foldername?: string;  // Nonce for folder name encryption
-    encrypted_manifest?: { encryptedData: string; nonce: string } | string;  // Encrypted folder manifest (for folder shares)
-  }): Promise<ApiResponse<{
+  async createShare(data: CreateShareParams): Promise<ApiResponse<{
     id: string;
     encryption_version?: number;
     reused?: boolean;
@@ -1623,21 +1612,13 @@ class ApiClient {
   }>> {
     const idempotencyKey = generateIdempotencyKey();
     const headers = addIdempotencyKey({}, idempotencyKey);
-    if (data.folder_id) {
-      // Create folder share
-      return this.request('/shares/folder', {
-        method: 'POST',
-        body: JSON.stringify(data),
-        headers,
-      });
-    } else {
-      // Create file share
-      return this.request('/shares', {
-        method: 'POST',
-        body: JSON.stringify(data),
-        headers,
-      });
-    }
+    // Use shares endpoint directly for files/papers, shares/folder for folders
+    const endpoint = data.folder_id ? '/shares/folder' : '/shares';
+    return this.request(endpoint, {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers,
+    });
   }
 
   async getShare(shareId: string): Promise<ApiResponse<{
@@ -1677,8 +1658,8 @@ class ApiClient {
       encrypted_name?: string;
       nonce_name?: string;
     };
-    comments_enabled?: boolean | number;
-    comments_locked?: boolean | number;
+    comments_enabled?: boolean;
+    comments_locked?: boolean;
     owner_is_checkmarked?: boolean;
   }>> {
     return this.request(`/shares/${shareId}`);
@@ -1744,15 +1725,131 @@ class ApiClient {
     });
   }
 
-  async moveToTrash(folderIds?: string[], fileIds?: string[]): Promise<ApiResponse<{ message: string }>> {
+  async moveToTrash(folderIds?: string[], fileIds?: string[], paperIds?: string[]): Promise<ApiResponse<{ message: string }>> {
     // Idempotency uses generated key (random UUID)
     const idempotencyKey = generateIdempotencyKey();
     const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/folders/trash', {
       method: 'POST',
-      body: JSON.stringify({ folderIds, fileIds }),
+      body: JSON.stringify({ folderIds, fileIds, paperIds }),
       headers,
     });
+  }
+
+  async restorePapersFromTrash(paperIds: string[]): Promise<ApiResponse<{ message: string }>> {
+    // Use parallel requests since we only have singular restore endpoint for papers currently
+    // Future optimization: Add bulk restore endpoint for papers
+    const promises = paperIds.map(id => this.request(`/papers/${id}/restore`, { method: 'POST' }));
+    await Promise.all(promises);
+    return { success: true, data: { message: 'Papers restored' } };
+  }
+
+  async createPaper(data: {
+    encryptedTitle: string;
+    titleSalt: string;
+    folderId?: string | null;
+    encryptedContent?: string;
+    iv: string;
+    salt: string;
+  }): Promise<ApiResponse<{ id: string; message: string }>> {
+    const idempotencyKey = generateIdempotencyKey();
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request('/papers', {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers
+    });
+  }
+
+  async getPaper(id: string): Promise<ApiResponse<{
+    id: string;
+    encryptedTitle: string;
+    titleSalt: string;
+    encryptedContent: string;
+    iv: string;
+    salt: string;
+    createdAt: string;
+    updatedAt: string;
+    folderId: string | null;
+  }>> {
+    return this.request(`/papers/${id}`);
+  }
+
+  async savePaper(id: string, data: {
+    encryptedContent?: string;
+    iv?: string;
+    salt?: string;
+    encryptedTitle?: string;
+    titleSalt?: string;
+  }): Promise<ApiResponse<{ success: boolean; message: string }>> {
+    return this.request(`/papers/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async movePaperToTrash(id: string): Promise<ApiResponse<{ success: boolean; message: string }>> {
+    // Single item move to trash
+    return this.request(`/papers/${id}/trash`, {
+      method: 'POST'
+    });
+  }
+
+  async movePaperToFolder(id: string, folderId: string | null): Promise<ApiResponse<{ success: boolean; message: string }>> {
+    return this.request(`/papers/${id}/move`, {
+      method: 'PUT',
+      body: JSON.stringify({ folderId })
+    });
+  }
+
+  async restorePaper(id: string): Promise<ApiResponse<{ success: boolean; message: string }>> {
+    return this.request(`/papers/${id}/restore`, {
+      method: 'POST'
+    });
+  }
+
+  async deletePaper(id: string): Promise<ApiResponse<{ success: boolean; message: string }>> {
+    // Single item permanent delete
+    return this.request(`/papers/${id}`, {
+      method: 'DELETE'
+    });
+  }
+
+  async deletePapersPermanently(paperIds: string[]): Promise<ApiResponse<{ message: string; storageFreed: number }>> {
+    // Bulk permanent delete (using unified endpoint)
+    const idempotencyKey = generateIdempotencyKey();
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request('/trash', {
+      method: 'DELETE',
+      body: JSON.stringify({ paperIds }),
+      headers
+    });
+  }
+
+  async getTrashPapers(params?: {
+    page?: number;
+    limit?: number;
+  }): Promise<ApiResponse<{
+    papers: {
+      id: string;
+      encryptedTitle: string;
+      titleSalt: string;
+      createdAt: string;
+      updatedAt: string;
+      deletedAt: string;
+      folderId: string | null;
+    }[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  }>> {
+    const query = new URLSearchParams();
+    if (params?.page) query.append('page', params.page.toString());
+    if (params?.limit) query.append('limit', params.limit.toString());
+    return this.request(`/papers/trash?${query.toString()}`);
   }
 
   async getShareKeyWrap(shareId: string): Promise<ApiResponse<{
@@ -1970,8 +2067,10 @@ class ApiClient {
   async setItemStarred(data: {
     fileId?: string;
     folderId?: string;
+    paperId?: string;
     fileIds?: string[];
     folderIds?: string[];
+    paperIds?: string[];
     isStarred: boolean
   }): Promise<ApiResponse<unknown>> {
     // Idempotency uses generated key (random UUID)
@@ -3392,34 +3491,7 @@ class ApiClient {
       headers
     });
   }
-  // Papers Management
-  async createPaper(data: any): Promise<ApiResponse<any>> {
-    return this.request('/papers', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
 
-  async getPaper(id: string): Promise<ApiResponse<any>> {
-    return this.request(`/papers/${id}`);
-  }
-
-  async updatePaper(id: string, data: any): Promise<ApiResponse<any>> {
-    return this.request(`/papers/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async deletePaper(id: string): Promise<ApiResponse<any>> {
-    return this.request(`/papers/${id}`, {
-      method: 'DELETE',
-    });
-  }
-
-  async listPapers(): Promise<ApiResponse<any>> {
-    return this.request('/papers');
-  }
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);

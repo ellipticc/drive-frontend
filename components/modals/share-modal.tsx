@@ -380,7 +380,7 @@ interface ShareModalProps {
   children?: React.ReactNode
   itemId?: string
   itemName?: string
-  itemType?: "file" | "folder"
+  itemType?: "file" | "folder" | "paper"
   open?: boolean
   onOpenChange?: (open: boolean) => void
   onShareUpdate?: () => void
@@ -529,7 +529,7 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
       if (response.success && response.data) {
         const shares = Array.isArray(response.data) ? response.data : response.data.data;
         const existingShare = shares.find((share: ShareItem) =>
-          share.fileId === itemId && !share.revoked
+          (itemType === 'paper' ? share.paperId === itemId : (itemType === 'folder' ? share.folderId === itemId : share.fileId === itemId)) && !share.revoked
         )
         if (existingShare) {
           setExistingShareId(existingShare.id)
@@ -537,18 +537,18 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
           // Automatically enable public link toggle and show existing link
           setCreatePublicLink(true)
 
-          if (existingShare.maxViews !== undefined) {
+          if (existingShare.max_views !== undefined) {
             setShareSettings(prev => ({
               ...prev,
-              maxViews: existingShare.maxViews || 0,
-              maxViewsEnabled: (existingShare.maxViews || 0) > 0
+              maxViews: existingShare.max_views || 0,
+              maxViewsEnabled: (existingShare.max_views || 0) > 0
             }));
           }
-          if (existingShare.maxDownloads !== undefined) {
+          if (existingShare.max_downloads !== undefined) {
             setShareSettings(prev => ({
               ...prev,
-              maxDownloads: existingShare.maxDownloads || 0,
-              maxDownloadsEnabled: (existingShare.maxDownloads || 0) > 0
+              maxDownloads: existingShare.max_downloads || 0,
+              maxDownloadsEnabled: (existingShare.max_downloads || 0) > 0
             }));
           }
 
@@ -557,7 +557,6 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
           }
 
           // Generate the existing share link
-          const { masterKeyManager } = await import('@/lib/master-key')
           const accountSalt = masterKeyManager.getAccountSalt()
           if (accountSalt) {
             // Derive CEK deterministically from account salt and file ID
@@ -708,32 +707,24 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
     if (emails.length === 0) return
 
     setIsLoading(true)
-    let shareId: string
     try {
-      // Always create new share with proper E2EE envelope encryption
-      // Generate CEK deterministically from user + file for consistent links
-      const { masterKeyManager } = await import('@/lib/master-key')
+      // 1. Derive share CEK deterministically
       const accountSalt = masterKeyManager.getAccountSalt()
-      if (!accountSalt) {
-        throw new Error('Account salt not available for CEK derivation')
-      }
+      if (!accountSalt) throw new Error('Account salt not available')
 
-      // Derive CEK deterministically from account salt and file ID
       const derivationInput = `share:${itemId}:${accountSalt}`
       const derivationBytes = new TextEncoder().encode(derivationInput)
       const cekHash = await crypto.subtle.digest('SHA-256', derivationBytes)
       const shareCek = new Uint8Array(cekHash)
       const shareCekHex = btoa(String.fromCharCode(...shareCek))
 
+      // 2. Handle Password
       let saltPw = undefined
       let finalShareCekHex = shareCekHex
 
-      if (shareSettings.passwordEnabled) {
-        // Generate salt for password key derivation (32 bytes for PBKDF2)
+      if (shareSettings.passwordEnabled && shareSettings.password) {
         const salt = crypto.getRandomValues(new Uint8Array(32))
         const saltB64 = btoa(String.fromCharCode(...salt))
-
-        // Derive raw bits from password using PBKDF2 (256 bits)
         const keyMaterial = await crypto.subtle.importKey(
           'raw',
           new TextEncoder().encode(shareSettings.password),
@@ -742,150 +733,106 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
           ['deriveBits']
         )
         const derivedBits = await crypto.subtle.deriveBits(
-          {
-            name: 'PBKDF2',
-            salt: salt,
-            iterations: 100000,
-            hash: 'SHA-256'
-          },
+          { name: 'PBKDF2', salt: salt, iterations: 100000, hash: 'SHA-256' },
           keyMaterial,
           256
         )
         const derivedBytes = new Uint8Array(derivedBits)
-
-        // Import AES-KW key for wrapping from derived bytes (non-extractable)
-        const passwordKey = await crypto.subtle.importKey(
-          'raw',
-          derivedBytes.buffer,
-          { name: 'AES-KW', length: 256 },
-          false,
-          ['wrapKey']
-        )
-        void passwordKey;
-
-        // Use derived bytes directly for XChaCha20 key (first 32 bytes)
         const xchachaKey = derivedBytes.slice(0, 32)
         const nonce = crypto.getRandomValues(new Uint8Array(24))
-
         const { xchacha20poly1305 } = await import('@noble/ciphers/chacha.js')
         const xchaCiphertext = xchacha20poly1305(xchachaKey, nonce).encrypt(shareCek)
-        const nonceB64 = btoa(String.fromCharCode(...nonce))
-        const ciphertextB64 = btoa(String.fromCharCode(...xchaCiphertext))
-
-        // Store salt:nonce:encryptedCek in salt_pw
-        saltPw = saltB64 + ':' + nonceB64 + ':' + ciphertextB64
-
-        // Don't put CEK in URL for password-protected shares
+        saltPw = `${saltB64}:${btoa(String.fromCharCode(...nonce))}:${btoa(String.fromCharCode(...xchaCiphertext))}`
         finalShareCekHex = ''
       }
 
-      // Get the file/folder's wrapped CEK from the database and unwrap it
-      const infoResponse = itemType === 'folder'
-        ? await apiClient.getFolderInfo(itemId)
-        : await apiClient.getFileInfo(itemId)
+      // 3. Get Item Info and Unwrap CEK
+      let infoResponse;
+      if (itemType === 'folder') infoResponse = await apiClient.getFolderInfo(itemId);
+      else if (itemType === 'paper') infoResponse = await apiClient.getPaper(itemId);
+      else infoResponse = await apiClient.getFileInfo(itemId);
 
-      if (!infoResponse.success || !infoResponse.data) {
-        throw new Error(`Failed to get ${itemType} encryption info`)
-      }
+      if (!infoResponse.success || !infoResponse.data) throw new Error(`Failed to get ${itemType} info`)
 
-      const dataObj = infoResponse.data as { file?: FileInfo; folder?: FolderInfo };
-      const rawItemData = itemType === 'folder' ? dataObj.folder : dataObj.file;
-      const itemData = rawItemData as unknown as Record<string, unknown> | undefined;
-      if (!itemData || !itemData.wrapped_cek || !itemData.nonce_wrap_kyber) {
-        throw new Error(`${itemType} encryption info not available`)
-      }
+      const { encryptData, decryptData, hexToUint8Array } = await import('@/lib/crypto')
+      let itemFileCek: Uint8Array;
 
-      // Get user keys to unwrap the file's CEK
-      const userKeys = await keyManager.getUserKeys()
-
-      // Unwrap the file's CEK using Kyber decapsulation
-      const { ml_kem768 } = await import('@noble/post-quantum/ml-kem.js')
-      const { decryptData, hexToUint8Array } = await import('@/lib/crypto')
-
-      // For folder shares, use share CEK directly (no envelope encryption since multiple files have different CEKs)
-      let wrappedFileCek: string | undefined = undefined
-      let envelopeNonce: string | undefined = undefined
-      if (itemType === 'file') {
-        // For file shares, do envelope encryption
-        // First, get the Kyber shared secret
+      if (itemType === 'paper') {
+        const paperData = infoResponse.data as any;
+        const masterKey = masterKeyManager.getMasterKey();
+        if (!masterKey) throw new Error('Master key not available');
+        const saltBytes = Uint8Array.from(atob(paperData.salt), c => c.charCodeAt(0));
+        const keyMaterial = new Uint8Array(saltBytes.length + 17);
+        keyMaterial.set(saltBytes, 0);
+        keyMaterial.set(new TextEncoder().encode('paper-content-key'), saltBytes.length);
+        const hmacKey = await crypto.subtle.importKey('raw', masterKey as BufferSource, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+        const derivedKeyMaterial = await crypto.subtle.sign('HMAC', hmacKey, keyMaterial);
+        itemFileCek = new Uint8Array(derivedKeyMaterial.slice(0, 32));
+      } else if (itemType === 'folder') {
+        itemFileCek = shareCek;
+      } else {
+        const dataObj = infoResponse.data as { file?: FileInfo; folder?: FolderInfo };
+        const itemData = dataObj.file as unknown as Record<string, unknown> | undefined;
+        if (!itemData || !itemData.wrapped_cek || !itemData.nonce_wrap_kyber) throw new Error(`File encryption info unavailable`)
+        const { ml_kem768 } = await import('@noble/post-quantum/ml-kem.js')
+        const userKeys = await keyManager.getUserKeys()
         const kyberCiphertext = hexToUint8Array(String(itemData.kyber_ciphertext))
         const sharedSecret = ml_kem768.decapsulate(kyberCiphertext, userKeys.keypairs.kyberPrivateKey)
-
-        // Decrypt the file's CEK
-        const fileCek = decryptData(String(itemData.wrapped_cek), new Uint8Array(sharedSecret), String(itemData.nonce_wrap_kyber))
-
-        // Now encrypt the file's CEK with the share CEK (envelope encryption)
-        const { encryptData } = await import('@/lib/crypto')
-        const envelopeEncryption = encryptData(fileCek, shareCek)
-        wrappedFileCek = envelopeEncryption.encryptedData
-        envelopeNonce = envelopeEncryption.nonce
-      } else {
-        // For folder shares, use share CEK directly
-        wrappedFileCek = btoa(String.fromCharCode(...shareCek))
-        const nonceBytes = crypto.getRandomValues(new Uint8Array(24))
-        envelopeNonce = btoa(String.fromCharCode(...nonceBytes))
+        itemFileCek = decryptData(String(itemData.wrapped_cek), new Uint8Array(sharedSecret), String(itemData.nonce_wrap_kyber))
       }
 
-      // Encrypt the filename with the share CEK for E2EE filename decryption on share page
-      const { encryptData } = await import('@/lib/crypto')
+      // 4. Envelope Encryption
+      const envelopeEncryption = encryptData(itemFileCek, shareCek)
+      const wrappedItemCek = envelopeEncryption.encryptedData
+      const envelopeNonce = envelopeEncryption.nonce
+
+      // 5. Filename/Foldername Encryption
       const filenameBytes = new TextEncoder().encode(itemName)
-      const filenameEncryption = encryptData(filenameBytes, shareCek)
-      const encryptedFilename = filenameEncryption.encryptedData
-      const filenameNonce = filenameEncryption.nonce
+      const filenameEnc = encryptData(filenameBytes, shareCek)
+      const encryptedFilename = filenameEnc.encryptedData
+      const filenameNonce = filenameEnc.nonce
 
-      // For folder shares, also encrypt the folder name with share CEK
-      let encryptedFoldername: string | undefined = undefined
-      let foldernameNonce: string | undefined = undefined
+      let encryptedFoldername = undefined
+      let foldernameNonce = undefined
       if (itemType === 'folder') {
-        const foldernameBytes = new TextEncoder().encode(itemName)
-        const foldernameEncryption = encryptData(foldernameBytes, shareCek)
-        encryptedFoldername = foldernameEncryption.encryptedData
-        foldernameNonce = foldernameEncryption.nonce
+        const folderEnc = encryptData(new TextEncoder().encode(itemName), shareCek)
+        encryptedFoldername = folderEnc.encryptedData
+        foldernameNonce = folderEnc.nonce
       }
 
-      // For folder shares, build and encrypt the manifest
-      let encryptedManifest: { encryptedData: string; nonce: string } | undefined = undefined
+      // 6. Manifest
+      let encryptedManifest = undefined
       if (itemType === 'folder') {
-        try {
-          encryptedManifest = await buildEncryptedFolderManifest(itemId, shareCek)
-        } catch (manifestErr) {
-          console.error('Failed to build encrypted manifest for folder:', manifestErr)
-          // CRITICAL: Don't continue without manifest for folder shares!
-          // This would fall back to unencrypted plaintext manifest
-          throw new Error(`Cannot create folder share without encrypted manifest: ${manifestErr instanceof Error ? manifestErr.message : String(manifestErr)}`)
-        }
+        encryptedManifest = await buildEncryptedFolderManifest(itemId, shareCek)
       }
 
-      // Create share with envelope-encrypted CEK and encrypted filename
-      const response = await apiClient.createShare({
-        [itemType === 'folder' ? 'folder_id' : 'file_id']: itemId,
-        wrapped_cek: wrappedFileCek, // Envelope-encrypted file CEK
-        nonce_wrap: envelopeNonce,  // Nonce for envelope encryption
+      // 7. Create Share
+      const createResponse = await apiClient.createShare({
+        file_id: itemType === 'file' ? itemId : undefined,
+        folder_id: itemType === 'folder' ? itemId : undefined,
+        paper_id: itemType === 'paper' ? itemId : undefined,
+        wrapped_cek: wrappedItemCek,
+        nonce_wrap: envelopeNonce,
         has_password: shareSettings.passwordEnabled,
-        salt_pw: shareSettings.passwordEnabled ? saltPw : undefined,
-        encrypted_filename: encryptedFilename, // Filename encrypted with share CEK
-        nonce_filename: filenameNonce, // Nonce for filename encryption
-        encrypted_foldername: encryptedFoldername, // Folder name encrypted with share CEK (for folders)
-        nonce_foldername: foldernameNonce, // Nonce for folder name encryption (for folders)
-        expires_at: shareSettings.expirationDate?.toISOString(),
-        max_views: shareSettings.maxViewsEnabled ? (shareSettings.maxViews || undefined) : undefined,
-        max_downloads: shareSettings.maxDownloadsEnabled ? (shareSettings.maxDownloads || undefined) : undefined,
-        permissions: 'read',
+        salt_pw: saltPw,
+        max_views: shareSettings.maxViewsEnabled ? shareSettings.maxViews : undefined,
+        max_downloads: shareSettings.maxDownloadsEnabled ? shareSettings.maxDownloads : undefined,
+        expires_at: shareSettings.expirationDate ? shareSettings.expirationDate.toISOString() : undefined,
         comments_enabled: shareSettings.commentsEnabled,
-        encrypted_manifest: encryptedManifest  // Encrypted manifest for folder shares
+        encrypted_filename: encryptedFilename,
+        nonce_filename: filenameNonce,
+        encrypted_foldername: encryptedFoldername,
+        nonce_foldername: foldernameNonce,
+        encrypted_manifest: encryptedManifest
       })
 
-      if (!response.success || !response.data?.id) {
-        throw new Error(response.error || "Failed to create share")
-      }
-
-      shareId = response.data.id
+      if (!createResponse.success || !createResponse.data?.id) throw new Error(createResponse.error || "Failed to create share")
+      const shareId = createResponse.data.id
       setExistingShareId(shareId)
 
-      // Construct share URL with share CEK in fragment (only for non-password shares)
       const shareUrl = `https://drive.ellipticc.com/s/${shareId}${finalShareCekHex ? '#' + finalShareCekHex : ''}`
 
-      // Send emails with the CEK-embedded URL
+      // 8. Send Emails
       const emailResponse = await apiClient.sendShareEmails(shareId, {
         recipients: emails,
         share_url: shareUrl,
@@ -905,7 +852,7 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
       }
     } catch (error) {
       console.error("Failed to share item:", error)
-      toast.error(`Failed to share ${itemType}`)
+      toast.error(error instanceof Error ? error.message : `Failed to share ${itemType}`)
     } finally {
       setIsLoading(false)
     }
@@ -913,38 +860,25 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
 
   const handleCreatePublicLink = async () => {
     if (!createPublicLink) return
-
     setIsLoading(true)
     try {
-      // First check if there's already a share for this item
+      // 1. Check existing
       const mySharesResponse = await apiClient.getMyShares()
       if (mySharesResponse.success && mySharesResponse.data) {
         const shares = Array.isArray(mySharesResponse.data) ? mySharesResponse.data : mySharesResponse.data.data;
         const existingShare = shares.find((share: ShareItem) =>
-          share.fileId === itemId && !share.revoked
+          (itemType === 'paper' ? share.paperId === itemId : (itemType === 'folder' ? share.folderId === itemId : share.fileId === itemId)) && !share.revoked
         )
 
         if (existingShare) {
-          // For existing shares, derive the CEK deterministically to get the exact same link
-          // This ensures true E2EE while maintaining link consistency
-
-          // Get user account salt for deterministic derivation
-          const { masterKeyManager } = await import('@/lib/master-key')
           const accountSalt = masterKeyManager.getAccountSalt()
-          if (!accountSalt) {
-            throw new Error('Account salt not available for CEK derivation')
-          }
-
-          // Derive CEK deterministically from account salt and file ID
-          // This ensures the same user sharing the same file always gets the same CEK
+          if (!accountSalt) throw new Error('Account salt not available')
           const derivationInput = `share:${itemId}:${accountSalt}`
           const derivationBytes = new TextEncoder().encode(derivationInput)
           const cekHash = await crypto.subtle.digest('SHA-256', derivationBytes)
           const shareCek = new Uint8Array(cekHash)
           const shareCekHex = btoa(String.fromCharCode(...shareCek))
 
-          // Show existing share link with deterministically derived CEK in fragment
-          // SECURITY: ONLY include CEK if no password is set
           const finalShareUrl = existingShare.has_password
             ? `https://drive.ellipticc.com/s/${existingShare.id}`
             : `https://drive.ellipticc.com/s/${existingShare.id}#${shareCekHex}`
@@ -957,184 +891,108 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
         }
       }
 
-      // No existing share, create a new one with proper E2EE
-      // Generate CEK deterministically from user + file for consistent links
-      const { masterKeyManager } = await import('@/lib/master-key')
+      // 2. Create New
       const accountSalt = masterKeyManager.getAccountSalt()
-      if (!accountSalt) {
-        throw new Error('Account salt not available for CEK derivation')
-      }
-
-      // Derive CEK deterministically from account salt and item ID
-      // This ensures the same user sharing the same item always gets the same CEK
+      if (!accountSalt) throw new Error('Account salt not available')
       const derivationInput = `share:${itemId}:${accountSalt}`
       const derivationBytes = new TextEncoder().encode(derivationInput)
       const cekHash = await crypto.subtle.digest('SHA-256', derivationBytes)
       const shareCek = new Uint8Array(cekHash)
       const shareCekHex = btoa(String.fromCharCode(...shareCek))
 
-      let wrappedFileCek: string
-      let envelopeNonce: string
-
-      if (itemType === 'folder') {
-        // For folder sharing, we don't need to unwrap any existing CEK
-        // We just use the share CEK directly for envelope encryption
-        const { encryptData } = await import('@/lib/crypto')
-        const envelopeEncryption = encryptData(shareCek, shareCek) // Self-encrypt for consistency
-        wrappedFileCek = envelopeEncryption.encryptedData
-        envelopeNonce = envelopeEncryption.nonce
-      } else {
-        // For file sharing, get the file's wrapped CEK from the database and unwrap it
-        const infoResponse = await apiClient.getFileInfo(itemId)
-
-        if (!infoResponse.success || !infoResponse.data) {
-          throw new Error(`Failed to get file encryption info`)
-        }
-
-        const dataObj = infoResponse.data as { file?: FileInfo; folder?: FolderInfo };
-        const itemData = dataObj.file as unknown as Record<string, unknown> | undefined;
-        if (!itemData || !itemData.wrapped_cek || !itemData.nonce_wrap_kyber) {
-          throw new Error(`File encryption info not available`)
-        }
-
-        // Get user keys to unwrap the file's CEK
-        const userKeys = await keyManager.getUserKeys()
-
-        // Unwrap the file's CEK using Kyber decapsulation
-        const { ml_kem768 } = await import('@noble/post-quantum/ml-kem.js')
-        const { decryptData, hexToUint8Array } = await import('@/lib/crypto')
-
-        // First, get the Kyber shared secret
-        const kyberCiphertext = hexToUint8Array(String(itemData.kyber_ciphertext))
-        const sharedSecret = ml_kem768.decapsulate(kyberCiphertext, userKeys.keypairs.kyberPrivateKey)
-
-        // Decrypt the file's CEK
-        const fileCek = decryptData(String(itemData.wrapped_cek), new Uint8Array(sharedSecret), String(itemData.nonce_wrap_kyber))
-
-        // Now encrypt the file's CEK with the share CEK (envelope encryption)
-        const { encryptData } = await import('@/lib/crypto')
-        const envelopeEncryption = encryptData(fileCek, shareCek)
-        wrappedFileCek = envelopeEncryption.encryptedData
-        envelopeNonce = envelopeEncryption.nonce
-      }
-
       let saltPw = undefined
       let finalShareCekHex = shareCekHex
 
-      if (shareSettings.passwordEnabled) {
-        // Generate salt for password key derivation (32 bytes for PBKDF2)
+      if (shareSettings.passwordEnabled && shareSettings.password) {
         const salt = crypto.getRandomValues(new Uint8Array(32))
         const saltB64 = btoa(String.fromCharCode(...salt))
-
-        // Derive raw bits from password using PBKDF2 (256 bits)
-        const keyMaterial = await crypto.subtle.importKey(
-          'raw',
-          new TextEncoder().encode(shareSettings.password),
-          'PBKDF2',
-          false,
-          ['deriveBits']
-        )
-        const derivedBits = await crypto.subtle.deriveBits(
-          {
-            name: 'PBKDF2',
-            salt: salt,
-            iterations: 100000,
-            hash: 'SHA-256'
-          },
-          keyMaterial,
-          256
-        )
+        const keyMaterial = await crypto.subtle.importKey('raw', new TextEncoder().encode(shareSettings.password), 'PBKDF2', false, ['deriveBits'])
+        const derivedBits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: salt, iterations: 100000, hash: 'SHA-256' }, keyMaterial, 256)
         const derivedBytes = new Uint8Array(derivedBits)
-
-        // Import AES-KW key for wrapping from derived bytes (non-extractable)
-        const passwordKey = await crypto.subtle.importKey(
-          'raw',
-          derivedBytes.buffer,
-          { name: 'AES-KW', length: 256 },
-          false,
-          ['wrapKey']
-        )
-        void passwordKey;
-
-        // Use derived bytes directly for XChaCha20 key (first 32 bytes)
         const xchachaKey = derivedBytes.slice(0, 32)
         const nonce = crypto.getRandomValues(new Uint8Array(24))
-
         const { xchacha20poly1305 } = await import('@noble/ciphers/chacha.js')
         const xchaCiphertext = xchacha20poly1305(xchachaKey, nonce).encrypt(shareCek)
-        const nonceB64 = btoa(String.fromCharCode(...nonce))
-        const ciphertextB64 = btoa(String.fromCharCode(...xchaCiphertext))
-
-        // Store salt:nonce:encryptedCek in salt_pw
-        saltPw = saltB64 + ':' + nonceB64 + ':' + ciphertextB64
-
-        // Don't put CEK in URL for password-protected shares
+        saltPw = `${saltB64}:${btoa(String.fromCharCode(...nonce))}:${btoa(String.fromCharCode(...xchaCiphertext))}`
         finalShareCekHex = ''
       }
 
-      // Encrypt the filename with the share CEK for E2EE filename decryption on share page
-      const { encryptData: encryptDataForFilename } = await import('@/lib/crypto')
-      const filenameBytes = new TextEncoder().encode(itemName)
-      const filenameEncryption = encryptDataForFilename(filenameBytes, shareCek)
-      const encryptedFilename = filenameEncryption.encryptedData
-      const filenameNonce = filenameEncryption.nonce
+      let infoResponse;
+      if (itemType === 'folder') infoResponse = await apiClient.getFolderInfo(itemId);
+      else if (itemType === 'paper') infoResponse = await apiClient.getPaper(itemId);
+      else infoResponse = await apiClient.getFileInfo(itemId);
+      if (!infoResponse.success || !infoResponse.data) throw new Error(`Failed to get info`)
 
-      // For folder shares, also encrypt the folder name with share CEK
-      let encryptedFoldername: string | undefined = undefined
-      let foldernameNonce: string | undefined = undefined
-      if (itemType === 'folder') {
-        const foldernameBytes = new TextEncoder().encode(itemName)
-        const foldernameEncryption = encryptDataForFilename(foldernameBytes, shareCek)
-        encryptedFoldername = foldernameEncryption.encryptedData
-        foldernameNonce = foldernameEncryption.nonce
+      const { encryptData, decryptData, hexToUint8Array } = await import('@/lib/crypto')
+      let itemFileCek: Uint8Array;
+
+      if (itemType === 'paper') {
+        const paperData = infoResponse.data as any;
+        const masterKey = masterKeyManager.getMasterKey();
+        if (!masterKey) throw new Error('Master key not available');
+        const saltBytes = Uint8Array.from(atob(paperData.salt), c => c.charCodeAt(0));
+        const keyMaterial = new Uint8Array(saltBytes.length + 17);
+        keyMaterial.set(saltBytes, 0);
+        keyMaterial.set(new TextEncoder().encode('paper-content-key'), saltBytes.length);
+        const hmacKey = await crypto.subtle.importKey('raw', masterKey as BufferSource, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+        const derivedKeyMaterial = await crypto.subtle.sign('HMAC', hmacKey, keyMaterial);
+        itemFileCek = new Uint8Array(derivedKeyMaterial.slice(0, 32));
+      } else if (itemType === 'folder') {
+        itemFileCek = shareCek;
+      } else {
+        const dataObj = infoResponse.data as { file?: FileInfo; folder?: FolderInfo };
+        const itemData = dataObj.file as unknown as Record<string, unknown> | undefined;
+        if (!itemData || !itemData.wrapped_cek || !itemData.nonce_wrap_kyber) throw new Error(`Encryption info unavailable`)
+        const { ml_kem768 } = await import('@noble/post-quantum/ml-kem.js')
+        const userKeys = await keyManager.getUserKeys()
+        const kyberCiphertext = hexToUint8Array(String(itemData.kyber_ciphertext))
+        const sharedSecret = ml_kem768.decapsulate(kyberCiphertext, userKeys.keypairs.kyberPrivateKey)
+        itemFileCek = decryptData(String(itemData.wrapped_cek), new Uint8Array(sharedSecret), String(itemData.nonce_wrap_kyber))
       }
 
-      // For folder shares, build and encrypt the manifest
-      let encryptedManifest: { encryptedData: string; nonce: string } | undefined = undefined
+      const envelopeEnc = encryptData(itemFileCek, shareCek)
+      const filenameEnc = encryptData(new TextEncoder().encode(itemName), shareCek)
+      let encryptedFoldername = undefined;
+      let foldernameNonce = undefined;
       if (itemType === 'folder') {
-        try {
-          encryptedManifest = await buildEncryptedFolderManifest(itemId, shareCek)
-        } catch (manifestErr) {
-          console.warn('Failed to build encrypted manifest for folder:', manifestErr)
-          // Continue without manifest - backend will build it dynamically
-        }
+        const fEnc = encryptData(new TextEncoder().encode(itemName), shareCek)
+        encryptedFoldername = fEnc.encryptedData
+        foldernameNonce = fEnc.nonce
       }
+      let encryptedManifest = undefined;
+      if (itemType === 'folder') encryptedManifest = await buildEncryptedFolderManifest(itemId, shareCek)
 
-      // Create share with envelope-encrypted CEK
       const response = await apiClient.createShare({
-        [itemType === 'folder' ? 'folder_id' : 'file_id']: itemId,
-        wrapped_cek: wrappedFileCek, // Envelope-encrypted file CEK
-        nonce_wrap: envelopeNonce,  // Nonce for envelope encryption
+        file_id: itemType === 'file' ? itemId : undefined,
+        folder_id: itemType === 'folder' ? itemId : undefined,
+        paper_id: itemType === 'paper' ? itemId : undefined,
+        wrapped_cek: envelopeEnc.encryptedData,
+        nonce_wrap: envelopeEnc.nonce,
         has_password: shareSettings.passwordEnabled,
         salt_pw: saltPw,
-        encrypted_filename: encryptedFilename, // Filename encrypted with share CEK
-        nonce_filename: filenameNonce, // Nonce for filename encryption
-        encrypted_foldername: encryptedFoldername, // Folder name encrypted with share CEK (for folders)
-        nonce_foldername: foldernameNonce, // Nonce for folder name encryption (for folders)
+        encrypted_filename: filenameEnc.encryptedData,
+        nonce_filename: filenameEnc.nonce,
+        encrypted_foldername: encryptedFoldername,
+        nonce_foldername: foldernameNonce,
         expires_at: shareSettings.expirationDate?.toISOString(),
-        max_views: shareSettings.maxDownloads || undefined,
+        max_views: shareSettings.maxViewsEnabled ? (shareSettings.maxViews || undefined) : undefined,
+        max_downloads: shareSettings.maxDownloadsEnabled ? (shareSettings.maxDownloads || undefined) : undefined,
         permissions: 'read',
-        encrypted_manifest: encryptedManifest  // Encrypted manifest for folder shares
+        comments_enabled: shareSettings.commentsEnabled,
+        encrypted_manifest: encryptedManifest
       })
 
-      if (!response.success || !response.data?.id) {
-        throw new Error(response.error || "Failed to create share")
-      }
-
+      if (!response.success || !response.data?.id) throw new Error(response.error || "Failed to create share")
       const shareId = response.data.id
       setExistingShareId(shareId)
 
-      // Construct the final share URL with share CEK in fragment for true E2EE (only for non-password)
       const shareUrl = `https://drive.ellipticc.com/s/${shareId}${finalShareCekHex ? '#' + finalShareCekHex : ''}`
       setShareLink(shareUrl)
-
       toast.success("Public link created successfully")
       onShareUpdate?.()
-
     } catch (error) {
       console.error("Failed to create public link:", error)
-      const message = error instanceof Error ? error.message : String(error)
-      toast.error(message || "Failed to create public link")
+      toast.error(error instanceof Error ? error.message : "Failed to create public link")
     } finally {
       setIsLoading(false)
     }

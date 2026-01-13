@@ -17,7 +17,7 @@ interface ShareContext extends Partial<ShareItem> {
   fileSize?: number;
   createdAt?: string;
   expiresAt?: string;
-  permissions?: string;
+  permissions?: 'read' | 'write' | 'admin';
   revoked?: boolean;
   linkSecret?: string;
   views?: number;
@@ -39,8 +39,8 @@ interface ShareContext extends Partial<ShareItem> {
     revokedAt?: string;
   }>;
   has_password?: boolean;
-  comments_enabled?: boolean | number;
-  comments_locked?: boolean | number;
+  comments_enabled?: boolean;
+  comments_locked?: boolean;
 }
 
 interface AudioPreviewProps {
