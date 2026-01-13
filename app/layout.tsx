@@ -9,7 +9,7 @@ import { GlobalUploadProvider } from "@/components/global-upload-context";
 import { CurrentFolderProvider } from "@/components/current-folder-context";
 import { BillingProvider } from "@/components/billing-context";
 import { ConditionalLayout } from "@/components/layout/conditional-layout";
-import { SessionPingProvider } from "@/components/session-ping-provider";
+
 import { NotificationProvider } from "@/components/notifications/notification-provider";
 import { LanguageProvider } from "@/lib/i18n/language-context";
 import { ThemeConfiguration } from "@/components/theme-configuration";
@@ -254,7 +254,7 @@ export default function RootLayout({
                         <TooltipProvider>
                           <ThemeConfiguration />
                           <ServiceWorkerRegister />
-                          <SessionPingProvider />
+
                           <ConditionalLayout>{children}</ConditionalLayout>
                           <Toaster
                             position="bottom-right"
