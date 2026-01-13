@@ -43,6 +43,7 @@ import { useOnFileAdded, useOnFileDeleted, useOnFileReplaced, useGlobalUpload } 
 import { FileThumbnail } from "../files/file-thumbnail";
 import { FileIcon } from "@/components/file-icon";
 import { masterKeyManager } from "@/lib/master-key";
+import { paperService } from "@/lib/paper-service";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useRecentFiles, RecentItem } from "@/hooks/use-recent-files";
 import { SuggestedFiles } from "@/components/files/suggested-files";
@@ -512,14 +513,14 @@ export const Table01DividerLineSm = ({
         setGlobalCurrentFolderId(currentFolderId === 'root' ? null : currentFolderId);
     }, [currentFolderId, setGlobalCurrentFolderId]);
     const [renameModalOpen, setRenameModalOpen] = useState(false);
-    const [selectedItemForRename, setSelectedItemForRename] = useState<{ id: string; name: string; type: "file" | "folder" } | null>(null);
+    const [selectedItemForRename, setSelectedItemForRename] = useState<{ id: string; name: string; type: "file" | "folder" | "paper" } | null>(null);
     const [inlineRenameId, setInlineRenameId] = useState<string | null>(null);
     const [inlineRenameValue, setInlineRenameValue] = useState("");
     const [isInlineRenaming, setIsInlineRenaming] = useState(false);
 
     // Rename conflict state
     const [renameConflictOpen, setRenameConflictOpen] = useState(false);
-    const [renameConflictItems, setRenameConflictItems] = useState<Array<{ id: string; name: string; type: 'file' | 'folder'; existingPath: string; newPath: string; existingItem?: FileItem; existingFileId?: string }>>([]);
+    const [renameConflictItems, setRenameConflictItems] = useState<Array<{ id: string; name: string; type: 'file' | 'folder' | 'paper'; existingPath: string; newPath: string; existingItem?: FileItem; existingFileId?: string }>>([]);
     const [pendingRenameManifest, setPendingRenameManifest] = useState<{
         manifestHash: string;
         manifestCreatedAt: number;
@@ -538,24 +539,24 @@ export const Table01DividerLineSm = ({
     const [renameModalInitialName, setRenameModalInitialName] = useState<string | undefined>(undefined);
 
     const [shareModalOpen, setShareModalOpen] = useState(false);
-    const [selectedItemForShare, setSelectedItemForShare] = useState<{ id: string; name: string; type: "file" | "folder" } | null>(null);
+    const [selectedItemForShare, setSelectedItemForShare] = useState<{ id: string; name: string; type: "file" | "folder" | "paper" } | null>(null);
     const [sharePickerModalOpen, setSharePickerModalOpen] = useState(false);
     const [detailsModalOpen, setDetailsModalOpen] = useState(false);
-    const [selectedItemForDetails, setSelectedItemForDetails] = useState<{ id: string; name: string; type: "file" | "folder" } | null>(null);
+    const [selectedItemForDetails, setSelectedItemForDetails] = useState<{ id: string; name: string; type: "file" | "folder" | "paper" } | null>(null);
     const [moveToFolderModalOpen, setMoveToFolderModalOpen] = useState(false);
-    const [selectedItemsForMoveToFolder, setSelectedItemsForMoveToFolder] = useState<Array<{ id: string; name: string; type: "file" | "folder" }>>([]);
+    const [selectedItemsForMoveToFolder, setSelectedItemsForMoveToFolder] = useState<Array<{ id: string; name: string; type: "file" | "folder" | "paper" }>>([]);
     const [copyModalOpen, setCopyModalOpen] = useState(false);
-    const [selectedItemsForCopy, setSelectedItemsForCopy] = useState<Array<{ id: string; name: string; type: "file" | "folder" }>>([]);
+    const [selectedItemsForCopy, setSelectedItemsForCopy] = useState<Array<{ id: string; name: string; type: "file" | "folder" | "paper" }>>([]);
     const [moveToTrashModalOpen, setMoveToTrashModalOpen] = useState(false);
     const [lockModalOpen, setLockModalOpen] = useState(false);
-    const [selectedItemForLock, setSelectedItemForLock] = useState<{ id: string; name: string; type: "file" | "folder" } | null>(null);
+    const [selectedItemForLock, setSelectedItemForLock] = useState<{ id: string; name: string; type: "file" | "folder" | "paper" } | null>(null);
 
-    const handleLockClick = useCallback((itemId: string, itemName: string, itemType: "file" | "folder") => {
+    const handleLockClick = useCallback((itemId: string, itemName: string, itemType: "file" | "folder" | "paper") => {
         setSelectedItemForLock({ id: itemId, name: itemName, type: itemType });
         setLockModalOpen(true);
     }, []);
 
-    const [selectedItemForMoveToTrash] = useState<{ id: string; name: string; type: "file" | "folder" } | null>(null);
+    const [selectedItemForMoveToTrash] = useState<{ id: string; name: string; type: "file" | "folder" | "paper" } | null>(null);
 
     // Preview modal state
     const [previewModalOpen, setPreviewModalOpen] = useState(false);
@@ -563,7 +564,7 @@ export const Table01DividerLineSm = ({
 
     // Copy conflict state
     const [copyConflictOpen, setCopyConflictOpen] = useState(false);
-    const [copyConflictItems, setCopyConflictItems] = useState<Array<{ id: string; name: string; type: 'file' | 'folder'; conflictingItemId?: string; existingPath: string; newPath: string }>>([]);
+    const [copyConflictItems, setCopyConflictItems] = useState<Array<{ id: string; name: string; type: 'file' | 'folder' | 'paper'; conflictingItemId?: string; existingPath: string; newPath: string }>>([]);
     const [copyDestinationFolderId, setCopyDestinationFolderId] = useState<string | null>(null);
 
     interface UserData {
@@ -1467,7 +1468,7 @@ export const Table01DividerLineSm = ({
 
         try {
             // Separate files and folders
-            const fileIds = selectedItemsArray.filter(item => item.type === 'file').map(item => item.id);
+            const fileIds = selectedItemsArray.filter(item => item.type === 'file' || item.type === 'paper').map(item => item.id);
             const folderIds = selectedItemsArray.filter(item => item.type === 'folder').map(item => item.id);
 
             // Use unified bulk API for both files and folders
@@ -1525,10 +1526,10 @@ export const Table01DividerLineSm = ({
         const selectedItemsArray = Array.from(selectedItems).map(id => {
             const item = filesMap.get(id);
             return item ? { id: item.id, name: item.name, type: item.type } : null;
-        }).filter(Boolean) as Array<{ id: string, name: string, type: "file" | "folder" }>;
+        }).filter(Boolean) as Array<{ id: string, name: string, type: FileItem['type'] }>;
 
         if (selectedItemsArray.length === 0) return;
-        setSelectedItemsForMoveToFolder(selectedItemsArray);
+        setSelectedItemsForMoveToFolder(selectedItemsArray as any);
         setMoveToFolderModalOpen(true);
     }, [selectedItems, filesMap]);
 
@@ -1537,17 +1538,17 @@ export const Table01DividerLineSm = ({
         const selectedItemsArray = Array.from(selectedItems).map(id => {
             const item = filesMap.get(id);
             return item ? { id: item.id, name: item.name, type: item.type } : null;
-        }).filter(Boolean) as Array<{ id: string, name: string, type: "file" | "folder" }>;
+        }).filter(Boolean) as Array<{ id: string, name: string, type: FileItem['type'] }>;
 
         if (selectedItemsArray.length === 0) return;
-        setSelectedItemsForCopy(selectedItemsArray);
+        setSelectedItemsForCopy(selectedItemsArray as any);
         setCopyModalOpen(true);
     }, [selectedItems, filesMap]);
 
 
 
     // Handle file download (single item or folder)
-    const handleDownloadClick = async (itemId: string, itemName: string, itemType: "file" | "folder") => {
+    const handleDownloadClick = async (itemId: string, itemName: string, itemType: FileItem['type']) => {
         if (itemType === 'folder') {
             // Download folder as ZIP
             await startFolderDownload(itemId, itemName);
@@ -1563,7 +1564,7 @@ export const Table01DividerLineSm = ({
         const selectedItemsArray = Array.from(selectedItems).map(id => {
             const item = filesMap.get(id);
             return item ? { id: item.id, name: item.name, type: item.type } : null;
-        }).filter(Boolean) as Array<{ id: string, name: string, type: "file" | "folder" }>;
+        }).filter(Boolean) as Array<{ id: string, name: string, type: FileItem['type'] }>;
 
         if (selectedItemsArray.length === 0) return;
 
@@ -1575,7 +1576,7 @@ export const Table01DividerLineSm = ({
         }
 
         // Multiple items selected - create ZIP
-        await startBulkDownload(selectedItemsArray);
+        await startBulkDownload(selectedItemsArray as any);
     }, [selectedItems, handleDownloadClick, startBulkDownload, toast]);
 
     // Handle folder double-click navigation
@@ -1642,7 +1643,9 @@ export const Table01DividerLineSm = ({
             // Item actions
             switch (action) {
                 case 'download':
-                    handleDownloadClick(item.id, item.name, item.type);
+                    if (item.type !== 'paper') {
+                        handleDownloadClick(item.id, item.name, item.type as any);
+                    }
                     break;
                 case 'preview':
                     if (item.type === 'file') {
@@ -1654,28 +1657,28 @@ export const Table01DividerLineSm = ({
                     toast.info('Copy link functionality coming soon');
                     break;
                 case 'share':
-                    handleShareClick(item.id, item.name, item.type);
+                    handleShareClick(item.id, item.name, item.type as any);
                     break;
                 case 'star':
-                    handleStarClick(item.id, item.type, item.is_starred || false);
+                    handleStarClick(item.id, item.type as any, item.is_starred || false);
                     break;
                 case 'moveToFolder':
-                    handleMoveToFolderClick(item.id, item.name, item.type);
+                    handleMoveToFolderClick(item.id, item.name, item.type as any);
                     break;
                 case 'copy':
-                    handleCopyClick(item.id, item.name, item.type);
+                    handleCopyClick(item.id, item.name, item.type as any);
                     break;
                 case 'rename':
-                    handleRenameClick(item.id, item.name, item.type);
+                    handleRenameClick(item.id, item.name, item.type as any);
                     break;
                 case 'details':
-                    handleDetailsClick(item.id, item.name, item.type);
+                    handleDetailsClick(item.id, item.name, item.type as any);
                     break;
                 case 'lock':
-                    handleLockClick(item.id, item.name, item.type);
+                    handleLockClick(item.id, item.name, item.type as any);
                     break;
                 case 'moveToTrash':
-                    handleMoveToTrashClick(item.id, item.name, item.type);
+                    handleMoveToTrashClick(item.id, item.name, item.type as any);
                     break;
             }
         }
@@ -1694,6 +1697,20 @@ export const Table01DividerLineSm = ({
 
         setIsInlineRenaming(true);
         try {
+            // Paper handling
+            if (item.type === 'paper') {
+                if (!masterKeyManager.hasMasterKey()) {
+                    throw new Error("Session expired");
+                }
+                await paperService.savePaper(item.id, undefined, newName);
+
+                // Optimistic update
+                setFiles(prev => prev.map(f => f.id === item.id ? { ...f, name: newName } : f));
+                setInlineRenameId(null);
+                setIsInlineRenaming(false);
+                return;
+            }
+
             const response = await apiClient.getProfile();
             if (!response.success || !response.data?.user?.crypto_keypairs) {
                 throw new Error("Failed to load crypto keys");
@@ -1724,7 +1741,7 @@ export const Table01DividerLineSm = ({
             }
 
             // Pass the item directly since state update might be too slow
-            await handleRename({ ...signedManifest, requestedName: newName }, item);
+            await handleRename({ ...signedManifest, requestedName: newName }, item as any);
         } catch (error) {
             console.error('Inline rename error:', error);
             toast.error("Failed to rename item");
@@ -1749,7 +1766,7 @@ export const Table01DividerLineSm = ({
         encryptedName?: string;
         nameSalt?: string;
         requestedName?: string;
-    }), targetItemArg?: { id: string, name: string, type: "file" | "folder" } | null) => {
+    }), targetItemArg?: { id: string, name: string, type: FileItem['type'] } | null) => {
         const targetItem = targetItemArg || selectedItemForRename;
         if (!targetItem) return;
 
@@ -2592,7 +2609,7 @@ export const Table01DividerLineSm = ({
                                 const firstItemId = Array.from(selectedItems)[0];
                                 const firstItem = filesMap.get(firstItemId);
                                 if (firstItem) {
-                                    handleShareClick(firstItem.id, firstItem.name, firstItem.type);
+                                    handleShareClick(firstItem.id, firstItem.name, firstItem.type as any);
                                 }
                             }
                         }}
@@ -2644,7 +2661,7 @@ export const Table01DividerLineSm = ({
                                 const firstItemId = Array.from(selectedItems)[0];
                                 const firstItem = filesMap.get(firstItemId);
                                 if (firstItem) {
-                                    handleRenameClick(firstItem.id, firstItem.name, firstItem.type);
+                                    handleRenameClick(firstItem.id, firstItem.name, firstItem.type as any);
                                 }
                             }
                         }}
@@ -2670,7 +2687,7 @@ export const Table01DividerLineSm = ({
                                 const firstItemId = Array.from(selectedItems)[0];
                                 const firstItem = filesMap.get(firstItemId);
                                 if (firstItem) {
-                                    handleDetailsClick(firstItem.id, firstItem.name, firstItem.type);
+                                    handleDetailsClick(firstItem.id, firstItem.name, firstItem.type as any);
                                 }
                             }
                         }}
@@ -2987,7 +3004,7 @@ export const Table01DividerLineSm = ({
                                                             item={item}
                                                             isSelected={isSelected}
                                                             isDraggingSomewhere={isDraggingSomewhere}
-                                                            onDoubleClick={item.type === 'folder' ? () => handleFolderDoubleClick(item.id, item.name) : (item.type === 'file' ? () => handlePreviewClick(item.id, item.name, item.mimeType) : undefined)}
+                                                            onDoubleClick={item.type === 'folder' ? () => handleFolderDoubleClick(item.id, item.name) : (item.type === 'file' ? () => handlePreviewClick(item.id, item.name, item.mimeType) : (item.type === 'paper' ? () => router.push('/paper/' + item.id) : undefined))}
                                                             className="group hover:bg-muted/50 transition-colors duration-150"
                                                             onContextMenu={handleContextMenu}
                                                             // Ensure the row height is tracked
@@ -3074,7 +3091,7 @@ export const Table01DividerLineSm = ({
                                                                         <button
                                                                             onClick={(e) => {
                                                                                 e.stopPropagation();
-                                                                                handleStarClick(item.id, item.type, item.is_starred || false);
+                                                                                handleStarClick(item.id, item.type as any, item.is_starred || false);
                                                                             }}
                                                                             onMouseDown={(e) => e.stopPropagation()}
                                                                             onPointerDown={(e) => e.stopPropagation()}
@@ -3143,7 +3160,7 @@ export const Table01DividerLineSm = ({
                                                                             <button
                                                                                 onClick={(e) => {
                                                                                     e.stopPropagation();
-                                                                                    handleShareClick(item.id, item.name, item.type);
+                                                                                    handleShareClick(item.id, item.name, item.type as any);
                                                                                 }}
                                                                                 onMouseDown={(e) => e.stopPropagation()}
                                                                                 onPointerDown={(e) => e.stopPropagation()}
@@ -3174,7 +3191,7 @@ export const Table01DividerLineSm = ({
                                                                             </Button>
                                                                         </DropdownMenuTrigger>
                                                                         <DropdownMenuContent align="end" className="w-48">
-                                                                            <DropdownMenuItem onClick={() => handleDownloadClick(item.id, item.name, item.type)}>
+                                                                            <DropdownMenuItem onClick={() => handleDownloadClick(item.id, item.name, item.type as any)}>
                                                                                 <IconDownload className="h-4 w-4 mr-2" />
                                                                                 {t("files.download")}
                                                                             </DropdownMenuItem>
@@ -3184,11 +3201,11 @@ export const Table01DividerLineSm = ({
                                                                                     {t("files.preview")}
                                                                                 </DropdownMenuItem>
                                                                             )}
-                                                                            <DropdownMenuItem onClick={() => handleShareClick(item.id, item.name, item.type)}>
+                                                                            <DropdownMenuItem onClick={() => handleShareClick(item.id, item.name, item.type as any)}>
                                                                                 <IconShare3 className="h-4 w-4 mr-2" />
                                                                                 {t("files.share")}
                                                                             </DropdownMenuItem>
-                                                                            <DropdownMenuItem onClick={() => handleStarClick(item.id, item.type, item.is_starred || false)}>
+                                                                            <DropdownMenuItem onClick={() => handleStarClick(item.id, item.type as any, item.is_starred || false)}>
                                                                                 {item.is_starred ? (
                                                                                     <>
                                                                                         <IconStarFilled className="h-4 w-4 mr-2 text-foreground" />
@@ -3202,29 +3219,29 @@ export const Table01DividerLineSm = ({
                                                                                 )}
                                                                             </DropdownMenuItem>
                                                                             <DropdownMenuSeparator />
-                                                                            <DropdownMenuItem onClick={() => handleMoveToFolderClick(item.id, item.name, item.type)}>
+                                                                            <DropdownMenuItem onClick={() => handleMoveToFolderClick(item.id, item.name, item.type as any)}>
                                                                                 <IconFolder className="h-4 w-4 me-2" />
                                                                                 {t("files.move")}
                                                                             </DropdownMenuItem>
-                                                                            <DropdownMenuItem onClick={() => handleCopyClick(item.id, item.name, item.type)}>
+                                                                            <DropdownMenuItem onClick={() => handleCopyClick(item.id, item.name, item.type as any)}>
                                                                                 <IconCopy className="h-4 w-4 me-2" />
                                                                                 {t("files.copyTo")}
                                                                             </DropdownMenuItem>
-                                                                            <DropdownMenuItem onClick={() => handleRenameClick(item.id, item.name, item.type)}>
+                                                                            <DropdownMenuItem onClick={() => handleRenameClick(item.id, item.name, item.type as any)}>
                                                                                 <IconEdit className="h-4 w-4 me-2" />
                                                                                 {t("files.rename")}
                                                                             </DropdownMenuItem>
-                                                                            <DropdownMenuItem onClick={() => handleDetailsClick(item.id, item.name, item.type)}>
+                                                                            <DropdownMenuItem onClick={() => handleDetailsClick(item.id, item.name, item.type as any)}>
                                                                                 <IconInfoCircle className="h-4 w-4 mr-2" />
                                                                                 {t("files.details")}
                                                                             </DropdownMenuItem>
-                                                                            <DropdownMenuItem onClick={() => handleLockClick(item.id, item.name, item.type)}>
+                                                                            <DropdownMenuItem onClick={() => handleLockClick(item.id, item.name, item.type as any)}>
                                                                                 <IconLock className="h-4 w-4 mr-2" />
                                                                                 {t("files.retention")}
                                                                             </DropdownMenuItem>
                                                                             <DropdownMenuSeparator />
                                                                             <DropdownMenuItem
-                                                                                onClick={() => handleMoveToTrashClick(item.id, item.name, item.type)}
+                                                                                onClick={() => handleMoveToTrashClick(item.id, item.name, item.type as any)}
                                                                                 variant="destructive"
                                                                                 disabled={!!(item.lockedUntil && new Date(item.lockedUntil) > new Date())}
                                                                             >
@@ -3313,6 +3330,8 @@ export const Table01DividerLineSm = ({
                                                         handleFolderDoubleClick(item.id, item.name);
                                                     } else if (item.type === 'file') {
                                                         handlePreviewClick(item.id, item.name, item.mimeType);
+                                                    } else if (item.type === 'paper') {
+                                                        router.push('/paper/' + item.id);
                                                     }
                                                     return;
                                                 }
@@ -3338,6 +3357,8 @@ export const Table01DividerLineSm = ({
                                                     handleFolderDoubleClick(item.id, item.name);
                                                 } else if (item.type === 'file') {
                                                     handlePreviewClick(item.id, item.name, item.mimeType);
+                                                } else if (item.type === 'paper') {
+                                                    router.push('/paper/' + item.id);
                                                 }
                                             }}
                                             onContextMenu={(e) => handleContextMenu(e, item)}
@@ -3368,7 +3389,7 @@ export const Table01DividerLineSm = ({
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                handleStarClick(item.id, item.type, item.is_starred || false);
+                                                                handleStarClick(item.id, item.type as any, item.is_starred || false);
                                                             }}
                                                             onMouseDown={(e) => e.stopPropagation()}
                                                             onPointerDown={(e) => e.stopPropagation()}
@@ -3471,7 +3492,7 @@ export const Table01DividerLineSm = ({
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end" className="w-48">
-                                                        <DropdownMenuItem onClick={() => handleDownloadClick(item.id, item.name, item.type)}>
+                                                        <DropdownMenuItem onClick={() => handleDownloadClick(item.id, item.name, item.type as any)}>
                                                             <IconDownload className="h-4 w-4 mr-2" />
                                                             Download
                                                         </DropdownMenuItem>
@@ -3481,11 +3502,11 @@ export const Table01DividerLineSm = ({
                                                                 Preview
                                                             </DropdownMenuItem>
                                                         )}
-                                                        <DropdownMenuItem onClick={() => handleShareClick(item.id, item.name, item.type)}>
+                                                        <DropdownMenuItem onClick={() => handleShareClick(item.id, item.name, item.type as any)}>
                                                             <IconShare3 className="h-4 w-4 mr-2" />
                                                             Share
                                                         </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => handleStarClick(item.id, item.type, item.is_starred || false)}>
+                                                        <DropdownMenuItem onClick={() => handleStarClick(item.id, item.type as any, item.is_starred || false)}>
                                                             {item.is_starred ? (
                                                                 <>
                                                                     <IconStarFilled className="h-4 w-4 mr-2 text-foreground" />
@@ -3499,24 +3520,24 @@ export const Table01DividerLineSm = ({
                                                             )}
                                                         </DropdownMenuItem>
                                                         <DropdownMenuSeparator />
-                                                        <DropdownMenuItem onClick={() => handleMoveToFolderClick(item.id, item.name, item.type)}>
+                                                        <DropdownMenuItem onClick={() => handleMoveToFolderClick(item.id, item.name, item.type as any)}>
                                                             <IconFolder className="h-4 w-4 mr-2" />
                                                             Move to folder
                                                         </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => handleCopyClick(item.id, item.name, item.type)}>
+                                                        <DropdownMenuItem onClick={() => handleCopyClick(item.id, item.name, item.type as any)}>
                                                             <IconCopy className="h-4 w-4 mr-2" />
                                                             Copy to...
                                                         </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => handleRenameClick(item.id, item.name, item.type)}>
+                                                        <DropdownMenuItem onClick={() => handleRenameClick(item.id, item.name, item.type as any)}>
                                                             <IconEdit className="h-4 w-4 mr-2" />
                                                             Rename
                                                         </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => handleDetailsClick(item.id, item.name, item.type)}>
+                                                        <DropdownMenuItem onClick={() => handleDetailsClick(item.id, item.name, item.type as any)}>
                                                             <IconInfoCircle className="h-4 w-4 mr-2" />
                                                             Details
                                                         </DropdownMenuItem>
                                                         <DropdownMenuSeparator />
-                                                        <DropdownMenuItem onClick={() => handleMoveToTrashClick(item.id, item.name, item.type)} variant="destructive">
+                                                        <DropdownMenuItem onClick={() => handleMoveToTrashClick(item.id, item.name, item.type as any)} variant="destructive">
                                                             <IconTrash className="h-4 w-4 mr-2" />
                                                             Move to trash
                                                         </DropdownMenuItem>
@@ -3584,7 +3605,7 @@ export const Table01DividerLineSm = ({
             <RenameModal
                 itemName={selectedItemForRename?.name || ""}
                 initialName={renameModalInitialName}
-                itemType={selectedItemForRename?.type || "file"}
+                itemType={(selectedItemForRename?.type === 'paper' ? 'file' : selectedItemForRename?.type) || "file"}
                 open={renameModalOpen}
                 onOpenChange={(open) => {
                     setRenameModalOpen(open);
@@ -3597,7 +3618,7 @@ export const Table01DividerLineSm = ({
             <ConflictModal
                 isOpen={renameConflictOpen}
                 onClose={() => setRenameConflictOpen(false)}
-                conflicts={renameConflictItems}
+                conflicts={renameConflictItems as any}
                 onResolve={handleRenameConflictResolution}
                 operation="rename"
             />
@@ -3605,7 +3626,7 @@ export const Table01DividerLineSm = ({
             <ShareModal
                 itemId={selectedItemForShare?.id || ""}
                 itemName={selectedItemForShare?.name || ""}
-                itemType={selectedItemForShare?.type || "file"}
+                itemType={(selectedItemForShare?.type === 'paper' ? 'file' : selectedItemForShare?.type) || "file"}
                 open={shareModalOpen}
                 onOpenChange={setShareModalOpen}
                 onShareUpdate={refreshFiles}
@@ -3624,14 +3645,14 @@ export const Table01DividerLineSm = ({
             <DetailsModal
                 itemId={selectedItemForDetails?.id || ""}
                 itemName={selectedItemForDetails?.name || ""}
-                itemType={selectedItemForDetails?.type || "file"}
+                itemType={(selectedItemForDetails?.type === 'paper' ? 'file' : selectedItemForDetails?.type) || "file"}
                 open={detailsModalOpen}
                 onOpenChange={setDetailsModalOpen}
                 onTagsUpdated={() => refreshFiles(currentFolderId, true)}
             />
 
             <MoveToFolderModal
-                items={selectedItemsForMoveToFolder}
+                items={selectedItemsForMoveToFolder as unknown as { id: string; name: string; type: "file" | "folder" }[]}
                 open={moveToFolderModalOpen}
                 onOpenChange={setMoveToFolderModalOpen}
                 onItemMoved={(movedItemIds) => {
@@ -3644,7 +3665,7 @@ export const Table01DividerLineSm = ({
             />
 
             <CopyModal
-                items={selectedItemsForCopy}
+                items={selectedItemsForCopy as unknown as { id: string; name: string; type: "file" | "folder" }[]}
                 open={copyModalOpen}
                 onOpenChange={setCopyModalOpen}
                 onItemCopied={() => {
@@ -3657,7 +3678,7 @@ export const Table01DividerLineSm = ({
             <ConflictModal
                 isOpen={copyConflictOpen}
                 onClose={() => setCopyConflictOpen(false)}
-                conflicts={copyConflictItems}
+                conflicts={copyConflictItems as any}
                 onResolve={handleCopyConflictResolution}
                 operation="copy"
             />
@@ -3665,7 +3686,7 @@ export const Table01DividerLineSm = ({
             <MoveToTrashModal
                 itemId={selectedItemForMoveToTrash?.id || ""}
                 itemName={selectedItemForMoveToTrash?.name || ""}
-                itemType={selectedItemForMoveToTrash?.type || "file"}
+                itemType={(selectedItemForMoveToTrash?.type === 'paper' ? 'file' : selectedItemForMoveToTrash?.type) || "file"}
                 open={moveToTrashModalOpen}
                 onOpenChange={setMoveToTrashModalOpen}
                 onItemMoved={() => {
@@ -3879,7 +3900,7 @@ export const Table01DividerLineSm = ({
                 onOpenChange={setLockModalOpen}
                 itemId={selectedItemForLock?.id}
                 itemName={selectedItemForLock?.name}
-                itemType={selectedItemForLock?.type}
+                itemType={(selectedItemForLock?.type === 'paper' ? 'file' : selectedItemForLock?.type) || "file"}
                 onItemLocked={() => refreshFiles()}
             />
 
@@ -3889,7 +3910,7 @@ export const Table01DividerLineSm = ({
                     return {
                         id: selectedItemForPreview.id,
                         name: selectedItemForPreview.name,
-                        type: 'file',
+                        type: (selectedItemForPreview as any).type || 'file',
                         mimeType: selectedItemForPreview.mimeType,
                         size: item?.size,
                         lockedUntil: item?.lockedUntil,

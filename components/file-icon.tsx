@@ -10,6 +10,7 @@ import {
     IconFileDescription as FileType2,
     IconFileTypeJs as FileJson,
     IconDatabase as Database,
+    IconStackFilled as FilePaper,
 } from "@tabler/icons-react"
 import { cn } from "@/lib/utils"
 
@@ -39,6 +40,11 @@ export function FileIcon({ filename = '', mimeType = '', className }: FileIconPr
     // Audio
     if (mime.startsWith('audio/') || ['mp3', 'wav', 'ogg', 'flac', 'm4a'].includes(ext)) {
         return <FileAudio className={iconClass("text-yellow-500")} />;
+    }
+
+    // Paper
+    if (mime === 'application/x-paper') {
+        return <FilePaper className={iconClass("text-blue-500")} />;
     }
 
     // PDFs

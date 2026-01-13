@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { type Value } from "platejs";
 import { paperService } from "@/lib/paper-service";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export default function PaperPage() {
     const params = useParams();
@@ -24,6 +25,7 @@ export default function PaperPage() {
     const saveTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
     const latestContentRef = useRef<Value | undefined>(undefined);
+    const lastSavedContentRef = useRef<string>("");
 
     // Initial Load
     useEffect(() => {
@@ -61,7 +63,9 @@ export default function PaperPage() {
                 }
 
                 setContent(loadedContent);
+                setContent(loadedContent);
                 latestContentRef.current = loadedContent;
+                lastSavedContentRef.current = JSON.stringify(loadedContent);
 
             } catch (error) {
                 console.error("Error loading paper:", error);
@@ -76,10 +80,17 @@ export default function PaperPage() {
 
     // Save Logic (Content)
     const handleSave = useCallback(async (newValue: Value) => {
+        const contentString = JSON.stringify(newValue);
+        // Prevent unnecessary saves
+        if (contentString === lastSavedContentRef.current) {
+            return;
+        }
+
         setSaving(true);
         try {
             if (!masterKeyManager.hasMasterKey()) return;
             await paperService.savePaper(fileId, newValue);
+            lastSavedContentRef.current = contentString;
         } catch (e) {
             console.error(e);
             toast.error("Failed to save content");
@@ -152,7 +163,7 @@ export default function PaperPage() {
 
     return (
         <div className="flex flex-col h-screen bg-background">
-            <header className="flex h-14 items-center gap-4 border-b px-6 shrink-0">
+            <header className="flex h-16 items-center gap-4 border-b px-6 shrink-0 bg-card/50 backdrop-blur-sm">
                 <div className="flex items-center gap-2 max-w-xl">
                     <Button variant="ghost" size="icon" onClick={() => router.push('/')}>
                         <IconArrowLeft className="w-5 h-5" />
@@ -200,9 +211,16 @@ export default function PaperPage() {
                             </>
                         )}
                     </div>
-                    <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest px-2 py-1 rounded bg-muted/50 hidden md:block">
-                        Zero-Knowledge Encrypted
-                    </span>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest px-2 py-1 rounded bg-muted/50 hidden md:block cursor-help hover:bg-muted transition-colors">
+                                Zero-Knowledge Encrypted
+                            </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p className="max-w-xs">Your content is encrypted with your private key before leaving your device. Only you can read it.</p>
+                        </TooltipContent>
+                    </Tooltip>
                 </div>
             </header>
 

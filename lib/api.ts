@@ -232,7 +232,7 @@ export interface FileItem {
   folderId?: string | null; // Only for files
   parentId?: string | null; // Only for folders
   path?: string; // Only for folders
-  type: 'file' | 'folder';
+  type: 'file' | 'folder' | 'paper';
   createdAt: string;
   updatedAt: string;
   shaHash?: string | null; // File hash (SHA512)
