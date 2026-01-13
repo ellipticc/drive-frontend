@@ -8,8 +8,6 @@ import { IconLoader2, IconArrowLeft, IconCloudCheck } from "@tabler/icons-react"
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { type Value } from "platejs";
-import { downloadEncryptedFile } from "@/lib/download";
-import { keyManager } from "@/lib/key-manager";
 import { paperService } from "@/lib/paper-service";
 
 export default function PaperPage() {
@@ -19,6 +17,7 @@ export default function PaperPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [content, setContent] = useState<Value | undefined>(undefined);
+    const [paperTitle, setPaperTitle] = useState<string>("Untitled Paper");
     const saveTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
     // Initial Load
@@ -31,21 +30,21 @@ export default function PaperPage() {
                     return;
                 }
 
-                // Fetch file content using standard downloadEncryptedFile
-                const userKeys = await keyManager.getUserKeys();
-                const controller = new AbortController(); // or use a ref if we want to cancel
+                // Fetch paper using new internal service
+                const paper = await paperService.getPaper(fileId);
 
-                const result = await downloadEncryptedFile(fileId, userKeys, undefined, controller.signal);
-
-                const blob = result.blob;
-                const arrayBuffer = await blob.arrayBuffer();
-
-                const jsonStr = new TextDecoder().decode(arrayBuffer);
-                try {
-                    const json = JSON.parse(jsonStr);
-                    setContent(json);
-                } catch {
-                    setContent([{ children: [{ text: jsonStr }], type: 'p' }]);
+                setPaperTitle(paper.title);
+                if (paper.content && Array.isArray(paper.content)) {
+                    setContent(paper.content as Value);
+                } else if (paper.content && typeof paper.content === 'object') {
+                    // Handle edge case where content might be object but not array (Plate expects Value aka TElement[])
+                    setContent([paper.content] as unknown as Value);
+                } else if (typeof paper.content === 'string') {
+                    // Legacy or plain text fallback
+                    setContent([{ children: [{ text: paper.content }], type: 'p' }]);
+                } else if (!paper.content || Object.keys(paper.content).length === 0) {
+                    // Empty content
+                    setContent(undefined);
                 }
 
             } catch (error) {
@@ -64,14 +63,8 @@ export default function PaperPage() {
         try {
             if (!masterKeyManager.hasMasterKey()) return;
 
-            // Get user PQC keys for re-encryption (key rotation support)
-            const userKeys = await keyManager.getUserKeys();
-            if (!userKeys || !userKeys.keypairs) {
-                toast.error("Encryption keys missing. Please reload.");
-                return;
-            }
-
-            await paperService.savePaper(fileId, newValue, userKeys.keypairs);
+            // Save using internal service (no keypairs needed anymore)
+            await paperService.savePaper(fileId, newValue);
 
         } catch (e) {
             console.error(e);
@@ -107,7 +100,7 @@ export default function PaperPage() {
                     <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
                         <span className="text-primary font-bold text-xs">P</span>
                     </div>
-                    <h1 className="text-lg font-semibold truncate max-w-md">Paper</h1>
+                    <h1 className="text-lg font-semibold truncate max-w-md">{paperTitle}</h1>
                 </div>
                 <div className="ml-auto flex items-center gap-4">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">

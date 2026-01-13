@@ -1153,3 +1153,97 @@ export async function computeFilenameHmac(filename: string, folderId: string | n
   return nameHmac;
 }
 
+// =====================================================
+// PAPER CONTENT ENCRYPTION
+// =====================================================
+
+/**
+ * Encrypt paper content using a key derived from the master key and a random salt
+ * @param content - The plaintext content
+ * @param masterKey - User's master encryption key
+ */
+export async function encryptPaperContent(content: string, masterKey: Uint8Array): Promise<{
+  encryptedContent: string;
+  iv: string;
+  salt: string;
+}> {
+  if (content === undefined || content === null) {
+    throw new Error('Content cannot be null or undefined');
+  }
+
+  // 1. Generate random salt
+  const salt = new Uint8Array(32);
+  crypto.getRandomValues(salt);
+
+  // 2. Derive key: HMAC(masterKey, salt + 'paper-content-key')
+  const keyMaterial = new Uint8Array(salt.length + 17); // salt + 'paper-content-key'
+  keyMaterial.set(salt, 0);
+  keyMaterial.set(new TextEncoder().encode('paper-content-key'), salt.length);
+
+  const hmacKey = await crypto.subtle.importKey(
+    'raw',
+    masterKey as BufferSource,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+
+  const derivedKeyMaterial = await crypto.subtle.sign('HMAC', hmacKey, keyMaterial);
+  const paperKey = new Uint8Array(derivedKeyMaterial.slice(0, 32));
+
+  // 3. Encrypt content
+  const contentBytes = new TextEncoder().encode(content);
+  const nonce = new Uint8Array(24);
+  crypto.getRandomValues(nonce);
+
+  const encryptedBytes = xchacha20poly1305(paperKey, nonce).encrypt(contentBytes);
+
+  return {
+    encryptedContent: uint8ArrayToBase64(encryptedBytes),
+    iv: uint8ArrayToBase64(nonce),
+    salt: uint8ArrayToBase64(salt)
+  };
+}
+
+/**
+ * Decrypt paper content
+ */
+export async function decryptPaperContent(
+  encryptedContent: string,
+  iv: string,
+  salt: string,
+  masterKey: Uint8Array
+): Promise<string> {
+  if (!encryptedContent) return '';
+
+  try {
+    // Decode base64 inputs
+    const encryptedBytes = Uint8Array.from(atob(encryptedContent), c => c.charCodeAt(0));
+    const nonceBytes = Uint8Array.from(atob(iv), c => c.charCodeAt(0));
+    const saltBytes = Uint8Array.from(atob(salt), c => c.charCodeAt(0));
+
+    // Derive same key
+    const keyMaterial = new Uint8Array(saltBytes.length + 17);
+    keyMaterial.set(saltBytes, 0);
+    keyMaterial.set(new TextEncoder().encode('paper-content-key'), saltBytes.length);
+
+    const hmacKey = await crypto.subtle.importKey(
+      'raw',
+      masterKey as BufferSource,
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    );
+
+    const derivedKeyMaterial = await crypto.subtle.sign('HMAC', hmacKey, keyMaterial);
+    const paperKey = new Uint8Array(derivedKeyMaterial.slice(0, 32));
+
+    // Decrypt
+    const decryptedBytes = xchacha20poly1305(paperKey, nonceBytes).decrypt(encryptedBytes);
+    return new TextDecoder().decode(decryptedBytes);
+  } catch (error) {
+    console.error('Failed to decrypt paper content:', error);
+    throw new Error('Failed to decrypt paper content');
+  }
+}
+

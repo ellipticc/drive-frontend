@@ -6,7 +6,7 @@ import { PlateEditor } from '@/components/plate-editor';
 import { Toaster, toast } from 'sonner';
 import { IconLoader2, IconArrowLeft, IconCloudCheck } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
-import { keyManager } from "@/lib/key-manager";
+import { masterKeyManager } from "@/lib/master-key";
 import { paperService } from "@/lib/paper-service";
 import { type Value } from "platejs";
 
@@ -19,16 +19,18 @@ export default function NewPaperPage() {
         if (saving) return; // Prevent double trigger
         setSaving(true);
         try {
-            const userKeys = await keyManager.getUserKeys();
-            if (!userKeys || !userKeys.keypairs) {
-                toast.error("Encryption keys missing. Please reload.");
+            if (!masterKeyManager.hasMasterKey()) {
+                toast.error("Encryption key missing. Please login.");
+                router.push('/login');
                 return;
             }
 
             const now = new Date();
             const filename = `Untitled ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
 
-            const { fileId } = await paperService.createPaper(filename, newValue, userKeys.keypairs);
+            // Create paper using new internal service (no keypairs needed)
+            // Passing null for folderId (root)
+            const fileId = await paperService.createPaper(filename, newValue, null);
 
             // Redirect to the newly created paper
             router.replace(`/paper/${fileId}`);

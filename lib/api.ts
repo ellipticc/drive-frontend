@@ -3392,6 +3392,34 @@ class ApiClient {
       headers
     });
   }
+  // Papers Management
+  async createPaper(data: any): Promise<ApiResponse<any>> {
+    return this.request('/papers', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getPaper(id: string): Promise<ApiResponse<any>> {
+    return this.request(`/papers/${id}`);
+  }
+
+  async updatePaper(id: string, data: any): Promise<ApiResponse<any>> {
+    return this.request(`/papers/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deletePaper(id: string): Promise<ApiResponse<any>> {
+    return this.request(`/papers/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async listPapers(): Promise<ApiResponse<any>> {
+    return this.request('/papers');
+  }
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);
