@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -16,8 +16,14 @@ import { CreateFolderModal } from "@/components/modals/create-folder-modal"
 import { useRouter } from "next/navigation"
 import { useUser } from "@/components/user-context"
 import { useGoogleDrive } from "@/hooks/use-google-drive"
-
 import { useGlobalUpload } from "@/components/global-upload-context"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+
+import { encryptFilename, encryptData } from "@/lib/crypto"
+import { masterKeyManager } from "@/lib/master-key"
+import { format } from "date-fns"
+import { toast } from "sonner"
+import { apiClient } from "@/lib/api"
 
 // Use a module-level variable to persist dismissal across SPA navigation but reset on page refresh
 let isUpgradeDismissedGlobal = false;
@@ -28,8 +34,6 @@ interface SiteHeaderProps {
   onFolderUpload?: () => void
   searchValue?: string
 }
-
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 export function SiteHeader({ onSearch, onFileUpload, onFolderUpload, searchValue }: SiteHeaderProps) {
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false)
@@ -44,6 +48,48 @@ export function SiteHeader({ onSearch, onFileUpload, onFolderUpload, searchValue
     setForceUpdate(prev => prev + 1)
     window.open('/pricing', '_blank')
   }
+
+  const { startUploadWithFiles, registerOnFileAdded, unregisterOnFileAdded } = useGlobalUpload();
+  const [cleanUpCallback, setCleanUpCallback] = useState<(() => void) | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (cleanUpCallback) cleanUpCallback();
+    }
+  }, [cleanUpCallback]);
+
+  const handleNewPaper = async () => {
+    try {
+      if (!masterKeyManager.hasMasterKey()) {
+        toast.error("Encryption key missing. Please login again.");
+        return;
+      }
+
+      const now = new Date();
+      const timestamp = format(now, "yyyy-MM-dd HH.mm.ss");
+      const filename = `Untitled document ${timestamp}`;
+
+      const initialContent = [{ children: [{ text: '' }], type: 'p' }];
+      const contentJson = JSON.stringify(initialContent);
+      const fileToUpload = new File([contentJson], filename, { type: 'application/json' });
+
+      // Register listener to catch THIS file
+      const onFileAdded = (file: any) => {
+        if (file.name === filename || file.decryptedName === filename) { // Check decrypted name usually
+          router.push(`/paper/${file.id}`);
+          // Cleanup is handled by effect or we can unregister here if we had ref
+        }
+      };
+
+      registerOnFileAdded(onFileAdded);
+      setCleanUpCallback(() => () => unregisterOnFileAdded(onFileAdded));
+
+      startUploadWithFiles([fileToUpload], null);
+    } catch (e) {
+      console.error(e);
+      toast.error("Error creating paper");
+    }
+  };
 
   const isFreePlan = deviceQuota?.planName === 'Free'
   const showUpgrade = isFreePlan && !isUpgradeDismissedGlobal
@@ -104,6 +150,11 @@ export function SiteHeader({ onSearch, onFileUpload, onFolderUpload, searchValue
                 Upload Folder
               </DropdownMenuItem>
               <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleNewPaper}>
+                <IconStackFilled className="h-4 w-4 mr-2" />
+                New Paper
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={openPicker}>
                 <IconBrandGoogleDrive className="h-4 w-4 mr-2" stroke={1.5} />
                 Import from Google Drive
@@ -112,10 +163,6 @@ export function SiteHeader({ onSearch, onFileUpload, onFolderUpload, searchValue
               <DropdownMenuItem onClick={() => setIsCreateFolderOpen(true)}>
                 <IconFolderPlus className="h-4 w-4 mr-2" />
                 New Folder
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => router.push('/paper/new')}>
-                <IconStackFilled className="h-4 w-4 mr-2" />
-                New Paper
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

@@ -3,7 +3,6 @@
 import { type Value, TrailingBlockPlugin } from 'platejs';
 import { type TPlateEditor, useEditorRef } from 'platejs/react';
 
-import { AIKit } from '@/components/ai-kit';
 import { AlignKit } from '@/components/align-kit';
 import { AutoformatKit } from '@/components/autoformat-kit';
 import { BasicBlocksKit } from '@/components/basic-blocks-kit';
@@ -14,7 +13,6 @@ import { CalloutKit } from '@/components/callout-kit';
 import { CodeBlockKit } from '@/components/code-block-kit';
 import { ColumnKit } from '@/components/column-kit';
 import { CommentKit } from '@/components/comment-kit';
-import { CopilotKit } from '@/components/copilot-kit';
 import { CursorOverlayKit } from '@/components/cursor-overlay-kit';
 import { DateKit } from '@/components/date-kit';
 import { DiscussionKit } from '@/components/discussion-kit';
@@ -39,9 +37,6 @@ import { TocKit } from '@/components/toc-kit';
 import { ToggleKit } from '@/components/toggle-kit';
 
 export const EditorKit = [
-  ...CopilotKit,
-  ...AIKit,
-
   // Elements
   ...BasicBlocksKit,
   ...CodeBlockKit,

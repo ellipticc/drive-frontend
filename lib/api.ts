@@ -2367,6 +2367,54 @@ class ApiClient {
     });
   }
 
+  // Paper Update Endpoints
+  async initializePaperUpdate(fileId: string, data: {
+    encryptedFilename: string;
+    filenameSalt: string;
+    fileSize: number;
+    chunkCount: number;
+    encryptionIv: string;
+    wrappedCek: string;
+    fileNoncePrefix: string;
+    kyberPublicKey: string;
+    kyberCiphertext: string;
+    nonceWrapKyber: string;
+    sessionSalt: string;
+    argon2idParams: unknown;
+  }): Promise<ApiResponse<{
+    sessionId: string;
+    fileId: string;
+    encryptionMetadataId: string;
+    presigned: Array<{
+      index: number;
+      putUrl: string;
+      objectKey: string;
+    }>;
+    storageType: string;
+  }>> {
+    const idempotencyKey = generateIdempotencyKey();
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request(`/paper/${fileId}/save/initialize`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers
+    });
+  }
+
+  async finalizePaperUpdate(fileId: string, data: {
+    sessionId: string;
+    encryptionMetadataId: string;
+    finalShaHash: string | null;
+  }): Promise<ApiResponse<{ success: boolean; fileId: string }>> {
+    const idempotencyKey = generateIdempotencyKey();
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request(`/paper/${fileId}/save/finalize`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers
+    });
+  }
+
   async getDownloadUrls(fileId: string): Promise<ApiResponse<DownloadUrlsResponse>> {
     return this.request(`/files/download/${fileId}/urls`);
   }
