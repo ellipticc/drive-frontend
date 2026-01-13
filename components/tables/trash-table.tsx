@@ -729,13 +729,13 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                                                 <div className="flex items-center gap-2 min-w-0">
                                                     <div className="text-base">
                                                         {item.type === 'folder' ? (
-                                                            <IconFolder className="h-4 w-4 text-blue-500 inline-block" />
+                                                            <IconFolder className="h-4 w-4 text-blue-500 inline-block align-middle" />
                                                         ) : (
                                                             <FileThumbnail
                                                                 fileId={item.id}
                                                                 mimeType={item.mimeType}
                                                                 name={item.name}
-                                                                className="h-4 w-4 inline-block"
+                                                                className="h-4 w-4 inline-block align-middle"
                                                                 iconClassName="h-4 w-4"
                                                             />
                                                         )}

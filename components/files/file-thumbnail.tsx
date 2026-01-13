@@ -46,10 +46,21 @@ export function FileThumbnail({
     const [hasError, setHasError] = useState(false);
     const [retryCount, setRetryCount] = useState(0);
 
-    const isImage = mimeType?.startsWith("image/") || mimeType?.startsWith("video/");
+    const getExtension = (filename: string) => filename.split('.').pop()?.toLowerCase() || '';
+    const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'];
+    const videoExtensions = ['mp4', 'webm', 'ogg', 'mov', 'avi', 'mkv'];
 
-    // If not an image/video, just show the icon immediately
-    if (!isImage) {
+    const ext = getExtension(name);
+    const isImageExtension = imageExtensions.includes(ext);
+    const isVideoExtension = videoExtensions.includes(ext);
+    const isImage = mimeType?.startsWith("image/") || isImageExtension || mimeType?.startsWith("video/") || isVideoExtension;
+
+    // Determine if we are SURE this is NOT a media file
+    const isKnownNonMedia =
+        (mimeType && !mimeType.startsWith("image/") && !mimeType.startsWith("video/")) ||
+        (!mimeType && ext && !isImageExtension && !isVideoExtension);
+
+    if (isKnownNonMedia) {
         return <FileIcon mimeType={mimeType} filename={name} className={className} />;
     }
 

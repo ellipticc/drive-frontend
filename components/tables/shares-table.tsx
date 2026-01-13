@@ -571,13 +571,13 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                                                 <div className="flex items-center gap-2 min-w-0">
                                                     <div className="text-base">
                                                         {item.isFolder ? (
-                                                            <IconFolder className="h-4 w-4 text-blue-500 inline-block" />
+                                                            <IconFolder className="h-4 w-4 text-blue-500 inline-block align-middle" />
                                                         ) : (
                                                             <FileThumbnail
                                                                 fileId={item.fileId}
                                                                 mimeType={item.mimeType}
                                                                 name={item.fileName}
-                                                                className="h-4 w-4 inline-block"
+                                                                className="h-4 w-4 inline-block align-middle"
                                                                 iconClassName="h-4 w-4"
                                                             />
                                                         )}
