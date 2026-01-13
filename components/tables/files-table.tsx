@@ -2977,7 +2977,6 @@ export const Table01DividerLineSm = ({
                                                             onContextMenu={handleContextMenu}
                                                             // Ensure the row height is tracked
                                                             data-index={virtualItem.index}
-                                                            ref={rowVirtualizer.measureElement}
                                                         >
                                                             <Table.Cell className="w-10 text-center pl-2 md:pl-4 pr-0">
                                                                 <Checkbox

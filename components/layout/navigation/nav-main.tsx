@@ -130,7 +130,7 @@ export function NavMain({
                   >
                     {item.icon && <item.icon className="shrink-0" />}
                     <span>{item.title}</span>
-                    {!isMyFilesLeaf && (
+                    {!isMyFilesLeaf && state !== 'collapsed' && (
                       <div
                         onClick={(e) => {
                           e.preventDefault()
