@@ -763,7 +763,14 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                                                 <div className="flex justify-end gap-1 h-full items-center">
                                                     <DropdownMenu>
                                                         <DropdownMenuTrigger asChild>
-                                                            <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                                                            <Button
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                className="h-8 w-8 p-0"
+                                                                onClick={(e) => e.stopPropagation()}
+                                                                onMouseDown={(e) => e.stopPropagation()}
+                                                                onPointerDown={(e) => e.stopPropagation()}
+                                                            >
                                                                 <DotsVertical className="h-4 w-4" />
                                                             </Button>
                                                         </DropdownMenuTrigger>

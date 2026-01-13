@@ -613,7 +613,14 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                                                 <div className={`flex justify-end gap-0.5 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-200`}>
                                                     <DropdownMenu>
                                                         <DropdownMenuTrigger asChild>
-                                                            <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                                                            <Button
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                className="h-8 w-8 p-0"
+                                                                onClick={(e) => e.stopPropagation()}
+                                                                onMouseDown={(e) => e.stopPropagation()}
+                                                                onPointerDown={(e) => e.stopPropagation()}
+                                                            >
                                                                 <DotsVertical className="h-4 w-4" />
                                                             </Button>
                                                         </DropdownMenuTrigger>
