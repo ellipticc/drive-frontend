@@ -63,7 +63,7 @@ class PaperService {
             if (content !== undefined) {
                 const contentStr = JSON.stringify(content);
                 const { encryptedContent, iv, salt } = await encryptPaperContent(contentStr, masterKey);
-                updateData.encrypted_content = encryptedContent;
+                updateData.encryptedContent = encryptedContent;
                 updateData.iv = iv;
                 updateData.salt = salt;
             }
@@ -71,8 +71,8 @@ class PaperService {
             // 2. Encrypt Title if provided
             if (title !== undefined) {
                 const { encryptedFilename, filenameSalt } = await encryptFilename(title, masterKey);
-                updateData.encrypted_title = encryptedFilename;
-                updateData.title_salt = filenameSalt;
+                updateData.encryptedTitle = encryptedFilename;
+                updateData.titleSalt = filenameSalt;
             }
 
             if (Object.keys(updateData).length === 0) {

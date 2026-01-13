@@ -26,7 +26,11 @@ export default function NewPaperPage() {
             }
 
             const now = new Date();
-            const filename = `Untitled ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
+            // Format: Untitled document YYYY-MM-DD HH.MM.SS
+            const pad = (n: number) => n.toString().padStart(2, '0');
+            const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+            const timeStr = `${pad(now.getHours())}.${pad(now.getMinutes())}.${pad(now.getSeconds())}`;
+            const filename = `Untitled document ${dateStr} ${timeStr}`;
 
             // Create paper using new internal service (no keypairs needed)
             // Passing null for folderId (root)

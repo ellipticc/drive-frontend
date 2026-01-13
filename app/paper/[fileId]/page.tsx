@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { type Value } from "platejs";
 import { paperService } from "@/lib/paper-service";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 export default function PaperPage() {
     const params = useParams();
@@ -18,7 +19,11 @@ export default function PaperPage() {
     const [saving, setSaving] = useState(false);
     const [content, setContent] = useState<Value | undefined>(undefined);
     const [paperTitle, setPaperTitle] = useState<string>("Untitled Paper");
+    const [isEditingTitle, setIsEditingTitle] = useState(false);
+    const titleInputRef = useRef<HTMLInputElement>(null);
     const saveTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+
+    const latestContentRef = useRef<Value | undefined>(undefined);
 
     // Initial Load
     useEffect(() => {
@@ -34,18 +39,19 @@ export default function PaperPage() {
                 const paper = await paperService.getPaper(fileId);
 
                 setPaperTitle(paper.title);
+                let loadedContent: Value | undefined;
                 if (paper.content && Array.isArray(paper.content)) {
-                    setContent(paper.content as Value);
+                    loadedContent = paper.content as Value;
                 } else if (paper.content && typeof paper.content === 'object') {
-                    // Handle edge case where content might be object but not array (Plate expects Value aka TElement[])
-                    setContent([paper.content] as unknown as Value);
+                    loadedContent = [paper.content] as unknown as Value;
                 } else if (typeof paper.content === 'string') {
-                    // Legacy or plain text fallback
-                    setContent([{ children: [{ text: paper.content }], type: 'p' }]);
+                    loadedContent = [{ children: [{ text: paper.content }], type: 'p' }];
                 } else if (!paper.content || Object.keys(paper.content).length === 0) {
-                    // Empty content
-                    setContent(undefined);
+                    loadedContent = undefined;
                 }
+
+                setContent(loadedContent);
+                latestContentRef.current = loadedContent;
 
             } catch (error) {
                 console.error("Error loading paper:", error);
@@ -58,29 +64,73 @@ export default function PaperPage() {
         loadFile();
     }, [fileId, router]);
 
+    // Save Logic (Content)
     const handleSave = useCallback(async (newValue: Value) => {
         setSaving(true);
         try {
             if (!masterKeyManager.hasMasterKey()) return;
-
-            // Save using internal service (no keypairs needed anymore)
             await paperService.savePaper(fileId, newValue);
-
         } catch (e) {
             console.error(e);
-            toast.error("Failed to save");
+            toast.error("Failed to save content");
         } finally {
             setSaving(false);
         }
     }, [fileId]);
 
+    // Save Logic (Title)
+    const handleTitleSave = async (newTitle: string) => {
+        if (newTitle.trim() === paperTitle) {
+            setIsEditingTitle(false);
+            return;
+        }
+
+        try {
+            if (!masterKeyManager.hasMasterKey()) return;
+            // Pass undefined for content to only update title
+            await paperService.savePaper(fileId, undefined, newTitle);
+            setPaperTitle(newTitle);
+        } catch (e) {
+            console.error(e);
+            toast.error("Failed to save title");
+        } finally {
+            setIsEditingTitle(false);
+        }
+    };
+
     // Auto-save debounce
     const onChange = (newValue: Value) => {
+        latestContentRef.current = newValue;
         if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = setTimeout(() => {
             handleSave(newValue);
         }, 2000);
     };
+
+    // Keyboard Shortcuts
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                if (latestContentRef.current) {
+                    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+                    handleSave(latestContentRef.current);
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [handleSave]);
+
+    // Focus input when editing title starts
+    useEffect(() => {
+        if (isEditingTitle && titleInputRef.current) {
+            titleInputRef.current.focus();
+            titleInputRef.current.select();
+        }
+    }, [isEditingTitle]);
+
 
     if (loading) {
         return (
@@ -93,16 +143,40 @@ export default function PaperPage() {
     return (
         <div className="flex flex-col h-screen bg-background">
             <header className="flex h-14 items-center gap-4 border-b px-6 shrink-0">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 max-w-xl">
                     <Button variant="ghost" size="icon" onClick={() => router.push('/')}>
                         <IconArrowLeft className="w-5 h-5" />
                     </Button>
-                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                         <span className="text-primary font-bold text-xs">P</span>
                     </div>
-                    <h1 className="text-lg font-semibold truncate max-w-md">{paperTitle}</h1>
+
+                    {isEditingTitle ? (
+                        <input
+                            ref={titleInputRef}
+                            type="text"
+                            defaultValue={paperTitle}
+                            className="text-lg font-semibold bg-transparent border-b border-primary focus:outline-none w-full min-w-[200px]"
+                            onBlur={(e) => handleTitleSave(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    handleTitleSave(e.currentTarget.value);
+                                }
+                            }}
+                        />
+                    ) : (
+                        <h1
+                            className="text-lg font-semibold truncate cursor-pointer hover:bg-muted/50 px-2 py-1 rounded"
+                            onDoubleClick={() => setIsEditingTitle(true)}
+                            title="Double click to rename"
+                        >
+                            {paperTitle}
+                        </h1>
+                    )}
                 </div>
+
                 <div className="ml-auto flex items-center gap-4">
+                    <ThemeToggle />
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         {saving ? (
                             <>
@@ -121,8 +195,12 @@ export default function PaperPage() {
                     </span>
                 </div>
             </header>
-            <main className="flex-1 overflow-hidden">
-                <PlateEditor initialValue={content} onChange={onChange} />
+
+            {/* Added rounding to the editor container */}
+            <main className="flex-1 overflow-hidden p-4">
+                <div className="h-full w-full bg-background rounded-xl border shadow-sm overflow-hidden">
+                    <PlateEditor initialValue={content} onChange={onChange} />
+                </div>
             </main>
         </div>
     );
