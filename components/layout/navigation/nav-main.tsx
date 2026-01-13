@@ -17,6 +17,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
+  useSidebar,
 } from "@/components/ui/sidebar"
 
 export function NavMain({
@@ -32,6 +33,7 @@ export function NavMain({
   const { t } = useLanguage()
   const router = useRouter()
   const pathname = usePathname()
+  const { state } = useSidebar()
 
   // States for "My files" expansion
   const [isMyFilesExpanded, setIsMyFilesExpanded] = useState(() => {
@@ -90,6 +92,9 @@ export function NavMain({
   const toggleMyFiles = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
+    // Prevent expansion if sidebar is collapsed
+    if (state === "collapsed") return;
+
     const next = !isMyFilesExpanded
     setIsMyFilesExpanded(next)
     sessionStorage.setItem("my-files-expanded", String(next))
