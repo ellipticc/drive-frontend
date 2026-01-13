@@ -335,19 +335,19 @@ const featureCategories = [
   },
   {
     name: 'Security & Privacy',
-    features: ['Zero Knowledge Architecture', 'Post-Quantum Cryptography', 'End-to-End Encryption', 'Two-Factor Auth (TOTP)', 'Secured File Previews', 'File Vault', 'Verified Source']
+    features: ['Zero Knowledge Architecture', 'Post-Quantum Cryptography', 'End-to-End Encryption', 'Two-Factor Auth (TOTP)', 'Secured File Previews', 'Verified Source', 'File Vault']
   },
   {
     name: 'Ellipticc Paper (NEW)',
     features: ['Paper Pages', 'Paper Collaboration', 'Paper Version History']
   },
   {
-    name: 'Intelligence & Tracking',
-    features: ['Suspicious Activity Alerts', 'Vigil: Advanced Analysis', 'Export security events', 'Security Events']
+    name: 'Security Insights',
+    features: ['Security Events', 'Export security events', 'Vigil: Advanced Analysis', 'Suspicious Activity Alerts']
   },
   {
     name: 'Sharing & Collaboration',
-    features: ['Shared links', 'Advanced link settings', 'Disable downloads', 'Custom expiration dates', 'Password-protected links', 'Encrypted File Requests', 'Comments on shares', 'Comment attachments', 'File Versioning']
+    features: ['Shared links', 'Comments on shares', 'Encrypted File Requests', 'Advanced link settings', 'Disable downloads', 'Custom expiration dates', 'Password-protected links', 'Comment attachments', 'File Versioning']
   },
   {
     name: 'Platform & Experience',
@@ -394,7 +394,7 @@ const featureTooltips: Record<string, string> = {
 const BillingPage = () => {
   const router = useRouter();
   const { user } = useUser();
-  const [frequency, setFrequency] = useState<'monthly' | 'yearly'>('monthly');
+  const [frequency, setFrequency] = useState<'monthly' | 'yearly'>('yearly');
   const [loading, setLoading] = useState(true);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [hasUsedTrial, setHasUsedTrial] = useState<boolean>(false);

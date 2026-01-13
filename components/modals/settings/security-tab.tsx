@@ -512,7 +512,15 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
             });
 
             if (response.success) {
-                toast.success("Password changed successfully. Please log in again.");
+                // Explicitly revoke all other sessions to ensure full account protection
+                try {
+                    await apiClient.revokeAllSessions();
+                } catch (revokeErr) {
+                    console.error("Post-password change session revocation failed:", revokeErr);
+                    // Continue anyway as the primary session will be cleared next
+                }
+
+                toast.success("Password changed successfully. All other devices have been disconnected.");
                 setShowChangePasswordDialog(false);
                 // Clear sensitive data
                 masterKeyManager.clearMasterKey();
@@ -1794,12 +1802,20 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                     <DialogHeader>
                         <DialogTitle>Change Password</DialogTitle>
                         <DialogDescription>
-                            Enter your current password and a new strong password.
-                            This will re-encrypt your Master Key and log you out of all devices.
+                            Changing your password will re-encrypt your security keys and disconnect all other active devices. You will need to log back in everywhere.
                         </DialogDescription>
                     </DialogHeader>
                     <form onSubmit={(e) => { e.preventDefault(); handleChangePassword(); }}>
                         <div className="space-y-4 py-4">
+                            <div className="flex items-start gap-3 p-3 bg-red-500/5 border border-red-500/10 rounded-lg text-red-600 dark:text-red-400 mb-2">
+                                <IconAlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                                <div>
+                                    <p className="text-xs font-bold uppercase tracking-wider mb-1">Global Disconnect</p>
+                                    <p className="text-[11px] leading-normal opacity-90">
+                                        For your security, all active sessions and devices will be revoked immediately upon changing your password.
+                                    </p>
+                                </div>
+                            </div>
                             <div className="space-y-2">
                                 <Label htmlFor="current-password">Current Password</Label>
                                 <PasswordInput
