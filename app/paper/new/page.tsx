@@ -1,30 +1,90 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useCallback, useRef } from 'react';
+import { useRouter } from "next/navigation";
 import { PlateEditor } from '@/components/plate-editor';
-import { Toaster } from 'sonner';
+import { Toaster, toast } from 'sonner';
+import { IconLoader2, IconArrowLeft, IconCloudCheck } from "@tabler/icons-react";
+import { Button } from "@/components/ui/button";
+import { keyManager } from "@/lib/key-manager";
+import { paperService } from "@/lib/paper-service";
+import { type Value } from "platejs";
 
 export default function NewPaperPage() {
+    const router = useRouter();
+    const [saving, setSaving] = useState(false);
+    const saveTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+
+    const handleInitialSave = useCallback(async (newValue: Value) => {
+        if (saving) return; // Prevent double trigger
+        setSaving(true);
+        try {
+            const userKeys = await keyManager.getUserKeys();
+            if (!userKeys || !userKeys.keypairs) {
+                toast.error("Encryption keys missing. Please reload.");
+                return;
+            }
+
+            const now = new Date();
+            const filename = `Untitled ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
+
+            const { fileId } = await paperService.createPaper(filename, newValue, userKeys.keypairs);
+
+            // Redirect to the newly created paper
+            router.replace(`/paper/${fileId}`);
+        } catch (e) {
+            console.error(e);
+            toast.error("Failed to create paper");
+            setSaving(false);
+        }
+    }, [router, saving]);
+
+    // Auto-save debounce
+    const onChange = (newValue: Value) => {
+        // Only trigger if there is actual content
+        const text = (newValue?.[0]?.children?.[0] as any)?.text;
+        if (typeof text !== 'string' || text.trim() === '') return;
+
+        if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = setTimeout(() => {
+            handleInitialSave(newValue);
+        }, 1500);
+    };
+
     return (
         <div className="flex flex-col h-screen bg-background">
-            <header className="flex h-14 items-center gap-4 border-b px-6">
+            <header className="flex h-14 items-center gap-4 border-b px-6 shrink-0">
                 <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="icon" onClick={() => router.push('/')}>
+                        <IconArrowLeft className="w-5 h-5" />
+                    </Button>
                     <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
                         <span className="text-primary font-bold text-xs">P</span>
                     </div>
-                    <h1 className="font-semibold text-sm">Untitled Paper</h1>
+                    <h1 className="font-semibold text-sm">New Paper</h1>
                 </div>
-                <div className="ml-auto flex items-center gap-2">
-                    <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest px-2 py-1 rounded bg-muted/50">
+                <div className="ml-auto flex items-center gap-4">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        {saving ? (
+                            <>
+                                <IconLoader2 className="w-4 h-4 animate-spin" />
+                                <span>Creating...</span>
+                            </>
+                        ) : (
+                            <>
+                                <IconCloudCheck className="w-4 h-4" />
+                                <span>Draft</span>
+                            </>
+                        )}
+                    </div>
+                    <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest px-2 py-1 rounded bg-muted/50 hidden md:block">
                         Zero-Knowledge Encrypted
                     </span>
                 </div>
             </header>
 
-            <main className="flex-1 overflow-auto p-8">
-                <div className="max-w-4xl mx-auto h-full">
-                    <PlateEditor />
-                </div>
+            <main className="flex-1 overflow-hidden">
+                <PlateEditor onChange={onChange} />
             </main>
 
             <Toaster />

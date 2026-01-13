@@ -30,8 +30,10 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { ThemeToggle } from "@/components/ui/theme-toggle"
 import { Button } from "@/components/ui/button"
 import { useGlobalUpload } from "@/components/global-upload-context"
 import { useUser } from "@/components/user-context"
@@ -207,6 +209,10 @@ export const AppSidebar = React.memo(function AppSidebar({
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
+        <div className="px-3 py-2 border-t border-border/50 flex items-center justify-between">
+          <ThemeToggle />
+          <SidebarTrigger />
+        </div>
         {state !== "collapsed" && (
           <div className="px-3 py-3 mx-2 mb-2 text-xs text-muted-foreground w-auto space-y-3 bg-muted/30 rounded-lg border border-border/30">
             <div className="flex items-center gap-2 mb-2">

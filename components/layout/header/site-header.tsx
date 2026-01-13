@@ -59,36 +59,7 @@ export function SiteHeader({ onSearch, onFileUpload, onFolderUpload, searchValue
   }, [cleanUpCallback]);
 
   const handleNewPaper = async () => {
-    try {
-      if (!masterKeyManager.hasMasterKey()) {
-        toast.error("Encryption key missing. Please login again.");
-        return;
-      }
-
-      const now = new Date();
-      const timestamp = format(now, "yyyy-MM-dd HH.mm.ss");
-      const filename = `Untitled document ${timestamp}`;
-
-      const initialContent = [{ children: [{ text: '' }], type: 'p' }];
-      const contentJson = JSON.stringify(initialContent);
-      const fileToUpload = new File([contentJson], filename, { type: 'application/json' });
-
-      // Register listener to catch THIS file
-      const onFileAdded = (file: any) => {
-        if (file.name === filename || file.decryptedName === filename) { // Check decrypted name usually
-          router.push(`/paper/${file.id}`);
-          // Cleanup is handled by effect or we can unregister here if we had ref
-        }
-      };
-
-      registerOnFileAdded(onFileAdded);
-      setCleanUpCallback(() => () => unregisterOnFileAdded(onFileAdded));
-
-      startUploadWithFiles([fileToUpload], null);
-    } catch (e) {
-      console.error(e);
-      toast.error("Error creating paper");
-    }
+    router.push('/paper/new');
   };
 
   const isFreePlan = deviceQuota?.planName === 'Free'

@@ -36,10 +36,11 @@ export function PlateEditor({ initialValue, onChange, readOnly }: PlateEditorPro
           onChange?.(newValue);
         }}
       >
-        <EditorContainer className="flex-1 overflow-y-auto w-full h-full max-w-none px-4 md:px-[10%] py-8">
-          <Editor variant="fullWidth" className="min-h-full" />
+        <EditorContainer className="flex-1 overflow-y-auto w-full h-full px-4 md:px-6 py-8">
+          <div className="max-w-5xl mx-auto w-full">
+            <Editor className="min-h-full" />
+          </div>
         </EditorContainer>
-        <SettingsDialog />
       </Plate>
     </div>
   );
