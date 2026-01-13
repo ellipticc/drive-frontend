@@ -36,6 +36,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     }, [user, i18nInstance]);
 
     const setLanguage = async (lang: Language) => {
+        if (lang === i18nInstance.language) return;
         await i18nInstance.changeLanguage(lang);
 
         // Update document direction

@@ -1666,6 +1666,7 @@ export function SettingsModal({
                   setTheme={setTheme}
                   appearanceTheme={appearanceTheme}
                   setAppearanceTheme={async (newTheme) => {
+                    if (newTheme === appearanceTheme) return;
                     const oldTheme = appearanceTheme;
                     setAppearanceTheme(newTheme);
                     updateUser({ appearance_theme: newTheme });
@@ -1687,6 +1688,7 @@ export function SettingsModal({
                   }}
                   themeSync={themeSync}
                   setThemeSync={async (sync) => {
+                    if (sync === themeSync) return;
                     const oldSync = themeSync;
                     const oldTheme = theme;
                     setThemeSync(sync);
@@ -1713,6 +1715,7 @@ export function SettingsModal({
                   }}
                   dateTimePreference={dateTimePreference}
                   setDateTimePreference={async (val) => {
+                    if (val === dateTimePreference) return;
                     const oldVal = dateTimePreference;
                     setDateTimePreference(val);
                     updateUser({ time_format: val });
@@ -1733,6 +1736,7 @@ export function SettingsModal({
                   }}
                   showSuggestions={showSuggestions}
                   setShowSuggestions={async (val) => {
+                    if (val === showSuggestions) return;
                     const oldVal = showSuggestions;
                     setShowSuggestions(val);
                     updateUser({ show_suggestions: val });
@@ -1753,6 +1757,7 @@ export function SettingsModal({
                   }}
                   dateFormat={dateFormat}
                   setDateFormat={async (val) => {
+                    if (val === dateFormat) return;
                     const oldVal = dateFormat;
                     setDateFormat(val);
                     updateUser({ date_format: val });
@@ -1773,6 +1778,7 @@ export function SettingsModal({
                   }}
                   autoTimezone={autoTimezone}
                   setAutoTimezone={async (val) => {
+                    if (val === autoTimezone) return;
                     const oldVal = autoTimezone;
                     setAutoTimezone(val);
                     updateUser({ auto_timezone: val });
@@ -1793,6 +1799,7 @@ export function SettingsModal({
                   }}
                   timezone={timezone}
                   setTimezone={async (val) => {
+                    if (val === timezone) return;
                     const oldVal = timezone;
                     setTimezone(val);
                     updateUser({ timezone: val });
