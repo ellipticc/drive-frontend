@@ -18,6 +18,7 @@ export default function PaperPage() {
     const fileId = params.fileId as string;
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [isUnsaved, setIsUnsaved] = useState(false);
     const [content, setContent] = useState<Value | undefined>(undefined);
     const [paperTitle, setPaperTitle] = useState<string>("Untitled Paper");
     const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -26,6 +27,7 @@ export default function PaperPage() {
 
     const latestContentRef = useRef<Value | undefined>(undefined);
     const lastSavedContentRef = useRef<string>("");
+    const lastChangeTimeRef = useRef<number>(0);
 
     // Initial Load
     useEffect(() => {
@@ -63,7 +65,6 @@ export default function PaperPage() {
                 }
 
                 setContent(loadedContent);
-                setContent(loadedContent);
                 latestContentRef.current = loadedContent;
                 lastSavedContentRef.current = JSON.stringify(loadedContent);
 
@@ -81,16 +82,23 @@ export default function PaperPage() {
     // Save Logic (Content)
     const handleSave = useCallback(async (newValue: Value) => {
         const contentString = JSON.stringify(newValue);
-        // Prevent unnecessary saves
+        // Prevent unnecessary saves if strictly identical to last save AND we know we are cleaner
         if (contentString === lastSavedContentRef.current) {
+            setIsUnsaved(false); // Ensure status is correct
             return;
         }
 
+        const saveStartTime = Date.now();
         setSaving(true);
         try {
             if (!masterKeyManager.hasMasterKey()) return;
             await paperService.savePaper(fileId, newValue);
-            lastSavedContentRef.current = contentString;
+
+            // Only mark as clean if no new changes occurred during save
+            if (lastChangeTimeRef.current <= saveStartTime) {
+                setIsUnsaved(false);
+                lastSavedContentRef.current = contentString;
+            }
         } catch (e) {
             console.error(e);
             toast.error("Failed to save content");
@@ -122,6 +130,9 @@ export default function PaperPage() {
     // Auto-save debounce
     const onChange = (newValue: Value) => {
         latestContentRef.current = newValue;
+        lastChangeTimeRef.current = Date.now();
+        setIsUnsaved(true);
+
         if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = setTimeout(() => {
             handleSave(newValue);
@@ -162,74 +173,75 @@ export default function PaperPage() {
     }
 
     return (
-        <div className="flex flex-col h-screen bg-background">
-            <header className="flex h-16 items-center gap-4 border-b px-6 shrink-0 bg-card/50 backdrop-blur-sm">
-                <div className="flex items-center gap-2 max-w-xl">
-                    <Button variant="ghost" size="icon" onClick={() => router.push('/')}>
-                        <IconArrowLeft className="w-5 h-5" />
-                    </Button>
-                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                        <span className="text-primary font-bold text-xs">P</span>
-                    </div>
+        <div className="flex flex-col h-screen bg-muted/40 p-2 md:p-4 overflow-hidden">
+            <div className="flex flex-col flex-1 bg-background rounded-3xl border shadow-sm overflow-hidden ring-1 ring-border/50">
+                <header className="flex h-16 items-center gap-4 border-b px-6 shrink-0 bg-background/50 backdrop-blur-sm z-10">
+                    <div className="flex items-center gap-2 max-w-xl">
+                        <Button variant="ghost" size="icon" onClick={() => router.push('/')} className="hover:bg-muted">
+                            <IconArrowLeft className="w-5 h-5" />
+                        </Button>
+                        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                            <span className="text-primary font-bold text-xs">P</span>
+                        </div>
 
-                    {isEditingTitle ? (
-                        <input
-                            ref={titleInputRef}
-                            type="text"
-                            defaultValue={paperTitle}
-                            className="text-lg font-semibold bg-transparent border-b border-primary focus:outline-none w-full min-w-[200px]"
-                            onBlur={(e) => handleTitleSave(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                    handleTitleSave(e.currentTarget.value);
-                                }
-                            }}
-                        />
-                    ) : (
-                        <h1
-                            className="text-lg font-semibold truncate cursor-pointer hover:bg-muted/50 px-2 py-1 rounded"
-                            onDoubleClick={() => setIsEditingTitle(true)}
-                            title="Double click to rename"
-                        >
-                            {paperTitle}
-                        </h1>
-                    )}
-                </div>
-
-                <div className="ml-auto flex items-center gap-4">
-                    <ThemeToggle />
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        {saving ? (
-                            <>
-                                <IconLoader2 className="w-4 h-4 animate-spin" />
-                                <span>Saving...</span>
-                            </>
+                        {isEditingTitle ? (
+                            <input
+                                ref={titleInputRef}
+                                type="text"
+                                defaultValue={paperTitle}
+                                className="text-lg font-semibold bg-transparent border-b border-primary focus:outline-none w-full min-w-[200px]"
+                                onBlur={(e) => handleTitleSave(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        handleTitleSave(e.currentTarget.value);
+                                    }
+                                }}
+                            />
                         ) : (
-                            <>
-                                <IconCloudCheck className="w-4 h-4" />
-                                <span>Saved</span>
-                            </>
+                            <h1
+                                className="text-lg font-semibold truncate cursor-pointer hover:bg-muted/50 px-2 py-1 rounded transition-colors"
+                                onDoubleClick={() => setIsEditingTitle(true)}
+                                title="Double click to rename"
+                            >
+                                {paperTitle}
+                            </h1>
                         )}
                     </div>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest px-2 py-1 rounded bg-muted/50 hidden md:block cursor-help hover:bg-muted transition-colors">
-                                Zero-Knowledge Encrypted
-                            </span>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            <p className="max-w-xs">Your content is encrypted with your private key before leaving your device. Only you can read it.</p>
-                        </TooltipContent>
-                    </Tooltip>
-                </div>
-            </header>
 
-            {/* Added rounding to the editor container */}
-            <main className="flex-1 overflow-hidden p-4">
-                <div className="h-full w-full bg-background rounded-xl border shadow-sm overflow-hidden">
+                    <div className="ml-auto flex items-center gap-4">
+                        <ThemeToggle />
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-[80px] justify-end">
+                            {saving ? (
+                                <>
+                                    <IconLoader2 className="w-4 h-4 animate-spin" />
+                                    <span>Saving...</span>
+                                </>
+                            ) : isUnsaved ? (
+                                <span className="text-muted-foreground/70">Unsaved</span>
+                            ) : (
+                                <>
+                                    <IconCloudCheck className="w-4 h-4 text-green-500" />
+                                    <span className="text-green-500 font-medium">Saved</span>
+                                </>
+                            )}
+                        </div>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest px-2 py-1 rounded bg-muted/50 hidden md:block cursor-help hover:bg-muted transition-colors">
+                                    Zero-Knowledge Encrypted
+                                </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p className="max-w-xs">Your content is encrypted with your private key before leaving your device. Only you can read it.</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </div>
+                </header>
+
+                <main className="flex-1 overflow-hidden relative">
                     <PlateEditor initialValue={content} onChange={onChange} />
-                </div>
-            </main>
+                </main>
+            </div>
         </div>
     );
 }
