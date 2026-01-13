@@ -50,11 +50,7 @@ export function FileThumbnail({
 
     // If not an image/video, just show the icon immediately
     if (!isImage) {
-        return (
-            <div className={`flex items-center justify-center ${className}`}>
-                <FileIcon mimeType={mimeType} filename={name} className={iconClassName} />
-            </div>
-        );
+        return <FileIcon mimeType={mimeType} filename={name} className={className} />;
     }
 
     useEffect(() => {
@@ -98,7 +94,13 @@ export function FileThumbnail({
                 // 3. Decrypt
                 let fileEncryption = encryption;
 
-                if (!fileEncryption) {
+                // Check if we have the necessary PQC keys for decryption
+                const hasPQCKeys = fileEncryption &&
+                    'kyberCiphertext' in fileEncryption &&
+                    'nonceWrapKyber' in fileEncryption;
+
+                if (!fileEncryption || !hasPQCKeys) {
+                    // Fetch full file info to get complete encryption keys
                     const fileInfo = await apiClient.getFileInfo(fileId);
 
                     if (fileInfo.success && fileInfo.data?.encryption) {
@@ -197,9 +199,5 @@ export function FileThumbnail({
     }
 
     // Fallback
-    return (
-        <div className={`flex items-center justify-center ${className}`}>
-            <FileIcon mimeType={mimeType} filename={name} className={iconClassName} />
-        </div>
-    );
+    return <FileIcon mimeType={mimeType} filename={name} className={className} />;
 }
