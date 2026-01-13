@@ -197,10 +197,11 @@ export default function RootLayout({
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
             
-            // Check privacy settings (default to true)
+            // Check privacy settings and authentication state
             var usageDiagnosticsEnabled = true;
             try {
-              if (localStorage.getItem('privacy_usage_diagnostics') === 'false') {
+              var hasAuthToken = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
+              if (localStorage.getItem('privacy_usage_diagnostics') === 'false' || hasAuthToken) {
                 usageDiagnosticsEnabled = false;
               }
             } catch(e) {}
@@ -210,6 +211,16 @@ export default function RootLayout({
               'analytics_storage': usageDiagnosticsEnabled ? 'granted' : 'denied',
               'ad_storage': usageDiagnosticsEnabled ? 'granted' : 'denied'
             });
+
+            // Global helper to stop tracking on the fly (e.g. after login)
+            window.stopTracking = function() {
+              gtag('consent', 'update', {
+                'analytics_storage': 'denied',
+                'ad_storage': 'denied'
+              });
+              // Disable GA globally for this property
+              window['ga-disable-G-NSQ52X2GM3'] = true;
+            };
 
             if (usageDiagnosticsEnabled) {
               gtag('js', new Date());

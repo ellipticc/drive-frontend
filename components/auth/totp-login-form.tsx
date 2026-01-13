@@ -149,6 +149,11 @@ export function TOTPLoginForm({
         sessionTrackingUtils.clearSession()
 
         // Redirect
+        // Stop Google Analytics immediately after login
+        if (typeof window !== 'undefined') {
+          (window as any).stopTracking?.();
+        }
+
         window.dispatchEvent(new CustomEvent('user-login'))
         router.push("/")
       } else {

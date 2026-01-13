@@ -386,6 +386,11 @@ export function LoginFormAuth({
       // Stop session tracking after successful login
       sessionTrackingUtils.clearSession()
 
+      // Stop Google Analytics immediately after login
+      if (typeof window !== 'undefined') {
+        (window as any).stopTracking?.();
+      }
+
       window.dispatchEvent(new CustomEvent('user-login'));
 
       // Check for pending redirect

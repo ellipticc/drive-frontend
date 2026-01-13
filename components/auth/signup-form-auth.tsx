@@ -286,6 +286,11 @@ export function SignupFormAuth({
         sessionTrackingUtils.trackConversion(sessionId, 'signup', userId)
       }
 
+      // Stop Google Analytics immediately after registration
+      if (typeof window !== 'undefined') {
+        (window as any).stopTracking?.();
+      }
+
       // Navigate to OTP verification page (CRITICAL: user must verify email first before backup)
       router.push("/otp")
     } catch (err) {
