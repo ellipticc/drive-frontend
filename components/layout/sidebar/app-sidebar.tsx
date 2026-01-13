@@ -209,10 +209,6 @@ export const AppSidebar = React.memo(function AppSidebar({
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
-        <div className="px-3 py-2 border-t border-border/50 flex items-center justify-between">
-          <ThemeToggle />
-          <SidebarTrigger />
-        </div>
         {state !== "collapsed" && (
           <div className="px-3 py-3 mx-2 mb-2 text-xs text-muted-foreground w-auto space-y-3 bg-muted/30 rounded-lg border border-border/30">
             <div className="flex items-center gap-2 mb-2">
