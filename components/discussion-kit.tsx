@@ -128,6 +128,15 @@ const usersData: Record<
   },
 };
 
+export type DiscussionConfig = {
+  currentUserId: string;
+  discussions: TDiscussion[];
+  users: Record<
+    string,
+    { id: string; avatarUrl: string; name: string; hue?: number }
+  >;
+};
+
 // This plugin is purely UI. It's only used to store the discussions and users data
 export const discussionPlugin = createPlatePlugin({
   key: 'discussion',
@@ -135,7 +144,7 @@ export const discussionPlugin = createPlatePlugin({
     currentUserId: 'alice',
     discussions: discussionsData,
     users: usersData,
-  },
+  } as DiscussionConfig,
 })
   .configure({
     render: { aboveNodes: BlockDiscussion },

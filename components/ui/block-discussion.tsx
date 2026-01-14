@@ -32,12 +32,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { commentPlugin } from '@/components/comment-kit';
 import {
+  type CommentConfig,
+} from '@/components/comment-kit';
+import {
+  type DiscussionConfig,
   type TDiscussion,
-  discussionPlugin,
 } from '@/components/discussion-kit';
-import { suggestionPlugin } from '@/components/suggestion-kit';
+import { type SuggestionConfig } from '@/components/suggestion-kit';
 
 import {
   BlockSuggestionCard,
@@ -102,13 +104,22 @@ const BlockCommentContent = ({
   const discussionsCount = resolvedDiscussions.length;
   const totalCount = suggestionsCount + discussionsCount;
 
-  const activeSuggestionId = usePluginOption(suggestionPlugin, 'activeId');
+  const activeSuggestionId = usePluginOption(
+    'suggestion' as any,
+    'activeId'
+  ) as string | null;
   const activeSuggestion =
     activeSuggestionId &&
     resolvedSuggestions.find((s) => s.suggestionId === activeSuggestionId);
 
-  const commentingBlock = usePluginOption(commentPlugin, 'commentingBlock');
-  const activeCommentId = usePluginOption(commentPlugin, 'activeId');
+  const commentingBlock = usePluginOption(
+    'comment' as any,
+    'commentingBlock'
+  ) as Path | null;
+  const activeCommentId = usePluginOption(
+    'comment' as any,
+    'activeId'
+  ) as string | null;
   const isCommenting = activeCommentId === getDraftCommentKey();
   const activeDiscussion =
     activeCommentId &&
@@ -144,7 +155,7 @@ const BlockCommentContent = ({
         ([node]) =>
           TextApi.isText(node) &&
           editor.getApi(SuggestionPlugin).suggestion.nodeId(node) ===
-            activeSuggestion.suggestionId
+          activeSuggestion.suggestionId
       );
     }
 
@@ -154,7 +165,7 @@ const BlockCommentContent = ({
       } else {
         activeNode = commentNodes.find(
           ([node]) =>
-            editor.getApi(commentPlugin).comment.nodeId(node) ===
+            editor.getApi('comment' as any).comment.nodeId(node) ===
             activeCommentId
         );
       }
@@ -312,9 +323,12 @@ const useResolvedDiscussion = (
   commentNodes: NodeEntry<TCommentText>[],
   blockPath: Path
 ) => {
-  const { api, getOption, setOption } = useEditorPlugin(commentPlugin);
+  const { api, getOption, setOption } = useEditorPlugin('comment' as any);
 
-  const discussions = usePluginOption(discussionPlugin, 'discussions');
+  const discussions = usePluginOption(
+    'discussion' as any,
+    'discussions'
+  ) as TDiscussion[];
 
   commentNodes.forEach(([node]) => {
     const id = api.comment.nodeId(node);

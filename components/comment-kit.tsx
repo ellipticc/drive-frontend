@@ -12,7 +12,7 @@ import { toTPlatePlugin } from 'platejs/react';
 
 import { CommentLeaf } from '@/components/ui/comment-node';
 
-type CommentConfig = ExtendConfig<
+export type CommentConfig = ExtendConfig<
   BaseCommentConfig,
   {
     activeId: string | null;

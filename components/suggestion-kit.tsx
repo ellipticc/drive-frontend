@@ -14,8 +14,6 @@ import {
   SuggestionLineBreak,
 } from '@/components/ui/suggestion-node';
 
-import { discussionPlugin } from './discussion-kit';
-
 export type SuggestionConfig = ExtendConfig<
   BaseSuggestionConfig,
   {
@@ -30,7 +28,7 @@ export const suggestionPlugin = toTPlatePlugin<SuggestionConfig>(
   ({ editor }) => ({
     options: {
       activeId: null,
-      currentUserId: editor.getOption(discussionPlugin, 'currentUserId'),
+      currentUserId: editor.getOption('discussion' as any, 'currentUserId'),
       hoverId: null,
       uniquePathMap: new Map(),
     },
