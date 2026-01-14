@@ -18,6 +18,7 @@ interface ManifestEntry {
 interface PaperManifest {
     version: number;
     blocks: ManifestEntry[];
+    icon?: string;
 }
 
 class PaperService {
@@ -113,7 +114,17 @@ class PaperService {
         try {
             const masterKey = masterKeyManager.getMasterKey();
             const updateData: any = {};
-            const contentBlocks = content as any[];
+
+            // Handle wrapped content (from frontend: { content: blocks, icon: string })
+            let contentBlocks: any[] = [];
+            let icon: string | undefined = undefined;
+
+            if (content && typeof content === 'object' && !Array.isArray(content) && 'content' in content) {
+                contentBlocks = (content as any).content;
+                icon = (content as any).icon;
+            } else if (Array.isArray(content)) {
+                contentBlocks = content;
+            }
 
             // 1. Encrypt Title if provided
             if (title !== undefined) {
@@ -161,12 +172,12 @@ class PaperService {
                         const chunkId = existingEntry ? existingEntry.chunkId : crypto.randomUUID();
 
                         // Add to upload queue
-                        // Backend expects: Encrypted Blob (JSON string of {encryptedContent, iv, salt})
-                        const payload = JSON.stringify({ encryptedContent, iv, salt });
+                        // Backend expects: Object (will be stringified by backend before storage)
+                        const payload = { encryptedContent, iv, salt };
                         chunksToUpload.push({
                             chunkId,
-                            content: payload,
-                            size: new Blob([payload]).size // Approximate size
+                            content: payload as any, // Send as object
+                            size: new Blob([JSON.stringify(payload)]).size
                         });
 
                         newManifestBlocks.push({
@@ -189,7 +200,8 @@ class PaperService {
                 // Prepare Manifest Chunk (Chunk 0)
                 const newManifest: PaperManifest = {
                     version: 1,
-                    blocks: newManifestBlocks
+                    blocks: newManifestBlocks,
+                    icon: icon !== undefined ? icon : currentManifest.icon
                 };
 
                 // Update Cache
@@ -198,12 +210,12 @@ class PaperService {
                 // Encrypt Manifest
                 const manifestStr = JSON.stringify(newManifest);
                 const { encryptedContent: encManifest, iv: ivManifest, salt: saltManifest } = await encryptPaperContent(manifestStr, masterKey);
-                const manifestPayload = JSON.stringify({
+                const manifestPayload = {
                     encryptedContent: encManifest,
                     iv: ivManifest,
                     salt: saltManifest,
                     isManifest: true
-                });
+                };
 
                 // Add Manifest to Uploads (Always replace Chunk 0)
                 // We use a special API field or just chunk-0 convention
@@ -235,7 +247,7 @@ class PaperService {
     async getPaper(paperId: string): Promise<{
         id: string;
         title: string;
-        content: any;
+        content: any; // Returns { content: blocks, icon: string }
         folderId: string | null;
         createdAt: string;
         updatedAt: string;
@@ -308,6 +320,15 @@ class PaperService {
                 }
                 content = blocks;
             }
+
+            return {
+                id: paper.id,
+                title,
+                content: { content, icon: manifest?.icon ?? null }, // Return wrapped object
+                folderId: paper.folderId,
+                createdAt: paper.createdAt,
+                updatedAt: paper.updatedAt
+            };
         } catch (e) {
             console.error('Failed to decrypt content', e);
         }
@@ -315,7 +336,7 @@ class PaperService {
         return {
             id: paper.id,
             title,
-            content,
+            content: { content: [], icon: null },
             folderId: paper.folderId,
             createdAt: paper.createdAt,
             updatedAt: paper.updatedAt
