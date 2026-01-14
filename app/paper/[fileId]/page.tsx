@@ -16,6 +16,114 @@ import { Input } from "@/components/ui/input";
 import { EmojiPopover, EmojiPicker } from "@/components/ui/emoji-toolbar-button";
 import { useEmojiDropdownMenuState } from "@platejs/emoji/react";
 
+import { PlateController } from "platejs/react";
+
+interface PaperHeaderProps {
+    fileId: string;
+    paperTitle: string;
+    setPaperTitle: (title: string) => void;
+    handleTitleSave: (title: string) => void;
+    icon: string | null;
+    onSelectEmoji: (emoji: any) => void;
+    saving: boolean;
+    isUnsaved: boolean;
+}
+
+function PaperHeader({
+    fileId,
+    paperTitle,
+    setPaperTitle,
+    handleTitleSave,
+    icon,
+    onSelectEmoji,
+    saving,
+    isUnsaved
+}: PaperHeaderProps) {
+    const router = useRouter();
+    const { emojiPickerState, isOpen, setIsOpen } = useEmojiDropdownMenuState();
+
+    // Determine display icon (emoji or first letter)
+    const displayIcon = icon || (paperTitle ? paperTitle.charAt(0).toUpperCase() : "U");
+
+    return (
+        <header className="flex h-16 items-center gap-4 border-b px-6 shrink-0 bg-background z-10">
+            <div className="flex items-center gap-3 w-full max-w-2xl">
+                <Button variant="ghost" size="icon" onClick={() => router.push('/')} className="hover:bg-muted shrink-0">
+                    <IconArrowLeft className="w-5 h-5" />
+                </Button>
+
+                <EmojiPopover
+                    isOpen={isOpen}
+                    setIsOpen={setIsOpen}
+                    control={
+                        <Button
+                            variant="ghost"
+                            className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 hover:bg-primary/20 p-0 text-xl overflow-hidden"
+                        >
+                            {displayIcon}
+                        </Button>
+                    }
+                >
+                    <EmojiPicker
+                        {...emojiPickerState}
+                        isOpen={isOpen}
+                        setIsOpen={setIsOpen}
+                        onSelectEmoji={(emoji) => {
+                            onSelectEmoji(emoji);
+                            setIsOpen(false);
+                        }}
+                    />
+                </EmojiPopover>
+
+                <Input
+                    value={paperTitle}
+                    onChange={(e) => setPaperTitle(e.target.value)}
+                    onBlur={(e) => handleTitleSave(e.target.value)}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                            e.currentTarget.blur();
+                        }
+                    }}
+                    maxLength={255}
+                    className="text-2xl font-semibold bg-transparent border-transparent hover:border-border focus:border-input focus:bg-background transition-colors w-full h-11 px-2 shadow-none truncate"
+                    placeholder="Untitled Paper"
+                />
+            </div>
+
+            <div className="ml-auto flex items-center gap-4 shrink-0">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-[80px] justify-end">
+                    {saving ? (
+                        <>
+                            <IconLoader2 className="w-4 h-4 animate-spin" />
+                            <span>Saving...</span>
+                        </>
+                    ) : isUnsaved ? (
+                        <span className="text-muted-foreground/70">Unsaved</span>
+                    ) : (
+                        <>
+                            <IconCloudCheck className="w-4 h-4 text-green-500" />
+                            <span className="text-green-500 font-medium">Saved</span>
+                        </>
+                    )}
+                </div>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest px-2 py-1 rounded bg-muted/50 hidden md:block cursor-help hover:bg-muted transition-colors">
+                            Zero-Knowledge Encrypted
+                        </span>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                        <p>Your paper is encrypted with your private key before leaving your device. Only you can read it.</p>
+                    </TooltipContent>
+                </Tooltip>
+                <ThemeToggle />
+                <div className="h-6 w-px bg-border mx-1" />
+                <HeaderUser />
+            </div>
+        </header>
+    );
+}
+
 export default function PaperPage() {
     const params = useParams();
     const router = useRouter();
@@ -31,9 +139,6 @@ export default function PaperPage() {
     const latestContentRef = useRef<Value | undefined>(undefined);
     const lastSavedContentRef = useRef<string>("");
     const lastChangeTimeRef = useRef<number>(0);
-
-    // Emoji picker state
-    const { emojiPickerState, isOpen, setIsOpen } = useEmojiDropdownMenuState();
 
     // Initial Load
     useEffect(() => {
@@ -157,7 +262,6 @@ export default function PaperPage() {
     const onSelectEmoji = (emoji: any) => {
         const newIcon = emoji.skins[0].native;
         setIcon(newIcon);
-        setIsOpen(false);
         // Trigger save immediately for icon change
         if (latestContentRef.current) {
             handleSave(latestContentRef.current, newIcon);
@@ -191,89 +295,27 @@ export default function PaperPage() {
         );
     }
 
-    // Determine display icon (emoji or first letter)
-    const displayIcon = icon || (paperTitle ? paperTitle.charAt(0).toUpperCase() : "U");
-
     return (
-        <div className="flex flex-col h-full bg-background overflow-hidden">
-            <div className="flex flex-col flex-1 bg-background overflow-hidden">
-                <header className="flex h-16 items-center gap-4 border-b px-6 shrink-0 bg-background z-10">
-                    <div className="flex items-center gap-3 w-full max-w-2xl">
-                        <Button variant="ghost" size="icon" onClick={() => router.push('/')} className="hover:bg-muted shrink-0">
-                            <IconArrowLeft className="w-5 h-5" />
-                        </Button>
+        <PlateController>
+            <div className="flex flex-col h-full bg-background overflow-hidden">
+                <div className="flex flex-col flex-1 bg-background overflow-hidden">
+                    <PaperHeader
+                        fileId={fileId}
+                        paperTitle={paperTitle}
+                        setPaperTitle={setPaperTitle}
+                        handleTitleSave={handleTitleSave}
+                        icon={icon}
+                        onSelectEmoji={onSelectEmoji}
+                        saving={saving}
+                        isUnsaved={isUnsaved}
+                    />
 
-                        <EmojiPopover
-                            isOpen={isOpen}
-                            setIsOpen={setIsOpen}
-                            control={
-                                <Button
-                                    variant="ghost"
-                                    className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 hover:bg-primary/20 p-0 text-xl overflow-hidden"
-                                >
-                                    {displayIcon}
-                                </Button>
-                            }
-                        >
-                            <EmojiPicker
-                                {...emojiPickerState}
-                                isOpen={isOpen}
-                                setIsOpen={setIsOpen}
-                                onSelectEmoji={onSelectEmoji}
-                            />
-                        </EmojiPopover>
-
-                        <Input
-                            value={paperTitle}
-                            onChange={(e) => setPaperTitle(e.target.value)}
-                            onBlur={(e) => handleTitleSave(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                    e.currentTarget.blur();
-                                }
-                            }}
-                            maxLength={255}
-                            className="text-2xl font-semibold bg-transparent border-transparent hover:border-border focus:border-input focus:bg-background transition-colors w-full h-11 px-2 shadow-none truncate"
-                            placeholder="Untitled Paper"
-                        />
-                    </div>
-
-                    <div className="ml-auto flex items-center gap-4 shrink-0">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-[80px] justify-end">
-                            {saving ? (
-                                <>
-                                    <IconLoader2 className="w-4 h-4 animate-spin" />
-                                    <span>Saving...</span>
-                                </>
-                            ) : isUnsaved ? (
-                                <span className="text-muted-foreground/70">Unsaved</span>
-                            ) : (
-                                <>
-                                    <IconCloudCheck className="w-4 h-4 text-green-500" />
-                                    <span className="text-green-500 font-medium">Saved</span>
-                                </>
-                            )}
-                        </div>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest px-2 py-1 rounded bg-muted/50 hidden md:block cursor-help hover:bg-muted transition-colors">
-                                    Zero-Knowledge Encrypted
-                                </span>
-                            </TooltipTrigger>
-                            <TooltipContent className="max-w-xs">
-                                <p>Your paper is encrypted with your private key before leaving your device. Only you can read it.</p>
-                            </TooltipContent>
-                        </Tooltip>
-                        <ThemeToggle />
-                        <div className="h-6 w-px bg-border mx-1" />
-                        <HeaderUser />
-                    </div>
-                </header>
-
-                <main className="flex-1 overflow-hidden relative">
-                    <PlateEditor initialValue={content} onChange={onChange} />
-                </main>
+                    <main className="flex-1 overflow-hidden relative">
+                        <PlateEditor initialValue={content} onChange={onChange} />
+                    </main>
+                </div>
             </div>
-        </div>
+        </PlateController>
     );
 }
+
