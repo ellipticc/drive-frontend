@@ -114,6 +114,7 @@ class PaperService {
         try {
             const masterKey = masterKeyManager.getMasterKey();
             const updateData: any = {};
+            console.log('[PaperService] savePaper called for:', paperId, 'Content Type:', typeof content);
 
             // Handle wrapped content (from frontend: { content: blocks, icon: string })
             let contentBlocks: any[] = [];
@@ -149,6 +150,7 @@ class PaperService {
                 const seenIds = new Set<string>();
 
                 // Process each block in the new content
+                console.log('[PaperService] Processing blocks:', contentBlocks?.length);
                 for (const block of contentBlocks) {
                     // Ensure Block ID is unique
                     if (!block.id || seenIds.has(block.id)) block.id = crypto.randomUUID();
@@ -225,10 +227,12 @@ class PaperService {
             }
 
             if (Object.keys(updateData).length === 0) {
+                console.log('[PaperService] No changes to save.');
                 return;
             }
 
             // 3. Send to API
+            console.log('[PaperService] Sending updateData:', JSON.stringify(updateData, null, 2));
             // Note: We need to update the backend to support `chunksToUpload` and `chunksToDelete`
             const response = await apiClient.savePaperBlocks(paperId, updateData); // Using a generalized endpoint or update existing
 
@@ -258,6 +262,7 @@ class PaperService {
         }
 
         const paper = response.data;
+        console.log('[PaperService] getPaper response:', paper);
         const masterKey = masterKeyManager.getMasterKey();
 
         // 1. Decrypt Title
