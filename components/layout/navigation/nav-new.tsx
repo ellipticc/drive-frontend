@@ -53,13 +53,7 @@ export function NavNew({ onFileUpload, onFolderUpload }: NavNewProps) {
                 return
             }
 
-            toast.info("Creating new paper...")
-
-            const now = new Date()
-            const pad = (n: number) => n.toString().padStart(2, '0')
-            const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
-            const timeStr = `${pad(now.getHours())}.${pad(now.getMinutes())}.${pad(now.getSeconds())}`
-            const filename = `Untitled document ${dateStr} ${timeStr}`
+            const filename = `Untitled document`;
 
             // Use currentFolderId if available (convert 'root' to null for API if needed, consistent with other uploaders)
             // paperService.createPaper expects null for root
@@ -80,7 +74,7 @@ export function NavNew({ onFileUpload, onFolderUpload }: NavNewProps) {
                 mimeType: 'application/x-paper',
             } as any)
 
-            router.push(`/paper/${fileId}`)
+            window.open(`/paper/${fileId}`, '_blank');
         } catch (error) {
             console.error("Failed to create paper:", error)
             toast.error("Failed to create paper")

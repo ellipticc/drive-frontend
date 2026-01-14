@@ -38,7 +38,7 @@ export function PlateEditor({ initialValue, onChange, readOnly }: PlateEditorPro
 
 
         <EditorContainer className="flex-1 w-full h-full">
-          <Editor className="min-h-full w-full max-w-5xl mx-auto px-4 md:px-6 py-4 shadow-sm my-4 bg-background border rounded-lg" />
+          <Editor className="min-h-full w-full px-4 md:px-6 py-4" />
         </EditorContainer>
       </Plate>
     </div>
