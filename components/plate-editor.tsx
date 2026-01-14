@@ -13,7 +13,7 @@ interface PlateEditorProps {
 }
 
 export function PlateEditor({ initialValue, onChange, readOnly }: PlateEditorProps) {
-  const [value, setValue] = React.useState<Value>(initialValue || [{ children: [{ text: '' }], type: 'p' }]);
+  const [value, setValue] = React.useState<Value>(initialValue || [{ children: [{ text: '' }], type: 'h1' }]);
 
   const editor = usePlateEditor({
     plugins: EditorKit,
@@ -36,9 +36,9 @@ export function PlateEditor({ initialValue, onChange, readOnly }: PlateEditorPro
         }}
       >
 
-        <EditorContainer className="flex-1 w-full h-full flex justify-center overflow-y-auto">
+        <EditorContainer className="flex-1 w-full h-full flex overflow-y-auto">
           <Editor
-            className="min-h-full w-full max-w-[850px] px-8 md:px-12 py-16 border-none shadow-none focus-visible:ring-0 mx-auto"
+            className="min-h-full w-full max-w-[850px] px-8 md:px-12 py-8 border-none shadow-none focus-visible:ring-0 mx-auto ml-[15%]"
             autoFocus
             placeholder="New Page"
           />

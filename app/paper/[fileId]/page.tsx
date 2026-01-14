@@ -176,9 +176,9 @@ function PaperEditorView({
                 </FixedToolbar>
 
                 <main className="flex-1 overflow-hidden relative">
-                    <EditorContainer className="h-full w-full overflow-y-auto flex justify-center">
+                    <EditorContainer className="h-full w-full overflow-y-auto flex">
                         <Editor
-                            className="min-h-full w-full max-w-[850px] px-8 md:px-12 py-16 border-none shadow-none focus-visible:ring-0 mx-auto"
+                            className="min-h-full w-full max-w-[850px] px-8 md:px-12 py-8 border-none shadow-none focus-visible:ring-0 mx-auto ml-[15%]"
                             autoFocus
                             placeholder="New Page"
                         />
@@ -234,7 +234,7 @@ export default function PaperPage() {
                     if (rawContent[0] && typeof rawContent[0] === 'object' && 'children' in rawContent[0]) {
                         loadedContent = rawContent as Value;
                     } else {
-                        loadedContent = [{ type: 'p', children: [{ text: '' }] }];
+                        loadedContent = [{ type: 'h1', children: [{ text: '' }] }];
                     }
                 } else if (typeof rawContent === 'string' && rawContent.trim() !== '') {
                     loadedContent = [{ type: 'p', children: [{ text: rawContent }] }];
@@ -243,7 +243,7 @@ export default function PaperPage() {
                     loadedContent = [rawContent] as unknown as Value;
                 } else {
                     // Fallback for {}, empty array, null, or invalid structure
-                    loadedContent = [{ type: 'p', children: [{ text: '' }] }];
+                    loadedContent = [{ type: 'h1', children: [{ text: '' }] }];
                 }
 
                 setContent(loadedContent);
