@@ -2583,7 +2583,21 @@ export const Table01DividerLineSm = ({
                         size="sm"
                         variant="ghost"
                         className="h-7 w-7 p-0"
-                        onClick={() => window.open('/paper/new', '_blank')}
+                        onClick={async () => {
+                            try {
+                                // Create paper with default title and current folder context
+                                // Use 'null' for root or currentFolderId if it's a valid UUID
+                                const folderId = currentFolderId === 'root' ? null : currentFolderId;
+                                const newPaperId = await paperService.createPaper('Untitled document', undefined, folderId);
+
+                                if (newPaperId) {
+                                    window.open(`/paper/${newPaperId}`, '_blank');
+                                }
+                            } catch (error) {
+                                console.error("Failed to create new paper:", error);
+                                toast.error("Failed to create new paper");
+                            }
+                        }}
                         title={t("files.newPaper") || "New Paper"}
                     >
                         <IconFileText className="h-3.5 w-3.5" />

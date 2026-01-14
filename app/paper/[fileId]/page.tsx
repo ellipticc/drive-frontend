@@ -13,6 +13,8 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { HeaderUser } from "@/components/header-user";
 import { Input } from "@/components/ui/input";
+import { EmojiPopover, EmojiPicker } from "@/components/ui/emoji-toolbar-button";
+import { useEmojiDropdownMenuState } from "@platejs/emoji/react";
 
 export default function PaperPage() {
     const params = useParams();
@@ -23,11 +25,15 @@ export default function PaperPage() {
     const [isUnsaved, setIsUnsaved] = useState(false);
     const [content, setContent] = useState<Value | undefined>(undefined);
     const [paperTitle, setPaperTitle] = useState<string>("Untitled Paper");
+    const [icon, setIcon] = useState<string | null>(null);
     const saveTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
     const latestContentRef = useRef<Value | undefined>(undefined);
     const lastSavedContentRef = useRef<string>("");
     const lastChangeTimeRef = useRef<number>(0);
+
+    // Emoji picker state
+    const { emojiPickerState, isOpen, setIsOpen } = useEmojiDropdownMenuState();
 
     // Initial Load
     useEffect(() => {
@@ -46,8 +52,14 @@ export default function PaperPage() {
 
                 let loadedContent: Value;
                 const rawContent = paper.content;
+                let loadedIcon: string | null = null;
 
-                if (Array.isArray(rawContent) && rawContent.length > 0) {
+                // Handle wrapped content (with icon) vs legacy array content
+                if (rawContent && typeof rawContent === 'object' && !Array.isArray(rawContent) && 'content' in rawContent && 'icon' in rawContent) {
+                    // It's our new wrapped format
+                    loadedContent = (rawContent as any).content;
+                    loadedIcon = (rawContent as any).icon;
+                } else if (Array.isArray(rawContent) && rawContent.length > 0) {
                     // Check if first element is valid (has children or is a known type)
                     if (rawContent[0] && typeof rawContent[0] === 'object' && 'children' in rawContent[0]) {
                         loadedContent = rawContent as Value;
@@ -65,8 +77,9 @@ export default function PaperPage() {
                 }
 
                 setContent(loadedContent);
+                setIcon(loadedIcon);
                 latestContentRef.current = loadedContent;
-                lastSavedContentRef.current = JSON.stringify(loadedContent);
+                lastSavedContentRef.current = JSON.stringify({ content: loadedContent, icon: loadedIcon });
 
             } catch (error) {
                 console.error("Error loading paper:", error);
@@ -79,9 +92,12 @@ export default function PaperPage() {
         loadFile();
     }, [fileId, router]);
 
-    // Save Logic (Content)
-    const handleSave = useCallback(async (newValue: Value) => {
-        const contentString = JSON.stringify(newValue);
+    // Save Logic (Content + Icon)
+    const handleSave = useCallback(async (newValue: Value, newIcon?: string) => {
+        const currentIcon = newIcon !== undefined ? newIcon : icon;
+        const dataToSave = { content: newValue, icon: currentIcon };
+        const contentString = JSON.stringify(dataToSave);
+
         // Prevent unnecessary saves if strictly identical to last save AND we know we are cleaner
         if (contentString === lastSavedContentRef.current) {
             setIsUnsaved(false); // Ensure status is correct
@@ -92,7 +108,8 @@ export default function PaperPage() {
         setSaving(true);
         try {
             if (!masterKeyManager.hasMasterKey()) return;
-            await paperService.savePaper(fileId, newValue);
+            // We save the wrapped object
+            await paperService.savePaper(fileId, dataToSave);
 
             // Only mark as clean if no new changes occurred during save
             if (lastChangeTimeRef.current <= saveStartTime) {
@@ -105,7 +122,7 @@ export default function PaperPage() {
         } finally {
             setSaving(false);
         }
-    }, [fileId]);
+    }, [fileId, icon]);
 
     // Save Logic (Title)
     const handleTitleSave = async (newTitle: string) => {
@@ -136,6 +153,17 @@ export default function PaperPage() {
         }, 2000);
     };
 
+    // Handle Emoji Select
+    const onSelectEmoji = (emoji: any) => {
+        const newIcon = emoji.skins[0].native;
+        setIcon(newIcon);
+        setIsOpen(false);
+        // Trigger save immediately for icon change
+        if (latestContentRef.current) {
+            handleSave(latestContentRef.current, newIcon);
+        }
+    };
+
     // Keyboard Shortcuts
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -163,17 +191,37 @@ export default function PaperPage() {
         );
     }
 
+    // Determine display icon (emoji or first letter)
+    const displayIcon = icon || (paperTitle ? paperTitle.charAt(0).toUpperCase() : "U");
+
     return (
         <div className="flex flex-col h-full bg-background overflow-hidden">
             <div className="flex flex-col flex-1 bg-background overflow-hidden">
-                <header className="flex h-14 items-center gap-4 border-b px-4 shrink-0 bg-background z-10">
-                    <div className="flex items-center gap-2 max-w-xl">
-                        <Button variant="ghost" size="icon" onClick={() => router.push('/')} className="hover:bg-muted">
+                <header className="flex h-16 items-center gap-4 border-b px-6 shrink-0 bg-background z-10">
+                    <div className="flex items-center gap-3 w-full max-w-2xl">
+                        <Button variant="ghost" size="icon" onClick={() => router.push('/')} className="hover:bg-muted shrink-0">
                             <IconArrowLeft className="w-5 h-5" />
                         </Button>
-                        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                            <span className="text-primary font-bold text-xs">P</span>
-                        </div>
+
+                        <EmojiPopover
+                            isOpen={isOpen}
+                            setIsOpen={setIsOpen}
+                            control={
+                                <Button
+                                    variant="ghost"
+                                    className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 hover:bg-primary/20 p-0 text-xl overflow-hidden"
+                                >
+                                    {displayIcon}
+                                </Button>
+                            }
+                        >
+                            <EmojiPicker
+                                {...emojiPickerState}
+                                isOpen={isOpen}
+                                setIsOpen={setIsOpen}
+                                onSelectEmoji={onSelectEmoji}
+                            />
+                        </EmojiPopover>
 
                         <Input
                             value={paperTitle}
@@ -184,12 +232,13 @@ export default function PaperPage() {
                                     e.currentTarget.blur();
                                 }
                             }}
-                            className="text-lg font-semibold bg-transparent border-transparent hover:border-border focus:border-input focus:bg-background transition-colors w-full min-w-[200px] h-9 px-2 shadow-none"
+                            maxLength={255}
+                            className="text-2xl font-semibold bg-transparent border-transparent hover:border-border focus:border-input focus:bg-background transition-colors w-full h-11 px-2 shadow-none truncate"
                             placeholder="Untitled Paper"
                         />
                     </div>
 
-                    <div className="ml-auto flex items-center gap-4">
+                    <div className="ml-auto flex items-center gap-4 shrink-0">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-[80px] justify-end">
                             {saving ? (
                                 <>

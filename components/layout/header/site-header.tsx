@@ -17,6 +17,7 @@ import { useRouter } from "next/navigation"
 import { useUser } from "@/components/user-context"
 import { useGoogleDrive } from "@/hooks/use-google-drive"
 import { useGlobalUpload } from "@/components/global-upload-context"
+import { useCurrentFolder } from "@/components/current-folder-context"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 import { masterKeyManager } from "@/lib/master-key"
@@ -40,6 +41,7 @@ export function SiteHeader({ onSearch, onFileUpload, onFolderUpload, searchValue
   const router = useRouter()
   const { openPicker } = useGoogleDrive()
   const { notifyFileAdded } = useGlobalUpload()
+  const { currentFolderId } = useCurrentFolder()
 
   const handleUpgradeClick = () => {
     isUpgradeDismissedGlobal = true
@@ -63,17 +65,27 @@ export function SiteHeader({ onSearch, onFileUpload, onFolderUpload, searchValue
         return
       }
 
-      toast.info("Creating new paper...")
+      // Create new paper and open in new tab
+      const filename = `Untitled document`
+      const parentId = currentFolderId === 'root' ? null : currentFolderId;
+      const fileId = await paperService.createPaper(filename, undefined, parentId)
 
-      const now = new Date()
-      const pad = (n: number) => n.toString().padStart(2, '0')
-      const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
-      const timeStr = `${pad(now.getHours())}.${pad(now.getMinutes())}.${pad(now.getSeconds())}`
-      const filename = `Untitled document ${dateStr} ${timeStr}`
+      notifyFileAdded({
+        id: fileId,
+        name: filename,
+        type: 'paper',
+        parentId: parentId,
+        status: 'active',
+        size: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        is_shared: false,
+        mimeType: 'application/x-paper',
+      } as any)
 
-      const fileId = await paperService.createPaper(filename, undefined, null)
-
-      router.push(`/paper/${fileId}`)
+      if (fileId) {
+        window.open(`/paper/${fileId}`, '_blank')
+      }
     } catch (error) {
       console.error("Failed to create paper:", error)
       toast.error("Failed to create paper")

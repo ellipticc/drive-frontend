@@ -125,6 +125,11 @@ export function HeaderUser() {
                             <AvatarImage src={safeUser.avatar || getDiceBearAvatar(safeUser.id)} alt={displayName} />
                             <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
                         </Avatar>
+                        {safeUser.is_checkmarked && (
+                            <div className="absolute -bottom-1 -right-1 bg-background rounded-full p-[1px]">
+                                <IconRosetteDiscountCheckFilled className="w-3.5 h-3.5 text-blue-500 fill-blue-500" />
+                            </div>
+                        )}
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56" align="end" forceMount>
