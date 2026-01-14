@@ -1502,9 +1502,9 @@ class ApiClient {
   async deleteFile(fileId: string): Promise<ApiResponse<{ message: string }>> {
     const idempotencyKey = generateIdempotencyKey();
     const headers = addIdempotencyKey({}, idempotencyKey);
-    return this.request(`/files/trash/delete`, {
-      method: 'POST',
-      body: JSON.stringify({ fileId }),
+    return this.request(`/trash`, {
+      method: 'DELETE',
+      body: JSON.stringify({ fileIds: [fileId] }),
       headers,
     });
   }
@@ -2255,8 +2255,8 @@ class ApiClient {
   async deleteFilePermanently(fileId: string): Promise<ApiResponse<{ message: string; storageFreed: number }>> {
     const idempotencyKey = generateIdempotencyKey();
     const headers = addIdempotencyKey({}, idempotencyKey);
-    return this.request(`/files/trash/delete`, {
-      method: 'POST',
+    return this.request(`/trash`, {
+      method: 'DELETE',
       body: JSON.stringify({ fileIds: [fileId] }),
       headers,
     });
@@ -2266,8 +2266,8 @@ class ApiClient {
     // Idempotency uses generated key (random UUID)
     const idempotencyKey = generateIdempotencyKey();
     const headers = addIdempotencyKey({}, idempotencyKey);
-    return this.request(`/files/trash/delete`, {
-      method: 'POST',
+    return this.request(`/trash`, {
+      method: 'DELETE',
       body: JSON.stringify({ fileIds }),
       headers,
     });
@@ -2276,7 +2276,7 @@ class ApiClient {
   async deleteFolderPermanently(folderId: string): Promise<ApiResponse<{ message: string; storageFreed: number }>> {
     const idempotencyKey = generateIdempotencyKey();
     const headers = addIdempotencyKey({}, idempotencyKey);
-    return this.request(`/folders/trash`, {
+    return this.request(`/trash`, {
       method: 'DELETE',
       body: JSON.stringify({ folderIds: [folderId] }),
       headers,
@@ -2287,7 +2287,7 @@ class ApiClient {
     // Idempotency uses generated key (random UUID)
     const idempotencyKey = generateIdempotencyKey();
     const headers = addIdempotencyKey({}, idempotencyKey);
-    return this.request(`/folders/trash`, {
+    return this.request(`/trash`, {
       method: 'DELETE',
       body: JSON.stringify({ folderIds }),
       headers,
@@ -2312,6 +2312,17 @@ class ApiClient {
     return this.request(`/folders/trash/restore`, {
       method: 'PUT',
       body: JSON.stringify({ folderIds }),
+      headers,
+    });
+  }
+
+  async deleteFromTrash(folderIds?: string[], fileIds?: string[], paperIds?: string[]): Promise<ApiResponse<{ success: boolean; message: string; deletedCount: number; requestedCount: number }>> {
+    // Idempotency uses generated key (random UUID)
+    const idempotencyKey = generateIdempotencyKey();
+    const headers = addIdempotencyKey({}, idempotencyKey);
+    return this.request(`/trash`, {
+      method: 'DELETE',
+      body: JSON.stringify({ folderIds, fileIds, paperIds }),
       headers,
     });
   }
