@@ -631,6 +631,12 @@ class ApiClient {
       ...otherOptions,  // Spread other options WITHOUT headers
     };
 
+    // Add idempotency key to EVERY request if not already provided
+    const headers = config.headers as Record<string, string>;
+    if (!headers['X-Idempotency-Key'] && !headers['x-idempotency-key']) {
+      headers['X-Idempotency-Key'] = generateIdempotencyKey();
+    }
+
     // Add authorization header if token exists
     const token = this.getToken();
     if (token) {
@@ -787,6 +793,9 @@ class ApiClient {
       }
       (config.headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
     }
+
+    // Add idempotency key
+    (config.headers as Record<string, string>)['X-Idempotency-Key'] = generateIdempotencyKey();
 
     if (typeof window !== 'undefined') {
       const deviceId = localStorage.getItem('device_id');
@@ -1058,12 +1067,9 @@ class ApiClient {
     auto_timezone?: boolean;
     timezone?: string;
   }): Promise<ApiResponse> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/auth/profile', {
       method: 'PUT',
       body: JSON.stringify(data),
-      headers,
     });
   }
 
@@ -1071,12 +1077,9 @@ class ApiClient {
    * Update user's session duration preference
    */
   async updateSessionDuration(sessionDuration: number): Promise<ApiResponse> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/auth/session-duration', {
       method: 'POST',
       body: JSON.stringify({ sessionDuration }),
-      headers,
     });
   }
 
@@ -1084,12 +1087,9 @@ class ApiClient {
    * Initiate email change process - sends OTP to new email
    */
   async initiateEmailChange(newEmail: string): Promise<ApiResponse<{ emailChangeToken: string }>> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/auth/email/change/initiate', {
       method: 'POST',
       body: JSON.stringify({ newEmail }),
-      headers,
     });
   }
 
@@ -1097,12 +1097,9 @@ class ApiClient {
    * Verify email change with OTP
    */
   async verifyEmailChange(emailChangeToken: string, otpCode: string): Promise<ApiResponse> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/auth/email/change/verify', {
       method: 'POST',
       body: JSON.stringify({ emailChangeToken, otpCode }),
-      headers,
     });
   }
 
@@ -1117,12 +1114,9 @@ class ApiClient {
     masterKeyNonce?: string;
     masterKeyVersion?: number;
   }): Promise<ApiResponse> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/auth/password/change', {
       method: 'POST',
       body: JSON.stringify(data),
-      headers,
     });
   }
 
@@ -1158,22 +1152,16 @@ class ApiClient {
   }
 
   async storePQCKeys(userId: string, pqcKeypairs: PQCKeypairs): Promise<ApiResponse> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/auth/crypto', {
       method: 'PUT',
       body: JSON.stringify({ userId, pqcKeypairs }),
-      headers,
     });
   }
 
   async storePQCKeysAfterRegistration(userId: string, pqcKeypairs: PQCKeypairs): Promise<ApiResponse> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/auth/crypto/setup', {
       method: 'POST',
       body: JSON.stringify({ userId, pqcKeypairs }),
-      headers,
     });
   }
 
@@ -1192,12 +1180,9 @@ class ApiClient {
     masterKeyPasswordNonce?: string;      // Nonce for password-encrypted MK
     referralCode?: string;         // Referral code for signup attribution
   }): Promise<ApiResponse> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/auth/crypto/setup', {
       method: 'POST',
       body: JSON.stringify(data),
-      headers,
     });
   }
 
@@ -1210,8 +1195,6 @@ class ApiClient {
     userAgent: string;
     url: string;
   }): Promise<ApiResponse> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/support/request', {
       method: 'POST',
       body: JSON.stringify({
@@ -1226,7 +1209,6 @@ class ApiClient {
           url: data.url
         }
       }),
-      headers,
     });
   }
 
@@ -1253,22 +1235,16 @@ class ApiClient {
   }
 
   async revokeSession(sessionId: string): Promise<ApiResponse> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/auth/sessions/revoke', {
       method: 'POST',
       body: JSON.stringify({ sessionId }),
-      headers,
     });
   }
 
   async revokeAllSessions(): Promise<ApiResponse> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/auth/sessions/revoke-all', {
       method: 'POST',
       body: JSON.stringify({}),
-      headers,
     });
   }
 
@@ -1331,12 +1307,9 @@ class ApiClient {
 
   // Recent items endpoints
   async addRecentItem(data: { id: string; type: 'file' | 'folder' }): Promise<ApiResponse> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/recent', {
       method: 'POST',
       body: JSON.stringify(data),
-      headers,
     });
   }
 
@@ -1456,12 +1429,9 @@ class ApiClient {
     algorithmVersion: string;
     nameHmac: string;
   }): Promise<ApiResponse<{ newFilename: string }>> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/files/${fileId}/rename`, {
       method: 'PUT',
       body: JSON.stringify(data),
-      headers,
     });
   }
 
@@ -1469,43 +1439,30 @@ class ApiClient {
     fileId: string;
     folderId: string | null;
   }>> {
-    // Idempotency uses generated key (random UUID)
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/files/${fileId}/move`, {
       method: 'PUT',
       body: JSON.stringify({ folderId, nameHmac }),
-      headers,
     });
   }
 
   async moveFileToTrash(fileId: string): Promise<ApiResponse<{ message: string }>> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/files/trash`, {
       method: 'POST',
       body: JSON.stringify({ fileIds: [fileId] }),
-      headers,
     });
   }
 
   async restoreFileFromTrash(fileId: string): Promise<ApiResponse<{ message: string }>> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/files/trash/restore`, {
       method: 'POST',
       body: JSON.stringify({ fileIds: [fileId] }),
-      headers,
     });
   }
 
   async deleteFile(fileId: string): Promise<ApiResponse<{ message: string }>> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/trash`, {
       method: 'DELETE',
       body: JSON.stringify({ fileIds: [fileId] }),
-      headers,
     });
   }
 
@@ -1514,6 +1471,7 @@ class ApiClient {
     const response = await fetch(`${this.baseURL}/files/${fileId}/download`, {
       headers: {
         'Authorization': `Bearer ${this.getToken()}`,
+        'X-Idempotency-Key': generateIdempotencyKey(),
       },
     });
 
@@ -1550,12 +1508,9 @@ class ApiClient {
     path: string;
     updatedAt: string;
   }>> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/folders/${folderId}/rename`, {
       method: 'PUT',
       body: JSON.stringify(data),
-      headers,
     });
   }
 
@@ -1566,62 +1521,44 @@ class ApiClient {
     path: string;
     updatedAt: string;
   }>> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/folders/${folderId}/move`, {
       method: 'PUT',
       body: JSON.stringify({ parent_id: parentId }),
-      headers,
     });
   }
 
   async lockFile(fileId: string, data: { durationDays: number; totpToken: string }): Promise<ApiResponse> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/files/${fileId}/lock`, {
       method: 'POST',
       body: JSON.stringify(data),
-      headers,
     });
   }
 
   async lockFolder(folderId: string, data: { durationDays: number; totpToken: string }): Promise<ApiResponse> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/folders/${folderId}/lock`, {
       method: 'POST',
       body: JSON.stringify(data),
-      headers,
     });
   }
 
   async moveFolderToTrash(folderId: string): Promise<ApiResponse<{ message: string }>> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/folders/trash`, {
       method: 'POST',
       body: JSON.stringify({ folderIds: [folderId] }),
-      headers,
     });
   }
 
   async restoreFolderFromTrash(folderId: string): Promise<ApiResponse<{ message: string }>> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/folders/trash/restore`, {
       method: 'PUT',
       body: JSON.stringify({ folderIds: [folderId] }),
-      headers,
     });
   }
 
   async deleteFolder(folderId: string): Promise<ApiResponse<{ message: string }>> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/folders/trash`, {
       method: 'DELETE',
       body: JSON.stringify({ folderIds: [folderId] }),
-      headers,
     });
   }
 
@@ -1635,14 +1572,11 @@ class ApiClient {
     reused?: boolean;
     sharedFiles?: number;
   }>> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     // Use shares endpoint directly for files/papers, shares/folder for folders
     const endpoint = data.folder_id ? '/shares/folder' : '/shares';
     return this.request(endpoint, {
       method: 'POST',
       body: JSON.stringify(data),
-      headers,
     });
   }
 
@@ -1693,22 +1627,16 @@ class ApiClient {
   // Spaces & Starring
 
   async starFile(fileId: string): Promise<ApiResponse<{ success: boolean }>> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/files/spaced', {
       method: 'POST',
       body: JSON.stringify({ fileId, isStarred: true }),
-      headers
     });
   }
 
   async unstarFile(fileId: string): Promise<ApiResponse<{ success: boolean }>> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/files/spaced', {
       method: 'POST',
       body: JSON.stringify({ fileId, isStarred: false }),
-      headers
     });
   }
 
@@ -1726,12 +1654,9 @@ class ApiClient {
     manifestCreatedAt?: number;
     algorithmVersion?: string;
   }): Promise<ApiResponse<{ success: boolean }>> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/files/${fileId}/rename`, {
       method: 'PUT',
       body: JSON.stringify(data),
-      headers
     });
   }
 
@@ -1740,24 +1665,16 @@ class ApiClient {
     movedCount: number;
     requestedCount: number;
   }>> {
-    // Idempotency uses generated key (random UUID)
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/files/trash/move', {
       method: 'POST',
       body: JSON.stringify({ fileIds }),
-      headers,
     });
   }
 
   async moveToTrash(folderIds?: string[], fileIds?: string[], paperIds?: string[]): Promise<ApiResponse<{ message: string }>> {
-    // Idempotency uses generated key (random UUID)
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/folders/trash', {
       method: 'POST',
       body: JSON.stringify({ folderIds, fileIds, paperIds }),
-      headers,
     });
   }
 
@@ -1776,12 +1693,9 @@ class ApiClient {
     iv: string;
     salt: string;
   }): Promise<ApiResponse<{ id: string; message: string }>> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/papers', {
       method: 'POST',
       body: JSON.stringify(data),
-      headers
     });
   }
 
@@ -1795,14 +1709,49 @@ class ApiClient {
     createdAt: string;
     updatedAt: string;
     folderId: string | null;
+    chunks?: Record<string, { encryptedContent: string; iv: string; salt: string }>;
   }>> {
     return this.request(`/papers/${id}`);
   }
 
+  async savePaperBlocks(paperId: string, data: {
+    encryptedTitle?: string;
+    titleSalt?: string;
+    manifest?: string;
+    chunksToUpload?: Array<{ chunkId: string; content: string; size: number }>;
+    chunksToDelete?: string[];
+  }): Promise<ApiResponse> {
+    return this.request(`/papers/${paperId}/blocks`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async getBlock(paperId: string, blockId: string): Promise<ApiResponse<{ encryptedContent: string; iv: string; salt: string }>> {
+    return this.request(`/papers/${paperId}/blocks/${blockId}`);
+  }
+
+  async createBlock(paperId: string, blockId: string, data: { content: string; size: number }): Promise<ApiResponse> {
+    return this.request(`/papers/${paperId}/blocks/${blockId}`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async updateBlock(paperId: string, blockId: string, data: { content: string; size: number }): Promise<ApiResponse> {
+    return this.request(`/papers/${paperId}/blocks/${blockId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async deleteBlock(paperId: string, blockId: string): Promise<ApiResponse> {
+    return this.request(`/papers/${paperId}/blocks/${blockId}`, {
+      method: 'DELETE'
+    });
+  }
+
   async savePaper(id: string, data: {
-    encryptedContent?: string;
-    iv?: string;
-    salt?: string;
     encryptedTitle?: string;
     titleSalt?: string;
   }): Promise<ApiResponse<{ success: boolean; message: string }>> {
@@ -1841,12 +1790,9 @@ class ApiClient {
 
   async deletePapersPermanently(paperIds: string[]): Promise<ApiResponse<{ message: string; storageFreed: number }>> {
     // Bulk permanent delete (using unified endpoint)
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/trash', {
       method: 'DELETE',
       body: JSON.stringify({ paperIds }),
-      headers
     });
   }
 
@@ -1892,41 +1838,29 @@ class ApiClient {
   }
 
   async trackShareDownload(shareId: string): Promise<ApiResponse<{ success: boolean }>> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/shares/${shareId}/download`, {
       method: 'POST',
-      headers,
     });
   }
 
   async trackShareView(shareId: string): Promise<ApiResponse<{ success: boolean }>> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/shares/${shareId}/view`, {
       method: 'POST',
-      headers,
     });
   }
 
   async disableShare(shareIdOrIds: string | string[]): Promise<ApiResponse<{ success: boolean; revokedCount?: number; cascadedFileShares?: number }>> {
     const shareIds = Array.isArray(shareIdOrIds) ? shareIdOrIds : [shareIdOrIds];
 
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/shares/delete', {
       method: 'POST',
-      headers,
       body: JSON.stringify({ shareIds }),
     });
   }
 
   async revokeShareForUser(shareId: string, userId: string): Promise<ApiResponse<{ success: boolean }>> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/shares/${shareId}/user/${userId}`, {
       method: 'DELETE',
-      headers,
     });
   }
 
@@ -1945,13 +1879,9 @@ class ApiClient {
       failed: number;
     };
   }>> {
-    // Idempotency uses generated key (random UUID)
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/shares/${shareId}/send`, {
       method: 'POST',
       body: JSON.stringify(data),
-      headers,
     });
   }
 
@@ -2056,12 +1986,9 @@ class ApiClient {
     icon?: string;
     color?: string;
   }): Promise<ApiResponse<{ id: string }>> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/spaces', {
       method: 'POST',
       body: JSON.stringify(data),
-      headers,
     });
   }
 
@@ -2097,13 +2024,9 @@ class ApiClient {
     paperIds?: string[];
     isStarred: boolean
   }): Promise<ApiResponse<unknown>> {
-    // Idempotency uses generated key (random UUID)
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/files/spaced', {
       method: 'POST',
       body: JSON.stringify(data),
-      headers,
     });
   }
 
@@ -2135,13 +2058,9 @@ class ApiClient {
     fileIds?: string[];
     folderIds?: string[];
   }): Promise<ApiResponse<{ id: string }>> {
-    // Idempotency uses generated key (random UUID)
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/spaces/${spaceId}/items`, {
       method: 'POST',
       body: JSON.stringify(data),
-      headers,
     });
   }
 
@@ -2152,12 +2071,9 @@ class ApiClient {
   }
 
   async moveItemToSpace(spaceId: string, itemId: string, targetSpaceId: string): Promise<ApiResponse<unknown>> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/spaces/${spaceId}/items/${itemId}/move`, {
       method: 'POST',
       body: JSON.stringify({ targetSpaceId }),
-      headers,
     });
   }
 
@@ -2252,77 +2168,51 @@ class ApiClient {
     };
   }
   async deleteFilePermanently(fileId: string): Promise<ApiResponse<{ message: string; storageFreed: number }>> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/trash`, {
       method: 'DELETE',
       body: JSON.stringify({ fileIds: [fileId] }),
-      headers,
     });
   }
 
   async deleteFilesPermanently(fileIds: string[]): Promise<ApiResponse<{ message: string; storageFreed: number }>> {
-    // Idempotency uses generated key (random UUID)
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/trash`, {
       method: 'DELETE',
       body: JSON.stringify({ fileIds }),
-      headers,
     });
   }
 
   async deleteFolderPermanently(folderId: string): Promise<ApiResponse<{ message: string; storageFreed: number }>> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/trash`, {
       method: 'DELETE',
       body: JSON.stringify({ folderIds: [folderId] }),
-      headers,
     });
   }
 
   async deleteFoldersPermanently(folderIds: string[]): Promise<ApiResponse<{ message: string; storageFreed: number }>> {
-    // Idempotency uses generated key (random UUID)
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/trash`, {
       method: 'DELETE',
       body: JSON.stringify({ folderIds }),
-      headers,
     });
   }
 
   async restoreFilesFromTrash(fileIds: string[]): Promise<ApiResponse<{ message: string }>> {
-    // Idempotency uses generated key (random UUID)
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/files/trash/restore`, {
       method: 'POST',
       body: JSON.stringify({ fileIds }),
-      headers,
     });
   }
 
   async restoreFoldersFromTrash(folderIds: string[]): Promise<ApiResponse<{ message: string }>> {
-    // Idempotency uses generated key (random UUID)
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/folders/trash/restore`, {
       method: 'PUT',
       body: JSON.stringify({ folderIds }),
-      headers,
     });
   }
 
   async deleteFromTrash(folderIds?: string[], fileIds?: string[], paperIds?: string[]): Promise<ApiResponse<{ success: boolean; message: string; deletedCount: number; requestedCount: number }>> {
-    // Idempotency uses generated key (random UUID)
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/trash`, {
       method: 'DELETE',
       body: JSON.stringify({ folderIds, fileIds, paperIds }),
-      headers,
     });
   }
 
@@ -2345,12 +2235,9 @@ class ApiClient {
     file: FileInfo;
     conflictingItemId?: string;
   }>> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/files/${fileId}/copy`, {
       method: 'POST',
       body: JSON.stringify({ folderId, ...options }),
-      headers
     });
   }
 
@@ -2371,12 +2258,9 @@ class ApiClient {
     message: string;
     conflictingItemId?: string;
   }>> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/folders/${folderId}/copy`, {
       method: 'POST',
       body: JSON.stringify({ destinationFolderId, ...options }),
-      headers
     });
   }
 
@@ -2491,16 +2375,13 @@ class ApiClient {
       error?: string;
     }>;
   }>> {
-    // Idempotency uses generated key (random UUID)
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/files/upload/presigned/${sessionId}/confirm-batch`, {
       method: 'POST',
       body: JSON.stringify(data),
-      headers,
     });
   }
 
+  // Paper Update Endpoints
   // Paper Update Endpoints
   async initializePaperUpdate(fileId: string, data: {
     encryptedFilename: string;
@@ -2526,12 +2407,9 @@ class ApiClient {
     }>;
     storageType: string;
   }>> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/paper/${fileId}/save/initialize`, {
       method: 'POST',
       body: JSON.stringify(data),
-      headers
     });
   }
 
@@ -2540,12 +2418,9 @@ class ApiClient {
     encryptionMetadataId: string;
     finalShaHash: string | null;
   }): Promise<ApiResponse<{ success: boolean; fileId: string }>> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/paper/${fileId}/save/finalize`, {
       method: 'POST',
       body: JSON.stringify(data),
-      headers
     });
   }
 
@@ -2675,19 +2550,16 @@ class ApiClient {
   }
 
   async createCheckoutSession(data: {
-    priceId: string;
+    planId: string;
+    period: 'month' | 'year';
     successUrl: string;
     cancelUrl: string;
   }): Promise<ApiResponse<{
-    sessionId: string;
     url: string;
   }>> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/billing/create-checkout-session', {
       method: 'POST',
       body: JSON.stringify(data),
-      headers,
     });
   }
 
@@ -2696,12 +2568,9 @@ class ApiClient {
   }): Promise<ApiResponse<{
     url: string;
   }>> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/billing/create-portal-session', {
       method: 'POST',
       body: JSON.stringify(data),
-      headers,
     });
   }
 
@@ -2714,12 +2583,9 @@ class ApiClient {
     url: string;
     qr_code?: string;
   }>> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/billing/crypto/checkout', {
       method: 'POST',
       body: JSON.stringify(data),
-      headers,
     });
   }
 
@@ -2738,34 +2604,23 @@ class ApiClient {
     qrCode: string;
     recoveryCodes: string[];
   }>> {
-    // Idempotency uses generated key (random UUID)
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/totp/setup', {
       method: 'POST',
-      headers,
     });
   }
 
   async verifyTOTPSetup(token: string): Promise<ApiResponse<{
     recoveryCodes: string[];
   }>> {
-    // Idempotency uses generated key (random UUID)
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/totp/verify', {
       method: 'POST',
       body: JSON.stringify({ token }),
-      headers,
     });
   }
 
   async disableTOTP(token?: string, recoveryCode?: string): Promise<ApiResponse<{
     message: string;
   }>> {
-    // Idempotency uses generated key (random UUID)
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     const body: { token?: string; recoveryCode?: string } = {};
     if (token) body.token = token;
     if (recoveryCode) body.recoveryCode = recoveryCode;
@@ -2773,7 +2628,6 @@ class ApiClient {
     return this.request('/totp/disable', {
       method: 'DELETE',
       body: JSON.stringify(body),
-      headers,
     });
   }
 
@@ -2782,12 +2636,9 @@ class ApiClient {
     token?: string;
   }>> {
     // Use a unique timestamp-based key for each TOTP attempt to avoid idempotency caching blocking retries
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/totp/verify-login', {
       method: 'POST',
       body: JSON.stringify({ userId, token, rememberDevice }),
-      headers,
     });
   }
 
@@ -2886,14 +2737,11 @@ class ApiClient {
     token?: string;
   }>> {
     // Use a unique timestamp-based key for each recovery code attempt to avoid idempotency caching blocking retries
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     const body: { recoveryCode: string; userId?: string } = { recoveryCode };
     if (userId) body.userId = userId;
     return this.request('/totp/verify-recovery', {
       method: 'POST',
       body: JSON.stringify(body),
-      headers,
     });
   }
 
@@ -2901,36 +2749,27 @@ class ApiClient {
   async initiateRecovery(email: string): Promise<ApiResponse<{
     hasRecovery: boolean;
   }>> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/recovery/initiate', {
       method: 'POST',
       body: JSON.stringify({ email }),
-      headers,
     });
   }
 
   async checkRecoveryTOTPAvailability(email: string): Promise<ApiResponse<{
     hasTOTP: boolean;
   }>> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/recovery/check-totp', {
       method: 'POST',
       body: JSON.stringify({ email }),
-      headers,
     });
   }
 
   async sendRecoveryOTP(email: string): Promise<ApiResponse<{
     success: boolean;
   }>> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/recovery/send-otp', {
       method: 'POST',
       body: JSON.stringify({ email }),
-      headers,
     });
   }
 
@@ -2943,12 +2782,9 @@ class ApiClient {
     success: boolean;
     token?: string;
   }>> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/recovery/verify-otp', {
       method: 'POST',
       body: JSON.stringify(data),
-      headers,
     });
   }
 
@@ -2968,13 +2804,9 @@ class ApiClient {
     message?: string;
   }>> {
     // CRITICAL: Include newOpaquePasswordFile in idempotency key so each reset attempt has a unique key
-    // If we only use email, the second reset would return cached response from first reset
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/recovery/reset-password', {
       method: 'POST',
       body: JSON.stringify(data),
-      headers,
     });
   }
 
@@ -3308,21 +3140,15 @@ class ApiClient {
     signature?: string;
     publicKey?: string;
   }): Promise<ApiResponse<{ success: boolean; message: string }>> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/shares/${shareId}/comments/${commentId}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
-      headers,
     });
   }
 
   async deleteShareComment(shareId: string, commentId: string): Promise<ApiResponse<{ success: boolean; message: string }>> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/shares/${shareId}/comments/${commentId}`, {
       method: 'DELETE',
-      headers,
     });
   }
 
@@ -3356,11 +3182,8 @@ class ApiClient {
   }
 
   async wipeShareLogs(shareId: string): Promise<ApiResponse<{ success: boolean; message: string }>> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/shares/${shareId}/logs`, {
       method: 'DELETE',
-      headers,
     });
   }
 
@@ -3518,12 +3341,9 @@ class ApiClient {
   async deleteAccount(reason?: string, details?: string): Promise<ApiResponse<{
     success: boolean;
   }>> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/auth/delete', {
       method: 'DELETE',
       body: JSON.stringify({ reason, details }),
-      headers
     });
   }
 
