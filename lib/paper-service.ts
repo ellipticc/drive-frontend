@@ -114,7 +114,6 @@ class PaperService {
         try {
             const masterKey = masterKeyManager.getMasterKey();
             const updateData: any = {};
-            console.log('[PaperService] savePaper called for:', paperId, 'Content Type:', typeof content);
 
             // Handle wrapped content (from frontend: { content: blocks, icon: string })
             let contentBlocks: any[] = [];
@@ -134,7 +133,11 @@ class PaperService {
                 updateData.titleSalt = filenameSalt;
             }
 
-            // 2. Block-Level Diffing
+            // 2. Block-Level Diffing Setup
+            let chunksToUpload: { blockId: string; content: any; size: number; payloadStr?: string; uploaded?: boolean }[] = [];
+            let blocksToDelete: string[] = [];
+            let manifestPayload: any = null;
+
             if (content !== undefined && Array.isArray(contentBlocks)) {
                 let currentManifest = this.manifestCache.get(paperId);
 
@@ -144,18 +147,19 @@ class PaperService {
                 }
 
                 const newManifestBlocks: ManifestEntry[] = [];
-                const chunksToUpload: { chunkId: string; content: string; size: number }[] = [];
                 const existingChunkIds = new Set(currentManifest.blocks.map(b => b.chunkId));
-
                 const seenIds = new Set<string>();
 
                 // Process each block in the new content
-                console.log('[PaperService] Processing blocks:', contentBlocks?.length);
+                const blocksToProcess: any[] = [];
                 for (const block of contentBlocks) {
                     // Ensure Block ID is unique
                     if (!block.id || seenIds.has(block.id)) block.id = crypto.randomUUID();
                     seenIds.add(block.id);
+                    blocksToProcess.push(block);
+                }
 
+                await Promise.all(blocksToProcess.map(async (block) => {
                     const blockHash = await this.hashBlock(block);
 
                     // Check if block exists and is unchanged
@@ -166,25 +170,28 @@ class PaperService {
                         newManifestBlocks.push(existingEntry);
                         existingChunkIds.delete(existingEntry.chunkId); // Mark as "kept"
                     } else {
-                        // NEW or MODIFIED: Encrypt and Upload
+                        // NEW or MODIFIED: Encrypt
                         const blockStr = JSON.stringify(block);
                         const { encryptedContent, iv, salt } = await encryptPaperContent(blockStr, masterKey);
 
                         // Reuse chunkId if modified, or new if new block
-                        const chunkId = existingEntry ? existingEntry.chunkId : crypto.randomUUID();
+                        const blockId = existingEntry ? existingEntry.chunkId : crypto.randomUUID();
 
                         // Add to upload queue
                         // Backend expects: Object (will be stringified by backend before storage)
                         const payload = { encryptedContent, iv, salt };
+                        const payloadStr = JSON.stringify(payload);
+
                         chunksToUpload.push({
-                            chunkId,
-                            content: payload as any, // Send as object
-                            size: new Blob([JSON.stringify(payload)]).size
+                            blockId: blockId, // Using blockId now
+                            content: payload as any,
+                            size: new Blob([payloadStr]).size,
+                            payloadStr // Store stringified for direct upload
                         });
 
                         newManifestBlocks.push({
                             id: block.id,
-                            chunkId,
+                            chunkId: blockId,
                             hash: blockHash,
                             iv,
                             salt
@@ -192,17 +199,22 @@ class PaperService {
 
                         if (existingEntry) existingChunkIds.delete(existingEntry.chunkId);
                     }
-                }
-
-                // Identify Deleted Chunks (Chunks in old manifest that are NOT in new manifest)
-                // Any chunkId remaining in existingChunkIds is effectively "orphaned" by this version.
-                // We should add them to a delete list.
-                const chunksToDelete = Array.from(existingChunkIds);
+                }));
 
                 // Prepare Manifest Chunk (Chunk 0)
+                // Note: We need to re-order newManifestBlocks to match contentBlocks order
+                const orderedManifestBlocks: ManifestEntry[] = [];
+                for (const block of contentBlocks) {
+                    const entry = newManifestBlocks.find(b => b.id === block.id);
+                    if (entry) orderedManifestBlocks.push(entry);
+                }
+
+                // Identify Deleted Chunks
+                blocksToDelete = Array.from(existingChunkIds);
+
                 const newManifest: PaperManifest = {
                     version: 1,
-                    blocks: newManifestBlocks,
+                    blocks: orderedManifestBlocks,
                     icon: icon !== undefined ? icon : currentManifest.icon
                 };
 
@@ -212,33 +224,75 @@ class PaperService {
                 // Encrypt Manifest
                 const manifestStr = JSON.stringify(newManifest);
                 const { encryptedContent: encManifest, iv: ivManifest, salt: saltManifest } = await encryptPaperContent(manifestStr, masterKey);
-                const manifestPayload = {
+                manifestPayload = {
                     encryptedContent: encManifest,
                     iv: ivManifest,
                     salt: saltManifest,
                     isManifest: true
                 };
-
-                // Add Manifest to Uploads (Always replace Chunk 0)
-                // We use a special API field or just chunk-0 convention
-                updateData.manifest = manifestPayload;
-                updateData.chunksToUpload = chunksToUpload;
-                updateData.chunksToDelete = chunksToDelete;
             }
 
-            if (Object.keys(updateData).length === 0) {
-                console.log('[PaperService] No changes to save.');
+            // If no changes at all (no title update, no content update), return early
+            if (Object.keys(updateData).length === 0 && chunksToUpload.length === 0 && blocksToDelete.length === 0 && !manifestPayload) {
                 return;
             }
 
-            // 3. Send to API
-            console.log('[PaperService] Sending updateData:', JSON.stringify(updateData, null, 2));
-            // Note: We need to update the backend to support `chunksToUpload` and `chunksToDelete`
-            const response = await apiClient.savePaperBlocks(paperId, updateData); // Using a generalized endpoint or update existing
+            // 3. Parallel Direct Upload Strategy
+            // A. Get Presigned URLs
+            if (chunksToUpload.length > 0) {
+                try {
+                    // Fix: Properly access response data
+                    const response = await apiClient.getPaperUploadUrls(paperId, chunksToUpload.map(c => ({ blockId: c.blockId, size: c.size })));
+
+                    if (response.success && response.data) {
+                        const urls = response.data?.urls;
+                        if (!urls) throw new Error('No upload URLs returned');
+
+                        // B. Upload to B2 (Parallel)
+                        await Promise.all(chunksToUpload.map(async (chunk) => {
+                            const url = urls[chunk.blockId];
+                            if (url) {
+                                // Upload the stringified payload directly
+                                const body = chunk.payloadStr || JSON.stringify(chunk.content);
+                                await fetch(url, {
+                                    method: 'PUT',
+                                    body: body,
+                                    headers: {
+                                        'Content-Type': 'application/x-paper'
+                                    }
+                                });
+                                // Mark as uploaded so backend doesn't try to upload again
+                                chunk.uploaded = true;
+                            }
+                        }));
+                    }
+                } catch (err) {
+                    console.error('[PaperService] Failed to get/use upload URLs, falling back to legacy upload', err);
+                    // Fallback: Do nothing, let chunksToUpload go to savePaperBlocks as before
+                }
+            }
+
+            // 4. Send Metadata to API (Commit)
+            const finalChunksPayload = chunksToUpload.map(c => {
+                const base = { chunkId: c.blockId, size: c.size, uploaded: c.uploaded };
+                if (c.uploaded) {
+                    return base;
+                }
+                // If not uploaded, include content for legacy upload
+                return { ...base, content: c.content };
+            });
+
+            const response = await apiClient.savePaperBlocks(paperId, {
+                ...updateData,
+                manifest: manifestPayload,
+                chunksToUpload: finalChunksPayload,
+                chunksToDelete: blocksToDelete
+            });
 
             if (!response.success) {
                 throw new Error(response.error || 'Failed to save paper');
             }
+
         } catch (err) {
             console.error('Paper save failed:', err);
             throw err;
@@ -262,7 +316,6 @@ class PaperService {
         }
 
         const paper = response.data;
-        console.log('[PaperService] getPaper response:', paper);
         const masterKey = masterKeyManager.getMasterKey();
 
         // 1. Decrypt Title
