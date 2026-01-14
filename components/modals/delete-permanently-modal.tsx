@@ -42,11 +42,11 @@ export function DeletePermanentlyModal({ children, itemId = "", itemName = "item
     try {
       let response;
       if (itemType === 'file') {
-        response = await apiClient.deleteFilePermanently(itemId)
+        response = await apiClient.deleteFromTrash(undefined, [itemId])
       } else if (itemType === 'paper') {
-        response = await apiClient.deletePaper(itemId)
+        response = await apiClient.deleteFromTrash(undefined, undefined, [itemId])
       } else {
-        response = await apiClient.deleteFolderPermanently(itemId)
+        response = await apiClient.deleteFromTrash([itemId])
       }
 
       if (response.success) {

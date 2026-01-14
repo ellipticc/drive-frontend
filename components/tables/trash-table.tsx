@@ -413,30 +413,10 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
             const folderIds = itemsToProcess.filter(item => item.type === 'folder').map(item => item.id);
             const paperIds = itemsToProcess.filter(item => item.type === 'paper').map(item => item.id);
 
-            // Make bulk API calls
-            const promises = [];
-            if (fileIds.length > 0) {
-                promises.push(apiClient.deleteFilesPermanently(fileIds));
-            }
-            if (paperIds.length > 0) {
-                promises.push(apiClient.deletePapersPermanently(paperIds));
-            }
-            if (folderIds.length > 0) {
-                promises.push(apiClient.deleteFoldersPermanently(folderIds));
-            }
+            // Make single unified API call for all types
+            const result = await apiClient.deleteFromTrash(folderIds, fileIds, paperIds);
 
-            const results = await Promise.all(promises);
-            const allSuccessful = results.every(result => result.success);
-
-            // Calculate total storage freed
-            let totalStorageFreed = 0;
-            results.forEach(result => {
-                if (result.success && result.data?.storageFreed) {
-                    totalStorageFreed += result.data.storageFreed;
-                }
-            });
-
-            if (allSuccessful) {
+            if (result.success) {
                 // Clear items from view immediately
                 const deletedIds = new Set(itemsToProcess.map(i => i.id));
                 setTrashItems(prev => prev.filter(item => !deletedIds.has(item.id)));
@@ -447,21 +427,9 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                 });
 
                 toast.success(isDeletingAll ? `All items permanently deleted` : `${itemsToProcess.length} items permanently deleted`);
-
-                // Update storage instantly
-                if (totalStorageFreed > 0) {
-                    updateStorage(-totalStorageFreed);
-                }
             } else {
-                // Partial success - refresh to show remaining items
+                toast.error(result.error || 'Failed to delete items');
                 await refreshTrash();
-                const successCount = results.filter(result => result.success).length;
-                toast.success(`${successCount} of ${promises.length} operations completed successfully`);
-
-                // Still update storage for successful operations
-                if (totalStorageFreed > 0) {
-                    updateStorage(-totalStorageFreed);
-                }
             }
         } catch (error) {
             console.error('Bulk delete error:', error);
