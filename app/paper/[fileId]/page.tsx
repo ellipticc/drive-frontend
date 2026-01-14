@@ -209,7 +209,6 @@ export default function PaperPage() {
                     </div>
 
                     <div className="ml-auto flex items-center gap-4">
-                        <ThemeToggle />
                         <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-[80px] justify-end">
                             {saving ? (
                                 <>
@@ -235,6 +234,7 @@ export default function PaperPage() {
                                 <p className="max-w-xs">Your content is encrypted with your private key before leaving your device. Only you can read it.</p>
                             </TooltipContent>
                         </Tooltip>
+                        <ThemeToggle />
                     </div>
                 </header>
 

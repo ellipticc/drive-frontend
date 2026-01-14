@@ -1119,7 +1119,7 @@ export const Table01DividerLineSm = ({
                     size: file.size,
                     mimeType: file.mimeType,
                     folderId: file.folderId,
-                    type: 'file' as const,
+                    type: ((file.type === 'paper' || file.mimeType === 'application/x-paper') ? 'paper' : 'file') as 'paper' | 'file',
                     createdAt: file.createdAt,
                     updatedAt: file.updatedAt,
                     shaHash: file.shaHash,
@@ -1677,7 +1677,7 @@ export const Table01DividerLineSm = ({
                     if (item.type === 'file') {
                         handlePreviewClick(item.id, item.name, item.mimeType);
                     } else if (item.type === 'paper') {
-                        router.push(`/paper/${item.id}`);
+                        window.open(`/paper/${item.id}`, '_blank');
                     }
                     break;
                 case 'copyLink':

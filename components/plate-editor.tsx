@@ -6,6 +6,8 @@ import { type Value } from 'platejs';
 import { EditorKit } from '@/components/editor-kit';
 import { SettingsDialog } from '@/components/settings-dialog';
 import { Editor, EditorContainer } from '@/components/ui/editor';
+import { FixedToolbar } from '@/components/ui/fixed-toolbar';
+import { FixedToolbarButtons } from '@/components/ui/fixed-toolbar-buttons';
 
 interface PlateEditorProps {
   initialValue?: Value;
@@ -36,10 +38,12 @@ export function PlateEditor({ initialValue, onChange, readOnly }: PlateEditorPro
           onChange?.(newValue);
         }}
       >
-        <EditorContainer className="flex-1 overflow-y-auto w-full h-full px-4 md:px-6 py-8">
-          <div className="max-w-5xl mx-auto w-full">
-            <Editor className="min-h-full" />
-          </div>
+        <FixedToolbar className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <FixedToolbarButtons />
+        </FixedToolbar>
+
+        <EditorContainer className="flex-1 w-full h-full">
+          <Editor className="min-h-full w-full max-w-none px-4 md:px-6 py-4" />
         </EditorContainer>
       </Plate>
     </div>

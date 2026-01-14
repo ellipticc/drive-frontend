@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { masterKeyManager } from "@/lib/master-key";
 import { paperService } from "@/lib/paper-service";
 import { type Value } from "platejs";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 export default function NewPaperPage() {
     const router = useRouter();
@@ -86,6 +87,7 @@ export default function NewPaperPage() {
                     <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest px-2 py-1 rounded bg-muted/50 hidden md:block">
                         Zero-Knowledge Encrypted
                     </span>
+                    <ThemeToggle />
                 </div>
             </header>
 
