@@ -65,26 +65,45 @@ export function SiteHeader({ onSearch, onFileUpload, onFolderUpload, searchValue
         return
       }
 
-      // Create new paper and open in new tab
-      const filename = `Untitled document`
+      // Open new tab immediately for instant feedback
+      const now = new Date();
+      const pad = (n: number) => n.toString().padStart(2, '0');
+      const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+      const timeStr = `${pad(now.getHours())}.${pad(now.getMinutes())}.${pad(now.getSeconds())}`;
+      const filename = `Untitled paper ${dateStr} ${timeStr}`;
       const parentId = currentFolderId === 'root' ? null : currentFolderId;
-      const fileId = await paperService.createPaper(filename, undefined, parentId)
+      const newWin = window.open('/paper/new?creating=1', '_blank');
+      toast('Creating paper...');
 
-      notifyFileAdded({
-        id: fileId,
-        name: filename,
-        type: 'paper',
-        parentId: parentId,
-        status: 'active',
-        size: 0,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        is_shared: false,
-        mimeType: 'application/x-paper',
-      } as any)
+      try {
+        const fileId = await paperService.createPaper(filename, undefined, parentId)
 
-      if (fileId) {
-        window.open(`/paper/${fileId}`, '_blank')
+        notifyFileAdded({
+          id: fileId,
+          name: filename,
+          type: 'paper',
+          parentId: parentId,
+          status: 'active',
+          size: 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          is_shared: false,
+          mimeType: 'application/x-paper',
+        } as any)
+
+        toast.success('Paper created')
+
+        if (fileId) {
+          if (newWin && !newWin.closed) {
+            newWin.location.href = `/paper/${fileId}`
+          } else {
+            window.open(`/paper/${fileId}`, '_blank')
+          }
+        }
+      } catch (err) {
+        console.error('Failed to create paper:', err)
+        toast.error('Failed to create paper')
+        if (newWin && !newWin.closed) newWin.close()
       }
     } catch (error) {
       console.error("Failed to create paper:", error)

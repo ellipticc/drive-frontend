@@ -74,7 +74,7 @@ export function ExportToolbarButton(props: DropdownMenuProps) {
 
   const getExportFilename = (extension: string) => {
     // Try to get title from document title (set in page.tsx) or fallback to timestamp
-    let name = document.title || `Untitled document ${new Date().toISOString().replace(/[:.]/g, '-')}`;
+    let name = document.title || `Untitled paper ${new Date().toISOString().replace(/[:.]/g, '-')}`;
     // Clean up filename
     name = name.replace(/[^a-z0-9\s-_]/gi, '').trim();
     return `${name}.${extension}`;

@@ -16,6 +16,20 @@ export default function NewPaperPage() {
     const router = useRouter();
     const [saving, setSaving] = useState(false);
     const saveTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+    const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+    const creatingMode = !!searchParams && searchParams.get('creating') === '1';
+
+    // If opened by the quick-create flow, show a minimal loading UI while the opener creates the paper
+    if (creatingMode) {
+        return (
+            <div className="flex items-center justify-center h-screen w-full bg-background">
+                <div className="text-center">
+                    <IconLoader2 className="w-10 h-10 animate-spin text-muted-foreground mx-auto" />
+                    <p className="mt-4 text-lg font-semibold">Loading your fantastic work…</p>
+                </div>
+            </div>
+        );
+    }
 
     const handleInitialSave = useCallback(async (newValue: Value) => {
         if (saving) return; // Prevent double trigger
@@ -28,11 +42,11 @@ export default function NewPaperPage() {
             }
 
             const now = new Date();
-            // Format: Untitled document YYYY-MM-DD HH.MM.SS
+            // Format: Untitled paper YYYY-MM-DD HH.MM.SS
             const pad = (n: number) => n.toString().padStart(2, '0');
             const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
             const timeStr = `${pad(now.getHours())}.${pad(now.getMinutes())}.${pad(now.getSeconds())}`;
-            const filename = `Untitled document ${dateStr} ${timeStr}`;
+            const filename = `Untitled paper ${dateStr} ${timeStr}`;
 
             // Create paper using new internal service (no keypairs needed)
             // Passing null for folderId (root)

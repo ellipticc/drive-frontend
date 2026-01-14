@@ -60,28 +60,46 @@ export function NavNew({ onFileUpload, onFolderUpload }: NavNewProps) {
             const hour = String(now.getHours()).padStart(2, '0');
             const minute = String(now.getMinutes()).padStart(2, '0');
             const second = String(now.getSeconds()).padStart(2, '0');
-            const filename = `Untitled document ${year}-${month}-${day} ${hour}.${minute}.${second}`;
+            const filename = `Untitled paper ${year}-${month}-${day} ${hour}.${minute}.${second}`;
 
             // Use currentFolderId if available (convert 'root' to null for API if needed, consistent with other uploaders)
             // paperService.createPaper expects null for root
             const parentId = currentFolderId === 'root' ? null : currentFolderId;
-            const fileId = await paperService.createPaper(filename, undefined, parentId)
 
-            // Optimistically notify about the new file
-            notifyFileAdded({
-                id: fileId,
-                name: filename,
-                type: 'paper',
-                parentId: parentId,
-                status: 'active',
-                size: 0,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-                is_shared: false,
-                mimeType: 'application/x-paper',
-            } as any)
+            // Open a new tab immediately to give instant feedback
+            const newWin = window.open('/paper/new?creating=1', '_blank');
+            toast('Creating paper...');
 
-            window.open(`/paper/${fileId}`, '_blank');
+            try {
+                const fileId = await paperService.createPaper(filename, undefined, parentId)
+
+                // Optimistically notify about the new file
+                notifyFileAdded({
+                    id: fileId,
+                    name: filename,
+                    type: 'paper',
+                    parentId: parentId,
+                    status: 'active',
+                    size: 0,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                    is_shared: false,
+                    mimeType: 'application/x-paper',
+                } as any)
+
+                toast.success('Paper created');
+
+                // Redirect the opened tab to the newly created paper
+                if (newWin && !newWin.closed) {
+                    newWin.location.href = `/paper/${fileId}`;
+                } else {
+                    window.open(`/paper/${fileId}`, '_blank');
+                }
+            } catch (err) {
+                console.error('Failed to create paper:', err);
+                toast.error('Failed to create paper');
+                if (newWin && !newWin.closed) newWin.close();
+            }
         } catch (error) {
             console.error("Failed to create paper:", error)
             toast.error("Failed to create paper")
