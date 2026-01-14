@@ -170,11 +170,6 @@ export function SiteHeader({ onSearch, onFileUpload, onFolderUpload, searchValue
                 Upload Folder
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleNewPaper}>
-                <IconStackFilled className="h-4 w-4 mr-2" />
-                New Paper
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={openPicker}>
                 <IconBrandGoogleDrive className="h-4 w-4 mr-2" stroke={1.5} />
                 Import from Google Drive
@@ -183,6 +178,10 @@ export function SiteHeader({ onSearch, onFileUpload, onFolderUpload, searchValue
               <DropdownMenuItem onClick={() => setIsCreateFolderOpen(true)}>
                 <IconFolderPlus className="h-4 w-4 mr-2" />
                 New Folder
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleNewPaper}>
+                <IconStackFilled className="h-4 w-4 mr-2" />
+                New Paper
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
