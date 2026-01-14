@@ -35,6 +35,7 @@ import { Checkbox } from "@/components/base/checkbox/checkbox";
 import { Input } from "@/components/ui/input";
 import { decryptFilename, encryptFilename, computeFilenameHmac, createSignedFileManifest, createSignedFolderManifest, decryptUserPrivateKeys } from "@/lib/crypto";
 import { apiClient, FileItem, FolderContentItem, FileContentItem, PQCKeypairs, Tag } from "@/lib/api";
+import { prepareMoveToTrashPayload } from "@/lib/trash";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { FullPagePreviewModal } from "@/components/previews/full-page-preview-modal";
@@ -1476,10 +1477,21 @@ export const Table01DividerLineSm = ({
         if (selectedItemsArray.length === 0) return;
 
         try {
-            // Separate files, folders and papers
-            const fileIds = selectedItemsArray.filter(item => item.type === 'file').map(item => item.id);
-            const folderIds = selectedItemsArray.filter(item => item.type === 'folder').map(item => item.id);
-            const paperIds = selectedItemsArray.filter(item => item.type === 'paper').map(item => item.id);
+            // Prepare payload and validate types via helper
+            let folderIds: string[] = [];
+            let fileIds: string[] = [];
+            let paperIds: string[] = [];
+
+            try {
+                const result = prepareMoveToTrashPayload(selectedItemsArray, filesMap);
+                folderIds = result.folderIds;
+                fileIds = result.fileIds;
+                paperIds = result.paperIds;
+            } catch (err: any) {
+                console.warn('Move to trash aborted due to type mismatches', err);
+                toast.error(t('files.moveToTrashTypeMismatch') || 'Some selected items have mismatched types. Please re-select items and try again.');
+                return;
+            }
 
             // Use unified bulk API for files, folders, and papers
             const response = await apiClient.moveToTrash(folderIds, fileIds, paperIds);
