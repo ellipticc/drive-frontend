@@ -1713,7 +1713,7 @@ class ApiClient {
     });
   }
 
-  async getPaperUploadUrls(paperId: string, blocks: Array<{ blockId: string; size: number }>): Promise<ApiResponse<{ urls: Record<string, string> }>> {
+  async getPaperUploadUrls(paperId: string, blocks: Array<{ blockId: string; size: number; checksum?: string }>): Promise<ApiResponse<{ urls: Record<string, string> }>> {
     return this.request(`/papers/${paperId}/s3`, {
       method: 'POST',
       body: JSON.stringify({ blocks })

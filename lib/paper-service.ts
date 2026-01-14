@@ -103,6 +103,14 @@ class PaperService {
         }
     }
 
+    private async hashPayload(payload: string): Promise<string> {
+        const msgBuffer = new TextEncoder().encode(payload);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashBase64 = btoa(String.fromCharCode(...hashArray));
+        return hashBase64;
+    }
+
     /**
      * Save/Update an existing paper using Block-Level Diffing
      */
@@ -134,7 +142,7 @@ class PaperService {
             }
 
             // 2. Block-Level Diffing Setup
-            let chunksToUpload: { blockId: string; content: any; size: number; payloadStr?: string; uploaded?: boolean }[] = [];
+            let chunksToUpload: { blockId: string; content: any; size: number; payloadStr?: string; uploaded?: boolean; checksum?: string }[] = [];
             let blocksToDelete: string[] = [];
             let manifestPayload: any = null;
 
@@ -181,12 +189,15 @@ class PaperService {
                         // Backend expects: Object (will be stringified by backend before storage)
                         const payload = { encryptedContent, iv, salt };
                         const payloadStr = JSON.stringify(payload);
+                        const checksum = await this.hashPayload(payloadStr);
+                        console.log(`[PaperService] Chunk ${blockId} checksum: ${checksum}`);
 
                         chunksToUpload.push({
                             blockId: blockId, // Using blockId now
                             content: payload as any,
                             size: new Blob([payloadStr]).size,
-                            payloadStr // Store stringified for direct upload
+                            payloadStr, // Store stringified for direct upload
+                            checksum
                         });
 
                         newManifestBlocks.push({
@@ -242,7 +253,7 @@ class PaperService {
             if (chunksToUpload.length > 0) {
                 try {
                     // Fix: Properly access response data
-                    const response = await apiClient.getPaperUploadUrls(paperId, chunksToUpload.map(c => ({ blockId: c.blockId, size: c.size })));
+                    const response = await apiClient.getPaperUploadUrls(paperId, chunksToUpload.map(c => ({ blockId: c.blockId, size: c.size, checksum: c.checksum })));
 
                     if (response.success && response.data) {
                         const urls = response.data?.urls;
@@ -252,15 +263,33 @@ class PaperService {
                         await Promise.all(chunksToUpload.map(async (chunk) => {
                             const url = urls[chunk.blockId];
                             if (url) {
+                                if (!chunk.checksum) {
+                                    console.error(`[PaperService] Chunk ${chunk.blockId} missing checksum!`);
+                                    throw new Error(`Missing checksum for chunk ${chunk.blockId}`);
+                                }
+
                                 // Upload the stringified payload directly
                                 const body = chunk.payloadStr || JSON.stringify(chunk.content);
-                                await fetch(url, {
+
+                                const headers: Record<string, string> = {
+                                    'Content-Type': 'application/x-paper',
+                                    'x-amz-checksum-sha256': chunk.checksum
+                                };
+
+                                // console.log(`[PaperService] Uploading ${chunk.blockId} to B2 with headers:`, headers);
+
+                                const uploadRes = await fetch(url, {
                                     method: 'PUT',
                                     body: body,
-                                    headers: {
-                                        'Content-Type': 'application/x-paper'
-                                    }
+                                    headers: headers
                                 });
+
+                                if (!uploadRes.ok) {
+                                    const errText = await uploadRes.text();
+                                    console.error(`[PaperService] B2 Upload Failed ${uploadRes.status}: ${errText}`);
+                                    throw new Error(`B2 Upload Failed: ${uploadRes.statusText}`);
+                                }
+
                                 // Mark as uploaded so backend doesn't try to upload again
                                 chunk.uploaded = true;
                             }
