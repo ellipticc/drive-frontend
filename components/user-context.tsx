@@ -2,55 +2,9 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode, useRef } from "react";
 import { usePathname } from "next/navigation";
-import { apiClient } from "@/lib/api";
+import { apiClient, type UserData } from "@/lib/api";
 import { keyManager } from "@/lib/key-manager";
 import { masterKeyManager } from "@/lib/master-key";
-
-interface UserData {
-  id: string;
-  name: string;
-  email: string;
-  plan?: string;
-  avatar?: string;
-  storage?: {
-    used_bytes: number;
-    quota_bytes: number;
-    percent_used: number;
-    used_readable: string;
-    quota_readable: string;
-  };
-  crypto_keypairs?: {
-    accountSalt?: string;
-    [key: string]: unknown;
-  };
-  // Optional authentication method (e.g., 'wallet')
-  authMethod?: string;
-  onboarding_completed?: boolean;
-  sessionDuration?: number;
-  language?: string;
-  appearance_theme?: string;
-  theme_sync?: boolean;
-  is_verified?: boolean;
-  is_checkmarked?: boolean;
-  show_suggestions?: boolean;
-  date_format?: string;
-  time_format?: string;
-  auto_timezone?: boolean;
-  timezone?: string;
-  subscription?: {
-    id: string;
-    status: string;
-    currentPeriodStart: string | Date;
-    currentPeriodEnd: string | Date;
-    cancelAtPeriodEnd: number;
-    plan: {
-      id: string;
-      name: string;
-      storageQuota: number;
-      interval: string;
-    };
-  } | null;
-}
 
 interface UserContextType {
   user: UserData | null;

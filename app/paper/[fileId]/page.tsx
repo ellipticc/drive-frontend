@@ -11,6 +11,8 @@ import { type Value } from "platejs";
 import { paperService } from "@/lib/paper-service";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { HeaderUser } from "@/components/header-user";
+import { Input } from "@/components/ui/input";
 
 export default function PaperPage() {
     const params = useParams();
@@ -21,8 +23,6 @@ export default function PaperPage() {
     const [isUnsaved, setIsUnsaved] = useState(false);
     const [content, setContent] = useState<Value | undefined>(undefined);
     const [paperTitle, setPaperTitle] = useState<string>("Untitled Paper");
-    const [isEditingTitle, setIsEditingTitle] = useState(false);
-    const titleInputRef = useRef<HTMLInputElement>(null);
     const saveTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
     const latestContentRef = useRef<Value | undefined>(undefined);
@@ -109,8 +109,7 @@ export default function PaperPage() {
 
     // Save Logic (Title)
     const handleTitleSave = async (newTitle: string) => {
-        if (newTitle.trim() === paperTitle) {
-            setIsEditingTitle(false);
+        if (newTitle.trim() === paperTitle || newTitle.trim() === '') {
             return;
         }
 
@@ -122,8 +121,6 @@ export default function PaperPage() {
         } catch (e) {
             console.error(e);
             toast.error("Failed to save title");
-        } finally {
-            setIsEditingTitle(false);
         }
     };
 
@@ -155,13 +152,7 @@ export default function PaperPage() {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [handleSave]);
 
-    // Focus input when editing title starts
-    useEffect(() => {
-        if (isEditingTitle && titleInputRef.current) {
-            titleInputRef.current.focus();
-            titleInputRef.current.select();
-        }
-    }, [isEditingTitle]);
+
 
 
     if (loading) {
@@ -184,28 +175,18 @@ export default function PaperPage() {
                             <span className="text-primary font-bold text-xs">P</span>
                         </div>
 
-                        {isEditingTitle ? (
-                            <input
-                                ref={titleInputRef}
-                                type="text"
-                                defaultValue={paperTitle}
-                                className="text-lg font-semibold bg-transparent border-b border-primary focus:outline-none w-full min-w-[200px]"
-                                onBlur={(e) => handleTitleSave(e.target.value)}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                        handleTitleSave(e.currentTarget.value);
-                                    }
-                                }}
-                            />
-                        ) : (
-                            <h1
-                                className="text-lg font-semibold truncate cursor-pointer hover:bg-muted/50 px-2 py-1 rounded transition-colors"
-                                onDoubleClick={() => setIsEditingTitle(true)}
-                                title="Double click to rename"
-                            >
-                                {paperTitle}
-                            </h1>
-                        )}
+                        <Input
+                            value={paperTitle}
+                            onChange={(e) => setPaperTitle(e.target.value)}
+                            onBlur={(e) => handleTitleSave(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    e.currentTarget.blur();
+                                }
+                            }}
+                            className="text-lg font-semibold bg-transparent border-transparent hover:border-border focus:border-input focus:bg-background transition-colors w-full min-w-[200px] h-9 px-2 shadow-none"
+                            placeholder="Untitled Paper"
+                        />
                     </div>
 
                     <div className="ml-auto flex items-center gap-4">
@@ -230,11 +211,13 @@ export default function PaperPage() {
                                     Zero-Knowledge Encrypted
                                 </span>
                             </TooltipTrigger>
-                            <TooltipContent>
-                                <p className="max-w-xs">Your content is encrypted with your private key before leaving your device. Only you can read it.</p>
+                            <TooltipContent className="max-w-xs">
+                                <p>Your paper is encrypted with your private key before leaving your device. Only you can read it.</p>
                             </TooltipContent>
                         </Tooltip>
                         <ThemeToggle />
+                        <div className="h-6 w-px bg-border mx-1" />
+                        <HeaderUser />
                     </div>
                 </header>
 

@@ -3,7 +3,7 @@ import type { FileItem } from "./api";
 export function prepareMoveToTrashPayload(items: FileItem[], filesMap: Map<string, FileItem>) {
   const folderIds = items.filter(i => i.type === 'folder').map(i => i.id);
   const fileIds = items.filter(i => i.type === 'file' && i.mimeType !== 'application/x-paper').map(i => i.id);
-  const paperIds = items.filter(i => i.mimeType === 'application/x-paper').map(i => i.id);
+  const paperIds = items.filter(i => i.type === 'paper' || i.mimeType === 'application/x-paper').map(i => i.id);
 
   const invalidFileIds = fileIds.filter(id => {
     const it = filesMap.get(id);
@@ -11,7 +11,7 @@ export function prepareMoveToTrashPayload(items: FileItem[], filesMap: Map<strin
   });
   const invalidPaperIds = paperIds.filter(id => {
     const it = filesMap.get(id);
-    return !it || it.mimeType !== 'application/x-paper';
+    return !it || (it.type !== 'paper' && it.mimeType !== 'application/x-paper');
   });
   const invalidFolderIds = folderIds.filter(id => {
     const it = filesMap.get(id);

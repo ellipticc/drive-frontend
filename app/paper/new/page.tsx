@@ -10,6 +10,7 @@ import { masterKeyManager } from "@/lib/master-key";
 import { paperService } from "@/lib/paper-service";
 import { type Value } from "platejs";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { HeaderUser } from "@/components/header-user";
 
 export default function NewPaperPage() {
     const router = useRouter();
@@ -88,6 +89,8 @@ export default function NewPaperPage() {
                         Zero-Knowledge Encrypted
                     </span>
                     <ThemeToggle />
+                    <div className="h-6 w-px bg-border mx-1" />
+                    <HeaderUser />
                 </div>
             </header>
 
