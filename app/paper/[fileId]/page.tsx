@@ -177,11 +177,13 @@ function PaperEditorView({
 
                 <main className="flex-1 overflow-hidden relative">
                     <EditorContainer className="h-full w-full overflow-y-auto flex justify-center">
-                        <Editor
-                            className="min-h-full w-full max-w-[850px] px-8 md:px-12 py-4 border-none shadow-none focus-visible:ring-0 mx-auto ml-[10%] transition-all"
-                            autoFocus
-                            placeholder="New Page"
-                        />
+                        <div className="w-full max-w-[850px] px-8 md:px-12">
+                            <Editor
+                                className="min-h-full w-full py-4 border-none shadow-none focus-visible:ring-0 transition-all"
+                                autoFocus
+                                placeholder="New Page"
+                            />
+                        </div>
                     </EditorContainer>
                 </main>
             </div>
