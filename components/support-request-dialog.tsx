@@ -137,7 +137,7 @@ export function SupportRequestDialog({ children }: SupportRequestDialogProps) {
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className={`${isMobile ? 'w-[90vw] max-w-none h-[75vh] max-h-none overflow-y-auto' : 'sm:max-w-[500px]'} animate-in fade-in-0 zoom-in-95 duration-200`}>
+      <DialogContent className={`${isMobile ? 'w-[90vw] max-w-none h-[75vh] max-h-none overflow-y-auto' : 'sm:max-w-2xl'} animate-in fade-in-0 zoom-in-95 duration-200`}>
         <div className="flex flex-col h-full">
           <DialogHeader className="flex-shrink-0">
             <DialogTitle className="flex items-center gap-2">
@@ -150,7 +150,7 @@ export function SupportRequestDialog({ children }: SupportRequestDialogProps) {
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="flex flex-col h-full">
-            <div className="flex-1 px-6 py-4">
+            <div className="flex-1 py-4">
               <FieldGroup className="space-y-4">
                 <Field>
                   <div className="flex justify-between items-center">
