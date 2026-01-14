@@ -1985,7 +1985,7 @@ export function SettingsModal({
 
         {/* Email Change Modal */}
         <Dialog open={showEmailModal} onOpenChange={setShowEmailModal}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent>
             <DialogHeader>
               <DialogTitle>Change Email Address</DialogTitle>
               <DialogDescription>
@@ -2141,7 +2141,7 @@ export function SettingsModal({
 
         {/* Email Change OTP Verification Modal */}
         <Dialog open={showEmailOTPModal} onOpenChange={setShowEmailOTPModal}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent>
             <DialogHeader>
               <DialogTitle>Verify New Email</DialogTitle>
               <DialogDescription>
