@@ -1,4 +1,4 @@
-import { generateIdempotencyKey, addIdempotencyKey, generateIdempotencyKeyForCreate } from './idempotency';
+import { generateIdempotencyKey } from './idempotency';
 import { getDevicePublicKey, signWithDeviceKey } from './device-keys';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://drive.ellipticc.com/api/v1';
@@ -1121,15 +1121,7 @@ class ApiClient {
   }
 
   async uploadAvatar(formData: FormData, fileHash?: string): Promise<ApiResponse<{ avatarUrl: string }>> {
-    // Use the file hash for idempotency if available, ensuring duplicate uploads are caught by middleware
-    const idempotencyKey = generateIdempotencyKey();
-
-    const headers = addIdempotencyKey({}, idempotencyKey);
-
-    // Add custom hash header for duplicate detection logic in backend
-    const requestHeaders: Record<string, string> = {
-      ...headers,
-    };
+    const requestHeaders: Record<string, string> = {};
     if (fileHash) {
       requestHeaders['X-Avatar-Hash'] = fileHash;
     }
@@ -1335,7 +1327,7 @@ class ApiClient {
     manifestPublicKeyDilithium: string;
     algorithmVersion?: string;
     nameHmac: string;
-    clientFolderId?: string; // Client-generated folderId for idempotency
+    clientFolderId?: string;
   }): Promise<ApiResponse<{
     id: string;
     encryptedName: string;
@@ -1351,15 +1343,9 @@ class ApiClient {
       dilithium: boolean;
     };
   }>> {
-    // Use clientFolderId as idempotency key for duplicate prevention
-    const idempotencyKey = data.clientFolderId
-      ? generateIdempotencyKeyForCreate()
-      : generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/folders', {
       method: 'POST',
       body: JSON.stringify(data),
-      headers,
     });
   }
 
@@ -2297,7 +2283,7 @@ class ApiClient {
     forceReplace?: boolean; // Force replace existing file with same HMAC
     existingFileIdToDelete?: string; // File ID to delete when replacing
     isKeepBothAttempt?: boolean; // Flag to indicate this is a keepBoth retry scenario
-    clientFileId?: string; // Client-generated fileId for idempotency
+    clientFileId?: string;
   }): Promise<ApiResponse<{
     sessionId: string;
     fileId: string;
@@ -2319,14 +2305,9 @@ class ApiClient {
     existingFileId?: string; // ID of the existing file if conflict detected
     isKeepBothConflict?: boolean; // Flag to indicate this is a keepBoth retry scenario
   }>> {
-    const idempotencyKey = data.clientFileId
-      ? generateIdempotencyKeyForCreate()
-      : (generateIdempotencyKey() as string);
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/files/upload/presigned/initialize', {
       method: 'POST',
       body: JSON.stringify(data),
-      headers,
     });
   }
 
@@ -2346,13 +2327,9 @@ class ApiClient {
     fileId: string;
     message: string;
   }>> {
-    // Use fileId with operation prefix as idempotency key to distinguish from initialize
-    const idempotencyKey = fileId ? generateIdempotencyKey() : undefined;
-    const headers = idempotencyKey ? addIdempotencyKey({}, idempotencyKey) : {};
     return this.request(`/files/upload/presigned/${sessionId}/finalize`, {
       method: 'POST',
       body: JSON.stringify(data),
-      headers
     });
   }
 
@@ -2550,11 +2527,11 @@ class ApiClient {
   }
 
   async createCheckoutSession(data: {
-    planId: string;
-    period: 'month' | 'year';
+    priceId: string;
     successUrl: string;
     cancelUrl: string;
   }): Promise<ApiResponse<{
+    sessionId?: string;
     url: string;
   }>> {
     return this.request('/billing/create-checkout-session', {
@@ -2635,7 +2612,6 @@ class ApiClient {
     deviceToken?: string;
     token?: string;
   }>> {
-    // Use a unique timestamp-based key for each TOTP attempt to avoid idempotency caching blocking retries
     return this.request('/totp/verify-login', {
       method: 'POST',
       body: JSON.stringify({ userId, token, rememberDevice }),
@@ -2723,12 +2699,9 @@ class ApiClient {
   async verifyDeviceToken(deviceToken: string): Promise<ApiResponse<{
     isValidDevice: boolean;
   }>> {
-    const idempotencyKey = generateIdempotencyKey();
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/totp/verify-device', {
       method: 'POST',
       body: JSON.stringify({ deviceToken }),
-      headers,
     });
   }
 
@@ -2736,7 +2709,6 @@ class ApiClient {
     valid: boolean;
     token?: string;
   }>> {
-    // Use a unique timestamp-based key for each recovery code attempt to avoid idempotency caching blocking retries
     const body: { recoveryCode: string; userId?: string } = { recoveryCode };
     if (userId) body.userId = userId;
     return this.request('/totp/verify-recovery', {
@@ -2803,7 +2775,6 @@ class ApiClient {
     token?: string;
     message?: string;
   }>> {
-    // CRITICAL: Include newOpaquePasswordFile in idempotency key so each reset attempt has a unique key
     return this.request('/recovery/reset-password', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -2817,12 +2788,9 @@ class ApiClient {
     success: boolean;
     message: string;
   }>> {
-    const idempotencyKey = `${generateIdempotencyKey()}:${Date.now()}`;
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request('/support/feedback', {
       method: 'POST',
       body: JSON.stringify(data),
-      headers,
     });
   }
 
@@ -3124,13 +3092,9 @@ class ApiClient {
     signature?: string;
     publicKey?: string;
   }): Promise<ApiResponse<{ success: boolean; comment: ShareComment }>> {
-    // Use strictly unique ID for every comment attempt to avoid middleware collisions
-    const idempotencyKey = `${generateIdempotencyKey()}:${Math.random().toString(36).slice(2)}`;
-    const headers = addIdempotencyKey({}, idempotencyKey);
     return this.request(`/shares/${shareId}/comments`, {
       method: 'POST',
       body: JSON.stringify(data),
-      headers,
     });
   }
 
