@@ -51,7 +51,7 @@ class PaperService {
             const { encryptedFilename, filenameSalt } = await encryptFilename(title, masterKey);
 
             // 2. Prepare Initial Block (Chunk 1)
-            const defaultContent = [{ id: crypto.randomUUID(), type: 'p', children: [{ text: '' }] }];
+            const defaultContent = [{ id: crypto.randomUUID(), type: 'h1', children: [{ text: '' }] }];
             const initialBlock = (content as any[])?.[0] || defaultContent[0];
 
             // Ensure ID exists

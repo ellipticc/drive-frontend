@@ -72,6 +72,14 @@ export function ExportToolbarButton(props: DropdownMenuProps) {
     window.URL.revokeObjectURL(blobUrl);
   };
 
+  const getExportFilename = (extension: string) => {
+    // Try to get title from document title (set in page.tsx) or fallback to timestamp
+    let name = document.title || `Untitled document ${new Date().toISOString().replace(/[:.]/g, '-')}`;
+    // Clean up filename
+    name = name.replace(/[^a-z0-9\s-_]/gi, '').trim();
+    return `${name}.${extension}`;
+  };
+
   const exportToPdf = async () => {
     const canvas = await getCanvas();
 
@@ -88,12 +96,12 @@ export function ExportToolbarButton(props: DropdownMenuProps) {
     });
     const pdfBase64 = await pdfDoc.saveAsBase64({ dataUri: true });
 
-    await downloadFile(pdfBase64, 'plate.pdf');
+    await downloadFile(pdfBase64, getExportFilename('pdf'));
   };
 
   const exportToImage = async () => {
     const canvas = await getCanvas();
-    await downloadFile(canvas.toDataURL('image/png'), 'plate.png');
+    await downloadFile(canvas.toDataURL('image/png'), getExportFilename('png'));
   };
 
   const exportToHtml = async () => {
@@ -138,13 +146,13 @@ export function ExportToolbarButton(props: DropdownMenuProps) {
 
     const url = `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
 
-    await downloadFile(url, 'plate.html');
+    await downloadFile(url, getExportFilename('html'));
   };
 
   const exportToMarkdown = async () => {
     const md = editor.getApi(MarkdownPlugin).markdown.serialize();
     const url = `data:text/markdown;charset=utf-8,${encodeURIComponent(md)}`;
-    await downloadFile(url, 'plate.md');
+    await downloadFile(url, getExportFilename('md'));
   };
 
   return (

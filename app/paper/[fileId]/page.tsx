@@ -176,9 +176,9 @@ function PaperEditorView({
                 </FixedToolbar>
 
                 <main className="flex-1 overflow-hidden relative">
-                    <EditorContainer className="h-full w-full overflow-y-auto flex">
+                    <EditorContainer className="h-full w-full overflow-y-auto flex justify-center">
                         <Editor
-                            className="min-h-full w-full max-w-[850px] px-8 md:px-12 py-8 border-none shadow-none focus-visible:ring-0 mx-auto ml-[15%]"
+                            className="min-h-full w-full max-w-[850px] px-8 md:px-12 py-4 border-none shadow-none focus-visible:ring-0 mx-auto ml-[10%] transition-all"
                             autoFocus
                             placeholder="New Page"
                         />
@@ -219,6 +219,7 @@ export default function PaperPage() {
                 const paper = await paperService.getPaper(fileId);
 
                 setPaperTitle(paper.title);
+                document.title = paper.title;
 
                 let loadedContent: Value;
                 const rawContent = paper.content;
@@ -305,6 +306,7 @@ export default function PaperPage() {
             // Pass undefined for content to only update title
             await paperService.savePaper(fileId, undefined, newTitle);
             setPaperTitle(newTitle);
+            document.title = newTitle;
         } catch (e) {
             console.error(e);
             toast.error("Failed to save title");
