@@ -43,7 +43,7 @@ import {
   IconCoin,
   IconLoader2,
   IconX,
-  IconCrop,
+  IconAlertCircle,
   IconCheck,
 } from "@tabler/icons-react"
 import {
@@ -1280,7 +1280,15 @@ export function SettingsModal({
       const response = await apiClient.verifyEmailChange(emailChangeToken, emailOTPCode.trim())
 
       if (response.success) {
-        toast.success("Email changed successfully! Please log in again with your new email address.")
+        // Revoke all other sessions to match password-change behavior
+        try {
+          await apiClient.revokeAllSessions()
+        } catch (revErr) {
+          console.error('Post-email-change session revocation failed:', revErr)
+          // Continue regardless; we'll still log the user out
+        }
+
+        toast.success("Email changed successfully. All other devices have been disconnected. Please log in again with your new email address.")
 
         // Clear session storage
         sessionStorage.removeItem('emailChangeToken')
@@ -1985,6 +1993,14 @@ export function SettingsModal({
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
+              <div className="flex items-start gap-3 p-3 bg-red-500/5 border border-red-500/10 rounded-lg text-red-600 dark:text-red-400 mb-2">
+                <IconAlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider mb-1">Global Disconnect</p>
+                  <p className="text-[11px] leading-normal opacity-90">For your security, all active sessions and devices will be revoked immediately upon changing your password.</p>
+                </div>
+              </div>
+
               <div>
                 <Label htmlFor="modal-new-email">New Email</Label>
                 <Input
