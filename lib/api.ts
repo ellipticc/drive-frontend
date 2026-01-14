@@ -1762,11 +1762,10 @@ class ApiClient {
   }
 
   async restorePapersFromTrash(paperIds: string[]): Promise<ApiResponse<{ message: string }>> {
-    // Use parallel requests since we only have singular restore endpoint for papers currently
-    // Future optimization: Add bulk restore endpoint for papers
-    const promises = paperIds.map(id => this.request(`/papers/${id}/restore`, { method: 'POST' }));
-    await Promise.all(promises);
-    return { success: true, data: { message: 'Papers restored' } };
+    return this.request('/trash/restore', {
+      method: 'POST',
+      body: JSON.stringify({ paperIds }),
+    });
   }
 
   async createPaper(data: {
