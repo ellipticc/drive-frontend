@@ -8,7 +8,7 @@ import { DotsVertical } from "@untitledui/icons";
 import type { SortDescriptor, Selection } from "react-aria-components";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Button } from "@/components/ui/button";
-import { IconFolderPlus, IconFolderDown, IconFileUpload, IconShare3, IconListDetails, IconDownload, IconFolder, IconEdit, IconInfoCircle, IconTrash, IconChevronRight, IconLink, IconEye, IconLayoutColumns, IconCopy, IconStar, IconStarFilled, IconLoader2, IconGrid3x3, IconLock, IconX } from "@tabler/icons-react";
+import { IconFolderPlus, IconFolderDown, IconFileUpload, IconShare3, IconListDetails, IconDownload, IconFolder, IconEdit, IconInfoCircle, IconTrash, IconChevronRight, IconLink, IconEye, IconLayoutColumns, IconCopy, IconStar, IconStarFilled, IconLoader2, IconGrid3x3, IconLock, IconX, IconFileText } from "@tabler/icons-react";
 import dynamic from "next/dynamic";
 
 const CreateFolderModal = dynamic(() => import("@/components/modals/create-folder-modal").then(mod => mod.CreateFolderModal));
@@ -2158,6 +2158,10 @@ export const Table01DividerLineSm = ({
                             <IconFileUpload className="mr-2 h-4 w-4" />
                             {t("files.uploadFile")}
                         </Button>
+                        <Button variant="outline" onClick={() => window.open('/paper/new', '_blank')}>
+                            <IconFileText className="mr-2 h-4 w-4" />
+                            {t("files.newPaper") || "New Paper"}
+                        </Button>
                         <Button variant="outline" onClick={() => {
                             const createFolderButton = document.querySelector('[data-create-folder-trigger]') as HTMLElement;
                             if (createFolderButton) createFolderButton.click();
@@ -2573,6 +2577,16 @@ export const Table01DividerLineSm = ({
                         title={t("files.uploadFile")}
                     >
                         <IconFileUpload className="h-3.5 w-3.5" />
+                    </Button>
+                    <div className="h-5 w-px bg-border mx-1" />
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 p-0"
+                        onClick={() => window.open('/paper/new', '_blank')}
+                        title={t("files.newPaper") || "New Paper"}
+                    >
+                        <IconFileText className="h-3.5 w-3.5" />
                     </Button>
                     <div className="h-5 w-px bg-border mx-1" />
                     <Button
@@ -3032,7 +3046,7 @@ export const Table01DividerLineSm = ({
                                                             item={item}
                                                             isSelected={isSelected}
                                                             isDraggingSomewhere={isDraggingSomewhere}
-                                                            onDoubleClick={item.type === 'folder' ? () => handleFolderDoubleClick(item.id, item.name) : (item.type === 'file' ? () => handlePreviewClick(item.id, item.name, item.mimeType) : (item.type === 'paper' ? () => router.push('/paper/' + item.id) : undefined))}
+                                                            onDoubleClick={item.type === 'folder' ? () => handleFolderDoubleClick(item.id, item.name) : (item.type === 'file' ? () => handlePreviewClick(item.id, item.name, item.mimeType) : (item.type === 'paper' ? () => window.open('/paper/' + item.id, '_blank') : undefined))}
                                                             className="group hover:bg-muted/50 transition-colors duration-150"
                                                             onContextMenu={handleContextMenu}
                                                             // Ensure the row height is tracked
@@ -3359,7 +3373,7 @@ export const Table01DividerLineSm = ({
                                                     } else if (item.type === 'file') {
                                                         handlePreviewClick(item.id, item.name, item.mimeType);
                                                     } else if (item.type === 'paper') {
-                                                        router.push('/paper/' + item.id);
+                                                        window.open('/paper/' + item.id, '_blank');
                                                     }
                                                     return;
                                                 }
@@ -3386,7 +3400,7 @@ export const Table01DividerLineSm = ({
                                                 } else if (item.type === 'file') {
                                                     handlePreviewClick(item.id, item.name, item.mimeType);
                                                 } else if (item.type === 'paper') {
-                                                    router.push('/paper/' + item.id);
+                                                    window.open('/paper/' + item.id, '_blank');
                                                 }
                                             }}
                                             onContextMenu={(e) => handleContextMenu(e, item)}

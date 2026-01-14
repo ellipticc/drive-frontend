@@ -173,9 +173,9 @@ export default function PaperPage() {
     }
 
     return (
-        <div className="flex flex-col h-full bg-muted/40 p-2 md:p-4 overflow-hidden">
-            <div className="flex flex-col flex-1 bg-background rounded-2xl border shadow-sm overflow-hidden ring-1 ring-border/50">
-                <header className="flex h-16 items-center gap-4 border-b px-6 shrink-0 bg-background/50 backdrop-blur-sm z-10">
+        <div className="flex flex-col h-full bg-background overflow-hidden">
+            <div className="flex flex-col flex-1 bg-background overflow-hidden">
+                <header className="flex h-14 items-center gap-4 border-b px-4 shrink-0 bg-background z-10">
                     <div className="flex items-center gap-2 max-w-xl">
                         <Button variant="ghost" size="icon" onClick={() => router.push('/')} className="hover:bg-muted">
                             <IconArrowLeft className="w-5 h-5" />
