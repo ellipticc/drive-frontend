@@ -135,6 +135,7 @@ export const dictionaries = {
             cancel: "Cancel",
             itemMovedToTrash: "Item moved to trash",
             itemsMovedToTrash: "{{count}} items moved to trash",
+            moveToTrashTypeMismatch: "Some selected items have mismatched types. Please re-select items and try again.",
             restored: "{{type}} restored successfully",
             restoreFailed: "Failed to restore {{type}}",
             dropToMove: "Drop to move to folder '{{folder}}'",

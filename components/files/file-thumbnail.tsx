@@ -60,11 +60,9 @@ export function FileThumbnail({
         (mimeType && !mimeType.startsWith("image/") && !mimeType.startsWith("video/")) ||
         (!mimeType && ext && !isImageExtension && !isVideoExtension);
 
-    if (isKnownNonMedia) {
-        return <FileIcon mimeType={mimeType} filename={name} className={className} />;
-    }
-
     useEffect(() => {
+        if (isKnownNonMedia) return;
+
         let isMounted = true;
 
         async function loadThumbnail() {
@@ -190,7 +188,11 @@ export function FileThumbnail({
                 }
             }
         };
-    }, [fileId, retryCount, hasError, encryption/*, mimeType, name*/]); // We can trust fileId is unique enough
+    }, [fileId, retryCount, hasError, encryption, mimeType, name, isKnownNonMedia]);
+
+    if (isKnownNonMedia) {
+        return <FileIcon mimeType={mimeType} filename={name} className={className} />;
+    }
 
     // Render logic
     if (thumbnailUrl) {
