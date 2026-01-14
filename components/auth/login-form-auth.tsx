@@ -299,9 +299,37 @@ export function LoginFormAuth({
               // Cache the decrypted master key with the CURRENT (new) salt
               masterKeyManager.cacheExistingMasterKey(masterKeyBytes, ud.masterKeySalt)
             } catch (decryptError) {
-              console.error('Failed to decrypt master key:', decryptError)
-              setError("Incorrect password or corrupted key")
-              return
+              console.warn('Failed to decrypt master key (new flow), attemping legacy fallback:', decryptError)
+
+              // Fallback: Check if user ALSO has legacy password-encrypted master key
+              if (ud.encrypted_master_key_password && ud.master_key_password_nonce && ud.crypto_keypairs?.accountSalt) {
+                try {
+                  const { deriveEncryptionKey, decryptData } = await import("@/lib/crypto")
+
+                  // Derive password-based encryption key using account salt (Legacy)
+                  const passwordDerivedKey = await deriveEncryptionKey(
+                    formData.password,
+                    ud.crypto_keypairs.accountSalt as string
+                  )
+
+                  const masterKeyBytes = await decryptData(
+                    ud.encrypted_master_key_password,
+                    passwordDerivedKey,
+                    ud.master_key_password_nonce
+                  )
+
+                  masterKeyManager.cacheExistingMasterKey(masterKeyBytes, ud.crypto_keypairs.accountSalt as string)
+                  // Success on fallback! Continue...
+                } catch (legacyError) {
+                  console.error('Legacy fallback also failed:', legacyError)
+                  setError("Incorrect password or corrupted key")
+                  return
+                }
+              } else {
+                console.error('Failed to decrypt master key and no legacy fallback available')
+                setError("Incorrect password or corrupted key")
+                return
+              }
             }
           }
           // Legacy/Fallback Path: Check if user has password-encrypted master key (Older implementation)
