@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { PlateEditor } from "@/components/plate-editor";
 import { masterKeyManager } from "@/lib/master-key";
 import { IconLoader2, IconArrowLeft, IconCloudCheck } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
@@ -13,10 +12,11 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { HeaderUser } from "@/components/header-user";
 import { Input } from "@/components/ui/input";
-import { EmojiPopover, EmojiPicker } from "@/components/ui/emoji-toolbar-button";
+import { Plate, usePlateEditor, PlateController } from "platejs/react";
+import { Editor, EditorContainer } from "@/components/ui/editor";
+import { EditorKit } from "@/components/editor-kit";
 import { useEmojiDropdownMenuState } from "@platejs/emoji/react";
-
-import { PlateController } from "platejs/react";
+import { EmojiPopover, EmojiPicker } from "@/components/ui/emoji-toolbar-button";
 
 interface PaperHeaderProps {
     fileId: string;
@@ -121,6 +121,61 @@ function PaperHeader({
                 <HeaderUser />
             </div>
         </header>
+    );
+}
+
+function PaperEditorView({
+    initialValue,
+    onChange,
+    fileId,
+    paperTitle,
+    setPaperTitle,
+    handleTitleSave,
+    icon,
+    onSelectEmoji,
+    saving,
+    isUnsaved
+}: {
+    initialValue: Value;
+    onChange: (value: Value) => void;
+    fileId: string;
+    paperTitle: string;
+    setPaperTitle: (title: string) => void;
+    handleTitleSave: (title: string) => void;
+    icon: string | null;
+    onSelectEmoji: (emoji: any) => void;
+    saving: boolean;
+    isUnsaved: boolean;
+}) {
+    const editor = usePlateEditor({
+        plugins: EditorKit,
+        value: initialValue,
+    });
+
+    return (
+        <Plate
+            editor={editor}
+            onChange={({ value }) => onChange(value)}
+        >
+            <div className="flex flex-col h-full bg-background overflow-hidden w-full">
+                <PaperHeader
+                    fileId={fileId}
+                    paperTitle={paperTitle}
+                    setPaperTitle={setPaperTitle}
+                    handleTitleSave={handleTitleSave}
+                    icon={icon}
+                    onSelectEmoji={onSelectEmoji}
+                    saving={saving}
+                    isUnsaved={isUnsaved}
+                />
+
+                <main className="flex-1 overflow-hidden relative">
+                    <EditorContainer className="flex-1 w-full h-full">
+                        <Editor className="min-h-full w-full max-w-4xl mx-auto px-4 md:px-6 py-4 border-none shadow-none focus-visible:ring-0" />
+                    </EditorContainer>
+                </main>
+            </div>
+        </Plate>
     );
 }
 
@@ -295,27 +350,21 @@ export default function PaperPage() {
         );
     }
 
-    return (
-        <PlateController>
-            <div className="flex flex-col h-full bg-background overflow-hidden">
-                <div className="flex flex-col flex-1 bg-background overflow-hidden">
-                    <PaperHeader
-                        fileId={fileId}
-                        paperTitle={paperTitle}
-                        setPaperTitle={setPaperTitle}
-                        handleTitleSave={handleTitleSave}
-                        icon={icon}
-                        onSelectEmoji={onSelectEmoji}
-                        saving={saving}
-                        isUnsaved={isUnsaved}
-                    />
+    if (!content) return null;
 
-                    <main className="flex-1 overflow-hidden relative">
-                        <PlateEditor initialValue={content} onChange={onChange} />
-                    </main>
-                </div>
-            </div>
-        </PlateController>
+    return (
+        <PaperEditorView
+            initialValue={content}
+            onChange={onChange}
+            fileId={fileId}
+            paperTitle={paperTitle}
+            setPaperTitle={setPaperTitle}
+            handleTitleSave={handleTitleSave}
+            icon={icon}
+            onSelectEmoji={onSelectEmoji}
+            saving={saving}
+            isUnsaved={isUnsaved}
+        />
     );
 }
 
