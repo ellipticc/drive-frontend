@@ -53,7 +53,14 @@ export function NavNew({ onFileUpload, onFolderUpload }: NavNewProps) {
                 return
             }
 
-            const filename = `Untitled document`;
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hour = String(now.getHours()).padStart(2, '0');
+            const minute = String(now.getMinutes()).padStart(2, '0');
+            const second = String(now.getSeconds()).padStart(2, '0');
+            const filename = `Untitled document ${year}-${month}-${day} ${hour}.${minute}.${second}`;
 
             // Use currentFolderId if available (convert 'root' to null for API if needed, consistent with other uploaders)
             // paperService.createPaper expects null for root

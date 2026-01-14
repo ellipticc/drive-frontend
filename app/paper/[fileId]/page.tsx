@@ -60,7 +60,7 @@ function PaperHeader({
                     control={
                         <Button
                             variant="ghost"
-                            className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 hover:bg-primary/20 p-0 text-xl overflow-hidden"
+                            className="w-8 h-8 rounded-md bg-transparent flex items-center justify-center shrink-0 hover:bg-muted p-0 text-lg overflow-hidden"
                         >
                             {displayIcon}
                         </Button>
@@ -176,8 +176,12 @@ function PaperEditorView({
                 </FixedToolbar>
 
                 <main className="flex-1 overflow-hidden relative">
-                    <EditorContainer className="h-full w-full overflow-y-auto">
-                        <Editor className="min-h-full w-full max-w-4xl mx-auto px-4 md:px-6 py-4 border-none shadow-none focus-visible:ring-0" />
+                    <EditorContainer className="h-full w-full overflow-y-auto flex justify-center">
+                        <Editor
+                            className="min-h-full w-full max-w-[850px] px-8 md:px-12 py-16 border-none shadow-none focus-visible:ring-0 mx-auto"
+                            autoFocus
+                            placeholder="New Page"
+                        />
                     </EditorContainer>
                 </main>
             </div>
@@ -350,8 +354,9 @@ export default function PaperPage() {
 
     if (loading) {
         return (
-            <div className="h-full w-full flex items-center justify-center">
-                <IconLoader2 className="animate-spin text-muted-foreground" />
+            <div className="h-screen w-full flex flex-col items-center justify-center gap-4">
+                <IconLoader2 className="w-8 h-8 animate-spin text-primary" />
+                <p className="text-muted-foreground animate-pulse">Loading your fantastic work...</p>
             </div>
         );
     }

@@ -190,7 +190,6 @@ class PaperService {
                         const payload = { encryptedContent, iv, salt };
                         const payloadStr = JSON.stringify(payload);
                         const checksum = await this.hashPayload(payloadStr);
-                        console.log(`[PaperService] Chunk ${blockId} checksum: ${checksum}`);
 
                         chunksToUpload.push({
                             blockId: blockId, // Using blockId now

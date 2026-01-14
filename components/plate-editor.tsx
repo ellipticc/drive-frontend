@@ -36,9 +36,12 @@ export function PlateEditor({ initialValue, onChange, readOnly }: PlateEditorPro
         }}
       >
 
-
-        <EditorContainer className="flex-1 w-full h-full">
-          <Editor className="min-h-full w-full max-w-4xl mx-auto px-4 md:px-6 py-4" />
+        <EditorContainer className="flex-1 w-full h-full flex justify-center overflow-y-auto">
+          <Editor
+            className="min-h-full w-full max-w-[850px] px-8 md:px-12 py-16 border-none shadow-none focus-visible:ring-0 mx-auto"
+            autoFocus
+            placeholder="New Page"
+          />
         </EditorContainer>
       </Plate>
     </div>

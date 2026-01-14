@@ -2588,7 +2588,17 @@ export const Table01DividerLineSm = ({
                                 // Create paper with default title and current folder context
                                 // Use 'null' for root or currentFolderId if it's a valid UUID
                                 const folderId = currentFolderId === 'root' ? null : currentFolderId;
-                                const newPaperId = await paperService.createPaper('Untitled document', undefined, folderId);
+
+                                const now = new Date();
+                                const year = now.getFullYear();
+                                const month = String(now.getMonth() + 1).padStart(2, '0');
+                                const day = String(now.getDate()).padStart(2, '0');
+                                const hour = String(now.getHours()).padStart(2, '0');
+                                const minute = String(now.getMinutes()).padStart(2, '0');
+                                const second = String(now.getSeconds()).padStart(2, '0');
+                                const filename = `Untitled document ${year}-${month}-${day} ${hour}.${minute}.${second}`;
+
+                                const newPaperId = await paperService.createPaper(filename, undefined, folderId);
 
                                 if (newPaperId) {
                                     window.open(`/paper/${newPaperId}`, '_blank');
