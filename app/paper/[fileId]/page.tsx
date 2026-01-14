@@ -16,6 +16,8 @@ import { Plate, usePlateEditor, PlateController } from "platejs/react";
 import { Editor, EditorContainer } from "@/components/ui/editor";
 import { EditorKit } from "@/components/editor-kit";
 import { useEmojiDropdownMenuState } from "@platejs/emoji/react";
+import { FixedToolbar } from "@/components/ui/fixed-toolbar";
+import { FixedToolbarButtons } from "@/components/ui/fixed-toolbar-buttons";
 import { EmojiPopover, EmojiPicker } from "@/components/ui/emoji-toolbar-button";
 
 interface PaperHeaderProps {
@@ -46,7 +48,7 @@ function PaperHeader({
     const displayIcon = icon || (paperTitle ? paperTitle.charAt(0).toUpperCase() : "U");
 
     return (
-        <header className="flex h-16 items-center gap-4 border-b px-6 shrink-0 bg-background z-10">
+        <header className="flex h-16 items-center gap-4 border-b px-6 shrink-0 bg-background z-50">
             <div className="flex items-center gap-3 w-full max-w-2xl">
                 <Button variant="ghost" size="icon" onClick={() => router.push('/')} className="hover:bg-muted shrink-0">
                     <IconArrowLeft className="w-5 h-5" />
@@ -157,7 +159,7 @@ function PaperEditorView({
             editor={editor}
             onChange={({ value }) => onChange(value)}
         >
-            <div className="flex flex-col h-full bg-background overflow-hidden w-full">
+            <div className="flex flex-col h-screen bg-background w-full overflow-hidden">
                 <PaperHeader
                     fileId={fileId}
                     paperTitle={paperTitle}
@@ -169,8 +171,12 @@ function PaperEditorView({
                     isUnsaved={isUnsaved}
                 />
 
+                <FixedToolbar className="border-b shrink-0 !relative !top-0">
+                    <FixedToolbarButtons />
+                </FixedToolbar>
+
                 <main className="flex-1 overflow-hidden relative">
-                    <EditorContainer className="flex-1 w-full h-full">
+                    <EditorContainer className="h-full w-full overflow-y-auto">
                         <Editor className="min-h-full w-full max-w-4xl mx-auto px-4 md:px-6 py-4 border-none shadow-none focus-visible:ring-0" />
                     </EditorContainer>
                 </main>
