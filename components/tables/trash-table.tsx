@@ -120,21 +120,18 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
             setIsLoading(true);
             setError(null);
 
-            // Fetch trash files, folders and papers
-            const [filesResponse, foldersResponse, papersResponse] = await Promise.all([
+            // Fetch trash files and folders (papers are now included in files)
+            const [filesResponse, foldersResponse] = await Promise.all([
                 apiClient.getTrashFiles({ page, limit }),
-                apiClient.getTrashFolders({ page, limit }),
-                apiClient.getTrashPapers({ page, limit })
+                apiClient.getTrashFolders({ page, limit })
             ]);
 
-            if (filesResponse?.success && foldersResponse?.success && papersResponse?.success) {
+            if (filesResponse?.success && foldersResponse?.success) {
                 // Update pagination info
                 let filePages = 1;
                 let folderPages = 1;
-                let paperPages = 1;
                 let fileTotal = 0;
                 let folderTotal = 0;
-                let paperTotal = 0;
 
                 if (filesResponse.data && 'pagination' in filesResponse.data) {
                     filePages = filesResponse.data.pagination.totalPages;
@@ -146,13 +143,8 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                     folderTotal = ((foldersResponse.data as Record<string, unknown>).pagination as Record<string, unknown>).total as number;
                 }
 
-                if (papersResponse.data && 'pagination' in papersResponse.data) {
-                    paperPages = papersResponse.data.pagination.totalPages;
-                    paperTotal = papersResponse.data.pagination.total;
-                }
-
-                setTotalPages(Math.max(filePages, folderPages, paperPages));
-                setTotalItems(fileTotal + folderTotal + paperTotal);
+                setTotalPages(Math.max(filePages, folderPages));
+                setTotalItems(fileTotal + folderTotal);
 
                 // Get master key for filename decryption - we ALWAYS have access to it
                 let masterKey: Uint8Array | null = null;
@@ -203,13 +195,17 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                                 decryptedName = '(Unnamed file)';
                             }
                         }
+
+                        // Check if it's a paper based on mimetype
+                        const isPaper = file.mimetype === 'application/x-paper' || file.mimeType === 'application/x-paper';
+
                         return {
                             id: file.id,
                             name: decryptedName || '(Unnamed file)',
                             filename: file.filename,
                             size: file.size,
                             mimeType: file.mimetype,
-                            type: 'file' as const,
+                            type: isPaper ? 'paper' as const : 'file' as const,
                             createdAt: file.created_at || file.createdAt,
                             updatedAt: file.updated_at || file.updatedAt,
                             deletedAt: file.deleted_at || file.deletedAt || '',
@@ -219,34 +215,8 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                     })
                 );
 
-                // Decrypt papers synchronously since we have master key
-                const papersData = (papersResponse.data && 'papers' in papersResponse.data) ? papersResponse.data.papers : [];
-                const decryptedPapers = await Promise.all(
-                    ((papersData || []) as any[]).map(async (paper: any) => {
-                        let decryptedName = '(Unnamed paper)';
-                        if (paper.encryptedTitle && paper.titleSalt) {
-                            try {
-                                decryptedName = await decryptFilenameInWorker(paper.encryptedTitle, paper.titleSalt, masterKey!);
-                            } catch (err) {
-                                decryptedName = '(Unnamed paper)';
-                            }
-                        }
-                        return {
-                            id: paper.id,
-                            name: decryptedName || '(Unnamed paper)',
-                            type: 'paper' as const,
-                            createdAt: paper.createdAt,
-                            updatedAt: paper.updatedAt,
-                            deletedAt: paper.deletedAt || '',
-                            folderId: paper.folderId,
-                            mimeType: 'application/x-paper',
-                            size: 0
-                        };
-                    })
-                );
-
                 // Combine all items
-                const allItems = [...decryptedFolders, ...decryptedFiles, ...decryptedPapers];
+                const allItems = [...decryptedFolders, ...decryptedFiles];
                 setTrashItems(allItems);
             } else {
                 setError('Failed to load trash items');
@@ -262,10 +232,9 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
     const handleRestoreClick = async (itemId: string, itemName: string, itemType: "file" | "folder" | "paper") => {
         try {
             let response;
-            if (itemType === 'file') {
+            if (itemType === 'file' || itemType === 'paper') {
+                // Use generic file restore for papers as well (unification)
                 response = await apiClient.restoreFileFromTrash(itemId);
-            } else if (itemType === 'paper') {
-                response = await apiClient.restorePaper(itemId);
             } else {
                 response = await apiClient.restoreFolderFromTrash(itemId);
             }
@@ -275,30 +244,28 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                 setTrashItems(prevItems => prevItems.filter(item => item.id !== itemId));
 
                 // Show toast with undo option
-                toast(`${itemType} restored successfully`, {
+                toast(`${itemType === 'paper' ? 'Paper' : itemType} restored successfully`, {
                     action: {
                         label: "Undo",
                         onClick: async () => {
                             try {
                                 let moveBackResponse;
-                                if (itemType === 'file') {
+                                if (itemType === 'file' || itemType === 'paper') {
                                     moveBackResponse = await apiClient.moveFileToTrash(itemId);
-                                } else if (itemType === 'paper') {
-                                    moveBackResponse = await apiClient.movePaperToTrash(itemId);
                                 } else {
                                     moveBackResponse = await apiClient.moveFolderToTrash(itemId);
                                 }
 
                                 if (moveBackResponse.success) {
-                                    toast.success(`${itemType} moved back to trash`);
+                                    toast.success(`${itemType === 'paper' ? 'Paper' : itemType} moved back to trash`);
                                     refreshTrash();
                                 } else {
-                                    toast.error(`Failed to move ${itemType} back to trash`);
+                                    toast.error(`Failed to move ${itemType === 'paper' ? 'Paper' : itemType} back to trash`);
                                     refreshTrash();
                                 }
                             } catch (error) {
                                 console.error('Move back to trash error:', error);
-                                toast.error(`Failed to move ${itemType} back to trash`);
+                                toast.error(`Failed to move ${itemType === 'paper' ? 'Paper' : itemType} back to trash`);
                                 refreshTrash();
                             }
                         },
@@ -335,15 +302,13 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
 
             if (itemsToRestore.length === 0) return;
 
-            // Separate files, folders and papers
-            const fileIds = itemsToRestore.filter(i => i.type === 'file').map(i => i.id);
+            // Separate files (including papers) and folders
+            const fileIds = itemsToRestore.filter(i => i.type === 'file' || i.type === 'paper').map(i => i.id);
             const folderIds = itemsToRestore.filter(i => i.type === 'folder').map(i => i.id);
-            const paperIds = itemsToRestore.filter(i => i.type === 'paper').map(i => i.id);
 
             const promises = [];
             if (fileIds.length > 0) promises.push(apiClient.restoreFilesFromTrash(fileIds));
             if (folderIds.length > 0) promises.push(apiClient.restoreFoldersFromTrash(folderIds));
-            if (paperIds.length > 0) promises.push(apiClient.restorePapersFromTrash(paperIds));
 
             const results = await Promise.all(promises);
             const allSuccessful = results.every(result => result.success);
@@ -360,8 +325,8 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                         label: "Undo",
                         onClick: async () => {
                             try {
-                                // Move all items back to trash
-                                const moveBackResponse = await apiClient.moveToTrash(folderIds, fileIds, paperIds);
+                                // Move all items back to trash (treating papers as files)
+                                const moveBackResponse = await apiClient.moveToTrash(folderIds, fileIds);
 
                                 if (moveBackResponse.success) {
                                     toast.success(`Items moved back to trash`);
@@ -408,13 +373,12 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
 
             if (itemsToProcess.length === 0) return;
 
-            // Separate files and folders
-            const fileIds = itemsToProcess.filter(item => item.type === 'file').map(item => item.id);
+            // Separate files (including papers) and folders
+            const fileIds = itemsToProcess.filter(item => item.type === 'file' || item.type === 'paper').map(item => item.id);
             const folderIds = itemsToProcess.filter(item => item.type === 'folder').map(item => item.id);
-            const paperIds = itemsToProcess.filter(item => item.type === 'paper').map(item => item.id);
 
-            // Make single unified API call for all types
-            const result = await apiClient.deleteFromTrash(folderIds, fileIds, paperIds);
+            // Make single unified API call using generic fileIds for papers
+            const result = await apiClient.deleteFromTrash(folderIds, fileIds, []); // Pass empty array for paperIds specific arg
 
             if (result.success) {
                 // Clear items from view immediately
