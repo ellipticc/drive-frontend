@@ -1562,6 +1562,10 @@ class ApiClient {
     return this.request(`/folders/${folderId}`);
   }
 
+  async getFolderPath(folderId: string): Promise<ApiResponse<{ path: Array<{ id: string; encryptedName: string; nameSalt: string }> }>> {
+    return this.request(`/folders/${folderId}/path`);
+  }
+
   async createShare(data: CreateShareParams): Promise<ApiResponse<{
     id: string;
     encryption_version?: number;

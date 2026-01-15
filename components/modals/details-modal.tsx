@@ -177,11 +177,12 @@ export function DetailsModal({
   // Decrypt path
   useEffect(() => {
     const decryptPathAsync = async () => {
+      // Priority: if backend provided encrypted_path/pathSalt, decrypt it
       const encryptedPath = itemDetails?.encrypted_path || itemDetails?.encryptedPath
       const pathSalt = itemDetails?.path_salt || itemDetails?.pathSalt
 
-      if (encryptedPath && pathSalt) {
-        try {
+      try {
+        if (encryptedPath && pathSalt) {
           const { masterKeyManager } = await import('@/lib/master-key')
           const masterKey = masterKeyManager.getMasterKey()
           const decrypted = await decryptFilename(
@@ -190,11 +191,42 @@ export function DetailsModal({
             masterKey
           )
           setDecryptedPath(decrypted)
-        } catch (error) {
-          console.error('Failed to decrypt path:', error)
-          setDecryptedPath(null)
+          return
         }
-      } else {
+
+        // If item is a file and has a folder_id, fetch folder path from backend and decrypt each segment
+        const folderId = (itemDetails as any)?.folder_id || (itemDetails as any)?.parentId || null;
+        if (folderId) {
+          const res = await apiClient.getFolderPath(folderId)
+          if (res.success && res.data && Array.isArray(res.data.path) && res.data.path.length > 0) {
+            const { masterKeyManager } = await import('@/lib/master-key')
+            const masterKey = masterKeyManager.getMasterKey()
+            const names: string[] = []
+            for (const seg of res.data.path) {
+              try {
+                const dec = await decryptFilename(seg.encryptedName, seg.nameSalt, masterKey)
+                names.push(dec)
+              } catch (e) {
+                // fallback to masked name if decryption fails
+                names.push('•••')
+              }
+            }
+            // Build breadcrumb-like path string (Root / a / b)
+            const pathStr = names.length === 0 ? 'Root' : `/${names.join('/')}`
+            setDecryptedPath(pathStr)
+            return
+          }
+        }
+
+        // Fallback: prefer server-sent path if available
+        if ((itemDetails as any)?.path) {
+          setDecryptedPath((itemDetails as any).path)
+          return
+        }
+
+        setDecryptedPath(null)
+      } catch (error) {
+        console.error('Failed to resolve path for item:', error)
         setDecryptedPath(null)
       }
     }
@@ -854,7 +886,12 @@ export function DetailsModal({
                       <div className="flex justify-between items-center gap-4 border-t border-border/50 pt-3">
                         <span className="text-xs text-muted-foreground">Location</span>
                         <span className="text-xs font-medium text-right">
-                          {itemType === "folder" && (itemDetails.parentId === null || itemDetails.parentId === undefined) ? 'Root' : (decryptedPath || itemDetails.path || 'Root')}
+                          {(() => {
+                            // Explicit root case for folders
+                            if (itemType === "folder" && (itemDetails.parentId === null || itemDetails.parentId === undefined)) return 'Root'
+                            const p = decryptedPath || (itemDetails as any).path || null
+                            return p ? <span title={String(p)} className="truncate max-w-full">{truncateMiddle(String(p), 60)}</span> : 'Root'
+                          })()}
                         </span>
                       </div>
 
