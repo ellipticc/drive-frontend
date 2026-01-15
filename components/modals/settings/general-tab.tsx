@@ -570,50 +570,78 @@ export function GeneralTab({
                         </div>
                     </div>
 
-                    {/* Bucket / Storage Region */}
-                    <div className="p-4 bg-muted/30 rounded-lg border">
-                        <div className="space-y-1">
-                            <div className="flex items-center gap-1">
-                                <span className="text-sm font-medium">Bucket region</span>
+                    {/* Account header & User ID */}
+                    <div className="mt-4">
+                        <div className="flex items-center gap-2 mb-2">
+                            <IconGhost2 className="w-5 h-5 text-muted-foreground" />
+                            <div className="text-sm font-semibold">{(t('settings.accountInfo') || '').includes('.') ? 'Account information' : t('settings.accountInfo')}</div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center mb-2">
+                            <div className="flex items-center gap-2">
+                                <div className="text-sm font-medium">User ID</div>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
-                                        <button className="ml-1 text-muted-foreground" title="Storage region assignment">
+                                        <button className="ml-1 text-muted-foreground" title={t('settings.accountInfo.userIdTooltip') || 'The internal identifier for your account'}>
                                             <IconInfoCircle className="w-3 h-3" />
                                         </button>
                                     </TooltipTrigger>
                                     <TooltipContent side="top">
-                                        <p className="text-xs">Region where your files are stored.</p>
+                                        <p className="text-xs">{t('settings.accountInfo.userIdTooltip') || 'The internal identifier for your account'}</p>
                                     </TooltipContent>
                                 </Tooltip>
                             </div>
-                            <div className="text-sm text-foreground">
-                                {user?.storage_region || '—'}
+                            <div className="text-sm font-mono flex items-center gap-2 truncate">
+                                <span className="truncate">{user?.id || '—'}</span>
+                                <button
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(user?.id || '')
+                                        toast.success(t('common.copied') || 'Copied')
+                                    }}
+                                    className="text-muted-foreground hover:text-foreground"
+                                    title={t('settings.accountInfo.copyId') || 'Copy user ID'}
+                                >
+                                    <IconCopy className="w-4 h-4" />
+                                </button>
                             </div>
                         </div>
                     </div>
 
-                    {/* Crypto / API version */}
-                    <div className="p-4 bg-muted/30 rounded-lg border">
-                        <div className="space-y-1">
-                            <div className="flex items-center gap-1">
-                                <span className="text-sm font-medium">Crypto / API version</span>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <button className="ml-1 text-muted-foreground" title="Crypto & API version info">
-                                            <IconInfoCircle className="w-3 h-3" />
-                                        </button>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="top">
-                                        <p className="text-xs">Versions associated with your account (helpful for debugging key issues).</p>
-                                    </TooltipContent>
-                                </Tooltip>
-                            </div>
+                    {/* Bucket / Storage Region */}
+                    <div className="flex items-center gap-2">
+                        <div className="text-sm font-medium">Bucket region</div>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <button className="ml-1 text-muted-foreground" title={t('settings.accountInfo.regionTooltip') || 'Region where your files are stored'}>
+                                    <IconInfoCircle className="w-3 h-3" />
+                                </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                <p className="text-xs">{t('settings.accountInfo.regionTooltip') || 'Region where your files are stored'}</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </div>
+                    <div className="text-sm text-foreground">
+                        {user?.storage_region || '—'}
+                    </div>
 
-                            <div className="text-sm">
-                                <div className="font-mono text-xs text-muted-foreground">Crypto: {user?.crypto_version || '—'}</div>
-                                <div className="font-mono text-xs text-muted-foreground">API: {user?.api_version || '—'}</div>
-                            </div>
-                        </div>
+                    {/* Crypto / API version */}
+                    <div className="flex items-center gap-2">
+                        <div className="text-sm font-medium">Crypto / API version</div>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <button className="ml-1 text-muted-foreground" title={t('settings.accountInfo.versionTooltip') || 'Versions associated with your account'}>
+                                    <IconInfoCircle className="w-3 h-3" />
+                                </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                <p className="text-xs">{t('settings.accountInfo.versionTooltip') || 'Versions associated with your account (helpful for debugging key issues).'}</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </div>
+                    <div className="text-sm font-mono text-foreground">
+                        <span className="mr-4">Crypto: {user?.crypto_version || '—'}</span>
+                        <span>API: {user?.api_version || '—'}</span>
                     </div>
 
                 </div>
