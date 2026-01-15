@@ -14,6 +14,7 @@ import {
 import { useEditorRef, useElement, useReadOnly } from 'platejs/react';
 
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Command,
   CommandEmpty,
@@ -47,16 +48,21 @@ export function CodeBlockElement(props: PlateElementProps<TCodeBlockElement>) {
           contentEditable={false}
         >
           {isLangSupported(element.lang) && (
-            <Button
-              size="icon"
-              variant="ghost"
-              className="size-6 text-xs"
-              onClick={() => formatCodeBlock(editor, { element })}
-              title="Format code"
-            >
-              <BracesIcon className="!size-3.5 text-muted-foreground" />
-            </Button>
-          )}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="size-6 text-xs"
+                  onClick={() => formatCodeBlock(editor, { element })}
+                  aria-label="Format code"
+                >
+                  <BracesIcon className="!size-3.5 text-muted-foreground" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Format code</TooltipContent>
+            </Tooltip>
+          )} 
 
           <CodeBlockCombobox />
 

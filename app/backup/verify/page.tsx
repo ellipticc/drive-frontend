@@ -6,6 +6,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { apiClient } from "@/lib/api"
 import { IconLoader2, IconArrowLeft, IconCaretLeftRightFilled, IconDice5 } from "@tabler/icons-react"
 import { cn } from "@/lib/utils"
@@ -188,15 +189,20 @@ export default function VerifyBackupPage() {
                                 <Link href="/backup" className="p-2 -m-2 text-muted-foreground hover:text-foreground transition-all duration-200">
                                     <IconArrowLeft className="w-5 h-5" />
                                 </Link>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={shufflePuzzle}
-                                    className="text-muted-foreground hover:text-primary transition-all duration-300 hover:rotate-45 active:scale-90"
-                                    title="Shuffle hidden words"
-                                >
-                                    <IconDice5 className="w-5 h-5" />
-                                </Button>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={shufflePuzzle}
+                                            className="text-muted-foreground hover:text-primary transition-all duration-300 hover:rotate-45 active:scale-90"
+                                            aria-label="Shuffle hidden words"
+                                        >
+                                            <IconDice5 className="w-5 h-5" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Shuffle hidden words</TooltipContent>
+                                </Tooltip>
                             </div>
                         </CardHeader>
                         <CardContent className="space-y-8 pt-6">

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { IconLoader2 as Loader2, IconZoomIn as ZoomIn, IconZoomOut as ZoomOut, IconPhoto as ImageIcon, IconAlertCircle as AlertCircle } from "@tabler/icons-react"
 import { Button } from "@/components/ui/button"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { downloadEncryptedFileWithCEK, downloadEncryptedFile, DownloadProgress } from "@/lib/download"
 import { decryptData } from "@/lib/crypto"
 import type { ShareItem } from "@/lib/api"
@@ -189,27 +190,37 @@ export function ImagePreview({
       </div>
 
       <div className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={handleZoomOut}
-          disabled={!imageUrl || zoom <= 0.1}
-          title="Zoom Out"
-        >
-          <ZoomOut className="h-4 w-4" />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleZoomOut}
+              disabled={!imageUrl || zoom <= 0.1}
+              aria-label="Zoom Out"
+            >
+              <ZoomOut className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Zoom Out</TooltipContent>
+        </Tooltip>
         <span className="text-sm font-mono text-muted-foreground w-12 text-center">
           {Math.round(zoom * 100)}%
         </span>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={handleZoomIn}
-          disabled={!imageUrl || zoom >= 4}
-          title="Zoom In"
-        >
-          <ZoomIn className="h-4 w-4" />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleZoomIn}
+              disabled={!imageUrl || zoom >= 4}
+              aria-label="Zoom In"
+            >
+              <ZoomIn className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Zoom In</TooltipContent>
+        </Tooltip>
       </div>
     </div>
   )

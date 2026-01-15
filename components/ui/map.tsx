@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { Tooltip as ShTooltip, TooltipProvider as ShTooltipProvider, TooltipTrigger as ShTooltipTrigger, TooltipContent as ShTooltipContent } from '@/components/ui/tooltip'
 import { ButtonGroup } from "@/components/ui/button-group"
 import {
     DropdownMenu,
@@ -440,21 +441,25 @@ function MapLayersControl({
 
     return (
         <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-                <Button
+            <ShTooltip>
+              <ShTooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <Button
                     type="button"
                     variant="secondary"
                     size="icon-sm"
                     aria-label="Select layers"
-                    title="Select layers"
                     className={cn(
-                        "absolute top-1 right-1 z-1000 border",
-                        className
+                      "absolute top-1 right-1 z-1000 border",
+                      className
                     )}
                     {...props}>
                     <LayersIcon />
-                </Button>
-            </DropdownMenuTrigger>
+                  </Button>
+                </DropdownMenuTrigger>
+              </ShTooltipTrigger>
+              <ShTooltipContent>Select layers</ShTooltipContent>
+            </ShTooltip> 
             <DropdownMenuContent align="end" className="z-1000">
                 {showTileLayersDropdown && (
                     <>
@@ -725,28 +730,36 @@ function MapZoomControl({ className, ...props }: React.ComponentProps<"div">) {
                 orientation="vertical"
                 aria-label="Zoom controls"
                 {...props}>
-                <Button
-                    type="button"
-                    size="icon-sm"
-                    variant="secondary"
-                    aria-label="Zoom in"
-                    title="Zoom in"
-                    className="border"
-                    disabled={zoomLevel >= map.getMaxZoom()}
-                    onClick={() => map.zoomIn()}>
-                    <PlusIcon />
-                </Button>
-                <Button
-                    type="button"
-                    size="icon-sm"
-                    variant="secondary"
-                    aria-label="Zoom out"
-                    title="Zoom out"
-                    className="border"
-                    disabled={zoomLevel <= map.getMinZoom()}
-                    onClick={() => map.zoomOut()}>
-                    <MinusIcon />
-                </Button>
+                <ShTooltip>
+                  <ShTooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      size="icon-sm"
+                      variant="secondary"
+                      aria-label="Zoom in"
+                      className="border"
+                      disabled={zoomLevel >= map.getMaxZoom()}
+                      onClick={() => map.zoomIn()}>
+                      <PlusIcon />
+                    </Button>
+                  </ShTooltipTrigger>
+                  <ShTooltipContent>Zoom in</ShTooltipContent>
+                </ShTooltip>
+                <ShTooltip>
+                  <ShTooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      size="icon-sm"
+                      variant="secondary"
+                      aria-label="Zoom out"
+                      className="border"
+                      disabled={zoomLevel <= map.getMinZoom()}
+                      onClick={() => map.zoomOut()}>
+                      <MinusIcon />
+                    </Button>
+                  </ShTooltipTrigger>
+                  <ShTooltipContent>Zoom out</ShTooltipContent>
+                </ShTooltip> 
             </ButtonGroup>
         </MapControlContainer>
     )
@@ -803,34 +816,38 @@ function MapLocateControl({
 
     return (
         <MapControlContainer className={cn("right-1 bottom-1", className)}>
-            <Button
-                type="button"
-                size="icon-sm"
-                variant={position ? "default" : "secondary"}
-                onClick={position ? stopLocating : startLocating}
-                disabled={isLocating}
-                title={
-                    isLocating
+            <ShTooltip>
+                <ShTooltipTrigger asChild>
+                    <Button
+                        type="button"
+                        size="icon-sm"
+                        variant={position ? "default" : "secondary"}
+                        onClick={position ? stopLocating : startLocating}
+                        disabled={isLocating}
+                        aria-label={
+                            isLocating
+                                ? "Locating..."
+                                : position
+                                    ? "Stop location tracking"
+                                    : "Start location tracking"
+                        }
+                        className="border"
+                        {...props}>
+                        {isLocating ? (
+                            <LoaderCircleIcon className="animate-spin" />
+                        ) : (
+                            <NavigationIcon />
+                        )}
+                    </Button>
+                </ShTooltipTrigger>
+                <ShTooltipContent>
+                    {isLocating
                         ? "Locating..."
                         : position
                             ? "Stop tracking"
-                            : "Track location"
-                }
-                aria-label={
-                    isLocating
-                        ? "Locating..."
-                        : position
-                            ? "Stop location tracking"
-                            : "Start location tracking"
-                }
-                className="border"
-                {...props}>
-                {isLocating ? (
-                    <LoaderCircleIcon className="animate-spin" />
-                ) : (
-                    <NavigationIcon />
-                )}
-            </Button>
+                            : "Track location"}
+                </ShTooltipContent>
+            </ShTooltip>
             {position && (
                 <MapMarker position={position} icon={<MapLocatePulseIcon />} />
             )}
@@ -968,17 +985,21 @@ function MapDrawShapeButton<T extends Draw.Feature>({
     }
 
     return (
-        <Button
-            type="button"
-            size="icon-sm"
-            aria-label={`Draw ${drawMode}`}
-            title={`Draw ${drawMode}`}
-            className={cn("border", className)}
-            variant={isActive ? "default" : "secondary"}
-            disabled={activeMode === "edit" || activeMode === "delete"}
-            onClick={handleClick}
-            {...props}
-        />
+        <ShTooltip>
+            <ShTooltipTrigger asChild>
+                <Button
+                    type="button"
+                    size="icon-sm"
+                    aria-label={`Draw ${drawMode}`}
+                    className={cn("border", className)}
+                    variant={isActive ? "default" : "secondary"}
+                    disabled={activeMode === "edit" || activeMode === "delete"}
+                    onClick={handleClick}
+                    {...props}
+                />
+            </ShTooltipTrigger>
+            <ShTooltipContent>{`Draw ${drawMode}`}</ShTooltipContent>
+        </ShTooltip>
     )
 }
 
@@ -1167,17 +1188,21 @@ function MapDrawActionButton<T extends EditToolbar.Edit | EditToolbar.Delete>({
     }
 
     return (
-        <Button
-            type="button"
-            size="icon-sm"
-            aria-label={`${drawAction === "edit" ? "Edit" : "Remove"} shapes`}
-            title={`${drawAction === "edit" ? "Edit" : "Remove"} shapes`}
-            variant={isActive ? "default" : "secondary"}
-            disabled={!hasFeatures}
-            onClick={handleClick}
-            className={cn("border", className)}
-            {...props}
-        />
+        <ShTooltip>
+            <ShTooltipTrigger asChild>
+                <Button
+                    type="button"
+                    size="icon-sm"
+                    aria-label={`${drawAction === "edit" ? "Edit" : "Remove"} shapes`}
+                    variant={isActive ? "default" : "secondary"}
+                    disabled={!hasFeatures}
+                    onClick={handleClick}
+                    className={cn("border", className)}
+                    {...props}
+                />
+            </ShTooltipTrigger>
+            <ShTooltipContent>{`${drawAction === "edit" ? "Edit" : "Remove"} shapes`}</ShTooltipContent>
+        </ShTooltip>
     )
 }
 
@@ -1277,18 +1302,22 @@ function MapDrawUndo({ className, ...props }: React.ComponentProps<"button">) {
     }
 
     return (
-        <Button
-            type="button"
-            size="icon-sm"
-            variant="secondary"
-            aria-label={`Undo ${activeMode}`}
-            title={`Undo ${activeMode}`}
-            onClick={handleUndo}
-            disabled={!isActive}
-            className={cn("border", className)}
-            {...props}>
-            <Undo2Icon />
-        </Button>
+        <ShTooltip>
+            <ShTooltipTrigger asChild>
+                <Button
+                    type="button"
+                    size="icon-sm"
+                    variant="secondary"
+                    aria-label={`Undo ${activeMode}`}
+                    onClick={handleUndo}
+                    disabled={!isActive}
+                    className={cn("border", className)}
+                    {...props}>
+                    <Undo2Icon />
+                </Button>
+            </ShTooltipTrigger>
+            <ShTooltipContent>{`Undo ${activeMode}`}</ShTooltipContent>
+        </ShTooltip>
     )
 }
 

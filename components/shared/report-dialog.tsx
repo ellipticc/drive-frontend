@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile"
 import { Button } from "@/components/ui/button"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import {
   Dialog,
   DialogContent,
@@ -209,21 +210,26 @@ export function ReportDialog({ shareId, trigger, onReportSuccess, className }: R
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger || (
-          <Button
-            variant="ghost"
-            size="icon"
-            className={cn(
-              "fixed bottom-4 right-4 z-50 h-8 w-8 rounded-full opacity-50 hover:opacity-100 transition-all hover:bg-muted/50 text-muted-foreground",
-              className
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DialogTrigger asChild>
+            {trigger || (
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  "fixed bottom-4 right-4 z-50 h-8 w-8 rounded-full opacity-50 hover:opacity-100 transition-all hover:bg-muted/50 text-muted-foreground",
+                  className
+                )}
+                aria-label="Report Content"
+              >
+                <IconFlag className="h-4 w-4" />
+              </Button>
             )}
-            title="Report Content"
-          >
-            <IconFlag className="h-4 w-4" />
-          </Button>
-        )}
-      </DialogTrigger>
+          </DialogTrigger>
+        </TooltipTrigger>
+        <TooltipContent>Report Content</TooltipContent>
+      </Tooltip>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">

@@ -547,26 +547,36 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                     }
                     contentTrailing={
                         <div className="flex items-center gap-1.5 md:gap-2">
-                            <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={handleRestoreBulk}
-                                disabled={trashItems.length === 0 && selectedItems.size === 0}
-                                className={`h-8 w-8 p-0 ${selectedItems.size > 0 ? 'bg-primary/10 text-primary' : ''}`}
-                                title={selectedItems.size > 0 ? `Restore ${selectedItems.size} Selected` : "Restore All"}
-                            >
-                                <IconRestore className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={handleDeleteBulk}
-                                disabled={trashItems.length === 0 && selectedItems.size === 0}
-                                className={`h-8 w-8 p-0 text-destructive hover:text-destructive ${selectedItems.size > 0 ? 'bg-destructive/10' : 'hover:bg-destructive/10'}`}
-                                title={selectedItems.size > 0 ? `Delete ${selectedItems.size} Selected` : "Delete All"}
-                            >
-                                <IconTrash className="h-3.5 w-3.5" />
-                            </Button>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={handleRestoreBulk}
+                                        disabled={trashItems.length === 0 && selectedItems.size === 0}
+                                        className={`h-8 w-8 p-0 ${selectedItems.size > 0 ? 'bg-primary/10 text-primary' : ''}`}
+                                        aria-label={selectedItems.size > 0 ? `Restore ${selectedItems.size} Selected` : "Restore All"}
+                                    >
+                                        <IconRestore className="h-3.5 w-3.5" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>{selectedItems.size > 0 ? `Restore ${selectedItems.size} Selected` : "Restore All"}</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={handleDeleteBulk}
+                                        disabled={trashItems.length === 0 && selectedItems.size === 0}
+                                        className={`h-8 w-8 p-0 text-destructive hover:text-destructive ${selectedItems.size > 0 ? 'bg-destructive/10' : 'hover:bg-destructive/10'}`}
+                                        aria-label={selectedItems.size > 0 ? `Delete ${selectedItems.size} Selected` : "Delete All"}
+                                    >
+                                        <IconTrash className="h-3.5 w-3.5" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>{selectedItems.size > 0 ? `Delete ${selectedItems.size} Selected` : "Delete All"}</TooltipContent>
+                            </Tooltip>
                         </div>
                     }
                     className="h-10 border-0"

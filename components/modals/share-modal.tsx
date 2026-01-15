@@ -1041,27 +1041,37 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
               </DialogDescription>
             </div>
             <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSettingsOpen(true)}
-                className="h-8 w-8 p-0"
-                disabled={isModalLoading}
-                title="Share Settings"
-              >
-                <IconSettings className="h-4 w-4" />
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSettingsOpen(true)}
+                    className="h-8 w-8 p-0"
+                    disabled={isModalLoading}
+                    aria-label="Share Settings"
+                  >
+                    <IconSettings className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Share Settings</TooltipContent>
+              </Tooltip>
               {existingShareId && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleViewLogs(1)}
-                  className="h-8 w-8 p-0 text-primary hover:text-primary hover:bg-primary/10"
-                  disabled={isModalLoading}
-                  title="Access Logs (Pro)"
-                >
-                  <IconChartBar className="h-4 w-4" />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleViewLogs(1)}
+                      className="h-8 w-8 p-0 text-primary hover:text-primary hover:bg-primary/10"
+                      disabled={isModalLoading}
+                      aria-label="Access Logs (Pro)"
+                    >
+                      <IconChartBar className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Access Logs (Pro)</TooltipContent>
+                </Tooltip>
               )}
               <Separator orientation="vertical" className="h-6" />
               <Button
@@ -1545,16 +1555,21 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
               </div>
               <div className="flex items-center gap-2">
                 {isPro && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleViewLogs(1)}
-                    className="h-8 w-8 p-0 text-primary hover:text-primary hover:bg-primary/10"
-                    disabled={isModalLoading}
-                    title="Access Logs (Pro)"
-                  >
-                    <IconChartBar className="h-4 w-4" />
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleViewLogs(1)}
+                        className="h-8 w-8 p-0 text-primary hover:text-primary hover:bg-primary/10"
+                        disabled={isModalLoading}
+                        aria-label="Access Logs (Pro)"
+                      >
+                        <IconChartBar className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Access Logs (Pro)</TooltipContent>
+                  </Tooltip>
                 )}
                 <Separator orientation="vertical" className="h-6" />
                 <Button

@@ -582,22 +582,27 @@ export function CommentSection({ shareId, shareCek, currentUser, isOwner, classN
     return (
         <>
             <Sheet open={isOpen} onOpenChange={setIsOpen}>
-                <SheetTrigger asChild>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className={cn(
-                            "fixed bottom-4 right-4 z-50 h-8 w-8 rounded-full opacity-50 hover:opacity-100 transition-all hover:bg-muted/50 text-muted-foreground",
-                            className
-                        )}
-                        title="Encrypted Comments"
-                    >
-                        <IconMessageCircle className="h-4 w-4" />
-                        {commentCount > 0 && (
-                            <span className="absolute top-1 right-1 h-2 w-2 bg-blue-500 rounded-full border border-background shadow-xs animate-in fade-in zoom-in duration-300" />
-                        )}
-                    </Button>
-                </SheetTrigger>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <SheetTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className={cn(
+                                    "fixed bottom-4 right-4 z-50 h-8 w-8 rounded-full opacity-50 hover:opacity-100 transition-all hover:bg-muted/50 text-muted-foreground",
+                                    className
+                                )}
+                                aria-label="Encrypted Comments"
+                            >
+                                <IconMessageCircle className="h-4 w-4" />
+                                {commentCount > 0 && (
+                                    <span className="absolute top-1 right-1 h-2 w-2 bg-blue-500 rounded-full border border-background shadow-xs animate-in fade-in zoom-in duration-300" />
+                                )}
+                            </Button>
+                        </SheetTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>Encrypted Comments</TooltipContent>
+                </Tooltip>
                 <SheetContent
                     className="w-full sm:max-w-md flex flex-col p-0 gap-0 border-l shadow-2xl bg-background outline-none [&>button]:hidden"
                     onOpenAutoFocus={(e) => {
@@ -899,39 +904,53 @@ export function CommentSection({ shareId, shareCek, currentUser, isOwner, classN
                                                 isMe ? "flex-row-reverse" : "flex-row"
                                             )}>
                                                 {!isReply && !comment.decryptionFailed && (
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-5 w-5 rounded-full hover:bg-primary/10 hover:text-primary text-muted-foreground/30"
-                                                        onClick={() => handleReply(comment)}
-                                                        title="Reply"
-                                                    >
-                                                        <IconArrowBackUp className="h-3 w-3" />
-                                                    </Button>
-                                                )}
-
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-5 w-5 rounded-full hover:bg-primary/10 hover:text-primary text-muted-foreground/30"
+                                                                onClick={() => handleReply(comment)}
+                                                                aria-label="Reply"
+                                                            >
+                                                                <IconArrowBackUp className="h-3 w-3" />
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>Reply</TooltipContent>
+                                                    </Tooltip>
+                                                )} 
                                                 {isMe && !comment.decryptionFailed && (
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-5 w-5 rounded-full hover:bg-foreground/5 text-muted-foreground/30"
-                                                        onClick={() => handleEdit(comment)}
-                                                        title="Edit"
-                                                    >
-                                                        <IconPencil className="h-3 w-3" />
-                                                    </Button>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-5 w-5 rounded-full hover:bg-foreground/5 text-muted-foreground/30"
+                                                                onClick={() => handleEdit(comment)}
+                                                                aria-label="Edit"
+                                                            >
+                                                                <IconPencil className="h-3 w-3" />
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>Edit</TooltipContent>
+                                                    </Tooltip>
                                                 )}
 
                                                 {canDelete && (
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-5 w-5 rounded-full hover:bg-destructive/10 hover:text-destructive text-muted-foreground/30"
-                                                        onClick={() => handleDelete(comment.id)}
-                                                        title="Delete"
-                                                    >
-                                                        <IconTrash className="h-3 w-3" />
-                                                    </Button>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-5 w-5 rounded-full hover:bg-destructive/10 hover:text-destructive text-muted-foreground/30"
+                                                                onClick={() => handleDelete(comment.id)}
+                                                                aria-label="Delete"
+                                                            >
+                                                                <IconTrash className="h-3 w-3" />
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>Delete</TooltipContent>
+                                                    </Tooltip>
                                                 )}
                                             </div>
                                         </div>

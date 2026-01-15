@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -338,12 +339,17 @@ export function UnifiedProgressModal({
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 min-w-0 flex-1">
                         <IconFile className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                        <span className="font-medium text-sm truncate" title={upload.currentFilename || upload.file.name}>
-                          {truncateFilename(upload.currentFilename || upload.file.name)}
-                        </span>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="font-medium text-sm truncate" aria-label={upload.currentFilename || upload.file.name}>
+                              {truncateFilename(upload.currentFilename || upload.file.name)}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs">{upload.currentFilename || upload.file.name}</TooltipContent>
+                        </Tooltip>
                         <span className="text-xs text-muted-foreground flex-shrink-0">
                           ({formatFileSize(upload.file.size)})
-                        </span>
+                        </span> 
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         {getUploadStatusBadge(upload.status)}
@@ -454,9 +460,14 @@ export function UnifiedProgressModal({
                         {/* Determine icon based on type/mime - simplified here */}
                         <IconFile className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                         <div className="flex flex-col min-w-0">
-                          <span className="font-medium text-sm truncate" title={downloadFilename}>
-                            {truncateFilename(downloadFilename || '')}
-                          </span>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="font-medium text-sm truncate" aria-label={downloadFilename}>
+                                {truncateFilename(downloadFilename || '')}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">{downloadFilename}</TooltipContent>
+                          </Tooltip>
                           {downloadError && (
                             <span className="text-xs text-red-500 truncate">{downloadError}</span>
                           )}
@@ -491,37 +502,52 @@ export function UnifiedProgressModal({
                         {!downloadError && downloadProgress?.stage !== 'complete' && (
                           <>
                             {isDownloadPaused ? (
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={onResumeDownload}
-                                className="h-7 w-7 p-0 rounded-full hover:bg-muted"
-                                title="Resume"
-                              >
-                                <IconPlayerPlay className="h-4 w-4 text-primary" />
-                              </Button>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={onResumeDownload}
+                                    className="h-7 w-7 p-0 rounded-full hover:bg-muted"
+                                    aria-label="Resume"
+                                  >
+                                    <IconPlayerPlay className="h-4 w-4 text-primary" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Resume</TooltipContent>
+                              </Tooltip>
                             ) : (
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={onPauseDownload}
-                                className="h-7 w-7 p-0 rounded-full hover:bg-muted"
-                                title="Pause"
-                              >
-                                <IconPlayerPause className="h-4 w-4" />
-                              </Button>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={onPauseDownload}
+                                    className="h-7 w-7 p-0 rounded-full hover:bg-muted"
+                                    aria-label="Pause"
+                                  >
+                                    <IconPlayerPause className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Pause</TooltipContent>
+                              </Tooltip>
                             )}
 
                             {/* Cancel / Close */}
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={onCancelDownload}
-                              className="h-7 w-7 p-0 rounded-full hover:bg-muted hover:text-destructive"
-                              title="Cancel"
-                            >
-                              <IconX className="h-4 w-4" />
-                            </Button>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={onCancelDownload}
+                                  className="h-7 w-7 p-0 rounded-full hover:bg-muted hover:text-destructive"
+                                  aria-label="Cancel"
+                                >
+                                  <IconX className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Cancel</TooltipContent>
+                            </Tooltip>
                           </>
                         )}
                       </div>

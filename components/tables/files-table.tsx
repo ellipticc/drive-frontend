@@ -3,12 +3,11 @@
 import React, { useMemo, useState, useRef, useEffect, useCallback, useTransition } from "react";
 import { useFormatter } from "@/hooks/use-formatter";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { format as formatDateFns } from 'date-fns';
 import { DotsVertical } from "@untitledui/icons";
 import type { SortDescriptor, Selection } from "react-aria-components";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Button } from "@/components/ui/button";
-import { IconFolderPlus, IconFolderDown, IconFileUpload, IconShare3, IconListDetails, IconDownload, IconFolder, IconEdit, IconInfoCircle, IconTrash, IconChevronRight, IconLink, IconEye, IconLayoutColumns, IconCopy, IconStar, IconStarFilled, IconLoader2, IconGrid3x3, IconLock, IconX, IconFileText } from "@tabler/icons-react";
+import { IconFolderPlus, IconFolderDown, IconFileUpload, IconShare3, IconListDetails, IconDownload, IconFolder, IconEdit, IconInfoCircle, IconTrash, IconChevronRight, IconLink, IconEye, IconLayoutColumns, IconCopy, IconStar, IconStarFilled, IconLoader2, IconGrid3x3, IconLock, IconX, IconStack } from "@tabler/icons-react";
 import dynamic from "next/dynamic";
 
 const CreateFolderModal = dynamic(() => import("@/components/modals/create-folder-modal").then(mod => mod.CreateFolderModal));
@@ -2166,7 +2165,7 @@ export const Table01DividerLineSm = ({
                             {t("files.uploadFile")}
                         </Button>
                         <Button variant="outline" onClick={() => window.open('/paper/new', '_blank')}>
-                            <IconFileText className="mr-2 h-4 w-4" />
+                            <IconStack className="mr-2 h-4 w-4" />
                             {t("files.newPaper") || "New Paper"}
                         </Button>
                         <Button variant="outline" onClick={() => {
@@ -2472,11 +2471,16 @@ export const Table01DividerLineSm = ({
             <>
                 <div className="h-5 w-px bg-border mx-1" />
                 <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Customize columns">
-                            <IconLayoutColumns className="h-3.5 w-3.5" />
-                        </Button>
-                    </DropdownMenuTrigger>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0" aria-label="Customize columns">
+                                    <IconLayoutColumns className="h-3.5 w-3.5" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                        </TooltipTrigger>
+                        <TooltipContent>Customize columns</TooltipContent>
+                    </Tooltip>
                     <DropdownMenuContent align="end" className="w-56">
                         <DropdownMenuCheckboxItem
                             checked={visibleColumns.has('starred')}
@@ -2562,100 +2566,130 @@ export const Table01DividerLineSm = ({
                             }
                         }}
                     >
-                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title={t("files.newFolder")} data-create-folder-trigger>
-                            <IconFolderPlus className="h-3.5 w-3.5" />
-                        </Button>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" aria-label={t("files.newFolder")} data-create-folder-trigger>
+                                    <IconFolderPlus className="h-3.5 w-3.5" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>{t("files.newFolder")}</TooltipContent>
+                        </Tooltip>
                     </CreateFolderModal>
                     <div className="h-5 w-px bg-border mx-1" />
-                    <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 w-7 p-0"
-                        onClick={handleFolderUpload}
-                        title={t("files.uploadFolder")}
-                    >
-                        <IconFolderDown className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 w-7 p-0"
-                        onClick={handleFileUpload}
-                        title={t("files.uploadFile")}
-                    >
-                        <IconFileUpload className="h-3.5 w-3.5" />
-                    </Button>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 w-7 p-0"
+                                onClick={handleFolderUpload}
+                                aria-label={t("files.uploadFolder")}
+                            >
+                                <IconFolderDown className="h-3.5 w-3.5" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>{t("files.uploadFolder")}</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 w-7 p-0"
+                                onClick={handleFileUpload}
+                                aria-label={t("files.uploadFile")}
+                            >
+                                <IconFileUpload className="h-3.5 w-3.5" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>{t("files.uploadFile")}</TooltipContent>
+                    </Tooltip>
                     <div className="h-5 w-px bg-border mx-1" />
-                    <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 w-7 p-0"
-                        onClick={async () => {
-                            try {
-                                // Create paper with default title and current folder context
-                                // Use 'null' for root or currentFolderId if it's a valid UUID
-                                const folderId = currentFolderId === 'root' ? null : currentFolderId;
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-7 w-7 p-0"
+                                    onClick={async () => {
+                                        try {
+                                            // Create paper with default title and current folder context
+                                            // Use 'null' for root or currentFolderId if it's a valid UUID
+                                            const folderId = currentFolderId === 'root' ? null : currentFolderId;
 
-                                const now = new Date();
-                                const year = now.getFullYear();
-                                const month = String(now.getMonth() + 1).padStart(2, '0');
-                                const day = String(now.getDate()).padStart(2, '0');
-                                const hour = String(now.getHours()).padStart(2, '0');
-                                const minute = String(now.getMinutes()).padStart(2, '0');
-                                const second = String(now.getSeconds()).padStart(2, '0');
-                                const filename = `Untitled paper ${year}-${month}-${day} ${hour}.${minute}.${second}`;
+                                            const now = new Date();
+                                            const year = now.getFullYear();
+                                            const month = String(now.getMonth() + 1).padStart(2, '0');
+                                            const day = String(now.getDate()).padStart(2, '0');
+                                            const hour = String(now.getHours()).padStart(2, '0');
+                                            const minute = String(now.getMinutes()).padStart(2, '0');
+                                            const second = String(now.getSeconds()).padStart(2, '0');
+                                            const filename = `Untitled paper ${year}-${month}-${day} ${hour}.${minute}.${second}`;
 
-                                // Open new tab immediately for better UX
-                                const newWin = window.open('/paper/new?creating=1', '_blank');
-                                toast('Creating paper...');
+                                            // Open new tab immediately for better UX
+                                            const newWin = window.open('/paper/new?creating=1', '_blank');
+                                            toast('Creating paper...');
 
-                                try {
-                                    const newPaperId = await paperService.createPaper(filename, undefined, folderId);
+                                            try {
+                                                const newPaperId = await paperService.createPaper(filename, undefined, folderId);
 
-                                    if (newPaperId) {
-                                        toast.success('Paper created');
-                                        if (newWin && !newWin.closed) {
-                                            newWin.location.href = `/paper/${newPaperId}`;
-                                        } else {
-                                            window.open(`/paper/${newPaperId}`, '_blank');
+                                                if (newPaperId) {
+                                                    toast.success('Paper created');
+                                                    if (newWin && !newWin.closed) {
+                                                        newWin.location.href = `/paper/${newPaperId}`;
+                                                    } else {
+                                                        window.open(`/paper/${newPaperId}`, '_blank');
+                                                    }
+                                                }
+                                            } catch (err) {
+                                                console.error('Failed to create new paper:', err);
+                                                toast.error('Failed to create new paper');
+                                                if (newWin && !newWin.closed) newWin.close();
+                                            }
+                                        } catch (error) {
+                                            console.error("Failed to create new paper:", error);
+                                            toast.error("Failed to create new paper");
                                         }
-                                    }
-                                } catch (err) {
-                                    console.error('Failed to create new paper:', err);
-                                    toast.error('Failed to create new paper');
-                                    if (newWin && !newWin.closed) newWin.close();
-                                }
-                            } catch (error) {
-                                console.error("Failed to create new paper:", error);
-                                toast.error("Failed to create new paper");
-                            }
-                        }}
-                        title={t("files.newPaper") || "New Paper"}
-                    >
-                        <IconFileText className="h-3.5 w-3.5" />
-                    </Button>
+                                    }}
+                                    aria-label={t("files.newPaper") || "New Paper"}
+                                >
+                                    <IconStack className="h-3.5 w-3.5" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>{t("files.newPaper") || "New Paper"}</TooltipContent>
+                        </Tooltip>
                     <div className="h-5 w-px bg-border mx-1" />
-                    <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 w-7 p-0"
-                        onClick={() => {
-                            // Open Share Picker Modal when no files are selected
-                            setSharePickerModalOpen(true);
-                        }}
-                        title={t("files.share")}
-                    >
-                        <IconShare3 className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 w-7 p-0"
-                        onClick={() => handleViewModeChange(viewMode === 'table' ? 'grid' : 'table')}
-                        title={viewMode === 'table' ? 'Switch to grid view' : 'Switch to table view'}
-                    >
-                        {viewMode === 'table' ? <IconGrid3x3 className="h-3.5 w-3.5" /> : <IconListDetails className="h-3.5 w-3.5" />}
-                    </Button>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 w-7 p-0"
+                                onClick={() => {
+                                    // Open Share Picker Modal when no files are selected
+                                    setSharePickerModalOpen(true);
+                                }}
+                                aria-label={t("files.share")}
+                            >
+                                <IconShare3 className="h-3.5 w-3.5" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>{t("files.share")}</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 w-7 p-0"
+                                onClick={() => handleViewModeChange(viewMode === 'table' ? 'grid' : 'table')}
+                                aria-label={viewMode === 'table' ? 'Switch to grid view' : 'Switch to table view'}
+                            >
+                                {viewMode === 'table' ? <IconGrid3x3 className="h-3.5 w-3.5" /> : <IconListDetails className="h-3.5 w-3.5" />}
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>{viewMode === 'table' ? 'Switch to grid view' : 'Switch to table view'}</TooltipContent>
+                    </Tooltip>
                     {customizeColumnsDropdown}
                 </>
             );
@@ -2663,175 +2697,232 @@ export const Table01DividerLineSm = ({
             // Selected items state
             return (
                 <>
-                    <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 w-7 p-0"
-                        onClick={handleBulkDownload}
-                        title={`Download ${selectedCount} item${selectedCount > 1 ? 's' : ''}`}
-                    >
-                        <IconDownload className="h-4 w-4" />
-                    </Button>
-                    {selectedCount === 1 && (() => {
-                        const firstItemId = Array.from(selectedItems)[0];
-                        const firstItem = filesMap.get(firstItemId);
-                        return firstItem?.type === 'file' ? (
+                    <Tooltip>
+                        <TooltipTrigger asChild>
                             <Button
                                 size="sm"
                                 variant="ghost"
                                 className="h-7 w-7 p-0"
-                                onClick={() => handlePreviewClick(firstItem.id, firstItem.name, firstItem.mimeType)}
-                                title="Preview file"
+                                onClick={handleBulkDownload}
+                                aria-label={`Download ${selectedCount} item${selectedCount > 1 ? 's' : ''}`}
                             >
-                                <IconEye className="h-4 w-4" />
+                                <IconDownload className="h-4 w-4" />
                             </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>{`Download ${selectedCount} item${selectedCount > 1 ? 's' : ''}`}</TooltipContent>
+                    </Tooltip>
+                    {selectedCount === 1 && (() => {
+                        const firstItemId = Array.from(selectedItems)[0];
+                        const firstItem = filesMap.get(firstItemId);
+                        return firstItem?.type === 'file' ? (
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-7 w-7 p-0"
+                                        onClick={() => handlePreviewClick(firstItem.id, firstItem.name, firstItem.mimeType)}
+                                        aria-label="Preview file"
+                                    >
+                                        <IconEye className="h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Preview file</TooltipContent>
+                            </Tooltip>
                         ) : null;
                     })()}
-                    <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 w-7 p-0"
-                        disabled={hasMultipleSelection}
-                        onClick={() => {
-                            if (!hasMultipleSelection) {
-                                const firstItemId = Array.from(selectedItems)[0];
-                                const firstItem = filesMap.get(firstItemId);
-                                if (firstItem) {
-                                    handleShareClick(firstItem.id, firstItem.name, firstItem.type as any);
-                                }
-                            }
-                        }}
-                        title={hasMultipleSelection ? "Share not available for multiple items" : "Share"}
-                    >
-                        <IconShare3 className="h-4 w-4" />
-                    </Button>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 w-7 p-0"
+                                disabled={hasMultipleSelection}
+                                onClick={() => {
+                                    if (!hasMultipleSelection) {
+                                        const firstItemId = Array.from(selectedItems)[0];
+                                        const firstItem = filesMap.get(firstItemId);
+                                        if (firstItem) {
+                                            handleShareClick(firstItem.id, firstItem.name, firstItem.type as any);
+                                        }
+                                    }
+                                }}
+                                aria-label={hasMultipleSelection ? "Share not available for multiple items" : "Share"}
+                            >
+                                <IconShare3 className="h-4 w-4" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>{hasMultipleSelection ? "Share not available for multiple items" : "Share"}</TooltipContent>
+                    </Tooltip>
                     {/* Move to folder */}
-                    <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 w-7 p-0"
-                        disabled={Array.from(selectedItems).some(id => {
-                            const item = filesMap.get(id);
-                            return item?.lockedUntil && new Date(item.lockedUntil) > new Date();
-                        })}
-                        onClick={() => {
-                            // Handle bulk move to folder
-                            const selectedItemsArray = Array.from(selectedItems).map(id => {
-                                const item = filesMap.get(id);
-                                return item ? { id: item.id, name: item.name, type: item.type } : null;
-                            }).filter(Boolean) as Array<{ id: string, name: string, type: "file" | "folder" }>;
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 w-7 p-0"
+                                disabled={Array.from(selectedItems).some(id => {
+                                    const item = filesMap.get(id);
+                                    return item?.lockedUntil && new Date(item.lockedUntil) > new Date();
+                                })}
+                                onClick={() => {
+                                    // Handle bulk move to folder
+                                    const selectedItemsArray = Array.from(selectedItems).map(id => {
+                                        const item = filesMap.get(id);
+                                        return item ? { id: item.id, name: item.name, type: item.type } : null;
+                                    }).filter(Boolean) as Array<{ id: string, name: string, type: "file" | "folder" }>;
 
-                            if (selectedItemsArray.length > 0) {
-                                setSelectedItemsForMoveToFolder(selectedItemsArray);
-                                setMoveToFolderModalOpen(true);
-                            }
-                        }}
-                        title={Array.from(selectedItems).some(id => {
+                                    if (selectedItemsArray.length > 0) {
+                                        setSelectedItemsForMoveToFolder(selectedItemsArray);
+                                        setMoveToFolderModalOpen(true);
+                                    }
+                                }}
+                                aria-label={Array.from(selectedItems).some(id => {
+                                    const item = filesMap.get(id);
+                                    return item?.lockedUntil && new Date(item.lockedUntil) > new Date();
+                                }) ? "Some items are locked and cannot be moved" : "Move to folder"}
+                            >
+                                <IconFolder className="h-4 w-4" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>{Array.from(selectedItems).some(id => {
                             const item = filesMap.get(id);
                             return item?.lockedUntil && new Date(item.lockedUntil) > new Date();
-                        }) ? "Some items are locked and cannot be moved" : "Move to folder"}
-                    >
-                        <IconFolder className="h-4 w-4" />
-                    </Button>
+                        }) ? "Some items are locked and cannot be moved" : "Move to folder"}</TooltipContent>
+                    </Tooltip>
 
                     {/* Rename */}
-                    <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 w-7 p-0"
-                        disabled={hasMultipleSelection || (() => {
-                            const firstItemId = Array.from(selectedItems)[0];
-                            const firstItem = filesMap.get(firstItemId);
-                            return !!(firstItem?.lockedUntil && new Date(firstItem.lockedUntil) > new Date());
-                        })()}
-                        onClick={() => {
-                            if (!hasMultipleSelection) {
-                                const firstItemId = Array.from(selectedItems)[0];
-                                const firstItem = filesMap.get(firstItemId);
-                                if (firstItem) {
-                                    handleRenameClick(firstItem.id, firstItem.name, firstItem.type as any);
-                                }
-                            }
-                        }}
-                        title={hasMultipleSelection ? "Rename not available for multiple items" : (
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 w-7 p-0"
+                                disabled={hasMultipleSelection || (() => {
+                                    const firstItemId = Array.from(selectedItems)[0];
+                                    const firstItem = filesMap.get(firstItemId);
+                                    return !!(firstItem?.lockedUntil && new Date(firstItem.lockedUntil) > new Date());
+                                })()}
+                                onClick={() => {
+                                    if (!hasMultipleSelection) {
+                                        const firstItemId = Array.from(selectedItems)[0];
+                                        const firstItem = filesMap.get(firstItemId);
+                                        if (firstItem) {
+                                            handleRenameClick(firstItem.id, firstItem.name, firstItem.type as any);
+                                        }
+                                    }
+                                }}
+                                aria-label={hasMultipleSelection ? "Rename not available for multiple items" : (
+                                    (() => {
+                                        const firstItemId = Array.from(selectedItems)[0];
+                                        const firstItem = filesMap.get(firstItemId);
+                                        return firstItem?.lockedUntil && new Date(firstItem.lockedUntil) > new Date() ? "Item is locked" : "Rename";
+                                    })()
+                                )}
+                            >
+                                <IconEdit className="h-4 w-4" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>{hasMultipleSelection ? "Rename not available for multiple items" : (
                             (() => {
                                 const firstItemId = Array.from(selectedItems)[0];
                                 const firstItem = filesMap.get(firstItemId);
                                 return firstItem?.lockedUntil && new Date(firstItem.lockedUntil) > new Date() ? "Item is locked" : "Rename";
                             })()
-                        )}
-                    >
-                        <IconEdit className="h-4 w-4" />
-                    </Button>
+                        )}</TooltipContent>
+                    </Tooltip>
 
                     {/* Details */}
-                    <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 w-7 p-0"
-                        disabled={hasMultipleSelection}
-                        onClick={() => {
-                            if (!hasMultipleSelection) {
-                                const firstItemId = Array.from(selectedItems)[0];
-                                const firstItem = filesMap.get(firstItemId);
-                                if (firstItem) {
-                                    handleDetailsClick(firstItem.id, firstItem.name, firstItem.type as any);
-                                }
-                            }
-                        }}
-                        title={hasMultipleSelection ? "Details not available for multiple items" : "Details"}
-                    >
-                        <IconInfoCircle className="h-4 w-4" />
-                    </Button>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 w-7 p-0"
+                                disabled={hasMultipleSelection}
+                                onClick={() => {
+                                    if (!hasMultipleSelection) {
+                                        const firstItemId = Array.from(selectedItems)[0];
+                                        const firstItem = filesMap.get(firstItemId);
+                                        if (firstItem) {
+                                            handleDetailsClick(firstItem.id, firstItem.name, firstItem.type as any);
+                                        }
+                                    }
+                                }}
+                                aria-label={hasMultipleSelection ? "Details not available for multiple items" : "Details"}
+                            >
+                                <IconInfoCircle className="h-4 w-4" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>{hasMultipleSelection ? "Details not available for multiple items" : "Details"}</TooltipContent>
+                    </Tooltip>
 
                     {/* Retention Policy - Only for single selection */}
                     {selectedCount === 1 && (
-                        <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 w-7 p-0"
-                            onClick={() => {
-                                const firstItemId = Array.from(selectedItems)[0];
-                                const firstItem = filesMap.get(firstItemId);
-                                if (firstItem) {
-                                    handleLockClick(firstItem.id, firstItem.name, firstItem.type);
-                                }
-                            }}
-                            title="Retention policy"
-                        >
-                            <IconLock className="h-4 w-4" />
-                        </Button>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-7 w-7 p-0"
+                                    onClick={() => {
+                                        const firstItemId = Array.from(selectedItems)[0];
+                                        const firstItem = filesMap.get(firstItemId);
+                                        if (firstItem) {
+                                            handleLockClick(firstItem.id, firstItem.name, firstItem.type);
+                                        }
+                                    }}
+                                    aria-label="Retention policy"
+                                >
+                                    <IconLock className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Retention policy</TooltipContent>
+                        </Tooltip>
                     )}
 
                     <div className="h-5 w-px bg-border mx-1" />
 
                     {/* Move to trash */}
-                    <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
-                        disabled={Array.from(selectedItems).some(id => {
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
+                                disabled={Array.from(selectedItems).some(id => {
+                                    const item = filesMap.get(id);
+                                    return item?.lockedUntil && new Date(item.lockedUntil) > new Date();
+                                })}
+                                onClick={handleBulkMoveToTrash}
+                                aria-label={Array.from(selectedItems).some(id => {
+                                    const item = filesMap.get(id);
+                                    return item?.lockedUntil && new Date(item.lockedUntil) > new Date();
+                                }) ? "Some items are locked and cannot be deleted" : "Move to trash"}
+                            >
+                                <IconTrash className="h-4 w-4" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>{Array.from(selectedItems).some(id => {
                             const item = filesMap.get(id);
                             return item?.lockedUntil && new Date(item.lockedUntil) > new Date();
-                        })}
-                        onClick={handleBulkMoveToTrash}
-                        title={Array.from(selectedItems).some(id => {
-                            const item = filesMap.get(id);
-                            return item?.lockedUntil && new Date(item.lockedUntil) > new Date();
-                        }) ? "Some items are locked and cannot be deleted" : "Move to trash"}
-                    >
-                        <IconTrash className="h-4 w-4" />
-                    </Button>
+                        }) ? "Some items are locked and cannot be deleted" : "Move to trash"}</TooltipContent>
+                    </Tooltip>
                     <div className="h-5 w-px bg-border mx-1" />
-                    <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 w-7 p-0"
-                        onClick={() => handleViewModeChange(viewMode === 'table' ? 'grid' : 'table')}
-                        title={viewMode === 'table' ? 'Switch to grid view' : 'Switch to table view'}
-                    >
-                        <IconListDetails className="h-4 w-4" />
-                    </Button>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 w-7 p-0"
+                                onClick={() => handleViewModeChange(viewMode === 'table' ? 'grid' : 'table')}
+                                aria-label={viewMode === 'table' ? 'Switch to grid view' : 'Switch to table view'}
+                            >
+                                <IconListDetails className="h-4 w-4" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>{viewMode === 'table' ? 'Switch to grid view' : 'Switch to table view'}</TooltipContent>
+                    </Tooltip>
                     {customizeColumnsDropdown}
                 </>
             );

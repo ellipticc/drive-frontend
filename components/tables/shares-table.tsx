@@ -753,9 +753,11 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                                                 className="text-sm font-medium truncate cursor-default"
                                                 maxTooltipWidth="250px"
                                             />
-                                            <p className="text-xs text-muted-foreground truncate" title={item.folderPath}>
-                                                {item.folderPath}
-                                            </p>
+                                            <TruncatedNameTooltip
+                                                name={item.folderPath || ''}
+                                                className="text-xs text-muted-foreground truncate"
+                                                maxTooltipWidth="250px"
+                                            />
                                             <p className="text-xs text-muted-foreground">
                                                 {formatDate(item.createdAt)}
                                             </p>
