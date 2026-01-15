@@ -849,8 +849,8 @@ export function DeveloperTab() {
                                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pb-6 border-b border-muted">
                                                           <div className="space-y-1">
                                                             <span className="block text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">Execution Latency</span>
-                                                            <span className={`block text-xs font-bold tracking-tight ${ev.durationMs > 1000 ? 'text-amber-500' : 'text-emerald-500'}`}>
-                                                              {ev.durationMs ? `${(ev.durationMs / 1000).toFixed(2)}s` : '0.00s'} <span className="text-[10px] font-normal text-muted-foreground">RTT</span>
+                                                            <span className={`block text-xs font-bold tracking-tight ${(ev.duration_ms || 0) > 1000 ? 'text-amber-500' : 'text-emerald-500'}`}>
+                                                              {ev.duration_ms ? `${(ev.duration_ms / 1000).toFixed(2)}s` : '0.00s'} <span className="text-[10px] font-normal text-muted-foreground">RTT</span>
                                                             </span>
                                                           </div>
                                                           <div className="space-y-1">
@@ -948,17 +948,34 @@ export function DeveloperTab() {
                                   </div>
 
                                   {/* Pagination */}
-                                  {(events[w.id].total > 0) && (
-                                    <div className="px-5 py-3 border-t bg-muted/10 flex items-center justify-between">
-                                      <p className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">
-                                        Showing <span className="text-foreground">{(events[w.id].page - 1) * events[w.id].pageSize + 1}</span>-
-                                        <span className="text-foreground">{Math.min(events[w.id].page * events[w.id].pageSize, events[w.id].total)}</span> of <span className="text-foreground">{events[w.id].total}</span> events
+                                  {(events[w.id]?.total > 0) && (
+                                    <div className="px-5 py-4 border-t bg-muted/30 flex items-center justify-between">
+                                      <p className="text-xs text-muted-foreground font-medium">
+                                        Showing <span className="text-foreground font-bold">{events[w.id].data.length}</span> of <span className="text-foreground font-bold">{events[w.id].total}</span> events
                                       </p>
                                       <div className="flex items-center gap-4">
-                                        <p className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">Page <span className="text-foreground">{events[w.id].page}</span> of {Math.ceil(events[w.id].total / events[w.id].pageSize)}</p>
+                                        <p className="text-xs text-muted-foreground font-medium">
+                                          Page <span className="text-foreground font-bold">{events[w.id].page}</span> of <span className="text-foreground font-bold">{Math.ceil(events[w.id].total / events[w.id].pageSize)}</span>
+                                        </p>
                                         <div className="flex items-center gap-2">
-                                          <Button variant="outline" size="icon" className="h-7 w-7 rounded-lg shadow-sm bg-background" onClick={() => loadWebhookEvents(w.id, events[w.id].page - 1)} disabled={events[w.id].page === 1 || events[w.id].isLoading}><IconChevronLeft className="h-3.5 w-3.5" /></Button>
-                                          <Button variant="outline" size="icon" className="h-7 w-7 rounded-lg shadow-sm bg-background" onClick={() => loadWebhookEvents(w.id, events[w.id].page + 1)} disabled={events[w.id].isLoading || (events[w.id].page * events[w.id].pageSize) >= events[w.id].total}><IconChevronRight className="h-3.5 w-3.5" /></Button>
+                                          <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-8 w-8 rounded-lg shadow-sm bg-background hover:bg-muted transition-colors"
+                                            onClick={() => loadWebhookEvents(w.id, events[w.id].page - 1)}
+                                            disabled={events[w.id].page === 1 || events[w.id].isLoading}
+                                          >
+                                            <IconChevronLeft className="h-4 w-4" />
+                                          </Button>
+                                          <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-8 w-8 rounded-lg shadow-sm bg-background hover:bg-muted transition-colors"
+                                            onClick={() => loadWebhookEvents(w.id, events[w.id].page + 1)}
+                                            disabled={events[w.id].isLoading || (events[w.id].page * events[w.id].pageSize) >= events[w.id].total}
+                                          >
+                                            <IconChevronRight className="h-4 w-4" />
+                                          </Button>
                                         </div>
                                       </div>
                                     </div>
