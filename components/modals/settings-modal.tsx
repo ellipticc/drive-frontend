@@ -45,6 +45,7 @@ import {
   IconX,
   IconAlertCircle,
   IconCheck,
+  IconCode,
 } from "@tabler/icons-react"
 import {
   GeneralTab
@@ -61,6 +62,9 @@ import {
 import {
   ReferralsTab
 } from "./settings/referrals-tab"
+import {
+  DeveloperTab
+} from "./settings/developer-tab"
 import {
   ImageCrop,
   ImageCropContent,
@@ -100,6 +104,7 @@ const data = {
     { name: "Security & Privacy", icon: IconLockSquareRounded, id: "security" },
     { name: "Billing", icon: IconCoin, id: "billing" },
     { name: "Notifications", icon: IconBell, id: "notifications" },
+    { name: "Developer", icon: IconCode, id: "developer" },
     { name: "Referrals", icon: IconGift, id: "referrals" },
   ],
 }
@@ -125,6 +130,7 @@ export function SettingsModal({
     { name: "Security & Privacy", icon: IconLockSquareRounded, id: "security" }, // Updated label
     { name: t("settings.billing"), icon: IconCoin, id: "billing" },
     { name: t("settings.notifications"), icon: IconBell, id: "notifications" },
+    { name: "Developer", icon: IconCode, id: "developer" },
     { name: t("settings.referrals"), icon: IconGift, id: "referrals" },
   ]
 
@@ -1975,6 +1981,10 @@ export function SettingsModal({
                   loadReferralData={loadReferralData}
                   referralStats={referralStats}
                 />
+              )}
+
+              {activeTab === "developer" && (
+                <DeveloperTab />
               )}
 
               {activeTab === "billing" && (

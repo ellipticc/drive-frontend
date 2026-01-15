@@ -3278,6 +3278,35 @@ class ApiClient {
     });
   }
 
+  // Webhooks (Developer)
+  async createWebhook(url: string): Promise<ApiResponse<{ id: string; url: string; secret: string; enabled: number }>> {
+    return this.request('/user/webhooks', {
+      method: 'POST',
+      body: JSON.stringify({ url }),
+    });
+  }
+
+  async listWebhooks(): Promise<ApiResponse<any[]>> {
+    return this.request('/user/webhooks');
+  }
+
+  async deleteWebhook(id: string): Promise<ApiResponse<{ success: boolean }>> {
+    return this.request(`/user/webhooks/${id}`, { method: 'DELETE' });
+  }
+
+  async testWebhook(id: string): Promise<ApiResponse<any>> {
+    return this.request(`/user/webhooks/${id}/test`, { method: 'POST' });
+  }
+
+  async listWebhookEvents(id: string, page: number = 1, limit: number = 10): Promise<ApiResponse<{ data: any[]; total: number; page: number; pageSize: number }>> {
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+    return this.request(`/user/webhooks/${id}/events?${params.toString()}`);
+  }
+
+  async rotateWebhookSecret(id: string): Promise<ApiResponse<{ id: string; secret: string }>> {
+    return this.request(`/user/webhooks/${id}/rotate`, { method: 'POST' });
+  }
+
   async reportOpaqueFailure(flow: string, stage: string, error: string): Promise<ApiResponse<{ success: boolean }>> {
     return this.request('/auth/security/opaque/failure', {
       method: 'POST',

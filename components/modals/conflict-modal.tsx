@@ -89,7 +89,7 @@ export function ConflictModal({ isOpen, onClose, conflicts, onResolve, operation
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[640px] max-h-[70vh] overflow-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {conflicts.length === 1 ? (
@@ -105,9 +105,9 @@ export function ConflictModal({ isOpen, onClose, conflicts, onResolve, operation
         <div className="space-y-4">
           {conflicts.map((conflict) => (
             <div key={conflict.id} className="border rounded-lg p-4 space-y-3 bg-muted/30">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 min-w-0">
                 {conflict.type === 'file' ? <IconFile className="h-4 w-4" /> : <IconFolder className="h-4 w-4" />}
-                <span className="font-medium truncate">{conflict.name}</span>
+                <span className="font-medium truncate max-w-full" title={conflict.name}>{conflict.name}</span>
               </div>
 
               <RadioGroup
