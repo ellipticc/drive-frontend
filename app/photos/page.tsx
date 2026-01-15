@@ -458,17 +458,43 @@ export default function PhotosPage() {
                         </p>
                     </div>
                 ) : (
-                    <GalleryGrid
-                        groupedItems={groupedItems}
-                        sortedDates={sortedDates}
-                        zoomLevel={zoomLevel} // Pass column count
-                        selectedIds={selectedIds}
-                        isSelectionMode={isSelectionMode}
-                        onSelect={(id, range) => toggleSelection(id, true, range)}
-                        onPreview={handlePreview}
-                        onAction={handleAction}
-                        timeScale={timeScale}
-                    />
+                    <>
+                        <GalleryGrid
+                            groupedItems={groupedItems}
+                            sortedDates={sortedDates}
+                            zoomLevel={zoomLevel} // Pass column count
+                            selectedIds={selectedIds}
+                            isSelectionMode={isSelectionMode}
+                            onSelect={(id, range) => toggleSelection(id, true, range)}
+                            onPreview={handlePreview}
+                            onAction={handleAction}
+                            timeScale={timeScale}
+                        />
+
+                        <GalleryToolbar
+                            viewMode={viewMode}
+                            setViewMode={setViewMode}
+                            timeScale={timeScale}
+                            setTimeScale={setTimeScale}
+                            zoomLevel={zoomLevel}
+                            setZoomLevel={setZoomLevel}
+                            onRefresh={() => fetchAndDecryptPhotos(true)}
+                            isRefreshing={isRefreshing}
+                            selectedCount={selectedIds.size}
+                            onDownloadSelected={handleBulkDownload}
+                            onShareSelected={() => {
+                                // Share first selected item
+                                const ids = Array.from(selectedIds);
+                                if (ids.length === 0) return;
+                                const first = mediaItems.find(i => i.id === ids[0]);
+                                if (!first) return;
+                                setActiveItem(first);
+                                setIsShareOpen(true);
+                            }}
+                            onMoveToTrashSelected={handleBulkDelete}
+                            onUpload={() => handleFileUpload()}
+                        />
+                    </>
                 )}
 
                 {/* ShadCN Action Bar */}

@@ -2,10 +2,11 @@
 
 import React from "react"
 import { Button } from "@/components/ui/button"
-import { IconMinus, IconPlus, IconRefresh } from "@tabler/icons-react"
+import { IconMinus, IconPlus, IconRefresh, IconPhotoUp, IconDownload, IconShare, IconTrash } from "@tabler/icons-react"
 import { Separator } from "@/components/ui/separator"
 import { Slider } from "@/components/ui/slider"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 interface GalleryToolbarProps {
     viewMode: 'all' | 'photos' | 'videos' | 'starred'
@@ -16,6 +17,13 @@ interface GalleryToolbarProps {
     setZoomLevel: (level: number) => void
     onRefresh: () => void
     isRefreshing: boolean
+
+    // Optional selection-based actions
+    selectedCount?: number
+    onDownloadSelected?: () => void
+    onShareSelected?: () => void
+    onMoveToTrashSelected?: () => void
+    onUpload?: () => void
 }
 
 export function GalleryToolbar({
@@ -26,8 +34,13 @@ export function GalleryToolbar({
     zoomLevel,
     setZoomLevel,
     onRefresh,
-    isRefreshing
-}: GalleryToolbarProps) {
+    isRefreshing,
+    selectedCount = 0,
+    onDownloadSelected,
+    onShareSelected,
+    onMoveToTrashSelected,
+    onUpload
+}: GalleryToolbarProps & { selectedCount?: number; onDownloadSelected?: () => void; onShareSelected?: () => void; onMoveToTrashSelected?: () => void; onUpload?: () => void }) {
 
     return (
         <div className="flex items-center justify-between px-4 py-3 border-b bg-background/95 backdrop-blur-sm sticky top-0 z-40 gap-4 h-14">
@@ -75,10 +88,85 @@ export function GalleryToolbar({
 
             <div className="flex-1" /> {/* Spacer */}
 
-            {/* Refresh */}
-            <Button variant="ghost" size="icon" onClick={onRefresh} disabled={isRefreshing} className={isRefreshing ? "animate-spin" : ""}>
-                <IconRefresh className="h-4 w-4" />
-            </Button>
+            {/* Right-side icons: upload/refresh OR selection actions */}
+            <div className="flex items-center gap-1">
+                {selectedCount > 0 ? (
+                    selectedCount === 1 ? (
+                        <>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" onClick={onDownloadSelected} aria-label="Download selected">
+                                        <IconDownload className="h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Download</TooltipContent>
+                            </Tooltip>
+
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" onClick={onShareSelected} aria-label="Share selected">
+                                        <IconShare className="h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Share</TooltipContent>
+                            </Tooltip>
+
+                            <div className="h-5 w-px bg-border mx-1" />
+
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" onClick={onMoveToTrashSelected} aria-label="Move selected to trash" className="text-destructive">
+                                        <IconTrash className="h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Move to trash</TooltipContent>
+                            </Tooltip>
+                        </>
+                    ) : (
+                        <>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" onClick={onDownloadSelected} aria-label="Download selected">
+                                        <IconDownload className="h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Download</TooltipContent>
+                            </Tooltip>
+
+                            <div className="h-5 w-px bg-border mx-1" />
+
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" onClick={onMoveToTrashSelected} aria-label="Move selected to trash" className="text-destructive">
+                                        <IconTrash className="h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Move to trash</TooltipContent>
+                            </Tooltip>
+                        </>
+                    )
+                ) : (
+                    <>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" onClick={onUpload} aria-label="Upload">
+                                    <IconPhotoUp className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Upload</TooltipContent>
+                        </Tooltip>
+
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" onClick={onRefresh} disabled={isRefreshing} className={isRefreshing ? "animate-spin" : ""} aria-label="Refresh">
+                                    <IconRefresh className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Refresh</TooltipContent>
+                        </Tooltip>
+                    </>
+                )}
+            </div>
         </div>
     )
 }

@@ -191,7 +191,7 @@ export function GalleryGrid({
                                             index={idx}
                                             isSelected={selectedIds.has(item.id)}
                                             isSelectionMode={isSelectionMode}
-                                            onSelect={() => onSelect(item.id, true)}
+                                            onSelect={(range) => onSelect(item.id, range)}
                                             onPreview={() => onPreview(item)}
                                             viewMode="comfortable" // Always comfortable/square now
                                             onAction={onAction}

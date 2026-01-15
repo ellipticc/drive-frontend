@@ -10,7 +10,7 @@ import type { SortDescriptor } from "react-aria-components";
 
 import { Table, TableCard } from "@/components/application/table/table";
 import { Button } from "@/components/ui/button";
-import { IconShare3, IconListDetails, IconDownload, IconInfoCircle, IconFolder, IconX, IconGrid3x3 } from "@tabler/icons-react";
+import { IconShare3, IconListDetails, IconDownload, IconInfoCircle, IconFolder, IconX, IconGrid3x3, IconPencil, IconLink } from "@tabler/icons-react";
 const ShareModal = dynamic(() => import("@/components/modals/share-modal").then(mod => mod.ShareModal));
 const DetailsModal = dynamic(() => import("@/components/modals/details-modal").then(mod => mod.DetailsModal));
 const RenameModal = dynamic(() => import("@/components/modals/rename-modal").then(mod => mod.RenameModal));
@@ -406,15 +406,133 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
     };
 
     const renderHeaderIcons = () => {
+        const selCount = selectedItems.size;
+        // Get first selected item if any
+        const firstSelectedId = selCount > 0 ? Array.from(selectedItems)[0] : null;
+        const firstItem = firstSelectedId ? filteredItems.find(i => i.id === firstSelectedId) : null;
+
+        // No selection - default icons (Share root + view toggle)
+        if (selCount === 0) {
+            return (
+                <>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={handleShareRoot} aria-label="Share root">
+                                <IconShare3 className="h-3.5 w-3.5" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Share</TooltipContent>
+                    </Tooltip>
+                    <div className="h-5 w-px bg-border mx-1" />
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleViewModeChange(viewMode === 'table' ? 'grid' : 'table')} aria-label={viewMode === 'table' ? 'Switch to grid view' : 'Switch to table view'}>
+                                {viewMode === 'table' ? <IconGrid3x3 className="h-3.5 w-3.5" /> : <IconListDetails className="h-3.5 w-3.5" />}
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>{viewMode === 'table' ? 'Switch to grid view' : 'Switch to table view'}</TooltipContent>
+                    </Tooltip>
+                </>
+            );
+        }
+
+        // Single selection - show full set
+        if (selCount === 1 && firstItem) {
+            const canDownload = !!firstItem.fileId;
+            return (
+                <>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => canDownload && handleDownloadClick(firstItem.id, firstItem.fileId || '', firstItem.fileName || '')} aria-label="Download selected" disabled={!canDownload}>
+                                <IconDownload className="h-3.5 w-3.5" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Download</TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => { setSelectedItemForRename({ id: firstItem.id, name: firstItem.fileName || '', type: firstItem.isFolder ? 'folder' : 'file' }); setRenameModalOpen(true); }} aria-label="Rename">
+                                <IconPencil className="h-3.5 w-3.5" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Rename</TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleDetailsClick(firstItem.id, firstItem.fileName || '', firstItem.isFolder ? 'folder' : 'file')} aria-label="Details">
+                                <IconListDetails className="h-3.5 w-3.5" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Details</TooltipContent>
+                    </Tooltip>
+
+                    <div className="h-5 w-px bg-border mx-1" />
+
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleShareClick(firstItem.id, firstItem.fileName || '', firstItem.isFolder ? 'folder' : 'file')} aria-label="Share">
+                                <IconShare3 className="h-3.5 w-3.5" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Share</TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleRevokeShare(firstItem.id)} aria-label="Revoke share">
+                                <IconLink className="h-3.5 w-3.5" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Revoke</TooltipContent>
+                    </Tooltip>
+
+                    <div className="h-5 w-px bg-border mx-1" />
+
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleViewModeChange(viewMode === 'table' ? 'grid' : 'table')} aria-label={viewMode === 'table' ? 'Switch to grid view' : 'Switch to table view'}>
+                                {viewMode === 'table' ? <IconGrid3x3 className="h-3.5 w-3.5" /> : <IconListDetails className="h-3.5 w-3.5" />}
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>{viewMode === 'table' ? 'Switch to grid view' : 'Switch to table view'}</TooltipContent>
+                    </Tooltip>
+                </>
+            );
+        }
+
+        // Multiple selection
         return (
             <>
-                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={handleShareRoot}>
-                    <IconShare3 className="h-3.5 w-3.5" />
-                </Button>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={handleBulkDownload} aria-label="Download selected">
+                            <IconDownload className="h-3.5 w-3.5" />
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Download</TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={handleBulkRevoke} aria-label="Revoke selected">
+                            <IconLink className="h-3.5 w-3.5" />
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Revoke</TooltipContent>
+                </Tooltip>
+
                 <div className="h-5 w-px bg-border mx-1" />
-                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleViewModeChange(viewMode === 'table' ? 'grid' : 'table')}>
-                    {viewMode === 'table' ? <IconGrid3x3 className="h-3.5 w-3.5" /> : <IconListDetails className="h-3.5 w-3.5" />}
-                </Button>
+
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleViewModeChange(viewMode === 'table' ? 'grid' : 'table')} aria-label={viewMode === 'table' ? 'Switch to grid view' : 'Switch to table view'}>
+                            {viewMode === 'table' ? <IconGrid3x3 className="h-3.5 w-3.5" /> : <IconListDetails className="h-3.5 w-3.5" />}
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{viewMode === 'table' ? 'Switch to grid view' : 'Switch to table view'}</TooltipContent>
+                </Tooltip>
             </>
         );
     };

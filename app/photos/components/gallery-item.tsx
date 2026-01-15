@@ -52,7 +52,7 @@ export interface GalleryItemProps {
     item: MediaItem
     isSelected: boolean
     isSelectionMode: boolean
-    onSelect: () => void
+    onSelect: (rangeSelect: boolean) => void
     onPreview: () => void
     viewMode: 'comfortable' | 'compact'
     index: number
@@ -179,7 +179,8 @@ export function GalleryItem({ item, isSelected, isSelectionMode, onSelect, onPre
         if (e.shiftKey || e.ctrlKey || e.metaKey || isSelectionMode) {
             e.stopPropagation()
             e.preventDefault()
-            onSelect()
+            // Range select when holding shift, otherwise normal toggle
+            onSelect(e.shiftKey)
             return
         }
 
@@ -189,7 +190,8 @@ export function GalleryItem({ item, isSelected, isSelectionMode, onSelect, onPre
 
     const handleCheckboxClick = (e: React.MouseEvent) => {
         e.stopPropagation()
-        onSelect()
+        // Checkbox is a normal toggle (no range)
+        onSelect(false)
     }
 
     return (
