@@ -169,8 +169,21 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
           pauseResolverRef.current = resolve;
         });
       }
+    },
+    // Simple event emitter pattern
+    setOnPause: (callback: () => void) => {
+      const listeners = (pauseControllerRef.current as any)._listeners || [];
+      listeners.push(callback);
+      (pauseControllerRef.current as any)._listeners = listeners;
     }
   });
+
+  // Helper to trigger pause listeners
+  const triggerPause = useCallback(() => {
+    const listeners = (pauseControllerRef.current as any)._listeners || [];
+    listeners.forEach((cb: () => void) => cb());
+    (pauseControllerRef.current as any)._listeners = [];
+  }, []);
 
   // Get current folder from context
   const { currentFolderId } = useCurrentFolder();
@@ -870,7 +883,8 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
   const pauseDownload = useCallback(() => {
     setIsDownloadPaused(true);
     pauseControllerRef.current.isPaused = true;
-  }, []);
+    triggerPause();
+  }, [triggerPause]);
 
   const resumeDownload = useCallback(() => {
     setIsDownloadPaused(false);

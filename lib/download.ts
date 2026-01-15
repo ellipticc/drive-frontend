@@ -73,6 +73,7 @@ export interface DownloadChunk {
 export interface PauseController {
   isPaused: boolean;
   waitIfPaused: () => Promise<void>;
+  setOnPause?: (callback: () => void) => void;
 }
 
 export interface DownloadManifest {
@@ -306,9 +307,13 @@ async function pipelineDownloadAndDecrypt(
       const remaining = totalBytes - decryptedBytes;
       const eta = speed > 0 ? remaining / speed : 0;
 
+      // Real-time progress: strictly bytes processed / total bytes
+      // Removed artificial weighting logic
+      const percentage = totalBytes > 0 ? (decryptedBytes / totalBytes) * 100 : 0;
+
       onProgress?.({
         stage: 'downloading',
-        overallProgress: 15 + (decryptedBytes / totalBytes) * 75,
+        overallProgress: percentage,
         currentChunk: completedChunks,
         totalChunks,
         bytesDownloaded: decryptedBytes, // Technically decrypted bytes
@@ -325,42 +330,105 @@ async function pipelineDownloadAndDecrypt(
   const tasks = chunks.map(async (chunk) => {
     await semaphore.acquire();
     try {
+      const index = getChunkIndex(chunk);
+
+      // Initial check
       if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
       if (pauseController?.isPaused) await pauseController.waitIfPaused();
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
 
-      // 1. Fetch
-      const response = await fetch(chunk.getUrl, { signal, credentials: 'omit' });
-      if (!response.ok) throw new Error(`Fetch failed ${response.status}`);
+      // Retry loop for Instant Pause functionality
+      while (true) {
+        // Create a specific controller for this chunk to handle PAUSE events
+        const chunkController = new AbortController();
+        const onParentAbort = () => chunkController.abort();
 
-      const chunkData = new Uint8Array(await response.arrayBuffer());
+        // Attach listeners
+        if (signal) {
+          signal.addEventListener('abort', onParentAbort);
+        }
 
-      // 2. Decrypt (Worker)
-      // Adjust for B2 Trailers if needed
-      let dataToDecrypt = chunkData;
-      if (chunkData.length > chunk.size) {
-        dataToDecrypt = chunkData.subarray(0, chunk.size);
+        // Listen for Instant Pause event
+        if (pauseController?.setOnPause) {
+          pauseController.setOnPause(() => {
+            // Differentiate pause abort from cancel abort via reason if supported, or infer from state
+            chunkController.abort('paused');
+          });
+        }
+
+        try {
+          // Check state again
+          if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+          if (pauseController?.isPaused) {
+            if (signal) signal.removeEventListener('abort', onParentAbort);
+            await pauseController.waitIfPaused();
+            continue; // Restart loop
+          }
+
+          // 1. Fetch
+          // Use chunkController signal to allow instant abort on pause
+          const response = await fetch(chunk.getUrl, { signal: chunkController.signal, credentials: 'omit' });
+          if (!response.ok) throw new Error(`Fetch failed ${response.status}`);
+
+          const chunkData = new Uint8Array(await response.arrayBuffer());
+
+          // Check if aborted during/after fetch
+          if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+          if (chunkController.signal.aborted) {
+            // If local controller aborted, it must be pause (since parent abort also aborts local)
+            // But we need to verify if it was legally paused
+            throw 'paused_abort';
+          }
+
+          // Cleanup listeners
+          if (signal) signal.removeEventListener('abort', onParentAbort);
+
+          // 2. Decrypt (Worker)
+          let dataToDecrypt = chunkData;
+          if (chunkData.length > chunk.size) {
+            dataToDecrypt = chunkData.subarray(0, chunk.size);
+          }
+
+          if (!chunk.nonce) throw new Error(`Missing nonce for chunk ${index}`);
+          const isCompressed = !!(chunk.isCompressed && chunk.compressionAlgorithm);
+
+          const decrypted = await processDecryptInWorker(
+            dataToDecrypt,
+            cek,
+            chunk.nonce,
+            isCompressed,
+            chunk.shaHash
+          );
+
+          // 3. Store
+          decryptedChunks[index] = decrypted;
+
+          // 4. Update Stats
+          completedChunks++;
+          decryptedBytes += decrypted.length;
+          reportProgress();
+
+          break; // Success, exit loop
+
+        } catch (err: any) {
+          if (signal) signal.removeEventListener('abort', onParentAbort);
+
+          // Handle Pause Abort
+          // Check if it was an abort due to pause
+          const isPauseAbort = err === 'paused_abort' ||
+            (err instanceof Error && err.name === 'AbortError' && pauseController?.isPaused) ||
+            (chunkController.signal.aborted && pauseController?.isPaused);
+
+          if (isPauseAbort && !signal?.aborted) {
+            // It was a pause! Wait and retry.
+            await pauseController?.waitIfPaused();
+            continue;
+          }
+
+          if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+          throw err;
+        }
       }
-
-      const index = getChunkIndex(chunk);
-      if (!chunk.nonce) throw new Error(`Missing nonce for chunk ${index}`);
-
-      const isCompressed = !!(chunk.isCompressed && chunk.compressionAlgorithm);
-
-      const decrypted = await processDecryptInWorker(
-        dataToDecrypt,
-        cek,
-        chunk.nonce,
-        isCompressed,
-        chunk.shaHash // Verify integrity in worker
-      );
-
-      // 3. Store
-      decryptedChunks[index] = decrypted;
-
-      // 4. Update Stats
-      completedChunks++;
-      decryptedBytes += decrypted.length; // Use actual decrypted size
-      reportProgress();
 
     } finally {
       semaphore.release();

@@ -33,7 +33,7 @@ export interface ConflictInfo {
   newPath: string;
   folderId: string | null;
   existingFileId?: string; // ID of the existing file for deletion if replacing
-} 
+}
 
 export interface UploadManagerProps {
   id: string;  // Add explicit ID parameter
@@ -57,13 +57,13 @@ export class UploadManager {
   constructor(props: UploadManagerProps) {
     // Validate that this is actually a File object and not an empty directory entry
     const file = props.file;
-    
+
     // ONLY reject truly empty directory entries (size=0, type="")
     // Allow files with webkitRelativePath (folder contents) and files from drag-drop
     if (file.size === 0 && file.type === '') {
       throw new Error(`Cannot upload empty directory: "${file.name}". Directory must contain files.`);
     }
-    
+
     // Validate filename is not empty
     if (!file.name || file.name.trim() === '') {
       throw new Error('Cannot upload file: Invalid filename');
@@ -128,10 +128,16 @@ export class UploadManager {
     } catch (error) {
       if (this.isDestroyed) return;
 
+      // Check if this was a manual Pause (status set to paused)
+      if (this.task.status === 'paused') {
+        // Pause detected - swallow error and return
+        return;
+      }
+
       const isCancelled = error instanceof Error &&
         (error.name === 'AbortError' ||
-         error.message === 'Upload cancelled' ||
-         error.message === 'Upload cancelled by user');
+          error.message === 'Upload cancelled' ||
+          error.message === 'Upload cancelled by user');
 
       const isPaused = error instanceof Error && error.message === 'Upload paused';
 
@@ -149,24 +155,24 @@ export class UploadManager {
       } else if (isConflict) {
         // File conflict detected
         const conflictInfo = (error as UploadError).conflictInfo;
-        
+
         // If this is a keepBoth conflict, auto-retry with next number
         if (conflictInfo?.isKeepBothConflict && this.task.conflictResolution === 'keepBoth') {
-          
+
           // Update the conflict filename to the incremented one we just tried
           this.task.conflictFileName = conflictInfo.name;
-          
+
           // Update our current filename tracking
           this.currentFilename = conflictInfo.name;
           this.task.currentFilename = conflictInfo.name;
-          
+
           // Mark as keepBoth attempt so backend knows to expect a numbered filename
           this.task.isKeepBothAttempt = true;
-          
+
           // Keep status as paused but immediately restart with next number
           this.task.status = 'paused';
           this.notifyProgress();
-          
+
           // Wait a bit then auto-retry
           setTimeout(() => {
             if (!this.isDestroyed && this.task.status === 'paused') {
@@ -196,8 +202,8 @@ export class UploadManager {
   pause(): void {
     if (this.task.status === 'uploading') {
       this.task.status = 'paused';
-      // Don't abort - just change status
-      // The upload will continue but we'll mark it as paused
+      // Abort immediately to stop network
+      this.task.abortController?.abort();
       this.notifyProgress();
     }
   }
@@ -248,10 +254,10 @@ export class UploadManager {
     this.task.status = 'pending';
     this.task.error = undefined;
     this.notifyProgress();
-    
+
     // Store the resolution for the upload function to use
     this.task.conflictResolution = resolution;
-    
+
     // Restart the upload
     this.start();
   }

@@ -203,7 +203,6 @@ export async function uploadEncryptedFile(
     // Relying on chunk-level BLAKE3 integrity instead
     onProgress?.({ stage: 'hashing', overallProgress: 0 });
     const shaHash = null; // Placeholder since full-file hashing is now optional
-    onProgress?.({ stage: 'hashing', overallProgress: 10 });
 
     // Check for abort after hashing
     if (abortSignal?.aborted) {
@@ -211,9 +210,8 @@ export async function uploadEncryptedFile(
     }
 
     // Stage 2: Split file into chunks
-    onProgress?.({ stage: 'chunking', overallProgress: 15 });
     const chunks = await splitFileIntoChunks(file);
-    onProgress?.({ stage: 'chunking', overallProgress: 20, totalChunks: chunks.length });
+    onProgress?.({ stage: 'chunking', overallProgress: 0, totalChunks: chunks.length });
 
     // Check for abort after chunking
     if (abortSignal?.aborted) {
@@ -223,7 +221,7 @@ export async function uploadEncryptedFile(
     // Stage 3: Initialize Upload Session (Streaming Mode)
     // We initialize early to get Upload URLs.
     // NOTE: Backend must be compatible with receiving incomplete manifest at this stage for streaming support.
-    onProgress?.({ stage: 'uploading', overallProgress: 20 });
+    onProgress?.({ stage: 'uploading', overallProgress: 0 });
 
     const dummyChunks = chunks.map((_, i) => ({
       index: i, size: 0, encryptedSize: 0, blake3Hash: '', nonce: '',
@@ -244,6 +242,7 @@ export async function uploadEncryptedFile(
     const activeTasks = new Set<Promise<void>>();
     const concurrency = 4;
     let completedCount = 0;
+    let completedBytes = 0;
 
     for (let i = 0; i < chunks.length; i++) {
       // Check triggers
@@ -302,12 +301,15 @@ export async function uploadEncryptedFile(
           chunkHashes[i] = processed.hash;
 
           completedCount++;
+          completedBytes += (range.end - range.start);
           onProgress?.({
             stage: 'uploading',
-            overallProgress: 20 + (completedCount / chunks.length) * 70,
+            overallProgress: (completedBytes / file.size) * 100,
             currentChunk: completedCount,
             totalChunks: chunks.length,
-            chunkProgress: 100
+            chunkProgress: 100,
+            bytesProcessed: completedBytes,
+            totalBytes: file.size
           });
 
         } catch (err) {
@@ -330,7 +332,10 @@ export async function uploadEncryptedFile(
     // Stage 6: Confirm chunk uploads with backend
     await confirmChunkUploads(session.sessionId, processedChunks, session.chunkHashes);
 
-    onProgress?.({ stage: 'finalizing', overallProgress: 90 });
+    // Stage 6: Confirm chunk uploads with backend
+    await confirmChunkUploads(session.sessionId, processedChunks, session.chunkHashes);
+
+    onProgress?.({ stage: 'finalizing', overallProgress: 99 });
 
     // Check for abort before finalizing
     if (abortSignal?.aborted) {
