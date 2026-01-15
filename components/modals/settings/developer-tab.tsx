@@ -11,9 +11,7 @@ import {
   IconCode,
   IconWebhook,
   IconCopy,
-  IconExternalLink,
   IconRefresh,
-  IconChevronUp,
   IconChevronDown,
   IconChevronLeft,
   IconChevronRight,
@@ -21,13 +19,14 @@ import {
   IconSettings,
   IconTrash,
   IconCheck,
-  IconX,
   IconEye,
   IconEyeOff,
   IconLink,
   IconAlertCircle,
   IconInfoCircle,
-  IconLoader2
+  IconLoader2,
+  IconActivity,
+  IconShieldCheck
 } from "@tabler/icons-react"
 import {
   Dialog,
@@ -82,6 +81,12 @@ const EVENT_TYPES = [
   { id: 'paper.updated', label: 'Paper Updated', description: 'Triggered when a paper is modified' },
   { id: 'paper.deleted', label: 'Paper Deleted/Trashed', description: 'Triggered when a paper is moved to trash or deleted' },
   { id: 'paper.restored', label: 'Paper Restored', description: 'Triggered when a paper is restored from trash' },
+  { id: 'totp.enabled', label: '2FA Enabled', description: 'Triggered when Two-Factor Authentication is enabled' },
+  { id: 'totp.disabled', label: '2FA Disabled', description: 'Triggered when Two-Factor Authentication is disabled' },
+  { id: 'totp.fail', label: '2FA Failure', description: 'Triggered when a 2FA verification attempt fails' },
+  { id: 'password.changed', label: 'Password Changed', description: 'Triggered when a user changes their password' },
+  { id: 'master_key.revealed', label: 'Master Key Revealed', description: 'Triggered when a user reveals their master key' },
+  { id: 'master_key.reveal_failed', label: 'Master Key Reveal Failure', description: 'Triggered when a master key reveal attempt fails' },
 ];
 
 export function DeveloperTab() {
@@ -261,8 +266,6 @@ export function DeveloperTab() {
     setEvents(prev => ({ ...(prev || {}), [id]: { ...(prev[id] || { data: [], total: 0, page: 1, pageSize: 10 }), isLoading: true } }))
     const res = await apiClient.listWebhookEvents(id, page, 10)
     if (res.success) {
-      // The API returns { success: true, data: rows, total, page, pageSize }
-      // So 'res.data' IS the array of events
       setEvents(prev => ({
         ...(prev || {}),
         [id]: {
@@ -500,324 +503,351 @@ export function DeveloperTab() {
         </DialogContent>
       </Dialog>
 
-      {/* Webhooks List */}
-      <div className="space-y-4">
+      {/* Webhooks Table Implementation */}
+      <div className="border rounded-2xl bg-card shadow-sm overflow-hidden">
         {webhooks.length === 0 ? (
-          <div className="border border-dashed rounded-2xl p-16 text-center bg-muted/5 flex flex-col items-center">
+          <div className="p-16 text-center bg-muted/5 flex flex-col items-center">
             <div className="h-16 w-16 rounded-full bg-muted/20 flex items-center justify-center mb-6">
               <IconWebhook className="h-8 w-8 text-muted-foreground/40" />
             </div>
             <h3 className="text-xl font-bold">No endpoints found</h3>
-            <p className="text-muted-foreground text-sm mt-2 max-w-sm mx-auto font-medium leading-relaxed">Configure your first webhook to start receiving real-time events from Ellipticc Drive.</p>
-            <Button variant="outline" onClick={() => setCreateModalOpen(true)} className="mt-8 rounded-full h-11 px-8 border-primary/20 hover:bg-primary/5 hover:text-primary transition-all">
-              Create your first webhook
+            <p className="text-muted-foreground text-sm mt-2 max-w-sm mx-auto font-medium leading-relaxed">
+              Configure your first webhook to start receiving real-time events.
+            </p>
+            <Button variant="outline" onClick={() => setCreateModalOpen(true)} className="mt-8 rounded-full h-11 px-8">
+              Create Webhook
             </Button>
           </div>
         ) : (
-          <div className="grid gap-4">
-            {webhooks.map(w => (
-              <div key={w.id} className="group border rounded-2xl bg-card shadow-sm overflow-hidden transition-all hover:border-primary/30 hover:shadow-md">
-                {/* Header Row */}
-                <div className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-muted/20 border-b">
-                  <div className="flex items-center gap-4 overflow-hidden">
-                    <div className="h-10 w-10 min-w-[40px] rounded-xl bg-background border border-muted-foreground/10 flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform duration-300">
-                      <IconLink className={`h-4 w-4 ${w.enabled ? 'text-primary' : 'text-muted-foreground'}`} />
-                    </div>
-                    <div className="min-w-0 pr-2">
-                      <div className="flex items-center gap-2">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <h4 className="font-bold truncate text-sm cursor-help">{w.url}</h4>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom" className="max-w-md break-all">
-                              {w.url}
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                        <Badge variant={w.enabled ? "default" : "secondary"} className={`text-[10px] h-5 px-2 font-bold uppercase tracking-wider rounded-md border-transparent ${w.enabled ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' : ''}`}>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 border-b">
+                <tr>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground text-[10px] uppercase tracking-wider">Webhook ID</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground text-[10px] uppercase tracking-wider">Endpoint URL</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground text-[10px] uppercase tracking-wider">Status</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground text-[10px] uppercase tracking-wider">Enabled</th>
+                  <th className="text-right px-4 py-3 font-medium text-muted-foreground text-[10px] uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {webhooks.map(w => (
+                  <React.Fragment key={w.id}>
+                    <tr
+                      className={`hover:bg-muted/30 transition-colors cursor-pointer group ${expanded === w.id ? 'bg-muted/20' : ''}`}
+                      onClick={() => { setExpanded(expanded === w.id ? null : w.id); if (expanded !== w.id) loadWebhookEvents(w.id, 1) }}
+                    >
+                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                        <div className="flex items-center gap-2">
+                          {expanded === w.id ? <IconChevronDown className="h-3 w-3 rotate-180 transition-transform" /> : <IconChevronDown className="h-3 w-3 transition-transform" />}
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="cursor-help underline decoration-dotted decoration-muted-foreground/30">
+                                  {w.id.substring(0, 8)}...
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="font-mono text-xs">{w.id}</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col">
+                          <span className="font-medium text-sm truncate max-w-[280px]">{w.url}</span>
+                          <span className="text-[10px] text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                            <IconCode className="h-3 w-3" />
+                            {w.events ? `${w.events.length} events subscribed` : 'All events'}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge variant={w.enabled ? "default" : "secondary"} className={`text-[10px] px-2 font-bold uppercase tracking-wider h-5 rounded-md border-transparent ${w.enabled ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' : ''}`}>
                           {w.enabled ? 'Active' : 'Paused'}
                         </Badge>
-                      </div>
-                      <div className="flex items-center gap-2.5 mt-1 text-[11px] text-muted-foreground/70 font-medium">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="flex items-center gap-1 cursor-help"><span className="opacity-60">ID:</span> <span className="font-mono text-[10px]">{w.id.substring(0, 8)}...</span></span>
-                            </TooltipTrigger>
-                            <TooltipContent className="font-mono text-xs">{w.id}</TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                        <span className="opacity-30">•</span>
-                        <span className="flex items-center gap-1"><IconCode className="h-3 w-3 opacity-60" /> {w.events ? `${JSON.parse(JSON.stringify(w.events)).length} events` : 'All events'}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <div className="flex items-center gap-3 px-3 py-1.5 bg-background/50 border rounded-full mr-2">
-                      <span className="text-[10px] font-bold uppercase tracking-tighter text-muted-foreground">Power</span>
-                      <Switch
-                        checked={w.enabled}
-                        onCheckedChange={() => toggleWebhookEnabled(w.id, w.enabled)}
-                        className="scale-75"
-                      />
-                    </div>
-
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button size="icon" variant="ghost" className="h-9 w-9 rounded-xl hover:bg-primary/10 hover:text-primary" onClick={() => testWebhook(w.id)}>
-                            <IconRefresh className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Send Test Event</TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-
-                    <Button size="sm" variant="outline" className="h-9 rounded-xl border-muted-foreground/20 hover:border-primary/40" onClick={() => openEditModal(w)}>
-                      <IconSettings className="h-3.5 w-3.5 mr-2" />
-                      Configure
-                    </Button>
-
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button size="icon" variant="ghost" className="h-9 w-9 rounded-xl text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setDeleteId(w.id)}>
-                            <IconTrash className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Delete Endpoint</TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                </div>
-
-                {/* Details Row */}
-                <div className="p-5 grid lg:grid-cols-2 gap-8 bg-card/40">
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-xs text-muted-foreground uppercase tracking-wider font-bold">Signing Secret</Label>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <IconInfoCircle className="h-3.5 w-3.5 text-muted-foreground/30 cursor-help" />
-                          </TooltipTrigger>
-                          <TooltipContent className="w-56 text-xs p-3 leading-relaxed">
-                            Used to verify that payloads come from Ellipticc. Set as the <code className="text-primary font-bold">X-Ellipticc-Signature</code> header.
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="relative flex-1 group/secret">
-                        <Input
-                          readOnly
-                          value={visibleSecrets[w.id] ? w.secret : "•".repeat(48)}
-                          className="font-mono text-xs pr-10 h-10 bg-muted/40 rounded-xl tracking-tight"
+                      </td>
+                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                        <Switch
+                          checked={w.enabled}
+                          onCheckedChange={() => toggleWebhookEnabled(w.id, w.enabled)}
+                          className="scale-75"
                         />
-                        <div className="absolute right-2 top-2 z-10 opacity-0 group-hover/secret:opacity-100 transition-opacity">
-                          <Button size="icon" variant="ghost" className="h-6 w-6 rounded-md hover:bg-background/80" onClick={() => toggleSecretVisibility(w.id)}>
-                            {visibleSecrets[w.id] ? <IconEyeOff className="h-3.5 w-3.5" /> : <IconEye className="h-3.5 w-3.5" />}
-                          </Button>
-                        </div>
-                      </div>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button size="icon" variant="outline" className="h-10 w-10 rounded-xl hover:bg-primary/5 hover:text-primary" onClick={() => { navigator.clipboard.writeText(w.secret); toast.success('Secret copied') }}>
-                              <IconCopy className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Copy Secret</TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              size="icon"
-                              variant="outline"
-                              className="h-10 w-10 rounded-xl hover:text-amber-600 hover:border-amber-600/30 hover:bg-amber-600/5 group/rotate"
-                              onClick={() => setRotateId(w.id)}
-                              disabled={rotationLoading === w.id}
-                            >
-                              {rotationLoading === w.id ? <IconLoader2 className="h-4 w-4 animate-spin" /> : <IconRefresh className="h-4 w-4 group-hover/rotate:rotate-45 transition-transform" />}
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Rotate Secret</TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                  </div>
+                      </td>
+                      <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-1">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-8 w-8 rounded-lg hover:bg-muted"
+                                  onClick={() => openEditModal(w)}
+                                >
+                                  <IconSettings className="h-4 w-4 text-muted-foreground" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Settings</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
 
-                  <div className="flex flex-col justify-end">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider font-bold mb-3">Health & Delivery</Label>
-                    <div className="flex gap-3">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className={`flex-1 justify-between h-10 rounded-xl px-4 text-xs font-bold transition-all border-muted-foreground/20 hover:border-foreground ${expanded === w.id ? 'bg-foreground text-background shadow-lg shadow-foreground/10' : ''}`}
-                        onClick={() => { setExpanded(expanded === w.id ? null : w.id); if (expanded !== w.id) loadWebhookEvents(w.id, 1) }}
-                      >
-                        <span className="flex items-center gap-2">
-                          <IconExternalLink className="h-3.5 w-3.5" />
-                          {expanded === w.id ? 'Hide Delivery Logs' : 'View Delivery Logs'}
-                        </span>
-                        {expanded === w.id ? <IconChevronUp className="h-4 w-4" /> : <IconChevronDown className="h-4 w-4" />}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Expanded Events Table */}
-                {expanded === w.id && (
-                  <div className="border-t bg-muted/5 animate-in slide-in-from-top-4 duration-300">
-                    {(events[w.id]?.isLoading) ? (
-                      <div className="px-5 py-16 text-center text-muted-foreground flex flex-col items-center gap-4">
-                        <div className="h-10 w-10 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
-                        <span className="text-sm font-bold tracking-tight">Fetching activity logs...</span>
-                      </div>
-                    ) : (events[w.id]?.data || []).length === 0 ? (
-                      <div className="px-5 py-16 text-center flex flex-col items-center">
-                        <div className="h-12 w-12 rounded-full bg-muted/20 flex items-center justify-center mb-4 text-muted-foreground/40">
-                          <IconAlertCircle className="h-6 w-6" />
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-8 w-8 rounded-lg text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  onClick={() => setDeleteId(w.id)}
+                                >
+                                  <IconTrash className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Delete</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         </div>
-                        <h4 className="font-bold text-muted-foreground">No Delivery History</h4>
-                        <p className="text-xs text-muted-foreground/60 mt-1 max-w-xs mx-auto">Trigger some actions or send a test request to see delivery data here.</p>
-                      </div>
-                    ) : (
-                      <div className="border-t border-muted/50">
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-sm">
-                            <thead className="bg-muted/30 text-[10px] uppercase tracking-widest font-black text-muted-foreground/60">
-                              <tr>
-                                <th className="px-5 py-3 text-left w-10"></th>
-                                <th className="px-5 py-3 text-left">Event Type</th>
-                                <th className="px-5 py-3 text-left">Status</th>
-                                <th className="px-5 py-3 text-left">Timestamp</th>
-                                <th className="px-5 py-3 text-right">Delivery ID</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-muted/30">
-                              {events[w.id].data.map(ev => {
-                                const isExpanded = expandedEvents[w.id] === ev.id;
-                                return (
-                                  <React.Fragment key={ev.id}>
-                                    <tr
-                                      className={`hover:bg-primary/5 transition-all cursor-pointer group/row ${isExpanded ? 'bg-primary/[0.03]' : ''}`}
-                                      onClick={() => toggleExpandEvent(w.id, isExpanded ? null : ev.id)}
+                      </td>
+                    </tr>
+
+                    {expanded === w.id && (
+                      <tr className="bg-muted/10 border-b">
+                        <td colSpan={5} className="px-8 py-8 border-t">
+                          <div className="space-y-8 animate-in fade-in slide-in-from-top-2 duration-300">
+                            {/* Signing Secret & Config Section */}
+                            <div className="grid md:grid-cols-2 gap-8 pb-8 border-b">
+                              <div className="space-y-4">
+                                <div className="flex items-center gap-2">
+                                  <IconShieldCheck className="h-4 w-4 text-primary" />
+                                  <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Security Configuration</h4>
+                                </div>
+                                <div className="bg-background/50 rounded-xl p-5 border border-muted/50 space-y-4">
+                                  <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                      <Label className="text-[10px] text-muted-foreground uppercase tracking-widest font-black">Signing Secret</Label>
+                                      <Badge variant="outline" className="text-[9px] font-bold h-4 bg-primary/5 text-primary border-primary/20 uppercase tracking-tighter px-1.5">Origin Validation</Badge>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <div className="relative flex-1">
+                                        <Input
+                                          readOnly
+                                          value={visibleSecrets[w.id] ? w.secret : "•".repeat(48)}
+                                          className="font-mono text-xs pr-10 h-10 bg-background rounded-xl border-muted-foreground/20"
+                                        />
+                                        <div className="absolute right-2 top-2 z-10">
+                                          <Button size="icon" variant="ghost" className="h-6 w-6 rounded-md" onClick={() => toggleSecretVisibility(w.id)}>
+                                            {visibleSecrets[w.id] ? <IconEyeOff className="h-3.5 w-3.5" /> : <IconEye className="h-3.5 w-3.5" />}
+                                          </Button>
+                                        </div>
+                                      </div>
+                                      <Button
+                                        size="icon"
+                                        variant="outline"
+                                        className="h-10 w-10 rounded-xl bg-background shadow-sm hover:border-primary/30 transition-colors"
+                                        onClick={() => { navigator.clipboard.writeText(w.secret); toast.success('Secret copied') }}
+                                      >
+                                        <IconCopy className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        size="icon"
+                                        variant="outline"
+                                        className="h-10 w-10 rounded-xl bg-background shadow-sm hover:text-amber-600 hover:border-amber-600/30 group/rotate"
+                                        onClick={() => setRotateId(w.id)}
+                                        disabled={rotationLoading === w.id}
+                                      >
+                                        {rotationLoading === w.id ? <IconLoader2 className="h-4 w-4 animate-spin" /> : <IconRefresh className="h-4 w-4 group-hover/rotate:rotate-45 transition-transform" />}
+                                      </Button>
+                                    </div>
+                                    <p className="text-[10px] text-muted-foreground/70 font-medium">Use this secret to verify that the webhook event came from Ellipticc.</p>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="space-y-4">
+                                <div className="flex items-center gap-2">
+                                  <IconActivity className="h-4 w-4 text-primary" />
+                                  <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Quick Actions & Health</h4>
+                                </div>
+                                <div className="bg-background/50 rounded-xl p-5 border border-muted/50 flex flex-col justify-center h-[calc(100%-2rem)]">
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <Button
+                                      variant="outline"
+                                      className="h-12 rounded-xl text-xs font-bold bg-background shadow-sm border-primary/10 hover:border-primary/30 hover:bg-primary/5 transition-all"
+                                      onClick={() => testWebhook(w.id)}
                                     >
-                                      <td className="px-5 py-4 text-muted-foreground">
-                                        <div className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}>
-                                          <IconChevronDown className="h-3.5 w-3.5" />
-                                        </div>
-                                      </td>
-                                      <td className="px-5 py-4">
-                                        <Badge variant="outline" className="font-mono text-[10px] font-bold px-2 py-0.5 rounded-md border-muted-foreground/20 bg-background/50 group-hover/row:border-primary/40 group-hover/row:text-primary transition-all">
-                                          {ev.event_type}
-                                        </Badge>
-                                      </td>
-                                      <td className="px-5 py-4">
-                                        <div className={`inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all ${ev.status === 'success'
-                                          ? 'text-emerald-600 bg-emerald-50 border-emerald-500/10 dark:bg-emerald-500/5 dark:border-emerald-500/20 shadow-sm shadow-emerald-500/5'
-                                          : 'text-rose-600 bg-rose-50 border-rose-500/10 dark:bg-rose-500/5 dark:border-rose-500/20 shadow-sm shadow-rose-500/5'
-                                          }`}>
-                                          <div className={`h-1.5 w-1.5 rounded-full mr-2 ${ev.status === 'success' ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
-                                          {ev.status === 'success' ? 'Delivered' : 'Failed'}
-                                          {ev.response_code && <span className="ml-2 font-mono opacity-80 border-l border-current/20 pl-2">{ev.response_code}</span>}
-                                        </div>
-                                      </td>
-                                      <td className="px-5 py-4 text-xs font-medium text-muted-foreground">
-                                        {new Date(ev.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
-                                      </td>
-                                      <td className="px-5 py-4 text-right">
-                                        <span className="font-mono text-[10px] text-muted-foreground/40 select-all group-hover/row:text-foreground transition-colors">{ev.id.split('-')[0]}</span>
-                                      </td>
-                                    </tr>
-                                    {isExpanded && (
-                                      <tr className="bg-primary/[0.02] shadow-inner">
-                                        <td colSpan={5} className="p-0">
-                                          <div className="px-10 py-8 animate-in fade-in slide-in-from-top-2 duration-300">
-                                            <div className="grid grid-cols-1 gap-8 max-w-5xl">
-                                              {/* Meta Board */}
-                                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pb-6 border-b border-muted">
-                                                <div className="space-y-1">
-                                                  <span className="block text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">Request ID</span>
-                                                  <span className="block font-mono text-[11px] select-all font-bold group-hover:text-primary transition-colors cursor-copy">{ev.request_id}</span>
-                                                </div>
-                                                <div className="space-y-1">
-                                                  <span className="block text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">Signature ID</span>
-                                                  <span className="block font-mono text-[11px] select-all font-bold">{ev.signature_id}</span>
-                                                </div>
-                                                <div className="space-y-1">
-                                                  <span className="block text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">Time Elapsed</span>
-                                                  <span className="block text-[11px] font-bold text-emerald-500">~84ms</span>
-                                                </div>
-                                                <div className="space-y-1">
-                                                  <span className="block text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">Method</span>
-                                                  <span className="block text-[11px] font-bold px-2 py-0.5 bg-foreground text-background inline-block rounded-md">POST</span>
-                                                </div>
-                                              </div>
+                                      <IconRefresh className="h-3.5 w-3.5 mr-2 opacity-60" />
+                                      Test Endpoint
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      className="h-12 rounded-xl text-xs font-bold bg-background shadow-sm hover:bg-muted"
+                                      onClick={() => openEditModal(w)}
+                                    >
+                                      <IconSettings className="h-3.5 w-3.5 mr-2 opacity-60" />
+                                      Edit Events
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
 
-                                              <div className="grid md:grid-cols-2 gap-8">
-                                                <div className="space-y-3">
-                                                  <div className="flex items-center justify-between">
-                                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Request Headers</h4>
-                                                    <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg hover:bg-muted" onClick={() => { navigator.clipboard.writeText(ev.request_headers || ''); toast.success('Headers copied') }}><IconCopy className="h-3.5 w-3.5" /></Button>
-                                                  </div>
-                                                  <div className="bg-background/80 border rounded-xl p-4 font-mono text-[10px] text-muted-foreground overflow-x-auto whitespace-pre-wrap leading-relaxed shadow-sm ring-1 ring-black/5">
-                                                    {ev.request_headers}
-                                                  </div>
-                                                </div>
-                                                <div className="space-y-3">
-                                                  <div className="flex items-center justify-between">
-                                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Payload Data</h4>
-                                                    <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg hover:bg-muted" onClick={() => { navigator.clipboard.writeText(ev.request_body || ''); toast.success('Payload copied') }}><IconCopy className="h-3.5 w-3.5" /></Button>
-                                                  </div>
-                                                  <div className="rounded-xl overflow-hidden border shadow-sm ring-1 ring-black/5 bg-background">
-                                                    <JsonHighlighter data={JSON.parse(ev.request_body || '{}')} />
-                                                  </div>
-                                                </div>
-                                              </div>
+                            {/* Delivery Logs Header */}
+                            <div className="space-y-4">
+                              <div className="flex items-center justify-between">
+                                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                                  <div className="h-1.5 w-1.5 rounded-full bg-primary" />
+                                  Delivery History
+                                </h4>
+                              </div>
 
-                                              {ev.response_body && (
-                                                <div className="border-t border-muted pt-6 mt-2">
-                                                  <div className="flex items-center gap-2 mb-3">
-                                                    <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-[9px] px-2">REMOTE RESPONSE</Badge>
+                              {(events[w.id]?.isLoading) ? (
+                                <div className="py-12 text-center text-muted-foreground flex flex-col items-center gap-4 bg-background/30 rounded-2xl border border-dashed">
+                                  <IconLoader2 className="h-8 w-8 text-primary animate-spin" />
+                                  <span className="text-sm font-bold tracking-tight">Accessing audit logs...</span>
+                                </div>
+                              ) : (events[w.id]?.data || []).length === 0 ? (
+                                <div className="py-12 text-center flex flex-col items-center bg-background/30 rounded-2xl border border-dashed">
+                                  <div className="h-12 w-12 rounded-full bg-muted/20 flex items-center justify-center mb-4 text-muted-foreground/40">
+                                    <IconActivity className="h-6 w-6" />
+                                  </div>
+                                  <h4 className="font-bold text-muted-foreground text-sm">No Delivery Logs Found</h4>
+                                  <p className="text-[11px] text-muted-foreground/60 mt-1 max-w-xs mx-auto font-medium">Any events sent to this endpoint will be listed here for debugging.</p>
+                                </div>
+                              ) : (
+                                <div className="border rounded-2xl bg-background shadow-sm overflow-hidden">
+                                  <div className="overflow-x-auto">
+                                    <table className="w-full text-sm">
+                                      <thead className="bg-muted/50 border-b">
+                                        <tr>
+                                          <th className="px-4 py-3 text-left w-10"></th>
+                                          <th className="px-4 py-3 text-left font-medium text-muted-foreground text-[10px] uppercase tracking-wider">Event Type</th>
+                                          <th className="px-4 py-3 text-left font-medium text-muted-foreground text-[10px] uppercase tracking-wider">Status</th>
+                                          <th className="px-4 py-3 text-left font-medium text-muted-foreground text-[10px] uppercase tracking-wider">Timestamp</th>
+                                          <th className="px-4 py-3 text-right font-medium text-muted-foreground text-[10px] uppercase tracking-wider">Request ID</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y">
+                                        {events[w.id].data.map(ev => {
+                                          const isExpanded = expandedEvents[w.id] === ev.id;
+                                          return (
+                                            <React.Fragment key={ev.id}>
+                                              <tr
+                                                className={`hover:bg-muted/20 transition-all cursor-pointer group/row ${isExpanded ? 'bg-muted/30' : ''}`}
+                                                onClick={() => toggleExpandEvent(w.id, isExpanded ? null : ev.id)}
+                                              >
+                                                <td className="px-4 py-3 text-center">
+                                                  <IconChevronDown className={`h-3 w-3 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                  <Badge variant="outline" className="font-mono text-[10px] font-bold px-2 py-0.5 rounded-md border-muted-foreground/20 bg-background transition-all group-hover/row:border-primary/40 group-hover/row:text-primary">
+                                                    {ev.event_type}
+                                                  </Badge>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                  <div className={`inline-flex items-center px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest ${ev.status === 'success'
+                                                    ? 'text-emerald-600 bg-emerald-500/10'
+                                                    : 'text-rose-600 bg-rose-500/10'
+                                                    }`}>
+                                                    <div className={`h-1.5 w-1.5 rounded-full mr-1.5 ${ev.status === 'success' ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                                                    {ev.status === 'success' ? 'Delivered' : 'Failed'}
+                                                    {ev.response_code && <span className="ml-2 font-mono opacity-80 border-l border-current/20 pl-2">{ev.response_code}</span>}
                                                   </div>
-                                                  <div className="bg-black/[0.02] dark:bg-white/[0.02] border rounded-xl p-4 font-mono text-[10px] overflow-x-auto max-h-[150px] leading-relaxed">
-                                                    {ev.response_body}
-                                                  </div>
-                                                </div>
+                                                </td>
+                                                <td className="px-4 py-3 text-xs font-medium text-muted-foreground/80">
+                                                  {new Date(ev.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                                                </td>
+                                                <td className="px-4 py-3 text-right">
+                                                  <span className="font-mono text-[10px] text-muted-foreground/40">{ev.id.split('-')[0]}</span>
+                                                </td>
+                                              </tr>
+                                              {isExpanded && (
+                                                <tr>
+                                                  <td colSpan={5} className="p-0 bg-muted/5 border-t">
+                                                    <div className="px-10 py-8 animate-in fade-in slide-in-from-top-2 duration-300">
+                                                      <div className="grid grid-cols-1 gap-8 max-w-5xl mx-auto">
+                                                        {/* Details Card Grid */}
+                                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pb-6 border-b border-muted">
+                                                          <div className="space-y-1">
+                                                            <span className="block text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">Execution Latency</span>
+                                                            <span className="block text-xs font-bold text-emerald-500 tracking-tight">84ms <span className="text-[10px] font-normal text-muted-foreground">avg</span></span>
+                                                          </div>
+                                                          <div className="space-y-1">
+                                                            <span className="block text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">Delivery Method</span>
+                                                            <span className="block text-[10px] font-bold px-2 py-0.5 bg-foreground text-background inline-block rounded-md tracking-wider">POST / HTTPS</span>
+                                                          </div>
+                                                          <div className="space-y-1">
+                                                            <span className="block text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">Signature Key</span>
+                                                            <span className="block font-mono text-[10px] select-all font-bold text-muted-foreground/80 truncate">{ev.signature_id || 'v1_ed25519'}</span>
+                                                          </div>
+                                                          <div className="space-y-1">
+                                                            <span className="block text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">Payload Hash</span>
+                                                            <span className="block font-mono text-[10px] select-all font-bold text-muted-foreground/80 truncate">{(ev.request_id || '').substring(0, 16)}</span>
+                                                          </div>
+                                                        </div>
+
+                                                        <div className="grid md:grid-cols-2 gap-8">
+                                                          <div className="space-y-3">
+                                                            <div className="flex items-center justify-between">
+                                                              <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Request Headers</h4>
+                                                              <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg hover:bg-muted" onClick={() => { navigator.clipboard.writeText(ev.request_headers || ''); toast.success('Headers copied') }}><IconCopy className="h-3.5 w-3.5" /></Button>
+                                                            </div>
+                                                            <div className="bg-background/80 border rounded-xl p-4 font-mono text-[9px] text-muted-foreground overflow-x-auto whitespace-pre-wrap leading-relaxed shadow-sm max-h-[250px] scrollbar-thin">
+                                                              {ev.request_headers}
+                                                            </div>
+                                                          </div>
+                                                          <div className="space-y-3">
+                                                            <div className="flex items-center justify-between">
+                                                              <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Payload Data</h4>
+                                                              <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg hover:bg-muted" onClick={() => { navigator.clipboard.writeText(ev.request_body || ''); toast.success('Payload copied') }}><IconCopy className="h-3.5 w-3.5" /></Button>
+                                                            </div>
+                                                            <div className="rounded-xl overflow-hidden border shadow-sm bg-background scrollbar-thin">
+                                                              <JsonHighlighter data={JSON.parse(ev.request_body || '{}')} />
+                                                            </div>
+                                                          </div>
+                                                        </div>
+
+                                                        {ev.response_body && (
+                                                          <div className="border-t border-muted pt-6 mt-2">
+                                                            <div className="flex items-center gap-2 mb-3">
+                                                              <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-[9px] px-2 shadow-sm uppercase font-bold tracking-widest">Remote Server Response</Badge>
+                                                            </div>
+                                                            <div className="bg-black/[0.02] dark:bg-white/[0.02] border rounded-xl p-4 font-mono text-[9px] overflow-x-auto max-h-[150px] leading-relaxed scrollbar-thin text-muted-foreground">
+                                                              {ev.response_body}
+                                                            </div>
+                                                          </div>
+                                                        )}
+                                                      </div>
+                                                    </div>
+                                                  </td>
+                                                </tr>
                                               )}
-                                            </div>
-                                          </div>
-                                        </td>
-                                      </tr>
-                                    )}
-                                  </React.Fragment>
-                                )
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
+                                            </React.Fragment>
+                                          );
+                                        })}
+                                      </tbody>
+                                    </table>
+                                  </div>
 
-                        {/* Pagination */}
-                        {events[w.id].total > 10 && (
-                          <div className="px-6 py-4 border-t bg-muted/10 flex items-center justify-between">
-                            <p className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">Page <span className="text-foreground">{events[w.id].page}</span> of {Math.ceil(events[w.id].total / 10)}</p>
-                            <div className="flex items-center gap-2">
-                              <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg shadow-sm" onClick={() => loadWebhookEvents(w.id, events[w.id].page - 1)} disabled={events[w.id].page === 1 || events[w.id].isLoading}><IconChevronLeft className="h-3.5 w-3.5" /></Button>
-                              <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg shadow-sm" onClick={() => loadWebhookEvents(w.id, events[w.id].page + 1)} disabled={events[w.id].isLoading || (events[w.id].page * events[w.id].pageSize) >= events[w.id].total}><IconChevronRight className="h-3.5 w-3.5" /></Button>
+                                  {/* Pagination */}
+                                  {(events[w.id].total > events[w.id].pageSize) && (
+                                    <div className="px-5 py-3 border-t bg-muted/10 flex items-center justify-between">
+                                      <p className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">Page <span className="text-foreground">{events[w.id].page}</span> of {Math.ceil(events[w.id].total / events[w.id].pageSize)}</p>
+                                      <div className="flex items-center gap-2">
+                                        <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg shadow-sm bg-background" onClick={() => loadWebhookEvents(w.id, events[w.id].page - 1)} disabled={events[w.id].page === 1 || events[w.id].isLoading}><IconChevronLeft className="h-3.5 w-3.5" /></Button>
+                                        <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg shadow-sm bg-background" onClick={() => loadWebhookEvents(w.id, events[w.id].page + 1)} disabled={events[w.id].isLoading || (events[w.id].page * events[w.id].pageSize) >= events[w.id].total}><IconChevronRight className="h-3.5 w-3.5" /></Button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           </div>
-                        )}
-                      </div>
+                        </td>
+                      </tr>
                     )}
-                  </div>
-                )}
-              </div>
-            ))}
+                  </React.Fragment>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
