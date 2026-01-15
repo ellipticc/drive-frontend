@@ -23,7 +23,8 @@ function Tooltip({
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Root> & { children?: React.ReactNode }) {
   // Internal open state to support touch interactions (tap to show)
-  const [open, setOpen] = React.useState<boolean | undefined>(undefined);
+  // Controlled open state (always controlled to avoid uncontrolled->controlled warnings)
+  const [open, setOpen] = React.useState<boolean>(false);
   const touchTimeoutRef = React.useRef<number | null>(null);
 
   // Clear timeout on unmount

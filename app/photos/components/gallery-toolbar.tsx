@@ -2,7 +2,7 @@
 
 import React from "react"
 import { Button } from "@/components/ui/button"
-import { IconMinus, IconPlus, IconRefresh, IconPhotoUp, IconDownload, IconShare, IconTrash } from "@tabler/icons-react"
+import { IconMinus, IconPlus, IconRefresh, IconPhotoUp, IconDownload, IconShare, IconTrash, IconInfoCircle, IconEye } from "@tabler/icons-react"
 import { Separator } from "@/components/ui/separator"
 import { Slider } from "@/components/ui/slider"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
@@ -24,6 +24,8 @@ interface GalleryToolbarProps {
     onShareSelected?: () => void
     onMoveToTrashSelected?: () => void
     onUpload?: () => void
+    onPreviewSelected?: () => void
+    onDetailsSelected?: () => void
 }
 
 export function GalleryToolbar({
@@ -39,8 +41,10 @@ export function GalleryToolbar({
     onDownloadSelected,
     onShareSelected,
     onMoveToTrashSelected,
-    onUpload
-}: GalleryToolbarProps & { selectedCount?: number; onDownloadSelected?: () => void; onShareSelected?: () => void; onMoveToTrashSelected?: () => void; onUpload?: () => void }) {
+    onUpload,
+    onPreviewSelected,
+    onDetailsSelected
+}: GalleryToolbarProps & { selectedCount?: number; onDownloadSelected?: () => void; onShareSelected?: () => void; onMoveToTrashSelected?: () => void; onUpload?: () => void; onPreviewSelected?: () => void; onDetailsSelected?: () => void }) {
 
     return (
         <div className="flex items-center justify-between px-4 py-3 border-b bg-background/95 backdrop-blur-sm sticky top-0 z-40 gap-4 h-14">
@@ -111,6 +115,24 @@ export function GalleryToolbar({
                                 <TooltipContent>Share</TooltipContent>
                             </Tooltip>
 
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" onClick={onPreviewSelected} aria-label="Preview selected">
+                                        <IconEye className="h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Preview</TooltipContent>
+                            </Tooltip>
+
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" onClick={onDetailsSelected} aria-label="Details selected">
+                                        <IconInfoCircle className="h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Details</TooltipContent>
+                            </Tooltip>
+
                             <div className="h-5 w-px bg-border mx-1" />
 
                             <Tooltip>
@@ -131,6 +153,33 @@ export function GalleryToolbar({
                                     </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>Download</TooltipContent>
+                            </Tooltip>
+
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" onClick={onShareSelected} aria-label="Share selected" disabled>
+                                        <IconShare className="h-4 w-4 opacity-50" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Share (disabled for multiple)</TooltipContent>
+                            </Tooltip>
+
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" onClick={onPreviewSelected} aria-label="Preview selected" disabled>
+                                        <IconEye className="h-4 w-4 opacity-50" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Preview (disabled for multiple)</TooltipContent>
+                            </Tooltip>
+
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" onClick={onDetailsSelected} aria-label="Details selected" disabled>
+                                        <IconInfoCircle className="h-4 w-4 opacity-50" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Details (disabled for multiple)</TooltipContent>
                             </Tooltip>
 
                             <div className="h-5 w-px bg-border mx-1" />

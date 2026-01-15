@@ -495,6 +495,21 @@ export default function PhotosPage() {
                             }}
                             onMoveToTrashSelected={handleBulkDelete}
                             onUpload={() => handleFileUpload('image/*,video/*')}
+                            onPreviewSelected={() => {
+                                const ids = Array.from(selectedIds);
+                                if (ids.length === 0) return;
+                                const first = mediaItems.find(i => i.id === ids[0]);
+                                if (!first) return;
+                                handlePreview(first);
+                            }}
+                            onDetailsSelected={() => {
+                                const ids = Array.from(selectedIds);
+                                if (ids.length === 0) return;
+                                const first = mediaItems.find(i => i.id === ids[0]);
+                                if (!first) return;
+                                setActiveItem(first);
+                                setIsRenameOpen(true);
+                            }}
                         />
                     </>
                 )}

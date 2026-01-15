@@ -26,6 +26,7 @@ import { TableSkeleton } from "@/components/tables/table-skeleton";
 import { apiClient, ShareItem } from "@/lib/api";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { IconLink, IconCopy } from "@tabler/icons-react";
 import { decryptFilenameInWorker } from "@/lib/filename-decryption-pool";
 import { useGlobalUpload } from "@/components/global-upload-context";
 import { masterKeyManager } from "@/lib/master-key";
@@ -224,6 +225,7 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
     };
 
     const handleShareClick = (itemId: string, itemName: string, itemType: "file" | "folder") => {
+        // itemId must be the underlying fileId or folderId (not the share id)
         setSelectedItemForShare({ id: itemId, name: itemName, type: itemType });
         setShareModalOpen(true);
     };
@@ -287,6 +289,47 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
         } catch (error) {
             console.error('Revoke share error:', error);
             toast.error('Failed to revoke share');
+        }
+    };
+
+    // Helper to find an existing share for a given resource (file/folder id)
+    const findExistingShareForResource = async (resourceId: string, type: 'file' | 'folder') => {
+        try {
+            const response = await apiClient.getMyShares();
+            if (!response.success || !response.data) return null;
+            const shares = Array.isArray(response.data) ? response.data : response.data.data;
+            const existingShare = shares.find((share: ShareItem) =>
+                (type === 'folder' ? share.folderId === resourceId : share.fileId === resourceId) && !share.revoked
+            );
+            return existingShare || null;
+        } catch (err) {
+            console.error('Failed to lookup existing share:', err);
+            return null;
+        }
+    };
+
+    const handleCopyLinkForResource = async (resourceId: string, type: 'file' | 'folder') => {
+        try {
+            const existing = await findExistingShareForResource(resourceId, type);
+            if (existing) {
+                const accountSalt = masterKeyManager.getAccountSalt();
+                if (!accountSalt) throw new Error('Account salt missing');
+                const derivationInput = `share:${resourceId}:${accountSalt}`;
+                const derivationBytes = new TextEncoder().encode(derivationInput);
+                const cekHash = await crypto.subtle.digest('SHA-256', derivationBytes);
+                const shareCek = new Uint8Array(cekHash);
+                const shareCekHex = btoa(String.fromCharCode(...shareCek));
+                const finalShareUrl = existing.has_password ? `https://drive.ellipticc.com/s/${existing.id}` : `https://drive.ellipticc.com/s/${existing.id}#${shareCekHex}`;
+                await navigator.clipboard.writeText(finalShareUrl);
+                toast.success('Share link copied to clipboard');
+            } else {
+                // No existing share - open share modal to create one
+                handleShareClick(resourceId, '', type);
+                setShareModalOpen(true);
+            }
+        } catch (err) {
+            console.error('Failed to copy share link:', err);
+            toast.error('Failed to copy share link');
         }
     };
 
@@ -445,7 +488,7 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                 <>
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => canDownload && handleDownloadClick(firstItem.id, firstItem.fileId || '', firstItem.fileName || '')} aria-label="Download selected" disabled={!canDownload}>
+                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => canDownload && handleDownloadClick(firstItem.fileId || firstItem.id, firstItem.fileId || '', firstItem.fileName || '')} aria-label="Download selected" disabled={!canDownload}>
                                 <IconDownload className="h-3.5 w-3.5" />
                             </Button>
                         </TooltipTrigger>
@@ -470,11 +513,24 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                         <TooltipContent>Details</TooltipContent>
                     </Tooltip>
 
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={async () => {
+                                // Copy link if exists otherwise open share modal
+                                const resourceId = firstItem.isFolder ? (firstItem.folderId || firstItem.id) : (firstItem.fileId || firstItem.id);
+                                await handleCopyLinkForResource(resourceId, firstItem.isFolder ? 'folder' : 'file');
+                            }} aria-label="Copy link">
+                                <IconLink className="h-3.5 w-3.5" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Copy link</TooltipContent>
+                    </Tooltip>
+
                     <div className="h-5 w-px bg-border mx-1" />
 
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleShareClick(firstItem.id, firstItem.fileName || '', firstItem.isFolder ? 'folder' : 'file')} aria-label="Share">
+                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleShareClick(firstItem.isFolder ? (firstItem.folderId || firstItem.id) : (firstItem.fileId || firstItem.id), firstItem.fileName || '', firstItem.isFolder ? 'folder' : 'file')} aria-label="Share">
                                 <IconShare3 className="h-3.5 w-3.5" />
                             </Button>
                         </TooltipTrigger>
@@ -525,7 +581,7 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                     <TooltipContent>Revoke</TooltipContent>
                 </Tooltip>
 
-                {/* Keep Share visible but disabled on multi-select */}
+                {/* Keep Share, Rename, Details visible but disabled on multi-select */}
                 <Tooltip>
                     <TooltipTrigger asChild>
                         <Button size="sm" variant="ghost" className="h-7 w-7 p-0" disabled aria-label="Share (disabled for multiple)">
@@ -533,6 +589,24 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                         </Button>
                     </TooltipTrigger>
                     <TooltipContent>Share (disabled for multiple)</TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" disabled aria-label="Rename (disabled for multiple)">
+                            <IconPencil className="h-3.5 w-3.5 opacity-50" />
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Rename (disabled for multiple)</TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" disabled aria-label="Details (disabled for multiple)">
+                            <IconListDetails className="h-3.5 w-3.5 opacity-50" />
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Details (disabled for multiple)</TooltipContent>
                 </Tooltip>
 
                 <div className="h-5 w-px bg-border mx-1" />
@@ -939,6 +1013,19 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                         <IconDownload className="h-4 w-4 mr-2" />
                         Download
                     </ActionBarItem>
+                    {selectedItems.size === 1 && (
+                        <ActionBarItem onClick={() => {
+                            const id = Array.from(selectedItems)[0];
+                            const item = filteredItems.find(i => i.id === id);
+                            if (item) {
+                                const resourceId = item.isFolder ? (item.folderId || item.id) : (item.fileId || item.id);
+                                handleCopyLinkForResource(resourceId, item.isFolder ? 'folder' : 'file');
+                            }
+                        }}>
+                            <IconCopy className="h-4 w-4 mr-2" />
+                            Copy link
+                        </ActionBarItem>
+                    )}
                     <ActionBarItem
                         variant="destructive"
                         onClick={handleBulkRevoke}
