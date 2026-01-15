@@ -790,6 +790,8 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                                                                 variant="ghost"
                                                                 className="h-8 w-8 p-0 focus-visible:ring-0 focus-visible:ring-offset-0"
                                                                 onClick={(e) => e.stopPropagation()}
+                                                                onMouseDown={(e) => e.stopPropagation()}
+                                                                onPointerDown={(e) => e.stopPropagation()}
                                                             >
                                                                 <DotsVertical className="h-4 w-4" />
                                                             </Button>
