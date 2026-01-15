@@ -257,7 +257,8 @@ export default function PhotosPage() {
 
     // Handlers
     const handlePreview = (item: MediaItem) => {
-        if (isSelectionMode) return;
+        // If in selection mode, clear selection so action bar hides and proceed to preview
+        if (isSelectionMode) clearSelection();
         const index = filteredItems.findIndex(i => i.id === item.id)
         setPreviewFile({
             id: item.id,
@@ -552,27 +553,7 @@ export default function PhotosPage() {
                     </>
                 )}
 
-                {/* ShadCN Action Bar */}
-                <ActionBar open={selectedIds.size > 0} onOpenChange={(open) => !open && clearSelection()}>
-                    <ActionBarSelection>{selectedIds.size} selected</ActionBarSelection>
-                    <ActionBarSeparator />
-                    <ActionBarGroup>
-                        <ActionBarItem onClick={handleBulkDownload}>
-                            <IconDownload className="mr-2 h-4 w-4" /> Download
-                        </ActionBarItem>
-                        <ActionBarItem onClick={handleBulkMove}>
-                            <IconFolderSymlink className="mr-2 h-4 w-4" /> Move
-                        </ActionBarItem>
-                        <ActionBarItem onClick={handleBulkCopy}>
-                            <IconCopy className="mr-2 h-4 w-4" /> Copy
-                        </ActionBarItem>
-                        <ActionBarItem onClick={handleBulkDelete} className="text-red-500 hover:text-red-600 focus:text-red-600">
-                            <IconTrash className="mr-2 h-4 w-4" /> Delete
-                        </ActionBarItem>
-                    </ActionBarGroup>
-                    <ActionBarSeparator />
-                    <ActionBarClose />
-                </ActionBar>
+
             </div>
 
             <FullPagePreviewModal

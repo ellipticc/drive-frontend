@@ -392,6 +392,7 @@ export const Table01DividerLineSm = ({
 
     // Selection state
     const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+    const [menuOpenRow, setMenuOpenRow] = useState<string | null>(null);
 
     // View mode state
     const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
@@ -656,6 +657,9 @@ export const Table01DividerLineSm = ({
 
     // Update handlePreviewClick to use URL
     const handlePreviewClick = useCallback((itemId: string, itemName: string, mimeType?: string) => {
+        // Clear selection immediately so ActionBar hides quickly
+        setSelectedItems(new Set());
+
         addRecent({
             id: itemId,
             name: itemName,

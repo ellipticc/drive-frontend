@@ -99,6 +99,9 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
     // Selection state
     const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
 
+    // Dropdown open row persistence
+    const [menuOpenRow, setMenuOpenRow] = useState<string | null>(null);
+
     // Preview state (for previewing files from trash)
     const [previewFile, setPreviewFile] = useState<any | null>(null);
     const [previewIndex, setPreviewIndex] = useState(-1);

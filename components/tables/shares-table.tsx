@@ -49,6 +49,8 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
     const { startFileDownload, startBulkDownload } = useGlobalUpload();
     const { formatDate } = useFormatter();
 
+    const [menuOpenRow, setMenuOpenRow] = useState<string | null>(null);
+
     const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({
         column: "createdAt",
         direction: "descending",
@@ -95,12 +97,33 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
         }
     }
 
-    const openPreviewFor = (itemIndex: number) => {
+    const openPreviewFor = async (itemIndex: number) => {
         const item = filteredItems[itemIndex];
         if (!item) return;
         if (item.fileId || !item.isFolder) {
             const id = item.fileId || item.id;
-            setPreviewFile({ id, name: item.fileName || '', type: 'file', mimeType: item.mimeType, size: item.fileSize });
+
+            // Clear selection immediately to hide action bar
+            setSelectedItems(new Set());
+
+            // If we don't have mimeType or size, fetch file info
+            let mimeType = item.mimeType;
+            let size = (item as any).fileSize || (item as any).size;
+            let name = item.fileName || '';
+            if (!mimeType || !size) {
+                try {
+                    const res = await apiClient.getFileInfo(id);
+                    if (res.success && res.data) {
+                        mimeType = res.data.mimeType || mimeType;
+                        size = res.data.size || size;
+                        name = res.data.name || name;
+                    }
+                } catch (err) {
+                    // ignore
+                }
+            }
+
+            setPreviewFile({ id, name: name || '', type: 'file', mimeType, size });
             setPreviewIndex(itemIndex);
             setPreviewParam(id);
         }
@@ -912,7 +935,7 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                                             )}
                                             <Table.Cell className="px-3 w-12">
                                                 <div className={`flex justify-end gap-0.5 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-200`}>
-                                                    <DropdownMenu>
+                                                    <DropdownMenu onOpenChange={(open) => setMenuOpenRow(open ? item.id : null)}>
                                                         <DropdownMenuTrigger asChild>
                                                             <Button
                                                                 size="sm"
@@ -1000,7 +1023,7 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                             {shares.map((item) => (
                                 <div
                                     key={item.id}
-                                    className={`group relative bg-card rounded-lg border border-border p-4 hover:bg-muted/50 transition-all duration-200 cursor-pointer ${selectedItems.has(item.id) ? 'ring-2 ring-primary bg-muted' : ''}`}
+                                    className={`group relative bg-card rounded-lg border border-border p-4 hover:bg-muted/50 transition-all duration-200 cursor-pointer ${selectedItems.has(item.id) ? 'ring-2 ring-primary bg-muted' : ''} ${menuOpenRow === item.id ? 'bg-muted/50' : ''}`}
                                     onClick={(e) => {
                                         if (e.ctrlKey || e.metaKey) {
                                             const newSelected = new Set(selectedItems);

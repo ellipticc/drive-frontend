@@ -65,6 +65,9 @@ export function GalleryItem({ item, isSelected, isSelectionMode, onSelect, onPre
     const [hasError, setHasError] = useState(false)
     const [retryCount, setRetryCount] = useState(0)
 
+    // Local context menu open flag to persist hover effect when menu is open
+    const [menuOpen, setMenuOpen] = useState(false)
+
     useEffect(() => {
         let isMounted = true
 
@@ -247,10 +250,10 @@ export function GalleryItem({ item, isSelected, isSelectionMode, onSelect, onPre
             )}
 
             {/* Context Menu - Top Right */}
-            <div className={`absolute top-2 right-2 z-30 opacity-0 group-hover:opacity-100 transition-opacity ${isSelectionMode ? 'hidden' : ''}`}>
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full bg-black/20 hover:bg-black/40 text-white hover:text-white backdrop-blur-[1px]">
+            <div className={`absolute top-2 right-2 z-30 transition-opacity ${isSelectionMode ? 'hidden' : ''}`}>
+                <DropdownMenu onOpenChange={(open) => setMenuOpen(open)}>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full bg-black/20 hover:bg-black/40 text-white hover:text-white backdrop-blur-[1px]" onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
                             <IconDotsVertical className="h-4 w-4" />
                         </Button>
                     </DropdownMenuTrigger>
@@ -309,7 +312,7 @@ export function GalleryItem({ item, isSelected, isSelectionMode, onSelect, onPre
             <div className={`
                 absolute inset-x-0 bottom-0 p-3 pt-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent 
                 transition-opacity duration-200 z-20
-                ${isSelected ? 'opacity-0' : 'opacity-0 group-hover:opacity-100'}
+                ${isSelected ? 'opacity-0' : (menuOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100')}
             `}>
                 <p className="text-white text-[11px] font-medium truncate drop-shadow-sm">
                     {item.filename}
