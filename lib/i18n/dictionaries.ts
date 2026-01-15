@@ -7,6 +7,7 @@ export const dictionaries = {
             saved: "Saved successfully",
             cancel: "Cancel",
             new: "New",
+            copied: "Copied",
         },
         settings: {
             title: "Settings",
@@ -62,12 +63,20 @@ export const dictionaries = {
             notifications: "Notifications",
             referrals: "Referrals",
             close: "Close settings",
-            accountInfo: "Account Information",
+            accountInfo: {
+                label: "Account Information",
+                userIdTooltip: "The internal identifier for your account",
+                createdTooltip: "When your account was created",
+                regionTooltip: "Region where your files are stored",
+                versionTooltip: "Versions associated with your account (helpful for debugging key issues).",
+                copyId: "Copy user ID"
+            },
             avatarUpdated: "Avatar updated successfully!",
             removeAvatar: "Remove avatar",
             editAvatar: "Adjust Profile Picture",
             cropDesc: "Drag to reposition or resize your image to fit the circle perfectly.",
         },
+
         sidebar: {
             myFiles: "My Files",
             photos: "Photos & Videos",
@@ -155,6 +164,7 @@ export const dictionaries = {
             saved: "Enregistré avec succès",
             cancel: "Annuler",
             new: "Nouveau",
+            copied: "Copié",
         },
         settings: {
             title: "Paramètres",
@@ -210,7 +220,14 @@ export const dictionaries = {
             notifications: "Notifications",
             referrals: "Parrainages",
             close: "Fermer les paramètres",
-            accountInfo: "Informations du compte",
+            accountInfo: {
+                label: "Informations du compte",
+                userIdTooltip: "Identifiant interne de votre compte",
+                createdTooltip: "Date de création du compte",
+                regionTooltip: "Région où vos fichiers sont stockés",
+                versionTooltip: "Versions associées à votre compte (utile pour le débogage des clés).",
+                copyId: "Copier l'ID utilisateur"
+            },
             avatarUpdated: "Avatar mis à jour avec succès !",
             removeAvatar: "Supprimer l'avatar",
             editAvatar: "Ajuster la photo de profil",
@@ -301,8 +318,7 @@ export const dictionaries = {
             save: "Guardar cambios",
             saved: "Guardado exitosamente",
             cancel: "Cancelar",
-            new: "Nuevo",
-        },
+            new: "Nuevo",            copied: "Copiado",        },
         settings: {
             title: "Configuración",
             general: "General",
@@ -357,7 +373,14 @@ export const dictionaries = {
             notifications: "Notificaciones",
             referrals: "Referidos",
             close: "Cerrar configuración",
-            accountInfo: "Información de la cuenta",
+            accountInfo: {
+                label: "Información de la cuenta",
+                userIdTooltip: "El identificador interno de tu cuenta",
+                createdTooltip: "Fecha de creación de la cuenta",
+                regionTooltip: "Región donde se almacenan tus archivos",
+                versionTooltip: "Versiones asociadas a tu cuenta (útiles para depurar problemas de claves).",
+                copyId: "Copiar ID de usuario"
+            },
             avatarUpdated: "¡Avatar actualizado con éxito!",
             removeAvatar: "Eliminar avatar",
             editAvatar: "Ajustar foto de perfil",
@@ -448,8 +471,7 @@ export const dictionaries = {
             save: "Änderungen speichern",
             saved: "Erfolgreich gespeichert",
             cancel: "Abbrechen",
-            new: "Neu",
-        },
+            new: "Neu",            copied: "Kopiert",        },
         settings: {
             title: "Einstellungen",
             general: "Allgemein",
@@ -504,8 +526,14 @@ export const dictionaries = {
             notifications: "Benachrichtigungen",
             referrals: "Empfehlungen",
             close: "Einstellungen schließen",
-            accountInfo: "Kontoinformationen",
-            avatarUpdated: "Avatar erfolgreich aktualisiert!",
+            accountInfo: {
+                label: "Kontoinformationen",
+                userIdTooltip: "Die interne Kennung Ihres Kontos",
+                createdTooltip: "Datum der Kontoerstellung",
+                regionTooltip: "Region, in der Ihre Dateien gespeichert sind",
+                versionTooltip: "Mit Ihrem Konto verbundene Versionen (hilfreich zur Fehlersuche bei Schlüsselproblemen).",
+                copyId: "Benutzer-ID kopieren"
+            },            avatarUpdated: "Avatar erfolgreich aktualisiert!",
             removeAvatar: "Avatar entfernen",
             editAvatar: "Profilbild anpassen",
             cropDesc: "Ziehen Sie, um Ihr Bild neu zu positionieren oder in der Größe anzupassen, damit es perfekt in den Kreis passt.",

@@ -520,7 +520,7 @@ export function GeneralTab({
                         <CardHeader>
                             <div className="flex items-center gap-2">
                                 <IconGhost2 className="w-5 h-5 text-muted-foreground" />
-                                <CardTitle className="text-base">{t('settings.accountInfo')}</CardTitle>
+                                <CardTitle className="text-base">{t('settings.accountInfo.label')}</CardTitle>
                             </div>
                             <CardDescription>Technical account details useful for support and debugging</CardDescription>
                         </CardHeader>
@@ -532,12 +532,12 @@ export function GeneralTab({
                                         <span className="text-sm font-medium">User ID</span>
                                         <Tooltip>
                                             <TooltipTrigger asChild>
-                                                <button className="ml-1 text-muted-foreground" title={t('settings.accountInfo.userIdTooltip') || 'The internal identifier for your account'}>
+                                                <button className="ml-1 text-muted-foreground">
                                                     <IconInfoCircle className="w-3 h-3" />
                                                 </button>
                                             </TooltipTrigger>
                                             <TooltipContent side="top">
-                                                <p className="text-xs">{t('settings.accountInfo.userIdTooltip') || 'The internal identifier for your account'}</p>
+                                                <p className="text-xs">{t('settings.accountInfo.userIdTooltip')}</p>
                                             </TooltipContent>
                                         </Tooltip>
                                     </div>
@@ -547,7 +547,7 @@ export function GeneralTab({
                                             <button
                                                 onClick={() => {
                                                     navigator.clipboard.writeText(user?.id || '')
-                                                    toast.success(t('common.copied') || 'Copied')
+                                                    toast.success(t('common.copied'))
                                                 }}
                                                 className="text-muted-foreground hover:text-foreground"
                                                 title={t('settings.accountInfo.copyId') || 'Copy user ID'}
@@ -564,17 +564,17 @@ export function GeneralTab({
                                         <span className="text-sm font-medium">Created</span>
                                         <Tooltip>
                                             <TooltipTrigger asChild>
-                                                <button className="ml-1 text-muted-foreground" title={t('settings.accountInfo.createdTooltip') || 'Account creation date'}>
+                                                <button className="ml-1 text-muted-foreground">
                                                     <IconInfoCircle className="w-3 h-3" />
                                                 </button>
                                             </TooltipTrigger>
                                             <TooltipContent side="top">
-                                                <p className="text-xs">{t('settings.accountInfo.createdTooltip') || 'When your account was created.'}</p>
+                                                <p className="text-xs">{t('settings.accountInfo.createdTooltip')}</p>
                                             </TooltipContent>
                                         </Tooltip>
                                     </div>
                                     <div className="text-sm text-foreground mt-2">
-                                        {user?.created_at ? new Date(user.created_at).toLocaleString() : '—'}
+                                        {(user?.created_at || (user as any)?.createdAt) ? new Date(user?.created_at || (user as any)?.createdAt).toLocaleString() : '—'}
                                     </div>
                                 </div>
 
@@ -584,12 +584,12 @@ export function GeneralTab({
                                         <div className="text-sm font-medium">Bucket region</div>
                                         <Tooltip>
                                             <TooltipTrigger asChild>
-                                                <button className="ml-1 text-muted-foreground" title={t('settings.accountInfo.regionTooltip') || 'Region where your files are stored'}>
+                                                <button className="ml-1 text-muted-foreground">
                                                     <IconInfoCircle className="w-3 h-3" />
                                                 </button>
                                             </TooltipTrigger>
                                             <TooltipContent side="top">
-                                                <p className="text-xs">{t('settings.accountInfo.regionTooltip') || 'Region where your files are stored'}</p>
+                                                <p className="text-xs">{t('settings.accountInfo.regionTooltip')}</p>
                                             </TooltipContent>
                                         </Tooltip>
                                     </div>
@@ -604,12 +604,12 @@ export function GeneralTab({
                                         <div className="text-sm font-medium">Crypto / API version</div>
                                         <Tooltip>
                                             <TooltipTrigger asChild>
-                                                <button className="ml-1 text-muted-foreground" title={t('settings.accountInfo.versionTooltip') || 'Versions associated with your account'}>
+                                                <button className="ml-1 text-muted-foreground">
                                                     <IconInfoCircle className="w-3 h-3" />
                                                 </button>
                                             </TooltipTrigger>
                                             <TooltipContent side="top">
-                                                <p className="text-xs">{t('settings.accountInfo.versionTooltip') || 'Versions associated with your account (helpful for debugging key issues).'}</p>
+                                                <p className="text-xs">{t('settings.accountInfo.versionTooltip')}</p>
                                             </TooltipContent>
                                         </Tooltip>
                                     </div>
