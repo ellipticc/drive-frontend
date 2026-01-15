@@ -332,10 +332,7 @@ export async function uploadEncryptedFile(
     // Stage 6: Confirm chunk uploads with backend
     await confirmChunkUploads(session.sessionId, processedChunks, session.chunkHashes);
 
-    // Stage 6: Confirm chunk uploads with backend
-    await confirmChunkUploads(session.sessionId, processedChunks, session.chunkHashes);
-
-    onProgress?.({ stage: 'finalizing', overallProgress: 99 });
+    onProgress?.({ stage: 'finalizing', overallProgress: 100 });
 
     // Check for abort before finalizing
     if (abortSignal?.aborted) {
