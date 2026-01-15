@@ -715,8 +715,11 @@ export const Table01DividerLineSm = ({
         const urlSegments = parseUrlPath(pathname);
         const urlLastId = urlSegments.length > 0 ? urlSegments[urlSegments.length - 1] : 'root';
 
-        // Prevent update loops if state matches URL
-        if (urlLastId === currentFolderId) {
+        // Check if we need to resolve breadcrumb names on initial load
+        const needsBreadcrumbResolution = isInitialLoad && urlSegments.length > 0 && folderPath.length <= 1;
+
+        // Prevent update loops if state matches URL (unless we need breadcrumb resolution)
+        if (urlLastId === currentFolderId && !needsBreadcrumbResolution) {
             if (isInitialLoad) setIsInitialLoad(false);
             return;
         }
@@ -738,7 +741,7 @@ export const Table01DividerLineSm = ({
             const segmentId = urlSegments[i];
             const known = folderPath.length > i + 1 ? folderPath[i + 1] : null;
 
-            if (known && known.id === segmentId) {
+            if (known && known.id === segmentId && known.name !== '...') {
                 newPath.push(known);
             } else {
                 newPath.push({ id: segmentId, name: '...' });
@@ -755,11 +758,37 @@ export const Table01DividerLineSm = ({
             return;
         }
 
-        // --- Fetch Missing Data ---
+        // --- Fetch Missing Data using getFolderPath API ---
         const resolvePath = async () => {
             try {
                 const resolvedPath = [{ id: 'root', name: t('sidebar.myFiles') }];
 
+                // Use getFolderPath API to get the full path in a single request
+                const pathResponse = await apiClient.getFolderPath(urlLastId);
+                if (pathResponse.success && pathResponse.data?.path) {
+                    const masterKey = masterKeyManager.hasMasterKey() ? masterKeyManager.getMasterKey() : null;
+
+                    for (const segment of pathResponse.data.path) {
+                        if (segment.id === 'root') continue;
+
+                        let displayName = '...';
+                        if (masterKey && segment.encryptedName && segment.nameSalt) {
+                            try {
+                                displayName = await decryptFilename(segment.encryptedName, segment.nameSalt, masterKey);
+                            } catch {
+                                displayName = segment.encryptedName || '...';
+                            }
+                        }
+                        resolvedPath.push({ id: segment.id, name: displayName });
+                    }
+
+                    // Final update with decrypted names
+                    setFolderPath(resolvedPath);
+                    setIsInitialLoad(false);
+                    return;
+                }
+
+                // Fallback: fetch each folder individually if path API fails
                 for (const segment of urlSegments) {
                     if (segment === 'root') continue;
 
@@ -770,7 +799,7 @@ export const Table01DividerLineSm = ({
                         continue;
                     }
 
-                    // Fetch
+                    // Fetch individual folder info
                     const response = await apiClient.getFolderInfo(segment);
                     if (response.success && response.data) {
                         let displayName = response.data.name || '';
@@ -800,7 +829,7 @@ export const Table01DividerLineSm = ({
 
         resolvePath();
 
-    }, [pathname, currentFolderId, isInitialLoad, router, t]);
+    }, [pathname, currentFolderId, isInitialLoad, router, t, folderPath.length]);
 
     // Start file uploads with progress tracking
     const startUploads = async (files: File[]) => {
