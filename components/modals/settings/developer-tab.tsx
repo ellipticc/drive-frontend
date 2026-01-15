@@ -849,31 +849,39 @@ export function DeveloperTab() {
                                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pb-6 border-b border-muted">
                                                           <div className="space-y-1">
                                                             <span className="block text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">Execution Latency</span>
-                                                            <span className="block text-xs font-bold text-rose-500 tracking-tight">8.42s <span className="text-[10px] font-normal text-muted-foreground">RTT</span></span>
+                                                            <span className={`block text-xs font-bold tracking-tight ${ev.durationMs > 1000 ? 'text-amber-500' : 'text-emerald-500'}`}>
+                                                              {ev.durationMs ? `${(ev.durationMs / 1000).toFixed(2)}s` : '0.00s'} <span className="text-[10px] font-normal text-muted-foreground">RTT</span>
+                                                            </span>
                                                           </div>
                                                           <div className="space-y-1">
                                                             <span className="block text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">Delivery Method</span>
                                                             <span className="block text-[10px] font-bold px-2 py-0.5 bg-foreground text-background inline-block rounded-md tracking-wider">POST / HTTPS</span>
                                                           </div>
                                                           <div className="space-y-1">
-                                                            <span className="block text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">Signature Key</span>
+                                                            <span className="block text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">Signature ID</span>
                                                             <TooltipProvider>
                                                               <Tooltip>
                                                                 <TooltipTrigger asChild>
                                                                   <span className="block font-mono text-[10px] select-all font-bold text-muted-foreground/80 truncate cursor-help border-b border-dashed border-muted-foreground/30">{ev.signature_id ? `${ev.signature_id.substring(0, 8)}...` : 'v1_ed25519'}</span>
                                                                 </TooltipTrigger>
-                                                                <TooltipContent className="font-mono text-xs">{ev.signature_id || 'v1_ed25519'}</TooltipContent>
+                                                                <TooltipContent className="font-mono text-xs max-w-[300px] break-all">
+                                                                  <p className="mb-1 text-[10px] font-bold text-muted-foreground">Signature ID</p>
+                                                                  {ev.signature_id || 'v1_ed25519'}
+                                                                </TooltipContent>
                                                               </Tooltip>
                                                             </TooltipProvider>
                                                           </div>
                                                           <div className="space-y-1">
-                                                            <span className="block text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">Payload Hash</span>
+                                                            <span className="block text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">Request ID</span>
                                                             <TooltipProvider>
                                                               <Tooltip>
                                                                 <TooltipTrigger asChild>
-                                                                  <span className="block font-mono text-[10px] select-all font-bold text-muted-foreground/80 truncate cursor-help border-b border-dashed border-muted-foreground/30">{(ev.request_id || '').substring(0, 16)}...</span>
+                                                                  <span className="block font-mono text-[10px] select-all font-bold text-muted-foreground/80 truncate cursor-help border-b border-dashed border-muted-foreground/30">{(ev.request_id || '').substring(0, 8)}...</span>
                                                                 </TooltipTrigger>
-                                                                <TooltipContent className="font-mono text-xs">{ev.request_id}</TooltipContent>
+                                                                <TooltipContent className="font-mono text-xs">
+                                                                  <p className="mb-1 text-[10px] font-bold text-muted-foreground">Request UUID</p>
+                                                                  {ev.request_id}
+                                                                </TooltipContent>
                                                               </Tooltip>
                                                             </TooltipProvider>
                                                           </div>
@@ -899,14 +907,31 @@ export function DeveloperTab() {
                                                             </div>
                                                           </div>
                                                         </div>
-
-                                                        {(ev.response_body || ev.status === 'failed') && (
+                                                        {(ev.response_headers || ev.response_body || ev.status === 'failed') && (
                                                           <div className="border-t border-muted pt-6 mt-2">
-                                                            <div className="flex items-center gap-2 mb-3">
-                                                              <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-[9px] px-2 shadow-sm uppercase font-bold tracking-widest">Remote Server Response</Badge>
-                                                            </div>
-                                                            <div className="bg-black/[0.02] dark:bg-white/[0.02] border rounded-xl p-4 font-mono text-[9px] overflow-x-auto max-h-[200px] leading-relaxed scrollbar-thin text-muted-foreground whitespace-pre-wrap">
-                                                              {ev.response_body || 'No response body received from server.'}
+                                                            <div className="grid md:grid-cols-2 gap-8">
+                                                              <div className="space-y-3">
+                                                                <div className="flex items-center justify-between">
+                                                                  <div className="flex items-center gap-2">
+                                                                    <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-[9px] px-2 shadow-sm uppercase font-bold tracking-widest">Response Headers</Badge>
+                                                                  </div>
+                                                                  <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg hover:bg-muted" onClick={() => { navigator.clipboard.writeText(ev.response_headers || ''); toast.success('Response headers copied') }}><IconCopy className="h-3.5 w-3.5" /></Button>
+                                                                </div>
+                                                                <div className="bg-background/80 border rounded-xl p-4 font-mono text-[9px] text-muted-foreground overflow-x-auto whitespace-pre leading-relaxed shadow-sm max-h-[300px] scrollbar-thin">
+                                                                  {ev.response_headers ? JSON.stringify(JSON.parse(ev.response_headers), null, 2) : 'No response headers'}
+                                                                </div>
+                                                              </div>
+                                                              <div className="space-y-3">
+                                                                <div className="flex items-center justify-between">
+                                                                  <div className="flex items-center gap-2">
+                                                                    <Badge className={`text-[9px] px-2 shadow-sm uppercase font-bold tracking-widest ${ev.status === 'success' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' : 'bg-rose-500/10 text-rose-600 border-rose-500/20'}`}>Response Body</Badge>
+                                                                  </div>
+                                                                  <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg hover:bg-muted" onClick={() => { navigator.clipboard.writeText(ev.response_body || ''); toast.success('Response body copied') }}><IconCopy className="h-3.5 w-3.5" /></Button>
+                                                                </div>
+                                                                <div className="bg-black/[0.02] dark:bg-white/[0.02] border rounded-xl p-4 font-mono text-[9px] overflow-x-auto max-h-[300px] leading-relaxed scrollbar-thin text-muted-foreground whitespace-pre-wrap">
+                                                                  {ev.response_body || 'No response body received.'}
+                                                                </div>
+                                                              </div>
                                                             </div>
                                                           </div>
                                                         )}
@@ -923,12 +948,18 @@ export function DeveloperTab() {
                                   </div>
 
                                   {/* Pagination */}
-                                  {(events[w.id].total > events[w.id].pageSize) && (
+                                  {(events[w.id].total > 0) && (
                                     <div className="px-5 py-3 border-t bg-muted/10 flex items-center justify-between">
-                                      <p className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">Page <span className="text-foreground">{events[w.id].page}</span> of {Math.ceil(events[w.id].total / events[w.id].pageSize)}</p>
-                                      <div className="flex items-center gap-2">
-                                        <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg shadow-sm bg-background" onClick={() => loadWebhookEvents(w.id, events[w.id].page - 1)} disabled={events[w.id].page === 1 || events[w.id].isLoading}><IconChevronLeft className="h-3.5 w-3.5" /></Button>
-                                        <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg shadow-sm bg-background" onClick={() => loadWebhookEvents(w.id, events[w.id].page + 1)} disabled={events[w.id].isLoading || (events[w.id].page * events[w.id].pageSize) >= events[w.id].total}><IconChevronRight className="h-3.5 w-3.5" /></Button>
+                                      <p className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">
+                                        Showing <span className="text-foreground">{(events[w.id].page - 1) * events[w.id].pageSize + 1}</span>-
+                                        <span className="text-foreground">{Math.min(events[w.id].page * events[w.id].pageSize, events[w.id].total)}</span> of <span className="text-foreground">{events[w.id].total}</span> events
+                                      </p>
+                                      <div className="flex items-center gap-4">
+                                        <p className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">Page <span className="text-foreground">{events[w.id].page}</span> of {Math.ceil(events[w.id].total / events[w.id].pageSize)}</p>
+                                        <div className="flex items-center gap-2">
+                                          <Button variant="outline" size="icon" className="h-7 w-7 rounded-lg shadow-sm bg-background" onClick={() => loadWebhookEvents(w.id, events[w.id].page - 1)} disabled={events[w.id].page === 1 || events[w.id].isLoading}><IconChevronLeft className="h-3.5 w-3.5" /></Button>
+                                          <Button variant="outline" size="icon" className="h-7 w-7 rounded-lg shadow-sm bg-background" onClick={() => loadWebhookEvents(w.id, events[w.id].page + 1)} disabled={events[w.id].isLoading || (events[w.id].page * events[w.id].pageSize) >= events[w.id].total}><IconChevronRight className="h-3.5 w-3.5" /></Button>
+                                        </div>
                                       </div>
                                     </div>
                                   )}
@@ -946,6 +977,6 @@ export function DeveloperTab() {
           </div>
         )}
       </div>
-    </div>
+    </div >
   )
 }
