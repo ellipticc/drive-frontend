@@ -185,6 +185,9 @@ export interface ApiResponse<T = unknown> {
   error?: string;
   data?: T;
   status?: number;
+  total?: number | string;
+  page?: number | string;
+  pageSize?: number | string;
 }
 
 export interface PQCKeypairs {
@@ -3279,10 +3282,17 @@ class ApiClient {
   }
 
   // Webhooks (Developer)
-  async createWebhook(url: string): Promise<ApiResponse<{ id: string; url: string; secret: string; enabled: number }>> {
+  async createWebhook(url: string, events?: string[]): Promise<ApiResponse<{ id: string; url: string; secret: string; enabled: number; events: string[] }>> {
     return this.request('/user/webhooks', {
       method: 'POST',
-      body: JSON.stringify({ url }),
+      body: JSON.stringify({ url, events }),
+    });
+  }
+
+  async updateWebhook(id: string, data: { url?: string; events?: string[]; enabled?: boolean }): Promise<ApiResponse<{ id: string }>> {
+    return this.request(`/user/webhooks/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
     });
   }
 
@@ -3298,7 +3308,7 @@ class ApiClient {
     return this.request(`/user/webhooks/${id}/test`, { method: 'POST' });
   }
 
-  async listWebhookEvents(id: string, page: number = 1, limit: number = 10): Promise<ApiResponse<{ data: any[]; total: number; page: number; pageSize: number }>> {
+  async listWebhookEvents(id: string, page: number = 1, limit: number = 10): Promise<ApiResponse<any[]>> {
     const params = new URLSearchParams({ page: String(page), limit: String(limit) });
     return this.request(`/user/webhooks/${id}/events?${params.toString()}`);
   }
