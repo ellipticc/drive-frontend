@@ -329,7 +329,7 @@ function SortableSpaceItem({
                                                     className="flex items-center gap-2 w-full min-w-0 h-full text-left"
                                                 >
                                                     {item.file_id ? (
-                                                        <FileIcon filename={item.decryptedName} className="h-4 w-4 shrink-0" />
+                                                        <FileIcon filename={item.decryptedName} mimeType={item.mimetype || ''} className="h-4 w-4 shrink-0" />
                                                     ) : (
                                                         <TablerIcons.IconFolder size={14} className="text-blue-500 shrink-0" />
                                                     )}
@@ -620,6 +620,14 @@ export function NavSpaces() {
         if (item.folder_id) {
             router.push(`/${item.folder_id}`)
         } else if (item.file_id) {
+            // If this is a Paper, open the editor page instead of preview
+            const isPaper = (item.mimetype || '').toLowerCase() === 'application/x-paper'
+            if (isPaper) {
+                const url = `/paper/${item.file_id}`
+                const newWin = window.open(url, '_blank')
+                if (newWin) newWin.opener = null
+                return
+            }
             const folderId = item.file_folder_id || ''
             router.push(`/${folderId}?preview=${item.file_id}`)
         }
