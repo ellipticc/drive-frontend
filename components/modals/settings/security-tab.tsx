@@ -242,6 +242,42 @@ export function SecurityTab(props: SecurityTabProps) {
     const { formatDate } = useFormatter();
 
     const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
+    const [loadingDetails, setLoadingDetails] = useState<string | null>(null);
+    const [eventActiveTab, setEventActiveTab] = useState<'overview' | 'metadata'>('overview');
+
+    const handleExpandEvent = async (eventId: string) => {
+        if (expandedEventId === eventId) {
+            setExpandedEventId(null);
+            return;
+        }
+
+        setExpandedEventId(eventId);
+        setEventActiveTab('overview');
+
+        // Check if we have details (additionalData should be present if loaded)
+        // We use finding by ID in the list
+        const event = securityEvents.find(e => e.id === eventId);
+
+        if (event && !event.additionalData && !event.riskSignals && !loadingDetails) {
+            setLoadingDetails(eventId);
+            try {
+                const res = await apiClient.getSecurityEvent(eventId);
+                if (res.success && res.data) {
+                    // Update the event in the list via the parent's setter
+                    const newEvents = securityEvents.map(e =>
+                        e.id === eventId ? { ...e, ...res.data } : e
+                    );
+                    setSecurityEvents(newEvents);
+                }
+            } catch (e) {
+                console.error(e);
+                toast.error("Failed to load event details");
+            } finally {
+                setLoadingDetails(null);
+            }
+        }
+    };
+
     const [copiedCodes, setCopiedCodes] = useState(false);
     const [copiedSecret, setCopiedSecret] = useState(false);
     const [showWipeDialog, setShowWipeDialog] = useState(false);
@@ -1298,7 +1334,7 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                             <React.Fragment key={event.id}>
                                                 <tr
                                                     className="hover:bg-muted/30 transition-colors cursor-pointer group"
-                                                    onClick={() => setExpandedEventId(isExpanded ? null : event.id)}
+                                                    onClick={() => handleExpandEvent(event.id)}
                                                 >
                                                     <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
                                                         <div className="flex items-center gap-2">
@@ -1370,121 +1406,157 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                                 </tr>
                                                 {isExpanded && (
                                                     <tr className="bg-muted/10 border-b">
-                                                        <td colSpan={5} className="px-8 py-6">
-                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                                                <div className="space-y-4">
-                                                                    <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Network & Location</h4>
-                                                                    <div className="bg-background/50 rounded-xl p-4 border border-muted/50">
-                                                                        <PaidField label="Detailed Location" value={event.city ? `${event.city}, ${event.region}, ${event.country}` : 'N/A'} />
-                                                                        <PaidField label="ASN / ISP" value={event.asn ? `${event.asn} (${event.isp})` : 'N/A'} />
-                                                                        <PaidField label="IP Type" value={event.ipType} />
-                                                                        <PaidField label="Proxy / VPN / Tor" value={(event.isVpn || event.isProxy || event.isTor) ? (
-                                                                            <span className="text-red-500 font-bold uppercase text-[10px]">
-                                                                                {[event.isVpn && 'VPN', event.isProxy && 'Proxy', event.isTor && 'Tor'].filter(Boolean).join(' + ')}
-                                                                            </span>
-                                                                        ) : 'None Detected'} />
-                                                                    </div>
+                                                        <td colSpan={5} className="px-0 py-0">
+                                                            {loadingDetails === event.id || (!event.additionalData && !event.riskSignals) ? (
+                                                                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground space-y-3">
+                                                                    <IconLoader2 className="h-6 w-6 animate-spin" />
+                                                                    <span className="text-xs font-medium uppercase tracking-wider">Loading details...</span>
                                                                 </div>
+                                                            ) : (
+                                                                <div className="flex flex-col">
+                                                                    {/* Tab Header */}
+                                                                    <div className="flex items-center px-4 border-b bg-muted/20">
+                                                                        <button
+                                                                            onClick={() => setEventActiveTab('overview')}
+                                                                            className={`px-4 py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${eventActiveTab === 'overview'
+                                                                                    ? 'border-primary text-primary'
+                                                                                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                                                                                }`}
+                                                                        >
+                                                                            Overview
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => setEventActiveTab('metadata')}
+                                                                            className={`px-4 py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${eventActiveTab === 'metadata'
+                                                                                    ? 'border-primary text-primary'
+                                                                                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                                                                                }`}
+                                                                        >
+                                                                            Raw Log
+                                                                        </button>
+                                                                    </div>
 
-                                                                <div className="space-y-4">
-                                                                    <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Session & Risk Analytics</h4>
-                                                                    <div className="bg-background/50 rounded-xl p-4 border border-muted/50">
-                                                                        <PaidField label="Session Type" value={String(event.additionalData?.sessionType ?? 'N/A')} />
-                                                                        <PaidField label="Token Type" value={String(event.additionalData?.tokenType ?? 'N/A')} />
-                                                                        <PaidField
-                                                                            label="Risk Level"
-                                                                            value={
-                                                                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${event.riskLevel === 'low' ? 'text-emerald-500 bg-emerald-500/10' :
-                                                                                    event.riskLevel === 'medium' ? 'text-orange-500 bg-orange-500/10' :
-                                                                                        'text-red-500 bg-red-500/10'
-                                                                                    }`}>
-                                                                                    {event.riskLevel || 'Low'}
-                                                                                </span>
-                                                                            }
-                                                                        />
-                                                                        <div className="flex flex-col gap-2 pt-2">
-                                                                            <span className="text-[10px] uppercase font-bold text-muted-foreground">Risk Signals</span>
-                                                                            <div className="flex flex-wrap gap-1">
-                                                                                {isPaid ? (
-                                                                                    (((event.additionalData?.riskSignals) as string[] | undefined) || []).length > 0 ? (
-                                                                                        (((event.additionalData?.riskSignals) as string[]) || []).map((sig: string, idx: number) => (
-                                                                                            <span key={idx} className="px-1.5 py-0.5 rounded bg-muted text-[10px] border border-muted-foreground/20">
-                                                                                                {sig}
+                                                                    {/* Tab Content */}
+                                                                    <div className="p-8">
+                                                                        {eventActiveTab === 'overview' && (
+                                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                                                                <div className="space-y-4">
+                                                                                    <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Network & Location</h4>
+                                                                                    <div className="bg-background/50 rounded-xl p-4 border border-muted/50">
+                                                                                        <PaidField label="Detailed Location" value={event.city ? `${event.city}, ${event.region}, ${event.country}` : 'N/A'} />
+                                                                                        <PaidField label="ASN / ISP" value={event.asn ? `${event.asn} (${event.isp})` : 'N/A'} />
+                                                                                        <PaidField label="IP Type" value={event.ipType} />
+                                                                                        <PaidField label="Proxy / VPN / Tor" value={(event.isVpn || event.isProxy || event.isTor) ? (
+                                                                                            <span className="text-red-500 font-bold uppercase text-[10px]">
+                                                                                                {[event.isVpn && 'VPN', event.isProxy && 'Proxy', event.isTor && 'Tor'].filter(Boolean).join(' + ')}
                                                                                             </span>
-                                                                                        ))
-                                                                                    ) : <span className="text-[10px] text-muted-foreground italic">No anomalies detected</span>
-                                                                                ) : (
-                                                                                    <span className="blur-sm text-[10px]">•••••••••••• ••••••••</span>
-                                                                                )}
+                                                                                        ) : 'None Detected'} />
+                                                                                    </div>
+                                                                                </div>
+
+                                                                                <div className="space-y-4">
+                                                                                    <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Session & Risk Analytics</h4>
+                                                                                    <div className="bg-background/50 rounded-xl p-4 border border-muted/50">
+                                                                                        <PaidField label="Session Type" value={String(event.additionalData?.sessionType ?? 'N/A')} />
+                                                                                        <PaidField label="Token Type" value={String(event.additionalData?.tokenType ?? 'N/A')} />
+                                                                                        <PaidField
+                                                                                            label="Risk Level"
+                                                                                            value={
+                                                                                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${event.riskLevel === 'low' ? 'text-emerald-500 bg-emerald-500/10' :
+                                                                                                    event.riskLevel === 'medium' ? 'text-orange-500 bg-orange-500/10' :
+                                                                                                        'text-red-500 bg-red-500/10'
+                                                                                                    }`}>
+                                                                                                    {event.riskLevel || 'Low'}
+                                                                                                </span>
+                                                                                            }
+                                                                                        />
+                                                                                        <div className="flex flex-col gap-2 pt-2">
+                                                                                            <span className="text-[10px] uppercase font-bold text-muted-foreground">Risk Signals</span>
+                                                                                            <div className="flex flex-wrap gap-1">
+                                                                                                {isPaid ? (
+                                                                                                    (((event.riskSignals) as string[] | undefined) || []).length > 0 ? (
+                                                                                                        (((event.riskSignals) as string[]) || []).map((sig: string, idx: number) => (
+                                                                                                            <span key={idx} className="px-1.5 py-0.5 rounded bg-muted text-[10px] border border-muted-foreground/20">
+                                                                                                                {sig}
+                                                                                                            </span>
+                                                                                                        ))
+                                                                                                    ) : <span className="text-[10px] text-muted-foreground italic">No anomalies detected</span>
+                                                                                                ) : (
+                                                                                                    <span className="blur-sm text-[10px]">•••••••••••• ••••••••</span>
+                                                                                                )}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </div>
+
+                                                                                <div className="space-y-4 flex flex-col">
+                                                                                    <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Device Information</h4>
+                                                                                    <div className="bg-background/50 rounded-xl p-4 border border-muted/50 flex-1 flex flex-col justify-center">
+                                                                                        {(() => {
+                                                                                            const parser = new UAParser(event.userAgent);
+                                                                                            const uaResult = parser.getResult();
+                                                                                            return (
+                                                                                                <>
+                                                                                                    <PaidField label="Browser Name" value={uaResult.browser.name} />
+                                                                                                    <PaidField label="Browser Version" value={uaResult.browser.version} />
+                                                                                                    <PaidField label="Engine" value={`${uaResult.engine.name || 'N/A'} ${uaResult.engine.version || ''}`} />
+                                                                                                    <PaidField label="OS Name" value={uaResult.os.name} />
+                                                                                                    <PaidField label="OS Version" value={uaResult.os.version} />
+                                                                                                    <PaidField label="Device Vendor" value={uaResult.device.vendor} />
+                                                                                                    <PaidField label="Device Model" value={uaResult.device.model} />
+                                                                                                    <PaidField label="Device Type" value={uaResult.device.type || 'Desktop'} />
+                                                                                                    <PaidField label="CPU Architecture" value={uaResult.cpu.architecture} />
+                                                                                                </>
+                                                                                            )
+                                                                                        })()}
+                                                                                    </div>
+                                                                                </div>
+
+                                                                                <div className="space-y-4 flex flex-col">
+                                                                                    <div className="flex items-center justify-between">
+                                                                                        <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Location Map</h4>
+                                                                                        {!isPaid && <span className="text-[10px] bg-primary/10 text-primary border border-primary/20 px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider">Pro Feature</span>}
+                                                                                    </div>
+                                                                                    <div className={`bg-background/50 rounded-xl overflow-hidden border border-muted/50 h-[400px] relative ${!isPaid ? 'pointer-events-none' : ''}`}>
+                                                                                        <div className={`h-full w-full transition-all duration-500 ${!isPaid ? 'blur-[6px] scale-105' : ''}`}>
+                                                                                            <Map
+                                                                                                center={[event.latitude || 0, event.longitude || 0]}
+                                                                                                zoom={14}
+                                                                                                className="h-full w-full z-0"
+                                                                                            >
+                                                                                                <MapTileLayer />
+                                                                                                <MapZoomControl />
+                                                                                                <MapMarker position={[event.latitude || 0, event.longitude || 0]} />
+                                                                                            </Map>
+                                                                                        </div>
+                                                                                        {!isPaid && (
+                                                                                            <div className="absolute inset-0 flex items-center justify-center z-10">
+                                                                                                <div className="bg-background/80 backdrop-blur-sm p-4 rounded-xl border shadow-lg max-w-[240px] text-center">
+                                                                                                    <IconLock className="h-6 w-6 mx-auto text-muted-foreground mb-2" />
+                                                                                                    <p className="font-semibold text-sm mb-1">Detailed Map View</p>
+                                                                                                    <p className="text-xs text-muted-foreground">Upgrade to Pro to view exact location maps for every security event.</p>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        )}
+                                                                                    </div>
+                                                                                </div>
                                                                             </div>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
+                                                                        )}
 
-                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8 items-stretch">
-                                                                <div className="space-y-4 flex flex-col">
-                                                                    <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Device Information</h4>
-                                                                    <div className="bg-background/50 rounded-xl p-4 border border-muted/50 flex-1 flex flex-col justify-center">
-                                                                        {(() => {
-                                                                            const parser = new UAParser(event.userAgent);
-                                                                            const uaResult = parser.getResult();
-                                                                            return (
-                                                                                <>
-                                                                                    <PaidField label="Browser Name" value={uaResult.browser.name} />
-                                                                                    <PaidField label="Browser Version" value={uaResult.browser.version} />
-                                                                                    <PaidField label="Engine" value={`${uaResult.engine.name || 'N/A'} ${uaResult.engine.version || ''}`} />
-                                                                                    <PaidField label="OS Name" value={uaResult.os.name} />
-                                                                                    <PaidField label="OS Version" value={uaResult.os.version} />
-                                                                                    <PaidField label="Device Vendor" value={uaResult.device.vendor} />
-                                                                                    <PaidField label="Device Model" value={uaResult.device.model} />
-                                                                                    <PaidField label="Device Type" value={uaResult.device.type || 'Desktop'} />
-                                                                                    <PaidField label="CPU Architecture" value={uaResult.cpu.architecture} />
-                                                                                </>
-                                                                            )
-                                                                        })()}
-                                                                    </div>
-                                                                </div>
-
-                                                                <div className="space-y-4 flex flex-col">
-                                                                    <div className="flex items-center justify-between">
-                                                                        <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Location Map</h4>
-                                                                        {!isPaid && <span className="text-[10px] bg-primary/10 text-primary border border-primary/20 px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider">Pro Feature</span>}
-                                                                    </div>
-                                                                    <div className={`bg-background/50 rounded-xl overflow-hidden border border-muted/50 h-[400px] relative ${!isPaid ? 'pointer-events-none' : ''}`}>
-                                                                        <div className={`h-full w-full transition-all duration-500 ${!isPaid ? 'blur-[6px] scale-105' : ''}`}>
-                                                                            <Map
-                                                                                center={[event.latitude || 0, event.longitude || 0]}
-                                                                                zoom={14}
-                                                                                className="h-full w-full z-0"
-                                                                            >
-                                                                                <MapTileLayer />
-                                                                                <MapZoomControl />
-                                                                                <MapMarker position={[event.latitude || 0, event.longitude || 0]} />
-                                                                            </Map>
-                                                                        </div>
-                                                                        {!isPaid && (
-                                                                            <div className="absolute inset-0 flex items-center justify-center z-10">
-                                                                                <div className="bg-background/80 backdrop-blur-sm p-4 rounded-xl border shadow-lg max-w-[240px] text-center">
-                                                                                    <IconLock className="h-6 w-6 mx-auto text-muted-foreground mb-2" />
-                                                                                    <p className="font-semibold text-sm mb-1">Detailed Map View</p>
-                                                                                    <p className="text-xs text-muted-foreground">Upgrade to Pro to view exact location maps for every security event.</p>
+                                                                        {eventActiveTab === 'metadata' && (
+                                                                            <div className="space-y-4">
+                                                                                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                                                                                    Additional Metadata
+                                                                                    {!isPaid && <span className="bg-primary/10 text-primary text-[9px] px-1.5 py-0.5 rounded-full border border-primary/20">Pro Feature</span>}
+                                                                                </h4>
+                                                                                <div className={`transition-all ${!isPaid ? 'blur-[5px] select-none pointer-events-none' : ''}`}>
+                                                                                    <JsonHighlighter data={event.additionalData} />
                                                                                 </div>
                                                                             </div>
                                                                         )}
                                                                     </div>
                                                                 </div>
-                                                            </div>
-
-                                                            <div className="mt-8 space-y-4">
-                                                                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                                                                    Additional Metadata
-                                                                    {!isPaid && <span className="bg-primary/10 text-primary text-[9px] px-1.5 py-0.5 rounded-full border border-primary/20">Pro Feature</span>}
-                                                                </h4>
-                                                                <div className={`transition-all ${!isPaid ? 'blur-[5px] select-none pointer-events-none' : ''}`}>
-                                                                    <JsonHighlighter data={event.additionalData} />
-                                                                </div>
-                                                            </div>
+                                                            )}
                                                         </td>
                                                     </tr>
                                                 )}

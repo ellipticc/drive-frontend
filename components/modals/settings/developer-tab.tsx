@@ -98,6 +98,8 @@ export function DeveloperTab() {
   const [loading, setLoading] = useState(false)
   const [expanded, setExpanded] = useState<string | null>(null)
   const [expandedEvents, setExpandedEvents] = useState<Record<string, string | null>>({})
+  const [activeTab, setActiveTab] = useState<'request' | 'response'>('request')
+  const [loadingDetails, setLoadingDetails] = useState<string | null>(null)
   const [createModalOpen, setCreateModalOpen] = useState(false)
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [editingWebhook, setEditingWebhook] = useState<any>(null)
@@ -272,10 +274,10 @@ export function DeveloperTab() {
       setEvents(prev => ({
         ...(prev || {}),
         [id]: {
-          data: res.data || [],
-          total: Number(res.total) || 0,
-          page: Number(res.page) || page,
-          pageSize: Number(res.pageSize) || 10,
+          data: (res.data as any)?.events || [],
+          total: Number((res.data as any)?.pagination?.total) || 0,
+          page: Number((res.data as any)?.pagination?.page) || page,
+          pageSize: Number((res.data as any)?.pagination?.limit) || 10,
           isLoading: false
         }
       }))
@@ -308,8 +310,38 @@ export function DeveloperTab() {
     }
   }
 
-  function toggleExpandEvent(webhookId: string, eventId: string | null) {
+  async function toggleExpandEvent(webhookId: string, eventId: string | null) {
     setExpandedEvents(prev => ({ ...(prev || {}), [webhookId]: eventId }))
+
+    if (eventId) {
+      // Find existing event
+      const eventList = events[webhookId]?.data || [];
+      const event = eventList.find(e => e.id === eventId);
+
+      // If event exists but missing details (e.g. request_headers is undefined/null)
+      // Check for request_headers as a proxy for details being loaded
+      if (event && !event.request_headers && !loadingDetails) {
+        setLoadingDetails(eventId);
+        try {
+          const res = await apiClient.getWebhookEvent(eventId);
+          if (res.success && res.data) {
+            // Update state
+            setEvents(prev => ({
+              ...prev,
+              [webhookId]: {
+                ...prev[webhookId],
+                data: prev[webhookId].data.map(e => e.id === eventId ? { ...e, ...res.data } : e)
+              }
+            }));
+          }
+        } catch (e) {
+          console.error(e);
+          toast.error("Failed to load details");
+        } finally {
+          setLoadingDetails(null);
+        }
+      }
+    }
   }
 
   function toggleSecretVisibility(id: string) {
@@ -844,98 +876,89 @@ export function DeveloperTab() {
                                               {isExpanded && (
                                                 <tr>
                                                   <td colSpan={6} className="p-0 bg-muted/5 border-t">
-                                                    <div className="px-10 py-8 animate-in fade-in slide-in-from-top-2 duration-300">
-                                                      <div className="grid grid-cols-1 gap-8 max-w-5xl mx-auto">
-                                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pb-6 border-b border-muted">
-                                                          <div className="space-y-1">
-                                                            <span className="block text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">Execution Latency</span>
-                                                            <span className={`block text-xs font-bold tracking-tight ${(ev.duration_ms || 0) > 1000 ? 'text-amber-500' : 'text-emerald-500'}`}>
-                                                              {ev.duration_ms ? `${(ev.duration_ms / 1000).toFixed(2)}s` : '0.00s'} <span className="text-[10px] font-normal text-muted-foreground">RTT</span>
-                                                            </span>
-                                                          </div>
-                                                          <div className="space-y-1">
-                                                            <span className="block text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">Delivery Method</span>
-                                                            <span className="block text-[10px] font-bold px-2 py-0.5 bg-foreground text-background inline-block rounded-md tracking-wider">POST / HTTPS</span>
-                                                          </div>
-                                                          <div className="space-y-1">
-                                                            <span className="block text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">Signature ID</span>
-                                                            <TooltipProvider>
-                                                              <Tooltip>
-                                                                <TooltipTrigger asChild>
-                                                                  <span className="block font-mono text-[10px] select-all font-bold text-muted-foreground/80 truncate cursor-help border-b border-dashed border-muted-foreground/30">{ev.signature_id ? `${ev.signature_id.substring(0, 8)}...` : 'v1_ed25519'}</span>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent className="font-mono text-xs max-w-[300px] break-all">
-                                                                  <p className="mb-1 text-[10px] font-bold text-muted-foreground">Signature ID</p>
-                                                                  {ev.signature_id || 'v1_ed25519'}
-                                                                </TooltipContent>
-                                                              </Tooltip>
-                                                            </TooltipProvider>
-                                                          </div>
-                                                          <div className="space-y-1">
-                                                            <span className="block text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">Request ID</span>
-                                                            <TooltipProvider>
-                                                              <Tooltip>
-                                                                <TooltipTrigger asChild>
-                                                                  <span className="block font-mono text-[10px] select-all font-bold text-muted-foreground/80 truncate cursor-help border-b border-dashed border-muted-foreground/30">{(ev.request_id || '').substring(0, 8)}...</span>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent className="font-mono text-xs">
-                                                                  <p className="mb-1 text-[10px] font-bold text-muted-foreground">Request UUID</p>
-                                                                  {ev.request_id}
-                                                                </TooltipContent>
-                                                              </Tooltip>
-                                                            </TooltipProvider>
-                                                          </div>
-                                                        </div>
+                                                    <div className="animate-in fade-in slide-in-from-top-2 duration-300">
 
-                                                        <div className="grid md:grid-cols-2 gap-8">
-                                                          <div className="space-y-3">
-                                                            <div className="flex items-center justify-between">
-                                                              <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Request Headers</h4>
-                                                              <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg hover:bg-muted" onClick={() => { navigator.clipboard.writeText(ev.request_headers || ''); toast.success('Headers copied') }}><IconCopy className="h-3.5 w-3.5" /></Button>
-                                                            </div>
-                                                            <div className="bg-background/80 border rounded-xl p-4 font-mono text-[9px] text-muted-foreground overflow-x-auto whitespace-pre leading-relaxed shadow-sm max-h-[300px] scrollbar-thin">
-                                                              {ev.request_headers ? JSON.stringify(JSON.parse(ev.request_headers), null, 2) : 'No headers recorded'}
-                                                            </div>
-                                                          </div>
-                                                          <div className="space-y-3">
-                                                            <div className="flex items-center justify-between">
-                                                              <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Payload Data</h4>
-                                                              <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg hover:bg-muted" onClick={() => { navigator.clipboard.writeText(ev.request_body || ''); toast.success('Payload copied') }}><IconCopy className="h-3.5 w-3.5" /></Button>
-                                                            </div>
-                                                            <div className="rounded-xl overflow-hidden border shadow-sm bg-background scrollbar-thin max-h-[300px] overflow-y-auto">
-                                                              <JsonHighlighter data={JSON.parse(ev.request_body || '{}')} />
-                                                            </div>
-                                                          </div>
+                                                      {/* Tab Header & Toolbar */}
+                                                      <div className="flex items-center justify-between px-6 py-2 border-b bg-background/50">
+                                                        <div className="flex items-center gap-1">
+                                                          <button
+                                                            onClick={() => setActiveTab('request')}
+                                                            className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${activeTab === 'request' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+                                                          >
+                                                            Request
+                                                          </button>
+                                                          <button
+                                                            onClick={() => setActiveTab('response')}
+                                                            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${activeTab === 'response' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+                                                          >
+                                                            Response
+                                                            <span className={`px-1.5 py-0.5 rounded text-[9px] ${ev.status === 'success' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-rose-500/10 text-rose-600'}`}>
+                                                              {ev.response_code || (ev.status === 'success' ? 200 : 500)}
+                                                            </span>
+                                                          </button>
                                                         </div>
-                                                        {(ev.response_headers || ev.response_body || ev.status === 'failed') && (
-                                                          <div className="border-t border-muted pt-6 mt-2">
-                                                            <div className="grid md:grid-cols-2 gap-8">
-                                                              <div className="space-y-3">
-                                                                <div className="flex items-center justify-between">
-                                                                  <div className="flex items-center gap-2">
-                                                                    <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-[9px] px-2 shadow-sm uppercase font-bold tracking-widest">Response Headers</Badge>
+                                                        <div className="flex items-center gap-4">
+                                                          {loadingDetails === ev.id && <IconLoader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                                                          <span className="text-[10px] font-mono text-muted-foreground">
+                                                            {ev.duration_ms ? `${(ev.duration_ms / 1000).toFixed(2)}s` : '0.00s'}
+                                                          </span>
+                                                          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => resendEvent(w.id, ev.id)}>
+                                                            <IconRefresh className="h-3 w-3 mr-2" />
+                                                            Redeliver
+                                                          </Button>
+                                                        </div>
+                                                      </div>
+
+                                                      <div className="p-6 max-w-5xl mx-auto space-y-6">
+                                                        {loadingDetails === ev.id ? (
+                                                          <div className="py-12 text-center text-muted-foreground text-sm">Loading details...</div>
+                                                        ) : (
+                                                          <>
+                                                            {activeTab === 'request' && (
+                                                              <>
+                                                                <div className="space-y-2">
+                                                                  <div className="flex items-center justify-between">
+                                                                    <h4 className="text-xs font-bold text-foreground">Headers</h4>
                                                                   </div>
-                                                                  <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg hover:bg-muted" onClick={() => { navigator.clipboard.writeText(ev.response_headers || ''); toast.success('Response headers copied') }}><IconCopy className="h-3.5 w-3.5" /></Button>
-                                                                </div>
-                                                                <div className="bg-background/80 border rounded-xl p-4 font-mono text-[9px] text-muted-foreground overflow-x-auto whitespace-pre leading-relaxed shadow-sm max-h-[300px] scrollbar-thin">
-                                                                  {ev.response_headers ? JSON.stringify(JSON.parse(ev.response_headers), null, 2) : 'No response headers'}
-                                                                </div>
-                                                              </div>
-                                                              <div className="space-y-3">
-                                                                <div className="flex items-center justify-between">
-                                                                  <div className="flex items-center gap-2">
-                                                                    <Badge className={`text-[9px] px-2 shadow-sm uppercase font-bold tracking-widest ${ev.status === 'success' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' : 'bg-rose-500/10 text-rose-600 border-rose-500/20'}`}>Response Body</Badge>
+                                                                  <div className="bg-background border rounded-md p-4 font-mono text-xs text-muted-foreground overflow-x-auto whitespace-pre shadow-sm">
+                                                                    {ev.request_headers ? JSON.stringify(JSON.parse(ev.request_headers), null, 2) : 'No headers recorded'}
                                                                   </div>
-                                                                  <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg hover:bg-muted" onClick={() => { navigator.clipboard.writeText(ev.response_body || ''); toast.success('Response body copied') }}><IconCopy className="h-3.5 w-3.5" /></Button>
                                                                 </div>
-                                                                <div className="bg-black/[0.02] dark:bg-white/[0.02] border rounded-xl p-4 font-mono text-[9px] overflow-x-auto max-h-[300px] leading-relaxed scrollbar-thin text-muted-foreground whitespace-pre-wrap">
-                                                                  {ev.response_body || 'No response body received.'}
+                                                                <div className="space-y-2">
+                                                                  <div className="flex items-center justify-between">
+                                                                    <h4 className="text-xs font-bold text-foreground">Payload</h4>
+                                                                  </div>
+                                                                  <div className="rounded-md overflow-hidden border shadow-sm bg-background">
+                                                                    <JsonHighlighter data={JSON.parse(ev.request_body || '{}')} />
+                                                                  </div>
                                                                 </div>
-                                                              </div>
-                                                            </div>
-                                                          </div>
+                                                              </>
+                                                            )}
+
+                                                            {activeTab === 'response' && (
+                                                              <>
+                                                                <div className="space-y-2">
+                                                                  <div className="flex items-center justify-between">
+                                                                    <h4 className="text-xs font-bold text-foreground">Headers</h4>
+                                                                  </div>
+                                                                  <div className="bg-background border rounded-md p-4 font-mono text-xs text-muted-foreground overflow-x-auto whitespace-pre shadow-sm">
+                                                                    {ev.response_headers ? JSON.stringify(JSON.parse(ev.response_headers), null, 2) : 'No response headers'}
+                                                                  </div>
+                                                                </div>
+                                                                <div className="space-y-2">
+                                                                  <div className="flex items-center justify-between">
+                                                                    <h4 className="text-xs font-bold text-foreground">Body</h4>
+                                                                  </div>
+                                                                  <div className="bg-background border rounded-md p-4 font-mono text-xs text-muted-foreground overflow-x-auto whitespace-pre-wrap shadow-sm">
+                                                                    {ev.response_body || 'No response body'}
+                                                                  </div>
+                                                                </div>
+                                                              </>
+                                                            )}
+                                                          </>
                                                         )}
                                                       </div>
+
                                                     </div>
                                                   </td>
                                                 </tr>
@@ -948,14 +971,14 @@ export function DeveloperTab() {
                                   </div>
 
                                   {/* Pagination */}
-                                  {(events[w.id]?.total > 0) && (
+                                  {(events[w.id]?.data.length > 0) && (
                                     <div className="px-5 py-4 border-t bg-muted/30 flex items-center justify-between">
                                       <p className="text-xs text-muted-foreground font-medium">
-                                        Showing <span className="text-foreground font-bold">{events[w.id].data.length}</span> of <span className="text-foreground font-bold">{events[w.id].total}</span> events
+                                        Showing <span className="text-foreground font-bold">{events[w.id].data.length}</span> of <span className="text-foreground font-bold">{events[w.id].total || events[w.id].data.length}</span> events
                                       </p>
                                       <div className="flex items-center gap-4">
                                         <p className="text-xs text-muted-foreground font-medium">
-                                          Page <span className="text-foreground font-bold">{events[w.id].page}</span> of <span className="text-foreground font-bold">{Math.ceil(events[w.id].total / events[w.id].pageSize)}</span>
+                                          Page <span className="text-foreground font-bold">{events[w.id].page}</span> of <span className="text-foreground font-bold">{Math.ceil((events[w.id].total || events[w.id].data.length) / events[w.id].pageSize)}</span>
                                         </p>
                                         <div className="flex items-center gap-2">
                                           <Button
@@ -972,7 +995,7 @@ export function DeveloperTab() {
                                             size="icon"
                                             className="h-8 w-8 rounded-lg shadow-sm bg-background hover:bg-muted transition-colors"
                                             onClick={() => loadWebhookEvents(w.id, events[w.id].page + 1)}
-                                            disabled={events[w.id].isLoading || (events[w.id].page * events[w.id].pageSize) >= events[w.id].total}
+                                            disabled={events[w.id].isLoading || (events[w.id].page * events[w.id].pageSize) >= (events[w.id].total || 0)}
                                           >
                                             <IconChevronRight className="h-4 w-4" />
                                           </Button>

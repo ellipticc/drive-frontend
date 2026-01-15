@@ -516,6 +516,7 @@ export interface SecurityEvent {
   isProxy?: boolean;
   isTor?: boolean;
   riskLevel?: string;
+  riskSignals?: string[];
 }
 
 export interface ShareAccessLog {
@@ -3327,6 +3328,14 @@ class ApiClient {
 
   async resendWebhookEvent(eventId: string): Promise<ApiResponse<{ success: boolean; event: any }>> {
     return this.request(`/user/webhooks/events/${eventId}/resend`, { method: 'POST' });
+  }
+
+  async getWebhookEvent(eventId: string): Promise<ApiResponse<any>> {
+    return this.request(`/user/webhooks/events/${eventId}`);
+  }
+
+  async getSecurityEvent(eventId: string): Promise<ApiResponse<any>> {
+    return this.request(`/auth/security/events/${eventId}`);
   }
 
   async reportOpaqueFailure(flow: string, stage: string, error: string): Promise<ApiResponse<{ success: boolean }>> {
