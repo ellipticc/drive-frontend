@@ -25,6 +25,7 @@ export function OTPForm({ className, ...props }: React.ComponentProps<"div">) {
   const [error, setError] = useState("")
   const [otp, setOtp] = useState("")
   const [email, setEmail] = useState("")
+  const [resendCountdown, setResendCountdown] = useState(0)
 
   // Get email from localStorage (set during signup)
   useEffect(() => {
@@ -41,6 +42,9 @@ export function OTPForm({ className, ...props }: React.ComponentProps<"div">) {
       const response = await apiClient.sendOTP(emailAddress)
       if (!response.success) {
         setError(response.error || "Failed to send verification code")
+      } else {
+        // Start 60s resend cooldown
+        setResendCountdown(60)
       }
     } catch (err) {
       console.error("Send OTP error:", err)
@@ -53,16 +57,23 @@ export function OTPForm({ className, ...props }: React.ComponentProps<"div">) {
     setError("")
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError("")
+  // Auto-verify when OTP input is complete
+  useEffect(() => {
+    if (otp.length === 6 && !isLoading) {
+      // Trigger verification automatically
+      verifyCode()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [otp])
 
+  const verifyCode = async () => {
     if (otp.length !== 6) {
       setError("Please enter a 6-digit code")
-      setIsLoading(false)
       return
     }
+
+    setIsLoading(true)
+    setError("")
 
     try {
       const response = await apiClient.verifyOTP(email, otp)
@@ -146,6 +157,11 @@ export function OTPForm({ className, ...props }: React.ComponentProps<"div">) {
     }
   }
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    await verifyCode()
+  }
+
   const handleResendOTP = async () => {
     setIsLoading(true)
     setError("")
@@ -162,6 +178,12 @@ export function OTPForm({ className, ...props }: React.ComponentProps<"div">) {
     }
   }
 
+  // Countdown effect for resend cooldown
+  useEffect(() => {
+    if (resendCountdown <= 0) return
+    const id = setInterval(() => setResendCountdown(c => c - 1), 1000)
+    return () => clearInterval(id)
+  }, [resendCountdown])
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <form onSubmit={handleSubmit}>
@@ -210,10 +232,10 @@ export function OTPForm({ className, ...props }: React.ComponentProps<"div">) {
               <button
                 type="button"
                 onClick={handleResendOTP}
-                disabled={isLoading}
+                disabled={isLoading || resendCountdown > 0}
                 className="underline underline-offset-4 hover:underline disabled:opacity-50"
               >
-                Resend
+                {resendCountdown > 0 ? `Resend in ${resendCountdown}s` : 'Resend'}
               </button>
             </FieldDescription>
           </Field>

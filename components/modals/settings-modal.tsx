@@ -241,6 +241,7 @@ export function SettingsModal({
   const [emailOTPCode, setEmailOTPCode] = useState("")
   const [isVerifyingEmailOTP, setIsVerifyingEmailOTP] = useState(false)
   const [isResendingEmailOTP, setIsResendingEmailOTP] = useState(false)
+  const [emailResendCountdown, setEmailResendCountdown] = useState(0)
   const [isChangingPassword, setIsChangingPassword] = useState(false)
   const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
@@ -1314,6 +1315,14 @@ export function SettingsModal({
     }
   }
 
+  // Auto-verify when full OTP entered
+  useEffect(() => {
+    if (emailOTPCode.trim().length === 6 && !isVerifyingEmailOTP) {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      handleVerifyEmailOTP()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [emailOTPCode])
   // Handle resend email OTP
   const handleResendEmailOTP = async () => {
     const newEmail = sessionStorage.getItem('newEmail')
@@ -1332,6 +1341,8 @@ export function SettingsModal({
         }
         toast.success("OTP code resent to your new email address")
         setEmailOTPCode("")
+        // Start 60s resend cooldown
+        setEmailResendCountdown(60)
       } else {
         toast.error(response.error || "Failed to resend OTP")
       }
@@ -1342,6 +1353,13 @@ export function SettingsModal({
       setIsResendingEmailOTP(false)
     }
   }
+
+  // Countdown effect for email change resend cooldown
+  useEffect(() => {
+    if (emailResendCountdown <= 0) return
+    const id = setInterval(() => setEmailResendCountdown(c => c - 1), 1000)
+    return () => clearInterval(id)
+  }, [emailResendCountdown])
 
   // Complete logout with full cleanup
   const completeLogout = async () => {
@@ -2173,9 +2191,11 @@ export function SettingsModal({
                 variant="ghost"
                 className="w-full text-xs"
                 onClick={handleResendEmailOTP}
-                disabled={isResendingEmailOTP || isVerifyingEmailOTP}
+                disabled={isResendingEmailOTP || isVerifyingEmailOTP || emailResendCountdown > 0}
               >
-                {isResendingEmailOTP ? (
+                {emailResendCountdown > 0 ? (
+          `Resend in ${emailResendCountdown}s`
+        ) : isResendingEmailOTP ? (
                   <>
                     <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
                     Resending...

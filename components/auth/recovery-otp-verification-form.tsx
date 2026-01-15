@@ -62,6 +62,49 @@ export function RecoveryOTPVerificationForm({
     }
   }, [email])
 
+  // Countdown effect for resend cooldown
+  useEffect(() => {
+    if (resendCountdown <= 0) return
+    const id = setInterval(() => setResendCountdown(c => c - 1), 1000)
+    return () => clearInterval(id)
+  }, [resendCountdown])
+
+  // Auto-verify when OTP input is complete (email verification method)
+  useEffect(() => {
+    if (otp.length === 6 && !isLoading && verificationMethod === 'email') {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      (async () => {
+        try {
+          setIsLoading(true)
+          setError("")
+          const verifyResponse = await apiClient.verifyRecoveryOTP({
+            email,
+            mnemonicHash: sessionStorage.getItem('recovery_hash') || mnemonic,
+            method: verificationMethod,
+            code: otp
+          })
+
+          if (!verifyResponse.success) {
+            setError(verifyResponse.error || "Verification failed. Please try again.")
+            setOtp("")
+            return
+          }
+
+          if (verifyResponse.data?.token) {
+            apiClient.setAuthToken(verifyResponse.data.token)
+          }
+
+          onSuccess()
+        } catch (err) {
+          setError("Verification failed. Please try again.")
+          setOtp("")
+        } finally {
+          setIsLoading(false)
+        }
+      })()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [otp, verificationMethod])
   // Check if user has TOTP enabled
   useEffect(() => {
     const checkTOTPAvailability = async () => {
