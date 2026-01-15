@@ -1,4 +1,5 @@
 import React, { useRef } from 'react'
+import { toast } from 'sonner'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -28,6 +29,8 @@ import {
     IconWorld,
     IconClock12,
     IconClock24,
+    IconGhost2,
+    IconCopy,
 } from "@tabler/icons-react"
 import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
@@ -503,11 +506,117 @@ export function GeneralTab({
                     />
                 </div>
             </div>
-            {/* User ID Section */}
-            <div className="border-t pt-6 flex justify-center">
-                <p className="text-xs font-mono text-muted-foreground bg-muted/50 px-3 py-1 rounded-full">
-                    User ID: {user?.id}
-                </p>
+            {/* Account Info Section */}
+            <div className="border-t pt-6">
+                <div className="flex items-center gap-2">
+                    <IconGhost2 className="w-5 h-5 text-muted-foreground" />
+                    <h3 className="text-lg font-semibold">{t('settings.accountInfo', 'Account information')}</h3>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                    {/* User ID */}
+                    <div className="p-4 bg-muted/30 rounded-lg border flex items-start justify-between">
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-1">
+                                <span className="text-sm font-medium">User ID</span>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <button className="ml-1 text-muted-foreground" title="Unique ID for your account">
+                                            <IconInfoCircle className="w-3 h-3" />
+                                        </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">
+                                        <p className="text-xs">Your internal account identifier. Useful for support requests.</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <code className="font-mono text-sm break-all">{user?.id || '—'}</code>
+                                {user?.id && (
+                                    <button
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(user.id || '');
+                                            toast.success('Copied user ID');
+                                        }}
+                                        className="text-muted-foreground hover:text-foreground"
+                                        title="Copy user ID"
+                                    >
+                                        <IconCopy className="w-4 h-4" />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Account Created */}
+                    <div className="p-4 bg-muted/30 rounded-lg border">
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-1">
+                                <span className="text-sm font-medium">Created</span>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <button className="ml-1 text-muted-foreground" title="Account creation date">
+                                            <IconInfoCircle className="w-3 h-3" />
+                                        </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">
+                                        <p className="text-xs">When your account was created.</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </div>
+                            <div className="text-sm text-foreground">
+                                {user?.created_at ? new Date(user.created_at).toLocaleString() : '—'}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Bucket / Storage Region */}
+                    <div className="p-4 bg-muted/30 rounded-lg border">
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-1">
+                                <span className="text-sm font-medium">Bucket region</span>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <button className="ml-1 text-muted-foreground" title="Storage region assignment">
+                                            <IconInfoCircle className="w-3 h-3" />
+                                        </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">
+                                        <p className="text-xs">Region where your files are stored.</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </div>
+                            <div className="text-sm text-foreground">
+                                {user?.storage_region || '—'}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Crypto / API version */}
+                    <div className="p-4 bg-muted/30 rounded-lg border">
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-1">
+                                <span className="text-sm font-medium">Crypto / API version</span>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <button className="ml-1 text-muted-foreground" title="Crypto & API version info">
+                                            <IconInfoCircle className="w-3 h-3" />
+                                        </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">
+                                        <p className="text-xs">Versions associated with your account (helpful for debugging key issues).</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </div>
+
+                            <div className="text-sm">
+                                <div className="font-mono text-xs text-muted-foreground">Crypto: {user?.crypto_version || '—'}</div>
+                                <div className="font-mono text-xs text-muted-foreground">API: {user?.api_version || '—'}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
             </div>
         </div >
     )
