@@ -305,7 +305,7 @@ export function UnifiedProgressModal({
                 <span className="text-muted-foreground">
                   {completedItems} completed, {activeItems} active, {failedItems} failed
                 </span>
-                <span className="font-medium">{Math.round(combinedProgress)}%</span>
+                <span className="font-medium">{Math.floor(combinedProgress)}%</span>
               </div>
               <Progress value={combinedProgress} className="h-1.5 mt-1" />
             </CardContent>
@@ -319,7 +319,7 @@ export function UnifiedProgressModal({
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
                     <span className="font-medium">Overall Progress</span>
-                    <span className="text-muted-foreground">{Math.round(combinedProgress)}%</span>
+                    <span className="text-muted-foreground">{Math.floor(combinedProgress)}%</span>
                   </div>
                   <Progress value={combinedProgress} className="h-2 transition-all duration-300 ease-out" />
                   <div className="text-xs text-muted-foreground">

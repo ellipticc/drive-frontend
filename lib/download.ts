@@ -246,17 +246,17 @@ export async function downloadEncryptedFileWithCEK(
     // Stage 1: Get download URLs and metadata from backend
     onProgress?.({ stage: 'initializing', overallProgress: 0 });
     const session = await initializeDownloadSession(fileId);
-    onProgress?.({ stage: 'initializing', overallProgress: 10 });
+    onProgress?.({ stage: 'initializing', overallProgress: 0 });
 
     // Stage 2 & 3: Pipelined Download & Decrypt
     // Concurrently downloads and decrypts chunks to maximize throughput and minimize memory
-    onProgress?.({ stage: 'downloading', overallProgress: 15 });
+    onProgress?.({ stage: 'downloading', overallProgress: 0 });
 
     // Use the streaming pipeline instead of serial download->decrypt
     const decryptedChunks = await pipelineDownloadAndDecrypt(session, cek, onProgress, signal, pauseController);
 
     // Stage 4: Assemble file
-    onProgress?.({ stage: 'assembling', overallProgress: 90 });
+    onProgress?.({ stage: 'assembling', overallProgress: 100 });
     const fileBlob = await assembleFile(decryptedChunks, session.mimetype);
 
     onProgress?.({ stage: 'complete', overallProgress: 100 });
@@ -458,7 +458,7 @@ export async function downloadEncryptedFile(
     // Stage 1: Get download URLs and metadata from backend
     onProgress?.({ stage: 'initializing', overallProgress: 0 });
     const session = await initializeDownloadSession(fileId);
-    onProgress?.({ stage: 'initializing', overallProgress: 10 });
+    onProgress?.({ stage: 'initializing', overallProgress: 0 });
 
     if (!session.encryption) {
       throw new Error('No encryption metadata available');
@@ -468,11 +468,11 @@ export async function downloadEncryptedFile(
     const cek = await unwrapCEK(session.encryption, keys.keypairs);
 
     // Stage 2 & 3: Pipelined Download & Decrypt
-    onProgress?.({ stage: 'downloading', overallProgress: 15 });
+    onProgress?.({ stage: 'downloading', overallProgress: 0 });
     const decryptedChunks = await pipelineDownloadAndDecrypt(session, cek, onProgress, signal, pauseController);
 
     // Stage 4: Assemble file
-    onProgress?.({ stage: 'assembling', overallProgress: 90 });
+    onProgress?.({ stage: 'assembling', overallProgress: 100 });
     const fileBlob = await assembleFile(decryptedChunks, session.mimetype);
 
     onProgress?.({ stage: 'complete', overallProgress: 100 });
