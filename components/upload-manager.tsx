@@ -3,7 +3,7 @@
  * Provides actual upload interruption capabilities with AbortController support
  */
 
-import { uploadEncryptedFile, UploadProgress, UserKeys, UploadResult } from '@/lib/upload';
+import { uploadEncryptedFile, UploadProgress, UserKeys, UploadResult, ChunkInfo } from '@/lib/upload';
 import { keyManager } from '@/lib/key-manager';
 
 interface UploadError extends Error {
@@ -23,6 +23,11 @@ export interface UploadTask {
   conflictResolution?: 'replace' | 'keepBoth' | 'skip';
   conflictFileName?: string;
   isKeepBothAttempt?: boolean;
+  resumeState?: {
+    fileId: string;
+    sessionId: string;
+    completedChunks: ChunkInfo[];
+  };
 }
 
 export interface ConflictInfo {
@@ -109,7 +114,20 @@ export class UploadManager {
         this.task.conflictResolution, // Pass conflict resolution
         this.task.conflictFileName, // Pass conflicting filename for counter extraction
         this.task.existingFileIdToDelete, // Pass file ID to delete for replace
-        this.task.isKeepBothAttempt // Pass flag to indicate this is a keepBoth retry
+        this.task.isKeepBothAttempt, // Pass flag to indicate this is a keepBoth retry
+        // Resume State
+        this.task.resumeState,
+        // Chunk Completion Callback
+        (chunkInfo) => {
+          if (!this.task.resumeState) {
+            this.task.resumeState = {
+              fileId: '', // Will be filled
+              sessionId: '', // Will be filled
+              completedChunks: []
+            };
+          }
+          this.task.resumeState.completedChunks.push(chunkInfo);
+        }
       );
 
       const result = await this.uploadPromise;

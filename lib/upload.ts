@@ -157,10 +157,16 @@ export async function uploadEncryptedFile(
   conflictResolution?: 'replace' | 'keepBoth' | 'skip',
   conflictFileName?: string, // The conflicting filename to extract counter from
   existingFileIdToDelete?: string, // For replace operations
-  isKeepBothAttempt?: boolean // Flag to indicate this is a keepBoth retry
+  isKeepBothAttempt?: boolean, // Flag to indicate this is a keepBoth retry
+  resumeState?: {
+    fileId: string;
+    sessionId: string;
+    completedChunks: ChunkInfo[];
+  },
+  onChunkComplete?: (chunk: ChunkInfo) => void
 ): Promise<UploadResult> {
-  // Generate fileId once at the start - this will be used as the idempotency key for finalization
-  const fileId = crypto.randomUUID();
+  // Generate fileId or reuse from resume state
+  const fileId = resumeState?.fileId || crypto.randomUUID();
 
   try {
     const storageInfo = await apiClient.getUserStorage();
@@ -220,7 +226,6 @@ export async function uploadEncryptedFile(
 
     // Stage 3: Initialize Upload Session (Streaming Mode)
     // We initialize early to get Upload URLs.
-    // NOTE: Backend must be compatible with receiving incomplete manifest at this stage for streaming support.
     onProgress?.({ stage: 'uploading', overallProgress: 0 });
 
     const dummyChunks = chunks.map((_, i) => ({
@@ -232,19 +237,45 @@ export async function uploadEncryptedFile(
     // Check for abort before initializing
     if (abortSignal?.aborted) throw new Error('Upload cancelled');
 
-    const session = await initializeUploadSession(file, folderId, dummyChunks, shaHash, keys, conflictResolution, conflictFileName, existingFileIdToDelete, isKeepBothAttempt, fileId);
+    const session = await initializeUploadSession(file, folderId, dummyChunks, shaHash, keys, conflictResolution, conflictFileName, existingFileIdToDelete, isKeepBothAttempt, fileId, resumeState?.sessionId);
 
     // Stage 4: Stream Process & Upload (Pipeline)
     // Reads, Encrypts, Hashes, and Uploads chunks in parallel without buffering entire file
     const processedChunks: ChunkInfo[] = new Array(chunks.length);
     const chunkHashes: string[] = new Array(chunks.length); // BLAKE3 hashes (now collected during upload)
 
-    const activeTasks = new Set<Promise<void>>();
-    const concurrency = 4;
+    // Restore state from resumeState if available
     let completedCount = 0;
     let completedBytes = 0;
 
+    if (resumeState) {
+      resumeState.completedChunks.forEach(chunk => {
+        // Ensure we map back to correct index
+        processedChunks[chunk.index] = chunk;
+        chunkHashes[chunk.index] = chunk.blake3Hash;
+        completedCount++;
+        completedBytes += chunk.size; // This is the original decrypted size of the chunk range
+      });
+
+      // Emit initial progress for resumed state
+      onProgress?.({
+        stage: 'uploading',
+        overallProgress: (completedBytes / file.size) * 100,
+        currentChunk: completedCount,
+        totalChunks: chunks.length,
+        chunkProgress: 100,
+        bytesProcessed: completedBytes,
+        totalBytes: file.size
+      });
+    }
+
+    const activeTasks = new Set<Promise<void>>();
+    const concurrency = 4;
+
     for (let i = 0; i < chunks.length; i++) {
+      // Skip if already processed
+      if (processedChunks[i]) continue;
+
       // Check triggers
       if (abortSignal?.aborted) throw new Error('Upload cancelled');
       if (isPaused?.()) throw new Error('Upload paused');
@@ -299,6 +330,9 @@ export async function uploadEncryptedFile(
             compressionRatio: processed.compression.ratio
           };
           chunkHashes[i] = processed.hash;
+
+          // Notify completed chunk info for resumption
+          onChunkComplete?.(processedChunks[i]);
 
           completedCount++;
           completedBytes += (range.end - range.start);
@@ -470,7 +504,8 @@ async function initializeUploadSession(
   conflictFileName?: string,
   existingFileIdToDelete?: string,
   isKeepBothAttempt?: boolean,
-  clientFileId?: string
+  clientFileId?: string,
+  existingSessionId?: string,
 ): Promise<UploadSession> {
 
   // Map worker-computed hashes (BLAKE3) to the list
