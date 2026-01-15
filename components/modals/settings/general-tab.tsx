@@ -515,11 +515,6 @@ export function GeneralTab({
             </div>
             {/* Account Info Section */}
             <div className="border-t pt-6">
-                <div className="flex items-center gap-2">
-                    <IconGhost2 className="w-5 h-5 text-muted-foreground" />
-                    <h3 className="text-lg font-semibold">{t('settings.accountInfo')}</h3>
-                </div>
-
                 <div className="mt-4">
                     <Card>
                         <CardHeader>
