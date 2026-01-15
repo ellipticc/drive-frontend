@@ -350,6 +350,8 @@ export default function PhotosPage() {
 
         if (confirm(`Are you sure you want to move ${selectedIds.size} items to trash?`)) {
             handleBulkMoveToTrashExecute();
+            // Clear selection after move so action bar disappears
+            clearSelection();
         }
     };
 
@@ -492,7 +494,7 @@ export default function PhotosPage() {
                                 setIsShareOpen(true);
                             }}
                             onMoveToTrashSelected={handleBulkDelete}
-                            onUpload={() => handleFileUpload()}
+                            onUpload={() => handleFileUpload('image/*,video/*')}
                         />
                     </>
                 )}
@@ -543,6 +545,8 @@ export default function PhotosPage() {
                     if (activeItem) {
                         setMediaItems(prev => prev.filter(i => i.id !== activeItem.id));
                     }
+                    // Clear selection so action bar disappears
+                    clearSelection();
                     setIsMoveToTrashOpen(false);
                 }}
             />

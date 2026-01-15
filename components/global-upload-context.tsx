@@ -35,7 +35,7 @@ interface GlobalUploadContextType {
   isModalOpen: boolean;
 
   // Upload handlers
-  handleFileUpload: () => void;
+  handleFileUpload: (accept?: string) => void;
   handleFolderUpload: () => void;
   startUploadWithFiles: (files: File[], folderId: string | null) => void;
   startUploadWithFolders: (files: FileList | File[], folderId: string | null) => void;
@@ -371,8 +371,11 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
     }
   }, [currentFolderId, updateUploadState, updateStorage]);
 
-  const handleFileUpload = useCallback(() => {
-    fileInputRef.current?.click();
+  const handleFileUpload = useCallback((accept?: string) => {
+    if (fileInputRef.current) {
+      fileInputRef.current.accept = accept || "*/*";
+      fileInputRef.current.click();
+    }
   }, []);
 
   const handleFolderUpload = useCallback(() => {

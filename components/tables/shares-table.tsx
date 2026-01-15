@@ -10,7 +10,7 @@ import type { SortDescriptor } from "react-aria-components";
 
 import { Table, TableCard } from "@/components/application/table/table";
 import { Button } from "@/components/ui/button";
-import { IconShare3, IconListDetails, IconDownload, IconInfoCircle, IconFolder, IconX, IconGrid3x3, IconPencil, IconLink } from "@tabler/icons-react";
+import { IconShare3, IconListDetails, IconDownload, IconInfoCircle, IconFolder, IconX, IconGrid3x3, IconPencil, IconLinkOff } from "@tabler/icons-react";
 const ShareModal = dynamic(() => import("@/components/modals/share-modal").then(mod => mod.ShareModal));
 const DetailsModal = dynamic(() => import("@/components/modals/details-modal").then(mod => mod.DetailsModal));
 const RenameModal = dynamic(() => import("@/components/modals/rename-modal").then(mod => mod.RenameModal));
@@ -279,6 +279,8 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
             if (response.success) {
                 toast.success('Share revoked successfully');
                 refreshShares(); // Refresh the shares list
+                // Clear selection so action bar will disappear
+                setSelectedItems(new Set());
             } else {
                 toast.error('Failed to revoke share');
             }
@@ -461,7 +463,7 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
 
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleDetailsClick(firstItem.id, firstItem.fileName || '', firstItem.isFolder ? 'folder' : 'file')} aria-label="Details">
+                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleDetailsClick(firstItem.isFolder ? (firstItem.folderId || firstItem.id) : (firstItem.fileId || firstItem.id), firstItem.fileName || '', firstItem.isFolder ? 'folder' : 'file')} aria-label="Details">
                                 <IconListDetails className="h-3.5 w-3.5" />
                             </Button>
                         </TooltipTrigger>
@@ -482,7 +484,7 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleRevokeShare(firstItem.id)} aria-label="Revoke share">
-                                <IconLink className="h-3.5 w-3.5" />
+                                <IconLinkOff className="h-3.5 w-3.5" />
                             </Button>
                         </TooltipTrigger>
                         <TooltipContent>Revoke</TooltipContent>
@@ -517,10 +519,20 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                 <Tooltip>
                     <TooltipTrigger asChild>
                         <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={handleBulkRevoke} aria-label="Revoke selected">
-                            <IconLink className="h-3.5 w-3.5" />
+                            <IconLinkOff className="h-3.5 w-3.5" />
                         </Button>
                     </TooltipTrigger>
                     <TooltipContent>Revoke</TooltipContent>
+                </Tooltip>
+
+                {/* Keep Share visible but disabled on multi-select */}
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" disabled aria-label="Share (disabled for multiple)">
+                            <IconShare3 className="h-3.5 w-3.5 opacity-50" />
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Share (disabled for multiple)</TooltipContent>
                 </Tooltip>
 
                 <div className="h-5 w-px bg-border mx-1" />
