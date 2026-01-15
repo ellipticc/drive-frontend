@@ -1419,8 +1419,8 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                                                         <button
                                                                             onClick={() => setEventActiveTab('overview')}
                                                                             className={`px-4 py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${eventActiveTab === 'overview'
-                                                                                    ? 'border-primary text-primary'
-                                                                                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                                                                                ? 'border-primary text-primary'
+                                                                                : 'border-transparent text-muted-foreground hover:text-foreground'
                                                                                 }`}
                                                                         >
                                                                             Overview
@@ -1428,8 +1428,8 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                                                         <button
                                                                             onClick={() => setEventActiveTab('metadata')}
                                                                             className={`px-4 py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${eventActiveTab === 'metadata'
-                                                                                    ? 'border-primary text-primary'
-                                                                                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                                                                                ? 'border-primary text-primary'
+                                                                                : 'border-transparent text-muted-foreground hover:text-foreground'
                                                                                 }`}
                                                                         >
                                                                             Raw Log
@@ -1550,7 +1550,7 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                                                                     {!isPaid && <span className="bg-primary/10 text-primary text-[9px] px-1.5 py-0.5 rounded-full border border-primary/20">Pro Feature</span>}
                                                                                 </h4>
                                                                                 <div className={`transition-all ${!isPaid ? 'blur-[5px] select-none pointer-events-none' : ''}`}>
-                                                                                    <JsonHighlighter data={event.additionalData} />
+                                                                                    <JsonHighlighter data={event.additionalData || {}} />
                                                                                 </div>
                                                                             </div>
                                                                         )}

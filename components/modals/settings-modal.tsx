@@ -1984,7 +1984,7 @@ export function SettingsModal({
               )}
 
               {activeTab === "developer" && (
-                <DeveloperTab />
+                <DeveloperTab user={user} userPlan={user?.plan || "Free"} />
               )}
 
               {activeTab === "billing" && (
@@ -2204,8 +2204,8 @@ export function SettingsModal({
                 disabled={isResendingEmailOTP || isVerifyingEmailOTP || emailResendCountdown > 0}
               >
                 {emailResendCountdown > 0 ? (
-          `Resend in ${emailResendCountdown}s`
-        ) : isResendingEmailOTP ? (
+                  `Resend in ${emailResendCountdown}s`
+                ) : isResendingEmailOTP ? (
                   <>
                     <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
                     Resending...

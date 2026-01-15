@@ -149,9 +149,10 @@ const staticPlans: TransformedPlan[] = [
       'File Versioning': 'No',
       'Advanced Tagging': false,
       'Theme Customization': false,
-      'Advanced Integrations': false,
-      'Security Events': '7 days',
       'Support': 'Community',
+      'Webhooks': false,
+      'Monthly Event Limit': '-',
+      'Custom Signing Secret': false,
     },
     cta: 'Current Plan',
     stripePriceIds: {
@@ -203,9 +204,10 @@ const staticPlans: TransformedPlan[] = [
       'File Versioning': '30 days',
       'Advanced Tagging': true,
       'Theme Customization': true,
-      'Advanced Integrations': false,
-      'Security Events': '30 days',
       'Support': 'Email',
+      'Webhooks': false,
+      'Monthly Event Limit': '-',
+      'Custom Signing Secret': false,
     },
     cta: 'Upgrade to Plus',
     stripePriceIds: {
@@ -258,9 +260,11 @@ const staticPlans: TransformedPlan[] = [
       'File Versioning': '60 days',
       'Advanced Tagging': true,
       'Theme Customization': true,
-      'Advanced Integrations': true,
       'Security Events': '60 days',
       'Support': 'Priority Email',
+      'Webhooks': true,
+      'Monthly Event Limit': '500',
+      'Custom Signing Secret': false,
     },
     cta: 'Upgrade to Pro',
     stripePriceIds: {
@@ -312,9 +316,11 @@ const staticPlans: TransformedPlan[] = [
       'File Versioning': 'No limit',
       'Advanced Tagging': true,
       'Theme Customization': true,
-      'Advanced Integrations': true,
       'Security Events': 'Unlimited',
       'Support': '24/7 Priority',
+      'Webhooks': true,
+      'Monthly Event Limit': '10,000',
+      'Custom Signing Secret': true,
     },
     cta: 'Upgrade to Unlimited',
     stripePriceIds: {
@@ -347,7 +353,11 @@ const featureCategories = [
   },
   {
     name: 'Platform & Experience',
-    features: ['Device Labeling', 'Advanced Tagging', 'Theme Customization', 'Advanced Integrations', 'Support']
+    features: ['Device Labeling', 'Advanced Tagging', 'Theme Customization', 'Support']
+  },
+  {
+    name: 'Advanced Integrations (API & Webhooks)',
+    features: ['Webhooks', 'Monthly Event Limit', 'Custom Signing Secret']
   }
 ];
 
@@ -382,7 +392,9 @@ const featureTooltips: Record<string, string> = {
   'File Versioning': 'Track changes and restore previous versions of your files at any time.',
   'Advanced Tagging': 'Organize files with custom tags, color-coding, and perform advanced tag-based searches.',
   'Theme Customization': 'Personalize your interface with custom color themes and layout preferences.',
-  'Advanced Integrations': 'Build custom workflows and automate your storage with our developer API and real-time webhooks.',
+  'Webhooks': 'Receive real-time notifications for events in your account.',
+  'Monthly Event Limit': 'The maximum number of webhook events you can receive per month.',
+  'Custom Signing Secret': 'Set your own secret for verifying webhook signatures (Unlimited only).',
   'Security Events': 'A comprehensive log of all security-related activities across your account.',
   'Support': 'Priority access to our technical support team for assistance.'
 };

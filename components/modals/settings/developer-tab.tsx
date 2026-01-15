@@ -92,7 +92,9 @@ const EVENT_TYPES = [
   { id: 'master_key.reveal_failed', label: 'Master Key Reveal Failure', description: 'Triggered when a master key reveal attempt fails' },
 ];
 
-export function DeveloperTab() {
+import { UserData } from "@/lib/api"
+
+export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: string }) {
   const [webhooks, setWebhooks] = useState<any[]>([])
   const [events, setEvents] = useState<Record<string, { data: any[]; total: number; page: number; pageSize: number; isLoading?: boolean }>>({})
   const [loading, setLoading] = useState(false)
@@ -104,6 +106,10 @@ export function DeveloperTab() {
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [editingWebhook, setEditingWebhook] = useState<any>(null)
 
+  // Usage State
+  const [usageData, setUsageData] = useState<{ allowed: boolean; usage: number; limit: number; plan: string; } | null>(null)
+  const [loadingUsage, setLoadingUsage] = useState(false)
+
   // Success Dialog State
   const [successModalOpen, setSuccessModalOpen] = useState(false)
   const [newWebhookSecret, setNewWebhookSecret] = useState("")
@@ -114,11 +120,12 @@ export function DeveloperTab() {
   const [rotationLoading, setRotationLoading] = useState<string | null>(null)
 
   // Form State
-  const [formData, setFormData] = useState<{ url: string; events: string[] }>({ url: '', events: [] })
+  const [formData, setFormData] = useState<{ url: string; events: string[]; secret?: string }>({ url: '', events: [] })
   const [visibleSecrets, setVisibleSecrets] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     loadWebhooks()
+    loadUsage()
   }, [])
 
   async function loadWebhooks() {
@@ -132,8 +139,22 @@ export function DeveloperTab() {
     }
   }
 
+  async function loadUsage() {
+    setLoadingUsage(true)
+    try {
+      const res = await apiClient.getWebhookUsage()
+      if (res.success && res.data) {
+        setUsageData(res.data)
+      }
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoadingUsage(false)
+    }
+  }
+
   const resetForm = () => {
-    setFormData({ url: '', events: [] })
+    setFormData({ url: '', events: [], secret: '' })
     setEditingWebhook(null)
   }
 
@@ -159,6 +180,7 @@ export function DeveloperTab() {
 
   async function handleCreate() {
     if (!formData.url) return toast.error('Please enter a webhook URL')
+    if (userPlan === 'Free') return toast.error("Webhooks are a Pro feature")
 
     try {
       new URL(formData.url);
@@ -175,6 +197,7 @@ export function DeveloperTab() {
       setCreateModalOpen(false)
       resetForm()
       loadWebhooks()
+      loadUsage()
     } else {
       toast.error(res.error || 'Failed to create webhook')
     }
@@ -191,10 +214,15 @@ export function DeveloperTab() {
     }
 
     setLoading(true)
-    const res = await apiClient.updateWebhook(editingWebhook.id, {
+    const updatePayload: any = {
       url: formData.url,
       events: formData.events
-    })
+    }
+    if (formData.secret) {
+      updatePayload.secret = formData.secret
+    }
+
+    const res = await apiClient.updateWebhook(editingWebhook.id, updatePayload)
     setLoading(false)
     if (res.success) {
       toast.success('Webhook updated successfully')
@@ -207,6 +235,9 @@ export function DeveloperTab() {
   }
 
   async function toggleWebhookEnabled(id: string, currentStatus: boolean) {
+    if (!currentStatus && usageData && !usageData.allowed) {
+      return toast.error(`You have exceeded your monthly limit of ${usageData.limit} events.`)
+    }
     const res = await apiClient.updateWebhook(id, { enabled: !currentStatus })
     if (res.success) {
       toast.success(currentStatus ? 'Webhook paused' : 'Webhook resumed')
@@ -274,10 +305,10 @@ export function DeveloperTab() {
       setEvents(prev => ({
         ...(prev || {}),
         [id]: {
-          data: (res.data as any)?.events || [],
-          total: Number((res.data as any)?.pagination?.total) || 0,
-          page: Number((res.data as any)?.pagination?.page) || page,
-          pageSize: Number((res.data as any)?.pagination?.limit) || 10,
+          data: Array.isArray(res.data) ? res.data : [],
+          total: Number(res.total) || 0,
+          page: Number(res.page) || page,
+          pageSize: Number(res.pageSize) || 10,
           isLoading: false
         }
       }))
@@ -391,6 +422,47 @@ export function DeveloperTab() {
 
   return (
     <div className="space-y-6">
+      {/* Usage Bar */}
+      <div className="grid gap-6">
+        {usageData && (
+          <div className="bg-card border rounded-xl p-5 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${usageData.allowed ? 'bg-primary/10 text-primary' : 'bg-destructive/10 text-destructive'}`}>
+                  <IconActivity className="h-5 w-5" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold">Monthly Usage</h4>
+                  <p className="text-xs text-muted-foreground">{usageData.plan} Plan Limit</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <span className={`text-xl font-bold ${!usageData.allowed ? 'text-destructive' : ''}`}>{usageData.usage.toLocaleString()}</span>
+                <span className="text-muted-foreground text-sm font-medium"> / {usageData.limit.toLocaleString()}</span>
+              </div>
+            </div>
+            <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden">
+              <div
+                className={`h-full transition-all duration-500 ease-out ${!usageData.allowed ? 'bg-destructive' : 'bg-primary'}`}
+                style={{ width: `${Math.min(100, (usageData.usage / usageData.limit) * 100)}%` }}
+              />
+            </div>
+            {!usageData.allowed && (
+              <div className="flex items-start gap-2 text-xs text-destructive font-medium mt-3 bg-destructive/5 p-2.5 rounded-lg border border-destructive/10">
+                <IconAlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                <span>You have reached your monthly event limit. Webhooks will not be delivered until next month or upgrade your plan.</span>
+              </div>
+            )}
+            {userPlan === 'Free' && (
+              <div className="flex items-start gap-2 text-xs text-amber-600 font-medium mt-3 bg-amber-500/10 p-2.5 rounded-lg border border-amber-500/20 dark:text-amber-400">
+                <IconAlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                <span>Webhooks are a generic feature available on Pro and Unlimited plans. Upgrade to enable.</span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Header Section */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -404,7 +476,10 @@ export function DeveloperTab() {
         </div>
         <Dialog open={createModalOpen} onOpenChange={(open) => { if (!open) resetForm(); setCreateModalOpen(open) }}>
           <DialogTrigger asChild>
-            <Button className="rounded-full px-5 shadow-lg shadow-primary/10">
+            <Button
+              className="rounded-full px-5 shadow-lg shadow-primary/10"
+              disabled={userPlan === 'Free' || (usageData ? !usageData.allowed : false)}
+            >
               <IconPlus className="h-4 w-4 mr-2" />
               New Webhook
             </Button>
@@ -552,6 +627,30 @@ export function DeveloperTab() {
                 />
               </div>
             </div>
+
+            {userPlan === 'Unlimited' && (
+              <div className="grid gap-2">
+                <Label htmlFor="edit-secret" className="text-xs uppercase tracking-wider font-bold text-muted-foreground flex items-center justify-between">
+                  <span>Custom Signing Secret</span>
+                  <Badge variant="outline" className="text-[10px] h-5 px-1.5 py-0 border-amber-500/30 text-amber-600 bg-amber-500/10 dark:text-amber-400">UNLIMITED ONLY</Badge>
+                </Label>
+                <div className="relative">
+                  <IconShieldCheck className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground/50" />
+                  <Input
+                    id="edit-secret"
+                    className="pl-9 rounded-lg font-mono text-sm"
+                    placeholder="Enter a custom secret (max 64 chars)"
+                    maxLength={64}
+                    value={formData.secret || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, secret: e.target.value }))}
+                  />
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  This will immediately rotate your secret. Make sure to update your integrations.
+                </p>
+              </div>
+            )}
+
             <EventSelector />
           </div>
           <DialogFooter>
@@ -689,7 +788,7 @@ export function DeveloperTab() {
                                   <IconShieldCheck className="h-4 w-4 text-primary" />
                                   <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Security Configuration</h4>
                                 </div>
-                                <div className="bg-background/50 rounded-xl p-5 border border-muted/50 space-y-4">
+                                <div className="bg-background/50 rounded-xl p-5 border border-dashed border-muted/70 space-y-4">
                                   <div className="space-y-2">
                                     <div className="flex items-center justify-between">
                                       <Label className="text-[10px] text-muted-foreground uppercase tracking-widest font-black">Signing Secret</Label>

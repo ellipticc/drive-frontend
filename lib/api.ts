@@ -3334,8 +3334,12 @@ class ApiClient {
     return this.request(`/user/webhooks/events/${eventId}`);
   }
 
-  async getSecurityEvent(eventId: string): Promise<ApiResponse<any>> {
-    return this.request(`/auth/security/events/${eventId}`);
+  async getSecurityEvent(eventId: string): Promise<ApiResponse<SecurityEvent>> {
+    return this.request(`/security/events/${eventId}`)
+  }
+
+  async getWebhookUsage(): Promise<ApiResponse<{ allowed: boolean; usage: number; limit: number; plan: string; }>> {
+    return this.request('/webhooks/usage');
   }
 
   async reportOpaqueFailure(flow: string, stage: string, error: string): Promise<ApiResponse<{ success: boolean }>> {
