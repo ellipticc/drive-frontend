@@ -25,6 +25,13 @@ export interface UserData {
   theme_sync?: boolean;
   is_verified?: boolean;
   is_checkmarked?: boolean;
+
+  // New metadata fields
+  created_at?: string;
+  storage_region?: string;
+  storage_endpoint?: string;
+  crypto_version?: string;
+  api_version?: string;
   connectedDevicesCount?: number;
   show_suggestions?: boolean;
   date_format?: string;

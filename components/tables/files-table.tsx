@@ -572,6 +572,13 @@ export const Table01DividerLineSm = ({
 
     interface UserData {
         id: string
+        // metadata fields returned by the profile endpoint
+        created_at?: string
+        storage_region?: string
+        storage_endpoint?: string
+        crypto_version?: string
+        api_version?: string
+
         crypto_keypairs: {
             accountSalt: string
             pqcKeypairs: {
@@ -581,7 +588,7 @@ export const Table01DividerLineSm = ({
                 ed25519: { publicKey: string; encryptedPrivateKey: string; privateKeyNonce: string; encryptionKey: string; encryptionNonce: string }
             }
         }
-    }
+    } 
     const [userData, setUserData] = useState<UserData | null>(null);
 
     // Fetch user data when conflict modal opens (for signing)

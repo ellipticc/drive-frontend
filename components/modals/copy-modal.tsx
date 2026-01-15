@@ -48,6 +48,13 @@ interface Folder {
 
 interface UserData {
     id: string
+    // metadata fields returned by the profile endpoint
+    created_at?: string
+    storage_region?: string
+    storage_endpoint?: string
+    crypto_version?: string
+    api_version?: string
+
     crypto_keypairs: {
         accountSalt: string
         pqcKeypairs: {
@@ -57,7 +64,7 @@ interface UserData {
             ed25519: { publicKey: string; encryptedPrivateKey: string; privateKeyNonce: string; encryptionKey: string; encryptionNonce: string }
         }
     }
-}
+} 
 
 export function CopyModal({ children, itemId = "", itemName = "item", itemType = "file", items, open: externalOpen, onOpenChange: externalOnOpenChange, onItemCopied, onConflict }: CopyModalProps) {
     const [internalOpen, setInternalOpen] = useState(false)

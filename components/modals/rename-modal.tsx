@@ -47,6 +47,13 @@ interface RenameModalProps {
 
 interface UserData {
   id: string
+  // metadata fields returned by the profile endpoint
+  created_at?: string
+  storage_region?: string
+  storage_endpoint?: string
+  crypto_version?: string
+  api_version?: string
+
   crypto_keypairs: {
     accountSalt: string
     pqcKeypairs: {

@@ -510,7 +510,7 @@ export function GeneralTab({
             <div className="border-t pt-6">
                 <div className="flex items-center gap-2">
                     <IconGhost2 className="w-5 h-5 text-muted-foreground" />
-                    <h3 className="text-lg font-semibold">{t('settings.accountInfo', 'Account information')}</h3>
+                    <h3 className="text-lg font-semibold">{t('settings.accountInfo')}</h3>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
