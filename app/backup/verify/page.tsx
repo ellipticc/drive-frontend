@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { apiClient } from "@/lib/api"
 import { IconLoader2, IconArrowLeft, IconCaretLeftRightFilled, IconDice5 } from "@tabler/icons-react"
 import { cn } from "@/lib/utils"
@@ -19,6 +19,7 @@ export default function VerifyBackupPage() {
     const [isLoading, setIsLoading] = useState(false)
     const inputRefs = useRef<(HTMLInputElement | null)[]>([])
     const [originalMnemonic, setOriginalMnemonic] = useState<string>("")
+    const expectedWords = originalMnemonic ? originalMnemonic.split(' ') : []
 
     useEffect(() => {
         // 1. Check for mnemonic
@@ -67,10 +68,21 @@ export default function VerifyBackupPage() {
         // Only allow changing missing indices (extra safety, though input is disabled otherwise)
         if (!missingIndices.has(index)) return
 
+        const normalized = value.toLowerCase().trim()
         const newWords = [...words]
-        newWords[index] = value.toLowerCase().trim()
+        newWords[index] = normalized
         setWords(newWords)
 
+        // Auto-advance to next missing index when current word is correct
+        const expected = expectedWords[index]
+        if (expected && normalized === expected) {
+            const sortedMissing = Array.from(missingIndices).sort((a, b) => a - b)
+            const currentPos = sortedMissing.indexOf(index)
+            if (currentPos !== -1 && currentPos < sortedMissing.length - 1) {
+                const nextIndex = sortedMissing[currentPos + 1]
+                setTimeout(() => inputRefs.current[nextIndex]?.focus(), 50)
+            }
+        }
     }
 
     const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -151,111 +163,112 @@ export default function VerifyBackupPage() {
     }
 
     return (
-        <div className="min-h-screen bg-muted flex items-center justify-center p-4 relative overflow-hidden">
-            {/* Background elements for premium feel */}
-            <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
-                <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/20 rounded-full blur-[100px]" />
-                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-primary/10 rounded-full blur-[100px]" />
-            </div>
-
-            <div className="absolute top-6 left-6 z-10 flex items-center gap-4">
-                <Link href="/" className="flex items-center gap-2 font-medium no-underline border-none bg-transparent hover:bg-transparent focus:outline-none group">
-                    <IconCaretLeftRightFilled className="!size-6 text-primary transition-transform group-hover:rotate-12" />
-                    <span className="text-lg font-geist-mono select-none tracking-tighter">ellipticc</span>
-                </Link>
-            </div>
-
-            <div className="absolute top-6 right-6 z-10">
+        <div className="bg-background flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10">
+            <div className="absolute top-4 right-4">
                 <ThemeToggle />
             </div>
 
-            <Card className="w-full max-w-lg shadow-[0_20px_50px_rgba(0,0,0,0.1)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.3)] border-border/40 backdrop-blur-sm bg-background/80 z-10 transition-all duration-300">
-                <CardHeader className="text-center space-y-4 pb-2">
-                    <div className="flex justify-between items-center w-full px-1">
-                        <Link href="/backup" className="p-2 -m-2 text-muted-foreground hover:text-foreground transition-all duration-200">
-                            <IconArrowLeft className="w-5 h-5" />
-                        </Link>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={shufflePuzzle}
-                            className="text-muted-foreground hover:text-primary transition-all duration-300 hover:rotate-45 active:scale-90"
-                            title="Shuffle hidden words"
-                        >
-                            <IconDice5 className="w-5 h-5" />
-                        </Button>
-                    </div>
-                    <div>
-                        <CardTitle className="text-3xl font-extrabold tracking-tight">Verify Recovery Phrase</CardTitle>
-                        <CardDescription className="text-base mt-2">
+            <div className="flex w-full max-w-sm flex-col gap-6">
+                <Link href="/" className="flex items-center gap-2 self-center font-medium">
+                    <IconCaretLeftRightFilled className="!size-5" />
+                    <span className="text-base font-geist-mono select-none break-all">ellipticc</span>
+                </Link>
+
+                <div className="flex flex-col gap-6">
+                    <div className="flex flex-col gap-2 text-center">
+                        <h1 className="text-2xl font-bold">Verify Recovery Phrase</h1>
+                        <p className="text-sm text-muted-foreground">
                             Type the missing words to confirm your backup.
-                        </CardDescription>
+                        </p>
                     </div>
-                </CardHeader>
-                <CardContent className="space-y-8 pt-6">
-                    <div className="grid grid-cols-3 gap-3">
-                        {words.map((word, index) => {
-                            const isMissing = missingIndices.has(index)
-                            const isFilled = word.length > 0
-                            const isCorrect = isMissing && isFilled ? word === originalMnemonic.split(' ')[index] : null
 
-                            return (
-                                <div key={index} className="relative group perspective-1000">
-                                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] font-medium text-muted-foreground/50 select-none pointer-events-none transition-colors duration-200 group-focus-within:text-primary/70 z-10">
-                                        {String(index + 1).padStart(2, '0')}.
-                                    </span>
-                                    <Input
-                                        ref={el => { inputRefs.current[index] = el }}
-                                        type="text"
-                                        value={word}
-                                        onChange={(e) => handleWordChange(index, e.target.value)}
-                                        onKeyDown={(e) => handleKeyDown(index, e)}
-                                        disabled={isLoading || !isMissing}
-                                        className={cn(
-                                            "pl-7 pr-2 h-10 text-sm font-medium transition-all duration-200 ease-in-out border border-input/50 shadow-sm",
-                                            !isMissing
-                                                ? "bg-muted/30 text-muted-foreground/70 border-transparent select-none cursor-default opacity-80"
-                                                : "bg-secondary/20 focus:bg-background focus:border-primary/50 focus:ring-2 focus:ring-primary/10",
-                                            isMissing && isFilled && isCorrect === true && "border-green-500/50 text-green-600 dark:text-green-400 bg-green-500/5",
-                                            isMissing && isFilled && isCorrect === false && "border-red-500/50 text-red-600 dark:text-red-400 bg-red-500/5"
-                                        )}
-                                        autoComplete="off"
-                                        autoCapitalize="off"
-                                        spellCheck={false}
-                                        placeholder={isMissing ? "..." : ""}
-                                    />
-                                    {isMissing && (
-                                        <div className={cn(
-                                            "absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none transition-all duration-300 scale-0 opacity-0",
-                                            isFilled && "scale-100 opacity-100"
-                                        )}>
-                                            {isCorrect === true ? (
-                                                <div className="h-1.5 w-1.5 rounded-full bg-green-500/80 shadow-[0_0_6px_rgba(34,197,94,0.4)]" />
-                                            ) : isCorrect === false ? (
-                                                <div className="h-1.5 w-1.5 rounded-full bg-red-500/80 shadow-[0_0_6px_rgba(239,68,68,0.4)]" />
-                                            ) : null}
+                    <Card className="w-full shadow-[0_20px_50px_rgba(0,0,0,0.06)] border-border/20">
+                        <CardHeader className="pb-2">
+                            <div className="flex justify-between items-center w-full px-1">
+                                <Link href="/backup" className="p-2 -m-2 text-muted-foreground hover:text-foreground transition-all duration-200">
+                                    <IconArrowLeft className="w-5 h-5" />
+                                </Link>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={shufflePuzzle}
+                                    className="text-muted-foreground hover:text-primary transition-all duration-300 hover:rotate-45 active:scale-90"
+                                    title="Shuffle hidden words"
+                                >
+                                    <IconDice5 className="w-5 h-5" />
+                                </Button>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="space-y-8 pt-6">
+                            <div className="grid grid-cols-3 gap-3">
+                                {words.map((word, index) => {
+                                    const isMissing = missingIndices.has(index)
+                                    const isFilled = word.length > 0
+                                    const isCorrect = isMissing && isFilled ? word === expectedWords[index] : null
+
+                                    let indicator = null
+                                    if (isMissing && isFilled) {
+                                        indicator = isCorrect === true ? (
+                                            <div className="h-1.5 w-1.5 rounded-full bg-green-500/80 shadow-[0_0_6px_rgba(34,197,94,0.4)]" />
+                                        ) : isCorrect === false ? (
+                                            <div className="h-1.5 w-1.5 rounded-full bg-red-500/80 shadow-[0_0_6px_rgba(239,68,68,0.4)]" />
+                                        ) : null
+                                    }
+
+                                    return (
+                                        <div key={index} className="relative group perspective-1000">
+                                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] font-medium text-muted-foreground/50 select-none pointer-events-none transition-colors duration-200 group-focus-within:text-primary/70 z-10">
+                                                {String(index + 1).padStart(2, '0')}.
+                                            </span>
+                                            <Input
+                                                ref={el => { inputRefs.current[index] = el }}
+                                                type="text"
+                                                value={word}
+                                                onChange={(e) => handleWordChange(index, e.target.value)}
+                                                onKeyDown={(e) => handleKeyDown(index, e)}
+                                                disabled={isLoading || !isMissing}
+                                                className={cn(
+                                                    "pl-7 pr-2 h-10 text-sm font-medium transition-all duration-200 ease-in-out border border-input/50 shadow-sm",
+                                                    !isMissing
+                                                        ? "bg-muted/30 text-muted-foreground/70 border-transparent select-none cursor-default opacity-80"
+                                                        : "bg-secondary/20 focus:bg-background focus:border-primary/50 focus:ring-2 focus:ring-primary/10",
+                                                    isMissing && isFilled && isCorrect === true && "border-green-500/50 text-green-600 dark:text-green-400 bg-green-500/5",
+                                                    isMissing && isFilled && isCorrect === false && "border-red-500/50 text-red-600 dark:text-red-400 bg-red-500/5"
+                                                )}
+                                                autoComplete="off"
+                                                autoCapitalize="off"
+                                                spellCheck={false}
+                                                placeholder={isMissing ? "..." : ""}
+                                            />
+                                            {isMissing && (
+                                                <div className={cn(
+                                                    "absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none transition-all duration-300 scale-0 opacity-0",
+                                                    isFilled && "scale-100 opacity-100"
+                                                )}>{indicator}</div>
+                                            )}
                                         </div>
-                                    )}
-                                </div>
-                            )
-                        })}
-                    </div>
+                                    )
+                                })}
+                            </div>
 
-                    <div className="pt-2">
-                        <Button
-                            onClick={handleVerify}
-                            disabled={isLoading || words.some(w => !w)}
-                            className="w-full h-11 text-base shadow-lg hover:shadow-xl transition-all"
-                        >
-                            {isLoading ? (
-                                <span className="flex items-center gap-2">
-                                    <IconLoader2 className="animate-spin w-4 h-4" /> Verifying Security...
-                                </span>
-                            ) : "Verify & Finish"}
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
+                            <div className="pt-2">
+                                <Button
+                                    onClick={handleVerify}
+                                    disabled={isLoading || words.some(w => !w)}
+                                    className="w-full h-11 text-base shadow-lg hover:shadow-xl transition-all"
+                                >
+                                    {isLoading ? (
+                                        <span className="flex items-center gap-2">
+                                            <IconLoader2 className="animate-spin w-4 h-4" /> Verifying Security...
+                                        </span>
+                                    ) : "Verify & Finish"}
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
         </div>
     )
 }
+
