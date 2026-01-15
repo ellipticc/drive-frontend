@@ -3321,6 +3321,14 @@ class ApiClient {
     return this.request(`/user/webhooks/${id}/rotate`, { method: 'POST' });
   }
 
+  async deleteWebhookEvent(eventId: string): Promise<ApiResponse<{ success: boolean }>> {
+    return this.request(`/user/webhooks/events/${eventId}`, { method: 'DELETE' });
+  }
+
+  async resendWebhookEvent(eventId: string): Promise<ApiResponse<{ success: boolean; event: any }>> {
+    return this.request(`/user/webhooks/events/${eventId}/resend`, { method: 'POST' });
+  }
+
   async reportOpaqueFailure(flow: string, stage: string, error: string): Promise<ApiResponse<{ success: boolean }>> {
     return this.request('/auth/security/opaque/failure', {
       method: 'POST',

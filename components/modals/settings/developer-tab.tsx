@@ -26,7 +26,10 @@ import {
   IconInfoCircle,
   IconLoader2,
   IconActivity,
-  IconShieldCheck
+  IconShieldCheck,
+  IconSend,
+  IconDeviceDesktop,
+  IconBrowser
 } from "@tabler/icons-react"
 import {
   Dialog,
@@ -282,6 +285,29 @@ export function DeveloperTab() {
     }
   }
 
+  async function deleteEvent(webhookId: string, eventId: string) {
+    const res = await apiClient.deleteWebhookEvent(eventId)
+    if (res.success) {
+      toast.success('Event log deleted')
+      loadWebhookEvents(webhookId, events[webhookId]?.page || 1)
+    } else {
+      toast.error(res.error || 'Failed to delete event log')
+    }
+  }
+
+  async function resendEvent(webhookId: string, eventId: string) {
+    const promise = apiClient.resendWebhookEvent(eventId)
+    toast.promise(promise, {
+      loading: 'Resending event...',
+      success: 'Event resent successfully',
+      error: (err) => `Failed to resend: ${err?.error || 'Unknown error'}`
+    })
+    const res = await promise
+    if (res.success) {
+      loadWebhookEvents(webhookId, events[webhookId]?.page || 1)
+    }
+  }
+
   function toggleExpandEvent(webhookId: string, eventId: string | null) {
     setExpandedEvents(prev => ({ ...(prev || {}), [webhookId]: eventId }))
   }
@@ -414,9 +440,9 @@ export function DeveloperTab() {
               </div>
             </div>
             <div className="mt-4 flex items-start gap-2 text-[11px] text-muted-foreground bg-amber-500/5 border border-amber-500/20 rounded-lg p-3">
-              <IconAlertCircle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+              <IconInfoCircle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
               <p className="font-medium leading-relaxed">
-                <span className="font-bold text-amber-600 dark:text-amber-400">Security Warning:</span> We will only show this secret once. If you lose it, you will need to rotate it.
+                <span className="font-bold text-amber-600 dark:text-amber-400">Security Tip:</span> Keep this secret safe. You can view it again or rotate it anytime from the webhook settings.
               </p>
             </div>
           </div>
@@ -523,6 +549,7 @@ export function DeveloperTab() {
             <table className="w-full text-sm">
               <thead className="bg-muted/50 border-b">
                 <tr>
+                  <th className="px-4 py-3 text-left w-10"></th>
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground text-[10px] uppercase tracking-wider">Webhook ID</th>
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground text-[10px] uppercase tracking-wider">Endpoint URL</th>
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground text-[10px] uppercase tracking-wider">Status</th>
@@ -537,9 +564,11 @@ export function DeveloperTab() {
                       className={`hover:bg-muted/30 transition-colors cursor-pointer group ${expanded === w.id ? 'bg-muted/20' : ''}`}
                       onClick={() => { setExpanded(expanded === w.id ? null : w.id); if (expanded !== w.id) loadWebhookEvents(w.id, 1) }}
                     >
+                      <td className="px-4 py-3 text-center">
+                        {expanded === w.id ? <IconChevronDown className="h-3 w-3 rotate-180 transition-transform" /> : <IconChevronDown className="h-3 w-3 transition-transform" />}
+                      </td>
                       <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
                         <div className="flex items-center gap-2">
-                          {expanded === w.id ? <IconChevronDown className="h-3 w-3 rotate-180 transition-transform" /> : <IconChevronDown className="h-3 w-3 transition-transform" />}
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -554,7 +583,14 @@ export function DeveloperTab() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex flex-col">
-                          <span className="font-medium text-sm truncate max-w-[280px]">{w.url}</span>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="font-medium text-sm truncate max-w-[280px] cursor-help">{w.url}</span>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-[400px] break-all">{w.url}</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                           <span className="text-[10px] text-muted-foreground flex items-center gap-1.5 mt-0.5">
                             <IconCode className="h-3 w-3" />
                             {w.events ? `${w.events.length} events subscribed` : 'All events'}
@@ -612,7 +648,7 @@ export function DeveloperTab() {
 
                     {expanded === w.id && (
                       <tr className="bg-muted/10 border-b">
-                        <td colSpan={5} className="px-8 py-8 border-t">
+                        <td colSpan={6} className="px-8 py-8 border-t">
                           <div className="space-y-8 animate-in fade-in slide-in-from-top-2 duration-300">
                             {/* Signing Secret & Config Section */}
                             <div className="grid md:grid-cols-2 gap-8 pb-8 border-b">
@@ -658,7 +694,7 @@ export function DeveloperTab() {
                                         {rotationLoading === w.id ? <IconLoader2 className="h-4 w-4 animate-spin" /> : <IconRefresh className="h-4 w-4 group-hover/rotate:rotate-45 transition-transform" />}
                                       </Button>
                                     </div>
-                                    <p className="text-[10px] text-muted-foreground/70 font-medium">Use this secret to verify that the webhook event came from Ellipticc.</p>
+                                    <p className="text-[10px] text-muted-foreground/70 font-medium">For your convenience, you can view this secret here anytime. Ensure it is stored securely on your server to verify incoming requests.</p>
                                   </div>
                                 </div>
                               </div>
@@ -697,9 +733,19 @@ export function DeveloperTab() {
                                   <div className="h-1.5 w-1.5 rounded-full bg-primary" />
                                   Delivery History
                                 </h4>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 px-3 rounded-lg text-[10px] font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground hover:bg-muted"
+                                  onClick={() => loadWebhookEvents(w.id, events[w.id]?.page || 1)}
+                                  disabled={events[w.id]?.isLoading}
+                                >
+                                  {events[w.id]?.isLoading ? <IconLoader2 className="h-3.5 w-3.5 mr-2 animate-spin" /> : <IconRefresh className="h-3.5 w-3.5 mr-2" />}
+                                  Refresh Logs
+                                </Button>
                               </div>
 
-                              {(events[w.id]?.isLoading) ? (
+                              {(events[w.id]?.isLoading && !(events[w.id]?.data || []).length) ? (
                                 <div className="py-12 text-center text-muted-foreground flex flex-col items-center gap-4 bg-background/30 rounded-2xl border border-dashed">
                                   <IconLoader2 className="h-8 w-8 text-primary animate-spin" />
                                   <span className="text-sm font-bold tracking-tight">Accessing audit logs...</span>
@@ -719,10 +765,11 @@ export function DeveloperTab() {
                                       <thead className="bg-muted/50 border-b">
                                         <tr>
                                           <th className="px-4 py-3 text-left w-10"></th>
+                                          <th className="px-4 py-3 text-left font-medium text-muted-foreground text-[10px] uppercase tracking-wider">Event ID</th>
                                           <th className="px-4 py-3 text-left font-medium text-muted-foreground text-[10px] uppercase tracking-wider">Event Type</th>
                                           <th className="px-4 py-3 text-left font-medium text-muted-foreground text-[10px] uppercase tracking-wider">Status</th>
                                           <th className="px-4 py-3 text-left font-medium text-muted-foreground text-[10px] uppercase tracking-wider">Timestamp</th>
-                                          <th className="px-4 py-3 text-right font-medium text-muted-foreground text-[10px] uppercase tracking-wider">Request ID</th>
+                                          <th className="px-4 py-3 text-right font-medium text-muted-foreground text-[10px] uppercase tracking-wider">Actions</th>
                                         </tr>
                                       </thead>
                                       <tbody className="divide-y">
@@ -737,9 +784,23 @@ export function DeveloperTab() {
                                                 <td className="px-4 py-3 text-center">
                                                   <IconChevronDown className={`h-3 w-3 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
                                                 </td>
+                                                <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                                                  <div className="flex items-center gap-2">
+                                                    <TooltipProvider>
+                                                      <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                          <span className="cursor-help underline decoration-dotted decoration-muted-foreground/30">
+                                                            {ev.id.substring(0, 8)}...
+                                                          </span>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent side="top" className="font-mono text-xs">{ev.id}</TooltipContent>
+                                                      </Tooltip>
+                                                    </TooltipProvider>
+                                                  </div>
+                                                </td>
                                                 <td className="px-4 py-3">
-                                                  <Badge variant="outline" className="font-mono text-[10px] font-bold px-2 py-0.5 rounded-md border-muted-foreground/20 bg-background transition-all group-hover/row:border-primary/40 group-hover/row:text-primary">
-                                                    {ev.event_type}
+                                                  <Badge variant="outline" className="font-mono text-[10px] font-bold px-2 py-0.5 rounded-md border-muted-foreground/20 bg-background transition-all group-hover/row:border-primary/40 group-hover/row:text-primary capitalize">
+                                                    {ev.event_type.replace(/_/g, ' ')}
                                                   </Badge>
                                                 </td>
                                                 <td className="px-4 py-3">
@@ -755,20 +816,40 @@ export function DeveloperTab() {
                                                 <td className="px-4 py-3 text-xs font-medium text-muted-foreground/80">
                                                   {new Date(ev.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
                                                 </td>
-                                                <td className="px-4 py-3 text-right">
-                                                  <span className="font-mono text-[10px] text-muted-foreground/40">{ev.id.split('-')[0]}</span>
+                                                <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                                                  <div className="flex items-center justify-end gap-1">
+                                                    <TooltipProvider>
+                                                      <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                          <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg hover:bg-muted" onClick={() => resendEvent(w.id, ev.id)}>
+                                                            <IconSend className="h-4 w-4 text-muted-foreground" />
+                                                          </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>Resend Event</TooltipContent>
+                                                      </Tooltip>
+                                                    </TooltipProvider>
+                                                    <TooltipProvider>
+                                                      <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                          <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => deleteEvent(w.id, ev.id)}>
+                                                            <IconTrash className="h-4 w-4" />
+                                                          </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>Delete Log</TooltipContent>
+                                                      </Tooltip>
+                                                    </TooltipProvider>
+                                                  </div>
                                                 </td>
                                               </tr>
                                               {isExpanded && (
                                                 <tr>
-                                                  <td colSpan={5} className="p-0 bg-muted/5 border-t">
+                                                  <td colSpan={6} className="p-0 bg-muted/5 border-t">
                                                     <div className="px-10 py-8 animate-in fade-in slide-in-from-top-2 duration-300">
                                                       <div className="grid grid-cols-1 gap-8 max-w-5xl mx-auto">
-                                                        {/* Details Card Grid */}
                                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pb-6 border-b border-muted">
                                                           <div className="space-y-1">
                                                             <span className="block text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">Execution Latency</span>
-                                                            <span className="block text-xs font-bold text-emerald-500 tracking-tight">84ms <span className="text-[10px] font-normal text-muted-foreground">avg</span></span>
+                                                            <span className="block text-xs font-bold text-rose-500 tracking-tight">8.42s <span className="text-[10px] font-normal text-muted-foreground">RTT</span></span>
                                                           </div>
                                                           <div className="space-y-1">
                                                             <span className="block text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">Delivery Method</span>
@@ -776,11 +857,25 @@ export function DeveloperTab() {
                                                           </div>
                                                           <div className="space-y-1">
                                                             <span className="block text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">Signature Key</span>
-                                                            <span className="block font-mono text-[10px] select-all font-bold text-muted-foreground/80 truncate">{ev.signature_id || 'v1_ed25519'}</span>
+                                                            <TooltipProvider>
+                                                              <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                  <span className="block font-mono text-[10px] select-all font-bold text-muted-foreground/80 truncate cursor-help border-b border-dashed border-muted-foreground/30">{ev.signature_id ? `${ev.signature_id.substring(0, 8)}...` : 'v1_ed25519'}</span>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent className="font-mono text-xs">{ev.signature_id || 'v1_ed25519'}</TooltipContent>
+                                                              </Tooltip>
+                                                            </TooltipProvider>
                                                           </div>
                                                           <div className="space-y-1">
                                                             <span className="block text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">Payload Hash</span>
-                                                            <span className="block font-mono text-[10px] select-all font-bold text-muted-foreground/80 truncate">{(ev.request_id || '').substring(0, 16)}</span>
+                                                            <TooltipProvider>
+                                                              <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                  <span className="block font-mono text-[10px] select-all font-bold text-muted-foreground/80 truncate cursor-help border-b border-dashed border-muted-foreground/30">{(ev.request_id || '').substring(0, 16)}...</span>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent className="font-mono text-xs">{ev.request_id}</TooltipContent>
+                                                              </Tooltip>
+                                                            </TooltipProvider>
                                                           </div>
                                                         </div>
 
@@ -790,8 +885,8 @@ export function DeveloperTab() {
                                                               <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Request Headers</h4>
                                                               <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg hover:bg-muted" onClick={() => { navigator.clipboard.writeText(ev.request_headers || ''); toast.success('Headers copied') }}><IconCopy className="h-3.5 w-3.5" /></Button>
                                                             </div>
-                                                            <div className="bg-background/80 border rounded-xl p-4 font-mono text-[9px] text-muted-foreground overflow-x-auto whitespace-pre-wrap leading-relaxed shadow-sm max-h-[250px] scrollbar-thin">
-                                                              {ev.request_headers}
+                                                            <div className="bg-background/80 border rounded-xl p-4 font-mono text-[9px] text-muted-foreground overflow-x-auto whitespace-pre leading-relaxed shadow-sm max-h-[300px] scrollbar-thin">
+                                                              {ev.request_headers ? JSON.stringify(JSON.parse(ev.request_headers), null, 2) : 'No headers recorded'}
                                                             </div>
                                                           </div>
                                                           <div className="space-y-3">
@@ -799,19 +894,19 @@ export function DeveloperTab() {
                                                               <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Payload Data</h4>
                                                               <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg hover:bg-muted" onClick={() => { navigator.clipboard.writeText(ev.request_body || ''); toast.success('Payload copied') }}><IconCopy className="h-3.5 w-3.5" /></Button>
                                                             </div>
-                                                            <div className="rounded-xl overflow-hidden border shadow-sm bg-background scrollbar-thin">
+                                                            <div className="rounded-xl overflow-hidden border shadow-sm bg-background scrollbar-thin max-h-[300px] overflow-y-auto">
                                                               <JsonHighlighter data={JSON.parse(ev.request_body || '{}')} />
                                                             </div>
                                                           </div>
                                                         </div>
 
-                                                        {ev.response_body && (
+                                                        {(ev.response_body || ev.status === 'failed') && (
                                                           <div className="border-t border-muted pt-6 mt-2">
                                                             <div className="flex items-center gap-2 mb-3">
                                                               <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-[9px] px-2 shadow-sm uppercase font-bold tracking-widest">Remote Server Response</Badge>
                                                             </div>
-                                                            <div className="bg-black/[0.02] dark:bg-white/[0.02] border rounded-xl p-4 font-mono text-[9px] overflow-x-auto max-h-[150px] leading-relaxed scrollbar-thin text-muted-foreground">
-                                                              {ev.response_body}
+                                                            <div className="bg-black/[0.02] dark:bg-white/[0.02] border rounded-xl p-4 font-mono text-[9px] overflow-x-auto max-h-[200px] leading-relaxed scrollbar-thin text-muted-foreground whitespace-pre-wrap">
+                                                              {ev.response_body || 'No response body received from server.'}
                                                             </div>
                                                           </div>
                                                         )}
