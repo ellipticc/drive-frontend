@@ -2,7 +2,6 @@
 
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useFormatter } from "@/hooks/use-formatter";
-import dynamic from "next/dynamic";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
 import { DotsVertical } from "@untitledui/icons";
@@ -10,7 +9,7 @@ import type { SortDescriptor } from "react-aria-components";
 
 import { Table, TableCard } from "@/components/application/table/table";
 import { Button } from "@/components/ui/button";
-import { IconShare3, IconListDetails, IconDownload, IconInfoCircle, IconFolder, IconX, IconGrid3x3, IconPencil, IconLinkOff } from "@tabler/icons-react";
+import { IconShare3, IconListDetails, IconDownload, IconInfoCircle, IconFolder, IconX, IconGrid3x3, IconPencil, IconLinkOff, IconEye } from "@tabler/icons-react";
 const ShareModal = dynamic(() => import("@/components/modals/share-modal").then(mod => mod.ShareModal));
 const DetailsModal = dynamic(() => import("@/components/modals/details-modal").then(mod => mod.DetailsModal));
 const RenameModal = dynamic(() => import("@/components/modals/rename-modal").then(mod => mod.RenameModal));
@@ -21,6 +20,8 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import dynamic from 'next/dynamic';
+const FullPagePreviewModal = dynamic(() => import('@/components/previews/full-page-preview-modal').then(m => m.FullPagePreviewModal));
 import { Checkbox } from "@/components/base/checkbox/checkbox";
 import { TableSkeleton } from "@/components/tables/table-skeleton";
 import { apiClient, ShareItem } from "@/lib/api";
@@ -31,8 +32,8 @@ import { decryptFilenameInWorker } from "@/lib/filename-decryption-pool";
 import { useGlobalUpload } from "@/components/global-upload-context";
 import { masterKeyManager } from "@/lib/master-key";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { FileThumbnail } from "../files/file-thumbnail";
-import { FileIcon } from "../file-icon";
 import { TruncatedNameTooltip } from "./truncated-name-tooltip";
 import {
     ActionBar,
@@ -75,6 +76,52 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
     const [selectedItemForDetails, setSelectedItemForDetails] = useState<{ id: string; name: string; type: "file" | "folder" } | null>(null);
     const [renameModalOpen, setRenameModalOpen] = useState(false);
     const [selectedItemForRename, setSelectedItemForRename] = useState<{ id: string; name: string; type: "file" | "folder" } | null>(null);
+
+    // Preview state
+    const [previewFile, setPreviewFile] = useState<any | null>(null);
+    const [previewIndex, setPreviewIndex] = useState(-1);
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+
+    const setPreviewParam = (id?: string) => {
+        try {
+            const params = new URLSearchParams(searchParams.toString());
+            if (id) params.set('preview', id);
+            else params.delete('preview');
+            router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+        } catch (err) {
+            // ignore
+        }
+    }
+
+    const openPreviewFor = (itemIndex: number) => {
+        const item = filteredItems[itemIndex];
+        if (!item) return;
+        if (item.fileId || !item.isFolder) {
+            const id = item.fileId || item.id;
+            setPreviewFile({ id, name: item.fileName || '', type: 'file', mimeType: item.mimeType, size: item.fileSize });
+            setPreviewIndex(itemIndex);
+            setPreviewParam(id);
+        }
+    };
+    const closePreview = () => {
+        setPreviewFile(null);
+        setPreviewParam(undefined);
+    };
+    const navigatePreview = (direction: 'prev' | 'next') => {
+        const newIndex = direction === 'prev' ? previewIndex - 1 : previewIndex + 1;
+        if (newIndex >= 0 && newIndex < filteredItems.length) {
+            const item = filteredItems[newIndex];
+            if (!item) return;
+            const id = item.fileId || item.id;
+            setPreviewFile({ id, name: item.fileName || '', type: 'file', mimeType: item.mimeType, size: item.fileSize });
+            setPreviewIndex(newIndex);
+            setPreviewParam(id);
+        }
+    };
+
+
 
 
     // Load shares on component mount or when page/mode changes
@@ -515,6 +562,15 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
 
                     <Tooltip>
                         <TooltipTrigger asChild>
+                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => (firstItem.fileId && openPreviewFor(filteredItems.findIndex(f => f.id === firstItem.id)))} aria-label="Preview" disabled={!firstItem.fileId || firstItem.isFolder}>
+                                <IconEye className="h-3.5 w-3.5" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Preview</TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                        <TooltipTrigger asChild>
                             <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={async () => {
                                 // Copy link if exists otherwise open share modal
                                 const resourceId = firstItem.isFolder ? (firstItem.folderId || firstItem.id) : (firstItem.fileId || firstItem.id);
@@ -654,6 +710,25 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
         return () => document.removeEventListener('keydown', handleKeyDown);
     }, [filteredItems]);
 
+    // Sync with URL ?preview=<id> param (runs after filteredItems is available)
+    useEffect(() => {
+        const previewId = searchParams?.get('preview');
+        if (!previewId) return;
+        const idx = filteredItems.findIndex(f => (f.fileId || f.id) === previewId || f.id === previewId);
+        if (idx >= 0) {
+            openPreviewFor(idx);
+        } else {
+            // Invalid preview param - remove it
+            try {
+                const params = new URLSearchParams(searchParams.toString());
+                params.delete('preview');
+                router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+            } catch (err) {
+                // ignore
+            }
+        }
+    }, [searchParams, filteredItems, pathname, router]);
+
     if (isLoading) {
         return (
             <TableSkeleton
@@ -771,6 +846,13 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                                             id={item.id}
                                             data-index={virtualItem.index}
                                             ref={rowVirtualizer.measureElement}
+                                            onDoubleClick={() => {
+                                                if (item.fileId && !item.isFolder) {
+                                                    openPreviewFor(virtualItem.index);
+                                                } else {
+                                                    handleDetailsClick(item.isFolder ? (item.folderId || item.id) : (item.fileId || item.id), item.fileName || '', item.isFolder ? 'folder' : 'file');
+                                                }
+                                            }}
                                             className="group hover:bg-muted/50 transition-colors duration-150"
                                         >
                                             <Table.Cell className="w-10 text-center pl-4 pr-0">
@@ -857,13 +939,21 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                                                                 </>
                                                             ) : (
                                                                 <>
-                                                                    <DropdownMenuItem onClick={() => item.fileId && handleDownloadClick(item.id, item.fileId, item.fileName || '')}>
+                                                                    <DropdownMenuItem onClick={() => item.fileId && handleDownloadClick(item.fileId, item.fileId, item.fileName || '')}>
                                                                         <IconDownload className="h-4 w-4 mr-2" />
                                                                         Download
                                                                     </DropdownMenuItem>
                                                                     <DropdownMenuItem onClick={() => item.fileId && handleShareClick(item.fileId, item.fileName || '', 'file')}>
                                                                         <IconShare3 className="h-4 w-4 mr-2" />
                                                                         Share
+                                                                    </DropdownMenuItem>
+                                                                    <DropdownMenuItem onClick={() => item.fileId && openPreviewFor(filteredItems.findIndex(f => f.id === item.id))}>
+                                                                        <IconEye className="h-4 w-4 mr-2" />
+                                                                        Preview
+                                                                    </DropdownMenuItem>
+                                                                    <DropdownMenuItem onClick={() => item.fileId && handleCopyLinkForResource(item.fileId || item.id, 'file')}>
+                                                                        <IconCopy className="h-4 w-4 mr-2" />
+                                                                        Copy link
                                                                     </DropdownMenuItem>
                                                                     <DropdownMenuSeparator />
                                                                 </>
@@ -921,7 +1011,10 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                                             setSelectedItems(new Set([item.id]));
                                         }
                                     }}
-                                    onDoubleClick={() => item.fileId && handleDetailsClick(item.fileId, item.fileName || '', item.isFolder ? 'folder' : 'file')}
+                                    onDoubleClick={() => {
+                                        if (item.fileId && !item.isFolder) openPreviewFor(filteredItems.findIndex(f => f.id === item.id));
+                                        else handleDetailsClick(item.isFolder ? (item.folderId || item.id) : (item.fileId || item.id), item.fileName || '', item.isFolder ? 'folder' : 'file');
+                                    }}
                                 >
                                     <div className="flex flex-col items-center text-center space-y-2">
                                         <div className="absolute top-2 left-2 z-10" onClick={(e) => e.stopPropagation()}>
@@ -1001,44 +1094,7 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                 )}
             </TableCard.Root >
 
-            <ActionBar
-                open={selectedItems.size > 0}
-            >
-                <ActionBarSelection>
-                    {selectedItems.size} selected
-                </ActionBarSelection>
-                <ActionBarSeparator />
-                <ActionBarGroup>
-                    <ActionBarItem onClick={handleBulkDownload}>
-                        <IconDownload className="h-4 w-4 mr-2" />
-                        Download
-                    </ActionBarItem>
-                    {selectedItems.size === 1 && (
-                        <ActionBarItem onClick={() => {
-                            const id = Array.from(selectedItems)[0];
-                            const item = filteredItems.find(i => i.id === id);
-                            if (item) {
-                                const resourceId = item.isFolder ? (item.folderId || item.id) : (item.fileId || item.id);
-                                handleCopyLinkForResource(resourceId, item.isFolder ? 'folder' : 'file');
-                            }
-                        }}>
-                            <IconCopy className="h-4 w-4 mr-2" />
-                            Copy link
-                        </ActionBarItem>
-                    )}
-                    <ActionBarItem
-                        variant="destructive"
-                        onClick={handleBulkRevoke}
-                    >
-                        <IconX className="h-4 w-4 mr-2" />
-                        Revoke
-                    </ActionBarItem>
-                </ActionBarGroup>
-                <ActionBarSeparator />
-                <ActionBarClose onClick={() => setSelectedItems(new Set())}>
-                    <IconX className="h-4 w-4" />
-                </ActionBarClose>
-            </ActionBar>
+
 
             <ShareModal
                 itemId={selectedItemForShare?.id || ""}
@@ -1146,6 +1202,18 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
             />
 
 
+            <FullPagePreviewModal
+                isOpen={!!previewFile}
+                file={previewFile ? { id: previewFile.id, name: previewFile.name, type: previewFile.type || 'file', mimeType: previewFile.mimeType, size: previewFile.size } : null}
+                onClose={closePreview}
+                onNavigate={navigatePreview}
+                onDownload={(file) => { startFileDownload(file.id, file.name) }}
+                hasPrev={previewIndex > 0}
+                hasNext={previewIndex < filteredItems.length - 1}
+                currentIndex={previewIndex}
+                totalItems={filteredItems.length}
+            />
+
             <ActionBar
                 open={selectedItems.size > 0}
                 onOpenChange={(open) => {
@@ -1161,6 +1229,29 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                         <IconDownload className="h-4 w-4 mr-2" />
                         Download
                     </ActionBarItem>
+
+                    {selectedItems.size === 1 && (() => {
+                        const id = Array.from(selectedItems)[0];
+                        const item = filteredItems.find(i => i.id === id);
+                        if (!item) return null;
+                        const resourceId = item.isFolder ? (item.folderId || item.id) : (item.fileId || item.id);
+                        const canPreview = !!item.fileId && !item.isFolder;
+                        return (
+                            <>
+                                {canPreview && (
+                                    <ActionBarItem onClick={() => openPreviewFor(filteredItems.findIndex(f => f.id === item.id))}>
+                                        <IconEye className="h-4 w-4 mr-2" />
+                                        Preview
+                                    </ActionBarItem>
+                                )}
+                                <ActionBarItem onClick={() => handleCopyLinkForResource(resourceId, item.isFolder ? 'folder' : 'file')}>
+                                    <IconCopy className="h-4 w-4 mr-2" />
+                                    Copy link
+                                </ActionBarItem>
+                            </>
+                        )
+                    })()}
+
                     <ActionBarItem
                         variant="destructive"
                         onClick={handleBulkRevoke}
@@ -1170,7 +1261,7 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                     </ActionBarItem>
                 </ActionBarGroup>
                 <ActionBarSeparator />
-                <ActionBarClose>
+                <ActionBarClose onClick={() => setSelectedItems(new Set())}>
                     <IconX className="h-4 w-4" />
                 </ActionBarClose>
             </ActionBar>

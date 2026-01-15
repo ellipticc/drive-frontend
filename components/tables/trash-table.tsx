@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { IconRestore, IconTrash } from "@tabler/icons-react";
 const DeletePermanentlyModal = dynamic(() => import("@/components/modals/delete-permanently-modal").then(mod => mod.DeletePermanentlyModal));
 const DetailsModal = dynamic(() => import("@/components/modals/details-modal").then(mod => mod.DetailsModal));
+const FullPagePreviewModal = dynamic(() => import('@/components/previews/full-page-preview-modal').then(m => m.FullPagePreviewModal));
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -28,7 +29,8 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { IconFolder, IconInfoCircle, IconTrash as IconTrashAlt, IconX } from "@tabler/icons-react";
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { IconFolder, IconInfoCircle, IconTrash as IconTrashAlt, IconX, IconEye } from "@tabler/icons-react";
 import { apiClient, FileContentItem, FolderContentItem } from "@/lib/api";
 import { formatFileSize } from "@/lib/utils";
 import { TableSkeleton } from "@/components/tables/table-skeleton";
@@ -96,6 +98,70 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
 
     // Selection state
     const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+
+    // Preview state (for previewing files from trash)
+    const [previewFile, setPreviewFile] = useState<any | null>(null);
+    const [previewIndex, setPreviewIndex] = useState(-1);
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+
+    const setTrashPreviewParam = (id?: string) => {
+        try {
+            const params = new URLSearchParams(searchParams.toString());
+            if (id) params.set('preview', id);
+            else params.delete('preview');
+            router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+        } catch (err) {
+            // ignore
+        }
+    }
+
+    const openPreviewForTrash = (itemId: string) => {
+        const index = trashItems.findIndex(i => i.id === itemId);
+        const item = trashItems[index];
+        if (!item) return;
+        if (item.type === 'paper') {
+            // Papers open in view-mode only
+            window.open('/paper/' + item.id + '?viewMode=view', '_blank');
+            return;
+        }
+        // Files: open preview modal
+        if (item.filename || item.mimeType) {
+            setPreviewFile({ id: item.id, name: item.filename || item.name || '', type: 'file', mimeType: item.mimeType, size: item.size });
+            setPreviewIndex(index);
+            setTrashPreviewParam(item.id);
+        }
+    };
+    const closePreviewTrash = () => {
+        setPreviewFile(null);
+        setTrashPreviewParam(undefined);
+    };
+    const navigatePreviewTrash = (direction: 'prev' | 'next') => {
+        const newIndex = direction === 'prev' ? previewIndex - 1 : previewIndex + 1;
+        if (newIndex >= 0 && newIndex < trashItems.length) {
+            const newItem = trashItems[newIndex];
+            openPreviewForTrash(newItem.id);
+        }
+    };
+
+    // Read preview param on mount and open if valid
+    useEffect(() => {
+        const previewId = searchParams?.get('preview');
+        if (!previewId) return;
+        const idx = trashItems.findIndex(i => i.id === previewId);
+        if (idx >= 0) {
+            openPreviewForTrash(previewId);
+        } else {
+            const params = new URLSearchParams(searchParams.toString());
+            params.delete('preview');
+            try {
+                router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+            } catch (err) {
+                // ignore
+            }
+        }
+    }, [searchParams, trashItems, pathname, router]);
 
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [selectedItemForDelete, setSelectedItemForDelete] = useState<{ id: string; name: string; type: "file" | "folder" | "paper" } | null>(null);
@@ -660,6 +726,13 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                                             id={item.id}
                                             data-index={virtualItem.index}
                                             ref={rowVirtualizer.measureElement}
+                                            onDoubleClick={() => {
+                                                if (item.type === 'paper') {
+                                                    window.open('/paper/' + item.id + '?viewMode=view', '_blank');
+                                                } else {
+                                                    openPreviewForTrash(item.id);
+                                                }
+                                            }}
                                             className="group hover:bg-muted/50 transition-colors duration-150"
                                         >
                                             <Table.Cell className="w-10 text-center pl-4 pr-0">
@@ -725,6 +798,19 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                                                             <DropdownMenuItem onClick={() => handleRestoreClick(item.id, item.name, item.type)}>
                                                                 <IconRestore className="h-4 w-4 mr-2" />
                                                                 Restore
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuItem onClick={() => {
+                                                                if (item.type === 'paper') {
+                                                                    window.open('/paper/' + item.id + '?viewMode=view', '_blank');
+                                                                } else if (item.filename || item.mimeType) {
+                                                                    openPreviewForTrash(item.id);
+                                                                } else {
+                                                                    handleDetailsClick(item.id, item.name, item.type);
+                                                                }
+                                                            }}>
+                                                                <IconEye className="h-4 w-4 mr-2" />
+                                                                Preview
                                                             </DropdownMenuItem>
                                                             <DropdownMenuSeparator />
                                                             <DropdownMenuItem onClick={() => handleDetailsClick(item.id, item.name, item.type)}>
@@ -812,6 +898,18 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <FullPagePreviewModal
+                isOpen={!!previewFile}
+                file={previewFile ? { id: previewFile.id, name: previewFile.name, type: previewFile.type || 'file', mimeType: previewFile.mimeType, size: previewFile.size } : null}
+                onClose={closePreviewTrash}
+                onNavigate={navigatePreviewTrash}
+                onDownload={(file) => { /* Download from trash not supported, show message */ toast.error('Download from Trash is not available'); }}
+                hasPrev={previewIndex > 0}
+                hasNext={previewIndex < trashItems.length - 1}
+                currentIndex={previewIndex}
+                totalItems={trashItems.length}
+            />
 
             <ActionBar
                 open={selectedItems.size > 0}

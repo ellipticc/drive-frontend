@@ -74,9 +74,14 @@ export function GalleryToolbar({
 
             {/* Zoom Slider */}
             <div className="flex items-center gap-2 w-32">
-                <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full" onClick={() => setZoomLevel(Math.min(10, zoomLevel + 1))}>
-                    <IconMinus className="h-3 w-3" />
-                </Button>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full" onClick={() => setZoomLevel(Math.min(10, zoomLevel + 1))} aria-label="Zoom out">
+                            <IconMinus className="h-3 w-3" />
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Zoom out</TooltipContent>
+                </Tooltip>
                 <Slider
                     value={[12 - zoomLevel]}
                     min={2}
@@ -85,9 +90,14 @@ export function GalleryToolbar({
                     onValueChange={(val) => setZoomLevel(12 - val[0])}
                 />
 
-                <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full" onClick={() => setZoomLevel(Math.max(2, zoomLevel - 1))}>
-                    <IconPlus className="h-3 w-3" />
-                </Button>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full" onClick={() => setZoomLevel(Math.max(2, zoomLevel - 1))} aria-label="Zoom in">
+                            <IconPlus className="h-3 w-3" />
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Zoom in</TooltipContent>
+                </Tooltip>
             </div>
 
             <div className="flex-1" /> {/* Spacer */}

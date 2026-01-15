@@ -104,6 +104,26 @@ export default function PhotosPage() {
         setSearchQuery(q || "");
     }, [searchParams]);
 
+    // Sync preview param from URL (open preview when ?preview=<id> is present)
+    useEffect(() => {
+        const previewId = searchParams.get('preview');
+        if (previewId) {
+            const item = mediaItems.find(i => i.id === previewId);
+            if (item) {
+                handlePreview(item);
+            } else {
+                // Remove invalid preview param
+                const params = new URLSearchParams(searchParams.toString());
+                params.delete('preview');
+                try {
+                    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+                } catch (err) {
+                    // ignore
+                }
+            }
+        }
+    }, [searchParams, mediaItems, pathname, router]);
+
     // Check for paid feature usage (Tag Search)
     useEffect(() => {
         if (searchQuery?.startsWith('#') && isFreePlan) {
@@ -247,6 +267,15 @@ export default function PhotosPage() {
             size: item.size
         })
         setPreviewIndex(index)
+
+        // Update URL with preview param so linkable and back-button friendly
+        try {
+            const params = new URLSearchParams(searchParams.toString());
+            params.set('preview', item.id);
+            router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+        } catch (err) {
+            // ignore router errors
+        }
     }
 
     const handleAction = async (action: string, item: MediaItem) => {
@@ -321,6 +350,15 @@ export default function PhotosPage() {
                 size: newItem.size
             })
             setPreviewIndex(newIndex)
+
+            // Update preview param in URL
+            try {
+                const params = new URLSearchParams(searchParams.toString());
+                params.set('preview', newItem.id);
+                router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+            } catch (err) {
+                // ignore
+            }
         }
     }
 
@@ -540,7 +578,16 @@ export default function PhotosPage() {
             <FullPagePreviewModal
                 isOpen={!!previewFile}
                 file={previewFile}
-                onClose={() => setPreviewFile(null)}
+                onClose={() => {
+                    setPreviewFile(null);
+                    try {
+                        const params = new URLSearchParams(searchParams.toString());
+                        params.delete('preview');
+                        router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+                    } catch (err) {
+                        // ignore
+                    }
+                }}
                 onNavigate={handleNavigate}
                 onDownload={handleDownload}
                 hasPrev={previewIndex > 0}
