@@ -88,30 +88,15 @@ export function ConflictModal({ isOpen, onClose, conflicts, onResolve, operation
   const getDescription = () => {
     if (conflicts.length === 1) {
       const conflict = conflicts[0]
-      // Return JSX with Tooltip so long names don't expand the dialog and are fully visible on hover
-      return (
-        <TooltipProvider delayDuration={0}>
-          <span className="block max-w-full truncate">
-            &quot;
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="font-mono truncate inline-block whitespace-nowrap sm:max-w-[20ch] md:max-w-[36ch] lg:max-w-[48ch]">{truncateName(conflict.name, 56)}</span>
-              </TooltipTrigger>
-              <TooltipContent className="font-mono text-xs max-w-[60ch] whitespace-pre-wrap">
-                {conflict.name}
-              </TooltipContent>
-            </Tooltip>
-            &quot; already exists. What would you like to do?
-          </span>
-        </TooltipProvider>
-      )
+      const noun = conflict.type === 'file' ? 'file' : 'folder'
+      return `This ${noun} already exists. What would you like to do?`
     }
     return `${conflicts.length} items already exist. Choose how to resolve each conflict.`
   }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[640px] max-h-[70vh] overflow-auto">
+      <DialogContent className="w-full sm:max-w-[640px] max-h-[70vh] overflow-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {conflicts.length === 1 ? (
