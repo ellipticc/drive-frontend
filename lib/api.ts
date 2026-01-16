@@ -2480,6 +2480,48 @@ class ApiClient {
     });
   }
 
+  // Paper Versioning Endpoints
+  async getPaperVersions(fileId: string): Promise<ApiResponse<{
+    versions: Array<{
+      id: string;
+      versionIndex: number;
+      createdAt: string;
+      totalSize: number;
+      expiresAt: string | null;
+    }>
+  }>> {
+    return this.request(`/papers/${fileId}/versions`);
+  }
+
+  async savePaperVersion(fileId: string): Promise<ApiResponse<{
+    success: boolean;
+    message: string;
+    versionId: string;
+    skipped?: boolean;
+  }>> {
+    return this.request(`/papers/${fileId}/versions`, {
+      method: 'POST'
+    });
+  }
+
+  async restorePaperVersion(fileId: string, versionId: string): Promise<ApiResponse<{
+    success: boolean;
+    message: string;
+  }>> {
+    return this.request(`/papers/${fileId}/versions/${versionId}/restore`, {
+      method: 'POST'
+    });
+  }
+
+  async deletePaperVersion(fileId: string, versionId: string): Promise<ApiResponse<{
+    success: boolean;
+    message: string;
+  }>> {
+    return this.request(`/papers/${fileId}/versions/${versionId}`, {
+      method: 'DELETE'
+    });
+  }
+
   async getDownloadUrls(fileId: string): Promise<ApiResponse<DownloadUrlsResponse>> {
     return this.request(`/files/download/${fileId}/urls`);
   }

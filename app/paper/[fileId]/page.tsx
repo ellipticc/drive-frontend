@@ -29,6 +29,8 @@ import { useEmojiDropdownMenuState } from "@platejs/emoji/react";
 import { FixedToolbar } from "@/components/ui/fixed-toolbar";
 import { FixedToolbarButtons } from "@/components/ui/fixed-toolbar-buttons";
 import { EmojiPopover, EmojiPicker } from "@/components/ui/emoji-toolbar-button";
+import { VersionHistoryModal } from "@/components/modals/version-history-modal";
+import { IconHistory } from "@tabler/icons-react";
 
 interface PaperHeaderProps {
     fileId: string;
@@ -39,6 +41,7 @@ interface PaperHeaderProps {
     onSelectEmoji: (emoji: any) => void;
     saving: boolean;
     isUnsaved: boolean;
+    setHistoryOpen: (open: boolean) => void;
 }
 
 function PaperHeader({
@@ -49,7 +52,8 @@ function PaperHeader({
     icon,
     onSelectEmoji,
     saving,
-    isUnsaved
+    isUnsaved,
+    setHistoryOpen
 }: PaperHeaderProps) {
     const router = useRouter();
     const { emojiPickerState, isOpen, setIsOpen } = useEmojiDropdownMenuState();
@@ -118,6 +122,9 @@ function PaperHeader({
                         </>
                     )}
                 </div>
+                <Button variant="ghost" size="icon" onClick={() => setHistoryOpen(true)} title="Version History">
+                    <IconHistory className="w-5 h-5 text-muted-foreground" />
+                </Button>
                 <Tooltip>
                     <TooltipTrigger asChild>
                         <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest px-2 py-1 rounded bg-muted/50 hidden md:block cursor-help hover:bg-muted transition-colors">
@@ -146,7 +153,8 @@ function PaperEditorView({
     icon,
     onSelectEmoji,
     saving,
-    isUnsaved
+    isUnsaved,
+    setHistoryOpen
 }: {
     initialValue: Value;
     onChange: (value: Value) => void;
@@ -158,6 +166,7 @@ function PaperEditorView({
     onSelectEmoji: (emoji: any) => void;
     saving: boolean;
     isUnsaved: boolean;
+    setHistoryOpen: (open: boolean) => void;
 }) {
     const editor = usePlateEditor({
         plugins: EditorKit,
@@ -179,6 +188,7 @@ function PaperEditorView({
                     onSelectEmoji={onSelectEmoji}
                     saving={saving}
                     isUnsaved={isUnsaved}
+                    setHistoryOpen={setHistoryOpen}
                 />
 
                 <FixedToolbar className="border-b shrink-0 !relative !top-0">
@@ -208,6 +218,7 @@ export default function PaperPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [isUnsaved, setIsUnsaved] = useState(false);
+    const [historyOpen, setHistoryOpen] = useState(false);
     const [content, setContent] = useState<Value | undefined>(undefined);
     const [paperTitle, setPaperTitle] = useState<string>("Untitled Paper");
     const [icon, setIcon] = useState<string | null>(null);
@@ -284,6 +295,11 @@ export default function PaperPage() {
 
         loadFile();
     }, [fileId, router]);
+
+    // Force reload when restore happens
+    const handleRestoreComplete = () => {
+        window.location.reload();
+    };
 
     // Save Logic (Content + Icon)
     const handleSave = useCallback(async (newValue: Value, newIcon?: string) => {
@@ -417,6 +433,14 @@ export default function PaperPage() {
                 onSelectEmoji={onSelectEmoji}
                 saving={saving}
                 isUnsaved={isUnsaved}
+                setHistoryOpen={setHistoryOpen}
+            />
+
+            <VersionHistoryModal
+                isOpen={historyOpen}
+                onClose={() => setHistoryOpen(false)}
+                fileId={fileId}
+                onRestoreComplete={handleRestoreComplete}
             />
         </>
     );
