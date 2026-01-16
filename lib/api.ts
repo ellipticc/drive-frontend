@@ -407,6 +407,15 @@ export interface ShareComment {
   fingerprint?: string; // HMAC-SHA512 hex
   signature?: string;   // ed25519 signature hex
   publicKey?: string;   // ed25519 public key hex
+  attachments?: Array<{
+    id: string;
+    fileSize: number;
+    encryptedFilename: string;
+    nonceFilename: string;
+    mimetype: string;
+    encryptionNonce: string;
+    createdAt: string;
+  }>;
 }
 
 export interface ShareCommentsResponse {
@@ -2275,6 +2284,47 @@ class ApiClient {
     return this.request(`/folders/${folderId}/copy`, {
       method: 'POST',
       body: JSON.stringify({ destinationFolderId, ...options }),
+    });
+  }
+
+  async getShareAttachmentUploadUrl(shareId: string, data: {
+    commentId: string;
+    filename: string;
+    encryptedFilename: string;
+    nonceFilename: string;
+    fileSize: number;
+    mimetype: string;
+    encryptionNonce: string;
+  }): Promise<ApiResponse<{
+    attachmentId: string;
+    uploadUrl: string;
+    requiredHeaders?: Record<string, string>;
+  }>> {
+    return this.request(`/shares/${shareId}/comments/attachments/s3`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async confirmShareAttachment(shareId: string, attachmentId: string): Promise<ApiResponse> {
+    return this.request(`/shares/${shareId}/comments/attachments/${attachmentId}/confirm`, {
+      method: 'POST'
+    });
+  }
+
+  async getShareAttachmentDownloadUrl(shareId: string, attachmentId: string): Promise<ApiResponse<{
+    downloadUrl: string;
+    filename: string;
+    mimetype: string;
+  }>> {
+    return this.request(`/shares/${shareId}/comments/attachments/${attachmentId}/s3`, {
+      method: 'GET'
+    });
+  }
+
+  async deleteShareAttachment(shareId: string, attachmentId: string): Promise<ApiResponse> {
+    return this.request(`/shares/${shareId}/comments/attachments/${attachmentId}`, {
+      method: 'DELETE'
     });
   }
 

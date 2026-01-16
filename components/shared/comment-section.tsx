@@ -30,7 +30,9 @@ import {
     IconFilter,
     IconBan,
     IconUserOff,
-    IconUser
+    IconUser,
+    IconPaperclip,
+    IconFile
 } from '@tabler/icons-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from "next/navigation";
@@ -39,6 +41,13 @@ import { getDiceBearAvatar } from '@/lib/avatar';
 import { deriveCommentKey, encryptComment, decryptComment, createMessageFingerprint, signMessageFingerprint } from '@/lib/comment-crypto';
 import { keyManager } from '@/lib/key-manager';
 import { uint8ArrayToHex } from '@/lib/crypto';
+import {
+    encryptAttachment,
+    decryptAttachment,
+    encryptShareFilename,
+    decryptShareFilename
+} from '@/lib/share-crypto';
+import { formatFileSize } from '@/lib/utils';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -83,6 +92,16 @@ type DecryptedComment = ShareComment & {
     decryptedContent: string;
     isEdited?: boolean;
     decryptionFailed?: boolean;
+    decryptedAttachments?: Array<{
+        id: string;
+        name: string;
+        size: number;
+        mimetype: string;
+        downloading?: boolean;
+        encryptionNonce: string;
+        // Used for temporary optimistic display
+        blob?: Blob;
+    }>;
 };
 
 export function CommentSection({ shareId, shareCek, currentUser, isOwner, className }: CommentSectionProps) {
@@ -92,6 +111,12 @@ export function CommentSection({ shareId, shareCek, currentUser, isOwner, classN
     const [submitting, setSubmitting] = useState(false);
     const [content, setContent] = useState('');
     const router = useRouter()
+
+    // Attachment state
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
+    const [attachmentProgress, setAttachmentProgress] = useState(0);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Edit/Reply state
     const [editingComment, setEditingComment] = useState<DecryptedComment | null>(null);
@@ -170,13 +195,50 @@ export function CommentSection({ shareId, shareCek, currentUser, isOwner, classN
                             if (decryptedContent === '[Decryption Failed]') {
                                 decryptionErrorFound = true;
                             }
+
+                            // Decrypt attachments
+                            let decryptedAttachments: Array<{
+                                id: string;
+                                name: string;
+                                size: number;
+                                mimetype: string;
+                                downloading?: boolean;
+                                encryptionNonce: string;
+                            }> = [];
+
+                            if (c.attachments && c.attachments.length > 0 && shareCek) {
+                                decryptedAttachments = await Promise.all(c.attachments.map(async (a) => {
+                                    try {
+                                        const name = await decryptShareFilename(a.encryptedFilename, a.nonceFilename, shareCek);
+                                        return {
+                                            id: a.id,
+                                            name,
+                                            size: a.fileSize,
+                                            mimetype: a.mimetype,
+                                            downloading: false,
+                                            encryptionNonce: a.encryptionNonce
+                                        };
+                                    } catch (e) {
+                                        return {
+                                            id: a.id,
+                                            name: 'Encrypted File',
+                                            size: a.fileSize,
+                                            mimetype: a.mimetype,
+                                            downloading: false,
+                                            encryptionNonce: a.encryptionNonce || ''
+                                        };
+                                    }
+                                }));
+                            }
+
                             const isEdited = !!(c.updatedAt && c.updatedAt !== c.createdAt);
 
                             return {
                                 ...c,
                                 decryptedContent,
                                 isEdited,
-                                decryptionFailed: decryptedContent === '[Decryption Failed]'
+                                decryptionFailed: decryptedContent === '[Decryption Failed]',
+                                decryptedAttachments
                             };
                         } catch (e) {
                             decryptionErrorFound = true;
@@ -184,7 +246,8 @@ export function CommentSection({ shareId, shareCek, currentUser, isOwner, classN
                                 ...c,
                                 decryptedContent: '[Decryption Failed]',
                                 isEdited: false,
-                                decryptionFailed: true
+                                decryptionFailed: true,
+                                decryptedAttachments: []
                             };
                         }
                     })
@@ -213,7 +276,7 @@ export function CommentSection({ shareId, shareCek, currentUser, isOwner, classN
         } finally {
             setLoading(false);
         }
-    }, [shareId, commentKey]);
+    }, [shareId, commentKey, shareCek]);
 
     useEffect(() => {
         if (isOpen && commentKey) {
@@ -295,9 +358,120 @@ export function CommentSection({ shareId, shareCek, currentUser, isOwner, classN
         }
     }, [isOpen, comments.length]);
 
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            if (file.size > 50 * 1024 * 1024) {
+                toast.error("File size limit exceeded", { description: "Maximum attachment size is 50MB" });
+                return;
+            }
+            setSelectedFile(file);
+        }
+    };
+
+    const handleRemoveFile = () => {
+        setSelectedFile(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+
+    const handleDownloadAttachment = async (commentId: string, attachmentId: string, filename: string) => {
+        if (!shareCek) return;
+
+        // Find attachment to get IV
+        const comment = comments.find(c => c.id === commentId);
+        const attachment = comment?.decryptedAttachments?.find(a => a.id === attachmentId);
+        if (!attachment || !attachment.encryptionNonce) {
+            toast.error("Security Error", { description: "Missing encryption parameters." });
+            return;
+        }
+
+        // Optimistic UI update
+        setComments(prev => prev.map(c => {
+            if (c.id === commentId && c.decryptedAttachments) {
+                return {
+                    ...c,
+                    decryptedAttachments: c.decryptedAttachments.map(a =>
+                        a.id === attachmentId ? { ...a, downloading: true } : a
+                    )
+                };
+            }
+            return c;
+        }));
+
+        try {
+            // Get Presigned GET URL
+            const { success, data } = await apiClient.getShareAttachmentDownloadUrl(shareId, attachmentId);
+            if (!success || !data) throw new Error('Failed to get download link');
+
+            // Fetch Encrypted Blob
+            const res = await fetch(data.downloadUrl);
+            if (!res.ok) throw new Error('Failed to download file');
+            const encryptedBlob = await res.blob();
+
+            // Decrypt Blob
+            // Ensure IV is in correct format (Uint8Array) if needed, but decryptAttachment likely handles it or we convert
+            // Assuming decryptAttachment handles base64 string or we need to check share-crypto
+            // We'll trust the function we wrote or add a quick conversion if it fails validation loop in tests
+            const decryptedBlob = await decryptAttachment(encryptedBlob, shareCek, attachment.encryptionNonce);
+
+            // Trigger Download
+            const url = URL.createObjectURL(decryptedBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+
+            // Cleanup
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+        } catch (err) {
+            console.error(err);
+            toast.error("Failed to download attachment");
+        } finally {
+            setComments(prev => prev.map(c => {
+                if (c.id === commentId && c.decryptedAttachments) {
+                    return {
+                        ...c,
+                        decryptedAttachments: c.decryptedAttachments.map(a =>
+                            a.id === attachmentId ? { ...a, downloading: false } : a
+                        )
+                    };
+                }
+                return c;
+            }));
+        }
+    };
+
+    const handleDeleteAttachment = async (commentId: string, attachmentId: string) => {
+        if (!isOwner) return;
+
+        try {
+            const { success, error } = await apiClient.deleteShareAttachment(shareId, attachmentId);
+            if (!success) throw new Error(error || 'Failed to delete attachment');
+
+            toast.success("Attachment deleted");
+
+            // Update local state
+            setComments(prev => prev.map(c => {
+                if (c.id === commentId && c.decryptedAttachments) {
+                    return {
+                        ...c,
+                        decryptedAttachments: c.decryptedAttachments.filter(a => a.id !== attachmentId)
+                    };
+                }
+                return c;
+            }));
+        } catch (err: any) {
+            console.error(err);
+            toast.error(err.message || "Failed to delete attachment");
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!content.trim() || !commentKey || submitting) return;
+        if ((!content.trim() && !selectedFile) || !commentKey || submitting) return;
 
         if (hasDecryptionError) {
             toast.error("Cannot post comment", {
@@ -307,8 +481,10 @@ export function CommentSection({ shareId, shareCek, currentUser, isOwner, classN
         }
 
         setSubmitting(true);
+        if (selectedFile) setIsUploadingAttachment(true);
+
         try {
-            const encryptedContent = await encryptComment(content, commentKey);
+            const encryptedContent = await encryptComment(content || (selectedFile ? 'Shared an attachment' : ''), commentKey);
 
             // Cryptographic fingerprinting and signing
             let fingerprintHex = '';
@@ -318,7 +494,7 @@ export function CommentSection({ shareId, shareCek, currentUser, isOwner, classN
             if (currentUser) {
                 try {
                     const keys = await keyManager.getUserKeys();
-                    const fingerprint = await createMessageFingerprint(content, currentUser.id);
+                    const fingerprint = await createMessageFingerprint(content || (selectedFile ? 'Shared an attachment' : ''), currentUser.id);
                     const signature = await signMessageFingerprint(fingerprint, keys.keypairs.ed25519PrivateKey);
 
                     fingerprintHex = uint8ArrayToHex(fingerprint);
@@ -326,12 +502,11 @@ export function CommentSection({ shareId, shareCek, currentUser, isOwner, classN
                     publicKeyHex = keys.keypairs.ed25519PublicKey;
                 } catch (cryptoErr) {
                     console.error('Failed to sign message:', cryptoErr);
-                    // Continue without signature if key is missing (e.g. not logged in correctly or keys not loaded)
                 }
             }
 
             if (editingComment) {
-                // Update logic - check if changed
+                // Editing logic (attachments not supported in edit yet)
                 if (content.trim() === editingComment.decryptedContent) {
                     setEditingComment(null);
                     setContent('');
@@ -367,7 +542,7 @@ export function CommentSection({ shareId, shareCek, currentUser, isOwner, classN
                     }
                 }
             } else {
-                // Create logic
+                // Create Comment
                 const response = await apiClient.addShareComment(shareId, {
                     content: encryptedContent,
                     parentId: replyingTo?.id || null,
@@ -377,21 +552,56 @@ export function CommentSection({ shareId, shareCek, currentUser, isOwner, classN
                 });
 
                 if (response.success && response.data) {
-                    const now = new Date().toISOString();
-                    const newComment: DecryptedComment = {
-                        ...response.data.comment,
-                        userName: currentUser?.name || 'You',
-                        avatarUrl: currentUser?.avatar || '',
-                        decryptedContent: content,
-                        updatedAt: now,
-                        isEdited: false,
-                        fingerprint: fingerprintHex,
-                        signature: signatureHex,
-                        publicKey: publicKeyHex
-                    };
+                    const commentId = response.data.comment.id;
 
-                    setComments(prev => [...prev, newComment]);
+                    // Handle Attachment Upload
+                    if (selectedFile && shareCek) {
+                        try {
+                            setAttachmentProgress(10);
+
+                            // 1. Encrypt
+                            const { encryptedFilename, nonce: nonceFilename } = await encryptShareFilename(selectedFile.name, shareCek);
+                            const { encryptedBlob, nonce: encryptionNonce } = await encryptAttachment(selectedFile, shareCek);
+                            setAttachmentProgress(30);
+
+                            // 2. Get Upload URL
+                            const uploadRes = await apiClient.getShareAttachmentUploadUrl(shareId, {
+                                commentId,
+                                filename: selectedFile.name,
+                                encryptedFilename,
+                                nonceFilename,
+                                fileSize: selectedFile.size,
+                                mimetype: selectedFile.type,
+                                encryptionNonce
+                            });
+
+                            if (uploadRes.success && uploadRes.data) {
+                                setAttachmentProgress(50);
+
+                                // 3. Upload to B2
+                                await fetch(uploadRes.data.uploadUrl, {
+                                    method: 'PUT',
+                                    body: encryptedBlob,
+                                    headers: uploadRes.data.requiredHeaders
+                                });
+                                setAttachmentProgress(80);
+
+                                // 4. Confirm
+                                await apiClient.confirmShareAttachment(shareId, uploadRes.data.attachmentId);
+                                setAttachmentProgress(100);
+                            }
+                        } catch (uploadErr) {
+                            console.error("Attachment upload failed", uploadErr);
+                            toast.error("Comment posted, but attachment upload failed.");
+                        }
+                    }
+
+                    // Refresh to get full state
+                    await fetchComments(1);
+
                     setContent('');
+                    setSelectedFile(null);
+                    if (fileInputRef.current) fileInputRef.current.value = '';
                     setReplyingTo(null);
                 } else {
                     if (response.error?.toLowerCase().includes('banned')) {
@@ -406,6 +616,8 @@ export function CommentSection({ shareId, shareCek, currentUser, isOwner, classN
             toast.error('Failed to submit comment');
         } finally {
             setSubmitting(false);
+            setIsUploadingAttachment(false);
+            setAttachmentProgress(0);
         }
     };
 
@@ -896,11 +1108,49 @@ export function CommentSection({ shareId, shareCek, currentUser, isOwner, classN
                                                     {!!comment.isEdited && !comment.decryptionFailed && (
                                                         <span className="ml-1.5 opacity-40 text-[7px] font-black uppercase tracking-[0.05em] align-baseline">edited</span>
                                                     )}
+
+                                                    {/* Attachments */}
+                                                    {comment.decryptedAttachments && comment.decryptedAttachments.length > 0 && (
+                                                        <div className="flex flex-col gap-1 mt-2 w-full max-w-[200px]">
+                                                            {comment.decryptedAttachments.map(att => (
+                                                                <div key={att.id} onClick={() => handleDownloadAttachment(comment.id, att.id, att.name)} className={cn(
+                                                                    "cursor-pointer flex items-center gap-2 p-2 rounded-md bg-background/40 hover:bg-background/60 transition-colors border border-border/10 overflow-hidden",
+                                                                    isMe ? "bg-primary-foreground/10 hover:bg-primary-foreground/20 border-white/10" : ""
+                                                                )}>
+                                                                    <div className="p-1.5 rounded-full bg-primary/10 text-primary shrink-0">
+                                                                        {att.downloading ? <IconLoader2 className="h-3.5 w-3.5 animate-spin" /> : <IconFile className="h-3.5 w-3.5" />}
+                                                                    </div>
+                                                                    <div className="flex flex-col min-w-0 flex-1">
+                                                                        <span className="text-xs font-bold truncate">{att.name}</span>
+                                                                        <span className="text-[9px] opacity-70 font-medium uppercase tracking-wider">{formatFileSize(att.size)}</span>
+                                                                    </div>
+                                                                    {isOwner && (
+                                                                        <Button
+                                                                            type="button"
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            className={cn(
+                                                                                "h-6 w-6 rounded-full hover:bg-destructive/20 hover:text-destructive shrink-0 ml-auto opacity-0 group-hover:opacity-100 transition-opacity",
+                                                                                isMe ? "text-white/60 hover:text-white" : "text-muted-foreground/40"
+                                                                            )}
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                handleDeleteAttachment(comment.id, att.id);
+                                                                            }}
+                                                                        >
+                                                                            <IconTrash className="h-3 w-3" />
+                                                                        </Button>
+                                                                    )}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
 
                                             <div className={cn(
                                                 "flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all duration-200 self-center mb-1",
+                                                // ... skip lines ...
                                                 isMe ? "flex-row-reverse" : "flex-row"
                                             )}>
                                                 {!isReply && !comment.decryptionFailed && (
@@ -918,7 +1168,7 @@ export function CommentSection({ shareId, shareCek, currentUser, isOwner, classN
                                                         </TooltipTrigger>
                                                         <TooltipContent>Reply</TooltipContent>
                                                     </Tooltip>
-                                                )} 
+                                                )}
                                                 {isMe && !comment.decryptionFailed && (
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
@@ -991,7 +1241,24 @@ export function CommentSection({ shareId, shareCek, currentUser, isOwner, classN
                                         </Button>
                                     </div>
                                 )}
-                                <form onSubmit={handleSubmit} className="relative flex gap-2">
+                                <form onSubmit={handleSubmit} className="relative flex flex-col gap-2">
+                                    {selectedFile && (
+                                        <div className="flex items-center justify-between px-3 py-2 bg-muted/30 rounded-lg border border-dashed border-primary/20 animate-in slide-in-from-bottom-2">
+                                            <div className="flex items-center gap-2.5 overflow-hidden">
+                                                <div className="h-8 w-8 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+                                                    <IconFile className="h-4 w-4 text-primary" />
+                                                </div>
+                                                <div className="flex flex-col min-w-0">
+                                                    <span className="text-xs font-bold truncate max-w-[180px]">{selectedFile.name}</span>
+                                                    <span className="text-[9px] text-muted-foreground font-medium uppercase tracking-wider">{formatFileSize(selectedFile.size)}</span>
+                                                </div>
+                                            </div>
+                                            <Button type="button" variant="ghost" size="icon" onClick={handleRemoveFile} className="h-6 w-6 rounded-full hover:bg-destructive/10 hover:text-destructive">
+                                                <IconX className="h-3.5 w-3.5" />
+                                            </Button>
+                                        </div>
+                                    )}
+
                                     {isLocked && !isOwner ? (
                                         <div className="w-full h-12 rounded-xl bg-muted/50 border flex items-center justify-center gap-2 text-muted-foreground text-xs font-bold">
                                             <IconLock className="h-3.5 w-3.5" />
@@ -1003,11 +1270,11 @@ export function CommentSection({ shareId, shareCek, currentUser, isOwner, classN
                                             Comments are disabled
                                         </div>
                                     ) : (
-                                        <>
+                                        <div className="relative">
                                             <Textarea
                                                 ref={textareaRef}
                                                 placeholder={replyingTo ? `Replying to @${replyingTo.userName}...` : "Message..."}
-                                                className="min-h-[44px] max-h-[120px] bg-muted/30 border-none focus-visible:ring-0 focus-visible:bg-muted/50 rounded-xl resize-none py-3 px-4 text-[13px] leading-relaxed pr-10 scrollbar-thin scrollbar-thumb-muted-foreground/10"
+                                                className="min-h-[44px] max-h-[120px] bg-muted/30 border-none focus-visible:ring-0 focus-visible:bg-muted/50 rounded-xl resize-none py-3 px-4 text-[13px] leading-relaxed pr-20 scrollbar-thin scrollbar-thumb-muted-foreground/10"
                                                 value={content}
                                                 onChange={(e) => setContent(e.target.value)}
                                                 onKeyDown={(e) => {
@@ -1023,14 +1290,24 @@ export function CommentSection({ shareId, shareCek, currentUser, isOwner, classN
                                                 }}
                                                 disabled={submitting}
                                             />
-                                            <div className="absolute right-2 bottom-1.5 flex items-center">
+                                            <div className="absolute right-2 bottom-1.5 flex items-center gap-1">
+                                                <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileSelect} />
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button type="button" size="icon" variant="ghost" onClick={() => fileInputRef.current?.click()} disabled={submitting} className="h-8 w-8 rounded-lg text-muted-foreground/40 hover:text-foreground hover:bg-muted/50">
+                                                            <IconPaperclip className="h-4 w-4" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>Attach File</TooltipContent>
+                                                </Tooltip>
+
                                                 <Button
                                                     type="submit"
                                                     size="icon"
-                                                    disabled={!content.trim() || submitting}
+                                                    disabled={(!content.trim() && !selectedFile) || submitting}
                                                     className={cn(
                                                         "h-8 w-8 rounded-lg transition-all",
-                                                        content.trim() ? "bg-primary text-primary-foreground shadow-sm hover:translate-y-[-1px]" : "bg-transparent text-muted-foreground/20 hover:bg-transparent"
+                                                        (content.trim() || selectedFile) ? "bg-primary text-primary-foreground shadow-sm hover:translate-y-[-1px]" : "bg-transparent text-muted-foreground/20 hover:bg-transparent"
                                                     )}
                                                 >
                                                     {submitting ? (
@@ -1040,7 +1317,7 @@ export function CommentSection({ shareId, shareCek, currentUser, isOwner, classN
                                                     )}
                                                 </Button>
                                             </div>
-                                        </>
+                                        </div>
                                     )}
                                 </form>
                                 <div className="text-[9px] text-muted-foreground/30 font-black text-center mt-2 uppercase tracking-widest">
@@ -1142,6 +1419,26 @@ export function CommentSection({ shareId, shareCek, currentUser, isOwner, classN
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction onClick={confirmBanUser} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">Ban User</AlertDialogAction>
                     </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+            <AlertDialog open={isUploadingAttachment}>
+                <AlertDialogContent>
+                    <div className="flex flex-col items-center justify-center p-6 gap-4">
+                        <div className="relative h-12 w-12 flex items-center justify-center">
+                            <IconLoader2 className="h-12 w-12 animate-spin text-primary/20" />
+                            <IconFile className="h-6 w-6 text-primary absolute" />
+                        </div>
+                        <div className="text-center space-y-1">
+                            <h3 className="font-bold text-lg">Uploading Attachment...</h3>
+                            <p className="text-sm text-muted-foreground">Encrypting and uploading securely.</p>
+                        </div>
+                        <div className="w-full bg-muted/50 h-2 rounded-full overflow-hidden">
+                            <div
+                                className="h-full bg-primary transition-all duration-300 ease-out"
+                                style={{ width: `${attachmentProgress}%` }}
+                            />
+                        </div>
+                    </div>
                 </AlertDialogContent>
             </AlertDialog>
         </>

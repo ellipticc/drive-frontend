@@ -257,3 +257,61 @@ export async function verifySharePassword(password: string, saltPw: string): Pro
 
     return shareCek;
 }
+
+// Decrypt attachment content
+export async function decryptAttachment(
+    encryptedBlob: Blob,
+    shareCek: Uint8Array,
+    nonce: string
+): Promise<Blob> {
+    try {
+        const { xchacha20poly1305 } = await import('@noble/ciphers/chacha.js');
+
+        // Convert Blob to Uint8Array
+        const encryptedBytes = new Uint8Array(await encryptedBlob.arrayBuffer());
+
+        // Decode Nonce (base64)
+        const nonceBytes = new Uint8Array(atob(nonce).split('').map(c => c.charCodeAt(0)));
+
+        // Decrypt
+        const cipher = xchacha20poly1305(shareCek, nonceBytes);
+        const decryptedBytes = cipher.decrypt(encryptedBytes);
+
+        return new Blob([decryptedBytes as any]);
+    } catch (err) {
+        console.error('Failed to decrypt attachment:', err);
+        throw err;
+    }
+}
+
+// Encrypt attachment content
+export async function encryptAttachment(
+    file: File,
+    shareCek: Uint8Array
+): Promise<{ encryptedBlob: Blob; nonce: string }> {
+    try {
+        const { xchacha20poly1305 } = await import('@noble/ciphers/chacha.js');
+
+        // Generate Nonce (24 bytes for XChaCha)
+        const nonce = new Uint8Array(24);
+        crypto.getRandomValues(nonce);
+
+        // Read file bytes
+        const fileBytes = new Uint8Array(await file.arrayBuffer());
+
+        // Encrypt
+        const cipher = xchacha20poly1305(shareCek, nonce);
+        const encryptedBytes = cipher.encrypt(fileBytes);
+
+        // Encode Nonce to base64
+        const toBase64 = (arr: Uint8Array) => btoa(String.fromCharCode(...arr));
+
+        return {
+            encryptedBlob: new Blob([encryptedBytes as any]),
+            nonce: toBase64(nonce)
+        };
+    } catch (err) {
+        console.error('Failed to encrypt attachment:', err);
+        throw err;
+    }
+}
