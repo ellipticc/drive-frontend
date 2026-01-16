@@ -2295,6 +2295,7 @@ class ApiClient {
     fileSize: number;
     mimetype: string;
     encryptionNonce: string;
+    contentMd5?: string;
   }): Promise<ApiResponse<{
     attachmentId: string;
     uploadUrl: string;

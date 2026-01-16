@@ -48,6 +48,7 @@ import {
     decryptShareFilename
 } from '@/lib/share-crypto';
 import { formatFileSize } from '@/lib/utils';
+import { createMD5 } from 'hash-wasm';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -564,7 +565,15 @@ export function CommentSection({ shareId, shareCek, currentUser, isOwner, classN
                             const { encryptedBlob, nonce: encryptionNonce } = await encryptAttachment(selectedFile, shareCek);
                             setAttachmentProgress(30);
 
-                            // 2. Get Upload URL
+                            // 2. Compute MD5 for B2 Object Lock
+                            const encryptedBytes = new Uint8Array(await encryptedBlob.arrayBuffer());
+                            const md5Hasher = await createMD5();
+                            md5Hasher.init();
+                            md5Hasher.update(encryptedBytes);
+                            const md5Bytes = new Uint8Array(md5Hasher.digest('binary'));
+                            const contentMd5 = btoa(String.fromCharCode.apply(null, Array.from(md5Bytes)));
+
+                            // 3. Get Upload URL
                             const uploadRes = await apiClient.getShareAttachmentUploadUrl(shareId, {
                                 commentId,
                                 filename: selectedFile.name,
@@ -572,21 +581,26 @@ export function CommentSection({ shareId, shareCek, currentUser, isOwner, classN
                                 nonceFilename,
                                 fileSize: selectedFile.size,
                                 mimetype: selectedFile.type,
-                                encryptionNonce
+                                encryptionNonce,
+                                contentMd5
                             });
 
                             if (uploadRes.success && uploadRes.data) {
                                 setAttachmentProgress(50);
 
-                                // 3. Upload to B2
+                                // 4. Upload to B2
                                 await fetch(uploadRes.data.uploadUrl, {
                                     method: 'PUT',
                                     body: encryptedBlob,
-                                    headers: uploadRes.data.requiredHeaders
+                                    headers: {
+                                        ...uploadRes.data.requiredHeaders,
+                                        'Content-MD5': contentMd5,
+                                        'Content-Type': 'application/octet-stream'
+                                    }
                                 });
                                 setAttachmentProgress(80);
 
-                                // 4. Confirm
+                                // 5. Confirm
                                 await apiClient.confirmShareAttachment(shareId, uploadRes.data.attachmentId);
                                 setAttachmentProgress(100);
                             }
