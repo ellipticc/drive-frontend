@@ -145,6 +145,7 @@ class PaperService {
             let chunksToUpload: { blockId: string; content: any; size: number; payloadStr?: string; uploaded?: boolean; checksum?: string }[] = [];
             let blocksToDelete: string[] = [];
             let manifestPayload: any = null;
+            let newManifest: PaperManifest | null = null;
 
             if (content !== undefined && Array.isArray(contentBlocks)) {
                 let currentManifest = this.manifestCache.get(paperId);
@@ -222,14 +223,13 @@ class PaperService {
                 // Identify Deleted Chunks
                 blocksToDelete = Array.from(existingChunkIds);
 
-                const newManifest: PaperManifest = {
+                newManifest = {
                     version: 1,
                     blocks: orderedManifestBlocks,
                     icon: icon !== undefined ? icon : currentManifest.icon
                 };
 
-                // Update Cache
-                this.manifestCache.set(paperId, newManifest);
+
 
                 // Encrypt Manifest
                 const manifestStr = JSON.stringify(newManifest);
@@ -321,6 +321,11 @@ class PaperService {
                 throw new Error(response.error || 'Failed to save paper');
             }
 
+            // Update Cache ONLY after successful save
+            if (manifestPayload && newManifest) {
+                this.manifestCache.set(paperId, newManifest);
+            }
+
         } catch (err) {
             console.error('Paper save failed:', err);
             throw err;
@@ -396,28 +401,46 @@ class PaperService {
                 const blocks: any[] = [];
 
                 // Sort by manifest order
-                for (const entry of manifest.blocks) {
-                    const chunkData = chunks[entry.chunkId];
+                // Process in parallel to speed up recovery
+                const blockPromises = manifest.blocks.map(async (entry) => {
+                    let chunkData = chunks[entry.chunkId];
+
+                    // HEALING LOGIC: If missing, try to fetch individually (Recover from "orphaned index" state)
+                    if (!chunkData) {
+                        try {
+                            console.warn(`[PaperService] Chunk ${entry.chunkId} missing from bulk response. Attempting individual recovery...`);
+                            const individualRes = await apiClient.getPaperBlock(paperId, entry.chunkId);
+                            if (individualRes.success && individualRes.data) {
+                                chunkData = individualRes.data as any; // Expected { encryptedContent, iv, salt }
+                                console.log(`[PaperService] Successfully recovered chunk ${entry.chunkId}`);
+                            }
+                        } catch (recErr) {
+                            console.error(`[PaperService] Recovery failed for chunk ${entry.chunkId}`, recErr);
+                        }
+                    }
+
                     if (chunkData) {
                         try {
                             const blockStr = await decryptPaperContent(chunkData.encryptedContent, chunkData.iv, chunkData.salt, masterKey);
                             if (blockStr) {
-                                blocks.push(JSON.parse(blockStr));
+                                return JSON.parse(blockStr);
                             }
                         } catch (err) {
                             console.error(`Failed to decrypt block ${entry.id}`, err);
-                            blocks.push({ id: entry.id, type: 'p', children: [{ text: '[Error Decrypting Block]' }] });
+                            return { id: entry.id, type: 'p', children: [{ text: '[Error Decrypting Block]' }] };
                         }
                     } else {
                         console.warn(`Missing chunk data for block ${entry.id}`);
                         // Push a placeholder so the editor doesn't lose the block position
-                        blocks.push({
+                        return {
                             id: entry.id,
                             type: 'p',
                             children: [{ text: `[Error: Content for this block (${entry.id}) is missing in this version]` }]
-                        });
+                        };
                     }
-                }
+                });
+
+                blocks.push(...(await Promise.all(blockPromises)));
                 content = blocks;
             }
 

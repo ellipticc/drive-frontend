@@ -1442,6 +1442,12 @@ class ApiClient {
     return this.request(`/folders/${normalizedFolderId}/contents/recursive`);
   }
 
+  async getPaperBlock(fileId: string, blockId: string): Promise<ApiResponse<{ data: any }>> {
+    return this.request(`/papers/${fileId}/blocks/${blockId}`, {
+      method: 'GET'
+    });
+  }
+
   // File operations
   async renameFile(fileId: string, data: {
     encryptedFilename: string;
