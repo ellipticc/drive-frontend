@@ -2507,8 +2507,10 @@ class ApiClient {
       id: string;
       versionIndex: number;
       createdAt: string;
-      totalSize: number;
       expiresAt: string | null;
+      totalSize: number;
+      isManual: boolean;
+      triggerType: string;
     }>
   }>> {
     return this.request(`/papers/${fileId}/versions`);
@@ -2518,14 +2520,17 @@ class ApiClient {
     return this.request(`/papers/${fileId}/versions/${versionId}/preview`);
   }
 
-  async savePaperVersion(fileId: string): Promise<ApiResponse<{
+  async savePaperVersion(fileId: string, isManual = true, triggerType = 'manual'): Promise<ApiResponse<{
     success: boolean;
     message: string;
     versionId: string;
+    index: number;
+    expiresAt: string | null;
     skipped?: boolean;
   }>> {
     return this.request(`/papers/${fileId}/versions`, {
-      method: 'POST'
+      method: 'POST',
+      body: JSON.stringify({ isManual, triggerType })
     });
   }
 

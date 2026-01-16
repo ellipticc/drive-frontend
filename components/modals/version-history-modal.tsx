@@ -34,6 +34,8 @@ interface Version {
     createdAt: string
     totalSize: number
     expiresAt: string | null
+    isManual: boolean
+    triggerType: string
 }
 
 interface VersionHistoryModalProps {
@@ -221,7 +223,10 @@ export function VersionHistoryModal({
                                             <div key={version.id} className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors group">
                                                 <div className="flex flex-col gap-1">
                                                     <div className="flex items-center gap-2">
-                                                        <span className="font-medium text-sm">Version {version.versionIndex}</span>
+                                                        <span className="font-medium text-sm">
+                                                            {version.isManual ? 'Manual Save' : `Auto Snapshot (${version.triggerType})`}
+                                                            <span className="ml-2 text-muted-foreground font-normal">#{version.versionIndex}</span>
+                                                        </span>
                                                         {version.expiresAt && (
                                                             <span className="text-[10px] px-1.5 py-0.5 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 rounded-full">
                                                                 Expires {format(new Date(version.expiresAt), 'MMM d')}
