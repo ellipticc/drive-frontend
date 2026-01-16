@@ -366,16 +366,24 @@ class PaperService {
             if (paper.encryptedContent && paper.iv && paper.salt) {
                 const decryptedStr = await decryptPaperContent(paper.encryptedContent, paper.iv, paper.salt, masterKey);
                 if (decryptedStr) {
-                    const parsed = JSON.parse(decryptedStr);
-                    // Check signature
-                    if (parsed.version && Array.isArray(parsed.blocks)) {
-                        manifest = parsed as PaperManifest;
-                    } else {
-                        console.warn("Paper has corrupted or invalid manifest.");
-                        throw new Error("Invalid paper format: Missing Manifest.");
+                    try {
+                        const parsed = JSON.parse(decryptedStr);
+                        // Check signature
+                        if (parsed.version && Array.isArray(parsed.blocks)) {
+                            manifest = parsed as PaperManifest;
+                        } else {
+                            console.error("[PaperService] CORRUPTED MANIFEST: Decrypted data is not a valid PaperManifest.", parsed);
+                            throw new Error("Invalid paper format: Decrypted data is not a manifest.");
+                        }
+                    } catch (parseErr) {
+                        console.error("[PaperService] MANIFEST PARSE ERROR: Decrypted string is not valid JSON.", { decryptedStr });
+                        throw parseErr;
                     }
+                } else {
+                    console.error("[PaperService] DECRYPTION FAILED: Manifest decrypted to empty string.");
                 }
             } else {
+                console.warn("[PaperService] NO MANIFEST DATA: paper.encryptedContent is missing. Starting with empty doc.");
                 manifest = { version: 1, blocks: [] };
             }
 
@@ -402,6 +410,12 @@ class PaperService {
                         }
                     } else {
                         console.warn(`Missing chunk data for block ${entry.id}`);
+                        // Push a placeholder so the editor doesn't lose the block position
+                        blocks.push({
+                            id: entry.id,
+                            type: 'p',
+                            children: [{ text: `[Error: Content for this block (${entry.id}) is missing in this version]` }]
+                        });
                     }
                 }
                 content = blocks;
