@@ -3877,7 +3877,7 @@ export const Table01DividerLineSm = ({
             <ShareModal
                 itemId={selectedItemForShare?.id || ""}
                 itemName={selectedItemForShare?.name || ""}
-                itemType={(selectedItemForShare?.type === 'paper' ? 'file' : selectedItemForShare?.type) || "file"}
+                itemType={selectedItemForShare?.type || "file"}
                 open={shareModalOpen}
                 onOpenChange={setShareModalOpen}
                 onShareUpdate={refreshFiles}
