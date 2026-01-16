@@ -1442,11 +1442,6 @@ class ApiClient {
     return this.request(`/folders/${normalizedFolderId}/contents/recursive`);
   }
 
-  async getPaperBlock(fileId: string, blockId: string): Promise<ApiResponse<{ data: any }>> {
-    return this.request(`/papers/${fileId}/blocks/${blockId}`, {
-      method: 'GET'
-    });
-  }
 
   // File operations
   async renameFile(fileId: string, data: {
@@ -1770,7 +1765,7 @@ class ApiClient {
     });
   }
 
-  async getBlock(paperId: string, blockId: string): Promise<ApiResponse<{ encryptedContent: string; iv: string; salt: string }>> {
+  async getPaperBlock(paperId: string, blockId: string): Promise<ApiResponse<{ encryptedContent: string; iv: string; salt: string }>> {
     return this.request(`/papers/${paperId}/blocks/${blockId}`);
   }
 

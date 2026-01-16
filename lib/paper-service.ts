@@ -496,7 +496,21 @@ class PaperService {
             const blocks: any[] = [];
 
             for (const entry of manifest.blocks) {
-                const chunkData = chunks ? chunks[entry.chunkId] : undefined;
+                let chunkData = chunks ? chunks[entry.chunkId] : undefined;
+
+                // HEALING LOGIC: If missing, try to fetch individually (Recover from "orphaned index" state)
+                if (!chunkData) {
+                    try {
+                        console.warn(`[PaperService] Chunk ${entry.chunkId} missing from version response. Attempting individual recovery...`);
+                        const individualRes = await apiClient.getPaperBlock(fileId, entry.chunkId);
+                        if (individualRes.success && individualRes.data) {
+                            chunkData = individualRes.data as any; // Expected { encryptedContent, iv, salt }
+                            console.log(`[PaperService] Successfully recovered chunk ${entry.chunkId}`);
+                        }
+                    } catch (recErr) {
+                        console.error(`[PaperService] Recovery failed for chunk ${entry.chunkId}`, recErr);
+                    }
+                }
 
                 if (chunkData) {
                     try {
