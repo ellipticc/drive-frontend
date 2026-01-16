@@ -7,6 +7,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { IconFile, IconFolder, IconReplace, IconCopy, IconX } from "@tabler/icons-react"
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 
 interface ConflictItem {
   id: string
@@ -71,18 +72,39 @@ export function ConflictModal({ isOpen, onClose, conflicts, onResolve, operation
     return `${opLabel} Conflicts (${conflicts.length})`
   }
 
-  const truncateName = (name: string, maxLength = 30) => {
+  // Smart truncation that preserves extensions and keeps start/end context
+  const truncateName = (name: string, maxLength = 40) => {
+    if (!name) return '';
     if (name.length <= maxLength) return name;
     const extension = name.includes('.') ? name.split('.').pop() : '';
     const nameWithoutExtension = name.includes('.') ? name.substring(0, name.lastIndexOf('.')) : name;
-    const truncatedBase = nameWithoutExtension.substring(0, maxLength - (extension ? extension.length + 3 : 0));
-    return `${truncatedBase}...${extension ? '.' + extension : ''}`;
+    // Keep start and end parts, preserve extension
+    const keep = Math.max(6, Math.floor((maxLength - (extension ? extension.length + 1 : 0) - 3) / 2));
+    const start = nameWithoutExtension.substring(0, keep);
+    const end = nameWithoutExtension.substring(nameWithoutExtension.length - keep);
+    return `${start}...${end}${extension ? '.' + extension : ''}`;
   }
 
   const getDescription = () => {
     if (conflicts.length === 1) {
       const conflict = conflicts[0]
-      return `"${truncateName(conflict.name)}" already exists. What would you like to do?`
+      // Return JSX with Tooltip so long names don't expand the dialog and are fully visible on hover
+      return (
+        <TooltipProvider delayDuration={0}>
+          <span className="block max-w-full truncate">
+            &quot;
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="font-mono truncate inline-block whitespace-nowrap sm:max-w-[20ch] md:max-w-[36ch] lg:max-w-[48ch]">{truncateName(conflict.name, 56)}</span>
+              </TooltipTrigger>
+              <TooltipContent className="font-mono text-xs max-w-[60ch] whitespace-pre-wrap">
+                {conflict.name}
+              </TooltipContent>
+            </Tooltip>
+            &quot; already exists. What would you like to do?
+          </span>
+        </TooltipProvider>
+      )
     }
     return `${conflicts.length} items already exist. Choose how to resolve each conflict.`
   }
@@ -107,7 +129,14 @@ export function ConflictModal({ isOpen, onClose, conflicts, onResolve, operation
             <div key={conflict.id} className="border rounded-lg p-4 space-y-3 bg-muted/30">
               <div className="flex items-center gap-2 min-w-0">
                 {conflict.type === 'file' ? <IconFile className="h-4 w-4" /> : <IconFolder className="h-4 w-4" />}
-                <span className="font-medium truncate max-w-full" title={conflict.name}>{conflict.name}</span>
+                <TooltipProvider delayDuration={0}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="font-medium truncate max-w-full whitespace-nowrap sm:max-w-[18ch] md:max-w-[30ch] lg:max-w-[44ch]">{truncateName(conflict.name, 48)}</span>
+                    </TooltipTrigger>
+                    <TooltipContent className="font-mono text-xs max-w-[60ch] whitespace-pre-wrap">{conflict.name}</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
 
               <RadioGroup
