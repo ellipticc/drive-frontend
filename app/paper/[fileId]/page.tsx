@@ -5,7 +5,16 @@ import { useParams, useRouter } from "next/navigation";
 import { masterKeyManager } from "@/lib/master-key";
 import { IconLoader2, IconArrowLeft, IconCloudCheck } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { type Value } from "platejs";
 import { paperService } from "@/lib/paper-service";
@@ -380,18 +389,22 @@ export default function PaperPage() {
 
     return (
         <>
-            {pageAlert && (
-                <div className="fixed top-16 left-0 right-0 z-50 p-4">
-                    <Alert>
-                        <AlertTitle>Upgrade required</AlertTitle>
-                        <AlertDescription>{pageAlert.message}</AlertDescription>
-                        <div className="mt-2 flex gap-2">
-                            <Button size="sm" onClick={() => (window.location.href = '/pricing')}>Upgrade</Button>
-                            <Button variant="ghost" size="sm" onClick={() => setPageAlert(null)}>Close</Button>
-                        </div>
-                    </Alert>
-                </div>
-            )}
+            <AlertDialog open={!!pageAlert} onOpenChange={(open) => !open && setPageAlert(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Pro Feature</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {pageAlert?.message || "This feature requires a Pro or Unlimited subscription. Upgrade to export your paper in various formats."}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setPageAlert(null)}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => (window.location.href = '/pricing')}>
+                            Upgrade Now
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
             <PaperEditorView
                 initialValue={content}
