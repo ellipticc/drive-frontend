@@ -910,7 +910,8 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
       const shareId = createResponse.data.id
       setExistingShareId(shareId)
 
-      const shareUrl = `https://drive.ellipticc.com/s/${shareId}${finalShareCekHex ? '#' + finalShareCekHex : ''}`
+      const basePath = itemType === 'paper' ? '/p/' : '/s/';
+      const shareUrl = `https://drive.ellipticc.com${basePath}${shareId}${finalShareCekHex ? '#' + finalShareCekHex : ''}`
 
       // 8. Send Emails
       const emailResponse = await apiClient.sendShareEmails(shareId, {
@@ -963,15 +964,22 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
           const shareCek = new Uint8Array(cekHash)
           const shareCekHex = btoa(String.fromCharCode(...shareCek))
 
-          const finalShareUrl = existingShare.has_password
-            ? `https://drive.ellipticc.com/s/${existingShare.id}`
-            : `https://drive.ellipticc.com/s/${existingShare.id}#${shareCekHex}`
+          // If this is a paper share, prefer a /p/ URL and ensure the existing share contains an encrypted manifest
+          if (itemType === 'paper' && (!existingShare.encrypted_manifest || existingShare.encrypted_manifest === null)) {
+            // Force creating a new share so recipients can preview without the owner's key
+            // fallthrough to create new share
+          } else {
+            const basePath = itemType === 'paper' ? '/p/' : '/s/';
+            const finalShareUrl = existingShare.has_password
+              ? `https://drive.ellipticc.com${basePath}${existingShare.id}`
+              : `https://drive.ellipticc.com${basePath}${existingShare.id}#${shareCekHex}`
 
-          setShareLink(finalShareUrl)
-          setExistingShareId(existingShare.id)
-          toast.success("Using existing share link")
-          setIsLoading(false)
-          return
+            setShareLink(finalShareUrl)
+            setExistingShareId(existingShare.id)
+            toast.success("Using existing share link")
+            setIsLoading(false)
+            return
+          }
         }
       }
 
@@ -1163,7 +1171,8 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
       const shareId = response.data.id
       setExistingShareId(shareId)
 
-      const shareUrl = `https://drive.ellipticc.com/s/${shareId}${finalShareCekHex ? '#' + finalShareCekHex : ''}`
+      const basePath = itemType === 'paper' ? '/p/' : '/s/';
+      const shareUrl = `https://drive.ellipticc.com${basePath}${shareId}${finalShareCekHex ? '#' + finalShareCekHex : ''}`
       setShareLink(shareUrl)
       toast.success("Public link created successfully")
       onShareUpdate?.()
