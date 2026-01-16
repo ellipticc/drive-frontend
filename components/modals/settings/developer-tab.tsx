@@ -118,6 +118,7 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [rotateId, setRotateId] = useState<string | null>(null)
   const [rotationLoading, setRotationLoading] = useState<string | null>(null)
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false)
 
   // Form State
   const [formData, setFormData] = useState<{ url: string; events: string[]; secret?: string }>({ url: '', events: [] })
@@ -180,12 +181,16 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
 
   async function handleCreate() {
     if (!formData.url) return toast.error('Please enter a webhook URL')
-    if (userPlan === 'Free') return toast.error("Webhooks are a Pro feature")
 
     try {
       new URL(formData.url);
     } catch (e) {
       return toast.error('Please enter a valid URL (e.g., https://api.example.com/webhook)');
+    }
+
+    if (userPlan === 'Free' || userPlan === 'Plus') {
+      setUpgradeModalOpen(true)
+      return
     }
 
     setLoading(true)
@@ -453,10 +458,10 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
                 <span>You have reached your monthly event limit. Webhooks will not be delivered until next month or upgrade your plan.</span>
               </div>
             )}
-            {userPlan === 'Free' && (
+            {(userPlan === 'Free' || userPlan === 'Plus') && (
               <div className="flex items-start gap-2 text-xs text-amber-600 font-medium mt-3 bg-amber-500/10 p-2.5 rounded-lg border border-amber-500/20 dark:text-amber-400">
                 <IconAlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                <span>Webhooks are a generic feature available on Pro and Unlimited plans. Upgrade to enable.</span>
+                <span>Webhooks are an advanced feature available on Pro and Unlimited plans. Upgrade to enable.</span>
               </div>
             )}
           </div>
@@ -478,7 +483,7 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
           <DialogTrigger asChild>
             <Button
               className="rounded-full px-5 shadow-lg shadow-primary/10"
-              disabled={userPlan === 'Free' || (usageData ? !usageData.allowed : false)}
+              disabled={usageData ? !usageData.allowed : false}
             >
               <IconPlus className="h-4 w-4 mr-2" />
               New Webhook
@@ -602,6 +607,32 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
             <AlertDialogCancel className="rounded-full">Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={confirmRotate} className="bg-amber-600 hover:bg-amber-700 text-white rounded-full px-6 shadow-lg shadow-amber-600/20">
               Generate New Secret
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Upgrade Alert */}
+      <AlertDialog open={upgradeModalOpen} onOpenChange={setUpgradeModalOpen}>
+        <AlertDialogContent className="rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <div className="p-2 rounded-full bg-primary/10">
+                <IconWebhook className="h-5 w-5 text-primary" />
+              </div>
+              Upgrade to Pro
+            </AlertDialogTitle>
+            <AlertDialogDescription className="font-medium pt-2 leading-relaxed">
+              Webhooks are an advanced feature available on <span className="font-bold text-foreground">Pro</span> and <span className="font-bold text-foreground">Unlimited</span> plans. Upgrade now to enable real-time event notifications for your applications.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="pt-2">
+            <AlertDialogCancel className="rounded-full">Maybe Later</AlertDialogCancel>
+            <AlertDialogAction
+              className="rounded-full px-6 shadow-lg shadow-primary/20"
+              onClick={() => window.location.href = '/pricing'}
+            >
+              View Plans
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

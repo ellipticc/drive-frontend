@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { IconAlertTriangle, IconCaretLeftRightFilled } from "@tabler/icons-react";
+import { IconAlertTriangle, IconCaretLeftRightFilled, IconSettings } from "@tabler/icons-react";
 import { useUser } from "@/components/user-context";
 import { useRouter } from "next/navigation";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -39,7 +39,7 @@ export function DeviceLimitOverlay() {
                 <div className="flex flex-col gap-3 w-full max-w-sm">
                     <Button
                         onClick={() => {
-                            window.location.hash = '#settings/Security';
+                            window.location.hash = '#settings/Security?scroll=device-manager';
                         }}
                         size="lg"
                         className="w-full font-medium"
@@ -58,6 +58,20 @@ export function DeviceLimitOverlay() {
                         Upgrade Plan
                     </Button>
                 </div>
+            </div>
+
+            {/* Bottom-left Settings Trigger */}
+            <div className="absolute bottom-6 left-6">
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="rounded-full hover:bg-muted"
+                    onClick={() => {
+                        window.location.hash = '#settings/Security?scroll=device-manager';
+                    }}
+                >
+                    <IconSettings className="w-5 h-5 text-muted-foreground" />
+                </Button>
             </div>
             <SettingsModal />
         </div>

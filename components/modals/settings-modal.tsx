@@ -1636,7 +1636,7 @@ export function SettingsModal({
                 <SidebarGroupContent>
                   <SidebarMenu>
                     {navItems.map((item) => {
-                      const isDisabled = deviceLimitReached && item.id !== "security";
+                      const isDisabled = deviceLimitReached && item.id !== "security" && item.id !== "billing";
                       return (
                         <SidebarMenuItem key={item.name}>
                           <SidebarMenuButton
@@ -1984,7 +1984,7 @@ export function SettingsModal({
               )}
 
               {activeTab === "developer" && (
-                <DeveloperTab user={user} userPlan={user?.plan || "Free"} />
+                <DeveloperTab user={user || undefined} userPlan={user?.plan || "Free"} />
               )}
 
               {activeTab === "billing" && (

@@ -13,6 +13,7 @@ import {
 import { SupportRequestDialog } from "@/components/support-request-dialog"
 import { FeedbackPopover } from "@/components/modals/feedback-popover"
 import { Kbd } from "@/components/ui/kbd"
+import { useUser } from "@/components/user-context"
 
 export function NavSecondary({
   items,
@@ -25,6 +26,7 @@ export function NavSecondary({
     id?: string
   }[]
 } & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
+  const { deviceLimitReached } = useUser();
   const [feedbackOpen, setFeedbackOpen] = React.useState(false)
 
   return (
@@ -41,7 +43,13 @@ export function NavSecondary({
                   </SidebarMenuButton>
                 </SupportRequestDialog>
               ) : item.id === "settings" ? (
-                <SidebarMenuButton onClick={() => window.location.hash = '#settings/General'} id="tour-settings">
+                <SidebarMenuButton
+                  onClick={() => {
+                    const tab = deviceLimitReached ? 'Security?scroll=device-manager' : 'General';
+                    window.location.hash = `#settings/${tab}`;
+                  }}
+                  id="tour-settings"
+                >
                   <item.icon />
                   <span>{item.title}</span>
                 </SidebarMenuButton>

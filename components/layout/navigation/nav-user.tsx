@@ -95,11 +95,11 @@ export function NavUser({
     connectedDevicesCount?: number
   }
 }) {
-   
+
   const { isMobile } = useSidebar()
   const { t } = useLanguage()
   const { setTheme, theme } = useTheme()
-  const { updateUser, refetch } = useUser()
+  const { updateUser, refetch, deviceLimitReached } = useUser()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const { hasUnread } = useNotifications()
@@ -201,7 +201,8 @@ export function NavUser({
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
                 <DropdownMenuItem onClick={() => {
-                  window.location.hash = '#settings/General'
+                  const tab = deviceLimitReached ? 'Security?scroll=device-manager' : 'General';
+                  window.location.hash = `#settings/${tab}`;
                 }}>
                   <IconSettings />
                   {t("sidebar.settings")}
