@@ -238,7 +238,11 @@ class PaperService {
                     encryptedContent: encManifest,
                     iv: ivManifest,
                     salt: saltManifest,
-                    isManifest: true
+                    isManifest: true,
+                    // Hint for backend to enable chunk indexing/synchronization for performance
+                    // This only reveals which chunks belong to the paper and their order, 
+                    // not their content or block types.
+                    blocks: newManifest.blocks.map(b => ({ chunkId: b.chunkId }))
                 };
             }
 
