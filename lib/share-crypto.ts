@@ -27,6 +27,31 @@ export async function decryptShareFilename(encryptedFilename: string, nonce: str
     }
 }
 
+// Helper to encrypt filename using share CEK (matches decryptShareFilename)
+export async function encryptShareFilename(filename: string, shareCek: Uint8Array): Promise<{ encryptedFilename: string; nonce: string }> {
+    try {
+        const { xchacha20poly1305 } = await import('@noble/ciphers/chacha.js');
+
+        const nonce = new Uint8Array(24);
+        crypto.getRandomValues(nonce);
+
+        const filenameBytes = new TextEncoder().encode(filename);
+        const cipher = xchacha20poly1305(shareCek, nonce);
+        const encryptedBytes = cipher.encrypt(filenameBytes);
+
+        // helper to convert to base64
+        const toBase64 = (arr: Uint8Array) => btoa(String.fromCharCode(...arr));
+
+        return {
+            encryptedFilename: toBase64(encryptedBytes),
+            nonce: toBase64(nonce)
+        };
+    } catch (err) {
+        console.error('Failed to encrypt share filename:', err);
+        throw err;
+    }
+}
+
 // Helper to check if a string looks like encrypted data (base64 format)
 export function looksLikeEncryptedName(name: string): boolean {
     if (!name || typeof name !== 'string' || !name.includes(':')) {

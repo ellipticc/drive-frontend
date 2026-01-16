@@ -42,6 +42,8 @@ import { useCurrentFolder } from "@/components/current-folder-context";
 import { useOnFileAdded, useOnFileDeleted, useOnFileReplaced, useGlobalUpload } from "@/components/global-upload-context";
 import { FileThumbnail } from "../files/file-thumbnail";
 import { FileIcon } from "@/components/file-icon";
+import { decryptData } from '@/lib/crypto';
+import { encryptShareFilename } from '@/lib/share-crypto';
 import { masterKeyManager } from "@/lib/master-key";
 import { paperService } from "@/lib/paper-service";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -588,7 +590,7 @@ export const Table01DividerLineSm = ({
                 ed25519: { publicKey: string; encryptedPrivateKey: string; privateKeyNonce: string; encryptionKey: string; encryptionNonce: string }
             }
         }
-    } 
+    }
     const [userData, setUserData] = useState<UserData | null>(null);
 
     // Fetch user data when conflict modal opens (for signing)
@@ -1880,6 +1882,43 @@ export const Table01DividerLineSm = ({
                 // Optimistic update
                 if (typeof data !== 'string' && data.requestedName) {
                     const newName = data.requestedName;
+
+                    // Update any shares for this file to reflect the new filename
+                    // This ensures public download pages show the current filename, not the old one
+                    if (targetItem.type === 'file') {
+                        // Background update - don't block UI
+                        (async () => {
+                            try {
+                                const sharesResponse = await apiClient.getMyShares({ fileId: targetItem.id });
+                                if (sharesResponse.success && sharesResponse.data && 'pagination' in sharesResponse.data) {
+                                    const shares = sharesResponse.data.data;
+                                    if (shares.length > 0) {
+                                        const masterKey = masterKeyManager.getMasterKey();
+                                        if (masterKey) {
+                                            for (const share of shares) {
+                                                if (share.wrappedCek && share.nonceWrap) {
+                                                    try {
+                                                        const shareCek = decryptData(share.wrappedCek, masterKey, share.nonceWrap);
+                                                        const { encryptedFilename, nonce } = await encryptShareFilename(newName, shareCek);
+
+                                                        await apiClient.updateShareSettings(share.id, {
+                                                            encrypted_filename: encryptedFilename,
+                                                            nonce_filename: nonce
+                                                        });
+                                                    } catch (err) {
+                                                        console.warn(`[SHARE-UPDATE] Failed to update filename for share ${share.id}:`, err);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            } catch (err) {
+                                console.error('[SHARE-UPDATE] Failed to update shares with new filename:', err);
+                            }
+                        })();
+                    }
+
                     setFiles(prev => prev.map(f => f.id === targetItem.id ? { ...f, name: newName } : f));
                     if (targetItemArg) {
                         // Was inline rename
@@ -2638,59 +2677,59 @@ export const Table01DividerLineSm = ({
                         <TooltipContent>{t("files.uploadFile")}</TooltipContent>
                     </Tooltip>
                     <div className="h-5 w-px bg-border mx-1" />
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-7 w-7 p-0"
-                                    onClick={async () => {
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 w-7 p-0"
+                                onClick={async () => {
+                                    try {
+                                        // Create paper with default title and current folder context
+                                        // Use 'null' for root or currentFolderId if it's a valid UUID
+                                        const folderId = currentFolderId === 'root' ? null : currentFolderId;
+
+                                        const now = new Date();
+                                        const year = now.getFullYear();
+                                        const month = String(now.getMonth() + 1).padStart(2, '0');
+                                        const day = String(now.getDate()).padStart(2, '0');
+                                        const hour = String(now.getHours()).padStart(2, '0');
+                                        const minute = String(now.getMinutes()).padStart(2, '0');
+                                        const second = String(now.getSeconds()).padStart(2, '0');
+                                        const filename = `Untitled paper ${year}-${month}-${day} ${hour}.${minute}.${second}`;
+
+                                        // Open new tab immediately for better UX
+                                        const newWin = window.open('/paper/new?creating=1', '_blank');
+                                        toast('Creating paper...');
+
                                         try {
-                                            // Create paper with default title and current folder context
-                                            // Use 'null' for root or currentFolderId if it's a valid UUID
-                                            const folderId = currentFolderId === 'root' ? null : currentFolderId;
+                                            const newPaperId = await paperService.createPaper(filename, undefined, folderId);
 
-                                            const now = new Date();
-                                            const year = now.getFullYear();
-                                            const month = String(now.getMonth() + 1).padStart(2, '0');
-                                            const day = String(now.getDate()).padStart(2, '0');
-                                            const hour = String(now.getHours()).padStart(2, '0');
-                                            const minute = String(now.getMinutes()).padStart(2, '0');
-                                            const second = String(now.getSeconds()).padStart(2, '0');
-                                            const filename = `Untitled paper ${year}-${month}-${day} ${hour}.${minute}.${second}`;
-
-                                            // Open new tab immediately for better UX
-                                            const newWin = window.open('/paper/new?creating=1', '_blank');
-                                            toast('Creating paper...');
-
-                                            try {
-                                                const newPaperId = await paperService.createPaper(filename, undefined, folderId);
-
-                                                if (newPaperId) {
-                                                    toast.success('Paper created');
-                                                    if (newWin && !newWin.closed) {
-                                                        newWin.location.href = `/paper/${newPaperId}`;
-                                                    } else {
-                                                        window.open(`/paper/${newPaperId}`, '_blank');
-                                                    }
+                                            if (newPaperId) {
+                                                toast.success('Paper created');
+                                                if (newWin && !newWin.closed) {
+                                                    newWin.location.href = `/paper/${newPaperId}`;
+                                                } else {
+                                                    window.open(`/paper/${newPaperId}`, '_blank');
                                                 }
-                                            } catch (err) {
-                                                console.error('Failed to create new paper:', err);
-                                                toast.error('Failed to create new paper');
-                                                if (newWin && !newWin.closed) newWin.close();
                                             }
-                                        } catch (error) {
-                                            console.error("Failed to create new paper:", error);
-                                            toast.error("Failed to create new paper");
+                                        } catch (err) {
+                                            console.error('Failed to create new paper:', err);
+                                            toast.error('Failed to create new paper');
+                                            if (newWin && !newWin.closed) newWin.close();
                                         }
-                                    }}
-                                    aria-label={t("files.newPaper") || "New Paper"}
-                                >
-                                    <IconStack className="h-3.5 w-3.5" />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>{t("files.newPaper") || "New Paper"}</TooltipContent>
-                        </Tooltip>
+                                    } catch (error) {
+                                        console.error("Failed to create new paper:", error);
+                                        toast.error("Failed to create new paper");
+                                    }
+                                }}
+                                aria-label={t("files.newPaper") || "New Paper"}
+                            >
+                                <IconStack className="h-3.5 w-3.5" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>{t("files.newPaper") || "New Paper"}</TooltipContent>
+                    </Tooltip>
                     <div className="h-5 w-px bg-border mx-1" />
                     <Tooltip>
                         <TooltipTrigger asChild>

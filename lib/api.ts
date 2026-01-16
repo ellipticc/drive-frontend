@@ -1898,7 +1898,11 @@ class ApiClient {
     });
   }
 
-  async getMyShares(params?: { page?: number; limit?: number }): Promise<ApiResponse<{
+  async getMyShares(params?: {
+    page?: number;
+    limit?: number;
+    fileId?: string;
+  }): Promise<ApiResponse<{
     data: ShareItem[];
     pagination: {
       page: number;
@@ -1906,17 +1910,14 @@ class ApiClient {
       total: number;
       totalPages: number;
     };
-  } | ShareItem[]>> {
-    const query = new URLSearchParams();
-    if (params?.page) query.append('page', params.page.toString());
-    if (params?.limit) query.append('limit', params.limit.toString());
+  }>> {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.fileId) queryParams.append('fileId', params.fileId);
 
-    // If no params, preserve backward compatibility
-    if (!params?.page && !params?.limit) {
-      return this.request('/shares/mine');
-    }
-
-    return this.request(`/shares/mine?${query.toString()}`);
+    const queryString = queryParams.toString();
+    return this.request(`/shares/mine${queryString ? `?${queryString}` : ''}`);
   }
 
   async getReceivedShares(params?: { page?: number; limit?: number }): Promise<ApiResponse<{
@@ -3150,6 +3151,8 @@ class ApiClient {
   async updateShareSettings(shareId: string, settings: {
     comments_enabled?: boolean;
     detailed_logging_enabled?: boolean;
+    encrypted_filename?: string;
+    nonce_filename?: string;
   }): Promise<ApiResponse<{ success: boolean; message: string }>> {
     return this.request(`/shares/${shareId}/settings`, {
       method: 'PATCH',
