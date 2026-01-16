@@ -760,14 +760,30 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
       if (itemType === 'paper') {
         const paperData = infoResponse.data as any;
         const masterKey = masterKeyManager.getMasterKey();
-        if (!masterKey) throw new Error('Master key not available');
-        const saltBytes = Uint8Array.from(atob(paperData.salt), c => c.charCodeAt(0));
-        const keyMaterial = new Uint8Array(saltBytes.length + 17);
-        keyMaterial.set(saltBytes, 0);
-        keyMaterial.set(new TextEncoder().encode('paper-content-key'), saltBytes.length);
-        const hmacKey = await crypto.subtle.importKey('raw', masterKey as BufferSource, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-        const derivedKeyMaterial = await crypto.subtle.sign('HMAC', hmacKey, keyMaterial);
-        itemFileCek = new Uint8Array(derivedKeyMaterial.slice(0, 32));
+        if (!masterKey) {
+          toast.error('Encryption key missing. Please login again.');
+          return;
+        }
+
+        // Ensure the paper has been initialized with encrypted manifest (salt present)
+        if (!paperData || !paperData.salt) {
+          toast.error('Paper has no encrypted content yet. Please open the paper and save it before creating a share.');
+          return;
+        }
+
+        try {
+          const saltBytes = Uint8Array.from(atob(paperData.salt), c => c.charCodeAt(0));
+          const keyMaterial = new Uint8Array(saltBytes.length + 17);
+          keyMaterial.set(saltBytes, 0);
+          keyMaterial.set(new TextEncoder().encode('paper-content-key'), saltBytes.length);
+          const hmacKey = await crypto.subtle.importKey('raw', masterKey as BufferSource, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+          const derivedKeyMaterial = await crypto.subtle.sign('HMAC', hmacKey, keyMaterial);
+          itemFileCek = new Uint8Array(derivedKeyMaterial.slice(0, 32));
+        } catch (err) {
+          console.error('Failed to derive paper CEK for sharing:', err);
+          toast.error('Failed to prepare paper for sharing. Try saving the paper again and retry.');
+          return;
+        }
       } else if (itemType === 'folder') {
         itemFileCek = shareCek;
       } else {
@@ -804,6 +820,70 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
       let encryptedManifest = undefined
       if (itemType === 'folder') {
         encryptedManifest = await buildEncryptedFolderManifest(itemId, shareCek)
+      }
+
+      // For paper shares, build an encrypted manifest containing decrypted blocks
+      if (itemType === 'paper') {
+        try {
+          const { decryptPaperContent, decryptFilename, encryptData } = await import('@/lib/crypto')
+          const paperData = infoResponse.data as any;
+          const masterKey = masterKeyManager.getMasterKey();
+
+          if (!masterKey) {
+            toast.error('Encryption key missing. Please login again.');
+            setIsLoading(false);
+            return;
+          }
+
+          const manifestEncrypted = paperData.encryptedContent;
+          const manifestIv = paperData.iv;
+          const manifestSalt = paperData.salt;
+
+          const manifestStr = await decryptPaperContent(manifestEncrypted, manifestIv, manifestSalt, masterKey);
+          const manifestObj = JSON.parse(manifestStr || '{}');
+          const chunks = paperData.chunks || {};
+
+          const blocksPlain: any[] = [];
+          for (const entry of (manifestObj.blocks || [])) {
+            const chunkData = chunks[entry.chunkId];
+            if (!chunkData) continue;
+            try {
+              const blockStr = await decryptPaperContent(chunkData.encryptedContent, chunkData.iv, chunkData.salt, masterKey);
+              const parsed = JSON.parse(blockStr);
+              blocksPlain.push({ id: entry.id, chunkId: entry.chunkId, hash: entry.hash, content: parsed });
+            } catch (err) {
+              console.error('Failed to decrypt paper block for share manifest', err);
+            }
+          }
+
+          let plainTitle = 'Untitled Paper'
+          try {
+            if (paperData.encryptedTitle && paperData.titleSalt) {
+              plainTitle = await decryptFilename(paperData.encryptedTitle, paperData.titleSalt, masterKey);
+            }
+          } catch (e) {
+            console.warn('Failed to decrypt paper title for share manifest', e);
+          }
+
+          const shareManifest = {
+            version: 1,
+            title: plainTitle,
+            icon: manifestObj.icon || null,
+            blocks: blocksPlain
+          };
+
+          const manifestBytes = new TextEncoder().encode(JSON.stringify(shareManifest));
+          const manifestEnc = encryptData(manifestBytes, shareCek);
+          encryptedManifest = {
+            encryptedData: manifestEnc.encryptedData,
+            nonce: manifestEnc.nonce
+          };
+        } catch (err) {
+          console.error('Failed to build encrypted manifest for paper share:', err);
+          toast.error('Failed to prepare paper share. Try again.');
+          setIsLoading(false);
+          return;
+        }
       }
 
       // 7. Create Share
@@ -861,6 +941,10 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
   const handleCreatePublicLink = async () => {
     if (!createPublicLink) return
     setIsLoading(true)
+
+    // Prepare encrypted manifest placeholder
+    let encryptedManifest: any = undefined;
+
     try {
       // 1. Check existing
       const mySharesResponse = await apiClient.getMyShares()
@@ -929,20 +1013,114 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
       if (itemType === 'paper') {
         const paperData = infoResponse.data as any;
         const masterKey = masterKeyManager.getMasterKey();
-        if (!masterKey) throw new Error('Master key not available');
-        const saltBytes = Uint8Array.from(atob(paperData.salt), c => c.charCodeAt(0));
-        const keyMaterial = new Uint8Array(saltBytes.length + 17);
-        keyMaterial.set(saltBytes, 0);
-        keyMaterial.set(new TextEncoder().encode('paper-content-key'), saltBytes.length);
-        const hmacKey = await crypto.subtle.importKey('raw', masterKey as BufferSource, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-        const derivedKeyMaterial = await crypto.subtle.sign('HMAC', hmacKey, keyMaterial);
-        itemFileCek = new Uint8Array(derivedKeyMaterial.slice(0, 32));
+        if (!masterKey) {
+          toast.error('Encryption key missing. Please login again.');
+          setIsLoading(false);
+          return;
+        }
+
+        if (!paperData || !paperData.salt) {
+          toast.error('Paper has no encrypted content yet. Please open the paper and save it before creating a share.');
+          setIsLoading(false);
+          return;
+        }
+
+        try {
+          const saltBytes = Uint8Array.from(atob(paperData.salt), c => c.charCodeAt(0));
+          const keyMaterial = new Uint8Array(saltBytes.length + 17);
+          keyMaterial.set(saltBytes, 0);
+          keyMaterial.set(new TextEncoder().encode('paper-content-key'), saltBytes.length);
+          const hmacKey = await crypto.subtle.importKey('raw', masterKey as BufferSource, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+          const derivedKeyMaterial = await crypto.subtle.sign('HMAC', hmacKey, keyMaterial);
+          itemFileCek = new Uint8Array(derivedKeyMaterial.slice(0, 32));
+        } catch (err) {
+          console.error('Failed to derive paper CEK for sharing:', err);
+          toast.error('Failed to prepare paper for sharing. Try saving the paper again and retry.');
+          setIsLoading(false);
+          return;
+        }
+
+        // Build an encrypted share manifest containing decrypted blocks so recipients can preview without the owner's master key
+        try {
+          const { decryptPaperContent, decryptFilename, encryptData } = await import('@/lib/crypto')
+
+          // paperData should include the server-side manifest and chunks (from apiClient.getPaper)
+          const manifestEncrypted = paperData.encryptedContent;
+          const manifestIv = paperData.iv;
+          const manifestSalt = paperData.salt;
+
+          let manifestObj: any = null;
+          try {
+            const manifestStr = await decryptPaperContent(manifestEncrypted, manifestIv, manifestSalt, masterKey);
+            manifestObj = JSON.parse(manifestStr || '{}');
+          } catch (manifestErr) {
+            console.error('Failed to decrypt paper manifest for share creation:', manifestErr);
+            toast.error('Failed to read paper content for sharing. Please save the paper and try again.');
+            setIsLoading(false);
+            return;
+          }
+
+          const chunks = paperData.chunks || {};
+
+          // Decrypt each block and construct plaintext blocks array (Plate nodes)
+          const blocksPlain: any[] = [];
+          for (const entry of (manifestObj.blocks || [])) {
+            const chunkData = chunks[entry.chunkId];
+            if (!chunkData) {
+              console.warn(`Missing chunk ${entry.chunkId} while preparing share manifest`) 
+              continue;
+            }
+
+            try {
+              const blockStr = await decryptPaperContent(chunkData.encryptedContent, chunkData.iv, chunkData.salt, masterKey);
+              const parsed = JSON.parse(blockStr);
+              blocksPlain.push({ id: entry.id, chunkId: entry.chunkId, hash: entry.hash, content: parsed });
+            } catch (blockErr) {
+              console.error(`Failed to decrypt block ${entry.chunkId} for sharing:`, blockErr);
+            }
+          }
+
+          // Derive plaintext title for the share manifest (so share view shows same title/icon)
+          let plainTitle = 'Untitled Paper'
+          try {
+            if (paperData.encryptedTitle && paperData.titleSalt) {
+              plainTitle = await decryptFilename(paperData.encryptedTitle, paperData.titleSalt, masterKey);
+            }
+          } catch (e) {
+            console.warn('Failed to decrypt paper title for share manifest', e)
+          }
+
+          const shareManifest = {
+            version: 1,
+            title: plainTitle,
+            icon: manifestObj.icon || null,
+            blocks: blocksPlain
+          };
+
+          const manifestBytes = new TextEncoder().encode(JSON.stringify(shareManifest));
+          const manifestEnc = encryptData(manifestBytes, shareCek);
+          encryptedManifest = {
+            encryptedData: manifestEnc.encryptedData,
+            nonce: manifestEnc.nonce
+          };
+
+        } catch (err) {
+          console.error('Failed to build encrypted manifest for paper share:', err);
+          toast.error('Failed to prepare paper share. Try again.');
+          setIsLoading(false);
+          return;
+        }
+
       } else if (itemType === 'folder') {
         itemFileCek = shareCek;
       } else {
         const dataObj = infoResponse.data as { file?: FileInfo; folder?: FolderInfo };
         const itemData = dataObj.file as unknown as Record<string, unknown> | undefined;
-        if (!itemData || !itemData.wrapped_cek || !itemData.nonce_wrap_kyber) throw new Error(`Encryption info unavailable`)
+        if (!itemData || !itemData.wrapped_cek || !itemData.nonce_wrap_kyber) {
+          toast.error('File encryption info unavailable');
+          setIsLoading(false);
+          return;
+        }
         const { ml_kem768 } = await import('@noble/post-quantum/ml-kem.js')
         const userKeys = await keyManager.getUserKeys()
         const kyberCiphertext = hexToUint8Array(String(itemData.kyber_ciphertext))
@@ -959,7 +1137,6 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
         encryptedFoldername = fEnc.encryptedData
         foldernameNonce = fEnc.nonce
       }
-      let encryptedManifest = undefined;
       if (itemType === 'folder') encryptedManifest = await buildEncryptedFolderManifest(itemId, shareCek)
 
       const response = await apiClient.createShare({

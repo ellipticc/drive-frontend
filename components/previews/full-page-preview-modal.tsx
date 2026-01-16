@@ -9,6 +9,7 @@ import { VideoPreview } from "./video-preview"
 import { TextPreview } from "./text-preview"
 import { ImagePreview } from "./image-preview"
 import { PdfPreview } from "./pdf-preview"
+import PaperPreview from './paper-preview'
 
 import { FileIcon } from "../file-icon"
 import { DownloadProgress } from "@/lib/download"
@@ -166,6 +167,11 @@ export function FullPagePreviewModal({
         }
         if (file.mimeType === 'application/pdf') {
             return <PdfPreview {...commonProps} />
+        }
+
+        // Paper preview (PlateJS)
+        if (file.mimeType === 'application/x-paper' || (file as any).type === 'paper') {
+            return <PaperPreview fileId={file.id} filename={file.name} key={file.id} />
         }
 
         if (

@@ -1247,3 +1247,26 @@ export async function decryptPaperContent(
   }
 }
 
+/**
+ * Decrypt paper content when the paper key (derived CEK) is already available.
+ * This is used for shared previews where the recipient derives the paper key
+ * (via envelope decryption) and can decrypt blocks without having the master key.
+ */
+export async function decryptPaperContentWithPaperKey(
+  encryptedContent: string,
+  iv: string,
+  paperKey: Uint8Array
+): Promise<string> {
+  if (!encryptedContent) return '';
+
+  try {
+    const encryptedBytes = Uint8Array.from(atob(encryptedContent), c => c.charCodeAt(0));
+    const nonceBytes = Uint8Array.from(atob(iv), c => c.charCodeAt(0));
+    const decryptedBytes = xchacha20poly1305(paperKey, nonceBytes).decrypt(encryptedBytes);
+    return new TextDecoder().decode(decryptedBytes);
+  } catch (error) {
+    console.error('Failed to decrypt paper content with provided paper key:', error);
+    throw new Error('Failed to decrypt paper content');
+  }
+}
+

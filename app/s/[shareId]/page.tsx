@@ -41,6 +41,11 @@ import {
   looksLikeEncryptedName,
   decryptManifestItemName
 } from '@/lib/share-crypto';
+
+// Paper editor imports for shared paper view
+import { Plate, usePlateEditor } from 'platejs/react';
+import { Editor, EditorContainer } from '@/components/ui/editor';
+import { EditorKit } from '@/components/editor-kit';
 import { FullPagePreviewModal, PreviewFileItem } from "@/components/previews/full-page-preview-modal";
 import { AudioPreview } from '@/components/previews/audio-preview';
 import { ImagePreview } from '@/components/previews/image-preview';
@@ -146,6 +151,30 @@ export default function SharedDownloadPage() {
   const [checkingSession, setCheckingSession] = useState(true);
   const [sharePasswordCEK, setSharePasswordCEK] = useState<Uint8Array | null>(null); // Store CEK from password verification
   const [shareCek, setShareCek] = useState<Uint8Array | null>(null);
+
+  // Paper-share specific state
+  const [isPaperShare, setIsPaperShare] = useState(false);
+  const [paperManifest, setPaperManifest] = useState<any | null>(null);
+  const [paperBlocks, setPaperBlocks] = useState<any[]>([]);
+  const [paperTitle, setPaperTitle] = useState<string | null>(null);
+  const [paperIcon, setPaperIcon] = useState<string | null>(null);
+
+  // Plate editor for paper view (read-only)
+  const paperEditor = usePlateEditor({ plugins: EditorKit, value: paperBlocks });
+
+  useEffect(() => {
+    try {
+      if (paperEditor && (paperEditor as any).setValue) {
+        (paperEditor as any).setValue({ value: paperBlocks });
+      }
+      // Make editor read-only
+      if (paperEditor && (paperEditor as any).dom) {
+        ((paperEditor as any).dom as any).readOnly = true;
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, [paperEditor, paperBlocks]);
 
   // Preview State
   const [previewFile, setPreviewFile] = useState<PreviewFileItem & { blobUrl: string } | null>(null);
@@ -275,6 +304,31 @@ export default function SharedDownloadPage() {
       // If the share has encrypted_manifest, use it directly (true E2EE)
       if (shareDetails.encrypted_manifest) {
         const rawManifest = await decryptEncryptedManifest(shareDetails.encrypted_manifest, shareCek);
+
+        // Detect paper-style manifest (our paper share format includes { version, title, icon, blocks: [] })
+        if (rawManifest && typeof rawManifest === 'object' && 'version' in rawManifest && Array.isArray((rawManifest as any).blocks)) {
+          // It's a paper share. We will render it in view-only paper UI below
+          const paperManifest = rawManifest as any;
+
+          // Build Plate initialValue from blocks content
+          const paperBlocks = (paperManifest.blocks || []).map((b: any) => b.content || { type: 'p', children: [{ text: '' }] });
+
+          // Set states that will cause the page to render the paper view
+          setManifest({} as Record<string, ManifestItem>);
+          setCurrentFolderId(null);
+          setBreadcrumbs([]);
+          setDecryptedFilename(paperManifest.title || 'Shared Paper');
+
+          // Set paper-share states for rendering view-only paper UI
+          setIsPaperShare(true);
+          setPaperManifest(paperManifest);
+          setPaperBlocks((paperManifest.blocks || []).map((b: any) => b.content || { type: 'p', children: [{ text: '' }] }));
+          setPaperTitle(paperManifest.title || 'Shared Paper');
+          setPaperIcon(paperManifest.icon || null);
+
+          setLoading(false);
+          return; // Stop further processing for folder/file logic
+        }
 
         for (const [itemId, item] of Object.entries(rawManifest)) {
           const manifestItem = item as Record<string, unknown>;
@@ -882,6 +936,47 @@ export default function SharedDownloadPage() {
             </div>
           </div>
         </header>
+
+        {/* Paper share: full paper view in read-only mode */}
+        {isPaperShare && paperManifest && (
+          <div className="flex flex-col h-screen bg-background w-full overflow-hidden">
+            <header className="flex h-16 items-center gap-4 border-b px-6 shrink-0 bg-background z-50">
+              <div className="flex items-center gap-3 w-full max-w-2xl">
+                <Button variant="ghost" size="icon" onClick={() => window.location.href = '/'} className="hover:bg-muted shrink-0">
+                  <IconArrowLeft className="w-5 h-5" />
+                </Button>
+
+                <div className="w-full min-w-0">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 bg-muted rounded-md shrink-0">{paperIcon || (paperTitle ? paperTitle.charAt(0).toUpperCase() : 'P')}</div>
+                    <h1 className="text-2xl font-semibold truncate">{paperTitle}</h1>
+                  </div>
+                  <div className="text-xs text-muted-foreground">Zero-Knowledge Encrypted • View-only</div>
+                </div>
+              </div>
+
+              <div className="ml-auto flex items-center gap-4 shrink-0">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest px-2 py-1 rounded bg-muted/50 hidden md:block cursor-help hover:bg-muted transition-colors">Zero-Knowledge Encrypted</span>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">This paper is encrypted by its owner before upload. Only recipients with the link (and password when set) can view it.</TooltipContent>
+                </Tooltip>
+                <ThemeToggle />
+              </div>
+            </header>
+
+            <main className="flex-1 overflow-hidden relative">
+              <EditorContainer className="h-full w-full overflow-y-auto flex justify-center">
+                <div className="w-full max-w-[850px] px-8 md:px-12">
+                  <Plate editor={paperEditor}>
+                    <Editor className="min-h-full w-full py-4 border-none shadow-none focus-visible:ring-0" readOnly />
+                  </Plate>
+                </div>
+              </EditorContainer>
+            </main>
+          </div>
+        )}
         <div className="flex items-center justify-center py-16 px-4">
           <Card className="w-full max-w-md">
             <CardHeader className="text-center">
