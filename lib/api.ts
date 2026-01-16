@@ -753,11 +753,16 @@ class ApiClient {
 
         // If already has 'data' property (like from /auth/me), return as-is
         if (responseData.data !== undefined) {
+          const { data: innerData, total, page, pageSize, ...rest } = responseData;
           return {
             success,
             ...(error && { error }),
-            data: responseData.data,
-            status: response.status
+            data: innerData as T,
+            status: response.status,
+            total,
+            page,
+            pageSize,
+            ...rest
           };
         }
 
@@ -765,7 +770,7 @@ class ApiClient {
         return {
           success,
           ...(error && { error }),
-          data: responseData,
+          data: responseData as unknown as T,
           status: response.status
         };
       }
@@ -3334,12 +3339,12 @@ class ApiClient {
     return this.request(`/user/webhooks/events/${eventId}`);
   }
 
-  async getSecurityEvent(eventId: string): Promise<ApiResponse<SecurityEvent>> {
-    return this.request(`/security/events/${eventId}`)
+  async getWebhookUsage(): Promise<ApiResponse<{ allowed: boolean; usage: number; limit: number; plan: string; }>> {
+    return this.request('/user/webhooks/usage');
   }
 
-  async getWebhookUsage(): Promise<ApiResponse<{ allowed: boolean; usage: number; limit: number; plan: string; }>> {
-    return this.request('/webhooks/usage');
+  async getSecurityEvent(eventId: string): Promise<ApiResponse<SecurityEvent>> {
+    return this.request(`/security/events/${eventId}`)
   }
 
   async reportOpaqueFailure(flow: string, stage: string, error: string): Promise<ApiResponse<{ success: boolean }>> {

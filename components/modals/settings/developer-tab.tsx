@@ -61,9 +61,45 @@ import {
 // @ts-expect-error JSONHighlighter has no type defs
 import JSONHighlighter from 'react-json-syntax-highlighter'
 
-const JsonHighlighter = ({ data }: { data: unknown }) => (
-  <div className="json-theme-custom rounded-xl overflow-hidden border border-muted-foreground/10 bg-muted/20">
-    <JSONHighlighter obj={data} className="text-[11px] font-mono p-4" />
+const LogView = ({ title, content, isJson = false }: { title: string, content: any, isJson?: boolean }) => (
+  <div className="space-y-2.5 group">
+    <div className="flex items-center justify-between px-1">
+      <h4 className="text-[10px] uppercase tracking-[0.15em] font-black text-muted-foreground/50">{title}</h4>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 rounded-md opacity-0 group-hover:opacity-100 transition-all hover:bg-primary/5 hover:text-primary"
+              onClick={() => {
+                const text = isJson ? JSON.stringify(content, null, 2) : content;
+                navigator.clipboard.writeText(text);
+                toast.success(`${title} copied`);
+              }}
+            >
+              <IconCopy className="h-3 w-3" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="left" className="text-[10px]">Copy {title}</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    </div>
+    <div className="relative">
+      <div className="bg-muted/30 dark:bg-muted/15 border border-muted-foreground/10 rounded-xl overflow-hidden shadow-sm transition-all hover:border-primary/20">
+        <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent max-h-[500px]">
+          <div className="p-4 font-mono text-[11px] whitespace-pre text-muted-foreground/90 selection:bg-primary/30 leading-relaxed">
+            {isJson ? (
+              <div className="json-theme-custom">
+                <JSONHighlighter obj={content} className="p-0 bg-transparent text-[11px] font-mono" />
+              </div>
+            ) : (
+              content || <span className="italic opacity-50 font-sans tracking-normal">No data recorded for this request</span>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 )
 
@@ -469,55 +505,88 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
       </div>
 
       {/* Header Section */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shadow-sm">
-            <IconWebhook className="h-5 w-5 text-primary" />
+      <div className="flex flex-col gap-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="h-12 w-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center shadow-sm">
+              <IconWebhook className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-xl font-bold tracking-tight">Manage Webhooks</h3>
+                {usageData && (
+                  <Badge variant="outline" className="h-5 px-1.5 text-[9px] font-black uppercase tracking-widest bg-primary/5 text-primary border-primary/20">
+                    {usageData.plan}
+                  </Badge>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground font-medium mt-0.5">Configure endpoints to receive real-time updates and automate your secure workflow.</p>
+            </div>
           </div>
-          <div>
-            <h3 className="text-xl font-bold tracking-tight">Manage Webhooks</h3>
-            <p className="text-sm text-muted-foreground font-medium">Listen for events and automate your workflow</p>
+          <div className="flex items-center gap-3">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-10 w-10 rounded-xl hover:bg-muted"
+                    onClick={() => { loadWebhooks(); loadUsage(); }}
+                    disabled={loading}
+                  >
+                    <IconRefresh className={`h-5 w-5 text-muted-foreground ${loading ? 'animate-spin' : ''}`} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Refresh Data</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            <Dialog open={createModalOpen} onOpenChange={(open) => { if (!open) resetForm(); setCreateModalOpen(open) }}>
+              <DialogTrigger asChild>
+                <Button
+                  className="rounded-xl px-5 h-11 font-bold shadow-lg shadow-primary/15 transition-all hover:shadow-primary/25 active:scale-95 translate-y-0 hover:-translate-y-0.5"
+                  disabled={usageData ? !usageData.allowed : false}
+                >
+                  <IconPlus className="h-4.5 w-4.5 mr-2 stroke-[2.5]" />
+                  New Webhook
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md rounded-2xl border-muted/70 shadow-2xl">
+                <DialogHeader className="space-y-1.5">
+                  <DialogTitle className="text-xl font-black flex items-center gap-2">
+                    <IconPlus className="h-5 w-5 text-primary" />
+                    Create Webhook
+                  </DialogTitle>
+                  <DialogDescription className="font-medium text-muted-foreground text-sm">
+                    Enter an endpoint URL to start receiving real-time notifications for specific account events.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-6 py-6">
+                  <div className="grid gap-2.5">
+                    <Label htmlFor="url" className="text-[10px] uppercase tracking-widest font-black text-muted-foreground/80 px-1 italic">Destination Endpoint</Label>
+                    <div className="relative group">
+                      <div className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 flex items-center justify-center transition-colors group-focus-within:text-primary">
+                        <IconLink className="h-4 w-4 text-muted-foreground/40 transition-colors" />
+                      </div>
+                      <Input
+                        id="url"
+                        className="pl-10 h-11 rounded-xl bg-muted/20 border-muted-foreground/10 focus-visible:ring-primary/20 transition-all font-medium"
+                        placeholder="https://api.example.com/webhook"
+                        value={formData.url}
+                        onChange={(e) => setFormData(prev => ({ ...prev, url: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                  <EventSelector />
+                </div>
+                <DialogFooter className="gap-2 sm:gap-0">
+                  <Button variant="ghost" onClick={() => setCreateModalOpen(false)} className="rounded-xl h-11 font-bold px-6">Cancel</Button>
+                  <Button onClick={handleCreate} disabled={loading} className="rounded-xl h-11 font-bold px-8 shadow-lg shadow-primary/10">Create Webhook</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
-        <Dialog open={createModalOpen} onOpenChange={(open) => { if (!open) resetForm(); setCreateModalOpen(open) }}>
-          <DialogTrigger asChild>
-            <Button
-              className="rounded-full px-5 shadow-lg shadow-primary/10"
-              disabled={usageData ? !usageData.allowed : false}
-            >
-              <IconPlus className="h-4 w-4 mr-2" />
-              New Webhook
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md rounded-2xl">
-            <DialogHeader>
-              <DialogTitle>Create Webhook</DialogTitle>
-              <DialogDescription className="font-medium">
-                Configure an endpoint to receive real-time notifications.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-5 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="url" className="text-xs uppercase tracking-wider font-bold text-muted-foreground">Endpoint URL</Label>
-                <div className="relative">
-                  <IconLink className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground/50" />
-                  <Input
-                    id="url"
-                    className="pl-9 rounded-lg"
-                    placeholder="https://your-api.com/webhooks"
-                    value={formData.url}
-                    onChange={(e) => setFormData(prev => ({ ...prev, url: e.target.value }))}
-                  />
-                </div>
-              </div>
-              <EventSelector />
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setCreateModalOpen(false)} className="rounded-full">Cancel</Button>
-              <Button onClick={handleCreate} disabled={loading} className="rounded-full px-6">Create Webhook</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
 
       {/* Success Modal for Secret */}
@@ -1039,51 +1108,44 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
                                                         </div>
                                                       </div>
 
-                                                      <div className="p-6 max-w-5xl mx-auto space-y-6">
+                                                      <div className="p-6 max-w-5xl mx-auto space-y-8">
                                                         {loadingDetails === ev.id ? (
-                                                          <div className="py-12 text-center text-muted-foreground text-sm">Loading details...</div>
+                                                          <div className="py-24 text-center flex flex-col items-center gap-4">
+                                                            <IconLoader2 className="h-10 w-10 text-primary animate-spin" />
+                                                            <div className="space-y-1">
+                                                              <h4 className="font-bold text-sm">Decoding Event Payload</h4>
+                                                              <p className="text-xs text-muted-foreground">Accessing secure delivery logs...</p>
+                                                            </div>
+                                                          </div>
                                                         ) : (
                                                           <>
                                                             {activeTab === 'request' && (
-                                                              <>
-                                                                <div className="space-y-2">
-                                                                  <div className="flex items-center justify-between">
-                                                                    <h4 className="text-xs font-bold text-foreground">Headers</h4>
-                                                                  </div>
-                                                                  <div className="bg-background border rounded-md p-4 font-mono text-xs text-muted-foreground overflow-x-auto whitespace-pre shadow-sm">
-                                                                    {ev.request_headers ? JSON.stringify(JSON.parse(ev.request_headers), null, 2) : 'No headers recorded'}
-                                                                  </div>
-                                                                </div>
-                                                                <div className="space-y-2">
-                                                                  <div className="flex items-center justify-between">
-                                                                    <h4 className="text-xs font-bold text-foreground">Payload</h4>
-                                                                  </div>
-                                                                  <div className="rounded-md overflow-hidden border shadow-sm bg-background">
-                                                                    <JsonHighlighter data={JSON.parse(ev.request_body || '{}')} />
-                                                                  </div>
-                                                                </div>
-                                                              </>
+                                                              <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-8">
+                                                                <LogView
+                                                                  title="Request Headers"
+                                                                  content={ev.request_headers ? JSON.parse(ev.request_headers) : null}
+                                                                  isJson={true}
+                                                                />
+                                                                <LogView
+                                                                  title="Payload Content"
+                                                                  content={JSON.parse(ev.request_body || '{}')}
+                                                                  isJson={true}
+                                                                />
+                                                              </div>
                                                             )}
 
                                                             {activeTab === 'response' && (
-                                                              <>
-                                                                <div className="space-y-2">
-                                                                  <div className="flex items-center justify-between">
-                                                                    <h4 className="text-xs font-bold text-foreground">Headers</h4>
-                                                                  </div>
-                                                                  <div className="bg-background border rounded-md p-4 font-mono text-xs text-muted-foreground overflow-x-auto whitespace-pre shadow-sm">
-                                                                    {ev.response_headers ? JSON.stringify(JSON.parse(ev.response_headers), null, 2) : 'No response headers'}
-                                                                  </div>
-                                                                </div>
-                                                                <div className="space-y-2">
-                                                                  <div className="flex items-center justify-between">
-                                                                    <h4 className="text-xs font-bold text-foreground">Body</h4>
-                                                                  </div>
-                                                                  <div className="bg-background border rounded-md p-4 font-mono text-xs text-muted-foreground overflow-x-auto whitespace-pre-wrap shadow-sm">
-                                                                    {ev.response_body || 'No response body'}
-                                                                  </div>
-                                                                </div>
-                                                              </>
+                                                              <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-8">
+                                                                <LogView
+                                                                  title="Response Headers"
+                                                                  content={ev.response_headers ? JSON.parse(ev.response_headers) : null}
+                                                                  isJson={true}
+                                                                />
+                                                                <LogView
+                                                                  title="Response Body"
+                                                                  content={ev.response_body}
+                                                                />
+                                                              </div>
                                                             )}
                                                           </>
                                                         )}
