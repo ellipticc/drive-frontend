@@ -14,13 +14,19 @@ interface PaperPreviewProps {
   filename?: string
 }
 
-export function PaperPreview({ fileId }: PaperPreviewProps) {
-  const [loading, setLoading] = useState(true)
-  const [initialValue, setInitialValue] = useState<any>([{ type: 'p', children: [{ text: '' }] }])
+export function PaperPreview({ fileId, initialContent }: PaperPreviewProps & { initialContent?: any }) {
+  const [loading, setLoading] = useState(!initialContent)
+  const [initialValue, setInitialValue] = useState<any>(initialContent || [{ type: 'p', children: [{ text: '' }] }])
 
   const editor = usePlateEditor({ plugins: EditorKit, value: initialValue })
 
   useEffect(() => {
+    if (initialContent) {
+      setInitialValue(initialContent)
+      setLoading(false)
+      return
+    }
+
     const loadPaper = async () => {
       try {
         if (!masterKeyManager.hasMasterKey()) {
@@ -51,7 +57,7 @@ export function PaperPreview({ fileId }: PaperPreviewProps) {
 
     loadPaper()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fileId])
+  }, [fileId, initialContent])
 
   useEffect(() => {
     // Ensure editor is read-only

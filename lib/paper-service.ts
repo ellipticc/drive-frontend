@@ -428,6 +428,82 @@ class PaperService {
             updatedAt: paper.updatedAt
         };
     }
+    async getPaperVersion(fileId: string, versionId: string): Promise<any> {
+        try {
+            const masterKey = masterKeyManager.getMasterKey();
+
+            // 1. Fetch Version Data
+            const response = await apiClient.getPaperVersion(fileId, versionId);
+            if (!response.success || !response.data) {
+                throw new Error(response.error || 'Failed to fetch paper version');
+            }
+
+            const paperData = response.data;
+            const chunks = paperData.chunks;
+
+            let manifest: PaperManifest;
+
+            if (paperData.encryptedContent && paperData.iv && paperData.salt) {
+                const manifestStr = await decryptPaperContent(
+                    paperData.encryptedContent,
+                    paperData.iv,
+                    paperData.salt,
+                    masterKey
+                );
+                manifest = JSON.parse(manifestStr);
+            } else {
+                throw new Error("Version Manifest or encryption params missing");
+            }
+
+            // 3. Reconstruct Blocks
+            const blocks: any[] = [];
+
+            for (const entry of manifest.blocks) {
+                const chunkData = chunks ? chunks[entry.chunkId] : undefined;
+
+                if (chunkData) {
+                    try {
+                        const decryptedBlockStr = await decryptPaperContent(
+                            chunkData.encryptedContent,
+                            chunkData.iv || chunkData.nonce || '',
+                            chunkData.salt,
+                            masterKey
+                        );
+                        const block = JSON.parse(decryptedBlockStr);
+                        blocks.push(block);
+                    } catch (e) {
+                        console.error(`Failed to decrypt block ${entry.id} in version`, e);
+                        // Push placeholder error block
+                        blocks.push({
+                            id: entry.id,
+                            type: 'p',
+                            children: [{ text: '[Error: Failed to decrypt this block from history]' }]
+                        });
+                    }
+                } else {
+                    console.warn(`Chunk ${entry.chunkId} missing for block ${entry.id} in version`);
+                    blocks.push({
+                        id: entry.id,
+                        type: 'p',
+                        children: [{ text: '[Error: Block data missing in history]' }]
+                    });
+                }
+            }
+
+            return {
+                id: fileId,
+                title: (paperData.encryptedTitle && paperData.titleSalt)
+                    ? await decryptFilename(paperData.encryptedTitle, paperData.titleSalt, masterKey)
+                    : 'Untitled Version',
+                content: blocks,
+                versionId: versionId
+            };
+
+        } catch (err) {
+            console.error('PaperService getPaperVersion Error:', err);
+            throw err;
+        }
+    }
 }
 
 export const paperService = new PaperService();

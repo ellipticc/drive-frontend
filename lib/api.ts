@@ -418,6 +418,21 @@ export interface ShareComment {
   }>;
 }
 
+export interface Paper {
+  id: string;
+  title: string;
+  encryptedTitle?: string;
+  titleSalt?: string;
+  encryptedContent?: string;
+  iv?: string;
+  salt?: string;
+  folderId?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  content?: any;
+  chunks?: Record<string, any>;
+}
+
 export interface ShareCommentsResponse {
   comments: ShareComment[];
   pagination: {
@@ -2491,6 +2506,10 @@ class ApiClient {
     }>
   }>> {
     return this.request(`/papers/${fileId}/versions`);
+  }
+
+  async getPaperVersion(fileId: string, versionId: string): Promise<ApiResponse<Paper>> {
+    return this.request(`/papers/${fileId}/versions/${versionId}/preview`);
   }
 
   async savePaperVersion(fileId: string): Promise<ApiResponse<{

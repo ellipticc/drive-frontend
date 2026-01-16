@@ -12,8 +12,11 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { apiClient } from "@/lib/api"
 import { toast } from "sonner"
-import { IconHistory, IconDeviceFloppy, IconRestore, IconTrash, IconLoader2, IconAlertTriangle } from "@tabler/icons-react"
+import { IconHistory, IconDeviceFloppy, IconRestore, IconTrash, IconLoader2, IconAlertTriangle, IconEye } from "@tabler/icons-react"
 import { format } from "date-fns"
+import { PaperPreview } from "@/components/previews/paper-preview"
+import { masterKeyManager } from "@/lib/master-key"
+import { paperService } from "@/lib/paper-service"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -51,6 +54,9 @@ export function VersionHistoryModal({
     const [saving, setSaving] = useState(false)
     const [restoringId, setRestoringId] = useState<string | null>(null)
     const [deletingId, setDeletingId] = useState<string | null>(null)
+    const [previewVersionId, setPreviewVersionId] = useState<string | null>(null)
+    const [previewContent, setPreviewContent] = useState<any>(null)
+    const [previewLoading, setPreviewLoading] = useState(false)
 
     // Confirmation states
     const [confirmRestoreId, setConfirmRestoreId] = useState<string | null>(null)
@@ -140,6 +146,24 @@ export function VersionHistoryModal({
         }
     }
 
+    const handlePreview = async (version: Version) => {
+        setPreviewVersionId(version.id)
+        setPreviewLoading(true)
+        setPreviewContent(null)
+
+        try {
+            const paperData = await paperService.getPaperVersion(fileId, version.id)
+            setPreviewContent(paperData.content)
+        } catch (e) {
+            console.error(e)
+            toast.error("Failed to load preview")
+            setPreviewVersionId(null)
+            setPreviewContent(null)
+        } finally {
+            setPreviewLoading(false)
+        }
+    }
+
     const formatSize = (bytes: number) => {
         if (bytes === 0) return '0 B'
         const k = 1024
@@ -210,6 +234,15 @@ export function VersionHistoryModal({
                                                 </div>
                                                 <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                                     <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-8 w-8 px-0"
+                                                        onClick={() => handlePreview(version)}
+                                                        title="Preview Version"
+                                                    >
+                                                        <IconEye className="w-4 h-4" />
+                                                    </Button>
+                                                    <Button
                                                         variant="outline"
                                                         size="sm"
                                                         className="h-8 text-xs gap-1.5"
@@ -278,6 +311,41 @@ export function VersionHistoryModal({
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            {/* Preview Modal */}
+            <Dialog open={!!previewVersionId} onOpenChange={(open) => !open && setPreviewVersionId(null)}>
+                <DialogContent className="max-w-4xl h-[85vh] flex flex-col p-0 overflow-hidden">
+                    <DialogHeader className="px-6 py-4 border-b shrink-0 flex flex-row items-center justify-between">
+                        <div>
+                            <DialogTitle>Version Preview</DialogTitle>
+                            <DialogDescription>
+                                Viewing a read-only snapshot of this version.
+                            </DialogDescription>
+                        </div>
+                        <div className="flex items-center gap-2 mr-6">
+                            {previewVersionId && (
+                                <Button
+                                    size="sm"
+                                    onClick={() => {
+                                        setConfirmRestoreId(previewVersionId);
+                                        setPreviewVersionId(null);
+                                    }}
+                                >
+                                    <IconRestore className="w-4 h-4 mr-2" />
+                                    Restore This Version
+                                </Button>
+                            )}
+                        </div>
+                    </DialogHeader>
+                    <div className="flex-1 overflow-hidden bg-background">
+                        {previewVersionId && (
+                            /* We pass loading state or content. For now placeholders.
+                               In real implementation, we would pass the fetched content */
+                            <PaperPreview fileId={fileId} initialContent={previewContent} />
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
         </>
     )
 }
