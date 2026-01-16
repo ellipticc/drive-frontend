@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { IconLoader2, IconDownload, IconFile, IconAlertCircle, IconFolderOpen, IconChevronRight, IconLock, IconCaretLeftRightFilled, IconLogout, IconEyeOff, IconInfoCircle, IconRosetteDiscountCheckFilled } from '@tabler/icons-react';
+import { IconLoader2, IconDownload, IconFile, IconAlertCircle, IconFolderOpen, IconChevronRight, IconLock, IconCaretLeftRightFilled, IconLogout, IconEyeOff, IconInfoCircle, IconRosetteDiscountCheckFilled, IconArrowLeft } from '@tabler/icons-react';
 import {
   Avatar,
   AvatarFallback,
