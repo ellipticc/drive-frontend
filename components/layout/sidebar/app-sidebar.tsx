@@ -190,8 +190,8 @@ export const AppSidebar = React.memo(function AppSidebar({
             <SidebarMenuButton
               asChild
             >
-              <a href="#">
-                <IconCaretLeftRightFilled className="!size-5" />
+              <a href="#" className="flex items-center gap-2">
+                <IconCaretLeftRightFilled className="size-4 shrink-0" />
                 <span className="text-base font-geist-mono select-none break-all leading-none">ellipticc</span>
               </a>
             </SidebarMenuButton>
