@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { IconFolder, IconFile, IconPhoto, IconVideo, IconMusic, IconFileText, IconArchive, IconChevronRight, IconChevronDown, IconLoader2, IconShare } from "@tabler/icons-react"
+import { IconFolder, IconFile, IconStack2, IconPhoto, IconVideo, IconMusic, IconFileText, IconArchive, IconChevronRight, IconChevronDown, IconLoader2, IconShare } from "@tabler/icons-react"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 import { apiClient } from "@/lib/api"
@@ -310,6 +310,7 @@ export function SharePickerModal({ open, onOpenChange, onFileSelected }: SharePi
   }
 
   const getFileIcon = (mimeType?: string) => {
+    if (mimeType === 'application/x-paper') return <IconStack2 className="h-4 w-4 text-blue-500" />
     if (mimeType?.startsWith('image/')) return <IconPhoto className="h-4 w-4 text-green-500" />
     if (mimeType?.startsWith('video/')) return <IconVideo className="h-4 w-4 text-purple-500" />
     if (mimeType?.startsWith('audio/')) return <IconMusic className="h-4 w-4 text-orange-500" />
