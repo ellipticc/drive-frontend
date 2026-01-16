@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { masterKeyManager } from "@/lib/master-key";
 import { IconLoader2, IconArrowLeft, IconCloudCheck } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { type Value } from "platejs";
 import { paperService } from "@/lib/paper-service";
@@ -201,7 +202,17 @@ export default function PaperPage() {
     const [content, setContent] = useState<Value | undefined>(undefined);
     const [paperTitle, setPaperTitle] = useState<string>("Untitled Paper");
     const [icon, setIcon] = useState<string | null>(null);
+    const [pageAlert, setPageAlert] = useState<{ message: string } | null>(null);
     const saveTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+
+    useEffect(() => {
+        const handler = (e: Event) => {
+            const detail = (e as CustomEvent).detail;
+            setPageAlert({ message: detail?.message || 'Upgrade required' });
+        };
+        window.addEventListener('export-requires-upgrade', handler as EventListener);
+        return () => window.removeEventListener('export-requires-upgrade', handler as EventListener);
+    }, []);
 
     const latestContentRef = useRef<Value | undefined>(undefined);
     const lastSavedContentRef = useRef<string>("");
@@ -368,18 +379,33 @@ export default function PaperPage() {
     if (!content) return null;
 
     return (
-        <PaperEditorView
-            initialValue={content}
-            onChange={onChange}
-            fileId={fileId}
-            paperTitle={paperTitle}
-            setPaperTitle={setPaperTitle}
-            handleTitleSave={handleTitleSave}
-            icon={icon}
-            onSelectEmoji={onSelectEmoji}
-            saving={saving}
-            isUnsaved={isUnsaved}
-        />
+        <>
+            {pageAlert && (
+                <div className="fixed top-16 left-0 right-0 z-50 p-4">
+                    <Alert>
+                        <AlertTitle>Upgrade required</AlertTitle>
+                        <AlertDescription>{pageAlert.message}</AlertDescription>
+                        <div className="mt-2 flex gap-2">
+                            <Button size="sm" onClick={() => (window.location.href = '/pricing')}>Upgrade</Button>
+                            <Button variant="ghost" size="sm" onClick={() => setPageAlert(null)}>Close</Button>
+                        </div>
+                    </Alert>
+                </div>
+            )}
+
+            <PaperEditorView
+                initialValue={content}
+                onChange={onChange}
+                fileId={fileId}
+                paperTitle={paperTitle}
+                setPaperTitle={setPaperTitle}
+                handleTitleSave={handleTitleSave}
+                icon={icon}
+                onSelectEmoji={onSelectEmoji}
+                saving={saving}
+                isUnsaved={isUnsaved}
+            />
+        </>
     );
 }
 

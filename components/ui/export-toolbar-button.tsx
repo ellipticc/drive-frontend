@@ -19,8 +19,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { BaseEditorKit } from '@/components/editor-base-kit';
 import { useUser } from '@/components/user-context';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
 
 import { EditorStatic } from './editor-static';
 import { ToolbarButton } from './toolbar';
@@ -32,10 +30,6 @@ export function ExportToolbarButton(props: DropdownMenuProps) {
   const [open, setOpen] = React.useState(false);
   const { user } = useUser();
 
-  // Local alert state shown when non-Pro users attempt Pro-only exports
-  type ExportAlertState = { visible: boolean; message: string } | null;
-  const [exportAlert, setExportAlert] = React.useState<ExportAlertState>(null);
-
   const isProOrUnlimited = React.useMemo(() => {
     const planName = (user?.subscription?.plan?.name || '').toLowerCase();
     return planName.includes('pro') || planName.includes('unlimited');
@@ -44,7 +38,10 @@ export function ExportToolbarButton(props: DropdownMenuProps) {
   const requirePro = (formatLabel: string): boolean => {
     if (isProOrUnlimited) return true;
     setOpen(false); // close menu
-    setExportAlert({ visible: true, message: `Export to ${formatLabel} requires a Pro or Unlimited subscription. Upgrade to export.` });
+    const message = `Export to ${formatLabel} requires a Pro or Unlimited subscription. Upgrade to export.`;
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('export-requires-upgrade', { detail: { message } }));
+    }
     return false;
   };
 
@@ -191,23 +188,6 @@ export function ExportToolbarButton(props: DropdownMenuProps) {
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="start">
-        {exportAlert?.visible && (
-          <div className="p-2">
-            <Alert>
-              <AlertTitle>Upgrade required</AlertTitle>
-              <AlertDescription>{exportAlert.message}</AlertDescription>
-              <div className="mt-2 flex gap-2">
-                <Button size="sm" onClick={() => (window.location.href = '/pricing')}>
-                  Upgrade
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => setExportAlert(null)}>
-                  Close
-                </Button>
-              </div>
-            </Alert>
-          </div>
-        )}
-
         <DropdownMenuGroup>
           <DropdownMenuItem onSelect={exportToHtml}>
             Export as HTML
