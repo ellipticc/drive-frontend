@@ -432,6 +432,8 @@ export interface Paper {
   content?: any;
   chunks?: Record<string, any>;
   blockUrls?: Record<string, string>; // Presigned URLs for blocks (version preview)
+  customName?: string;
+  customNameSalt?: string;
 }
 
 export interface ShareCommentsResponse {

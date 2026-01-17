@@ -45,6 +45,9 @@ interface Version {
     expiresAt: string | null
     isManual: boolean
     triggerType: string
+    customName?: string
+    customNameSalt?: string
+    decryptedName?: string // Decrypted on client
 }
 
 interface VersionHistoryModalProps {
@@ -86,7 +89,23 @@ export function VersionHistoryModal({
         try {
             const res = await apiClient.getPaperVersions(fileId)
             if (res.success && res.data) {
-                setVersions(res.data.versions)
+                // Decrypt custom names
+                const masterKey = await masterKeyManager.getMasterKey()
+                const decryptedVersions = await Promise.all(
+                    res.data.versions.map(async (v: any) => {
+                        if (v.customName && v.customNameSalt && masterKey) {
+                            try {
+                                const decryptedName = await decryptFilename(v.customName, v.customNameSalt, masterKey)
+                                return { ...v, decryptedName }
+                            } catch (e) {
+                                console.error('Failed to decrypt version name:', e)
+                                return v
+                            }
+                        }
+                        return v
+                    })
+                )
+                setVersions(decryptedVersions)
             } else {
                 toast.error("Failed to load version history")
             }
@@ -387,8 +406,9 @@ export function VersionHistoryModal({
                     </div>
 
                     {/* RIGHT: Sidebar */}
-                    <div className="w-[320px] flex flex-col border-l h-full bg-background z-20 shadow-[-10px_0_20px_-10px_rgba(0,0,0,0.05)]">
-                        <div className="px-6 py-4 shrink-0 flex flex-row items-center justify-between space-y-0">
+                    <div className="w-[320px] flex flex-col border-l h-full bg-background z-20 shadow-[-10px_0_20px_-10px_rgba(0,0,0,0.05)] overflow-hidden">
+                        {/* Sticky Header */}
+                        <div className="px-6 py-4 shrink-0 flex flex-row items-center justify-between space-y-0 bg-background border-b sticky top-0 z-10">
                             <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
                                 Document History
                             </h2>
@@ -402,7 +422,8 @@ export function VersionHistoryModal({
                             </Button>
                         </div>
 
-                        <ScrollArea className="flex-1">
+                        {/* Scrollable Content */}
+                        <div className="flex-1 overflow-y-auto">
                             <div className="flex flex-col pb-10">
                                 {loading ? (
                                     <div className="flex flex-col items-center justify-center py-20 gap-3 text-muted-foreground">
@@ -448,9 +469,19 @@ export function VersionHistoryModal({
                                                                 }`}
                                                         >
                                                             <div className="flex items-center justify-between pointer-events-none">
-                                                                <span className={`text-xs font-medium ${previewVersionId === version.id ? "text-primary" : "text-foreground"}`}>
-                                                                    {format(new Date(version.createdAt), 'h:mm a')}
-                                                                </span>
+                                                                <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                                                                    <span className={`text-xs font-medium ${previewVersionId === version.id ? "text-primary" : "text-foreground"}`}>
+                                                                        {format(new Date(version.createdAt), 'h:mm a')}
+                                                                    </span>
+                                                                    {version.decryptedName && (
+                                                                        <>
+                                                                            <span className="text-xs text-muted-foreground">·</span>
+                                                                            <span className="text-xs text-muted-foreground truncate" title={version.decryptedName}>
+                                                                                {version.decryptedName}
+                                                                            </span>
+                                                                        </>
+                                                                    )}
+                                                                </div>
 
                                                                 {idx === 0 && (
                                                                     <span className="text-[9px] bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded font-semibold uppercase tracking-tight">
@@ -511,10 +542,10 @@ export function VersionHistoryModal({
                                     </div>
                                 )}
                             </div>
-                        </ScrollArea>
+                        </div>
 
-                        {/* Action Buttons at Bottom */}
-                        <div className="p-4 shrink-0 space-y-2 bg-background">
+                        {/* Action Buttons at Bottom - Sticky */}
+                        <div className="p-4 shrink-0 space-y-2 bg-background border-t sticky bottom-0 z-10">
                             <Button
                                 variant="outline"
                                 className="w-full justify-start gap-2"
@@ -621,7 +652,7 @@ export function VersionHistoryModal({
                     setRenamingVersionId(null)
                 }
             }}>
-                <DialogContent onPointerDownOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => !renaming && setRenameDialogOpen(false)}>
+                <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Rename Version</DialogTitle>
                         <DialogDescription>
