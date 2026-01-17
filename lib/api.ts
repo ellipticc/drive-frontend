@@ -2547,14 +2547,14 @@ class ApiClient {
     });
   }
 
-  async copyPaperVersion(fileId: string, versionId: string, copyName: string): Promise<ApiResponse<{
+  async copyPaperVersion(fileId: string, versionId: string, encryptedTitle: string, titleSalt: string): Promise<ApiResponse<{
     success: boolean;
     newFileId: string;
     message: string;
   }>> {
     return this.request(`/papers/${fileId}/versions/${versionId}/copy`, {
       method: 'POST',
-      body: JSON.stringify({ copyName })
+      body: JSON.stringify({ encryptedTitle, titleSalt })
     });
   }
 

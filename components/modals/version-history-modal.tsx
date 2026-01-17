@@ -10,6 +10,7 @@ import { format } from "date-fns"
 import { PaperPreview } from "@/components/previews/paper-preview"
 import { masterKeyManager } from "@/lib/master-key"
 import { paperService } from "@/lib/paper-service"
+import { decryptFilename, encryptFilename } from "@/lib/crypto"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -146,13 +147,41 @@ export function VersionHistoryModal({
         try {
             const now = new Date()
             const dateStr = format(now, 'yyyy-MM-dd HH.mm.ss')
-            const copyName = ` (copy ${dateStr})`
+            const copySuffix = ` (copy ${dateStr})`
             
-            const res = await apiClient.copyPaperVersion(fileId, versionId, copyName)
-            if (res.success) {
+            // Get the current paper metadata to get the original title
+            const paperRes = await apiClient.getPaper(fileId)
+            if (!paperRes.success || !paperRes.data) {
+                toast.error("Failed to get paper metadata")
+                return
+            }
+            
+            const originalEncryptedTitle = paperRes.data.encryptedTitle
+            const originalTitleSalt = paperRes.data.titleSalt
+            
+            // Get master key to decrypt and re-encrypt with the copy suffix
+            const masterKey = await masterKeyManager.getMasterKey()
+            if (!masterKey) {
+                toast.error("Master key not available")
+                return
+            }
+            
+            // Decrypt the original title using XChaCha20-Poly1305
+            const decryptedTitle = await decryptFilename(originalEncryptedTitle, originalTitleSalt, masterKey)
+            
+            // Add copy suffix
+            const newTitle = decryptedTitle + copySuffix
+            
+            // Re-encrypt with a new salt using XChaCha20-Poly1305
+            const { encryptedFilename: newEncryptedTitle, filenameSalt: newSalt } = await encryptFilename(newTitle, masterKey)
+            
+            // Call the API with encrypted title
+            const res = await apiClient.copyPaperVersion(fileId, versionId, newEncryptedTitle, newSalt)
+            if (res.success && res.data) {
                 toast.success("Copy created successfully")
+                // Open the new paper in a new tab
+                window.open(`/paper/${res.data.newFileId}`, '_blank')
                 onClose()
-                // Optionally navigate to the new file or refresh the file list
             } else {
                 toast.error(res.error || "Failed to create copy")
             }
