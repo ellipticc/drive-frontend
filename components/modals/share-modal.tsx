@@ -708,6 +708,14 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
 
     setIsLoading(true)
     try {
+      if (itemType === 'paper') {
+        try {
+          await apiClient.savePaperVersion(itemId, false, 'share');
+        } catch (e) {
+          console.error('Failed to trigger share snapshot', e);
+        }
+      }
+
       // 1. Derive share CEK deterministically
       const accountSalt = masterKeyManager.getAccountSalt()
       if (!accountSalt) throw new Error('Account salt not available')
@@ -946,6 +954,14 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
     // Prepare encrypted manifest placeholder
     let encryptedManifest: any = undefined;
 
+    if (itemType === 'paper') {
+      try {
+        await apiClient.savePaperVersion(itemId, false, 'share');
+      } catch (e) {
+        console.error('Failed to trigger share snapshot', e);
+      }
+    }
+
     try {
       // 1. Check existing
       const mySharesResponse = await apiClient.getMyShares()
@@ -1075,7 +1091,7 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
           for (const entry of (manifestObj.blocks || [])) {
             const chunkData = chunks[entry.chunkId];
             if (!chunkData) {
-              console.warn(`Missing chunk ${entry.chunkId} while preparing share manifest`) 
+              console.warn(`Missing chunk ${entry.chunkId} while preparing share manifest`)
               continue;
             }
 

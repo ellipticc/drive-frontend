@@ -238,6 +238,25 @@ export default function PaperPage() {
     const lastSavedContentRef = useRef<string>("");
     const lastChangeTimeRef = useRef<number>(0);
 
+    // Smart Versioning: 'close' trigger on unmount/tab close
+    useEffect(() => {
+        const handleUnload = () => {
+            // Fire and forget
+            const data = JSON.stringify({ isManual: false, triggerType: 'close' });
+            const blob = new Blob([data], { type: 'application/json' });
+            navigator.sendBeacon(`/api/v1/papers/${fileId}/versions`, blob);
+        };
+
+        window.addEventListener('beforeunload', handleUnload);
+
+        return () => {
+            window.removeEventListener('beforeunload', handleUnload);
+            // Also fire on component unmount (route change)
+            // We use fetch here since we are still in JS context
+            paperService.snapshot(fileId, 'close').catch(e => console.error("Close snapshot failed", e));
+        };
+    }, [fileId]);
+
     // Initial Load
     useEffect(() => {
         const loadFile = async () => {

@@ -112,6 +112,17 @@ class PaperService {
     }
 
     /**
+     * Trigger a version snapshot explicitly
+     */
+    async snapshot(paperId: string, triggerType: 'manual' | 'share' | 'export' | 'close'): Promise<void> {
+        try {
+            await apiClient.savePaperVersion(paperId, false, triggerType);
+        } catch (e) {
+            console.error('[PaperService] Snapshot failed', e);
+        }
+    }
+
+    /**
      * Save/Update an existing paper using Block-Level Diffing
      */
     async savePaper(

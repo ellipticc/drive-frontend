@@ -25,7 +25,11 @@ import { ToolbarButton } from './toolbar';
 
 const siteUrl = 'https://platejs.org';
 
+import { useParams } from 'next/navigation';
+import { apiClient } from '@/lib/api';
+
 export function ExportToolbarButton(props: DropdownMenuProps) {
+  const { fileId } = useParams();
   const editor = useEditorRef();
   const [open, setOpen] = React.useState(false);
   const { user } = useUser();
@@ -97,8 +101,20 @@ export function ExportToolbarButton(props: DropdownMenuProps) {
     return `${name}.${extension}`;
   };
 
+  const triggerSnapshot = async () => {
+    if (fileId && typeof fileId === 'string') {
+      try {
+        // Trigger backend snapshot with 'export' type
+        await apiClient.savePaperVersion(fileId, false, 'export');
+      } catch (e) {
+        console.error('Failed to trigger export snapshot', e);
+      }
+    }
+  };
+
   const exportToPdf = async () => {
     if (!requirePro('PDF')) return;
+    triggerSnapshot(); // Fire and forget
 
     const canvas = await getCanvas();
 
@@ -120,12 +136,14 @@ export function ExportToolbarButton(props: DropdownMenuProps) {
 
   const exportToImage = async () => {
     // Image export is free
+    triggerSnapshot();
     const canvas = await getCanvas();
     await downloadFile(canvas.toDataURL('image/png'), getExportFilename('png'));
   };
 
   const exportToHtml = async () => {
     if (!requirePro('HTML')) return;
+    triggerSnapshot();
 
     const editorStatic = createSlateEditor({
       plugins: BaseEditorKit,
@@ -173,6 +191,7 @@ export function ExportToolbarButton(props: DropdownMenuProps) {
 
   const exportToMarkdown = async () => {
     if (!requirePro('Markdown')) return;
+    triggerSnapshot();
 
     const md = editor.getApi(MarkdownPlugin).markdown.serialize();
     const url = `data:text/markdown;charset=utf-8,${encodeURIComponent(md)}`;
