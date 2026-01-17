@@ -3559,6 +3559,47 @@ class ApiClient {
     });
   }
 
+  // Analytics
+  async getDashboardAnalytics(days?: number): Promise<ApiResponse<{
+    overview: {
+      totalStorage: number;
+      totalStorageReadable: string;
+      totalFiles: number;
+      avgFileSize: number;
+      avgFileSizeReadable: string;
+      quota: number;
+      quotaReadable: string;
+      percentUsed: string;
+      totalVersions: number;
+      deletedFiles: number;
+      deletedSize: number;
+    };
+    storageOverTime: Array<{
+      date: string;
+      storage: number;
+      files: number;
+    }>;
+    fileTypeBreakdown: Array<{
+      type: string;
+      count: number;
+      size: number;
+      sizeReadable: string;
+    }>;
+    recentActivity: Array<{
+      date: string;
+      uploads: number;
+    }>;
+    monthlyGrowth: Array<{
+      month: string;
+      files: number;
+      storage: number;
+      storageReadable: string;
+    }>;
+  }>> {
+    const query = days ? `?days=${days}` : '';
+    return this.request(`/analytics/dashboard${query}`);
+  }
+
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);
