@@ -13,6 +13,7 @@ import { masterKeyManager } from "@/lib/master-key"
 import { decryptFilename } from "@/lib/crypto"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatFileSize } from "@/lib/utils"
+import { AnalyticsDataTable } from "@/components/tables/analytics-table"
 
 const chartConfig = {
   storage: {
@@ -158,7 +159,7 @@ export default function AnalyticsPage() {
 
       <main className="flex-1 overflow-y-auto">
         <div className="@container/main flex flex-1 flex-col gap-2">
-          <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full space-y-8">
+          <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full space-y-8 bg-background rounded-3xl shadow-sm border m-4">
 
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -441,6 +442,28 @@ export default function AnalyticsPage() {
                   <p className="text-center text-muted-foreground py-8">No files found</p>
                 )}
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Analytics Data Table */}
+          <Card className="shadow-md border-0 ring-1 ring-border/50">
+            <CardHeader>
+              <CardTitle className="text-lg sm:text-xl">Activity Log</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">Detailed breakdown of file activities and analytics</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AnalyticsDataTable
+                data={[
+                  { id: 1, header: "Storage Overview", type: "Executive Summary", status: "Done", target: "5", limit: "10", reviewer: "Eddie Lake" },
+                  { id: 2, header: "File Distribution", type: "Technical Approach", status: "In Progress", target: "3", limit: "8", reviewer: "Jamik Tashpulatov" },
+                  { id: 3, header: "Upload Trends", type: "Narrative", status: "Done", target: "4", limit: "6", reviewer: "Eddie Lake" },
+                  { id: 4, header: "Storage Growth", type: "Design", status: "Not Started", target: "2", limit: "5", reviewer: "Assign reviewer" },
+                  { id: 5, header: "User Activity", type: "Capabilities", status: "In Progress", target: "6", limit: "12", reviewer: "Jamik Tashpulatov" },
+                  { id: 6, header: "File Types Analysis", type: "Focus Documents", status: "Done", target: "3", limit: "7", reviewer: "Eddie Lake" },
+                  { id: 7, header: "Monthly Report", type: "Table of Contents", status: "Not Started", target: "8", limit: "15", reviewer: "Assign reviewer" },
+                  { id: 8, header: "Performance Metrics", type: "Executive Summary", status: "In Progress", target: "5", limit: "9", reviewer: "Jamik Tashpulatov" },
+                ]}
+              />
             </CardContent>
           </Card>
 
