@@ -9,6 +9,7 @@ import { useComposedRefs } from "@/lib/compose-refs";
 import { cn } from "@/lib/utils";
 import { useAsRef } from "@/hooks/use-as-ref";
 import { useIsomorphicLayoutEffect } from "@/hooks/use-isomorphic-layout-effect";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const ROOT_NAME = "ActionBar";
 const GROUP_NAME = "ActionBarGroup";
@@ -122,6 +123,7 @@ interface ActionBarProps extends DivProps {
 }
 
 function ActionBar(props: ActionBarProps) {
+  const isMobile = useIsMobile();
   const {
     open = false,
     onOpenChange,
@@ -188,7 +190,7 @@ function ActionBar(props: ActionBarProps) {
   const portalContainer =
     portalContainerProp ?? (mounted ? globalThis.document?.body : null);
 
-  if (!portalContainer || !open) return null;
+  if (!portalContainer || !open || isMobile) return null;
 
   const RootPrimitive = asChild ? Slot : "div";
 

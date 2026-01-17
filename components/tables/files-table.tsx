@@ -133,6 +133,8 @@ const DraggableDroppableRow = React.memo(React.forwardRef<HTMLTableRowElement, {
     onContextMenu,
     ...props
 }, ref) => {
+    const isMobile = useIsMobile();
+
     // Draggable logic for all items
     const {
         attributes,
@@ -141,6 +143,7 @@ const DraggableDroppableRow = React.memo(React.forwardRef<HTMLTableRowElement, {
         isDragging
     } = useDraggable({
         id: item.id,
+        disabled: isMobile,
         data: { type: 'move', item }
     });
 
@@ -150,7 +153,7 @@ const DraggableDroppableRow = React.memo(React.forwardRef<HTMLTableRowElement, {
         isOver
     } = useDroppable({
         id: item.id,
-        disabled: item.type !== 'folder' || isDraggingSomewhere && isSelected,
+        disabled: isMobile || item.type !== 'folder' || isDraggingSomewhere && isSelected,
         data: { type: 'folder', item }
     });
 
