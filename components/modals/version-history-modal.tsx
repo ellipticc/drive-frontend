@@ -1,18 +1,11 @@
 "use client"
 
 import React, { useEffect, useState } from 'react'
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { apiClient } from "@/lib/api"
 import { toast } from "sonner"
-import { IconHistory, IconDeviceFloppy, IconRestore, IconTrash, IconLoader2, IconAlertTriangle, IconEye } from "@tabler/icons-react"
+import { IconHistory, IconDeviceFloppy, IconRestore, IconTrash, IconLoader2, IconAlertTriangle, IconEye, IconX } from "@tabler/icons-react"
 import { format } from "date-fns"
 import { PaperPreview } from "@/components/previews/paper-preview"
 import { masterKeyManager } from "@/lib/master-key"
@@ -148,6 +141,29 @@ export function VersionHistoryModal({
         }
     }
 
+    const handleMakeCopy = async (versionId: string) => {
+        setSaving(true)
+        try {
+            const now = new Date()
+            const dateStr = format(now, 'yyyy-MM-dd HH.mm.ss')
+            const copyName = ` (copy ${dateStr})`
+            
+            const res = await apiClient.copyPaperVersion(fileId, versionId, copyName)
+            if (res.success) {
+                toast.success("Copy created successfully")
+                onClose()
+                // Optionally navigate to the new file or refresh the file list
+            } else {
+                toast.error(res.error || "Failed to create copy")
+            }
+        } catch (error) {
+            console.error(error)
+            toast.error("Failed to create copy")
+        } finally {
+            setSaving(false)
+        }
+    }
+
     // Auto-select latest version on load
     useEffect(() => {
         if (versions.length > 0 && !previewVersionId) {
@@ -182,156 +198,203 @@ export function VersionHistoryModal({
 
     return (
         <>
-            <Dialog open={isOpen} onOpenChange={onClose}>
-                <DialogContent className="max-w-[95vw] h-[95vh] flex flex-row p-0 gap-0 overflow-hidden border-none shadow-2xl">
+            {/* Full-screen overlay portal */}
+            {isOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 animate-in fade-in">
+                    {/* Modal container */}
+                    <div className="w-[98vw] h-[96vh] flex flex-row gap-0 overflow-hidden bg-background border shadow-2xl rounded-xl">
 
-                    {/* LEFT: Preview Area */}
-                    <div className="flex-1 bg-muted/30 flex flex-col relative h-full">
-                        {/* Header Overlay */}
-                        <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
-                            <div className="bg-background/80 backdrop-blur-md border rounded-md px-3 py-1.5 shadow-sm text-sm font-medium flex items-center gap-2">
-                                <IconHistory className="w-4 h-4 text-muted-foreground" />
-                                {previewVersionId ?
-                                    versions.find(v => v.id === previewVersionId)?.isManual
-                                        ? "Manual Save Preview"
-                                        : `Version #${versions.find(v => v.id === previewVersionId)?.versionIndex} Preview`
-                                    : "Select a version"}
+                        {/* LEFT: Preview Area */}
+                        <div className="flex-1 bg-muted/30 flex flex-col relative h-full">
+                        {/* Header Overlay - Proton Style */}
+                        <div className="flex items-center justify-between px-6 py-3 bg-background border-b shrink-0 z-10 shadow-sm">
+                            <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-2 max-w-md">
+                                    <IconHistory className="w-5 h-5 text-primary" />
+                                    <span className="font-semibold text-sm truncate">
+                                        {previewVersionId ?
+                                            (versions.find(v => v.id === previewVersionId)?.isManual
+                                                ? "Manual Save"
+                                                : `Version #${versions.find(v => v.id === previewVersionId)?.versionIndex}`)
+                                            : "Selecting..."}
+                                    </span>
+                                </div>
+
+                                <span className="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded bg-muted/60 text-muted-foreground flex items-center gap-1.5">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                                    End-to-end encrypted
+                                </span>
                             </div>
-                            {previewLoading && <IconLoader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+
+                            <div className="flex items-center gap-3">
+                                {previewVersionId && (
+                                    <>
+                                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium pr-3 border-r">
+                                            <span>{format(new Date(versions.find(v => v.id === previewVersionId)?.createdAt || Date.now()), 'MM/dd/yyyy, h:mm:ss a')}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1 text-xs text-muted-foreground px-2 py-1 rounded bg-muted/40 font-semibold">
+                                            <IconEye className="w-3.5 h-3.5" />
+                                            View only
+                                        </div>
+                                    </>
+                                )}
+                            </div>
                         </div>
 
                         {/* Preview Content */}
-                        <div className="flex-1 overflow-hidden relative w-full h-full flex items-center justify-center p-8">
+                        <div className="flex-1 overflow-auto relative w-full h-full flex items-start justify-center p-6 md:p-10">
                             {previewContent ? (
-                                <div className="bg-background shadow-lg rounded-xl border w-full max-w-4xl h-full overflow-hidden relative">
+                                <div className="bg-background shadow-[0_30px_60px_-12px_rgba(0,0,0,0.15)] rounded-lg border w-full max-w-4xl min-h-full overflow-auto relative">
                                     <PaperPreview fileId={fileId} initialContent={previewContent} />
                                 </div>
                             ) : (
-                                <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground opacity-50">
-                                    <IconEye className="w-12 h-12" />
-                                    <p>Select a version to preview</p>
+                                <div className="flex flex-col items-center justify-center gap-4 text-muted-foreground transition-all animate-in fade-in zoom-in duration-300 h-full">
+                                    <IconLoader2 className="w-10 h-10 animate-spin text-primary/30" />
+                                    <p className="text-sm font-medium animate-pulse">Decrypting version history...</p>
                                 </div>
                             )}
                         </div>
 
-                        {/* Bottom Action Bar for Restore */}
-                        {previewVersionId && (
-                            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10">
-                                <Button
-                                    size="lg"
-                                    className="shadow-xl rounded-full px-8 gap-2 bg-primary hover:bg-primary/90 transition-all font-semibold"
-                                    onClick={() => setConfirmRestoreId(previewVersionId)}
-                                >
-                                    <IconRestore className="w-5 h-5" />
-                                    Restore This Version
-                                </Button>
-                            </div>
-                        )}
                     </div>
 
                     {/* RIGHT: Sidebar */}
-                    <div className="w-[350px] flex flex-col border-l h-full bg-background z-20 shadow-[-5px_0_15px_-5px_rgba(0,0,0,0.1)]">
-                        <DialogHeader className="px-6 py-5 border-b shrink-0 flex flex-row items-center justify-between space-y-0">
-                            <DialogTitle className="flex items-center gap-2 text-lg">
-                                Version History
-                            </DialogTitle>
-                            <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 ml-auto rounded-full">
-                                <IconTrash className="w-4 h-4 opacity-0" />
+                    <div className="w-[320px] flex flex-col border-l h-full bg-background z-20 shadow-[-10px_0_20px_-10px_rgba(0,0,0,0.05)]">
+                        <div className="px-6 py-4 border-b shrink-0 flex flex-row items-center justify-between space-y-0">
+                            <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
+                                Document History
+                            </h2>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={onClose}
+                                className="h-8 w-8 rounded-full hover:bg-muted"
+                            >
+                                <IconX className="w-4 h-4" />
                             </Button>
-                        </DialogHeader>
-
-                        {/* Current State Checkpoint */}
-                        <div className="p-4 border-b bg-muted/10 shrink-0">
-                            <div className="flex items-center justify-between mb-2">
-                                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Current State</span>
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={handleSaveVersion}
-                                    disabled={saving}
-                                    className="h-7 text-xs gap-1.5"
-                                >
-                                    {saving ? <IconLoader2 className="w-3 h-3 animate-spin" /> : <IconDeviceFloppy className="w-3 h-3" />}
-                                    Save Now
-                                </Button>
-                            </div>
-                            <p className="text-[10px] text-muted-foreground">
-                                Save a manual version to create a restore point.
-                            </p>
                         </div>
 
                         <ScrollArea className="flex-1">
-                            {loading ? (
-                                <div className="flex flex-col items-center justify-center py-12 gap-3 text-muted-foreground">
-                                    <IconLoader2 className="w-8 h-8 animate-spin" />
-                                    <p>Loading...</p>
-                                </div>
-                            ) : versions.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center py-12 gap-3 text-muted-foreground text-center px-4">
-                                    <IconHistory className="w-10 h-10 opacity-20" />
-                                    <p className="text-sm font-medium">No history</p>
-                                    <p className="text-xs">Versions will appear here automatically.</p>
-                                </div>
-                            ) : (
-                                <div className="flex flex-col">
-                                    {versions.map((version) => (
-                                        <button
-                                            key={version.id}
-                                            onClick={() => handlePreview(version)}
-                                            className={`text-left p-4 border-b transition-all hover:bg-muted/50 block group relative ${previewVersionId === version.id ? "bg-muted border-l-4 border-l-primary pl-3" : "pl-4"
-                                                }`}
-                                        >
-                                            <div className="flex items-start justify-between mb-1">
-                                                <div className="font-semibold text-sm flex items-center gap-2">
-                                                    {version.isManual ? "Manual Save" : version.triggerType === 'share' ? "Share Snapshot" : version.triggerType === 'export' ? "Export Snapshot" : version.triggerType === 'close' ? "Close Snapshot" : "Auto Snapshot"}
+                            <div className="flex flex-col pb-10">
+                                {loading ? (
+                                    <div className="flex flex-col items-center justify-center py-20 gap-3 text-muted-foreground">
+                                        <IconLoader2 className="w-6 h-6 animate-spin" />
+                                        <p className="text-xs font-medium">Loading history...</p>
+                                    </div>
+                                ) : versions.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center py-20 gap-3 text-muted-foreground text-center px-8">
+                                        <IconHistory className="w-10 h-10 opacity-10" />
+                                        <p className="text-sm font-medium">No snapshots yet</p>
+                                        <p className="text-xs opacity-60">Version snapshots will appear here as you work.</p>
+                                    </div>
+                                ) : (
+                                    /* Group by Date */
+                                    <div className="space-y-3">
+                                        {Object.entries(
+                                            versions.reduce((acc, v) => {
+                                                const date = new Date(v.createdAt);
+                                                const group = format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
+                                                    ? 'Today'
+                                                    : format(date, 'yyyy-MM-dd') === format(new Date(Date.now() - 86400000), 'yyyy-MM-dd')
+                                                        ? 'Yesterday'
+                                                        : format(date, 'MMMM d, yyyy');
+                                                if (!acc[group]) acc[group] = [];
+                                                acc[group].push(v);
+                                                return acc;
+                                            }, {} as Record<string, Version[]>)
+                                        ).map(([group, groupVersions]) => (
+                                            <div key={group}>
+                                                <div className="px-4 py-1.5">
+                                                    <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+                                                        {group}
+                                                    </h3>
                                                 </div>
-                                                {version.expiresAt && (
-                                                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full uppercase tracking-tight ${new Date(version.expiresAt) < new Date(Date.now() + 86400000)
-                                                        ? "bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400 font-bold"
-                                                        : "bg-muted text-muted-foreground"
-                                                        }`}>
-                                                        {new Date(version.expiresAt) < new Date(Date.now() + 86400000 * 2) ? 'Expiring Soon' : format(new Date(version.expiresAt), 'MMM d')}
-                                                    </span>
-                                                )}
-                                            </div>
 
-                                            <div className="text-xs text-muted-foreground flex items-center gap-2 mb-2">
-                                                <span>{format(new Date(version.createdAt), 'h:mm a')}</span>
-                                                <span className="w-0.5 h-0.5 rounded-full bg-muted-foreground/50" />
-                                                <span>{(new Date(version.createdAt)).toLocaleDateString() === new Date().toLocaleDateString() ? 'Today' : format(new Date(version.createdAt), 'MMM d')}</span>
-                                                <span className="w-0.5 h-0.5 rounded-full bg-muted-foreground/50" />
-                                                <span>{formatSize(version.totalSize)}</span>
-                                            </div>
+                                                {groupVersions.map((version) => {
+                                                    const idx = versions.findIndex(v => v.id === version.id);
+                                                    return (
+                                                        <button
+                                                            key={version.id}
+                                                            onClick={() => handlePreview(version)}
+                                                            className={`w-full text-left px-4 py-2.5 transition-all hover:bg-muted/50 flex flex-col gap-0.5 relative group ${previewVersionId === version.id ? "bg-primary/10 border-l-2 border-l-primary" : ""
+                                                                }`}
+                                                        >
+                                                            <div className="flex items-center justify-between pointer-events-none">
+                                                                <span className={`text-xs font-medium ${previewVersionId === version.id ? "text-primary" : "text-foreground"}`}>
+                                                                    {format(new Date(version.createdAt), 'h:mm a')}
+                                                                </span>
 
-                                            {/* Quick Actions on Hover */}
-                                            <div className="flex items-center gap-1 mt-2 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
-                                                {previewVersionId !== version.id && (
-                                                    <span className="text-[10px] text-primary font-medium mr-auto">Click to preview</span>
-                                                )}
+                                                                {idx === 0 && (
+                                                                    <span className="text-[9px] bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded font-semibold uppercase tracking-tight">
+                                                                        Current
+                                                                    </span>
+                                                                )}
+                                                            </div>
 
-                                                <div className="flex items-center gap-1 ml-auto" onClick={(e) => e.stopPropagation()}>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setConfirmDeleteId(version.id);
-                                                        }}
-                                                        title="Delete Version"
-                                                    >
-                                                        <IconTrash className="w-3.5 h-3.5" />
-                                                    </Button>
-                                                </div>
+                                                            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground pointer-events-none">
+                                                                <span>{formatSize(version.totalSize)}</span>
+                                                                <span>•</span>
+                                                                <span>{version.isManual ? "Manual" : "Auto"}</span>
+                                                            </div>
+
+                                                            {/* Hover Trash Action */}
+                                                            {idx !== 0 && (
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setConfirmDeleteId(version.id);
+                                                                    }}
+                                                                >
+                                                                    <IconTrash className="w-3.5 h-3.5" />
+                                                                </Button>
+                                                            )}
+                                                        </button>
+                                                    );
+                                                })}
                                             </div>
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
+                                        ))}
+
+                                        {/* "The Beginning" footer */}
+                                        <div className="mt-4 px-4 py-3 flex items-center gap-2.5 opacity-50">
+                                            <div className="w-6 h-6 rounded bg-blue-500 overflow-hidden flex items-center justify-center shrink-0">
+                                                <div className="w-full h-full bg-[url('https://avatar.vercel.sh/paper')] bg-cover opacity-50" />
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <span className="text-xs font-medium">The Beginning</span>
+                                                <span className="text-[9px] uppercase tracking-wide font-semibold">Document Created</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </ScrollArea>
+
+                        {/* Action Buttons at Bottom */}
+                        <div className="border-t p-4 shrink-0 space-y-2 bg-background">
+                            <Button
+                                variant="outline"
+                                className="w-full justify-start gap-2"
+                                onClick={() => previewVersionId && handleMakeCopy(previewVersionId)}
+                                disabled={!previewVersionId || saving}
+                            >
+                                <IconDeviceFloppy className="w-4 h-4" />
+                                Make a copy
+                            </Button>
+                            <Button
+                                className="w-full justify-start gap-2"
+                                onClick={() => previewVersionId && setConfirmRestoreId(previewVersionId)}
+                                disabled={!previewVersionId || restoringId !== null}
+                            >
+                                <IconRestore className="w-4 h-4" />
+                                Restore this version
+                            </Button>
+                        </div>
                     </div>
-                </DialogContent>
-            </Dialog>
+                    </div>
+                </div>
+            )}
 
             {/* KEEP RESTORE/DELETE ALERTS AS THEY WERE */}
             <AlertDialog open={!!confirmRestoreId} onOpenChange={(open) => !open && setConfirmRestoreId(null)}>

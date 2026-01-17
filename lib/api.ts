@@ -2547,6 +2547,17 @@ class ApiClient {
     });
   }
 
+  async copyPaperVersion(fileId: string, versionId: string, copyName: string): Promise<ApiResponse<{
+    success: boolean;
+    newFileId: string;
+    message: string;
+  }>> {
+    return this.request(`/papers/${fileId}/versions/${versionId}/copy`, {
+      method: 'POST',
+      body: JSON.stringify({ copyName })
+    });
+  }
+
   async getDownloadUrls(fileId: string): Promise<ApiResponse<DownloadUrlsResponse>> {
     return this.request(`/files/download/${fileId}/urls`);
   }
