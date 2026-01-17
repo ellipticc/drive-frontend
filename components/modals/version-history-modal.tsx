@@ -5,12 +5,18 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { apiClient } from "@/lib/api"
 import { toast } from "sonner"
-import { IconHistory, IconDeviceFloppy, IconRestore, IconTrash, IconLoader2, IconAlertTriangle, IconEye, IconX } from "@tabler/icons-react"
+import { IconHistory, IconRestore, IconTrash, IconLoader2, IconEye, IconX, IconCopyPlus } from "@tabler/icons-react"
 import { format } from "date-fns"
 import { PaperPreview } from "@/components/previews/paper-preview"
 import { masterKeyManager } from "@/lib/master-key"
 import { paperService } from "@/lib/paper-service"
 import { decryptFilename, encryptFilename } from "@/lib/crypto"
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -249,10 +255,19 @@ export function VersionHistoryModal({
                                     </span>
                                 </div>
 
-                                <span className="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded bg-muted/60 text-muted-foreground flex items-center gap-1.5">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                                    End-to-end encrypted
-                                </span>
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <span className="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded bg-muted/60 text-muted-foreground flex items-center gap-1.5 cursor-help">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                                                End-to-end encrypted
+                                            </span>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="bottom" className="max-w-xs">
+                                            <p className="text-xs">Your document is encrypted on your device before being sent to our servers. Only you can decrypt and read it.</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
                             </div>
 
                             <div className="flex items-center gap-3">
@@ -408,7 +423,7 @@ export function VersionHistoryModal({
                                 onClick={() => previewVersionId && handleMakeCopy(previewVersionId)}
                                 disabled={!previewVersionId || saving}
                             >
-                                <IconDeviceFloppy className="w-4 h-4" />
+                                <IconCopyPlus className="w-4 h-4" />
                                 Make a copy
                             </Button>
                             <Button
