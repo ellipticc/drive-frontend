@@ -2559,6 +2559,29 @@ class ApiClient {
     });
   }
 
+  async renamePaperVersion(fileId: string, versionId: string, encryptedName: string, nameSalt: string): Promise<ApiResponse<{
+    success: boolean;
+    message: string;
+  }>> {
+    return this.request(`/papers/${fileId}/versions/${versionId}/rename`, {
+      method: 'PATCH',
+      body: JSON.stringify({ encryptedName, nameSalt })
+    });
+  }
+
+  async createManualSnapshot(fileId: string): Promise<ApiResponse<{
+    success: boolean;
+    message: string;
+    versionId: string;
+    index: number;
+    expiresAt: string | null;
+    skipped?: boolean;
+  }>> {
+    return this.request(`/papers/${fileId}/versions/snapshot`, {
+      method: 'POST'
+    });
+  }
+
   async getPaperDownloadUrls(paperId: string): Promise<ApiResponse<{
     urls: Record<string, string>;
     chunks: Array<{ id: string; chunkIndex: number }>;

@@ -5,12 +5,13 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { apiClient } from "@/lib/api"
 import { toast } from "sonner"
-import { IconHistory, IconRestore, IconTrash, IconLoader2, IconEye, IconX, IconCopyPlus } from "@tabler/icons-react"
+import { IconHistory, IconRestore, IconTrash, IconLoader2, IconEye, IconX, IconCopyPlus, IconGitBranch, IconPencil } from "@tabler/icons-react"
 import { format } from "date-fns"
 import { PaperPreview } from "@/components/previews/paper-preview"
 import { masterKeyManager } from "@/lib/master-key"
 import { paperService } from "@/lib/paper-service"
 import { decryptFilename, encryptFilename } from "@/lib/crypto"
+import { Input } from "@/components/ui/input"
 import {
     Tooltip,
     TooltipContent,
@@ -27,6 +28,14 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog"
 
 interface Version {
     id: string
@@ -54,11 +63,19 @@ export function VersionHistoryModal({
     const [versions, setVersions] = useState<Version[]>([])
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
+    const [copyingId, setCopyingId] = useState<string | null>(null)
     const [restoringId, setRestoringId] = useState<string | null>(null)
     const [deletingId, setDeletingId] = useState<string | null>(null)
+    const [snapshotting, setSnapshotting] = useState(false)
     const [previewVersionId, setPreviewVersionId] = useState<string | null>(null)
     const [previewContent, setPreviewContent] = useState<any>(null)
     const [previewLoading, setPreviewLoading] = useState(false)
+
+    // Rename dialog
+    const [renameDialogOpen, setRenameDialogOpen] = useState(false)
+    const [renamingVersionId, setRenamingVersionId] = useState<string | null>(null)
+    const [renameValue, setRenameValue] = useState('')
+    const [renaming, setRenaming] = useState(false)
 
     // Confirmation states
     const [confirmRestoreId, setConfirmRestoreId] = useState<string | null>(null)
@@ -149,7 +166,7 @@ export function VersionHistoryModal({
     }
 
     const handleMakeCopy = async (versionId: string) => {
-        setSaving(true)
+        setCopyingId(versionId)
         try {
             const now = new Date()
             const dateStr = format(now, 'yyyy-MM-dd HH.mm.ss')
@@ -195,8 +212,73 @@ export function VersionHistoryModal({
             console.error(error)
             toast.error("Failed to create copy")
         } finally {
-            setSaving(false)
+            setCopyingId(null)
         }
+    }
+
+    const handleCreateSnapshot = async () => {
+        setSnapshotting(true)
+        try {
+            const res = await apiClient.createManualSnapshot(fileId)
+            if (res.success) {
+                if (res.data?.skipped) {
+                    toast.info("Snapshot throttled")
+                } else {
+                    toast.success("Manual snapshot created")
+                    fetchVersions() // Refresh list
+                }
+            } else {
+                toast.error(res.error || "Failed to create snapshot")
+            }
+        } catch (error) {
+            console.error(error)
+            toast.error("Failed to create snapshot")
+        } finally {
+            setSnapshotting(false)
+        }
+    }
+
+    const handleRenameVersion = async () => {
+        if (!renamingVersionId || !renameValue.trim()) return
+
+        if (renameValue.length > 100) {
+            toast.error("Version name must be 100 characters or less")
+            return
+        }
+
+        setRenaming(true)
+        try {
+            const masterKey = await masterKeyManager.getMasterKey()
+            if (!masterKey) {
+                toast.error("Master key not available")
+                return
+            }
+
+            // Encrypt the name client-side
+            const { encryptedFilename: encryptedName, filenameSalt: nameSalt } = await encryptFilename(renameValue, masterKey)
+
+            const res = await apiClient.renamePaperVersion(fileId, renamingVersionId, encryptedName, nameSalt)
+            if (res.success) {
+                toast.success("Version renamed")
+                fetchVersions() // Refresh list
+                setRenameDialogOpen(false)
+                setRenameValue('')
+                setRenamingVersionId(null)
+            } else {
+                toast.error(res.error || "Failed to rename version")
+            }
+        } catch (error) {
+            console.error(error)
+            toast.error("Failed to rename version")
+        } finally {
+            setRenaming(false)
+        }
+    }
+
+    const openRenameDialog = (versionId: string) => {
+        setRenamingVersionId(versionId)
+        setRenameValue('')
+        setRenameDialogOpen(true)
     }
 
     // Auto-select latest version on load
@@ -287,14 +369,17 @@ export function VersionHistoryModal({
 
                         {/* Preview Content */}
                         <div className="flex-1 overflow-auto relative w-full h-full flex items-start justify-center p-6 md:p-10">
-                            {previewContent ? (
+                            {previewLoading ? (
+                                <div className="flex items-center justify-center h-full">
+                                    <IconLoader2 className="w-8 h-8 animate-spin text-primary" />
+                                </div>
+                            ) : previewContent ? (
                                 <div className="bg-background shadow-[0_30px_60px_-12px_rgba(0,0,0,0.15)] rounded-lg border w-full max-w-4xl min-h-full overflow-auto relative">
                                     <PaperPreview fileId={fileId} initialContent={previewContent} />
                                 </div>
                             ) : (
-                                <div className="flex flex-col items-center justify-center gap-4 text-muted-foreground transition-all animate-in fade-in zoom-in duration-300 h-full">
-                                    <IconLoader2 className="w-10 h-10 animate-spin text-primary/30" />
-                                    <p className="text-sm font-medium animate-pulse">Decrypting version history...</p>
+                                <div className="flex items-center justify-center h-full text-muted-foreground">
+                                    <p className="text-sm">Select a version to preview</p>
                                 </div>
                             )}
                         </div>
@@ -303,7 +388,7 @@ export function VersionHistoryModal({
 
                     {/* RIGHT: Sidebar */}
                     <div className="w-[320px] flex flex-col border-l h-full bg-background z-20 shadow-[-10px_0_20px_-10px_rgba(0,0,0,0.05)]">
-                        <div className="px-6 py-4 border-b shrink-0 flex flex-row items-center justify-between space-y-0">
+                        <div className="px-6 py-4 shrink-0 flex flex-row items-center justify-between space-y-0">
                             <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
                                 Document History
                             </h2>
@@ -380,19 +465,32 @@ export function VersionHistoryModal({
                                                                 <span>{version.isManual ? "Manual" : "Auto"}</span>
                                                             </div>
 
-                                                            {/* Hover Trash Action */}
+                                                            {/* Hover Actions */}
                                                             {idx !== 0 && (
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        setConfirmDeleteId(version.id);
-                                                                    }}
-                                                                >
-                                                                    <IconTrash className="w-3.5 h-3.5" />
-                                                                </Button>
+                                                                <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-6 w-6 text-muted-foreground hover:bg-muted hover:text-foreground"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            openRenameDialog(version.id);
+                                                                        }}
+                                                                    >
+                                                                        <IconPencil className="w-3.5 h-3.5" />
+                                                                    </Button>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-6 w-6 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setConfirmDeleteId(version.id);
+                                                                        }}
+                                                                    >
+                                                                        <IconTrash className="w-3.5 h-3.5" />
+                                                                    </Button>
+                                                                </div>
                                                             )}
                                                         </button>
                                                     );
@@ -416,23 +514,59 @@ export function VersionHistoryModal({
                         </ScrollArea>
 
                         {/* Action Buttons at Bottom */}
-                        <div className="border-t p-4 shrink-0 space-y-2 bg-background">
+                        <div className="p-4 shrink-0 space-y-2 bg-background">
                             <Button
                                 variant="outline"
                                 className="w-full justify-start gap-2"
                                 onClick={() => previewVersionId && handleMakeCopy(previewVersionId)}
-                                disabled={!previewVersionId || saving}
+                                disabled={!previewVersionId || copyingId !== null}
                             >
-                                <IconCopyPlus className="w-4 h-4" />
-                                Make a copy
+                                {copyingId === previewVersionId ? (
+                                    <>
+                                        <IconLoader2 className="w-4 h-4 animate-spin" />
+                                        Making copy...
+                                    </>
+                                ) : (
+                                    <>
+                                        <IconCopyPlus className="w-4 h-4" />
+                                        Make a copy
+                                    </>
+                                )}
                             </Button>
                             <Button
                                 className="w-full justify-start gap-2"
                                 onClick={() => previewVersionId && setConfirmRestoreId(previewVersionId)}
                                 disabled={!previewVersionId || restoringId !== null}
                             >
-                                <IconRestore className="w-4 h-4" />
-                                Restore this version
+                                {restoringId === previewVersionId ? (
+                                    <>
+                                        <IconLoader2 className="w-4 h-4 animate-spin" />
+                                        Restoring...
+                                    </>
+                                ) : (
+                                    <>
+                                        <IconRestore className="w-4 h-4" />
+                                        Restore this version
+                                    </>
+                                )}
+                            </Button>
+                            <Button
+                                variant="outline"
+                                className="w-full justify-start gap-2"
+                                onClick={handleCreateSnapshot}
+                                disabled={snapshotting}
+                            >
+                                {snapshotting ? (
+                                    <>
+                                        <IconLoader2 className="w-4 h-4 animate-spin" />
+                                        Creating snapshot...
+                                    </>
+                                ) : (
+                                    <>
+                                        <IconGitBranch className="w-4 h-4" />
+                                        Create manual snapshot
+                                    </>
+                                )}
                             </Button>
                         </div>
                     </div>
@@ -478,6 +612,51 @@ export function VersionHistoryModal({
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            {/* Rename Dialog */}
+            <Dialog open={renameDialogOpen} onOpenChange={(open) => {
+                if (!open && !renaming) {
+                    setRenameDialogOpen(false)
+                    setRenameValue('')
+                    setRenamingVersionId(null)
+                }
+            }}>
+                <DialogContent onPointerDownOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => !renaming && setRenameDialogOpen(false)}>
+                    <DialogHeader>
+                        <DialogTitle>Rename Version</DialogTitle>
+                        <DialogDescription>
+                            Give this version a custom name (max 100 characters). The name will be encrypted before saving.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <Input
+                        placeholder="Enter version name"
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        maxLength={100}
+                        disabled={renaming}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' && renameValue.trim()) {
+                                handleRenameVersion()
+                            }
+                        }}
+                    />
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setRenameDialogOpen(false)} disabled={renaming}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleRenameVersion} disabled={!renameValue.trim() || renaming}>
+                            {renaming ? (
+                                <>
+                                    <IconLoader2 className="w-4 h-4 animate-spin mr-2" />
+                                    Saving...
+                                </>
+                            ) : (
+                                'Save'
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </>
     )
 }
