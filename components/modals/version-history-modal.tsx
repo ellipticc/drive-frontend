@@ -148,6 +148,13 @@ export function VersionHistoryModal({
         }
     }
 
+    // Auto-select latest version on load
+    useEffect(() => {
+        if (versions.length > 0 && !previewVersionId) {
+            handlePreview(versions[0]);
+        }
+    }, [versions, previewVersionId]);
+
     const handlePreview = async (version: Version) => {
         setPreviewVersionId(version.id)
         setPreviewLoading(true)
@@ -159,7 +166,6 @@ export function VersionHistoryModal({
         } catch (e) {
             console.error(e)
             toast.error("Failed to load preview")
-            setPreviewVersionId(null)
             setPreviewContent(null)
         } finally {
             setPreviewLoading(false)
@@ -177,132 +183,181 @@ export function VersionHistoryModal({
     return (
         <>
             <Dialog open={isOpen} onOpenChange={onClose}>
-                <DialogContent className="sm:max-w-[600px] h-[80vh] flex flex-col p-0 gap-0 overflow-hidden">
-                    <DialogHeader className="px-6 py-4 border-b shrink-0">
-                        <DialogTitle className="flex items-center gap-2">
-                            <IconHistory className="w-5 h-5" />
-                            Version History
-                        </DialogTitle>
-                        <DialogDescription>
-                            View, restore, or delete previous versions of this document.
-                        </DialogDescription>
-                    </DialogHeader>
+                <DialogContent className="max-w-[95vw] h-[95vh] flex flex-row p-0 gap-0 overflow-hidden border-none shadow-2xl">
 
-                    <div className="flex-1 overflow-hidden flex flex-col">
-                        {/* Action Bar */}
-                        <div className="p-4 bg-muted/30 border-b flex justify-between items-center shrink-0">
-                            <span className="text-sm text-muted-foreground font-medium">Current State</span>
-                            <Button
-                                size="sm"
-                                onClick={handleSaveVersion}
-                                disabled={saving}
-                                className="gap-2"
-                            >
-                                {saving ? <IconLoader2 className="w-4 h-4 animate-spin" /> : <IconDeviceFloppy className="w-4 h-4" />}
-                                Save New Version
-                            </Button>
+                    {/* LEFT: Preview Area */}
+                    <div className="flex-1 bg-muted/30 flex flex-col relative h-full">
+                        {/* Header Overlay */}
+                        <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
+                            <div className="bg-background/80 backdrop-blur-md border rounded-md px-3 py-1.5 shadow-sm text-sm font-medium flex items-center gap-2">
+                                <IconHistory className="w-4 h-4 text-muted-foreground" />
+                                {previewVersionId ?
+                                    versions.find(v => v.id === previewVersionId)?.isManual
+                                        ? "Manual Save Preview"
+                                        : `Version #${versions.find(v => v.id === previewVersionId)?.versionIndex} Preview`
+                                    : "Select a version"}
+                            </div>
+                            {previewLoading && <IconLoader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
                         </div>
 
-                        {/* List */}
+                        {/* Preview Content */}
+                        <div className="flex-1 overflow-hidden relative w-full h-full flex items-center justify-center p-8">
+                            {previewContent ? (
+                                <div className="bg-background shadow-lg rounded-xl border w-full max-w-4xl h-full overflow-hidden relative">
+                                    <PaperPreview fileId={fileId} initialContent={previewContent} />
+                                </div>
+                            ) : (
+                                <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground opacity-50">
+                                    <IconEye className="w-12 h-12" />
+                                    <p>Select a version to preview</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Bottom Action Bar for Restore */}
+                        {previewVersionId && (
+                            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10">
+                                <Button
+                                    size="lg"
+                                    className="shadow-xl rounded-full px-8 gap-2 bg-primary hover:bg-primary/90 transition-all font-semibold"
+                                    onClick={() => setConfirmRestoreId(previewVersionId)}
+                                >
+                                    <IconRestore className="w-5 h-5" />
+                                    Restore This Version
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* RIGHT: Sidebar */}
+                    <div className="w-[350px] flex flex-col border-l h-full bg-background z-20 shadow-[-5px_0_15px_-5px_rgba(0,0,0,0.1)]">
+                        <DialogHeader className="px-6 py-5 border-b shrink-0 flex flex-row items-center justify-between space-y-0">
+                            <DialogTitle className="flex items-center gap-2 text-lg">
+                                Version History
+                            </DialogTitle>
+                            <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 ml-auto rounded-full">
+                                <IconTrash className="w-4 h-4 opacity-0" />
+                            </Button>
+                        </DialogHeader>
+
+                        {/* Current State Checkpoint */}
+                        <div className="p-4 border-b bg-muted/10 shrink-0">
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Current State</span>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={handleSaveVersion}
+                                    disabled={saving}
+                                    className="h-7 text-xs gap-1.5"
+                                >
+                                    {saving ? <IconLoader2 className="w-3 h-3 animate-spin" /> : <IconDeviceFloppy className="w-3 h-3" />}
+                                    Save Now
+                                </Button>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground">
+                                Save a manual version to create a restore point.
+                            </p>
+                        </div>
+
                         <ScrollArea className="flex-1">
-                            <div className="p-0">
-                                {loading ? (
-                                    <div className="flex flex-col items-center justify-center py-12 gap-3 text-muted-foreground">
-                                        <IconLoader2 className="w-8 h-8 animate-spin" />
-                                        <p>Loading versions...</p>
-                                    </div>
-                                ) : versions.length === 0 ? (
-                                    <div className="flex flex-col items-center justify-center py-12 gap-3 text-muted-foreground">
-                                        <IconHistory className="w-12 h-12 opacity-20" />
-                                        <p>No saved versions yet.</p>
-                                        <p className="text-xs max-w-xs text-center">Save a version manually or wait for auto-snapshots (if configured).</p>
-                                    </div>
-                                ) : (
-                                    <div className="divide-y">
-                                        {versions.map((version) => (
-                                            <div key={version.id} className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors group">
-                                                <div className="flex flex-col gap-1">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="font-medium text-sm">
-                                                            {version.isManual ? 'Manual Save' : `Auto Snapshot (${version.triggerType})`}
-                                                            <span className="ml-2 text-muted-foreground font-normal">#{version.versionIndex}</span>
-                                                        </span>
-                                                        {version.expiresAt && (
-                                                            <span className="text-[10px] px-1.5 py-0.5 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 rounded-full">
-                                                                Expires {format(new Date(version.expiresAt), 'MMM d')}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    <span className="text-xs text-muted-foreground">
-                                                        {format(new Date(version.createdAt), 'MMM d, yyyy • h:mm a')} • {formatSize(version.totalSize)}
-                                                    </span>
+                            {loading ? (
+                                <div className="flex flex-col items-center justify-center py-12 gap-3 text-muted-foreground">
+                                    <IconLoader2 className="w-8 h-8 animate-spin" />
+                                    <p>Loading...</p>
+                                </div>
+                            ) : versions.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center py-12 gap-3 text-muted-foreground text-center px-4">
+                                    <IconHistory className="w-10 h-10 opacity-20" />
+                                    <p className="text-sm font-medium">No history</p>
+                                    <p className="text-xs">Versions will appear here automatically.</p>
+                                </div>
+                            ) : (
+                                <div className="flex flex-col">
+                                    {versions.map((version) => (
+                                        <button
+                                            key={version.id}
+                                            onClick={() => handlePreview(version)}
+                                            className={`text-left p-4 border-b transition-all hover:bg-muted/50 block group relative ${previewVersionId === version.id ? "bg-muted border-l-4 border-l-primary pl-3" : "pl-4"
+                                                }`}
+                                        >
+                                            <div className="flex items-start justify-between mb-1">
+                                                <div className="font-semibold text-sm flex items-center gap-2">
+                                                    {version.isManual ? "Manual Save" : version.triggerType === 'share' ? "Share Snapshot" : version.triggerType === 'export' ? "Export Snapshot" : version.triggerType === 'close' ? "Close Snapshot" : "Auto Snapshot"}
                                                 </div>
-                                                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="h-8 w-8 px-0"
-                                                        onClick={() => handlePreview(version)}
-                                                        title="Preview Version"
-                                                    >
-                                                        <IconEye className="w-4 h-4" />
-                                                    </Button>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="h-8 text-xs gap-1.5"
-                                                        onClick={() => setConfirmRestoreId(version.id)}
-                                                        disabled={restoringId === version.id}
-                                                    >
-                                                        <IconRestore className="w-3.5 h-3.5" />
-                                                        Restore
-                                                    </Button>
+                                                {version.expiresAt && (
+                                                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full uppercase tracking-tight ${new Date(version.expiresAt) < new Date(Date.now() + 86400000)
+                                                        ? "bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400 font-bold"
+                                                        : "bg-muted text-muted-foreground"
+                                                        }`}>
+                                                        {new Date(version.expiresAt) < new Date(Date.now() + 86400000 * 2) ? 'Expiring Soon' : format(new Date(version.expiresAt), 'MMM d')}
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            <div className="text-xs text-muted-foreground flex items-center gap-2 mb-2">
+                                                <span>{format(new Date(version.createdAt), 'h:mm a')}</span>
+                                                <span className="w-0.5 h-0.5 rounded-full bg-muted-foreground/50" />
+                                                <span>{(new Date(version.createdAt)).toLocaleDateString() === new Date().toLocaleDateString() ? 'Today' : format(new Date(version.createdAt), 'MMM d')}</span>
+                                                <span className="w-0.5 h-0.5 rounded-full bg-muted-foreground/50" />
+                                                <span>{formatSize(version.totalSize)}</span>
+                                            </div>
+
+                                            {/* Quick Actions on Hover */}
+                                            <div className="flex items-center gap-1 mt-2 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
+                                                {previewVersionId !== version.id && (
+                                                    <span className="text-[10px] text-primary font-medium mr-auto">Click to preview</span>
+                                                )}
+
+                                                <div className="flex items-center gap-1 ml-auto" onClick={(e) => e.stopPropagation()}>
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
-                                                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                                        onClick={() => setConfirmDeleteId(version.id)}
-                                                        disabled={deletingId === version.id}
+                                                        className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setConfirmDeleteId(version.id);
+                                                        }}
+                                                        title="Delete Version"
                                                     >
-                                                        {deletingId === version.id ? <IconLoader2 className="w-4 h-4 animate-spin" /> : <IconTrash className="w-4 h-4" />}
+                                                        <IconTrash className="w-3.5 h-3.5" />
                                                     </Button>
                                                 </div>
                                             </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </ScrollArea>
                     </div>
                 </DialogContent>
             </Dialog>
 
-            {/* Restore Confirmation */}
+            {/* KEEP RESTORE/DELETE ALERTS AS THEY WERE */}
             <AlertDialog open={!!confirmRestoreId} onOpenChange={(open) => !open && setConfirmRestoreId(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>Restore this version?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            This will overwrite the current content of your paper with the selected version.
-                            The current state will be lost unless you save it as a version first.
+                            This will overwrite the current content of your paper with this snapshot.
+                            Any unsaved work in the current session will be lost.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction onClick={() => confirmRestoreId && handleRestore(confirmRestoreId)}>
-                            Restore
+                            Confirm Restore
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
 
-            {/* Delete Confirmation */}
             <AlertDialog open={!!confirmDeleteId} onOpenChange={(open) => !open && setConfirmDeleteId(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Delete this version?</AlertDialogTitle>
+                        <AlertDialogTitle>Delete this snapshot?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            This action cannot be undone. This version snapshot will be permanently removed.
+                            This action cannot be undone. This version will be permanently removed from your history.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -311,46 +366,11 @@ export function VersionHistoryModal({
                             onClick={() => confirmDeleteId && handleDelete(confirmDeleteId)}
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         >
-                            Delete
+                            Delete Forever
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-
-            {/* Preview Modal */}
-            <Dialog open={!!previewVersionId} onOpenChange={(open) => !open && setPreviewVersionId(null)}>
-                <DialogContent className="max-w-4xl h-[85vh] flex flex-col p-0 overflow-hidden">
-                    <DialogHeader className="px-6 py-4 border-b shrink-0 flex flex-row items-center justify-between">
-                        <div>
-                            <DialogTitle>Version Preview</DialogTitle>
-                            <DialogDescription>
-                                Viewing a read-only snapshot of this version.
-                            </DialogDescription>
-                        </div>
-                        <div className="flex items-center gap-2 mr-6">
-                            {previewVersionId && (
-                                <Button
-                                    size="sm"
-                                    onClick={() => {
-                                        setConfirmRestoreId(previewVersionId);
-                                        setPreviewVersionId(null);
-                                    }}
-                                >
-                                    <IconRestore className="w-4 h-4 mr-2" />
-                                    Restore This Version
-                                </Button>
-                            )}
-                        </div>
-                    </DialogHeader>
-                    <div className="flex-1 overflow-hidden bg-background">
-                        {previewVersionId && (
-                            /* We pass loading state or content. For now placeholders.
-                               In real implementation, we would pass the fetched content */
-                            <PaperPreview fileId={fileId} initialContent={previewContent} />
-                        )}
-                    </div>
-                </DialogContent>
-            </Dialog>
         </>
     )
 }

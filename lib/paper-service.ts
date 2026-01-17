@@ -507,20 +507,16 @@ class PaperService {
                 throw new Error("Version Manifest or encryption params missing");
             }
 
-            // 3. Reconstruct Blocks
-            const blocks: any[] = [];
-
-            for (const entry of manifest.blocks) {
+            // 3. Reconstruct Blocks (Parallelized)
+            const blockPromises = manifest.blocks.map(async (entry) => {
                 let chunkData = chunks ? chunks[entry.chunkId] : undefined;
 
-                // HEALING LOGIC: If missing, try to fetch individually (Recover from "orphaned index" state)
+                // HEALING LOGIC: If missing, try to fetch individually
                 if (!chunkData) {
                     try {
-                        console.warn(`[PaperService] Chunk ${entry.chunkId} missing from version response. Attempting individual recovery...`);
                         const individualRes = await apiClient.getPaperBlock(fileId, entry.chunkId);
                         if (individualRes.success && individualRes.data) {
-                            chunkData = individualRes.data as any; // Expected { encryptedContent, iv, salt }
-                            console.log(`[PaperService] Successfully recovered chunk ${entry.chunkId}`);
+                            chunkData = individualRes.data as any;
                         }
                     } catch (recErr) {
                         console.error(`[PaperService] Recovery failed for chunk ${entry.chunkId}`, recErr);
@@ -535,26 +531,25 @@ class PaperService {
                             chunkData.salt,
                             masterKey
                         );
-                        const block = JSON.parse(decryptedBlockStr);
-                        blocks.push(block);
+                        return JSON.parse(decryptedBlockStr);
                     } catch (e) {
-                        console.error(`Failed to decrypt block ${entry.id} in version`, e);
-                        // Push placeholder error block
-                        blocks.push({
+                        console.error(`Failed to decrypt block ${entry.id}`, e);
+                        return {
                             id: entry.id,
                             type: 'p',
-                            children: [{ text: '[Error: Failed to decrypt this block from history]' }]
-                        });
+                            children: [{ text: '[Error: Failed to decrypt this block]' }]
+                        };
                     }
                 } else {
-                    console.warn(`Chunk ${entry.chunkId} missing for block ${entry.id} in version`);
-                    blocks.push({
+                    return {
                         id: entry.id,
                         type: 'p',
-                        children: [{ text: '[Error: Block data missing in history]' }]
-                    });
+                        children: [{ text: '[Error: Block data missing]' }]
+                    };
                 }
-            }
+            });
+
+            const blocks = await Promise.all(blockPromises);
 
             return {
                 id: fileId,
