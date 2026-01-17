@@ -241,7 +241,7 @@ export function VersionHistoryModal({
 
                         {/* LEFT: Preview Area */}
                         <div className="flex-1 bg-muted/30 flex flex-col relative h-full">
-                        {/* Header Overlay - Proton Style */}
+                        {/* Header Overlay */}
                         <div className="flex items-center justify-between px-6 py-3 bg-background border-b shrink-0 z-10 shadow-sm">
                             <div className="flex items-center gap-4">
                                 <div className="flex items-center gap-2 max-w-md">

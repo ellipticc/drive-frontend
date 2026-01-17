@@ -358,6 +358,7 @@ class PaperService {
         createdAt: string;
         updatedAt: string;
     }> {
+        // Get paper metadata
         const response = await apiClient.getPaper(paperId);
         if (!response.success || !response.data) {
             throw new Error(response.error || 'Failed to fetch paper');
@@ -377,33 +378,69 @@ class PaperService {
             title = 'Decryption Error';
         }
 
-        // 2. Decrypt Content (Manifest -> Blocks)
+        // 2. Get presigned download URLs for all chunks
+        const urlsResponse = await apiClient.getPaperDownloadUrls(paperId);
+        if (!urlsResponse.success || !urlsResponse.data) {
+            throw new Error('Failed to get download URLs');
+        }
+
+        const { urls, chunks: chunkList } = urlsResponse.data;
+
+        // 3. Download chunks directly from S3 using presigned URLs
+        const chunks: Record<string, any> = {};
+        await Promise.all(
+            Object.entries(urls).map(async ([chunkId, url]) => {
+                try {
+                    const response = await fetch(url as string);
+                    if (!response.ok) {
+                        console.error(`Failed to download chunk ${chunkId}: ${response.statusText}`);
+                        return;
+                    }
+                    const text = await response.text();
+                    chunks[chunkId] = JSON.parse(text);
+                } catch (err) {
+                    console.error(`Error downloading chunk ${chunkId}:`, err);
+                }
+            })
+        );
+
+        // 4. Decrypt Content (Manifest -> Blocks)
         let content: any[] = [];
         try {
             let manifest: PaperManifest | null = null;
 
-            // Attempt to parse Chunk 0 as Manifest
-            if (paper.encryptedContent && paper.iv && paper.salt) {
-                const decryptedStr = await decryptPaperContent(paper.encryptedContent, paper.iv, paper.salt, masterKey);
-                if (decryptedStr) {
-                    try {
-                        const parsed = JSON.parse(decryptedStr);
-                        // Check signature
-                        if (parsed.version && Array.isArray(parsed.blocks)) {
-                            manifest = parsed as PaperManifest;
-                        } else {
-                            console.error("[PaperService] CORRUPTED MANIFEST: Decrypted data is not a valid PaperManifest.", parsed);
-                            throw new Error("Invalid paper format: Decrypted data is not a manifest.");
+            // Find chunk 0 (manifest)
+            const manifestChunk = chunkList.find((c: any) => c.chunkIndex === 0);
+            if (manifestChunk && chunks[manifestChunk.id]) {
+                const manifestData = chunks[manifestChunk.id];
+                
+                if (manifestData.encryptedContent && manifestData.iv && manifestData.salt) {
+                    const decryptedStr = await decryptPaperContent(
+                        manifestData.encryptedContent,
+                        manifestData.iv,
+                        manifestData.salt,
+                        masterKey
+                    );
+                    if (decryptedStr) {
+                        try {
+                            const parsed = JSON.parse(decryptedStr);
+                            // Check signature
+                            if (parsed.version && Array.isArray(parsed.blocks)) {
+                                manifest = parsed as PaperManifest;
+                            } else {
+                                console.error("[PaperService] CORRUPTED MANIFEST: Decrypted data is not a valid PaperManifest.", parsed);
+                                throw new Error("Invalid paper format: Decrypted data is not a manifest.");
+                            }
+                        } catch (parseErr) {
+                            console.error("[PaperService] MANIFEST PARSE ERROR: Decrypted string is not valid JSON.", { decryptedStr });
+                            throw parseErr;
                         }
-                    } catch (parseErr) {
-                        console.error("[PaperService] MANIFEST PARSE ERROR: Decrypted string is not valid JSON.", { decryptedStr });
-                        throw parseErr;
+                    } else {
+                        console.error("[PaperService] DECRYPTION FAILED: Manifest decrypted to empty string.");
                     }
-                } else {
-                    console.error("[PaperService] DECRYPTION FAILED: Manifest decrypted to empty string.");
                 }
             } else {
-                console.warn("[PaperService] NO MANIFEST DATA: paper.encryptedContent is missing. Starting with empty doc.");
+                console.warn("[PaperService] NO MANIFEST DATA: Starting with empty doc.");
                 manifest = { version: 1, blocks: [] };
             }
 
@@ -411,11 +448,9 @@ class PaperService {
                 // Cache Manifest
                 this.manifestCache.set(paperId, manifest);
 
-                // Rebundle Chunks into Blocks
-                const chunks = paper.chunks || {};
+                // Rebuild blocks from manifest
                 const blocks: any[] = [];
 
-                // Sort by manifest order
                 // Process in parallel to speed up recovery
                 const blockPromises = manifest.blocks.map(async (entry) => {
                     let chunkData = chunks[entry.chunkId];
@@ -426,7 +461,16 @@ class PaperService {
                             console.warn(`[PaperService] Chunk ${entry.chunkId} missing from bulk response. Attempting individual recovery...`);
                             const individualRes = await apiClient.getPaperBlock(paperId, entry.chunkId);
                             if (individualRes.success && individualRes.data) {
-                                chunkData = individualRes.data as any; // Expected { encryptedContent, iv, salt }
+                                // New format: { url: presignedUrl }
+                                if (individualRes.data.url) {
+                                    const blockResponse = await fetch(individualRes.data.url);
+                                    if (blockResponse.ok) {
+                                        chunkData = await blockResponse.json();
+                                    }
+                                } else {
+                                    // Old format: { encryptedContent, iv, salt }
+                                    chunkData = individualRes.data as any;
+                                }
                                 console.log(`[PaperService] Successfully recovered chunk ${entry.chunkId}`);
                             }
                         } catch (recErr) {
@@ -484,14 +528,14 @@ class PaperService {
         try {
             const masterKey = masterKeyManager.getMasterKey();
 
-            // 1. Fetch Version Data
+            // 1. Fetch Version Data (includes manifest content + all block URLs)
             const response = await apiClient.getPaperVersion(fileId, versionId);
             if (!response.success || !response.data) {
                 throw new Error(response.error || 'Failed to fetch paper version');
             }
 
             const paperData = response.data;
-            const chunks = paperData.chunks;
+            const blockUrls = paperData.blockUrls || {}; // Presigned URLs for all blocks
 
             let manifest: PaperManifest;
 
@@ -507,44 +551,42 @@ class PaperService {
                 throw new Error("Version Manifest or encryption params missing");
             }
 
-            // 3. Reconstruct Blocks (Parallelized)
+            // 2. Download and decrypt all blocks in parallel using presigned URLs
             const blockPromises = manifest.blocks.map(async (entry) => {
-                let chunkData = chunks ? chunks[entry.chunkId] : undefined;
+                const blockUrl = blockUrls[entry.chunkId];
 
-                // HEALING LOGIC: If missing, try to fetch individually
-                if (!chunkData) {
-                    try {
-                        const individualRes = await apiClient.getPaperBlock(fileId, entry.chunkId);
-                        if (individualRes.success && individualRes.data) {
-                            chunkData = individualRes.data as any;
-                        }
-                    } catch (recErr) {
-                        console.error(`[PaperService] Recovery failed for chunk ${entry.chunkId}`, recErr);
-                    }
-                }
-
-                if (chunkData) {
-                    try {
-                        const decryptedBlockStr = await decryptPaperContent(
-                            chunkData.encryptedContent,
-                            chunkData.iv || chunkData.nonce || '',
-                            chunkData.salt,
-                            masterKey
-                        );
-                        return JSON.parse(decryptedBlockStr);
-                    } catch (e) {
-                        console.error(`Failed to decrypt block ${entry.id}`, e);
-                        return {
-                            id: entry.id,
-                            type: 'p',
-                            children: [{ text: '[Error: Failed to decrypt this block]' }]
-                        };
-                    }
-                } else {
+                if (!blockUrl) {
+                    console.warn(`[getPaperVersion] No URL for block ${entry.chunkId}`);
                     return {
                         id: entry.id,
                         type: 'p',
-                        children: [{ text: '[Error: Block data missing]' }]
+                        children: [{ text: '[Error: Block URL missing]' }]
+                    };
+                }
+
+                try {
+                    // Download block directly from S3
+                    const blockResponse = await fetch(blockUrl);
+                    if (!blockResponse.ok) {
+                        throw new Error(`Failed to download block: ${blockResponse.statusText}`);
+                    }
+
+                    const chunkData = await blockResponse.json();
+
+                    // Decrypt block content
+                    const decryptedBlockStr = await decryptPaperContent(
+                        chunkData.encryptedContent,
+                        chunkData.iv || chunkData.nonce || '',
+                        chunkData.salt,
+                        masterKey
+                    );
+                    return JSON.parse(decryptedBlockStr);
+                } catch (e) {
+                    console.error(`Failed to decrypt block ${entry.id}`, e);
+                    return {
+                        id: entry.id,
+                        type: 'p',
+                        children: [{ text: '[Error: Failed to decrypt this block]' }]
                     };
                 }
             });

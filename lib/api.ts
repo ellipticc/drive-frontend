@@ -431,6 +431,7 @@ export interface Paper {
   updatedAt?: string;
   content?: any;
   chunks?: Record<string, any>;
+  blockUrls?: Record<string, string>; // Presigned URLs for blocks (version preview)
 }
 
 export interface ShareCommentsResponse {
@@ -1765,7 +1766,7 @@ class ApiClient {
     });
   }
 
-  async getPaperBlock(paperId: string, blockId: string): Promise<ApiResponse<{ encryptedContent: string; iv: string; salt: string }>> {
+  async getPaperBlock(paperId: string, blockId: string): Promise<ApiResponse<{ url?: string; encryptedContent?: string; iv?: string; salt?: string }>> {
     return this.request(`/papers/${paperId}/blocks/${blockId}`);
   }
 
@@ -2556,6 +2557,13 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify({ encryptedTitle, titleSalt })
     });
+  }
+
+  async getPaperDownloadUrls(paperId: string): Promise<ApiResponse<{
+    urls: Record<string, string>;
+    chunks: Array<{ id: string; chunkIndex: number }>;
+  }>> {
+    return this.request(`/papers/${paperId}/s3`);
   }
 
   async getDownloadUrls(fileId: string): Promise<ApiResponse<DownloadUrlsResponse>> {
