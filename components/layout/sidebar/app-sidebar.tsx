@@ -13,6 +13,7 @@ import {
   IconPhoto,
   IconStack2,
   IconBubbleText,
+  IconChartBar,
 } from "@tabler/icons-react"
 
 import { NavMain } from "@/components/layout/navigation/nav-main"
@@ -74,6 +75,12 @@ export const AppSidebar = React.memo(function AppSidebar({
         url: "/photos",
         icon: IconPhoto,
         id: "photos",
+      },
+      {
+        title: "Analytics",
+        url: "/analytics",
+        icon: IconChartBar,
+        id: "analytics",
       },
       {
         title: t("sidebar.shared"),
