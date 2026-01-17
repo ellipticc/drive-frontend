@@ -463,7 +463,7 @@ export default function PhotosPage() {
     }
 
     return (
-        <div className="flex flex-col h-full bg-background relative md:rounded-2xl overflow-hidden">
+        <div className="flex h-screen w-full flex-col overflow-hidden">
             <SiteHeader
                 onSearch={handleSearch}
                 searchValue={searchQuery}
@@ -471,53 +471,55 @@ export default function PhotosPage() {
                 onFolderUpload={handleFolderUpload}
             />
 
-            <div className="flex flex-col flex-1 overflow-hidden relative">
-                <GalleryToolbar
-                    isRefreshing={isRefreshing}
-                    onRefresh={() => fetchAndDecryptPhotos(true)}
-                    viewMode={viewMode}
-                    setViewMode={setViewMode}
-                    timeScale={timeScale}
-                    setTimeScale={setTimeScale}
-                    zoomLevel={zoomLevel} // This is Column Count (default 4)
-                    setZoomLevel={setZoomLevel}
-                />
-
-                {isLoading ? (
-                    <div className="flex-1 flex flex-col items-center justify-center space-y-4">
-                        <IconLoader2 className="h-10 w-10 animate-spin text-primary" />
-                        <p className="text-muted-foreground animate-pulse">Decrypting your secure gallery...</p>
-                    </div>
-                ) : mediaItems.length === 0 ? (
-                    <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
-                        <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-6">
-                            <IconPhoto className="h-10 w-10 text-primary" />
-                        </div>
-                        <h3 className="text-xl font-semibold mb-2">No photos yet</h3>
-                        <p className="text-muted-foreground max-w-xs mx-auto mb-6">
-                            Upload your first photo to see it in your secure gallery.
-                        </p>
-                    </div>
-                ) : (
-                    <>
-                        <GalleryGrid
-                            groupedItems={groupedItems}
-                            sortedDates={sortedDates}
-                            zoomLevel={zoomLevel} // Pass column count
-                            selectedIds={selectedIds}
-                            isSelectionMode={isSelectionMode}
-                            onSelect={(id, range) => toggleSelection(id, true, range)}
-                            onPreview={handlePreview}
-                            onAction={handleAction}
-                            timeScale={timeScale}
-                        />
-
+            <main className="flex-1 overflow-y-auto">
+                <div className="flex flex-col h-full bg-background relative md:rounded-2xl overflow-hidden">
+                    <div className="flex flex-col flex-1 overflow-hidden relative">
                         <GalleryToolbar
+                            isRefreshing={isRefreshing}
+                            onRefresh={() => fetchAndDecryptPhotos(true)}
                             viewMode={viewMode}
                             setViewMode={setViewMode}
                             timeScale={timeScale}
                             setTimeScale={setTimeScale}
-                            zoomLevel={zoomLevel}
+                            zoomLevel={zoomLevel} // This is Column Count (default 4)
+                            setZoomLevel={setZoomLevel}
+                        />
+
+                        {isLoading ? (
+                            <div className="flex-1 flex flex-col items-center justify-center space-y-4">
+                                <IconLoader2 className="h-10 w-10 animate-spin text-primary" />
+                                <p className="text-muted-foreground animate-pulse">Decrypting your secure gallery...</p>
+                            </div>
+                        ) : mediaItems.length === 0 ? (
+                            <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+                                <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-6">
+                                    <IconPhoto className="h-10 w-10 text-primary" />
+                                </div>
+                                <h3 className="text-xl font-semibold mb-2">No photos yet</h3>
+                                <p className="text-muted-foreground max-w-xs mx-auto mb-6">
+                                    Upload your first photo to see it in your secure gallery.
+                                </p>
+                            </div>
+                        ) : (
+                            <>
+                                <GalleryGrid
+                                    groupedItems={groupedItems}
+                                    sortedDates={sortedDates}
+                                    zoomLevel={zoomLevel} // Pass column count
+                                    selectedIds={selectedIds}
+                                    isSelectionMode={isSelectionMode}
+                                    onSelect={(id, range) => toggleSelection(id, true, range)}
+                                    onPreview={handlePreview}
+                                    onAction={handleAction}
+                                    timeScale={timeScale}
+                                />
+
+                                <GalleryToolbar
+                                    viewMode={viewMode}
+                                    setViewMode={setViewMode}
+                                    timeScale={timeScale}
+                                    setTimeScale={setTimeScale}
+                                    zoomLevel={zoomLevel}
                             setZoomLevel={setZoomLevel}
                             onRefresh={() => fetchAndDecryptPhotos(true)}
                             isRefreshing={isRefreshing}
@@ -554,107 +556,109 @@ export default function PhotosPage() {
                 )}
 
 
-            </div>
+                    </div>
 
-            <FullPagePreviewModal
-                isOpen={!!previewFile}
-                file={previewFile}
-                onClose={() => {
-                    setPreviewFile(null);
-                    try {
-                        const params = new URLSearchParams(searchParams.toString());
-                        params.delete('preview');
-                        router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-                    } catch (err) {
-                        // ignore
-                    }
-                }}
-                onNavigate={handleNavigate}
-                onDownload={handleDownload}
-                hasPrev={previewIndex > 0}
-                hasNext={previewIndex < filteredItems.length - 1}
-                currentIndex={previewIndex}
-                totalItems={filteredItems.length}
-            />
+                    <FullPagePreviewModal
+                        isOpen={!!previewFile}
+                        file={previewFile}
+                        onClose={() => {
+                            setPreviewFile(null);
+                            try {
+                                const params = new URLSearchParams(searchParams.toString());
+                                params.delete('preview');
+                                router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+                            } catch (err) {
+                                // ignore
+                            }
+                        }}
+                        onNavigate={handleNavigate}
+                        onDownload={handleDownload}
+                        hasPrev={previewIndex > 0}
+                        hasNext={previewIndex < filteredItems.length - 1}
+                        currentIndex={previewIndex}
+                        totalItems={filteredItems.length}
+                    />
 
-            {/* Global Modals for Actions */}
-            <MoveToTrashModal
-                open={isMoveToTrashOpen}
-                onOpenChange={setIsMoveToTrashOpen}
-                itemId={activeItem?.id}
-                itemName={activeItem?.filename}
-                itemType="file"
-                onItemMoved={() => {
-                    if (activeItem) {
-                        setMediaItems(prev => prev.filter(i => i.id !== activeItem.id));
-                    }
-                    // Clear selection so action bar disappears
-                    clearSelection();
-                    setIsMoveToTrashOpen(false);
-                }}
-            />
+                    {/* Global Modals for Actions */}
+                    <MoveToTrashModal
+                        open={isMoveToTrashOpen}
+                        onOpenChange={setIsMoveToTrashOpen}
+                        itemId={activeItem?.id}
+                        itemName={activeItem?.filename}
+                        itemType="file"
+                        onItemMoved={() => {
+                            if (activeItem) {
+                                setMediaItems(prev => prev.filter(i => i.id !== activeItem.id));
+                            }
+                            // Clear selection so action bar disappears
+                            clearSelection();
+                            setIsMoveToTrashOpen(false);
+                        }}
+                    />
 
-            <MoveToFolderModal
-                open={isMoveToFolderOpen}
-                onOpenChange={setIsMoveToFolderOpen}
-                itemId={activeItem?.id}
-                itemName={activeItem?.filename}
-                itemType="file"
-                items={bulkActionItems.length > 0 ? bulkActionItems : undefined}
-                onItemMoved={onItemMoved}
-            />
+                    <MoveToFolderModal
+                        open={isMoveToFolderOpen}
+                        onOpenChange={setIsMoveToFolderOpen}
+                        itemId={activeItem?.id}
+                        itemName={activeItem?.filename}
+                        itemType="file"
+                        items={bulkActionItems.length > 0 ? bulkActionItems : undefined}
+                        onItemMoved={onItemMoved}
+                    />
 
-            <CopyModal
-                open={isCopyOpen}
-                onOpenChange={setIsCopyOpen}
-                itemId={activeItem?.id}
-                itemName={activeItem?.filename}
-                itemType="file"
-                items={bulkActionItems.length > 0 ? bulkActionItems : undefined}
-                onItemCopied={onItemCopied}
-            />
+                    <CopyModal
+                        open={isCopyOpen}
+                        onOpenChange={setIsCopyOpen}
+                        itemId={activeItem?.id}
+                        itemName={activeItem?.filename}
+                        itemType="file"
+                        items={bulkActionItems.length > 0 ? bulkActionItems : undefined}
+                        onItemCopied={onItemCopied}
+                    />
 
-            <RenameModal
-                open={isRenameOpen}
-                onOpenChange={setIsRenameOpen}
-                itemName={activeItem?.filename}
-                initialName={activeItem?.filename}
-                itemType="file"
-                onRename={async (data) => {
-                    if (!activeItem) return;
-                    try {
-                        // Type assertion to bypass TS check for now as we know the structure from modal
-                        const renameData = data as any;
-                        const response = await apiClient.updateFile(activeItem.id, renameData);
+                    <RenameModal
+                        open={isRenameOpen}
+                        onOpenChange={setIsRenameOpen}
+                        itemName={activeItem?.filename}
+                        initialName={activeItem?.filename}
+                        itemType="file"
+                        onRename={async (data) => {
+                            if (!activeItem) return;
+                            try {
+                                // Type assertion to bypass TS check for now as we know the structure from modal
+                                const renameData = data as any;
+                                const response = await apiClient.updateFile(activeItem.id, renameData);
 
-                        if (response.success) {
-                            toast.success("Renamed successfully");
-                            onItemRenamed({ requestedName: renameData.requestedName });
-                        } else {
-                            toast.error(response.error || "Failed to rename");
-                        }
-                    } catch {
-                        toast.error("Failed to rename");
-                    }
-                }}
-            />
+                                if (response.success) {
+                                    toast.success("Renamed successfully");
+                                    onItemRenamed({ requestedName: renameData.requestedName });
+                                } else {
+                                    toast.error(response.error || "Failed to rename");
+                                }
+                            } catch {
+                                toast.error("Failed to rename");
+                            }
+                        }}
+                    />
 
-            <ShareModal
-                open={isShareOpen}
-                onOpenChange={setIsShareOpen}
-                itemId={activeItem?.id}
-                itemName={activeItem?.filename}
-                itemType="file"
-            />
+                    <ShareModal
+                        open={isShareOpen}
+                        onOpenChange={setIsShareOpen}
+                        itemId={activeItem?.id}
+                        itemName={activeItem?.filename}
+                        itemType="file"
+                    />
 
-            <SpacePickerModal
-                open={isAddToSpaceOpen}
-                onOpenChange={setIsAddToSpaceOpen}
-                fileIds={activeItem ? [activeItem.id] : []}
-                onAdded={() => {
-                    // Refresh handled by toast
-                }}
-            />
+                    <SpacePickerModal
+                        open={isAddToSpaceOpen}
+                        onOpenChange={setIsAddToSpaceOpen}
+                        fileIds={activeItem ? [activeItem.id] : []}
+                        onAdded={() => {
+                            // Refresh handled by toast
+                        }}
+                    />
+                </div>
+            </main>
         </div>
     )
 }
