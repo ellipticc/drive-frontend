@@ -46,7 +46,10 @@ import {
   IconAlertCircle,
   IconCheck,
   IconCode,
+  IconCalendar as CalendarIcon
 } from "@tabler/icons-react"
+import { format } from "date-fns"
+import { DateRange } from "react-day-picker"
 import {
   GeneralTab
 } from "./settings/general-tab"
@@ -314,6 +317,7 @@ export function SettingsModal({
   const [securityEventsPage, setSecurityEventsPage] = useState(1)
   const [securityEventsTotal, setSecurityEventsTotal] = useState(0)
   const [securityEventsHasMore, setSecurityEventsHasMore] = useState(false)
+  const [securityEventsDateRange, setSecurityEventsDateRange] = useState<DateRange | undefined>()
   const [activityMonitorEnabled, setActivityMonitorEnabled] = useState(true)
   const [detailedEventsEnabled, setDetailedEventsEnabled] = useState(true)
   const [showDisableMonitorDialog, setShowDisableMonitorDialog] = useState(false)
@@ -929,7 +933,9 @@ export function SettingsModal({
     try {
       const limit = 10
       const offset = (page - 1) * limit
-      const response = await apiClient.getSecurityEvents(limit, offset)
+      const startDate = securityEventsDateRange?.from ? format(securityEventsDateRange.from, "yyyy-MM-dd") : undefined
+      const endDate = securityEventsDateRange?.to ? format(securityEventsDateRange.to, "yyyy-MM-dd") : undefined
+      const response = await apiClient.getSecurityEvents(limit, offset, undefined, startDate, endDate)
       if (response.success && response.data) {
         setSecurityEvents(response.data.events || [])
         if (response.data.pagination) {
@@ -969,7 +975,9 @@ export function SettingsModal({
   const handleDownloadSecurityEvents = async () => {
     try {
       // Call with format='csv'
-      const response = await apiClient.getSecurityEvents(10000, 0, 'csv')
+      const startDate = securityEventsDateRange?.from ? format(securityEventsDateRange.from, "yyyy-MM-dd") : undefined
+      const endDate = securityEventsDateRange?.to ? format(securityEventsDateRange.to, "yyyy-MM-dd") : undefined
+      const response = await apiClient.getSecurityEvents(10000, 0, 'csv', startDate, endDate)
 
       if (response.success && response.data?.csv) {
         const blob = new Blob([response.data.csv], { type: 'text/csv;charset=utf-8;' })
@@ -1117,6 +1125,13 @@ export function SettingsModal({
   }
 
 
+
+  // Handle security events reload on date range change
+  useEffect(() => {
+    if (activeTab === 'Security' || activeTab === 'security') {
+      loadSecurityEvents(1)
+    }
+  }, [securityEventsDateRange])
 
   // Handle avatar click to open file picker
   const handleAvatarClick = () => {
@@ -1937,6 +1952,8 @@ export function SettingsModal({
                   setSecurityEvents={setSecurityEvents}
                   setSecurityEventsTotal={setSecurityEventsTotal}
                   setSecurityEventsHasMore={setSecurityEventsHasMore}
+                  securityEventsDateRange={securityEventsDateRange}
+                  setSecurityEventsDateRange={setSecurityEventsDateRange}
 
                   // Account
                   handleLogout={handleLogout}

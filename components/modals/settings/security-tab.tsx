@@ -60,8 +60,15 @@ import {
     IconAlertCircle,
     IconEye,
     IconEyeOff,
-    IconFingerprint
+    IconFingerprint,
+    IconCalendar as CalendarIcon,
+    IconX as IconClose
 } from "@tabler/icons-react"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
+import { DateRange } from "react-day-picker"
+import { format } from "date-fns"
+import { cn } from "@/lib/utils"
 import { getUAInfo, getOSIcon, getBrowserIcon } from './device-icons'
 import { apiClient } from "@/lib/api"
 import { masterKeyManager } from "@/lib/master-key"
@@ -192,6 +199,8 @@ interface SecurityTabProps {
     setSecurityEvents: (val: SecurityEvent[]) => void;
     setSecurityEventsTotal: (val: number) => void;
     setSecurityEventsHasMore: (val: boolean) => void;
+    securityEventsDateRange?: DateRange;
+    setSecurityEventsDateRange?: (val: DateRange | undefined) => void;
 
     // Account
     handleLogout: () => void;
@@ -236,7 +245,8 @@ export function SecurityTab(props: SecurityTabProps) {
         handleLogout, isLoggingOut, setShowDeleteModal,
         showRevoked, setShowRevoked,
         usageDiagnosticsEnabled, crashReportsEnabled, handleUpdatePrivacySettings,
-        userPlan
+        userPlan,
+        securityEventsDateRange, setSecurityEventsDateRange
     } = props;
 
     const { formatDate } = useFormatter();
@@ -1171,6 +1181,54 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className={cn(
+                                        "h-8 justify-start text-left font-normal px-3",
+                                        !securityEventsDateRange && "text-muted-foreground"
+                                    )}
+                                >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {securityEventsDateRange?.from ? (
+                                        securityEventsDateRange.to ? (
+                                            <>
+                                                {format(securityEventsDateRange.from, "LLL dd, y")} -{" "}
+                                                {format(securityEventsDateRange.to, "LLL dd, y")}
+                                            </>
+                                        ) : (
+                                            format(securityEventsDateRange.from, "LLL dd, y")
+                                        )
+                                    ) : (
+                                        <span>Pick a date</span>
+                                    )}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="end">
+                                <Calendar
+                                    initialFocus
+                                    mode="range"
+                                    defaultMonth={securityEventsDateRange?.from}
+                                    selected={securityEventsDateRange}
+                                    onSelect={setSecurityEventsDateRange}
+                                    numberOfMonths={2}
+                                />
+                            </PopoverContent>
+                        </Popover>
+
+                        {securityEventsDateRange && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                onClick={() => setSecurityEventsDateRange?.(undefined)}
+                            >
+                                <IconClose className="h-4 w-4" />
+                            </Button>
+                        )}
+
                         <TooltipProvider>
                             <Tooltip>
                                 <TooltipTrigger asChild>
@@ -1179,7 +1237,7 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                         size="sm"
                                         onClick={() => loadSecurityEvents(1)}
                                         disabled={isLoadingSecurityEvents}
-                                        className="h-8 w-8 p-0"
+                                        className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
                                     >
                                         <IconRefresh className={`h-4 w-4 ${isLoadingSecurityEvents ? 'animate-spin' : ''}`} />
                                     </Button>
@@ -1339,7 +1397,7 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                                     <Tooltip delayDuration={200}>
                                                         <TooltipTrigger asChild>
                                                             <tr
-                                                                className={`hover:bg-muted/30 transition-colors cursor-pointer group ${isBlurred ? 'opacity-70 pointer-events-none' : ''}`}
+                                                                className={`hover:bg-muted/30 transition-colors cursor-pointer group ${isBlurred ? 'opacity-70 cursor-not-allowed' : ''}`}
                                                                 onClick={() => !isBlurred && handleExpandEvent(event.id)}
                                                             >
                                                                 <td className="px-4 py-3 font-mono text-xs text-muted-foreground hidden sm:table-cell">
@@ -1361,7 +1419,8 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                                                 </td>
                                                                 <td className="px-4 py-3">
                                                                     <div className={`flex flex-col ${isBlurred ? 'blur-[3px]' : ''}`}>
-                                                                        <span className="font-medium text-sm capitalize">
+                                                                        <span className="font-medium text-sm capitalize flex items-center gap-1.5">
+                                                                            {isBlurred && <IconLock className="h-3 w-3 text-muted-foreground/50" />}
                                                                             {isBlurred ? (event.summary || 'Archived Event') : (
                                                                                 event.eventType.replace(/_/g, ' ').toLowerCase()
                                                                             )}
@@ -1592,7 +1651,7 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                             Showing {securityEvents.length} of {securityEventsTotal} events
                         </p>
                         <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground font-mono uppercase mr-2">
+                            <span className="text-xs text-muted-foreground font-mono mr-2">
                                 Page {securityEventsPage} of {securityEventsTotal > 0 ? Math.ceil(securityEventsTotal / 10) : 1}
                             </span>
                             <Button

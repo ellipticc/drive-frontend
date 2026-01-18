@@ -362,8 +362,8 @@ export function AnalyticsDataTable<TData, TValue>({
           >
             <IconChevronLeft className="h-4 w-4" />
           </Button>
-          <span className="text-xs font-bold text-muted-foreground min-w-[4rem] text-center uppercase tracking-tighter">
-            PAGE {pagination.pageIndex + 1} OF {pageCount || 1}
+          <span className="text-xs font-bold text-muted-foreground min-w-[4rem] text-center tracking-tighter">
+            Page {pagination.pageIndex + 1} of {pageCount || 1}
           </span>
           <Button
             variant="outline"

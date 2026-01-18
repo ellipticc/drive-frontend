@@ -7,7 +7,7 @@ import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent, ChartLe
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, XAxis, YAxis, Pie, PieChart, Cell, ResponsiveContainer, Line, LineChart, ComposedChart } from "recharts"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { apiClient } from "@/lib/api"
-import { IconLoader2, IconHelpCircle, IconTrendingUp, IconFiles, IconHistory, IconRuler, IconDatabase, IconTrash, IconChartBar, IconFile, IconPhoto, IconVideo, IconMusic, IconFileText, IconRefresh, IconDownload, IconInfoCircle, IconCrown } from "@tabler/icons-react"
+import { IconLoader2, IconHelpCircle, IconTrendingUp, IconFiles, IconHistory, IconRuler, IconDatabase, IconTrash, IconChartBar, IconFile, IconPhoto, IconVideo, IconMusic, IconFileText, IconRefresh, IconDownload, IconInfoCircle, IconCrown, IconCalendar as CalendarIcon, IconX } from "@tabler/icons-react"
 import { format } from "date-fns"
 import { masterKeyManager } from "@/lib/master-key"
 import { decryptFilename } from "@/lib/crypto"
@@ -25,9 +25,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { formatFileSize } from "@/lib/utils"
+import { formatFileSize, cn } from "@/lib/utils"
 import { AnalyticsDataTable } from "@/components/tables/analytics-table"
 import { useGlobalUpload } from "@/components/global-upload-context"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
+import { DateRange } from "react-day-picker"
 
 const chartConfig = {
   storage: {
@@ -68,6 +71,7 @@ export default function AnalyticsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [analytics, setAnalytics] = useState<any>(null)
   const [timeRange, setTimeRange] = useState("30d")
+  const [dateRange, setDateRange] = useState<DateRange | undefined>()
   const [decryptedTopFiles, setDecryptedTopFiles] = useState<any[]>([])
 
   const [activityLogs, setActivityLogs] = useState<any[]>([])
@@ -115,7 +119,15 @@ export default function AnalyticsPage() {
 
   const fetchLogsOnly = async () => {
     try {
-      const logsResponse = await apiClient.getActivityLogs(logsPagination.pageIndex + 1, logsPagination.pageSize)
+      const startDate = dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : undefined
+      const endDate = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : undefined
+
+      const logsResponse = await apiClient.getActivityLogs(
+        logsPagination.pageIndex + 1,
+        logsPagination.pageSize,
+        startDate,
+        endDate
+      )
       if (logsResponse.success && logsResponse.data) {
         setActivityLogs(logsResponse.data.activity)
         setTotalPages(logsResponse.data.pagination.totalPages)
@@ -204,10 +216,10 @@ export default function AnalyticsPage() {
     fetchAnalytics()
   }, [timeRange])
 
-  // Fetch activity logs (Pagination)
+  // Fetch activity logs (Pagination or Date Filter change)
   useEffect(() => {
     fetchLogsOnly()
-  }, [logsPagination.pageIndex, logsPagination.pageSize])
+  }, [logsPagination.pageIndex, logsPagination.pageSize, dateRange])
 
   if (isLoading) {
     return (
@@ -248,136 +260,166 @@ export default function AnalyticsPage() {
   const storageChartData = storageOverTime.map((item: any) => ({
     date: item.date,
     storage: parseFloat((item.storage / (1024 * 1024)).toFixed(2)), // Convert to MB
-    files: item.files,
+    files: item.files
   }))
 
   const activityChartData = recentActivity.map((item: any) => ({
     date: item.date,
     uploads: item.uploads,
-    size: parseFloat((item.uploadedSize / (1024 * 1024)).toFixed(2)) || 0
+    size: parseFloat((item.uploaded_size / (1024 * 1024)).toFixed(2)) // Convert to MB
   }))
 
   const growthChartData = monthlyGrowth.map((item: any) => ({
     month: item.month,
-    files: item.files,
-    storage: parseFloat((item.storage / (1024 * 1024)).toFixed(2)),
+    storage: parseFloat((item.storage / (1024 * 1024)).toFixed(2)), // Convert to MB
+    files: item.files
+  }))
+
+  const typeChartData = fileTypeBreakdown.map((item: any) => ({
+    name: item.type,
+    value: item.count,
+    size: item.size
   }))
 
   return (
     <div className="flex h-screen w-full flex-col overflow-hidden">
       <SiteHeader onFileUpload={handleFileUpload} onFolderUpload={handleFolderUpload} />
-      <main className="flex-1 overflow-y-auto">
-        <div className="@container/main flex flex-1 flex-col gap-2">
-          <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
 
-            {/* Header */}
-            <div className="px-4 lg:px-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Analytics Dashboard</h1>
-                  <p className="text-muted-foreground mt-1 text-sm sm:text-base">
-                    Overview of your storage usage, file distribution, and activity trends.
-                  </p>
+      {/* Hidden file/folder inputs */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileSelect}
+        multiple
+        className="hidden"
+      />
+      <input
+        type="file"
+        ref={folderInputRef}
+        onChange={handleFolderSelect}
+        // @ts-ignore - webkitdirectory is not in standard types but works in most browsers
+        webkitdirectory=""
+        directory=""
+        multiple
+        className="hidden"
+      />
+
+      <main className="flex-1 overflow-y-auto bg-slate-50/50 dark:bg-slate-950/20 py-8">
+        <div className="mx-auto max-w-7xl space-y-8">
+          {/* Page Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-4 lg:px-6">
+            <div>
+              <h1 className="text-3xl sm:text-4xl font-black tracking-tight flex items-center gap-3">
+                <div className="p-2 rounded-2xl bg-primary/10 text-primary">
+                  <IconChartBar className="h-8 w-8 sm:h-9 sm:w-9" />
                 </div>
-
-                <Select value={timeRange} onValueChange={setTimeRange}>
-                  <SelectTrigger className="w-full sm:w-[180px] h-10 shadow-sm">
-                    <SelectValue placeholder="Select range" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="7d">Last 7 Days</SelectItem>
-                    <SelectItem value="30d">Last 30 Days</SelectItem>
-                    <SelectItem value="90d">Last 3 Months</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                <span>Analytics Dashboard</span>
+              </h1>
+              <p className="text-muted-foreground mt-2 text-sm sm:text-base">
+                Monitor your storage, activity, and security at a glance
+              </p>
             </div>
+            <div className="flex items-center gap-2">
+              <Select value={timeRange} onValueChange={setTimeRange}>
+                <SelectTrigger className="w-[140px] sm:w-[180px] h-10 rounded-xl border-0 ring-1 ring-border/50 bg-background shadow-sm hover:ring-primary/50 transition-all">
+                  <SelectValue placeholder="Select range" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="7d">Last 7 days</SelectItem>
+                  <SelectItem value="30d">Last 30 days</SelectItem>
+                  <SelectItem value="90d">Last 3 months</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
-            {/* Quick Stats Grid */}
-            <div className="px-4 lg:px-6">
-              <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-                <Card className="shadow-sm border-l-4 border-l-chart-1 hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Total Storage</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-baseline justify-between">
-                      <span className="text-2xl font-bold">{overview.totalStorageReadable}</span>
-                      <IconDatabase className="h-4 w-4 text-chart-1 opacity-50" />
-                    </div>
-                    <div className="mt-3 h-2 w-full bg-secondary rounded-full overflow-hidden">
+          <div className="flex flex-col gap-8">
+            {/* Stats Overview */}
+            <div className="grid gap-4 sm:gap-6 grid-cols-2 lg:grid-cols-4 px-4 lg:px-6">
+              <Card className="shadow-md border-0 ring-1 ring-border/50 hover:ring-primary/20 transition-all overflow-hidden group">
+                <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
+                  <IconDatabase className="h-16 w-16" />
+                </div>
+                <CardHeader className="pb-2">
+                  <CardDescription className="text-xs font-bold uppercase tracking-wider">Used Storage</CardDescription>
+                  <CardTitle className="text-xl sm:text-2xl font-black">{overview.totalStorageReadable}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-chart-1 rounded-full"
-                        style={{ width: `${Math.min(parseFloat(overview.percentUsed), 100)}%` }}
+                        className="h-full bg-primary transition-all duration-1000 ease-out"
+                        style={{ width: `${overview.percentUsed}%` }}
                       />
                     </div>
-                    <p className="text-xs text-muted-foreground mt-2 flex justify-between">
-                      <span>{overview.percentUsed}% used</span>
-                      <span>{overview.quotaReadable} total</span>
-                    </p>
-                  </CardContent>
-                </Card>
+                    <div className="flex justify-between text-[10px] sm:text-xs">
+                      <span className="text-muted-foreground">{overview.percentUsed}% of {overview.quotaReadable}</span>
+                      <IconTrendingUp className="h-3 w-3 text-primary animate-pulse" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-                <Card className="shadow-sm border-l-4 border-l-chart-2 hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Total Files</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-baseline justify-between">
-                      <span className="text-2xl font-bold">{overview.totalFiles.toLocaleString()}</span>
-                      <IconFiles className="h-4 w-4 text-chart-2 opacity-50" />
-                    </div>
-                    <div className="mt-4 flex items-center text-xs text-muted-foreground">
-                      <IconTrash className="mr-1 h-3 w-3" />
-                      <span>{overview.deletedFiles} items in trash ({formatFileSize(overview.deletedSize)})</span>
-                    </div>
-                  </CardContent>
-                </Card>
+              <Card className="shadow-md border-0 ring-1 ring-border/50 hover:ring-primary/20 transition-all overflow-hidden group">
+                <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
+                  <IconFiles className="h-16 w-16" />
+                </div>
+                <CardHeader className="pb-2">
+                  <CardDescription className="text-xs font-bold uppercase tracking-wider">Total Files</CardDescription>
+                  <CardTitle className="text-xl sm:text-2xl font-black">{overview.totalFiles.toLocaleString()}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1">
+                    <IconHistory className="h-3 w-3" />
+                    {overview.totalVersions} document versions saved
+                  </p>
+                </CardContent>
+              </Card>
 
-                <Card className="shadow-sm border-l-4 border-l-chart-3 hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Avg File Size</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-baseline justify-between">
-                      <span className="text-2xl font-bold">{overview.avgFileSizeReadable}</span>
-                      <IconRuler className="h-4 w-4 text-chart-3 opacity-50" />
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-4">
-                      Global average across all file types
-                    </p>
-                  </CardContent>
-                </Card>
+              <Card className="shadow-md border-0 ring-1 ring-border/50 hover:ring-primary/20 transition-all overflow-hidden group">
+                <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
+                  <IconTrash className="h-16 w-16" />
+                </div>
+                <CardHeader className="pb-2">
+                  <CardDescription className="text-xs font-bold uppercase tracking-wider">Trash Items</CardDescription>
+                  <CardTitle className="text-xl sm:text-2xl font-black">{overview.deletedFiles.toLocaleString()}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground">
+                    Occupying {formatFileSize(overview.deletedSize)}
+                  </p>
+                </CardContent>
+              </Card>
 
-                <Card className="shadow-sm border-l-4 border-l-chart-5 hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Versions Preserved</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-baseline justify-between">
-                      <span className="text-2xl font-bold">{overview.totalVersions.toLocaleString()}</span>
-                      <IconHistory className="h-4 w-4 text-chart-5 opacity-50" />
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-4">
-                      Document history snapshots
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
+              <Card className="shadow-md border-0 ring-1 ring-border/50 hover:ring-primary/20 transition-all overflow-hidden group">
+                <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
+                  <IconCrown className="h-16 w-16" />
+                </div>
+                <CardHeader className="pb-2">
+                  <CardDescription className="text-xs font-bold uppercase tracking-wider">Storage Plan</CardDescription>
+                  <CardTitle className="text-xl sm:text-2xl font-black capitalize">{overview.plan}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1">
+                    <IconRuler className="h-3 w-3" />
+                    {overview.quotaReadable} total quota
+                  </p>
+                </CardContent>
+              </Card>
             </div>
 
-            {/* Main Chart Area */}
-            <div className="px-4 lg:px-6">
-              <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3">
-                {/* Storage Growth - Spans 2 cols */}
-                <Card className="lg:col-span-2 shadow-md border-0 ring-1 ring-border/50">
+            {/* Charts Section */}
+            <div className="grid gap-6 grid-cols-1 lg:grid-cols-3 px-4 lg:px-6">
+              {/* Storage Usage Over Time */}
+              <div className="lg:col-span-2">
+                <Card className="h-full shadow-md border-0 ring-1 ring-border/50">
                   <CardHeader>
                     <CardTitle className="text-lg sm:text-xl">Storage Growth</CardTitle>
-                    <CardDescription className="text-xs sm:text-sm">Cumulative storage usage over the last {timeRangeLabel}</CardDescription>
+                    <CardDescription className="text-xs sm:text-sm">Storage usage and file count in the last {timeRangeLabel}</CardDescription>
                   </CardHeader>
-                  <CardContent className="h-[250px] sm:h-[300px] lg:h-[350px]">
+                  <CardContent className="h-[300px]">
                     <ChartContainer config={chartConfig} className="h-full w-full">
-                      <AreaChart data={storageChartData} margin={{ top: 10, right: 5, left: -20, bottom: 0 }}>
+                      <AreaChart data={storageChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                         <defs>
                           <linearGradient id="colorStorage" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="var(--color-storage)" stopOpacity={0.3} />
@@ -390,7 +432,7 @@ export default function AnalyticsPage() {
                           tickLine={false}
                           axisLine={false}
                           tickMargin={10}
-                          tickFormatter={(val) => format(new Date(val), 'MMM d')}
+                          tickFormatter={(val) => format(new Date(val), "MMM d")}
                           style={{ fontSize: '12px' }}
                         />
                         <YAxis
@@ -400,102 +442,98 @@ export default function AnalyticsPage() {
                           tickFormatter={(val) => `${val} MB`}
                           style={{ fontSize: '12px' }}
                         />
-                        <ChartTooltip content={<ChartTooltipContent indicator="dot" />} />
+                        <ChartTooltip content={<ChartTooltipContent />} />
                         <Area
                           type="monotone"
                           dataKey="storage"
                           stroke="var(--color-storage)"
+                          strokeWidth={2}
                           fillOpacity={1}
                           fill="url(#colorStorage)"
-                          strokeWidth={2}
                         />
                       </AreaChart>
                     </ChartContainer>
                   </CardContent>
                 </Card>
-
-                {/* File Type Distribution */}
-                <Card className="shadow-md border-0 ring-1 ring-border/50">
-                  <CardHeader>
-                    <CardTitle className="text-lg sm:text-xl">Storage Breakdown</CardTitle>
-                    <CardDescription className="text-xs sm:text-sm">Distribution by file type</CardDescription>
-                  </CardHeader>
-                  <CardContent className="h-[400px] sm:h-[350px] flex flex-col">
-                    <div className="flex-1 min-h-0">
-                      <ChartContainer config={chartConfig} className="h-full w-full">
-                        <PieChart>
-                          <Pie
-                            data={fileTypeBreakdown}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius="40%"
-                            outerRadius="70%"
-                            paddingAngle={3}
-                            dataKey="size"
-                            nameKey="type"
-                          >
-                            {fileTypeBreakdown.map((entry: any, index: number) => (
-                              <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} strokeWidth={0} />
-                            ))}
-                          </Pie>
-                          <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-                        </PieChart>
-                      </ChartContainer>
-                    </div>
-                    <div className="mt-4 space-y-3 overflow-y-auto max-h-[150px] pr-2 custom-scrollbar">
-                      {fileTypeBreakdown.map((item: any, index: number) => (
-                        <div key={item.type} className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-2">
-                            <div className="h-3 w-3 rounded-full" style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }} />
-                            <span className="font-medium text-foreground/80">{item.type}</span>
-                          </div>
-                          <div className="text-right">
-                            <span className="block font-bold">{item.sizeReadable}</span>
-                            <span className="block text-xs text-muted-foreground">{item.count} files</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
               </div>
+
+              {/* File Type Breakdown */}
+              <Card className="shadow-md border-0 ring-1 ring-border/50">
+                <CardHeader>
+                  <CardTitle className="text-lg sm:text-xl">Content Type</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">Distribution by file type</CardDescription>
+                </CardHeader>
+                <CardContent className="h-[300px] flex items-center justify-center p-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={typeChartData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {typeChartData.map((_entry: any, index: number) => (
+                          <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <ChartTooltip
+                        content={
+                          <ChartTooltipContent
+                            indicator="dot"
+                            labelFormatter={(label) => label}
+                          />
+                        }
+                      />
+                      <ChartLegend content={<ChartLegendContent />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
             </div>
 
-            <div className="px-4 lg:px-6">
-              <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-2">
-                {/* Recent Upload Activity */}
-                <Card className="shadow-md border-0 ring-1 ring-border/50">
-                  <CardHeader>
-                    <CardTitle className="text-lg sm:text-xl">Upload Activity</CardTitle>
-                    <CardDescription className="text-xs sm:text-sm">Files uploaded daily</CardDescription>
-                  </CardHeader>
-                  <CardContent className="h-[250px] sm:h-[300px]">
-                    <ChartContainer config={chartConfig} className="h-full w-full">
-                      <BarChart data={activityChartData} margin={{ top: 10, right: 5, left: -20, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.1} />
-                        <XAxis
-                          dataKey="date"
-                          tickLine={false}
-                          axisLine={false}
-                          tickMargin={10}
-                          tickFormatter={(val) => format(new Date(val), 'MMM d')}
-                          style={{ fontSize: '12px' }}
-                        />
-                        <YAxis hide />
-                        <ChartTooltip cursor={{ fill: 'var(--muted)', opacity: 0.2 }} content={<ChartTooltipContent indicator="line" />} />
-                        <Bar dataKey="uploads" fill="var(--color-uploads)" radius={[4, 4, 0, 0]} barSize={30} />
-                      </BarChart>
-                    </ChartContainer>
-                  </CardContent>
-                </Card>
+            <div className="grid gap-6 grid-cols-1 lg:grid-cols-2 px-4 lg:px-6">
+              {/* Recent Activity Histogram */}
+              <Card className="shadow-md border-0 ring-1 ring-border/50">
+                <CardHeader>
+                  <CardTitle className="text-lg sm:text-xl">Creation Activity</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">New files and folders in the last {timeRangeLabel}</CardDescription>
+                </CardHeader>
+                <CardContent className="h-[300px]">
+                  <ChartContainer config={chartConfig} className="h-full w-full">
+                    <BarChart data={activityChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.1} />
+                      <XAxis
+                        dataKey="date"
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={10}
+                        tickFormatter={(val) => format(new Date(val), "MMM d")}
+                        style={{ fontSize: '12px' }}
+                      />
+                      <YAxis
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={10}
+                        style={{ fontSize: '12px' }}
+                      />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar dataKey="uploads" fill="var(--color-uploads)" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ChartContainer>
+                </CardContent>
+              </Card>
 
-                {/* Monthly Growth Trend (Long term) */}
-                <Card className="shadow-md border-0 ring-1 ring-border/50">
+              {/* Monthly Growth */}
+              <div className="lg:col-span-1">
+                <Card className="h-full shadow-md border-0 ring-1 ring-border/50">
                   <CardHeader>
-                    <CardTitle className="text-lg sm:text-xl">Monthly Growth</CardTitle>
-                    <CardDescription className="text-xs sm:text-sm">Long-term storage accumulation (last 12 months)</CardDescription>
+                    <CardTitle className="text-lg sm:text-xl">Monthly Ingestion</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">Storage added over the last 12 months</CardDescription>
                   </CardHeader>
-                  <CardContent className="h-[250px] sm:h-[300px]">
+                  <CardContent className="h-[300px]">
                     <ChartContainer config={chartConfig} className="h-full w-full">
                       <ComposedChart data={growthChartData} margin={{ top: 10, right: 5, left: -20, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.1} />
@@ -592,7 +630,55 @@ export default function AnalyticsPage() {
                       </TooltipProvider>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-2">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant={"outline"}
+                          size="sm"
+                          className={cn(
+                            "h-8 justify-start text-left font-normal px-3",
+                            !dateRange && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {dateRange?.from ? (
+                            dateRange.to ? (
+                              <>
+                                {format(dateRange.from, "LLL dd, y")} -{" "}
+                                {format(dateRange.to, "LLL dd, y")}
+                              </>
+                            ) : (
+                              format(dateRange.from, "LLL dd, y")
+                            )
+                          ) : (
+                            <span>Pick a date</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="end">
+                        <Calendar
+                          initialFocus
+                          mode="range"
+                          defaultMonth={dateRange?.from}
+                          selected={dateRange}
+                          onSelect={setDateRange}
+                          numberOfMonths={2}
+                        />
+                      </PopoverContent>
+                    </Popover>
+
+                    {dateRange && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                        onClick={() => setDateRange(undefined)}
+                      >
+                        <IconX className="h-4 w-4" />
+                      </Button>
+                    )}
+
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -600,109 +686,82 @@ export default function AnalyticsPage() {
                             <IconRefresh className={`h-4 w-4 transition-transform duration-500 ${isRefreshing ? 'animate-spin' : ''}`} />
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent>Refresh events</TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className={`h-8 w-8 text-destructive hover:bg-destructive/10 ${activityLogs.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            onClick={handleWipe}
-                            disabled={activityLogs.length === 0}
-                          >
-                            <IconTrash className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Clear history</TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="inline-block">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className={`h-8 w-8 transition-colors ${analytics?.overview?.plan === 'pro' || analytics?.overview?.plan === 'unlimited' ? 'text-muted-foreground hover:text-foreground' : 'text-muted-foreground/30 hover:bg-transparent cursor-not-allowed'}`}
-                              onClick={handleExport}
-                              disabled={isExporting}
-                            >
-                              {isExporting ? (
-                                <IconLoader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <IconDownload className="h-4 w-4" />
-                              )}
-                            </Button>
-                          </span>
-                        </TooltipTrigger>
                         <TooltipContent>
-                          {analytics?.overview?.plan === 'pro' || analytics?.overview?.plan === 'unlimited'
-                            ? 'Export CSV'
-                            : 'Export CSV (Pro feature)'}
+                          <p>Refresh Log</p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
                   </div>
                 </CardHeader>
-                <CardContent className="pt-0">
+                <CardContent className="px-0 sm:px-6">
                   <AnalyticsDataTable
                     data={activityLogs}
                     pagination={logsPagination}
+                    onPaginationChange={setLogsPagination}
                     pageCount={totalPages}
                     totalItems={totalLogs}
-                    userPlan={analytics?.overview?.plan}
-                    onPaginationChange={setLogsPagination}
                   />
                 </CardContent>
+                <CardFooter className="flex flex-col sm:flex-row items-center justify-between border-t bg-muted/5 py-4 gap-4">
+                  <div className="flex items-center gap-4 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0 no-scrollbar">
+                    <div className="flex items-center gap-2 whitespace-nowrap">
+                      <div className="h-3 w-3 rounded-full bg-blue-500" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Uploads</span>
+                    </div>
+                    <div className="flex items-center gap-2 whitespace-nowrap">
+                      <div className="h-3 w-3 rounded-full bg-emerald-500" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Security</span>
+                    </div>
+                    <div className="flex items-center gap-2 whitespace-nowrap">
+                      <div className="h-3 w-3 rounded-full bg-purple-500" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Access</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-[11px] font-bold uppercase tracking-wider gap-2 ring-1 ring-border/50 bg-background"
+                      onClick={handleExport}
+                      disabled={isExporting}
+                    >
+                      {isExporting ? <IconLoader2 className="h-3 w-3 animate-spin" /> : <IconDownload className="h-3 w-3" />}
+                      Export CSV
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-[11px] font-bold uppercase tracking-wider text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 gap-2 ring-1 ring-border/50 bg-background"
+                      onClick={handleWipe}
+                    >
+                      <IconTrash className="h-3 w-3" />
+                      Wipe History
+                    </Button>
+                  </div>
+                </CardFooter>
               </Card>
             </div>
-
           </div>
         </div>
       </main>
 
+      {/* Wipe Confirmation Dialog */}
       <AlertDialog open={showWipeDialog} onOpenChange={setShowWipeDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action will permanently delete your entire activity history from our systems.
-              This cannot be undone.
+              This action will permanently delete all your activity history. This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={confirmWipe}
-            >
+            <AlertDialogAction onClick={confirmWipe} className="bg-red-500 hover:bg-red-600">
               Clear History
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Hidden inputs for file/folder upload */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        multiple
-        className="hidden"
-        onChange={handleFileSelect}
-      />
-      <input
-        ref={folderInputRef}
-        type="file"
-        multiple
-        {...({ webkitdirectory: "", directory: "" } as any)}
-        className="hidden"
-        onChange={handleFolderSelect}
-      />
     </div>
   )
 }
