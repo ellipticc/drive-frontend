@@ -3,7 +3,7 @@
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useFormatter } from "@/hooks/use-formatter";
 import dynamic from "next/dynamic";
-import { useVirtualizer } from "@tanstack/react-virtual";
+import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { DotsVertical } from "@untitledui/icons";
 import type { SortDescriptor } from "react-aria-components";
 import { Table, TableCard } from "@/components/application/table/table";
@@ -514,11 +514,11 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
     // Virtualization setup
     const parentRef = useRef<HTMLDivElement>(null);
 
-    const rowVirtualizer = useVirtualizer({
+    const rowVirtualizer = useWindowVirtualizer({
         count: sortedItems.length,
-        getScrollElement: () => parentRef.current,
         estimateSize: () => 50, // Estimate row height
         overscan: 5,
+        scrollMargin: parentRef.current?.offsetTop ?? 0,
     });
 
     // Keyboard shortcuts
@@ -660,7 +660,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                 ) : (
                     <div
                         ref={parentRef}
-                        className="h-[calc(100vh-220px)] overflow-auto relative scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent"
+                        className="w-full relative"
                     >
                         <Table
                             aria-label="Trash"
@@ -681,7 +681,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                                 }
                             }}
                         >
-                            <Table.Header className="group">
+                            <Table.Header className="group sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
                                 <Table.Head className="w-10 text-center pl-4 pr-0">
                                     <Checkbox
                                         slot="selection"

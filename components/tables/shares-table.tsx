@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useFormatter } from "@/hooks/use-formatter";
-import { useVirtualizer } from "@tanstack/react-virtual";
+import { useWindowVirtualizer } from "@tanstack/react-virtual";
 
 import { DotsVertical } from "@untitledui/icons";
 import type { SortDescriptor } from "react-aria-components";
@@ -464,11 +464,11 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
     // Virtualization setup
     const parentRef = useRef<HTMLDivElement>(null);
 
-    const rowVirtualizer = useVirtualizer({
+    const rowVirtualizer = useWindowVirtualizer({
         count: filteredItems.length,
-        getScrollElement: () => parentRef.current,
         estimateSize: () => 50, // Estimate row height
         overscan: 5,
+        scrollMargin: parentRef.current?.offsetTop ?? 0,
     });
 
     const handleBulkDownload = async () => {
@@ -802,7 +802,7 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                 {viewMode === 'table' ? (
                     <div
                         ref={parentRef}
-                        className="h-[calc(100vh-220px)] overflow-auto relative scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent"
+                        className="w-full relative"
                     >
                         <Table aria-label="Shares" selectionMode="multiple" selectionBehavior="replace" sortDescriptor={sortDescriptor} onSortChange={setSortDescriptor} selectedKeys={selectedItems} onSelectionChange={(keys) => {
                             if (keys === 'all') {
@@ -816,7 +816,7 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                             }
                         }}
                         >
-                            <Table.Header className="group">
+                            <Table.Header className="group sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
                                 <Table.Head className="w-10 text-center pl-4 pr-0">
                                     <Checkbox
                                         slot="selection"

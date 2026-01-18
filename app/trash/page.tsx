@@ -37,14 +37,14 @@ export default function Trash() {
   }, [])
 
   return (
-    <div className="flex h-screen w-full flex-col overflow-hidden">
+    <div className="flex w-full flex-col">
       <SiteHeader
         onSearch={handleSearch}
         searchValue={searchQuery}
         onFileUpload={handleFileUpload}
         onFolderUpload={handleFolderUpload}
       />
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1">
         <div className="@container/main flex flex-1 flex-col gap-2">
           <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
             <TrashTable searchQuery={searchQuery} />

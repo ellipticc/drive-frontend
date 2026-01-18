@@ -223,9 +223,9 @@ export default function AnalyticsPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen w-full flex-col overflow-hidden">
+      <div className="flex min-h-screen w-full flex-col">
         <SiteHeader onFileUpload={handleFileUpload} onFolderUpload={handleFolderUpload} />
-        <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8 bg-muted/10">
+        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 bg-muted/10">
           <div className="w-full flex flex-col gap-6">
             <div className="h-16 w-full max-w-sm rounded-lg bg-muted/20 animate-pulse" />
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -240,9 +240,9 @@ export default function AnalyticsPage() {
 
   if (!analytics) {
     return (
-      <div className="flex h-screen w-full flex-col overflow-hidden">
+      <div className="flex min-h-screen w-full flex-col">
         <SiteHeader onFileUpload={handleFileUpload} onFolderUpload={handleFolderUpload} />
-        <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8">
+        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
           <div className="w-full flex items-center justify-center h-full">
             <p className="text-muted-foreground">Failed to load analytics data</p>
           </div>
@@ -282,7 +282,7 @@ export default function AnalyticsPage() {
   }))
 
   return (
-    <div className="flex h-screen w-full flex-col overflow-hidden">
+    <div className="flex min-h-screen w-full flex-col">
       <SiteHeader onFileUpload={handleFileUpload} onFolderUpload={handleFolderUpload} />
 
       {/* Hidden file/folder inputs */}
@@ -304,7 +304,7 @@ export default function AnalyticsPage() {
         className="hidden"
       />
 
-      <main className="flex-1 overflow-y-auto bg-slate-50/50 dark:bg-slate-950/20 py-8">
+      <main className="flex-1 bg-slate-50/50 dark:bg-slate-950/20 py-8">
         <div className="w-full space-y-8">
           {/* Page Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-4 lg:px-6">

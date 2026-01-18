@@ -69,7 +69,7 @@ import {
 import { snapCenterToCursor } from "@dnd-kit/modifiers";
 import { AnimatePresence, motion } from "motion/react";
 import { useLanguage } from "@/lib/i18n/language-context";
-import { useVirtualizer } from "@tanstack/react-virtual";
+import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import {
     ActionBar,
     ActionBarSelection,
@@ -2203,11 +2203,11 @@ export const Table01DividerLineSm = ({
     // Virtualization setup
     const parentRef = useRef<HTMLDivElement>(null);
 
-    const rowVirtualizer = useVirtualizer({
+    const rowVirtualizer = useWindowVirtualizer({
         count: filteredItems.length,
-        getScrollElement: () => parentRef.current,
-        estimateSize: () => 50, // Estimate row height (adjust based on your design, usually 48-52px)
-        overscan: 5, // Render 5 items outside of view
+        estimateSize: () => 50,
+        overscan: 5,
+        scrollMargin: parentRef.current?.offsetTop ?? 0,
     });
 
     const emptyState = (
@@ -3198,13 +3198,13 @@ export const Table01DividerLineSm = ({
                             >
                                 <div
                                     ref={parentRef}
-                                    className="h-full overflow-auto relative scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent"
+                                    className="w-full relative"
                                 >
                                     <Table aria-label="Files" selectionMode="multiple" selectionBehavior="replace" sortDescriptor={sortDescriptor} onSortChange={setSortDescriptor} selectedKeys={selectedItems} onSelectionChange={handleTableSelectionChange}
                                         onContextMenu={(e: React.MouseEvent) => handleContextMenu(e)}
                                     >
                                         {filteredItems.length > 0 && (
-                                            <Table.Header className="group">
+                                            <Table.Header className="group sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
                                                 <Table.Head className="w-10 text-center pl-2 md:pl-4 pr-0">
                                                     <Checkbox
                                                         slot="selection"
