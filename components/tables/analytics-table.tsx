@@ -28,11 +28,13 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { getDiceBearAvatar } from "@/lib/avatar"
 
 export interface ActivityLog {
   id: string
   event_type: string
   item_id: string
+  user_id: string
   metadata: any
   summary: string
   ip_address: string
@@ -98,12 +100,15 @@ export const columns: ColumnDef<ActivityLog>[] = [
     cell: ({ row }) => {
       const name = row.original.user_name || "Unknown User"
       const email = row.original.user_email || "No email"
-      const avatar = row.original.user_avatar
+      const avatar = row.original.user_avatar || getDiceBearAvatar(row.original.user_id || row.original.id)
+
       return (
         <div className="flex items-center gap-2">
-          <Avatar className="h-6 w-6 border shadow-sm">
-            <AvatarImage src={avatar} alt={name} />
-            <AvatarFallback className="text-[10px] bg-muted">{name.substring(0, 2).toUpperCase()}</AvatarFallback>
+          <Avatar className="h-6 w-6 border shadow-sm ring-1 ring-border/10">
+            <AvatarImage src={avatar} alt={name} className="object-cover" />
+            <AvatarFallback className="text-[10px] bg-muted font-bold text-muted-foreground">
+              {name.substring(0, 2).toUpperCase()}
+            </AvatarFallback>
           </Avatar>
           <TooltipProvider>
             <Tooltip>

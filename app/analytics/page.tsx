@@ -7,13 +7,24 @@ import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent, ChartLe
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, XAxis, YAxis, Pie, PieChart, Cell, ResponsiveContainer, Line, LineChart, ComposedChart } from "recharts"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { apiClient } from "@/lib/api"
-import { IconLoader2, IconTrendingUp, IconFiles, IconHistory, IconRuler, IconDatabase, IconTrash, IconChartBar, IconFile, IconPhoto, IconVideo, IconMusic, IconFileText, IconRefresh, IconDownload } from "@tabler/icons-react"
+import { IconLoader2, IconHelpCircle, IconTrendingUp, IconFiles, IconHistory, IconRuler, IconDatabase, IconTrash, IconChartBar, IconFile, IconPhoto, IconVideo, IconMusic, IconFileText, IconRefresh, IconDownload, IconInfoCircle, IconCrown } from "@tabler/icons-react"
 import { format } from "date-fns"
 import { masterKeyManager } from "@/lib/master-key"
 import { decryptFilename } from "@/lib/crypto"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { toast } from "sonner"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { formatFileSize } from "@/lib/utils"
 import { AnalyticsDataTable } from "@/components/tables/analytics-table"
 
@@ -66,6 +77,8 @@ export default function AnalyticsPage() {
   const [totalPages, setTotalPages] = useState(0)
   const [totalLogs, setTotalLogs] = useState(0)
   const [isExporting, setIsExporting] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [showWipeDialog, setShowWipeDialog] = useState(false)
 
   // Set page title
   useLayoutEffect(() => {
@@ -85,11 +98,20 @@ export default function AnalyticsPage() {
     }
   }
 
-  const handleRefresh = () => {
-    fetchLogsOnly()
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    await fetchLogsOnly()
+    // Small delay for smoothness
+    setTimeout(() => setIsRefreshing(false), 600)
   }
 
   const handleExport = async () => {
+    const plan = analytics?.overview?.plan || 'free';
+    if (plan !== 'pro' && plan !== 'unlimited') {
+      toast.error("CSV Export is a premium feature. Upgrade to Pro or Unlimited to unlock.");
+      return;
+    }
+
     setIsExporting(true)
     try {
       await apiClient.exportActivityLogs()
@@ -100,14 +122,17 @@ export default function AnalyticsPage() {
     }
   }
 
-  const handleWipe = async () => {
-    if (confirm("Are you sure you want to clear your entire activity history?\nThis action cannot be undone.")) {
-      try {
-        await apiClient.wipeActivityLogs()
-        fetchLogsOnly()
-      } catch (error) {
-        console.error("Wipe failed:", error)
-      }
+  const handleWipe = () => {
+    setShowWipeDialog(true)
+  }
+
+  const confirmWipe = async () => {
+    try {
+      await apiClient.wipeActivityLogs()
+      fetchLogsOnly()
+      setShowWipeDialog(false)
+    } catch (error) {
+      console.error("Wipe failed:", error)
     }
   }
 
@@ -522,15 +547,35 @@ export default function AnalyticsPage() {
               <Card className="shadow-md border-0 ring-1 ring-border/50">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
                   <div className="space-y-1">
-                    <CardTitle className="text-lg sm:text-xl">Activity Log</CardTitle>
-                    <CardDescription className="text-xs sm:text-sm">Detailed breakdown of file activities and analytics</CardDescription>
+                    <CardTitle className="text-lg sm:text-xl flex items-center gap-2">
+                      Activity Log
+                    </CardTitle>
+                    <div className="flex items-center gap-1.5">
+                      <CardDescription className="text-xs sm:text-sm">Detailed breakdown of file activities and analytics</CardDescription>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <IconHelpCircle className="h-3.5 w-3.5 text-muted-foreground/50 cursor-help hover:text-muted-foreground transition-colors" />
+                          </TooltipTrigger>
+                          <TooltipContent side="right" className="max-w-xs">
+                            <p className="text-xs">
+                              Showing events from the last
+                              <span className="font-bold text-primary px-1">
+                                {analytics?.overview?.plan === 'unlimited' ? '∞' : (analytics?.overview?.plan === 'pro' ? '180' : (analytics?.overview?.plan === 'plus' ? '60' : '7'))} days
+                              </span>
+                              based on your <span className="capitalize">{analytics?.overview?.plan || 'Free'}</span> plan.
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
                   </div>
                   <div className="flex items-center gap-1">
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={handleRefresh}>
-                            <IconRefresh className="h-4 w-4" />
+                            <IconRefresh className={`h-4 w-4 transition-transform duration-500 ${isRefreshing ? 'animate-spin' : ''}`} />
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>Refresh events</TooltipContent>
@@ -548,18 +593,37 @@ export default function AnalyticsPage() {
                       </Tooltip>
                     </TooltipProvider>
 
-                    {analytics?.overview?.plan && (analytics.overview.plan === 'pro' || analytics.overview.plan === 'unlimited') && (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={handleExport} disabled={isExporting}>
-                              {isExporting ? <IconLoader2 className="h-4 w-4 animate-spin" /> : <IconDownload className="h-4 w-4" />}
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="inline-block">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className={`h-8 w-8 transition-colors ${analytics?.overview?.plan === 'pro' || analytics?.overview?.plan === 'unlimited' ? 'text-muted-foreground hover:text-foreground' : 'text-muted-foreground/30 hover:bg-transparent cursor-not-allowed'}`}
+                              onClick={handleExport}
+                              disabled={isExporting}
+                            >
+                              {isExporting ? (
+                                <IconLoader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <div className="relative">
+                                  <IconDownload className="h-4 w-4" />
+                                  {!(analytics?.overview?.plan === 'pro' || analytics?.overview?.plan === 'unlimited') && (
+                                    <IconCrown className="h-2 w-2 absolute -top-1 -right-1 text-amber-500 fill-amber-500" />
+                                  )}
+                                </div>
+                              )}
                             </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Export CSV</TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    )}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {analytics?.overview?.plan === 'pro' || analytics?.overview?.plan === 'unlimited'
+                            ? 'Export CSV'
+                            : 'Export CSV (Pro feature)'}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0">
@@ -578,6 +642,27 @@ export default function AnalyticsPage() {
           </div>
         </div>
       </main>
+
+      <AlertDialog open={showWipeDialog} onOpenChange={setShowWipeDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action will permanently delete your entire activity history from our systems.
+              This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmWipe}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Clear History
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
