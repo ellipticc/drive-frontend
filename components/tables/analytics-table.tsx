@@ -34,15 +34,26 @@ export interface ActivityLog {
   event_type: string
   item_id: string
   metadata: any
+  summary: string
   ip_address: string
   user_agent: string
   user_name: string
+  user_email: string
   user_avatar: string
   created_at: string
 }
 
 const formatEventName = (type: string) => {
   return type.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
+}
+
+const formatBytes = (bytes: number, decimals = 2) => {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 }
 
 export const columns: ColumnDef<ActivityLog>[] = [
@@ -86,6 +97,7 @@ export const columns: ColumnDef<ActivityLog>[] = [
     header: "User",
     cell: ({ row }) => {
       const name = row.original.user_name || "Unknown User"
+      const email = row.original.user_email || "No email"
       const avatar = row.original.user_avatar
       return (
         <div className="flex items-center gap-2">
@@ -93,45 +105,43 @@ export const columns: ColumnDef<ActivityLog>[] = [
             <AvatarImage src={avatar} alt={name} />
             <AvatarFallback className="text-[10px] bg-muted">{name.substring(0, 2).toUpperCase()}</AvatarFallback>
           </Avatar>
-          <span className="text-sm font-medium whitespace-nowrap">{name}</span>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="text-sm font-medium whitespace-nowrap cursor-help hover:underline decoration-dotted decoration-muted-foreground/30">{name}</span>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <p className="text-xs">{email}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       )
     }
   },
   {
-    accessorKey: "metadata",
+    accessorKey: "summary",
     header: "Details",
     cell: ({ row }) => {
-      const meta = row.getValue("metadata") as any
-      const type = row.getValue("event_type") as string
-
-      let details = "N/A"
-
-      if (meta) {
-        if (type === 'FILE_MOVE' || type === 'FILE_MOVE_TO_FOLDER') {
-          details = `Moved file to folder`
-        } else if (type === 'FILE_RENAME') {
-          details = `Renamed file`
-        } else if (type === 'FOLDER_CREATE') {
-          details = `Created new folder`
-        } else if (type === 'FILE_UPLOAD') {
-          details = `Uploaded file (${meta.fileSize ? (meta.fileSize / 1024 / 1024).toFixed(2) + ' MB' : 'unknown size'})`
-        } else if (meta.itemType) {
-          details = `${meta.itemType} action`
-        } else if (type === 'SHARE_CREATE') {
-          details = `Created share link`
-        } else if (type === 'TRASH_MOVE' || type === 'FOLDER_TRASH_MOVE') {
-          details = `Moved to trash`
-        } else {
-          const keys = Object.keys(meta).filter(k => k !== 'req' && k !== 'headers' && k !== 'user' && k !== 'ip' && k !== 'userAgent')
-          if (keys.length > 0) details = keys.map(k => `${k}: ${typeof meta[k] === 'object' ? '...' : meta[k]}`).join(', ')
-        }
-      }
+      const summary = row.original.summary || "N/A"
+      const meta = row.original.metadata
 
       return (
-        <div className="max-w-[250px] truncate text-xs text-muted-foreground" title={JSON.stringify(meta, null, 2)}>
-          {details}
-        </div>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="max-w-[250px] truncate text-xs text-muted-foreground cursor-help">
+                {summary}
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-[300px]">
+              <div className="space-y-2">
+                <p className="font-semibold text-[10px] uppercase tracking-wider text-muted-foreground border-b pb-1">Raw Metadata</p>
+                <pre className="text-[10px] whitespace-pre-wrap leading-tight">{JSON.stringify(meta, null, 2)}</pre>
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       )
     },
   },
@@ -153,6 +163,7 @@ interface DataTableProps<TData, TValue> {
   data: TData[]
   pageCount?: number
   totalItems?: number
+  userPlan?: string // 'free', 'plus', 'pro', 'unlimited'
   pagination?: {
     pageIndex: number
     pageSize: number
@@ -160,11 +171,21 @@ interface DataTableProps<TData, TValue> {
   onPaginationChange?: (pagination: any) => void
 }
 
+const getRetentionDays = (plan: string = 'free') => {
+  switch (plan.toLowerCase()) {
+    case 'unlimited': return Infinity;
+    case 'pro': return 180;
+    case 'plus': return 60;
+    default: return 7;
+  }
+}
+
 export function AnalyticsDataTable<TData, TValue>({
   columns: userColumns,
   data,
   pageCount,
   totalItems,
+  userPlan = 'free',
   pagination: externalPagination,
   onPaginationChange,
 }: DataTableProps<TData, TValue>) {
@@ -177,6 +198,8 @@ export function AnalyticsDataTable<TData, TValue>({
   const setPagination = onPaginationChange || setInternalPagination
 
   const tableColumns = userColumns || (columns as unknown as ColumnDef<TData, TValue>[])
+
+  const retentionDays = getRetentionDays(userPlan);
 
   const table = useReactTable({
     data,
@@ -218,21 +241,36 @@ export function AnalyticsDataTable<TData, TValue>({
             </thead>
             <tbody className="divide-y divide-muted/50">
               {table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row) => (
-                  <tr
-                    key={row.id}
-                    className="hover:bg-muted/30 transition-colors group"
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="px-4 py-3">
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
-                      </td>
-                    ))}
-                  </tr>
-                ))
+                table.getRowModel().rows.map((row) => {
+                  const createdAt = (row.original as any).created_at;
+                  const isBlurred = new Date(createdAt).getTime() < Date.now() - (retentionDays * 24 * 60 * 60 * 1000);
+
+                  return (
+                    <tr
+                      key={row.id}
+                      className={`transition-colors group relative ${isBlurred ? 'pointer-events-none select-none' : 'hover:bg-muted/30'}`}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <td key={cell.id} className={`px-4 py-3 ${isBlurred ? 'blur-[4px] opacity-50' : ''}`}>
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
+                        </td>
+                      ))}
+                      {isBlurred && (
+                        <td className="absolute inset-0 flex items-center justify-center z-10">
+                          <div className="bg-background/80 backdrop-blur-sm px-3 py-1 rounded-full border shadow-sm flex items-center gap-2 pointer-events-auto cursor-help">
+                            <IconLock className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-[10px] font-medium text-muted-foreground max-w-[150px] truncate text-center">
+                              upgrade to view older history
+                            </span>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  )
+                })
               ) : (
                 <tr>
                   <td

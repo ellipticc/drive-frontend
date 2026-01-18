@@ -7,11 +7,13 @@ import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent, ChartLe
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, XAxis, YAxis, Pie, PieChart, Cell, ResponsiveContainer, Line, LineChart, ComposedChart } from "recharts"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { apiClient } from "@/lib/api"
-import { IconLoader2, IconTrendingUp, IconFiles, IconHistory, IconRuler, IconDatabase, IconTrash, IconChartBar, IconFile, IconPhoto, IconVideo, IconMusic, IconFileText } from "@tabler/icons-react"
+import { IconLoader2, IconTrendingUp, IconFiles, IconHistory, IconRuler, IconDatabase, IconTrash, IconChartBar, IconFile, IconPhoto, IconVideo, IconMusic, IconFileText, IconRefresh, IconDownload } from "@tabler/icons-react"
 import { format } from "date-fns"
 import { masterKeyManager } from "@/lib/master-key"
 import { decryptFilename } from "@/lib/crypto"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Button } from "@/components/ui/button"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { formatFileSize } from "@/lib/utils"
 import { AnalyticsDataTable } from "@/components/tables/analytics-table"
 
@@ -63,11 +65,51 @@ export default function AnalyticsPage() {
   })
   const [totalPages, setTotalPages] = useState(0)
   const [totalLogs, setTotalLogs] = useState(0)
+  const [isExporting, setIsExporting] = useState(false)
 
   // Set page title
   useLayoutEffect(() => {
     document.title = "Analytics - Ellipticc Drive"
   }, [])
+
+  const fetchLogsOnly = async () => {
+    try {
+      const logsResponse = await apiClient.getActivityLogs(logsPagination.pageIndex + 1, logsPagination.pageSize)
+      if (logsResponse.success && logsResponse.data) {
+        setActivityLogs(logsResponse.data.activity)
+        setTotalPages(logsResponse.data.pagination.totalPages)
+        setTotalLogs(logsResponse.data.pagination.total)
+      }
+    } catch (error) {
+      console.error("Failed to fetch logs:", error)
+    }
+  }
+
+  const handleRefresh = () => {
+    fetchLogsOnly()
+  }
+
+  const handleExport = async () => {
+    setIsExporting(true)
+    try {
+      await apiClient.exportActivityLogs()
+    } catch (error) {
+      console.error("Export failed:", error)
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  const handleWipe = async () => {
+    if (confirm("Are you sure you want to clear your entire activity history?\nThis action cannot be undone.")) {
+      try {
+        await apiClient.wipeActivityLogs()
+        fetchLogsOnly()
+      } catch (error) {
+        console.error("Wipe failed:", error)
+      }
+    }
+  }
 
   // Fetch analytics data
   useEffect(() => {
@@ -483,6 +525,42 @@ export default function AnalyticsPage() {
                     <CardTitle className="text-lg sm:text-xl">Activity Log</CardTitle>
                     <CardDescription className="text-xs sm:text-sm">Detailed breakdown of file activities and analytics</CardDescription>
                   </div>
+                  <div className="flex items-center gap-1">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={handleRefresh}>
+                            <IconRefresh className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Refresh events</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={handleWipe}>
+                            <IconTrash className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Clear history</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+
+                    {analytics?.overview?.plan && (analytics.overview.plan === 'pro' || analytics.overview.plan === 'unlimited') && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={handleExport} disabled={isExporting}>
+                              {isExporting ? <IconLoader2 className="h-4 w-4 animate-spin" /> : <IconDownload className="h-4 w-4" />}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Export CSV</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                  </div>
                 </CardHeader>
                 <CardContent className="pt-0">
                   <AnalyticsDataTable
@@ -490,6 +568,7 @@ export default function AnalyticsPage() {
                     pagination={logsPagination}
                     pageCount={totalPages}
                     totalItems={totalLogs}
+                    userPlan={analytics?.overview?.plan}
                     onPaginationChange={setLogsPagination}
                   />
                 </CardContent>

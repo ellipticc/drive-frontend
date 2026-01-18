@@ -3611,6 +3611,44 @@ class ApiClient {
   }>> {
     return this.request(`/analytics/activity?page=${page}&limit=${limit}`);
   }
+
+  async wipeActivityLogs(): Promise<ApiResponse<void>> {
+    return this.request('/analytics/activity', { method: 'DELETE' });
+  }
+
+  async exportActivityLogs(): Promise<void> {
+    const token = this.getToken();
+    const response = await fetch(`${this.baseURL}/analytics/activity/export`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to export activity logs');
+    }
+
+    // Try to get filename from Content-Disposition header
+    const contentDisposition = response.headers.get('Content-Disposition');
+    let filename = `activity_log_${new Date().toISOString().split('T')[0]}.csv`;
+
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+      if (filenameMatch && filenameMatch[1]) {
+        filename = filenameMatch[1];
+      }
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  }
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);
