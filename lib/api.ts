@@ -654,6 +654,13 @@ class ApiClient {
     // Build the request URL
     const requestUrl = `${this.baseURL}${endpoint}`;
 
+    if (!this.ensureValidToken()) {
+      return {
+        success: false,
+        error: 'Session expired. Please log in again.',
+      };
+    }
+
     // Extract headers separately to avoid them being overwritten by ...options spread
     const { headers: optionHeaders, ...otherOptions } = options;
 
@@ -663,77 +670,18 @@ class ApiClient {
     const config: RequestInit = {
       headers: {
         ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
-        ...optionHeaders,  // Spread headers from options
+        ...optionHeaders,
       },
-      credentials: 'include', // Essential for CORS and credentialed requests
-      ...otherOptions,  // Spread other options WITHOUT headers
+      credentials: 'include',
+      ...otherOptions,
     };
 
-    // Add idempotency key to EVERY request if not already provided
-    const headers = config.headers as Record<string, string>;
-    if (!headers['X-Idempotency-Key'] && !headers['x-idempotency-key']) {
-      headers['X-Idempotency-Key'] = generateIdempotencyKey();
-    }
-
-    // Add authorization header if token exists
-    const token = this.getToken();
-    if (token) {
-      // Check if token is definitely expired (don't clear on validation errors)
-      if (this.isTokenExpired(token)) {
-        // Token is definitely expired based on exp claim
-        console.log('Token is expired, clearing auth data');
-        this.clearAllAuthData();
-        if (this.shouldRedirectToLogin()) {
-          window.location.href = '/login';
-        }
-        return {
-          success: false,
-          error: 'Session expired. Please log in again.',
-        };
-      }
-
-      config.headers = {
-        ...config.headers,
-        'Authorization': `Bearer ${token}`,
-      };
-
-      if (typeof window !== 'undefined') {
-        const deviceId = localStorage.getItem('device_id');
-        const publicKey = await getDevicePublicKey().catch(() => null);
-
-        if (deviceId && publicKey) {
-          try {
-            const timestamp = Date.now().toString();
-            let fullPath = endpoint;
-
-            if (!endpoint.startsWith('http')) {
-              try {
-                const urlObj = new URL(requestUrl);
-                fullPath = urlObj.pathname + urlObj.search;
-              } catch {
-                fullPath = endpoint;
-              }
-            }
-
-            const method = (config.method || 'GET').toUpperCase();
-            const message = `${method}:${fullPath}:${timestamp}`;
-            const signature = await signWithDeviceKey(message);
-
-            if (!config.headers) {
-              config.headers = {};
-            }
-
-            const headers = config.headers as Record<string, string>;
-            headers['X-Device-Id'] = deviceId;
-            headers['X-Device-Signature'] = signature;
-            headers['X-Device-Timestamp'] = timestamp;
-
-          } catch (err) {
-            console.error('Device signature generation failed:', err);
-          }
-        }
-      }
-    }
+    // Add authorization and device headers
+    const authHeaders = await this.getAuthHeaders(endpoint, config.method || 'GET');
+    config.headers = {
+      ...config.headers,
+      ...authHeaders,
+    };
 
     try {
       const response = await fetch(requestUrl, config);
@@ -920,6 +868,70 @@ class ApiClient {
     }
 
     return null;
+  }
+
+  private async getAuthHeaders(endpoint: string, method: string = 'GET'): Promise<Record<string, string>> {
+    const headers: Record<string, string> = {
+      'X-Idempotency-Key': generateIdempotencyKey()
+    };
+
+    const token = this.getToken();
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+
+      if (typeof window !== 'undefined') {
+        const deviceId = localStorage.getItem('device_id');
+        const publicKey = await getDevicePublicKey().catch(() => null);
+
+        if (deviceId && publicKey) {
+          try {
+            const timestamp = Date.now().toString();
+            let fullPath = endpoint;
+
+            if (!endpoint.startsWith('http')) {
+              try {
+                const requestUrl = `${this.baseURL}${endpoint}`;
+                const urlObj = new URL(requestUrl);
+                fullPath = urlObj.pathname + urlObj.search;
+              } catch {
+                fullPath = endpoint;
+              }
+            } else {
+              // If it's a full URL, extract the path
+              try {
+                const urlObj = new URL(endpoint);
+                fullPath = urlObj.pathname + urlObj.search;
+              } catch {
+                fullPath = endpoint;
+              }
+            }
+
+            const message = `${method.toUpperCase()}:${fullPath}:${timestamp}`;
+            const signature = await signWithDeviceKey(message);
+
+            headers['X-Device-Id'] = deviceId;
+            headers['X-Device-Signature'] = signature;
+            headers['X-Device-Timestamp'] = timestamp;
+          } catch (err) {
+            console.error('Device signature generation failed:', err);
+          }
+        }
+      }
+    }
+    return headers;
+  }
+
+  private ensureValidToken(): boolean {
+    const token = this.getToken();
+    if (token && this.isTokenExpired(token)) {
+      console.log('Token is expired, clearing auth data');
+      this.clearAllAuthData();
+      if (this.shouldRedirectToLogin()) {
+        window.location.href = '/login';
+      }
+      return false;
+    }
+    return true;
   }
 
   private setToken(token: string): void {
@@ -3617,11 +3629,14 @@ class ApiClient {
   }
 
   async exportActivityLogs(): Promise<void> {
-    const token = this.getToken();
-    const response = await fetch(`${this.baseURL}/analytics/activity/export`, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
+    if (!this.ensureValidToken()) {
+      return;
+    }
+    const endpoint = '/analytics/activity/export';
+    const authHeaders = await this.getAuthHeaders(endpoint, 'GET');
+
+    const response = await fetch(`${this.baseURL}${endpoint}`, {
+      headers: authHeaders
     });
 
     if (!response.ok) {
