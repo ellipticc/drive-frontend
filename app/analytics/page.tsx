@@ -7,7 +7,7 @@ import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent, ChartLe
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, XAxis, YAxis, Pie, PieChart, Cell, ResponsiveContainer, Line, LineChart, ComposedChart } from "recharts"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { apiClient } from "@/lib/api"
-import { IconLoader2, IconHelpCircle, IconTrendingUp, IconFiles, IconHistory, IconRuler, IconDatabase, IconTrash, IconChartBar, IconFile, IconPhoto, IconVideo, IconMusic, IconFileText, IconRefresh, IconDownload, IconInfoCircle, IconCrown, IconCalendar as CalendarIcon, IconX } from "@tabler/icons-react"
+import { IconLoader2, IconHelpCircle, IconTrendingUp, IconFiles, IconHistory, IconRuler, IconDatabase, IconTrash, IconChartBar, IconFile, IconPhoto, IconVideo, IconMusic, IconFileText, IconRefresh, IconDownload, IconInfoCircle, IconCalendar as CalendarIcon, IconX, IconChevronLeft, IconChevronRight } from "@tabler/icons-react"
 import { format } from "date-fns"
 import { masterKeyManager } from "@/lib/master-key"
 import { decryptFilename } from "@/lib/crypto"
@@ -336,10 +336,7 @@ export default function AnalyticsPage() {
           <div className="flex flex-col gap-8">
             {/* Stats Overview */}
             <div className="grid gap-4 sm:gap-6 grid-cols-2 lg:grid-cols-4 px-4 lg:px-6">
-              <Card className="shadow-md border-0 ring-1 ring-border/50 hover:ring-primary/20 transition-all overflow-hidden group">
-                <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
-                  <IconDatabase className="h-16 w-16" />
-                </div>
+              <Card className="shadow-md border-0 ring-1 ring-border/50 hover:ring-primary/20 transition-all overflow-hidden">
                 <CardHeader className="pb-2">
                   <CardDescription className="text-xs font-bold uppercase tracking-wider">Used Storage</CardDescription>
                   <CardTitle className="text-xl sm:text-2xl font-black">{overview.totalStorageReadable}</CardTitle>
@@ -360,10 +357,7 @@ export default function AnalyticsPage() {
                 </CardContent>
               </Card>
 
-              <Card className="shadow-md border-0 ring-1 ring-border/50 hover:ring-primary/20 transition-all overflow-hidden group">
-                <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
-                  <IconFiles className="h-16 w-16" />
-                </div>
+              <Card className="shadow-md border-0 ring-1 ring-border/50 hover:ring-primary/20 transition-all overflow-hidden">
                 <CardHeader className="pb-2">
                   <CardDescription className="text-xs font-bold uppercase tracking-wider">Total Files</CardDescription>
                   <CardTitle className="text-xl sm:text-2xl font-black">{overview.totalFiles.toLocaleString()}</CardTitle>
@@ -376,10 +370,7 @@ export default function AnalyticsPage() {
                 </CardContent>
               </Card>
 
-              <Card className="shadow-md border-0 ring-1 ring-border/50 hover:ring-primary/20 transition-all overflow-hidden group">
-                <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
-                  <IconTrash className="h-16 w-16" />
-                </div>
+              <Card className="shadow-md border-0 ring-1 ring-border/50 hover:ring-primary/20 transition-all overflow-hidden">
                 <CardHeader className="pb-2">
                   <CardDescription className="text-xs font-bold uppercase tracking-wider">Trash Items</CardDescription>
                   <CardTitle className="text-xl sm:text-2xl font-black">{overview.deletedFiles.toLocaleString()}</CardTitle>
@@ -391,10 +382,7 @@ export default function AnalyticsPage() {
                 </CardContent>
               </Card>
 
-              <Card className="shadow-md border-0 ring-1 ring-border/50 hover:ring-primary/20 transition-all overflow-hidden group">
-                <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
-                  <IconCrown className="h-16 w-16" />
-                </div>
+              <Card className="shadow-md border-0 ring-1 ring-border/50 hover:ring-primary/20 transition-all overflow-hidden">
                 <CardHeader className="pb-2">
                   <CardDescription className="text-xs font-bold uppercase tracking-wider">Storage Plan</CardDescription>
                   <CardTitle className="text-xl sm:text-2xl font-black capitalize">{overview.plan}</CardTitle>
@@ -744,10 +732,33 @@ export default function AnalyticsPage() {
                     totalItems={totalLogs}
                   />
                 </CardContent>
-                <CardFooter className="flex flex-col sm:flex-row items-center justify-between border-t bg-muted/5 py-3 px-6">
+                <CardFooter className="flex flex-col sm:flex-row items-center justify-between border-t bg-muted/5 py-3 px-6 gap-4">
                   <p className="text-xs text-muted-foreground font-medium">
                     Showing {activityLogs.length} of {totalLogs} events
                   </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      onClick={() => setLogsPagination(prev => ({ ...prev, pageIndex: Math.max(0, prev.pageIndex - 1) }))}
+                      disabled={logsPagination.pageIndex === 0 || isRefreshing}
+                    >
+                      <IconChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <span className="text-xs font-bold text-muted-foreground min-w-[3rem] text-center">
+                      Page {logsPagination.pageIndex + 1} of {totalPages || 1}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      onClick={() => setLogsPagination(prev => ({ ...prev, pageIndex: prev.pageIndex + 1 }))}
+                      disabled={logsPagination.pageIndex >= totalPages - 1 || isRefreshing}
+                    >
+                      <IconChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </CardFooter>
               </Card>
             </div>

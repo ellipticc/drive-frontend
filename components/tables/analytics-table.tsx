@@ -348,34 +348,6 @@ export function AnalyticsDataTable<TData, TValue>({
         </div>
       </div>
 
-      <div className="flex items-center justify-between px-1">
-        <p className="text-xs text-muted-foreground font-medium">
-          {typeof totalItems === 'number' ? `Showing ${data.length} of ${totalItems} events` : `Showing ${data.length} events`}
-        </p>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 w-8 p-0"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
-            <IconChevronLeft className="h-4 w-4" />
-          </Button>
-          <span className="text-xs font-bold text-muted-foreground min-w-[4rem] text-center tracking-tighter">
-            Page {pagination.pageIndex + 1} of {pageCount || 1}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 w-8 p-0"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
-            <IconChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
     </div>
   )
 }
