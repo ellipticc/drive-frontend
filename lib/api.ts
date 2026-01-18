@@ -3600,6 +3600,17 @@ class ApiClient {
     return this.request(`/analytics/dashboard${query}`);
   }
 
+  async getActivityLogs(page = 1, limit = 10): Promise<ApiResponse<{
+    activity: any[],
+    pagination: {
+      page: number,
+      limit: number,
+      total: number,
+      totalPages: number
+    }
+  }>> {
+    return this.request(`/analytics/activity?page=${page}&limit=${limit}`);
+  }
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);

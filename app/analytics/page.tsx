@@ -56,6 +56,13 @@ export default function AnalyticsPage() {
   const [timeRange, setTimeRange] = useState("30d")
   const [decryptedTopFiles, setDecryptedTopFiles] = useState<any[]>([])
 
+  const [activityLogs, setActivityLogs] = useState<any[]>([])
+  const [logsPagination, setLogsPagination] = useState({
+    pageIndex: 0,
+    pageSize: 10,
+  })
+  const [totalPages, setTotalPages] = useState(0)
+
   // Set page title
   useLayoutEffect(() => {
     document.title = "Analytics - Ellipticc Drive"
@@ -67,7 +74,13 @@ export default function AnalyticsPage() {
       setIsLoading(true)
       try {
         const days = timeRange === "7d" ? 7 : timeRange === "30d" ? 30 : 90
-        const response = await apiClient.getDashboardAnalytics(days)
+
+        // Parallel fetch
+        const [response, logsResponse] = await Promise.all([
+          apiClient.getDashboardAnalytics(days),
+          apiClient.getActivityLogs(logsPagination.pageIndex + 1, logsPagination.pageSize)
+        ])
+
         if (response.success && response.data) {
           const data = response.data as any
           setAnalytics(data)
@@ -89,6 +102,12 @@ export default function AnalyticsPage() {
             setDecryptedTopFiles(decrypted);
           }
         }
+
+        if (logsResponse.success && logsResponse.data) {
+          setActivityLogs(logsResponse.data.activity)
+          setTotalPages(logsResponse.data.pagination.totalPages)
+        }
+
       } catch (error) {
         console.error("Failed to fetch analytics:", error)
       } finally {
@@ -97,7 +116,7 @@ export default function AnalyticsPage() {
     }
 
     fetchAnalytics()
-  }, [timeRange])
+  }, [timeRange, logsPagination.pageIndex, logsPagination.pageSize])
 
   if (isLoading) {
     return (
@@ -154,320 +173,327 @@ export default function AnalyticsPage() {
   }))
 
   return (
-    <div className="flex h-screen w-full flex-col overflow-hidden bg-background">
+    <div className="flex h-screen w-full flex-col overflow-hidden">
       <SiteHeader />
-
       <main className="flex-1 overflow-y-auto">
         <div className="@container/main flex flex-1 flex-col gap-2">
-          <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full space-y-8 bg-background rounded-3xl shadow-sm border m-4">
+          <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
 
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Analytics Dashboard</h1>
-              <p className="text-muted-foreground mt-1 text-sm sm:text-base">
-                Overview of your storage usage, file distribution, and activity trends.
-              </p>
+            {/* Header */}
+            <div className="px-4 lg:px-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Analytics Dashboard</h1>
+                  <p className="text-muted-foreground mt-1 text-sm sm:text-base">
+                    Overview of your storage usage, file distribution, and activity trends.
+                  </p>
+                </div>
+
+                <Select value={timeRange} onValueChange={setTimeRange}>
+                  <SelectTrigger className="w-full sm:w-[180px] h-10 shadow-sm">
+                    <SelectValue placeholder="Select range" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="7d">Last 7 Days</SelectItem>
+                    <SelectItem value="30d">Last 30 Days</SelectItem>
+                    <SelectItem value="90d">Last 3 Months</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
-            <Select value={timeRange} onValueChange={setTimeRange}>
-              <SelectTrigger className="w-full sm:w-[180px] h-10 shadow-sm">
-                <SelectValue placeholder="Select range" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="7d">Last 7 Days</SelectItem>
-                <SelectItem value="30d">Last 30 Days</SelectItem>
-                <SelectItem value="90d">Last 3 Months</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Quick Stats Grid */}
-          <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-            <Card className="shadow-sm border-l-4 border-l-chart-1 hover:shadow-md transition-shadow">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Total Storage</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-baseline justify-between">
-                  <span className="text-2xl font-bold">{overview.totalStorageReadable}</span>
-                  <IconDatabase className="h-4 w-4 text-chart-1 opacity-50" />
-                </div>
-                <div className="mt-3 h-2 w-full bg-secondary rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-chart-1 rounded-full"
-                    style={{ width: `${Math.min(parseFloat(overview.percentUsed), 100)}%` }}
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground mt-2 flex justify-between">
-                  <span>{overview.percentUsed}% used</span>
-                  <span>{overview.quotaReadable} total</span>
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-sm border-l-4 border-l-chart-2 hover:shadow-md transition-shadow">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Total Files</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-baseline justify-between">
-                  <span className="text-2xl font-bold">{overview.totalFiles.toLocaleString()}</span>
-                  <IconFiles className="h-4 w-4 text-chart-2 opacity-50" />
-                </div>
-                <div className="mt-4 flex items-center text-xs text-muted-foreground">
-                  <IconTrash className="mr-1 h-3 w-3" />
-                  <span>{overview.deletedFiles} items in trash ({formatFileSize(overview.deletedSize)})</span>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-sm border-l-4 border-l-chart-3 hover:shadow-md transition-shadow">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Avg File Size</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-baseline justify-between">
-                  <span className="text-2xl font-bold">{overview.avgFileSizeReadable}</span>
-                  <IconRuler className="h-4 w-4 text-chart-3 opacity-50" />
-                </div>
-                <p className="text-xs text-muted-foreground mt-4">
-                  Global average across all file types
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-sm border-l-4 border-l-chart-5 hover:shadow-md transition-shadow">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Versions Preserved</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-baseline justify-between">
-                  <span className="text-2xl font-bold">{overview.totalVersions.toLocaleString()}</span>
-                  <IconHistory className="h-4 w-4 text-chart-5 opacity-50" />
-                </div>
-                <p className="text-xs text-muted-foreground mt-4">
-                  Document history snapshots
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Main Chart Area */}
-          <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3">
-            {/* Storage Growth - Spans 2 cols */}
-            <Card className="lg:col-span-2 shadow-md border-0 ring-1 ring-border/50">
-              <CardHeader>
-                <CardTitle className="text-lg sm:text-xl">Storage Growth</CardTitle>
-                <CardDescription className="text-xs sm:text-sm">Cumulative storage usage over the last {timeRangeLabel}</CardDescription>
-              </CardHeader>
-              <CardContent className="h-[250px] sm:h-[300px] lg:h-[350px]">
-                <ChartContainer config={chartConfig} className="h-full w-full">
-                  <AreaChart data={storageChartData} margin={{ top: 10, right: 5, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorStorage" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="var(--color-storage)" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="var(--color-storage)" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.1} />
-                    <XAxis
-                      dataKey="date"
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={10}
-                      tickFormatter={(val) => format(new Date(val), 'MMM d')}
-                      style={{ fontSize: '12px' }}
-                    />
-                    <YAxis
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={10}
-                      tickFormatter={(val) => `${val} MB`}
-                      style={{ fontSize: '12px' }}
-                    />
-                    <ChartTooltip content={<ChartTooltipContent indicator="dot" />} />
-                    <Area
-                      type="monotone"
-                      dataKey="storage"
-                      stroke="var(--color-storage)"
-                      fillOpacity={1}
-                      fill="url(#colorStorage)"
-                      strokeWidth={2}
-                    />
-                  </AreaChart>
-                </ChartContainer>
-              </CardContent>
-            </Card>
-
-            {/* File Type Distribution */}
-            <Card className="shadow-md border-0 ring-1 ring-border/50">
-              <CardHeader>
-                <CardTitle className="text-lg sm:text-xl">Storage Breakdown</CardTitle>
-                <CardDescription className="text-xs sm:text-sm">Distribution by file type</CardDescription>
-              </CardHeader>
-              <CardContent className="h-[400px] sm:h-[350px] flex flex-col">
-                <div className="flex-1 min-h-0">
-                  <ChartContainer config={chartConfig} className="h-full w-full">
-                    <PieChart>
-                      <Pie
-                        data={fileTypeBreakdown}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius="40%"
-                        outerRadius="70%"
-                        paddingAngle={3}
-                        dataKey="size"
-                        nameKey="type"
-                      >
-                        {fileTypeBreakdown.map((entry: any, index: number) => (
-                          <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} strokeWidth={0} />
-                        ))}
-                      </Pie>
-                      <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-                    </PieChart>
-                  </ChartContainer>
-                </div>
-                <div className="mt-4 space-y-3 overflow-y-auto max-h-[150px] pr-2 custom-scrollbar">
-                  {fileTypeBreakdown.map((item: any, index: number) => (
-                    <div key={item.type} className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-2">
-                        <div className="h-3 w-3 rounded-full" style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }} />
-                        <span className="font-medium text-foreground/80">{item.type}</span>
-                      </div>
-                      <div className="text-right">
-                        <span className="block font-bold">{item.sizeReadable}</span>
-                        <span className="block text-xs text-muted-foreground">{item.count} files</span>
-                      </div>
+            {/* Quick Stats Grid */}
+            <div className="px-4 lg:px-6">
+              <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+                <Card className="shadow-sm border-l-4 border-l-chart-1 hover:shadow-md transition-shadow">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Total Storage</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-2xl font-bold">{overview.totalStorageReadable}</span>
+                      <IconDatabase className="h-4 w-4 text-chart-1 opacity-50" />
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-2">
-            {/* Recent Upload Activity */}
-            <Card className="shadow-md border-0 ring-1 ring-border/50">
-              <CardHeader>
-                <CardTitle className="text-lg sm:text-xl">Upload Activity</CardTitle>
-                <CardDescription className="text-xs sm:text-sm">Files uploaded daily</CardDescription>
-              </CardHeader>
-              <CardContent className="h-[250px] sm:h-[300px]">
-                <ChartContainer config={chartConfig} className="h-full w-full">
-                  <BarChart data={activityChartData} margin={{ top: 10, right: 5, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.1} />
-                    <XAxis
-                      dataKey="date"
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={10}
-                      tickFormatter={(val) => format(new Date(val), 'MMM d')}
-                      style={{ fontSize: '12px' }}
-                    />
-                    <YAxis hide />
-                    <ChartTooltip cursor={{ fill: 'var(--muted)', opacity: 0.2 }} content={<ChartTooltipContent indicator="line" />} />
-                    <Bar dataKey="uploads" fill="var(--color-uploads)" radius={[4, 4, 0, 0]} barSize={30} />
-                  </BarChart>
-                </ChartContainer>
-              </CardContent>
-            </Card>
-
-            {/* Monthly Growth Trend (Long term) */}
-            <Card className="shadow-md border-0 ring-1 ring-border/50">
-              <CardHeader>
-                <CardTitle className="text-lg sm:text-xl">Monthly Growth</CardTitle>
-                <CardDescription className="text-xs sm:text-sm">Long-term storage accumulation (last 12 months)</CardDescription>
-              </CardHeader>
-              <CardContent className="h-[250px] sm:h-[300px]">
-                <ChartContainer config={chartConfig} className="h-full w-full">
-                  <ComposedChart data={growthChartData} margin={{ top: 10, right: 5, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.1} />
-                    <XAxis
-                      dataKey="month"
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={10}
-                      style={{ fontSize: '12px' }}
-                    />
-                    <YAxis
-                      yAxisId="left"
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={10}
-                      tickFormatter={(val) => `${val} MB`}
-                      style={{ fontSize: '12px' }}
-                    />
-                    <YAxis
-                      yAxisId="right"
-                      orientation="right"
-                      tickLine={false}
-                      axisLine={false}
-                      hide
-                    />
-                    <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
-                    <Bar yAxisId="left" dataKey="storage" fill="var(--color-files)" radius={[4, 4, 0, 0]} fillOpacity={0.6} />
-                    <Line yAxisId="right" type="monotone" dataKey="files" stroke="var(--color-storage)" strokeWidth={2} dot={{ r: 3 }} />
-                  </ComposedChart>
-                </ChartContainer>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Largest Files Table */}
-          <Card className="shadow-md border-0 ring-1 ring-border/50">
-            <CardHeader>
-              <CardTitle className="text-lg sm:text-xl">Largest Files</CardTitle>
-              <CardDescription className="text-xs sm:text-sm">Top 5 files taking up the most space</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-1">
-                {decryptedTopFiles.map((file) => (
-                  <div key={file.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors group">
-                    <div className="flex items-center gap-3 overflow-hidden">
-                      <div className="p-2 rounded bg-muted">
-                        {getFileIcon(file.mimeType)}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="font-medium truncate text-sm">{file.name}</p>
-                        <p className="text-xs text-muted-foreground">{format(new Date(file.createdAt), 'MMM d, yyyy')}</p>
-                      </div>
+                    <div className="mt-3 h-2 w-full bg-secondary rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-chart-1 rounded-full"
+                        style={{ width: `${Math.min(parseFloat(overview.percentUsed), 100)}%` }}
+                      />
                     </div>
-                    <div className="text-right whitespace-nowrap pl-4">
-                      <p className="font-bold text-sm">{file.sizeReadable}</p>
+                    <p className="text-xs text-muted-foreground mt-2 flex justify-between">
+                      <span>{overview.percentUsed}% used</span>
+                      <span>{overview.quotaReadable} total</span>
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card className="shadow-sm border-l-4 border-l-chart-2 hover:shadow-md transition-shadow">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Total Files</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-2xl font-bold">{overview.totalFiles.toLocaleString()}</span>
+                      <IconFiles className="h-4 w-4 text-chart-2 opacity-50" />
                     </div>
-                  </div>
-                ))}
-                {decryptedTopFiles.length === 0 && (
-                  <p className="text-center text-muted-foreground py-8">No files found</p>
-                )}
+                    <div className="mt-4 flex items-center text-xs text-muted-foreground">
+                      <IconTrash className="mr-1 h-3 w-3" />
+                      <span>{overview.deletedFiles} items in trash ({formatFileSize(overview.deletedSize)})</span>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="shadow-sm border-l-4 border-l-chart-3 hover:shadow-md transition-shadow">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Avg File Size</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-2xl font-bold">{overview.avgFileSizeReadable}</span>
+                      <IconRuler className="h-4 w-4 text-chart-3 opacity-50" />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-4">
+                      Global average across all file types
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card className="shadow-sm border-l-4 border-l-chart-5 hover:shadow-md transition-shadow">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Versions Preserved</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-2xl font-bold">{overview.totalVersions.toLocaleString()}</span>
+                      <IconHistory className="h-4 w-4 text-chart-5 opacity-50" />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-4">
+                      Document history snapshots
+                    </p>
+                  </CardContent>
+                </Card>
               </div>
-            </CardContent>
-          </Card>
+            </div>
 
-          {/* Analytics Data Table */}
-          <Card className="shadow-md border-0 ring-1 ring-border/50">
-            <CardHeader>
-              <CardTitle className="text-lg sm:text-xl">Activity Log</CardTitle>
-              <CardDescription className="text-xs sm:text-sm">Detailed breakdown of file activities and analytics</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <AnalyticsDataTable
-                data={[
-                  { id: 1, header: "Storage Overview", type: "Executive Summary", status: "Done", target: "5", limit: "10", reviewer: "Eddie Lake" },
-                  { id: 2, header: "File Distribution", type: "Technical Approach", status: "In Progress", target: "3", limit: "8", reviewer: "Jamik Tashpulatov" },
-                  { id: 3, header: "Upload Trends", type: "Narrative", status: "Done", target: "4", limit: "6", reviewer: "Eddie Lake" },
-                  { id: 4, header: "Storage Growth", type: "Design", status: "Not Started", target: "2", limit: "5", reviewer: "Assign reviewer" },
-                  { id: 5, header: "User Activity", type: "Capabilities", status: "In Progress", target: "6", limit: "12", reviewer: "Jamik Tashpulatov" },
-                  { id: 6, header: "File Types Analysis", type: "Focus Documents", status: "Done", target: "3", limit: "7", reviewer: "Eddie Lake" },
-                  { id: 7, header: "Monthly Report", type: "Table of Contents", status: "Not Started", target: "8", limit: "15", reviewer: "Assign reviewer" },
-                  { id: 8, header: "Performance Metrics", type: "Executive Summary", status: "In Progress", target: "5", limit: "9", reviewer: "Jamik Tashpulatov" },
-                ]}
-              />
-            </CardContent>
-          </Card>
+            {/* Main Chart Area */}
+            <div className="px-4 lg:px-6">
+              <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3">
+                {/* Storage Growth - Spans 2 cols */}
+                <Card className="lg:col-span-2 shadow-md border-0 ring-1 ring-border/50">
+                  <CardHeader>
+                    <CardTitle className="text-lg sm:text-xl">Storage Growth</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">Cumulative storage usage over the last {timeRangeLabel}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="h-[250px] sm:h-[300px] lg:h-[350px]">
+                    <ChartContainer config={chartConfig} className="h-full w-full">
+                      <AreaChart data={storageChartData} margin={{ top: 10, right: 5, left: -20, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="colorStorage" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="var(--color-storage)" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="var(--color-storage)" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.1} />
+                        <XAxis
+                          dataKey="date"
+                          tickLine={false}
+                          axisLine={false}
+                          tickMargin={10}
+                          tickFormatter={(val) => format(new Date(val), 'MMM d')}
+                          style={{ fontSize: '12px' }}
+                        />
+                        <YAxis
+                          tickLine={false}
+                          axisLine={false}
+                          tickMargin={10}
+                          tickFormatter={(val) => `${val} MB`}
+                          style={{ fontSize: '12px' }}
+                        />
+                        <ChartTooltip content={<ChartTooltipContent indicator="dot" />} />
+                        <Area
+                          type="monotone"
+                          dataKey="storage"
+                          stroke="var(--color-storage)"
+                          fillOpacity={1}
+                          fill="url(#colorStorage)"
+                          strokeWidth={2}
+                        />
+                      </AreaChart>
+                    </ChartContainer>
+                  </CardContent>
+                </Card>
 
-        </div>
+                {/* File Type Distribution */}
+                <Card className="shadow-md border-0 ring-1 ring-border/50">
+                  <CardHeader>
+                    <CardTitle className="text-lg sm:text-xl">Storage Breakdown</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">Distribution by file type</CardDescription>
+                  </CardHeader>
+                  <CardContent className="h-[400px] sm:h-[350px] flex flex-col">
+                    <div className="flex-1 min-h-0">
+                      <ChartContainer config={chartConfig} className="h-full w-full">
+                        <PieChart>
+                          <Pie
+                            data={fileTypeBreakdown}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius="40%"
+                            outerRadius="70%"
+                            paddingAngle={3}
+                            dataKey="size"
+                            nameKey="type"
+                          >
+                            {fileTypeBreakdown.map((entry: any, index: number) => (
+                              <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} strokeWidth={0} />
+                            ))}
+                          </Pie>
+                          <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+                        </PieChart>
+                      </ChartContainer>
+                    </div>
+                    <div className="mt-4 space-y-3 overflow-y-auto max-h-[150px] pr-2 custom-scrollbar">
+                      {fileTypeBreakdown.map((item: any, index: number) => (
+                        <div key={item.type} className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-2">
+                            <div className="h-3 w-3 rounded-full" style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }} />
+                            <span className="font-medium text-foreground/80">{item.type}</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="block font-bold">{item.sizeReadable}</span>
+                            <span className="block text-xs text-muted-foreground">{item.count} files</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+
+            <div className="px-4 lg:px-6">
+              <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-2">
+                {/* Recent Upload Activity */}
+                <Card className="shadow-md border-0 ring-1 ring-border/50">
+                  <CardHeader>
+                    <CardTitle className="text-lg sm:text-xl">Upload Activity</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">Files uploaded daily</CardDescription>
+                  </CardHeader>
+                  <CardContent className="h-[250px] sm:h-[300px]">
+                    <ChartContainer config={chartConfig} className="h-full w-full">
+                      <BarChart data={activityChartData} margin={{ top: 10, right: 5, left: -20, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.1} />
+                        <XAxis
+                          dataKey="date"
+                          tickLine={false}
+                          axisLine={false}
+                          tickMargin={10}
+                          tickFormatter={(val) => format(new Date(val), 'MMM d')}
+                          style={{ fontSize: '12px' }}
+                        />
+                        <YAxis hide />
+                        <ChartTooltip cursor={{ fill: 'var(--muted)', opacity: 0.2 }} content={<ChartTooltipContent indicator="line" />} />
+                        <Bar dataKey="uploads" fill="var(--color-uploads)" radius={[4, 4, 0, 0]} barSize={30} />
+                      </BarChart>
+                    </ChartContainer>
+                  </CardContent>
+                </Card>
+
+                {/* Monthly Growth Trend (Long term) */}
+                <Card className="shadow-md border-0 ring-1 ring-border/50">
+                  <CardHeader>
+                    <CardTitle className="text-lg sm:text-xl">Monthly Growth</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">Long-term storage accumulation (last 12 months)</CardDescription>
+                  </CardHeader>
+                  <CardContent className="h-[250px] sm:h-[300px]">
+                    <ChartContainer config={chartConfig} className="h-full w-full">
+                      <ComposedChart data={growthChartData} margin={{ top: 10, right: 5, left: -20, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.1} />
+                        <XAxis
+                          dataKey="month"
+                          tickLine={false}
+                          axisLine={false}
+                          tickMargin={10}
+                          style={{ fontSize: '12px' }}
+                        />
+                        <YAxis
+                          yAxisId="left"
+                          tickLine={false}
+                          axisLine={false}
+                          tickMargin={10}
+                          tickFormatter={(val) => `${val} MB`}
+                          style={{ fontSize: '12px' }}
+                        />
+                        <YAxis
+                          yAxisId="right"
+                          orientation="right"
+                          tickLine={false}
+                          axisLine={false}
+                          hide
+                        />
+                        <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
+                        <Bar yAxisId="left" dataKey="storage" fill="var(--color-files)" radius={[4, 4, 0, 0]} fillOpacity={0.6} />
+                        <Line yAxisId="right" type="monotone" dataKey="files" stroke="var(--color-storage)" strokeWidth={2} dot={{ r: 3 }} />
+                      </ComposedChart>
+                    </ChartContainer>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+
+            {/* Largest Files Table */}
+            <div className="px-4 lg:px-6">
+              <Card className="shadow-md border-0 ring-1 ring-border/50">
+                <CardHeader>
+                  <CardTitle className="text-lg sm:text-xl">Largest Files</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">Top 5 files taking up the most space</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-1">
+                    {decryptedTopFiles.map((file) => (
+                      <div key={file.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors group">
+                        <div className="flex items-center gap-3 overflow-hidden">
+                          <div className="p-2 rounded bg-muted">
+                            {getFileIcon(file.mimeType)}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-medium truncate text-sm">{file.name}</p>
+                            <p className="text-xs text-muted-foreground">{format(new Date(file.createdAt), 'MMM d, yyyy')}</p>
+                          </div>
+                        </div>
+                        <div className="text-right whitespace-nowrap pl-4">
+                          <p className="font-bold text-sm">{file.sizeReadable}</p>
+                        </div>
+                      </div>
+                    ))}
+                    {decryptedTopFiles.length === 0 && (
+                      <p className="text-center text-muted-foreground py-8">No files found</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Analytics Data Table */}
+            <div className="px-4 lg:px-6">
+              <Card className="shadow-md border-0 ring-1 ring-border/50">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                  <div className="space-y-1">
+                    <CardTitle className="text-lg sm:text-xl">Activity Log</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">Detailed breakdown of file activities and analytics</CardDescription>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <AnalyticsDataTable
+                    data={activityLogs}
+                    pagination={logsPagination}
+                    pageCount={totalPages}
+                    onPaginationChange={setLogsPagination}
+                  />
+                </CardContent>
+              </Card>
+            </div>
+
+          </div>
         </div>
       </main>
     </div>
