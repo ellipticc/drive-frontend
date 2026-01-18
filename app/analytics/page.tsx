@@ -723,7 +723,7 @@ export default function AnalyticsPage() {
                     </TooltipProvider>
                   </div>
                 </CardHeader>
-                <CardContent className="px-0 sm:px-6">
+                <CardContent>
                   <AnalyticsDataTable
                     data={activityLogs}
                     pagination={logsPagination}
@@ -732,34 +732,6 @@ export default function AnalyticsPage() {
                     totalItems={totalLogs}
                   />
                 </CardContent>
-                <CardFooter className="flex flex-col sm:flex-row items-center justify-between border-t bg-muted/5 py-3 px-6 gap-4">
-                  <p className="text-xs text-muted-foreground font-medium">
-                    Showing {activityLogs.length} of {totalLogs} events
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-8 w-8 p-0"
-                      onClick={() => setLogsPagination(prev => ({ ...prev, pageIndex: Math.max(0, prev.pageIndex - 1) }))}
-                      disabled={logsPagination.pageIndex === 0 || isRefreshing}
-                    >
-                      <IconChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <span className="text-xs font-bold text-muted-foreground min-w-[3rem] text-center">
-                      Page {logsPagination.pageIndex + 1} of {totalPages || 1}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-8 w-8 p-0"
-                      onClick={() => setLogsPagination(prev => ({ ...prev, pageIndex: prev.pageIndex + 1 }))}
-                      disabled={logsPagination.pageIndex >= totalPages - 1 || isRefreshing}
-                    >
-                      <IconChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardFooter>
               </Card>
             </div>
           </div>
