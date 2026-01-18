@@ -607,12 +607,7 @@ export default function AnalyticsPage() {
                               {isExporting ? (
                                 <IconLoader2 className="h-4 w-4 animate-spin" />
                               ) : (
-                                <div className="relative">
-                                  <IconDownload className="h-4 w-4" />
-                                  {!(analytics?.overview?.plan === 'pro' || analytics?.overview?.plan === 'unlimited') && (
-                                    <IconCrown className="h-2 w-2 absolute -top-1 -right-1 text-amber-500 fill-amber-500" />
-                                  )}
-                                </div>
+                                <IconDownload className="h-4 w-4" />
                               )}
                             </Button>
                           </span>
