@@ -585,7 +585,7 @@ export default function AnalyticsPage() {
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={handleWipe}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={handleWipe}>
                             <IconTrash className="h-4 w-4" />
                           </Button>
                         </TooltipTrigger>
@@ -650,8 +650,8 @@ export default function AnalyticsPage() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={confirmWipe}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={confirmWipe}
             >
               Clear History
             </AlertDialogAction>

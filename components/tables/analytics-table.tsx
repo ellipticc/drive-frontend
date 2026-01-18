@@ -10,12 +10,7 @@ import {
 import {
   IconChevronLeft,
   IconChevronRight,
-  IconFile,
-  IconFolder,
-  IconShare,
-  IconTrash,
   IconLock,
-  IconUpload,
   IconInfoCircle,
 } from "@tabler/icons-react"
 import { format } from "date-fns"
@@ -29,6 +24,8 @@ import {
 } from "@/components/ui/tooltip"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { getDiceBearAvatar } from "@/lib/avatar"
+import { decryptFilename } from "@/lib/crypto"
+import { masterKeyManager } from "@/lib/master-key"
 
 export interface ActivityLog {
   id: string
@@ -45,18 +42,92 @@ export interface ActivityLog {
   created_at: string
 }
 
-const formatEventName = (type: string) => {
-  return type.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
-}
+const DecryptedSummary = ({ log }: { log: ActivityLog }) => {
+  const [decryptedText, setDecryptedText] = React.useState<string | null>(null);
+  const [isDecrypting, setIsDecrypting] = React.useState(false);
 
-const formatBytes = (bytes: number, decimals = 2) => {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const dm = decimals < 0 ? 0 : decimals;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-}
+  React.useEffect(() => {
+    const decrypt = async () => {
+      // If it's blurred/archived, we just show the summary from backend
+      if (log.event_type === 'ARCHIVED') {
+        setDecryptedText(log.summary);
+        return;
+      }
+
+      const meta = log.metadata;
+      if (!meta) {
+        setDecryptedText(log.summary);
+        return;
+      }
+
+      // Check for encrypted filename and salt in metadata
+      const encryptedName = meta.encryptedName;
+      const nameSalt = meta.nameSalt;
+
+      if (encryptedName && nameSalt) {
+        setIsDecrypting(true);
+        try {
+          const masterKey = masterKeyManager.getMasterKey();
+          const decryptedName = await decryptFilename(encryptedName, nameSalt, masterKey);
+
+          let summary = log.summary;
+
+          // Custom summary logic for decrypted names
+          if (log.event_type === 'FILE_UPLOAD') {
+            summary = `Uploaded file "${decryptedName}"`;
+          } else if (log.event_type === 'FILE_RENAME') {
+            const oldEncryptedName = meta.oldEncryptedName;
+            const oldNameSalt = meta.oldNameSalt;
+            if (oldEncryptedName && oldNameSalt) {
+              const oldName = await decryptFilename(oldEncryptedName, oldNameSalt, masterKey);
+              summary = `Renamed "${oldName}" to "${decryptedName}"`;
+            } else {
+              summary = `Renamed file to "${decryptedName}"`;
+            }
+          } else if (log.event_type === 'FILE_MOVE') {
+            summary = `Moved file "${decryptedName}"`;
+          } else if (log.event_type === 'TRASH_MOVE') {
+            summary = `Moved file "${decryptedName}" to trash`;
+          } else if (log.event_type === 'TRASH_RESTORE') {
+            summary = `Restored file "${decryptedName}" from trash`;
+          } else if (log.event_type === 'FOLDER_CREATE') {
+            summary = `Created folder "${decryptedName}"`;
+          } else if (log.event_type === 'FOLDER_RENAME') {
+            const oldEncryptedName = meta.oldEncryptedName;
+            const oldNameSalt = meta.oldNameSalt;
+            if (oldEncryptedName && oldNameSalt) {
+              const oldName = await decryptFilename(oldEncryptedName, oldNameSalt, masterKey);
+              summary = `Renamed folder "${oldName}" to "${decryptedName}"`;
+            } else {
+              summary = `Renamed folder to "${decryptedName}"`;
+            }
+          } else if (log.event_type === 'FOLDER_MOVE') {
+            summary = `Moved folder "${decryptedName}"`;
+          } else if (log.event_type === 'FOLDER_TRASH_MOVE') {
+            summary = `Moved folder "${decryptedName}" to trash`;
+          }
+
+          setDecryptedText(summary);
+        } catch (err) {
+          console.error('Decryption failed for activity log:', err);
+          setDecryptedText(log.summary);
+        } finally {
+          setIsDecrypting(false);
+        }
+      } else {
+        setDecryptedText(log.summary);
+      }
+    };
+
+    decrypt();
+  }, [log]);
+
+  if (isDecrypting) {
+    return <span className="animate-pulse">Decrypting...</span>;
+  }
+
+  return <span>{decryptedText || log.summary}</span>;
+};
 
 export const columns: ColumnDef<ActivityLog>[] = [
   {
@@ -128,25 +199,10 @@ export const columns: ColumnDef<ActivityLog>[] = [
     accessorKey: "summary",
     header: "Details",
     cell: ({ row }) => {
-      const summary = row.original.summary || "N/A"
-      const meta = row.original.metadata
-
       return (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="max-w-[250px] truncate text-xs text-muted-foreground cursor-help">
-                {summary}
-              </div>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="max-w-[300px]">
-              <div className="space-y-2">
-                <p className="font-semibold text-[10px] uppercase tracking-wider text-muted-foreground border-b pb-1">Raw Metadata</p>
-                <pre className="text-[10px] whitespace-pre-wrap leading-tight">{JSON.stringify(meta, null, 2)}</pre>
-              </div>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <div className="max-w-[400px] truncate text-xs text-muted-foreground">
+          <DecryptedSummary log={row.original} />
+        </div>
       )
     },
   },

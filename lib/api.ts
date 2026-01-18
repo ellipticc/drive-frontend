@@ -544,6 +544,8 @@ export interface SecurityEvent {
   isTor?: boolean;
   riskLevel?: string;
   riskSignals?: string[];
+  is_blurred?: boolean;
+  summary?: string;
 }
 
 export interface ShareAccessLog {
