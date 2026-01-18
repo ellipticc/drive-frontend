@@ -464,7 +464,7 @@ export default function AnalyticsPage() {
                   <CardDescription className="text-xs sm:text-sm">Distribution by file type</CardDescription>
                 </CardHeader>
                 <CardContent className="h-[300px] flex items-center justify-center p-0">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ChartContainer config={chartConfig} className="h-full w-full">
                     <PieChart>
                       <Pie
                         data={typeChartData}
@@ -489,7 +489,7 @@ export default function AnalyticsPage() {
                       />
                       <ChartLegend content={<ChartLegendContent />} />
                     </PieChart>
-                  </ResponsiveContainer>
+                  </ChartContainer>
                 </CardContent>
               </Card>
             </div>

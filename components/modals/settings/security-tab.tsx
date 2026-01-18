@@ -1651,9 +1651,6 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                             Showing {securityEvents.length} of {securityEventsTotal} events
                         </p>
                         <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground font-mono mr-2">
-                                Page {securityEventsPage} of {securityEventsTotal > 0 ? Math.ceil(securityEventsTotal / 10) : 1}
-                            </span>
                             <Button
                                 variant="outline"
                                 size="sm"
@@ -1663,6 +1660,9 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                             >
                                 <IconChevronLeft className="h-4 w-4" />
                             </Button>
+                            <span className="text-xs text-muted-foreground min-w-[3rem] text-center">
+                                Page {securityEventsPage} of {securityEventsTotal > 0 ? Math.ceil(securityEventsTotal / 10) : 1}
+                            </span>
                             <Button
                                 variant="outline"
                                 size="sm"
