@@ -528,6 +528,7 @@ export const Table01DividerLineSm = ({
 
     // Rename conflict state
     const [renameConflictOpen, setRenameConflictOpen] = useState(false);
+    const [createFolderOpen, setCreateFolderOpen] = useState(false);
     const [renameConflictItems, setRenameConflictItems] = useState<Array<{ id: string; name: string; type: 'file' | 'folder' | 'paper'; existingPath: string; newPath: string; existingItem?: FileItem; existingFileId?: string }>>([]);
     const [pendingRenameManifest, setPendingRenameManifest] = useState<{
         manifestHash: string;
@@ -2631,25 +2632,21 @@ export const Table01DividerLineSm = ({
             // Default state - no selection
             return (
                 <>
-                    <CreateFolderModal
-                        parentId={currentFolderId === 'root' ? null : currentFolderId}
-                        onFolderCreated={(folder) => {
-                            if (folder) {
-                                notifyFileAdded(folder);
-                            } else {
-                                refreshFiles();
-                            }
-                        }}
-                    >
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" aria-label={t("files.newFolder")} data-create-folder-trigger>
-                                    <IconFolderPlus className="h-3.5 w-3.5" />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>{t("files.newFolder")}</TooltipContent>
-                        </Tooltip>
-                    </CreateFolderModal>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 w-7 p-0"
+                                aria-label={t("files.newFolder")}
+                                data-create-folder-trigger
+                                onClick={() => setCreateFolderOpen(true)}
+                            >
+                                <IconFolderPlus className="h-3.5 w-3.5" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>{t("files.newFolder")}</TooltipContent>
+                    </Tooltip>
                     <div className="h-5 w-px bg-border mx-1" />
                     <Tooltip>
                         <TooltipTrigger asChild>
@@ -3854,6 +3851,19 @@ export const Table01DividerLineSm = ({
                 className="hidden"
                 onChange={handleFolderSelect}
                 {...({ webkitdirectory: "" } as React.InputHTMLAttributes<HTMLInputElement>)}
+            />
+
+            <CreateFolderModal
+                open={createFolderOpen}
+                onOpenChange={setCreateFolderOpen}
+                parentId={currentFolderId === 'root' ? null : currentFolderId}
+                onFolderCreated={(folder) => {
+                    if (folder) {
+                        notifyFileAdded(folder);
+                    } else {
+                        refreshFiles();
+                    }
+                }}
             />
 
             <RenameModal

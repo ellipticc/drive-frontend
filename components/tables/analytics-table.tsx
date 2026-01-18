@@ -350,7 +350,7 @@ export function AnalyticsDataTable<TData, TValue>({
 
       <div className="flex items-center justify-between px-1">
         <p className="text-xs text-muted-foreground font-medium">
-          {totalItems ? `Showing ${data.length} of ${totalItems} events` : `Showing ${data.length} events`}
+          {typeof totalItems === 'number' ? `Showing ${data.length} of ${totalItems} events` : `Showing ${data.length} events`}
         </p>
         <div className="flex items-center gap-2">
           <Button
@@ -363,7 +363,7 @@ export function AnalyticsDataTable<TData, TValue>({
             <IconChevronLeft className="h-4 w-4" />
           </Button>
           <span className="text-xs font-bold text-muted-foreground min-w-[4rem] text-center uppercase tracking-tighter">
-            PAGE {pagination.pageIndex + 1} OF {pageCount || '?'}
+            PAGE {pagination.pageIndex + 1} OF {pageCount || 1}
           </span>
           <Button
             variant="outline"

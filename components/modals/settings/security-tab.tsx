@@ -1195,7 +1195,8 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                         variant="ghost"
                                         size="sm"
                                         onClick={() => setShowWipeDialog(true)}
-                                        className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
+                                        disabled={securityEvents.length === 0}
+                                        className={`h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 ${securityEvents.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     >
                                         <IconTrash className="h-4 w-4" />
                                     </Button>
@@ -1334,82 +1335,93 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
 
                                         return (
                                             <React.Fragment key={event.id}>
-                                                <tr
-                                                    className={`hover:bg-muted/30 transition-colors cursor-pointer group ${isBlurred ? 'opacity-70 pointer-events-none' : ''}`}
-                                                    onClick={() => !isBlurred && handleExpandEvent(event.id)}
-                                                >
-                                                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground hidden sm:table-cell">
-                                                        <div className="flex items-center gap-2">
-                                                            {isExpanded ? <IconChevronUp className="h-3 w-3" /> : <IconChevronDown className="h-3 w-3" />}
-                                                            <TooltipProvider>
-                                                                <Tooltip>
-                                                                    <TooltipTrigger asChild>
-                                                                        <span className="cursor-help underline decoration-dotted decoration-muted-foreground/30">
-                                                                            {event.id.substring(0, 8)}...
+                                                <TooltipProvider>
+                                                    <Tooltip delayDuration={200}>
+                                                        <TooltipTrigger asChild>
+                                                            <tr
+                                                                className={`hover:bg-muted/30 transition-colors cursor-pointer group ${isBlurred ? 'opacity-70 pointer-events-none' : ''}`}
+                                                                onClick={() => !isBlurred && handleExpandEvent(event.id)}
+                                                            >
+                                                                <td className="px-4 py-3 font-mono text-xs text-muted-foreground hidden sm:table-cell">
+                                                                    <div className="flex items-center gap-2">
+                                                                        {isExpanded ? <IconChevronUp className="h-3 w-3" /> : <IconChevronDown className="h-3 w-3" />}
+                                                                        <TooltipProvider>
+                                                                            <Tooltip>
+                                                                                <TooltipTrigger asChild>
+                                                                                    <span className="cursor-help underline decoration-dotted decoration-muted-foreground/30">
+                                                                                        {event.id.substring(0, 8)}...
+                                                                                    </span>
+                                                                                </TooltipTrigger>
+                                                                                <TooltipContent side="top">
+                                                                                    <p className="font-mono text-xs">{event.id}</p>
+                                                                                </TooltipContent>
+                                                                            </Tooltip>
+                                                                        </TooltipProvider>
+                                                                    </div>
+                                                                </td>
+                                                                <td className="px-4 py-3">
+                                                                    <div className={`flex flex-col ${isBlurred ? 'blur-[3px]' : ''}`}>
+                                                                        <span className="font-medium text-sm capitalize">
+                                                                            {isBlurred ? (event.summary || 'Archived Event') : (
+                                                                                event.eventType.replace(/_/g, ' ').toLowerCase()
+                                                                            )}
                                                                         </span>
-                                                                    </TooltipTrigger>
-                                                                    <TooltipContent side="top">
-                                                                        <p className="font-mono text-xs">{event.id}</p>
-                                                                    </TooltipContent>
-                                                                </Tooltip>
-                                                            </TooltipProvider>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-4 py-3">
-                                                        <div className={`flex flex-col ${isBlurred ? 'blur-[3px]' : ''}`}>
-                                                            <span className="font-medium text-sm capitalize">
-                                                                {isBlurred ? (event.summary || 'Archived Event') : (
-                                                                    event.eventType.replace(/_/g, ' ').toLowerCase()
-                                                                )}
-                                                            </span>
-                                                            {!isBlurred && (
-                                                                <div className="flex items-center gap-1.5 mt-0.5">
-                                                                    <TooltipProvider>
-                                                                        <Tooltip delayDuration={0}>
-                                                                            <TooltipTrigger className={`flex items-center ${!isPaid ? 'blur-[3px] scale-95' : ''}`}>
-                                                                                {osIcon}
-                                                                            </TooltipTrigger>
-                                                                            <TooltipContent side="top">
-                                                                                <p className="text-xs">{isPaid ? osName : "Upgrade for device details"}</p>
-                                                                            </TooltipContent>
-                                                                        </Tooltip>
-                                                                    </TooltipProvider>
-                                                                    <TooltipProvider>
-                                                                        <Tooltip delayDuration={0}>
-                                                                            <TooltipTrigger className={`flex items-center ${!isPaid ? 'blur-[3px] scale-95' : ''}`}>
-                                                                                {browserIcon}
-                                                                            </TooltipTrigger>
-                                                                            <TooltipContent side="top">
-                                                                                <p className="text-xs">{isPaid ? browserName : "Upgrade for browser details"}</p>
-                                                                            </TooltipContent>
-                                                                        </Tooltip>
-                                                                    </TooltipProvider>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-4 py-3 hidden md:table-cell">
-                                                        <div className={`flex flex-col ${isBlurred ? 'blur-[3px]' : ''}`}>
-                                                            <span className="text-sm font-mono whitespace-nowrap">
-                                                                {detailedEventsEnabled ? event.ipAddress : '••••••••••••'}
-                                                            </span>
-                                                            {!isPaid && !isBlurred && (
-                                                                <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">Location Restricted</span>
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-4 py-3">
-                                                        <span className={`text-xs font-bold uppercase py-0.5 px-1.5 rounded ${isBlurred ? 'bg-muted text-muted-foreground' : (event.status === 'success'
-                                                            ? 'text-emerald-600 bg-emerald-100/50 dark:bg-emerald-950/30'
-                                                            : 'text-red-500 bg-red-100/50 dark:bg-red-950/30')
-                                                            }`}>
-                                                            {isBlurred ? 'ARCHIVED' : event.status}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-4 py-3 text-right text-xs text-muted-foreground whitespace-nowrap">
-                                                        {formatDate(event.createdAt)}
-                                                    </td>
-                                                </tr>
+                                                                        {!isBlurred && (
+                                                                            <div className="flex items-center gap-1.5 mt-0.5">
+                                                                                <TooltipProvider>
+                                                                                    <Tooltip delayDuration={0}>
+                                                                                        <TooltipTrigger className={`flex items-center ${!isPaid ? 'blur-[3px] scale-95' : ''}`}>
+                                                                                            {osIcon}
+                                                                                        </TooltipTrigger>
+                                                                                        <TooltipContent side="top">
+                                                                                            <p className="text-xs">{isPaid ? osName : "Upgrade for device details"}</p>
+                                                                                        </TooltipContent>
+                                                                                    </Tooltip>
+                                                                                </TooltipProvider>
+                                                                                <TooltipProvider>
+                                                                                    <Tooltip delayDuration={0}>
+                                                                                        <TooltipTrigger className={`flex items-center ${!isPaid ? 'blur-[3px] scale-95' : ''}`}>
+                                                                                            {browserIcon}
+                                                                                        </TooltipTrigger>
+                                                                                        <TooltipContent side="top">
+                                                                                            <p className="text-xs">{isPaid ? browserName : "Upgrade for browser details"}</p>
+                                                                                        </TooltipContent>
+                                                                                    </Tooltip>
+                                                                                </TooltipProvider>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </td>
+                                                                <td className="px-4 py-3 hidden md:table-cell">
+                                                                    <div className={`flex flex-col ${isBlurred ? 'blur-[3px]' : ''}`}>
+                                                                        <span className="text-sm font-mono whitespace-nowrap">
+                                                                            {detailedEventsEnabled ? event.ipAddress : '••••••••••••'}
+                                                                        </span>
+                                                                        {!isPaid && !isBlurred && (
+                                                                            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">Location Restricted</span>
+                                                                        )}
+                                                                    </div>
+                                                                </td>
+                                                                <td className="px-4 py-3">
+                                                                    <span className={`text-xs font-bold uppercase py-0.5 px-1.5 rounded ${isBlurred ? 'bg-muted text-muted-foreground' : (event.status === 'success'
+                                                                        ? 'text-emerald-600 bg-emerald-100/50 dark:bg-emerald-950/30'
+                                                                        : 'text-red-500 bg-red-100/50 dark:bg-red-950/30')
+                                                                        }`}>
+                                                                        {isBlurred ? 'ARCHIVED' : event.status}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="px-4 py-3 text-right text-xs text-muted-foreground whitespace-nowrap">
+                                                                    {formatDate(event.createdAt)}
+                                                                </td>
+                                                            </tr>
+                                                        </TooltipTrigger>
+                                                        {isBlurred && (
+                                                            <TooltipContent>
+                                                                <p>Upgrade your plan to view full history</p>
+                                                            </TooltipContent>
+                                                        )}
+                                                    </Tooltip>
+                                                </TooltipProvider>
                                                 {isExpanded && (
                                                     <tr className="bg-muted/10 border-b">
                                                         <td colSpan={5} className="px-0 py-0">
@@ -1580,18 +1592,18 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                             Showing {securityEvents.length} of {securityEventsTotal} events
                         </p>
                         <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground font-mono uppercase mr-2">
+                                Page {securityEventsPage} of {securityEventsTotal > 0 ? Math.ceil(securityEventsTotal / 10) : 1}
+                            </span>
                             <Button
                                 variant="outline"
                                 size="sm"
                                 className="h-8 w-8 p-0"
-                                onClick={() => loadSecurityEvents(securityEventsPage - 1)}
-                                disabled={securityEventsPage === 1 || isLoadingSecurityEvents}
+                                onClick={() => loadSecurityEvents(Math.max(1, securityEventsPage - 1))}
+                                disabled={securityEventsPage <= 1 || isLoadingSecurityEvents}
                             >
                                 <IconChevronLeft className="h-4 w-4" />
                             </Button>
-                            <span className="text-xs text-muted-foreground min-w-[3rem] text-center">
-                                Page {securityEventsPage} of {Math.ceil(securityEventsTotal / 10)}
-                            </span>
                             <Button
                                 variant="outline"
                                 size="sm"

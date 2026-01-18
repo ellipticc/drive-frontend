@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useLayoutEffect, useEffect } from "react"
+import { useState, useLayoutEffect, useEffect, useRef } from "react"
 import { SiteHeader } from "@/components/layout/header/site-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart"
@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { formatFileSize } from "@/lib/utils"
 import { AnalyticsDataTable } from "@/components/tables/analytics-table"
+import { useGlobalUpload } from "@/components/global-upload-context"
 
 const chartConfig = {
   storage: {
@@ -80,6 +81,33 @@ export default function AnalyticsPage() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [showWipeDialog, setShowWipeDialog] = useState(false)
 
+  const { startUploadWithFiles, startUploadWithFolders } = useGlobalUpload()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const folderInputRef = useRef<HTMLInputElement>(null)
+
+  const handleFileUpload = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleFolderUpload = () => {
+    folderInputRef.current?.click()
+  }
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      startUploadWithFiles(Array.from(e.target.files), null) // null for root/default context
+    }
+    // Reset input
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const handleFolderSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      startUploadWithFolders(e.target.files, null)
+    }
+    if (folderInputRef.current) folderInputRef.current.value = ''
+  }
+
   // Set page title
   useLayoutEffect(() => {
     document.title = "Analytics - Ellipticc Drive"
@@ -131,23 +159,19 @@ export default function AnalyticsPage() {
       await apiClient.wipeActivityLogs()
       fetchLogsOnly()
       setShowWipeDialog(false)
+      setActivityLogs([]) // Clear local state immediately for responsiveness
     } catch (error) {
       console.error("Wipe failed:", error)
     }
   }
 
-  // Fetch analytics data
+  // Fetch analytics data (Overview)
   useEffect(() => {
     const fetchAnalytics = async () => {
       setIsLoading(true)
       try {
         const days = timeRange === "7d" ? 7 : timeRange === "30d" ? 30 : 90
-
-        // Parallel fetch
-        const [response, logsResponse] = await Promise.all([
-          apiClient.getDashboardAnalytics(days),
-          apiClient.getActivityLogs(logsPagination.pageIndex + 1, logsPagination.pageSize)
-        ])
+        const response = await apiClient.getDashboardAnalytics(days)
 
         if (response.success && response.data) {
           const data = response.data as any
@@ -170,13 +194,6 @@ export default function AnalyticsPage() {
             setDecryptedTopFiles(decrypted);
           }
         }
-
-        if (logsResponse.success && logsResponse.data) {
-          setActivityLogs(logsResponse.data.activity)
-          setTotalPages(logsResponse.data.pagination.totalPages)
-          setTotalLogs(logsResponse.data.pagination.total)
-        }
-
       } catch (error) {
         console.error("Failed to fetch analytics:", error)
       } finally {
@@ -185,12 +202,17 @@ export default function AnalyticsPage() {
     }
 
     fetchAnalytics()
-  }, [timeRange, logsPagination.pageIndex, logsPagination.pageSize])
+  }, [timeRange])
+
+  // Fetch activity logs (Pagination)
+  useEffect(() => {
+    fetchLogsOnly()
+  }, [logsPagination.pageIndex, logsPagination.pageSize])
 
   if (isLoading) {
     return (
       <div className="flex h-screen w-full flex-col overflow-hidden">
-        <SiteHeader />
+        <SiteHeader onFileUpload={handleFileUpload} onFolderUpload={handleFolderUpload} />
         <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8 bg-muted/10">
           <div className="mx-auto max-w-7xl flex flex-col gap-6">
             <div className="h-16 w-full max-w-sm rounded-lg bg-muted/20 animate-pulse" />
@@ -207,7 +229,7 @@ export default function AnalyticsPage() {
   if (!analytics) {
     return (
       <div className="flex h-screen w-full flex-col overflow-hidden">
-        <SiteHeader />
+        <SiteHeader onFileUpload={handleFileUpload} onFolderUpload={handleFolderUpload} />
         <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-7xl flex items-center justify-center h-full">
             <p className="text-muted-foreground">Failed to load analytics data</p>
@@ -243,7 +265,7 @@ export default function AnalyticsPage() {
 
   return (
     <div className="flex h-screen w-full flex-col overflow-hidden">
-      <SiteHeader />
+      <SiteHeader onFileUpload={handleFileUpload} onFolderUpload={handleFolderUpload} />
       <main className="flex-1 overflow-y-auto">
         <div className="@container/main flex flex-1 flex-col gap-2">
           <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
@@ -585,7 +607,13 @@ export default function AnalyticsPage() {
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={handleWipe}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className={`h-8 w-8 text-destructive hover:bg-destructive/10 ${activityLogs.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            onClick={handleWipe}
+                            disabled={activityLogs.length === 0}
+                          >
                             <IconTrash className="h-4 w-4" />
                           </Button>
                         </TooltipTrigger>
@@ -658,6 +686,23 @@ export default function AnalyticsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Hidden inputs for file/folder upload */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        className="hidden"
+        onChange={handleFileSelect}
+      />
+      <input
+        ref={folderInputRef}
+        type="file"
+        multiple
+        {...({ webkitdirectory: "", directory: "" } as any)}
+        className="hidden"
+        onChange={handleFolderSelect}
+      />
     </div>
   )
 }
