@@ -351,30 +351,28 @@ export function AnalyticsDataTable<TData, TValue>({
           <p className="text-xs text-muted-foreground font-medium">
             {totalItems ? `Showing ${data.length} of ${totalItems} events` : `Showing ${data.length} events`}
           </p>
-          <div className="flex items-center gap-4">
-            <span className="text-xs font-bold text-muted-foreground min-w-[5rem] text-center tracking-tight">
+          <div className="flex items-center gap-2 bg-background border rounded-lg p-0.5 shadow-sm">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 p-0 hover:bg-muted"
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+            >
+              <IconChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-xs font-medium text-muted-foreground min-w-[5rem] text-center tracking-tight border-x px-2 mx-1">
               Page {pagination.pageIndex + 1} of {pageCount || 1}
             </span>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 w-8 p-0 hover:bg-background"
-                onClick={() => table.previousPage()}
-                disabled={!table.getCanPreviousPage()}
-              >
-                <IconChevronLeft className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 w-8 p-0 hover:bg-background"
-                onClick={() => table.nextPage()}
-                disabled={!table.getCanNextPage()}
-              >
-                <IconChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 p-0 hover:bg-muted"
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+            >
+              <IconChevronRight className="h-4 w-4" />
+            </Button>
           </div>
         </div>
       </div>
