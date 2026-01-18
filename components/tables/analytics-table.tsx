@@ -3,21 +3,13 @@
 import * as React from "react"
 import {
   ColumnDef,
-  ColumnFiltersState,
-  SortingState,
-  VisibilityState,
   flexRender,
   getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
 import {
   IconChevronLeft,
   IconChevronRight,
-  IconChevronsLeft,
-  IconChevronsRight,
   IconFile,
   IconFolder,
   IconShare,
@@ -30,53 +22,23 @@ import { format } from "date-fns"
 
 import { Button } from "@/components/ui/button"
 import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Input } from "@/components/ui/input"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 export interface ActivityLog {
-  id: number
+  id: string
   event_type: string
   item_id: string
   metadata: any
   ip_address: string
   user_agent: string
+  user_name: string
+  user_avatar: string
   created_at: string
-}
-
-const getEventIcon = (type: string) => {
-  if (type.includes('FILE')) return <IconFile className="h-4 w-4" />
-  if (type.includes('FOLDER')) return <IconFolder className="h-4 w-4" />
-  if (type.includes('SHARE')) return <IconShare className="h-4 w-4" />
-  if (type.includes('TRASH')) return <IconTrash className="h-4 w-4" />
-  if (type.includes('LOCK')) return <IconLock className="h-4 w-4" />
-  if (type.includes('UPLOAD')) return <IconUpload className="h-4 w-4" />
-  return <IconInfoCircle className="h-4 w-4" />
-}
-
-const getEventColor = (type: string) => {
-  if (type.includes('DELETE') || type.includes('TRASH')) return "destructive"
-  if (type.includes('create') || type.includes('UPLOAD') || type.includes('RESTORE')) return "default" // or success if we had it
-  if (type.includes('SHARE')) return "secondary"
-  return "outline"
 }
 
 const formatEventName = (type: string) => {
@@ -85,19 +47,56 @@ const formatEventName = (type: string) => {
 
 export const columns: ColumnDef<ActivityLog>[] = [
   {
+    accessorKey: "id",
+    header: "Event ID",
+    cell: ({ row }) => {
+      const id = row.getValue("id") as string
+      return (
+        <div className="font-mono text-xs text-muted-foreground flex items-center gap-2">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="cursor-help underline decoration-dotted decoration-muted-foreground/30">
+                  {id.substring(0, 8)}...
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <p className="font-mono text-xs">{id}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      )
+    },
+  },
+  {
     accessorKey: "event_type",
     header: "Event",
     cell: ({ row }) => {
       const type = row.getValue("event_type") as string
       return (
-        <div className="flex items-center gap-2">
-          <Badge variant={getEventColor(type) as any} className="gap-1 whitespace-nowrap">
-            {getEventIcon(type)}
-            {formatEventName(type)}
-          </Badge>
-        </div>
+        <span className="font-medium text-sm capitalize whitespace-nowrap">
+          {type.replace(/_/g, ' ').toLowerCase()}
+        </span>
       )
     },
+  },
+  {
+    id: "user",
+    header: "User",
+    cell: ({ row }) => {
+      const name = row.original.user_name || "Unknown User"
+      const avatar = row.original.user_avatar
+      return (
+        <div className="flex items-center gap-2">
+          <Avatar className="h-6 w-6 border shadow-sm">
+            <AvatarImage src={avatar} alt={name} />
+            <AvatarFallback className="text-[10px] bg-muted">{name.substring(0, 2).toUpperCase()}</AvatarFallback>
+          </Avatar>
+          <span className="text-sm font-medium whitespace-nowrap">{name}</span>
+        </div>
+      )
+    }
   },
   {
     accessorKey: "metadata",
@@ -109,7 +108,7 @@ export const columns: ColumnDef<ActivityLog>[] = [
       let details = "N/A"
 
       if (meta) {
-        if (type === 'FILE_MOVE') {
+        if (type === 'FILE_MOVE' || type === 'FILE_MOVE_TO_FOLDER') {
           details = `Moved file to folder`
         } else if (type === 'FILE_RENAME') {
           details = `Renamed file`
@@ -119,32 +118,30 @@ export const columns: ColumnDef<ActivityLog>[] = [
           details = `Uploaded file (${meta.fileSize ? (meta.fileSize / 1024 / 1024).toFixed(2) + ' MB' : 'unknown size'})`
         } else if (meta.itemType) {
           details = `${meta.itemType} action`
+        } else if (type === 'SHARE_CREATE') {
+          details = `Created share link`
+        } else if (type === 'TRASH_MOVE' || type === 'FOLDER_TRASH_MOVE') {
+          details = `Moved to trash`
         } else {
-          // Fallback to simple JSON string or key info if possible
-          const keys = Object.keys(meta).filter(k => k !== 'req' && k !== 'headers' && k !== 'user')
-          if (keys.length > 0) details = `${keys.join(', ')}`
+          const keys = Object.keys(meta).filter(k => k !== 'req' && k !== 'headers' && k !== 'user' && k !== 'ip' && k !== 'userAgent')
+          if (keys.length > 0) details = keys.map(k => `${k}: ${typeof meta[k] === 'object' ? '...' : meta[k]}`).join(', ')
         }
       }
 
       return (
-        <div className="max-w-[300px] truncate text-muted-foreground" title={JSON.stringify(meta, null, 2)}>
+        <div className="max-w-[250px] truncate text-xs text-muted-foreground" title={JSON.stringify(meta, null, 2)}>
           {details}
         </div>
       )
     },
   },
   {
-    accessorKey: "ip_address",
-    header: "IP Address",
-    cell: ({ row }) => <div className="font-mono text-xs text-muted-foreground">{row.getValue("ip_address")}</div>,
-  },
-  {
     accessorKey: "created_at",
-    header: "Date",
+    header: "Date & Time",
     cell: ({ row }) => {
       return (
-        <div className="text-sm text-muted-foreground whitespace-nowrap">
-          {format(new Date(row.getValue("created_at")), "MMM d, yyyy HH:mm")}
+        <div className="text-xs text-muted-foreground whitespace-nowrap text-right">
+          {format(new Date(row.getValue("created_at")), "dd/MM/yyyy HH:mm:ss")}
         </div>
       )
     },
@@ -155,6 +152,7 @@ interface DataTableProps<TData, TValue> {
   columns?: ColumnDef<TData, TValue>[]
   data: TData[]
   pageCount?: number
+  totalItems?: number
   pagination?: {
     pageIndex: number
     pageSize: number
@@ -166,119 +164,116 @@ export function AnalyticsDataTable<TData, TValue>({
   columns: userColumns,
   data,
   pageCount,
+  totalItems,
   pagination: externalPagination,
   onPaginationChange,
 }: DataTableProps<TData, TValue>) {
-  const [sorting, setSorting] = React.useState<SortingState>([])
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
-  const [rowSelection, setRowSelection] = React.useState({})
   const [internalPagination, setInternalPagination] = React.useState({
     pageIndex: 0,
     pageSize: 10,
   })
 
-  // Use external pagination if provided, otherwise internal
   const pagination = externalPagination || internalPagination
   const setPagination = onPaginationChange || setInternalPagination
 
-  // Use default columns if not provided
   const tableColumns = userColumns || (columns as unknown as ColumnDef<TData, TValue>[])
 
   const table = useReactTable({
     data,
     columns: tableColumns,
-    pageCount: pageCount ?? -1, // -1 means unknown/client-side if not provided
-    manualPagination: !!pageCount, // Enable server-side pagination if pageCount is provided
+    pageCount: pageCount ?? -1,
+    manualPagination: !!pageCount,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    onSortingChange: setSorting,
-    getSortedRowModel: getSortedRowModel(),
-    onColumnFiltersChange: setColumnFilters,
-    getFilteredRowModel: getFilteredRowModel(),
-    onColumnVisibilityChange: setColumnVisibility,
     onPaginationChange: setPagination as any,
     state: {
-      sorting,
-      columnFilters,
-      columnVisibility,
       pagination,
     },
   })
 
   return (
-    <div className="w-full">
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => {
-                  return (
-                    <TableHead key={header.id}>
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
+    <div className="w-full space-y-4">
+      <div className="border rounded-lg overflow-hidden bg-card shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/50 border-b">
+              {table.getHeaderGroups().map((headerGroup) => (
+                <tr key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => {
+                    return (
+                      <th
+                        key={header.id}
+                        className={`px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground ${header.id === 'created_at' ? 'text-right' : ''}`}
+                      >
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                      </th>
+                    )
+                  })}
+                </tr>
+              ))}
+            </thead>
+            <tbody className="divide-y divide-muted/50">
+              {table.getRowModel().rows?.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <tr
+                    key={row.id}
+                    className="hover:bg-muted/30 transition-colors group"
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <td key={cell.id} className="px-4 py-3">
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
                         )}
-                    </TableHead>
-                  )
-                })}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={tableColumns.length}
-                  className="h-24 text-center"
-                >
-                  No results.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-      <div className="flex items-center justify-end space-x-2 py-4">
-        <div className="flex-1 text-sm text-muted-foreground">
-          Page {table.getState().pagination.pageIndex + 1} of{" "}
-          {table.getPageCount()}
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td
+                    colSpan={tableColumns.length}
+                    className="px-4 py-12 text-center text-muted-foreground"
+                  >
+                    <IconInfoCircle className="h-8 w-8 mx-auto mb-2 opacity-20" />
+                    <p className="text-sm font-medium">No activity logs recorded yet.</p>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
-        <div className="space-x-2">
+      </div>
+
+      <div className="flex items-center justify-between px-1">
+        <p className="text-xs text-muted-foreground font-medium">
+          {totalItems ? `Showing ${data.length} of ${totalItems} events` : `Showing ${data.length} events`}
+        </p>
+        <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
+            className="h-8 w-8 p-0"
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
           >
-            Previous
+            <IconChevronLeft className="h-4 w-4" />
           </Button>
+          <span className="text-xs font-bold text-muted-foreground min-w-[4rem] text-center uppercase tracking-tighter">
+            PAGE {pagination.pageIndex + 1} OF {pageCount || '?'}
+          </span>
           <Button
             variant="outline"
             size="sm"
+            className="h-8 w-8 p-0"
             onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
           >
-            Next
+            <IconChevronRight className="h-4 w-4" />
           </Button>
         </div>
       </div>

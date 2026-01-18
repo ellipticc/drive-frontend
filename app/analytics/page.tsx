@@ -62,6 +62,7 @@ export default function AnalyticsPage() {
     pageSize: 10,
   })
   const [totalPages, setTotalPages] = useState(0)
+  const [totalLogs, setTotalLogs] = useState(0)
 
   // Set page title
   useLayoutEffect(() => {
@@ -106,6 +107,7 @@ export default function AnalyticsPage() {
         if (logsResponse.success && logsResponse.data) {
           setActivityLogs(logsResponse.data.activity)
           setTotalPages(logsResponse.data.pagination.totalPages)
+          setTotalLogs(logsResponse.data.pagination.total)
         }
 
       } catch (error) {
@@ -487,6 +489,7 @@ export default function AnalyticsPage() {
                     data={activityLogs}
                     pagination={logsPagination}
                     pageCount={totalPages}
+                    totalItems={totalLogs}
                     onPaginationChange={setLogsPagination}
                   />
                 </CardContent>
