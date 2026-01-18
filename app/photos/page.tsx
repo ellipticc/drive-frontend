@@ -463,7 +463,7 @@ export default function PhotosPage() {
     }
 
     return (
-        <div className="flex h-screen w-full flex-col overflow-hidden">
+        <div className="flex min-h-screen w-full flex-col">
             <SiteHeader
                 onSearch={handleSearch}
                 searchValue={searchQuery}
@@ -471,9 +471,9 @@ export default function PhotosPage() {
                 onFolderUpload={handleFolderUpload}
             />
 
-            <main className="flex-1 overflow-y-auto">
-                <div className="flex flex-col h-full bg-background relative md:rounded-2xl overflow-hidden">
-                    <div className="flex flex-col flex-1 overflow-hidden relative">
+            <main className="flex-1">
+                <div className="flex flex-col bg-background relative md:rounded-2xl">
+                    <div className="flex flex-col flex-1 relative">
                         <GalleryToolbar
                             isRefreshing={isRefreshing}
                             onRefresh={() => fetchAndDecryptPhotos(true)}
@@ -483,46 +483,6 @@ export default function PhotosPage() {
                             setTimeScale={setTimeScale}
                             zoomLevel={zoomLevel} // This is Column Count (default 4)
                             setZoomLevel={setZoomLevel}
-                        />
-
-                        {isLoading ? (
-                            <div className="flex-1 flex flex-col items-center justify-center space-y-4">
-                                <IconLoader2 className="h-10 w-10 animate-spin text-primary" />
-                                <p className="text-muted-foreground animate-pulse">Decrypting your secure gallery...</p>
-                            </div>
-                        ) : mediaItems.length === 0 ? (
-                            <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
-                                <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-6">
-                                    <IconPhoto className="h-10 w-10 text-primary" />
-                                </div>
-                                <h3 className="text-xl font-semibold mb-2">No photos yet</h3>
-                                <p className="text-muted-foreground max-w-xs mx-auto mb-6">
-                                    Upload your first photo to see it in your secure gallery.
-                                </p>
-                            </div>
-                        ) : (
-                            <>
-                                <GalleryGrid
-                                    groupedItems={groupedItems}
-                                    sortedDates={sortedDates}
-                                    zoomLevel={zoomLevel} // Pass column count
-                                    selectedIds={selectedIds}
-                                    isSelectionMode={isSelectionMode}
-                                    onSelect={(id, range) => toggleSelection(id, true, range)}
-                                    onPreview={handlePreview}
-                                    onAction={handleAction}
-                                    timeScale={timeScale}
-                                />
-
-                                <GalleryToolbar
-                                    viewMode={viewMode}
-                                    setViewMode={setViewMode}
-                                    timeScale={timeScale}
-                                    setTimeScale={setTimeScale}
-                                    zoomLevel={zoomLevel}
-                            setZoomLevel={setZoomLevel}
-                            onRefresh={() => fetchAndDecryptPhotos(true)}
-                            isRefreshing={isRefreshing}
                             selectedCount={selectedIds.size}
                             onDownloadSelected={handleBulkDownload}
                             onShareSelected={() => {
@@ -552,8 +512,35 @@ export default function PhotosPage() {
                                 setIsRenameOpen(true);
                             }}
                         />
-                    </>
-                )}
+
+                        {isLoading ? (
+                            <div className="flex-1 flex flex-col items-center justify-center space-y-4">
+                                <IconLoader2 className="h-10 w-10 animate-spin text-primary" />
+                                <p className="text-muted-foreground animate-pulse">Decrypting your secure gallery...</p>
+                            </div>
+                        ) : mediaItems.length === 0 ? (
+                            <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+                                <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-6">
+                                    <IconPhoto className="h-10 w-10 text-primary" />
+                                </div>
+                                <h3 className="text-xl font-semibold mb-2">No photos yet</h3>
+                                <p className="text-muted-foreground max-w-xs mx-auto mb-6">
+                                    Upload your first photo to see it in your secure gallery.
+                                </p>
+                            </div>
+                        ) : (
+                            <GalleryGrid
+                                groupedItems={groupedItems}
+                                sortedDates={sortedDates}
+                                zoomLevel={zoomLevel} // Pass column count
+                                selectedIds={selectedIds}
+                                isSelectionMode={isSelectionMode}
+                                onSelect={(id, range) => toggleSelection(id, true, range)}
+                                onPreview={handlePreview}
+                                onAction={handleAction}
+                                timeScale={timeScale}
+                            />
+                        )}
 
 
                     </div>

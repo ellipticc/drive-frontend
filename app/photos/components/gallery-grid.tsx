@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useMemo, useRef } from "react"
-import { useVirtualizer } from "@tanstack/react-virtual"
+import { useWindowVirtualizer } from "@tanstack/react-virtual"
 import { format, parseISO, isToday, isYesterday } from "date-fns"
 import { GalleryItem } from "./gallery-item"
 import { Tag } from "@/lib/api"
@@ -105,9 +105,8 @@ export function GalleryGrid({
         return rows
     }, [sortedDates, groupedItems, columnCount])
 
-    const rowVirtualizer = useVirtualizer({
+    const rowVirtualizer = useWindowVirtualizer({
         count: virtualRows.length,
-        getScrollElement: () => parentRef.current,
         estimateSize: (index) => {
             const row = virtualRows[index]
             if (row.type === 'header') return 56 // Fixed height
@@ -126,6 +125,7 @@ export function GalleryGrid({
             return itemWidth + gap + 2
         },
         overscan: 5,
+        scrollMargin: parentRef.current?.offsetTop ?? 0,
     })
 
     const formatHeaderDate = (dateStr: string) => {
@@ -143,7 +143,7 @@ export function GalleryGrid({
     }
 
     return (
-        <div ref={parentRef} className="flex-1 overflow-y-auto custom-scrollbar h-full w-full">
+        <div ref={parentRef} className="flex-1 w-full">
             <div
                 style={{
                     height: `${rowVirtualizer.getTotalSize()}px`,
@@ -164,7 +164,7 @@ export function GalleryGrid({
                                 left: 0,
                                 width: '100%',
                                 height: `${virtualRow.size}px`,
-                                transform: `translateY(${virtualRow.start}px)`,
+                                transform: `translateY(${virtualRow.start - (rowVirtualizer.options.scrollMargin)}px)`,
                                 transition: 'transform 0.2s ease-out', // Smooth row movement
                                 willChange: 'transform'
                             }}

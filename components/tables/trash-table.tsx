@@ -715,9 +715,9 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
 
                             <Table.Body dependencies={[sortedItems, selectedItems.size, rowVirtualizer.getVirtualItems()]}>
                                 {/* Top Spacer */}
-                                {rowVirtualizer.getVirtualItems().length > 0 && rowVirtualizer.getVirtualItems()[0].start > 0 && (
+                                {rowVirtualizer.getVirtualItems().length > 0 && rowVirtualizer.getVirtualItems()[0].start - rowVirtualizer.options.scrollMargin > 0 && (
                                     <Table.Row id="spacer-top" className="hover:bg-transparent border-0 focus-visible:outline-none">
-                                        <Table.Cell colSpan={isMobile ? 3 : 6} style={{ height: rowVirtualizer.getVirtualItems()[0].start, padding: 0 }} />
+                                        <Table.Cell colSpan={isMobile ? 3 : 6} style={{ height: rowVirtualizer.getVirtualItems()[0].start - rowVirtualizer.options.scrollMargin, padding: 0 }} />
                                     </Table.Row>
                                 )}
 
