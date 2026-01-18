@@ -691,6 +691,48 @@ export default function AnalyticsPage() {
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
+
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                            onClick={handleExport}
+                            disabled={isExporting}
+                          >
+                            {isExporting ? (
+                              <IconLoader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <IconDownload className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Export CSV</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
+                            onClick={handleWipe}
+                            disabled={activityLogs.length === 0}
+                          >
+                            <IconTrash className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Wipe History</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                 </CardHeader>
                 <CardContent className="px-0 sm:px-6">
@@ -702,42 +744,10 @@ export default function AnalyticsPage() {
                     totalItems={totalLogs}
                   />
                 </CardContent>
-                <CardFooter className="flex flex-col sm:flex-row items-center justify-between border-t bg-muted/5 py-4 gap-4">
-                  <div className="flex items-center gap-4 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0 no-scrollbar">
-                    <div className="flex items-center gap-2 whitespace-nowrap">
-                      <div className="h-3 w-3 rounded-full bg-blue-500" />
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Uploads</span>
-                    </div>
-                    <div className="flex items-center gap-2 whitespace-nowrap">
-                      <div className="h-3 w-3 rounded-full bg-emerald-500" />
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Security</span>
-                    </div>
-                    <div className="flex items-center gap-2 whitespace-nowrap">
-                      <div className="h-3 w-3 rounded-full bg-purple-500" />
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Access</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-8 text-[11px] font-bold uppercase tracking-wider gap-2 ring-1 ring-border/50 bg-background"
-                      onClick={handleExport}
-                      disabled={isExporting}
-                    >
-                      {isExporting ? <IconLoader2 className="h-3 w-3 animate-spin" /> : <IconDownload className="h-3 w-3" />}
-                      Export CSV
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-8 text-[11px] font-bold uppercase tracking-wider text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 gap-2 ring-1 ring-border/50 bg-background"
-                      onClick={handleWipe}
-                    >
-                      <IconTrash className="h-3 w-3" />
-                      Wipe History
-                    </Button>
-                  </div>
+                <CardFooter className="flex flex-col sm:flex-row items-center justify-between border-t bg-muted/5 py-3 px-6">
+                  <p className="text-xs text-muted-foreground font-medium">
+                    Showing {activityLogs.length} of {totalLogs} events
+                  </p>
                 </CardFooter>
               </Card>
             </div>
