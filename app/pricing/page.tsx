@@ -652,7 +652,18 @@ const BillingPage = () => {
             <h1 className="text-lg font-medium leading-none font-sans text-foreground">Billing</h1>
           </div>
           <div className="ml-auto flex items-center gap-2">
-            <ThemeToggle />
+            <TooltipProvider delayDuration={0}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div>
+                    <ThemeToggle />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p>Toggle Theme <span className="text-muted-foreground ml-1">Ctrl+D</span></p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
       </header>
