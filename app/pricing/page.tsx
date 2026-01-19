@@ -58,6 +58,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useFormatter } from '@/hooks/use-formatter';
 import { apiClient, Subscription, BillingUsage, SubscriptionHistory } from '@/lib/api';
 import { cn, formatFileSize } from '@/lib/utils';
 import { PricingTable } from '@/components/ui/pricing-table';
@@ -401,6 +402,7 @@ const featureTooltips: Record<string, string> = {
 
 const BillingPage = () => {
   const [frequency, setFrequency] = useState<'monthly' | 'yearly'>('yearly');
+  const { formatDate } = useFormatter();
   const [loading, setLoading] = useState(true);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [hasUsedTrial, setHasUsedTrial] = useState<boolean>(false);
@@ -687,10 +689,10 @@ const BillingPage = () => {
                         ? 'You are currently on the free plan.'
                         : subscription?.cancelAtPeriodEnd
                           ? (subscription.currentPeriodEnd
-                            ? `Your ${subscription.status === 'trialing' ? 'trial' : 'plan'} will expire on ${new Date(subscription.currentPeriodEnd * 1000).toLocaleDateString()}.`
+                            ? `Your ${subscription.status === 'trialing' ? 'trial' : 'plan'} will expire on ${formatDate(subscription.currentPeriodEnd * 1000)}.`
                             : `Your ${subscription.status === 'trialing' ? 'trial' : 'plan'} is scheduled for termination.`)
                           : (subscription?.currentPeriodEnd
-                            ? `Your next renewal is on ${new Date(subscription.currentPeriodEnd * 1000).toLocaleDateString()}.`
+                            ? `Your next renewal is on ${formatDate(subscription.currentPeriodEnd * 1000)}.`
                             : 'Subscription status active.')}
                     </FormCardDescription>
                   </div>

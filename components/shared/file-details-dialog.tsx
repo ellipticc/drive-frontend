@@ -14,6 +14,7 @@ import {
     TooltipContent,
     TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { useFormatter } from "@/hooks/use-formatter"
 
 interface FileDetailsDialogProps {
     open: boolean
@@ -38,17 +39,7 @@ export function FileDetailsDialog({
     ownerIsCheckmarked,
     isFolder
 }: FileDetailsDialogProps) {
-
-    const formatDate = (dateString?: string) => {
-        if (!dateString) return 'Unknown';
-        return new Date(dateString).toLocaleDateString(undefined, {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-    };
+    const { formatDate } = useFormatter();
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>

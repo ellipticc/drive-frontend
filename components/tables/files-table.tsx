@@ -3330,7 +3330,7 @@ export const Table01DividerLineSm = ({
                                                                                 <IconLock className="h-3.5 w-3.5 text-amber-500 shrink-0 ml-1" />
                                                                             </TooltipTrigger>
                                                                             <TooltipContent>
-                                                                                <p>{t("files.locked", { date: new Date(item.lockedUntil).toLocaleDateString() })}</p>
+                                                                                <p>{t("files.locked", { date: formatDate(item.lockedUntil) })}</p>
                                                                             </TooltipContent>
                                                                         </Tooltip>
                                                                     )}

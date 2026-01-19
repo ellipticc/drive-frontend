@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { useFormatter } from '@/hooks/use-formatter';
 import { IconLoader2, IconDownload, IconFile, IconAlertCircle, IconFolderOpen, IconChevronRight, IconLock, IconCaretLeftRightFilled, IconLogout, IconEyeOff, IconInfoCircle, IconRosetteDiscountCheckFilled, IconArrowLeft } from '@tabler/icons-react';
 import {
   Avatar,
@@ -115,6 +116,7 @@ export default function SharedDownloadPage() {
   const params = useParams();
   const router = useRouter();
   const shareId = params.shareId as string;
+  const { formatDate } = useFormatter();
 
   const [shareDetails, setShareDetails] = useState<ShareDetails | null>(null);
   const [manifest, setManifest] = useState<Record<string, ManifestItem>>({});
@@ -823,16 +825,6 @@ export default function SharedDownloadPage() {
       setBreadcrumbs([...breadcrumbs, { id: folderId, name: folderName }]);
     }
     setCurrentFolderId(folderId);
-  };
-
-
-
-  const formatDate = (dateString: string): string => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
   };
 
   if (loading || checkingSession) {

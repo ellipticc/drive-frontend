@@ -40,6 +40,7 @@ import {
   IconLockSquareRounded,
   IconGift,
   IconBell,
+  IconLanguage,
   IconCoin,
   IconLoader2,
   IconX,
@@ -56,6 +57,9 @@ import {
 import {
   SecurityTab
 } from "./settings/security-tab"
+import {
+  LanguageTimeTab
+} from "./settings/language-time-tab"
 import {
   NotificationsTab
 } from "./settings/notifications-tab"
@@ -104,6 +108,7 @@ interface SettingsModalProps {
 const data = {
   nav: [
     { name: "General", icon: IconUserCog, id: "general" },
+    { name: "Language & Time", icon: IconLanguage, id: "language" },
     { name: "Security & Privacy", icon: IconLockSquareRounded, id: "security" },
     { name: "Billing", icon: IconCoin, id: "billing" },
     { name: "Notifications", icon: IconBell, id: "notifications" },
@@ -126,10 +131,11 @@ export function SettingsModal({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const nameInputRef = useRef<HTMLInputElement>(null)
   const { registerOnUploadComplete, unregisterOnUploadComplete } = useGlobalUpload()
-  const { t } = useLanguage()
+  const { language, setLanguage, t } = useLanguage()
 
   const navItems = [
     { name: t("settings.general"), icon: IconUserCog, id: "general" },
+    { name: "Language & Time", icon: IconLanguage, id: "language" },
     { name: "Security & Privacy", icon: IconLockSquareRounded, id: "security" }, // Updated label
     { name: t("settings.billing"), icon: IconCoin, id: "billing" },
     { name: t("settings.notifications"), icon: IconBell, id: "notifications" },
@@ -476,6 +482,9 @@ export function SettingsModal({
     switch (tab) {
       case 'general':
         loadGeneralData()
+        break
+      case 'language':
+        // Language & Time tab doesn't need specific extra loads currently
         break
       case 'security':
         loadSecurityData()
@@ -1760,27 +1769,6 @@ export function SettingsModal({
                       if (oldTheme) setTheme(oldTheme);
                     }
                   }}
-                  dateTimePreference={dateTimePreference}
-                  setDateTimePreference={async (val) => {
-                    if (val === dateTimePreference) return;
-                    const oldVal = dateTimePreference;
-                    setDateTimePreference(val);
-                    updateUser({ time_format: val });
-                    try {
-                      const response = await apiClient.updateProfile({ time_format: val });
-                      if (!response.success) {
-                        toast.error(response.error || "Failed to update time format");
-                        setDateTimePreference(oldVal);
-                        updateUser({ time_format: oldVal });
-                      } else {
-                        await refetch();
-                      }
-                    } catch (err) {
-                      toast.error("Failed to update time format");
-                      setDateTimePreference(oldVal);
-                      updateUser({ time_format: oldVal });
-                    }
-                  }}
                   showSuggestions={showSuggestions}
                   setShowSuggestions={async (val) => {
                     if (val === showSuggestions) return;
@@ -1800,6 +1788,41 @@ export function SettingsModal({
                       toast.error("Failed to update suggestions preference");
                       setShowSuggestions(oldVal);
                       updateUser({ show_suggestions: oldVal });
+                    }
+                  }}
+                />
+              )}
+
+              {activeTab === "language" && (
+                <LanguageTimeTab
+                  language={language}
+                  setLanguage={(val) => {
+                    setLanguage(val);
+                    updateUser({ language: val });
+                    apiClient.updateProfile({ language: val }).catch(err => {
+                      console.error("Failed to update language:", err);
+                      toast.error("Failed to save language preference");
+                    });
+                  }}
+                  dateTimePreference={dateTimePreference}
+                  setDateTimePreference={async (val) => {
+                    if (val === dateTimePreference) return;
+                    const oldVal = dateTimePreference;
+                    setDateTimePreference(val);
+                    updateUser({ time_format: val });
+                    try {
+                      const response = await apiClient.updateProfile({ time_format: val });
+                      if (!response.success) {
+                        toast.error(response.error || "Failed to update time format");
+                        setDateTimePreference(oldVal);
+                        updateUser({ time_format: oldVal });
+                      } else {
+                        await refetch();
+                      }
+                    } catch (err) {
+                      toast.error("Failed to update time format");
+                      setDateTimePreference(oldVal);
+                      updateUser({ time_format: oldVal });
                     }
                   }}
                   dateFormat={dateFormat}

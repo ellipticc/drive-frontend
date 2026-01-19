@@ -89,6 +89,7 @@ interface ItemDetails {
 }
 import { decryptFilename } from "@/lib/crypto"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { useFormatter } from "@/hooks/use-formatter"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
 
 interface DetailsModalProps {
@@ -115,6 +116,7 @@ export function DetailsModal({
   const searchParams = useSearchParams();
   const isMobile = useIsMobile();
   const { user, deviceQuota } = useUser()
+  const { formatDate } = useFormatter()
   const [internalOpen, setInternalOpen] = useState(false)
   const [itemDetails, setItemDetails] = useState<ItemDetails | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -600,32 +602,6 @@ export function DetailsModal({
     }
   }
 
-  const formatDate = (date: string | number | undefined) => {
-    if (!date) return "Unknown";
-    try {
-      let dateObj: Date;
-      if (typeof date === "string") {
-        dateObj = new Date(date);
-        if (isNaN(dateObj.getTime())) {
-          dateObj = new Date(parseInt(date));
-        }
-      } else {
-        dateObj = new Date(date * 1000);
-      }
-      if (isNaN(dateObj.getTime())) {
-        return "Invalid date";
-      }
-      return dateObj.toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit"
-      });
-    } catch {
-      return "Invalid date";
-    }
-  }
 
   const truncateMiddle = (text: string, maxLength: number) => {
     if (text.length <= maxLength) return text;
