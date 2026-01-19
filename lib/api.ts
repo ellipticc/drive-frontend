@@ -38,6 +38,8 @@ export interface UserData {
   time_format?: string;
   auto_timezone?: boolean;
   timezone?: string;
+  auto_paper_versioning?: boolean;
+  auto_event_insights?: boolean;
 
   storage?: {
     used_bytes: number;
@@ -188,6 +190,18 @@ export interface ApiResponse<T = unknown> {
   total?: number | string;
   page?: number | string;
   pageSize?: number | string;
+}
+
+export interface UserPreferences {
+  appearance_theme?: string;
+  language?: string;
+  date_format?: string;
+  time_format?: string;
+  auto_timezone?: boolean;
+  timezone?: string;
+  show_suggestions?: boolean;
+  auto_paper_versioning?: boolean;
+  auto_event_insights?: boolean;
 }
 
 export interface PQCKeypairs {
@@ -1294,6 +1308,17 @@ class ApiClient {
     return this.request('/auth/sessions/revoke-all', {
       method: 'POST',
       body: JSON.stringify({}),
+    });
+  }
+
+  async getPreferences(): Promise<ApiResponse<UserPreferences>> {
+    return this.request('/preferences');
+  }
+
+  async updatePreferences(preferences: UserPreferences): Promise<ApiResponse<UserPreferences>> {
+    return this.request('/preferences', {
+      method: 'PATCH',
+      body: JSON.stringify(preferences),
     });
   }
 

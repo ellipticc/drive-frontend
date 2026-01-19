@@ -56,14 +56,6 @@ interface GeneralTabProps {
     isDiceBearAvatar: boolean;
     handleRemoveAvatar: () => Promise<void>;
     nameInputRef: React.RefObject<HTMLInputElement>;
-    theme: string | undefined;
-    setTheme: (theme: string) => void;
-    appearanceTheme: string;
-    setAppearanceTheme: (theme: string) => void;
-    themeSync: boolean;
-    setThemeSync: (sync: boolean) => void;
-    showSuggestions: boolean;
-    setShowSuggestions: (val: boolean) => void;
 }
 
 export function GeneralTab({
@@ -81,14 +73,6 @@ export function GeneralTab({
     isDiceBearAvatar,
     handleRemoveAvatar,
     nameInputRef,
-    theme,
-    setTheme,
-    appearanceTheme,
-    setAppearanceTheme,
-    themeSync,
-    setThemeSync,
-    showSuggestions,
-    setShowSuggestions,
 }: GeneralTabProps) {
     const { t } = useLanguage()
 
@@ -225,148 +209,6 @@ export function GeneralTab({
             </div>
 
 
-            {/* Appearance Section */}
-            <div className="border-t pt-6 space-y-6">
-                <div className="flex items-center justify-between">
-                    <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                            <h3 className="text-lg font-semibold">{t('settings.appearance')}</h3>
-                            <span className="text-sm font-medium text-muted-foreground ml-1">
-                                Theme: <span className="text-foreground capitalize">{appearanceTheme === 'default' ? 'Ellipticc' : appearanceTheme.replace('-', ' ')}</span>
-                            </span>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border border-dashed transition-all">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-background rounded-full border shadow-sm">
-                                <IconInfoCircle className="w-4 h-4 text-muted-foreground" />
-                            </div>
-                            <div className="space-y-0.5">
-                                <Label className="text-sm font-semibold">
-                                    Sync with system
-                                </Label>
-                                <p className="text-xs text-muted-foreground">
-                                    Automatically switch between light and dark modes
-                                </p>
-                            </div>
-                        </div>
-                        <Switch
-                            id="theme-sync"
-                            checked={themeSync}
-                            onCheckedChange={setThemeSync}
-                        />
-                    </div>
-
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4">
-                        {themes.map((t) => {
-                            const themeButton = (
-                                <button
-                                    key={t.id}
-                                    onClick={() => !t.comingSoon && setAppearanceTheme(t.id)}
-                                    disabled={t.comingSoon}
-                                    className={cn(
-                                        "relative flex flex-col gap-2 p-1 group transition-all duration-300 outline-none w-full",
-                                        appearanceTheme === t.id ? "scale-[1.02]" : "hover:scale-[1.01]",
-                                        t.comingSoon && "opacity-60 grayscale cursor-not-allowed"
-                                    )}
-                                >
-                                    <div className={cn(
-                                        "relative w-full aspect-video rounded-xl overflow-hidden border-2 transition-all duration-300 shadow-sm",
-                                        appearanceTheme === t.id
-                                            ? "border-primary ring-4 ring-primary/10"
-                                            : "border-muted group-hover:border-primary/40"
-                                    )}>
-                                        {/* Theme Preview Skeleton */}
-                                        <div className="absolute inset-0 flex flex-col">
-                                            <div className="h-full w-1/3 bg-foreground/10 border-r border-foreground/5"
-                                                style={{ backgroundColor: t.id === 'default' ? '#f3f4f6' : t.colors[2] }}
-                                            />
-                                            <div className="absolute top-2 right-2 w-12 h-2 rounded-full bg-foreground/20" />
-                                            <div className="absolute top-6 right-2 w-16 h-2 rounded-full bg-foreground/10" />
-                                            <div className="absolute top-10 right-2 w-14 h-2 rounded-full bg-foreground/10" />
-                                        </div>
-
-                                        {/* Selection Indicator */}
-                                        {appearanceTheme === t.id && (
-                                            <div className="absolute top-2 left-2 bg-primary text-primary-foreground rounded-full p-0.5 shadow-lg">
-                                                <IconCheckmark className="w-3 h-3 stroke-[3]" />
-                                            </div>
-                                        )}
-                                    </div>
-                                    <span className={cn(
-                                        "text-xs font-medium text-center transition-colors",
-                                        appearanceTheme === t.id ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
-                                    )}>
-                                        {t.name}
-                                    </span>
-                                </button>
-                            );
-
-                            if (t.comingSoon) {
-                                return (
-                                    <Tooltip key={t.id}>
-                                        <TooltipTrigger asChild>
-                                            <div className="w-full">
-                                                {themeButton}
-                                            </div>
-                                        </TooltipTrigger>
-                                        <TooltipContent side="top">
-                                            <p>Coming soon</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                );
-                            }
-
-                            return themeButton;
-                        })}
-                    </div>
-
-                    {!themeSync && (
-                        <div className="flex items-center gap-2 pt-2">
-                            <Select value={theme || "dark"} onValueChange={setTheme}>
-                                <SelectTrigger id="theme-select" className="w-full max-w-[140px] rounded-xl h-9 bg-muted/50">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent className="rounded-xl">
-                                    <SelectItem value="light">{t('settings.theme.light')}</SelectItem>
-                                    <SelectItem value="dark">{t('settings.theme.dark')}</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <span className="text-xs text-muted-foreground italic">
-                                Manual mode active
-                            </span>
-                        </div>
-                    )}
-                </div>
-            </div>
-
-
-            {/* Suggested for you */}
-            <div className="border-t pt-6 space-y-4">
-                <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border border-dashed transition-all">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-background rounded-full border shadow-sm">
-                            <IconSparkles className="w-4 h-4 text-muted-foreground" />
-                        </div>
-                        <div className="space-y-0.5">
-                            <Label className="text-sm font-semibold">
-                                {t('settings.suggestions.label')}
-                            </Label>
-                            <p className="text-xs text-muted-foreground">
-                                {t('settings.suggestions.desc')}
-                            </p>
-                        </div>
-                    </div>
-                    <Switch
-                        id="show-suggestions"
-                        checked={showSuggestions}
-                        onCheckedChange={setShowSuggestions}
-                    />
-                </div>
-            </div>
             {/* Account Info Section */}
             <div className="border-t pt-6">
                 <div className="mt-4">

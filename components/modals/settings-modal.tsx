@@ -58,8 +58,8 @@ import {
   SecurityTab
 } from "./settings/security-tab"
 import {
-  LanguageTimeTab
-} from "./settings/language-time-tab"
+  PreferencesTab
+} from "./settings/preferences-tab"
 import {
   NotificationsTab
 } from "./settings/notifications-tab"
@@ -108,7 +108,7 @@ interface SettingsModalProps {
 const data = {
   nav: [
     { name: "General", icon: IconUserCog, id: "general" },
-    { name: "Language & Time", icon: IconLanguage, id: "language" },
+    { name: "Preferences", icon: IconSettings, id: "preferences" },
     { name: "Security & Privacy", icon: IconLockSquareRounded, id: "security" },
     { name: "Billing", icon: IconCoin, id: "billing" },
     { name: "Notifications", icon: IconBell, id: "notifications" },
@@ -135,8 +135,8 @@ export function SettingsModal({
 
   const navItems = [
     { name: t("settings.general"), icon: IconUserCog, id: "general" },
-    { name: "Language & Time", icon: IconLanguage, id: "language" },
-    { name: "Security & Privacy", icon: IconLockSquareRounded, id: "security" }, // Updated label
+    { name: "Preferences", icon: IconSettings, id: "preferences" },
+    { name: "Security & Privacy", icon: IconLockSquareRounded, id: "security" },
     { name: t("settings.billing"), icon: IconCoin, id: "billing" },
     { name: t("settings.notifications"), icon: IconBell, id: "notifications" },
     { name: "Developer", icon: IconCode, id: "developer" },
@@ -223,6 +223,8 @@ export function SettingsModal({
   const [dateFormat, setDateFormat] = useState("MM/DD/YYYY")
   const [autoTimezone, setAutoTimezone] = useState(true)
   const [timezone, setTimezone] = useState("UTC")
+  const [autoPaperVersioning, setAutoPaperVersioning] = useState(true)
+  const [autoEventInsights, setAutoEventInsights] = useState(true)
 
   // Tab state - initialize from URL hash or initialTab prop
   const [activeTab, setActiveTab] = useState(() => {
@@ -416,6 +418,12 @@ export function SettingsModal({
       if (user.timezone) {
         setTimezone(user.timezone);
       }
+      if (user.auto_paper_versioning !== undefined) {
+        setAutoPaperVersioning(user.auto_paper_versioning);
+      }
+      if (user.auto_event_insights !== undefined) {
+        setAutoEventInsights(user.auto_event_insights);
+      }
     }
   }, [user]);
 
@@ -483,8 +491,8 @@ export function SettingsModal({
       case 'general':
         loadGeneralData()
         break
-      case 'language':
-        // Language & Time tab doesn't need specific extra loads currently
+      case 'preferences':
+        // Preferences tab doesn't need specific extra loads currently
         break
       case 'security':
         loadSecurityData()
@@ -1718,10 +1726,13 @@ export function SettingsModal({
                   isDiceBearAvatar={isDiceBearAvatar}
                   handleRemoveAvatar={handleRemoveAvatar}
                   nameInputRef={nameInputRef as React.RefObject<HTMLInputElement>}
-                  theme={theme}
-                  setTheme={setTheme}
+                />
+              )}
+
+              {activeTab === "preferences" && (
+                <PreferencesTab
                   appearanceTheme={appearanceTheme}
-                  setAppearanceTheme={async (newTheme) => {
+                  setAppearanceTheme={async (newTheme: string) => {
                     if (newTheme === appearanceTheme) return;
                     const oldTheme = appearanceTheme;
                     setAppearanceTheme(newTheme);
@@ -1732,9 +1743,6 @@ export function SettingsModal({
                         toast.error(response.error || "Failed to update theme preference");
                         setAppearanceTheme(oldTheme);
                         updateUser({ appearance_theme: oldTheme });
-                      } else {
-                        // Don't refetch immediately as backend might return stale data
-                        // await refetch();
                       }
                     } catch (err) {
                       toast.error("Failed to update theme preference");
@@ -1743,7 +1751,7 @@ export function SettingsModal({
                     }
                   }}
                   themeSync={themeSync}
-                  setThemeSync={async (sync) => {
+                  setThemeSync={async (sync: boolean) => {
                     if (sync === themeSync) return;
                     const oldSync = themeSync;
                     const oldTheme = theme;
@@ -1769,43 +1777,19 @@ export function SettingsModal({
                       if (oldTheme) setTheme(oldTheme);
                     }
                   }}
-                  showSuggestions={showSuggestions}
-                  setShowSuggestions={async (val) => {
-                    if (val === showSuggestions) return;
-                    const oldVal = showSuggestions;
-                    setShowSuggestions(val);
-                    updateUser({ show_suggestions: val });
-                    try {
-                      const response = await apiClient.updateProfile({ show_suggestions: val });
-                      if (!response.success) {
-                        toast.error(response.error || "Failed to update suggestions preference");
-                        setShowSuggestions(oldVal);
-                        updateUser({ show_suggestions: oldVal });
-                      } else {
-                        await refetch();
-                      }
-                    } catch (err) {
-                      toast.error("Failed to update suggestions preference");
-                      setShowSuggestions(oldVal);
-                      updateUser({ show_suggestions: oldVal });
-                    }
-                  }}
-                />
-              )}
-
-              {activeTab === "language" && (
-                <LanguageTimeTab
+                  theme={theme}
+                  setTheme={setTheme}
                   language={language}
-                  setLanguage={(val) => {
-                    setLanguage(val);
+                  setLanguage={(val: string) => {
+                    setLanguage(val as any);
                     updateUser({ language: val });
                     apiClient.updateProfile({ language: val }).catch(err => {
                       console.error("Failed to update language:", err);
                       toast.error("Failed to save language preference");
                     });
                   }}
-                  dateTimePreference={dateTimePreference}
-                  setDateTimePreference={async (val) => {
+                  timeFormat={dateTimePreference}
+                  setTimeFormat={async (val: string) => {
                     if (val === dateTimePreference) return;
                     const oldVal = dateTimePreference;
                     setDateTimePreference(val);
@@ -1826,7 +1810,7 @@ export function SettingsModal({
                     }
                   }}
                   dateFormat={dateFormat}
-                  setDateFormat={async (val) => {
+                  setDateFormat={async (val: string) => {
                     if (val === dateFormat) return;
                     const oldVal = dateFormat;
                     setDateFormat(val);
@@ -1847,7 +1831,7 @@ export function SettingsModal({
                     }
                   }}
                   autoTimezone={autoTimezone}
-                  setAutoTimezone={async (val) => {
+                  setAutoTimezone={async (val: boolean) => {
                     if (val === autoTimezone) return;
                     const oldVal = autoTimezone;
                     setAutoTimezone(val);
@@ -1868,7 +1852,7 @@ export function SettingsModal({
                     }
                   }}
                   timezone={timezone}
-                  setTimezone={async (val) => {
+                  setTimezone={async (val: string) => {
                     if (val === timezone) return;
                     const oldVal = timezone;
                     setTimezone(val);
@@ -1886,6 +1870,65 @@ export function SettingsModal({
                       toast.error("Failed to update timezone");
                       setTimezone(oldVal);
                       updateUser({ timezone: oldVal });
+                    }
+                  }}
+                  showSuggestions={showSuggestions}
+                  setShowSuggestions={async (val: boolean) => {
+                    if (val === showSuggestions) return;
+                    const oldVal = showSuggestions;
+                    setShowSuggestions(val);
+                    updateUser({ show_suggestions: val });
+                    try {
+                      const response = await apiClient.updateProfile({ show_suggestions: val });
+                      if (!response.success) {
+                        toast.error(response.error || "Failed to update suggestions preference");
+                        setShowSuggestions(oldVal);
+                        updateUser({ show_suggestions: oldVal });
+                      } else {
+                        await refetch();
+                      }
+                    } catch (err) {
+                      toast.error("Failed to update suggestions preference");
+                      setShowSuggestions(oldVal);
+                      updateUser({ show_suggestions: oldVal });
+                    }
+                  }}
+                  autoPaperVersioning={autoPaperVersioning}
+                  setAutoPaperVersioning={async (val: boolean) => {
+                    if (val === autoPaperVersioning) return;
+                    const oldVal = autoPaperVersioning;
+                    setAutoPaperVersioning(val);
+                    updateUser({ auto_paper_versioning: val });
+                    try {
+                      const response = await apiClient.updatePreferences({ auto_paper_versioning: val });
+                      if (!response.success) {
+                        toast.error(response.error || "Failed to update versioning preference");
+                        setAutoPaperVersioning(oldVal);
+                        updateUser({ auto_paper_versioning: oldVal });
+                      }
+                    } catch (err) {
+                      toast.error("Failed to update versioning preference");
+                      setAutoPaperVersioning(oldVal);
+                      updateUser({ auto_paper_versioning: oldVal });
+                    }
+                  }}
+                  autoEventInsights={autoEventInsights}
+                  setAutoEventInsights={async (val: boolean) => {
+                    if (val === autoEventInsights) return;
+                    const oldVal = autoEventInsights;
+                    setAutoEventInsights(val);
+                    updateUser({ auto_event_insights: val });
+                    try {
+                      const response = await apiClient.updatePreferences({ auto_event_insights: val });
+                      if (!response.success) {
+                        toast.error(response.error || "Failed to update insights preference");
+                        setAutoEventInsights(oldVal);
+                        updateUser({ auto_event_insights: oldVal });
+                      }
+                    } catch (err) {
+                      toast.error("Failed to update insights preference");
+                      setAutoEventInsights(oldVal);
+                      updateUser({ auto_event_insights: oldVal });
                     }
                   }}
                 />
