@@ -1987,7 +1987,7 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
           {!isPro && (
             <div className="mx-8 mb-8 p-4 bg-primary/5 border border-primary/10 rounded-xl text-center">
               <p className="text-xs text-primary font-bold uppercase tracking-wider">
-                Full history & analytics available for Pro users.
+                Full history & insights available for Pro users.
                 <Link href="/pricing" className="underline ml-2 hover:opacity-80 transition-opacity">Upgrade now</Link>
               </p>
             </div>

@@ -3575,8 +3575,8 @@ class ApiClient {
     });
   }
 
-  // Analytics
-  async getDashboardAnalytics(days?: number): Promise<ApiResponse<{
+  // Insights
+  async getDashboardInsights(days?: number): Promise<ApiResponse<{
     overview: {
       totalStorage: number;
       totalStorageReadable: string;
@@ -3616,7 +3616,7 @@ class ApiClient {
     return this.request(`/analytics/dashboard${query}`);
   }
 
-  async getActivityLogs(page = 1, limit = 10, startDate?: string, endDate?: string): Promise<ApiResponse<{
+  async getActivityLogsInsights(page = 1, limit = 10, startDate?: string, endDate?: string): Promise<ApiResponse<{
     activity: any[],
     pagination: {
       page: number,
@@ -3631,11 +3631,11 @@ class ApiClient {
     return this.request(`/analytics/activity?${query}`);
   }
 
-  async wipeActivityLogs(): Promise<ApiResponse<void>> {
+  async wipeActivityLogsInsights(): Promise<ApiResponse<void>> {
     return this.request('/analytics/activity', { method: 'DELETE' });
   }
 
-  async exportActivityLogs(): Promise<void> {
+  async exportActivityLogsInsights(): Promise<void> {
     if (!this.ensureValidToken()) {
       return;
     }

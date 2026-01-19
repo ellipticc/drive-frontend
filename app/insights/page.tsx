@@ -26,7 +26,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { formatFileSize, cn } from "@/lib/utils"
-import { AnalyticsDataTable } from "@/components/tables/analytics-table"
+import { InsightsDataTable } from "@/components/tables/insights-table"
 import { useGlobalUpload } from "@/components/global-upload-context"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
@@ -67,7 +67,7 @@ const getFileIcon = (mimeType: string) => {
   return <IconFile className="h-5 w-5 text-gray-500" />
 }
 
-export default function AnalyticsPage() {
+export default function InsightsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [analytics, setAnalytics] = useState<any>(null)
   const [timeRange, setTimeRange] = useState("30d")
@@ -114,7 +114,7 @@ export default function AnalyticsPage() {
 
   // Set page title
   useLayoutEffect(() => {
-    document.title = "Analytics - Ellipticc Drive"
+    document.title = "Insights - Ellipticc Drive"
   }, [])
 
   const fetchLogsOnly = async () => {
@@ -122,7 +122,7 @@ export default function AnalyticsPage() {
       const startDate = dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : undefined
       const endDate = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : undefined
 
-      const logsResponse = await apiClient.getActivityLogs(
+      const logsResponse = await apiClient.getActivityLogsInsights(
         logsPagination.pageIndex + 1,
         logsPagination.pageSize,
         startDate,
@@ -154,7 +154,7 @@ export default function AnalyticsPage() {
 
     setIsExporting(true)
     try {
-      await apiClient.exportActivityLogs()
+      await apiClient.exportActivityLogsInsights()
     } catch (error) {
       console.error("Export failed:", error)
     } finally {
@@ -168,7 +168,7 @@ export default function AnalyticsPage() {
 
   const confirmWipe = async () => {
     try {
-      await apiClient.wipeActivityLogs()
+      await apiClient.wipeActivityLogsInsights()
       fetchLogsOnly()
       setShowWipeDialog(false)
       setActivityLogs([]) // Clear local state immediately for responsiveness
@@ -183,7 +183,7 @@ export default function AnalyticsPage() {
       setIsLoading(true)
       try {
         const days = timeRange === "7d" ? 7 : timeRange === "30d" ? 30 : 90
-        const response = await apiClient.getDashboardAnalytics(days)
+        const response = await apiClient.getDashboardInsights(days)
 
         if (response.success && response.data) {
           const data = response.data as any
@@ -225,7 +225,7 @@ export default function AnalyticsPage() {
     return (
       <div className="flex min-h-screen w-full flex-col">
         <SiteHeader onFileUpload={handleFileUpload} onFolderUpload={handleFolderUpload} />
-        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 bg-muted/10">
+        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
           <div className="w-full flex flex-col gap-6">
             <div className="h-16 w-full max-w-sm rounded-lg bg-muted/20 animate-pulse" />
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -304,16 +304,13 @@ export default function AnalyticsPage() {
         className="hidden"
       />
 
-      <main className="flex-1 bg-slate-50/50 dark:bg-slate-950/20 py-8">
+      <main className="flex-1 py-8">
         <div className="w-full space-y-8">
           {/* Page Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-4 lg:px-6">
             <div>
               <h1 className="text-3xl sm:text-4xl font-black tracking-tight flex items-center gap-3">
-                <div className="p-2 rounded-2xl bg-primary/10 text-primary">
-                  <IconChartBar className="h-8 w-8 sm:h-9 sm:w-9" />
-                </div>
-                <span>Analytics Dashboard</span>
+                <span>Insights Dashboard</span>
               </h1>
               <p className="text-muted-foreground mt-2 text-sm sm:text-base">
                 Monitor your storage, activity, and security at a glance
@@ -724,7 +721,7 @@ export default function AnalyticsPage() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <AnalyticsDataTable
+                  <InsightsDataTable
                     data={activityLogs}
                     pagination={logsPagination}
                     onPaginationChange={setLogsPagination}

@@ -241,7 +241,7 @@ const getRetentionDays = (plan: string = 'free') => {
   }
 }
 
-export function AnalyticsDataTable<TData, TValue>({
+export function InsightsDataTable<TData, TValue>({
   columns: userColumns,
   data,
   pageCount,
