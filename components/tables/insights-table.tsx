@@ -111,6 +111,12 @@ const DecryptedSummary = ({ log }: { log: ActivityLog }) => {
           else if (type === 'SHARE_CREATE') summary = `Created share for "${decryptedName}"`;
           else if (type === 'SHARE_REVOKE') summary = `Revoked share for "${decryptedName}"`;
 
+          else if (type === 'PAPER_CREATE') summary = `Created paper "${decryptedName}"`;
+          else if (type === 'PAPER_EDIT') summary = `Edited paper "${decryptedName}"`;
+          else if (type === 'PAPER_TRASH') summary = `Moved paper "${decryptedName}" to trash`;
+          else if (type === 'PAPER_RESTORE') summary = `Restored paper "${decryptedName}" from trash`;
+          else if (type === 'PAPER_DELETE') summary = `Permanently deleted paper "${decryptedName}"`;
+
           setDecryptedText(summary);
         } catch (err) {
           console.error('Decryption failed for activity log:', err);
@@ -185,6 +191,11 @@ export const columns: ColumnDef<ActivityLog>[] = [
           case 'LOGOUT': return { icon: IconLogout, color: 'text-slate-500 bg-slate-500/10 border-slate-500/20' };
           case 'PASSWORD_CHANGE':
           case 'SECURITY_UPDATE': return { icon: IconShieldLock, color: 'text-amber-600 bg-amber-600/10 border-amber-600/20' };
+          case 'PAPER_CREATE': return { icon: IconFilePlus, color: 'text-blue-500 bg-blue-500/10 border-blue-500/20' };
+          case 'PAPER_EDIT': return { icon: IconPencil, color: 'text-indigo-500 bg-indigo-500/10 border-indigo-500/20' };
+          case 'PAPER_TRASH': return { icon: IconTrash, color: 'text-orange-500 bg-orange-500/10 border-orange-500/20' };
+          case 'PAPER_RESTORE': return { icon: IconRestore, color: 'text-green-500 bg-green-500/10 border-green-500/20' };
+          case 'PAPER_DELETE': return { icon: IconTrashX, color: 'text-red-500 bg-red-500/10 border-red-500/20' };
           default: return { icon: IconInfoCircle, color: 'text-muted-foreground bg-muted border-muted-foreground/20' };
         }
       }
