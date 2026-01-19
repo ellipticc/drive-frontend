@@ -42,6 +42,7 @@ interface PaperHeaderProps {
     saving: boolean;
     isUnsaved: boolean;
     setHistoryOpen: (open: boolean) => void;
+    onBack: () => void;
 }
 
 function PaperHeader({
@@ -53,7 +54,8 @@ function PaperHeader({
     onSelectEmoji,
     saving,
     isUnsaved,
-    setHistoryOpen
+    setHistoryOpen,
+    onBack
 }: PaperHeaderProps) {
     const router = useRouter();
     const { emojiPickerState, isOpen, setIsOpen } = useEmojiDropdownMenuState();
@@ -64,7 +66,7 @@ function PaperHeader({
     return (
         <header className="flex h-16 items-center gap-4 border-b px-6 shrink-0 bg-background z-50">
             <div className="flex items-center gap-3 w-full max-w-2xl">
-                <Button variant="ghost" size="icon" onClick={() => router.push('/')} className="hover:bg-muted shrink-0">
+                <Button variant="ghost" size="icon" onClick={onBack} className="hover:bg-muted shrink-0">
                     <IconArrowLeft className="w-5 h-5" />
                 </Button>
 
@@ -154,7 +156,8 @@ function PaperEditorView({
     onSelectEmoji,
     saving,
     isUnsaved,
-    setHistoryOpen
+    setHistoryOpen,
+    onBack
 }: {
     initialValue: Value;
     onChange: (value: Value) => void;
@@ -167,6 +170,7 @@ function PaperEditorView({
     saving: boolean;
     isUnsaved: boolean;
     setHistoryOpen: (open: boolean) => void;
+    onBack: () => void;
 }) {
     const editor = usePlateEditor({
         plugins: EditorKit,
@@ -189,6 +193,7 @@ function PaperEditorView({
                     saving={saving}
                     isUnsaved={isUnsaved}
                     setHistoryOpen={setHistoryOpen}
+                    onBack={onBack}
                 />
 
                 <FixedToolbar className="border-b shrink-0 !relative !top-0">
@@ -224,6 +229,11 @@ export default function PaperPage() {
     const [icon, setIcon] = useState<string | null>(null);
     const [pageAlert, setPageAlert] = useState<{ message: string } | null>(null);
     const saveTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+    const latestIconRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        latestIconRef.current = icon;
+    }, [icon]);
 
     useEffect(() => {
         const handler = (e: Event) => {
@@ -251,9 +261,28 @@ export default function PaperPage() {
 
         return () => {
             window.removeEventListener('beforeunload', handleUnload);
-            // Also fire on component unmount (route change)
-            // We use fetch here since we are still in JS context
-            paperService.snapshot(fileId, 'close').catch(e => console.error("Close snapshot failed", e));
+
+            // Aggressive flush on unmount/route change
+            if (latestContentRef.current) {
+                const currentData = { content: latestContentRef.current, icon: latestIconRef.current };
+                const currentDataStr = JSON.stringify(currentData);
+
+                if (currentDataStr !== lastSavedContentRef.current) {
+                    // If we have local changes, save them immediately before snapshotting
+                    paperService.savePaper(fileId, currentData)
+                        .then(() => paperService.snapshot(fileId, 'close'))
+                        .catch(e => {
+                            console.error("Final unmount save failed", e);
+                            // Still try to snapshot what we have
+                            paperService.snapshot(fileId, 'close');
+                        });
+                } else {
+                    // No new changes, just snapshot
+                    paperService.snapshot(fileId, 'close').catch(e => console.error("Close snapshot failed", e));
+                }
+            } else {
+                paperService.snapshot(fileId, 'close').catch(e => console.error("Close snapshot failed", e));
+            }
         };
     }, [fileId]);
 
@@ -379,7 +408,7 @@ export default function PaperPage() {
         if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = setTimeout(() => {
             handleSave(newValue);
-        }, 2000);
+        }, 800);
     };
 
     // Handle Emoji Select
@@ -407,6 +436,35 @@ export default function PaperPage() {
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [handleSave]);
+
+    const handleGoBack = useCallback(async () => {
+        // Clear any pending timeout
+        if (saveTimeoutRef.current) {
+            clearTimeout(saveTimeoutRef.current);
+            saveTimeoutRef.current = undefined;
+        }
+
+        // Check if we need a final save
+        if (latestContentRef.current) {
+            const currentData = { content: latestContentRef.current, icon: latestIconRef.current };
+            const currentDataStr = JSON.stringify(currentData);
+
+            if (currentDataStr !== lastSavedContentRef.current) {
+                setSaving(true);
+                try {
+                    await paperService.savePaper(fileId, currentData);
+                    lastSavedContentRef.current = currentDataStr;
+                    setIsUnsaved(false);
+                } catch (e) {
+                    console.error("Back navigation save failed", e);
+                } finally {
+                    setSaving(false);
+                }
+            }
+        }
+
+        router.push('/');
+    }, [fileId, router]);
 
 
 
@@ -453,6 +511,7 @@ export default function PaperPage() {
                 saving={saving}
                 isUnsaved={isUnsaved}
                 setHistoryOpen={setHistoryOpen}
+                onBack={handleGoBack}
             />
 
             <VersionHistoryModal

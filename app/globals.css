@@ -794,10 +794,6 @@
 }
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-
   ::selection {
     background-color: var(--primary);
     color: var(--primary-foreground);
@@ -806,6 +802,10 @@
   ::-moz-selection {
     background-color: var(--primary);
     color: var(--primary-foreground);
+  }
+
+  * {
+    @apply border-border outline-ring/50;
   }
 
   body {
