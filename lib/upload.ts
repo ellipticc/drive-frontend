@@ -895,10 +895,10 @@ export async function uploadEncryptedPaperAsset(
       filename: file.name,
       size: ciphertext.byteLength,
       contentType: file.type || 'application/octet-stream',
-      encryptionMetadata: JSON.stringify({
+      encryptionMetadata: {
         nonce: nonceBase64,
         algo: 'xchacha20-poly1305'
-      })
+      }
     });
 
     if (!response.success || !response.data) {

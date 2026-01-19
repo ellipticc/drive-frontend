@@ -3703,7 +3703,7 @@ class ApiClient {
     filename: string;
     size: number;
     contentType: string;
-    encryptionMetadata: string;
+    encryptionMetadata: any;
   }): Promise<ApiResponse<{
     uploadUrl: string;
     assetId: string;
