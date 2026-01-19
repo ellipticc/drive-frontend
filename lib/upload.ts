@@ -15,6 +15,7 @@ import { apiClient } from './api';
 import { encryptData, uint8ArrayToHex, hexToUint8Array, encryptFilename, computeFilenameHmac } from './crypto';
 import { keyManager } from './key-manager';
 import { xchacha20poly1305 } from '@noble/ciphers/chacha.js';
+import { createMD5 } from 'hash-wasm';
 import { masterKeyManager } from './master-key';
 import { CompressionAlgorithm, CompressionMetadata } from './compression';
 import { generateThumbnail } from './thumbnail';
@@ -889,12 +890,20 @@ export async function uploadEncryptedPaperAsset(
 
     onProgress({ stage: 'uploading', overallProgress: 20 });
 
+    // Calculate MD5 for B2 Object Lock (required)
+    const md5Hasher = await createMD5();
+    md5Hasher.init();
+    md5Hasher.update(ciphertext);
+    const md5Bytes = md5Hasher.digest('binary') as Uint8Array;
+    const md5Base64 = btoa(String.fromCharCode(...Array.from(md5Bytes)));
+
     // Initialize Upload
     const response = await apiClient.initializePaperAssetUpload({
       paperId,
       filename: file.name,
       size: ciphertext.byteLength,
       contentType: file.type || 'application/octet-stream',
+      contentMd5: md5Base64,
       encryptionMetadata: {
         nonce: nonceBase64,
         algo: 'xchacha20-poly1305'
@@ -912,6 +921,9 @@ export async function uploadEncryptedPaperAsset(
     const xhr = new XMLHttpRequest();
     await new Promise<void>((resolve, reject) => {
       xhr.open('PUT', uploadUrl);
+      xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+      xhr.setRequestHeader('Content-MD5', md5Base64);
+
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable) {
           // Map 0-100% of upload to 25-95% overall

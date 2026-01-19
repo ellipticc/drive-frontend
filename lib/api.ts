@@ -3704,6 +3704,7 @@ class ApiClient {
     size: number;
     contentType: string;
     encryptionMetadata: any;
+    contentMd5?: string;
   }): Promise<ApiResponse<{
     uploadUrl: string;
     assetId: string;
