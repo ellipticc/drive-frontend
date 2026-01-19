@@ -80,6 +80,7 @@ export function HeaderUser() {
         email: "loading@example.com",
         avatar: getDiceBearAvatar("loading"),
         is_checkmarked: false,
+        show_checkmark: true,
         connectedDevicesCount: 0
     }
 
@@ -125,7 +126,7 @@ export function HeaderUser() {
                             <AvatarImage src={safeUser.avatar || getDiceBearAvatar(safeUser.id)} alt={displayName} />
                             <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
                         </Avatar>
-                        {safeUser.is_checkmarked && (
+                        {safeUser.is_checkmarked && safeUser.show_checkmark !== false && (
                             <div className="absolute -bottom-1 -right-1 bg-background rounded-full p-[1px]">
                                 <IconRosetteDiscountCheckFilled className="w-3.5 h-3.5 text-blue-500 fill-blue-500" />
                             </div>
@@ -137,7 +138,7 @@ export function HeaderUser() {
                         <div className="flex flex-col space-y-1">
                             <div className="flex items-center gap-1.5 direction-row">
                                 <p className="text-sm font-medium leading-none">{displayName}</p>
-                                {safeUser.is_checkmarked && (
+                                {safeUser.is_checkmarked && safeUser.show_checkmark !== false && (
                                     <IconRosetteDiscountCheckFilled className="size-4 text-blue-500 fill-blue-500" />
                                 )}
                             </div>

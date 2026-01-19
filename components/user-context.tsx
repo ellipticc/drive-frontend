@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode, useRef } from "react";
 import { usePathname } from "next/navigation";
-import { apiClient, type UserData } from "@/lib/api";
+import { apiClient, type UserData, type UserPreferences } from "@/lib/api";
 import { keyManager } from "@/lib/key-manager";
 import { masterKeyManager } from "@/lib/master-key";
 
@@ -12,9 +12,11 @@ interface UserContextType {
   error: string | null;
   deviceLimitReached: boolean;
   deviceQuota: { planName: string; maxDevices: number } | null;
+  preferences: any | null; // Using any for simplicity as it's defined in api.ts
   refetch: () => Promise<void>;
   updateStorage: (delta: number) => void;
   updateUser: (data: Partial<UserData>) => void;
+  updatePreferences: (data: any) => Promise<any>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -66,6 +68,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [deviceLimitReached, setDeviceLimitReached] = useState(false);
   const [deviceQuota, setDeviceQuota] = useState<{ planName: string; maxDevices: number } | null>(null);
+  const [preferences, setPreferences] = useState<any | null>(null);
   const [hasFetched, setHasFetched] = useState(false);
   const lastSubFetchTime = useRef<number>(0);
   const userRef = useRef<UserData | null>(user);
@@ -108,7 +111,15 @@ export function UserProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
       setError(null);
-      const response = await apiClient.getProfile();
+      const [profileResponse, preferencesResponse] = await Promise.all([
+        apiClient.getProfile(),
+        apiClient.getPreferences()
+      ]);
+
+      const response = profileResponse;
+      if (preferencesResponse.success) {
+        setPreferences(preferencesResponse.data);
+      }
 
       // Extract device quota and limit status
       const limitReached = response.data?.limitReached || false;
@@ -182,6 +193,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
         }
 
         setUser(userData);
+        if (userData.preferences) {
+          setPreferences(userData.preferences);
+        }
         setHasFetched(true);
 
         // Sync session configuration if present
@@ -251,8 +265,23 @@ export function UserProvider({ children }: { children: ReactNode }) {
     await fetchUser(true);
   };
 
+  const updatePreferences = useCallback(async (data: any) => {
+    try {
+      const response = await apiClient.updatePreferences(data);
+      if (response.success) {
+        setPreferences((prev: UserPreferences) => ({ ...prev, ...data }));
+        // Also update user profile preferences if they exist there
+        setUser((prev: UserData | null) => prev ? { ...prev, preferences: { ...prev.preferences, ...data } } : null);
+      }
+      return response;
+    } catch (err) {
+      console.error("Failed to update preferences:", err);
+      throw err;
+    }
+  }, []);
+
   const updateStorage = (delta: number) => {
-    setUser(prevUser => {
+    setUser((prevUser: UserData | null) => {
       if (!prevUser || !prevUser.storage) return prevUser;
 
       const newUsedBytes = Math.max(0, prevUser.storage.used_bytes + delta);
@@ -291,7 +320,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   }, [refetch]);
 
   return (
-    <UserContext.Provider value={{ user, loading, error, deviceLimitReached, deviceQuota, refetch, updateStorage, updateUser }}>
+    <UserContext.Provider value={{ user, loading, error, deviceLimitReached, deviceQuota, preferences, refetch, updateStorage, updateUser, updatePreferences }}>
       {children}
     </UserContext.Provider>
   );

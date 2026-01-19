@@ -3,6 +3,7 @@ import {
     IconHistory,
     IconBrain,
     IconChecks,
+    IconRosetteDiscountCheckFilled,
 } from "@tabler/icons-react"
 import { Label } from "@/components/ui/label"
 import {
@@ -35,6 +36,8 @@ interface PreferencesTabProps {
     setAutoPaperVersioning: (val: boolean) => void;
     autoEventInsights: boolean;
     setAutoEventInsights: (val: boolean) => void;
+    showCheckmark: boolean;
+    setShowCheckmark: (val: boolean) => void;
 }
 
 export function PreferencesTab({
@@ -50,6 +53,8 @@ export function PreferencesTab({
     setAutoPaperVersioning,
     autoEventInsights,
     setAutoEventInsights,
+    showCheckmark,
+    setShowCheckmark,
 }: PreferencesTabProps) {
     const { t } = useLanguage()
 
@@ -233,6 +238,31 @@ export function PreferencesTab({
                             id="auto-event-insights"
                             checked={autoEventInsights}
                             onCheckedChange={setAutoEventInsights}
+                        />
+                    </div>
+                </div>
+            </div>
+
+            {/* Privacy Section */}
+            <div className="border-t pt-8 space-y-6">
+                <h3 className="text-lg font-semibold">Privacy & Identity</h3>
+
+                <div className="space-y-4">
+                    {/* Show Checkmark */}
+                    <div className="flex items-center justify-between p-4 bg-muted/20 rounded-lg border border-dashed transition-all hover:bg-muted/30">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-background rounded-full border shadow-sm">
+                                <IconRosetteDiscountCheckFilled className="w-4 h-4 text-sky-500" />
+                            </div>
+                            <div className="space-y-0.5">
+                                <Label className="text-sm font-semibold">Show verified checkmark</Label>
+                                <p className="text-xs text-muted-foreground">Display the verified checkmark next to your name throughout the app</p>
+                            </div>
+                        </div>
+                        <Switch
+                            id="show-checkmark"
+                            checked={showCheckmark}
+                            onCheckedChange={setShowCheckmark}
                         />
                     </div>
                 </div>

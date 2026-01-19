@@ -133,7 +133,14 @@ export function GeneralTab({
                             </button>
                         )}
                         {user?.is_checkmarked && (
-                            <IconRosetteDiscountCheckFilled className="absolute -bottom-1 -right-1 z-20 text-background size-6 bg-background rounded-full p-[1px] fill-sky-500" />
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <IconRosetteDiscountCheckFilled className="absolute -bottom-1 -right-1 z-20 text-background size-6 bg-background rounded-full p-[1px] fill-sky-500 cursor-help" />
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom" className="text-xs">
+                                    {t("settings.verifiedUserTooltip") || "Verified Ellipticc User"}
+                                </TooltipContent>
+                            </Tooltip>
                         )}
                     </div>
 

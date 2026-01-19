@@ -40,6 +40,8 @@ export interface UserData {
   timezone?: string;
   auto_paper_versioning?: boolean;
   auto_event_insights?: boolean;
+  show_checkmark?: boolean;
+  preferences?: UserPreferences;
 
   storage?: {
     used_bytes: number;
@@ -200,6 +202,7 @@ export interface UserPreferences {
   auto_timezone?: boolean;
   timezone?: string;
   show_suggestions?: boolean;
+  show_checkmark?: boolean;
   auto_paper_versioning?: boolean;
   auto_event_insights?: boolean;
 }

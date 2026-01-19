@@ -92,6 +92,7 @@ export function NavUser({
     email: string
     avatar: string
     is_checkmarked?: boolean
+    show_checkmark?: boolean
     connectedDevicesCount?: number
   }
 }) {
@@ -160,7 +161,7 @@ export function NavUser({
                     <AvatarFallback className="rounded-lg">{getInitials(displayName)}</AvatarFallback>
                   </Avatar>
                   {hasUnread && <NotificationDot />}
-                  {user.is_checkmarked && (
+                  {user.is_checkmarked && user.show_checkmark !== false && (
                     <IconRosetteDiscountCheckFilled className="absolute -bottom-1 -right-1 z-20 text-background size-5 fill-sky-500" />
                   )}
                 </div>
@@ -186,7 +187,7 @@ export function NavUser({
                       <AvatarImage src={user.avatar || getDiceBearAvatar(user.id)} alt={displayName} />
                       <AvatarFallback className="rounded-lg">{getInitials(displayName)}</AvatarFallback>
                     </Avatar>
-                    {user.is_checkmarked && (
+                    {user.is_checkmarked && user.show_checkmark !== false && (
                       <IconRosetteDiscountCheckFilled className="absolute -bottom-1 -right-1 z-20 text-background size-5 fill-sky-500" />
                     )}
                   </div>

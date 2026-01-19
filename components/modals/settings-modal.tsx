@@ -231,6 +231,7 @@ export function SettingsModal({
   const [timezone, setTimezone] = useState("UTC")
   const [autoPaperVersioning, setAutoPaperVersioning] = useState(true)
   const [autoEventInsights, setAutoEventInsights] = useState(true)
+  const [showCheckmark, setShowCheckmark] = useState(true)
 
   // Tab state - initialize from URL hash or initialTab prop
   const [activeTab, setActiveTab] = useState(() => {
@@ -429,6 +430,9 @@ export function SettingsModal({
       }
       if (user.auto_event_insights !== undefined) {
         setAutoEventInsights(user.auto_event_insights);
+      }
+      if (user.show_checkmark !== undefined) {
+        setShowCheckmark(user.show_checkmark);
       }
     }
   }, [user]);
@@ -1780,6 +1784,11 @@ export function SettingsModal({
                   setAutoEventInsights={async (val: boolean) => {
                     setAutoEventInsights(val);
                     await handleUpdatePreferences({ auto_event_insights: val ? 1 : 0 });
+                  }}
+                  showCheckmark={showCheckmark}
+                  setShowCheckmark={async (val: boolean) => {
+                    setShowCheckmark(val);
+                    await handleUpdatePreferences({ show_checkmark: val ? 1 : 0 });
                   }}
                 />
               )}
