@@ -22,7 +22,7 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { HeaderUser } from "@/components/header-user";
 import { Input } from "@/components/ui/input";
-import { Plate, usePlateEditor, PlateController } from "platejs/react";
+import { Plate, usePlateEditor } from "platejs/react";
 import { Editor, EditorContainer } from "@/components/ui/editor";
 import { EditorKit } from "@/components/editor-kit";
 import { useEmojiDropdownMenuState } from "@platejs/emoji/react";
