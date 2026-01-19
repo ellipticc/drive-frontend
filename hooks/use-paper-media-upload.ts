@@ -1,0 +1,63 @@
+import { useState, useCallback } from 'react';
+import { toast } from 'sonner';
+import { uploadEncryptedPaperAsset, UploadResult, UploadProgress } from '@/lib/upload';
+
+export interface UploadedFile {
+    id: string;
+    url: string;
+    name: string;
+    size: number;
+    type: string;
+}
+
+export function usePaperMediaUpload(paperId: string) {
+    const [isUploading, setIsUploading] = useState(false);
+    const [progress, setProgress] = useState(0);
+    const [uploadingFile, setUploadingFile] = useState<File | undefined>(undefined);
+    const [uploadedFile, setUploadedFile] = useState<UploadedFile | undefined>(undefined);
+
+    const uploadFile = useCallback(async (file: File) => {
+        setIsUploading(true);
+        setUploadingFile(file);
+        setProgress(0);
+
+        try {
+            const result: UploadResult = await uploadEncryptedPaperAsset(
+                paperId,
+                file,
+                (p: UploadProgress) => {
+                    setProgress(p.overallProgress);
+                }
+            );
+
+            const blobUrl = URL.createObjectURL(file);
+
+            const uploaded: UploadedFile = {
+                id: (result.assetId || result.fileId || '') as string,
+                url: blobUrl,
+                name: file.name,
+                size: file.size,
+                type: file.type
+            };
+
+            setUploadedFile(uploaded);
+            return uploaded;
+        } catch (error) {
+            console.error("Paper media upload failed:", error);
+            const msg = error instanceof Error ? error.message : "Upload failed";
+            toast.error(msg);
+            throw error;
+        } finally {
+            setIsUploading(false);
+            setUploadingFile(undefined);
+        }
+    }, [paperId]);
+
+    return {
+        isUploading,
+        progress,
+        uploadingFile,
+        uploadedFile,
+        uploadFile
+    };
+}

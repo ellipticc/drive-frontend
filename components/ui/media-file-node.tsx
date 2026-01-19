@@ -9,6 +9,9 @@ import { useMediaState } from '@platejs/media/react';
 import { ResizableProvider } from '@platejs/resizable';
 import { FileUp } from 'lucide-react';
 import { PlateElement, useReadOnly, withHOC } from 'platejs/react';
+import { useParams } from 'next/navigation';
+
+import { useMediaUrl } from '@/hooks/use-media-url';
 
 import { Caption, CaptionTextarea } from './caption';
 
@@ -17,6 +20,9 @@ export const FileElement = withHOC(
   function FileElement(props: PlateElementProps<TFileElement>) {
     const readOnly = useReadOnly();
     const { name, unsafeUrl } = useMediaState();
+    const params = useParams();
+    const paperId = params?.fileId as string;
+    const { url: fileUrl } = useMediaUrl(paperId, props.element.fileId as string, unsafeUrl);
 
     return (
       <PlateElement className="my-px rounded-sm" {...props}>
@@ -24,7 +30,7 @@ export const FileElement = withHOC(
           className="group relative m-0 flex cursor-pointer items-center rounded px-0.5 py-[3px] hover:bg-muted"
           contentEditable={false}
           download={name}
-          href={unsafeUrl}
+          href={fileUrl || unsafeUrl}
           rel="noopener noreferrer"
           role="button"
           target="_blank"

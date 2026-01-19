@@ -860,6 +860,8 @@ class ApiClient {
 
 
 
+
+
   private getToken(): string | null {
     if (typeof window === 'undefined') return null;
 
@@ -3675,7 +3677,6 @@ class ApiClient {
       throw new Error('Failed to export activity logs');
     }
 
-    // Try to get filename from Content-Disposition header
     const contentDisposition = response.headers.get('Content-Disposition');
     let filename = `activity_log_${new Date().toISOString().split('T')[0]}.csv`;
 
@@ -3695,6 +3696,33 @@ class ApiClient {
     a.click();
     window.URL.revokeObjectURL(url);
     document.body.removeChild(a);
+  }
+
+  async initializePaperAssetUpload(params: {
+    paperId: string;
+    filename: string;
+    size: number;
+    contentType: string;
+    encryptionMetadata: string;
+  }): Promise<ApiResponse<{
+    uploadUrl: string;
+    assetId: string;
+    storageKey: string;
+  }>> {
+    return this.request(`/papers/${params.paperId}/assets/s3`, {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  }
+
+  async getPaperAssetDownloadUrl(paperId: string, assetId: string): Promise<ApiResponse<{
+    downloadUrl: string;
+    filename: string;
+    contentType: string;
+    size: number;
+    encryptionMetadata: any;
+  }>> {
+    return this.request(`/papers/${paperId}/assets/${assetId}/s3`);
   }
 }
 

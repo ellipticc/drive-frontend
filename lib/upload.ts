@@ -14,6 +14,7 @@
 import { apiClient } from './api';
 import { encryptData, uint8ArrayToHex, hexToUint8Array, encryptFilename, computeFilenameHmac } from './crypto';
 import { keyManager } from './key-manager';
+import { xchacha20poly1305 } from '@noble/ciphers/chacha.js';
 import { masterKeyManager } from './master-key';
 import { CompressionAlgorithm, CompressionMetadata } from './compression';
 import { generateThumbnail } from './thumbnail';
@@ -92,10 +93,11 @@ export interface UploadSession {
 }
 
 export interface UploadResult {
-  fileId: string;
-  sessionId: string;
-  metadata: FileMetadata;
-  chunks: ChunkInfo[];
+  fileId?: string;
+  assetId?: string; // For paper assets
+  sessionId?: string;
+  metadata?: FileMetadata;
+  chunks?: ChunkInfo[];
   file?: {
     id: string;
     name: string;
@@ -859,4 +861,90 @@ async function finalizeUpload(
       is_shared: false
     }
   };
+}
+/**
+ * Uploads a media asset for a paper.
+ * Uses simplified encryption (single chunk, Master Key) and dedicated API.
+ */
+export async function uploadEncryptedPaperAsset(
+  paperId: string,
+  file: File,
+  onProgress: (progress: UploadProgress) => void
+): Promise<UploadResult> {
+  try {
+    const masterKey = await masterKeyManager.getMasterKey();
+    if (!masterKey) throw new Error("Account Master Key not found");
+
+    onProgress({ stage: 'encrypting', overallProgress: 5 });
+
+    const fileBuffer = await file.arrayBuffer();
+    const data = new Uint8Array(fileBuffer);
+    const nonce = crypto.getRandomValues(new Uint8Array(24));
+
+    // Encrypt using XChaCha20-Poly1305
+    const ciphertext = xchacha20poly1305(masterKey, nonce).encrypt(data);
+    onProgress({ stage: 'encrypting', overallProgress: 15 });
+
+    const nonceBase64 = btoa(String.fromCharCode(...nonce));
+
+    onProgress({ stage: 'uploading', overallProgress: 20 });
+
+    // Initialize Upload
+    const response = await apiClient.initializePaperAssetUpload({
+      paperId,
+      filename: file.name,
+      size: ciphertext.byteLength,
+      contentType: file.type || 'application/octet-stream',
+      encryptionMetadata: JSON.stringify({
+        nonce: nonceBase64,
+        algo: 'xchacha20-poly1305'
+      })
+    });
+
+    if (!response.success || !response.data) {
+      throw new Error(response.error || 'Failed to initialize asset upload');
+    }
+
+    const { uploadUrl, assetId } = response.data;
+    onProgress({ stage: 'uploading', overallProgress: 25 });
+
+    // Upload to B2 (Ciphertext only)
+    const xhr = new XMLHttpRequest();
+    await new Promise<void>((resolve, reject) => {
+      xhr.open('PUT', uploadUrl);
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          // Map 0-100% of upload to 25-95% overall
+          const percent = (e.loaded / e.total) * 70;
+          onProgress({ stage: 'uploading', overallProgress: 25 + percent });
+        }
+      };
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) resolve();
+        else reject(new Error(`Upload failed with status ${xhr.status}`));
+      };
+      xhr.onerror = () => reject(new Error('Network error during upload'));
+      xhr.send(ciphertext as any);
+    });
+
+    onProgress({ stage: 'finalizing', overallProgress: 100 });
+
+    return {
+      fileId: assetId,
+      assetId: assetId,
+      sessionId: 'paper-' + assetId,
+      metadata: {
+        filename: file.name,
+        size: file.size,
+        mimeType: file.type,
+        shaHash: null,
+        wrappedCek: '',
+        cekNonce: ''
+      },
+      chunks: []
+    };
+  } catch (error) {
+    console.error("Paper asset upload failed:", error);
+    throw error;
+  }
 }

@@ -14,6 +14,8 @@ import { decryptData, uint8ArrayToHex, hexToUint8Array, decryptFilename } from '
 import { keyManager, UserKeys, UserKeypairs } from './key-manager';
 import { decompressChunk, CompressionAlgorithm } from './compression';
 import { WorkerPool } from './worker-pool';
+import { xchacha20poly1305 } from '@noble/ciphers/chacha.js';
+import { masterKeyManager } from './master-key';
 
 // Lazy-initialized worker pool
 let downloadWorkerPool: WorkerPool | null = null;
@@ -1076,5 +1078,96 @@ class Semaphore {
       this.permits--;
       resolve();
     }
+  }
+}
+
+/**
+ * Download a paper asset (image, video, etc.) using simpler encryption (single chunk, Master Key).
+ */
+export async function downloadEncryptedPaperAsset(
+  paperId: string,
+  assetId: string,
+  progressCallback?: (progress: number) => void,
+  abortSignal?: AbortSignal
+): Promise<{
+  blob: Blob,
+  fileName: string,
+  mimeType: string,
+  fileId: string
+}> {
+  try {
+    const response = await apiClient.getPaperAssetDownloadUrl(paperId, assetId);
+
+    if (!response.success || !response.data) {
+      throw new Error(response.error || 'Failed to get asset download URL');
+    }
+
+    const { downloadUrl, filename, contentType, encryptionMetadata: encryptionMetadataRaw } = response.data;
+    const encryptionMetadata = typeof encryptionMetadataRaw === 'string' ? JSON.parse(encryptionMetadataRaw) : encryptionMetadataRaw;
+
+    // Support both nonce and iv for compatibility
+    const nonceStr = encryptionMetadata.nonce || encryptionMetadata.iv;
+    if (!nonceStr) throw new Error('Missing encryption nonce/iv');
+
+    const fetchResponse = await fetch(downloadUrl, { signal: abortSignal });
+    if (!fetchResponse.ok) {
+      throw new Error(`Failed to fetch asset content: ${fetchResponse.statusText}`);
+    }
+
+    const contentLength = fetchResponse.headers.get('Content-Length');
+    const totalBytes = contentLength ? parseInt(contentLength, 10) : 0;
+
+    let encryptedBuffer: ArrayBuffer;
+
+    if (progressCallback && totalBytes > 0 && fetchResponse.body) {
+      const reader = fetchResponse.body.getReader();
+      const chunks: Uint8Array[] = [];
+      let receivedLength = 0;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        chunks.push(value);
+        receivedLength += value.length;
+        progressCallback((receivedLength / totalBytes) * 100);
+      }
+
+      const combined = new Uint8Array(receivedLength);
+      let pos = 0;
+      for (const chunk of chunks) {
+        combined.set(chunk, pos);
+        pos += chunk.length;
+      }
+      encryptedBuffer = combined.buffer;
+    } else {
+      encryptedBuffer = await fetchResponse.arrayBuffer();
+      if (progressCallback) progressCallback(100);
+    }
+
+    const masterKey = await masterKeyManager.getMasterKey();
+    if (!masterKey) throw new Error("Account Master Key not found");
+
+    const binaryNonce = atob(nonceStr);
+    const nonce = new Uint8Array(binaryNonce.length);
+    for (let i = 0; i < binaryNonce.length; i++) nonce[i] = binaryNonce.charCodeAt(i);
+
+    // Decrypt using XChaCha20-Poly1305
+    const decryptedContent = xchacha20poly1305(masterKey, nonce).decrypt(new Uint8Array(encryptedBuffer));
+
+    const blob = new Blob([decryptedContent as any], { type: contentType });
+
+    return {
+      blob,
+      fileName: filename,
+      mimeType: contentType,
+      fileId: assetId
+    };
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw error;
+    }
+    console.error("Paper asset download failed:", error);
+    throw error;
   }
 }

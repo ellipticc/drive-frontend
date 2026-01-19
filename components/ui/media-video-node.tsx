@@ -13,7 +13,9 @@ import { useMediaState } from '@platejs/media/react';
 import { ResizableProvider, useResizableValue } from '@platejs/resizable';
 import { PlateElement, useEditorMounted, withHOC } from 'platejs/react';
 
+import { useParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { useMediaUrl } from '@/hooks/use-media-url';
 
 import { Caption, CaptionTextarea } from './caption';
 import {
@@ -37,7 +39,9 @@ export const VideoElement = withHOC(
     } = useMediaState({
       urlParsers: [parseTwitterUrl, parseVideoUrl],
     });
-    const width = useResizableValue('width');
+    const params = useParams();
+    const paperId = params?.fileId as string;
+    const { url: videoUrl } = useMediaUrl(paperId, props.element.fileId as string, unsafeUrl);
 
     const isEditorMounted = useEditorMounted();
 
@@ -100,7 +104,7 @@ export const VideoElement = withHOC(
                 <div ref={handleRef}>
                   <ReactPlayer
                     height="100%"
-                    src={unsafeUrl}
+                    src={videoUrl || unsafeUrl}
                     width="100%"
                     controls
                   />
@@ -109,7 +113,7 @@ export const VideoElement = withHOC(
             </div>
           </Resizable>
 
-          <Caption style={{ width }} align={align}>
+          <Caption style={{ width: useResizableValue('width') }} align={align}>
             <CaptionTextarea
               readOnly={readOnly}
               placeholder="Write a caption..."

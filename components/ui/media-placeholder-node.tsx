@@ -16,7 +16,7 @@ import { PlateElement, useEditorPlugin, withHOC } from 'platejs/react';
 import { useFilePicker } from 'use-file-picker';
 
 import { cn } from '@/lib/utils';
-import { useUploadFile } from '@/hooks/use-upload-file';
+import { usePaperMediaUpload } from '@/hooks/use-paper-media-upload';
 
 const CONTENT: Record<
   string,
@@ -48,15 +48,19 @@ const CONTENT: Record<
   },
 };
 
+import { useParams } from 'next/navigation';
+
 export const PlaceholderElement = withHOC(
   PlaceholderProvider,
   function PlaceholderElement(props: PlateElementProps<TPlaceholderElement>) {
     const { editor, element } = props;
+    const params = useParams();
+    const paperId = params.fileId as string;
 
     const { api } = useEditorPlugin(PlaceholderPlugin);
 
     const { isUploading, progress, uploadedFile, uploadFile, uploadingFile } =
-      useUploadFile();
+      usePaperMediaUpload(paperId);
 
     const loading = isUploading && uploadingFile;
 
@@ -106,6 +110,7 @@ export const PlaceholderElement = withHOC(
           placeholderId: element.id as string,
           type: element.mediaType!,
           url: uploadedFile.url,
+          fileId: uploadedFile.id,
         };
 
         editor.tf.insertNodes(node, { at: path });
@@ -114,13 +119,12 @@ export const PlaceholderElement = withHOC(
       });
 
       api.placeholder.removeUploadingFile(element.id as string);
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [uploadedFile, element.id]);
 
-    // React dev mode will call React.useEffect twice
+
     const isReplaced = React.useRef(false);
 
-    /** Paste and drop */
+
     React.useEffect(() => {
       if (isReplaced.current) return;
 
@@ -244,9 +248,8 @@ function formatBytes(
 
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
 
-  return `${(bytes / 1024 ** i).toFixed(decimals)} ${
-    sizeType === 'accurate'
-      ? (accurateSizes[i] ?? 'Bytest')
-      : (sizes[i] ?? 'Bytes')
-  }`;
+  return `${(bytes / 1024 ** i).toFixed(decimals)} ${sizeType === 'accurate'
+    ? (accurateSizes[i] ?? 'Bytest')
+    : (sizes[i] ?? 'Bytes')
+    }`;
 }

@@ -10,7 +10,9 @@ import { Image, ImagePlugin, useMediaState } from '@platejs/media/react';
 import { ResizableProvider, useResizableValue } from '@platejs/resizable';
 import { PlateElement, withHOC } from 'platejs/react';
 
+import { useParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { useMediaUrl } from '@/hooks/use-media-url';
 
 import { Caption, CaptionTextarea } from './caption';
 import { MediaToolbar } from './media-toolbar';
@@ -25,6 +27,9 @@ export const ImageElement = withHOC(
   function ImageElement(props: PlateElementProps<TImageElement>) {
     const { align = 'center', focused, readOnly, selected } = useMediaState();
     const width = useResizableValue('width');
+    const params = useParams();
+    const paperId = params?.fileId as string;
+    const { url } = useMediaUrl(paperId, props.element.fileId as string, props.element.url as string);
 
     const { isDragging, handleRef } = useDraggable({
       element: props.element,
@@ -46,7 +51,6 @@ export const ImageElement = withHOC(
                 options={{ direction: 'left' }}
               />
               <Image
-                ref={handleRef}
                 className={cn(
                   'block w-full max-w-full cursor-pointer object-cover px-0',
                   'rounded-sm',
@@ -54,6 +58,9 @@ export const ImageElement = withHOC(
                   isDragging && 'opacity-50'
                 )}
                 alt={props.attributes.alt as string | undefined}
+                src={url || (props.element.url as string)}
+                {...props.attributes}
+                ref={handleRef}
               />
               <ResizeHandle
                 className={mediaResizeHandleVariants({
