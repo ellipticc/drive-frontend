@@ -129,8 +129,10 @@ const EVENT_TYPES = [
 ];
 
 import { UserData } from "@/lib/api"
+import { useLanguage } from "@/lib/i18n/language-context"
 
 export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: string }) {
+  const { t } = useLanguage()
   const [webhooks, setWebhooks] = useState<any[]>([])
   const [events, setEvents] = useState<Record<string, { data: any[]; total: number; page: number; pageSize: number; isLoading?: boolean }>>({})
   const [loading, setLoading] = useState(false)
@@ -463,6 +465,7 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
 
   return (
     <div className="space-y-6">
+      <h2 className="text-xl font-semibold">{t('settings.developer')}</h2>
       {/* Usage Bar */}
       <div className="grid gap-6">
         {usageData && (
