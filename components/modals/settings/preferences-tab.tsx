@@ -1,10 +1,4 @@
-import React from 'react'
 import {
-    IconLanguage,
-    IconCalendar,
-    IconWorld,
-    IconClock12,
-    IconClock24,
     IconSparkles,
     IconHistory,
     IconBrain,
@@ -34,18 +28,6 @@ interface PreferencesTabProps {
     theme: string | undefined;
     setTheme: (theme: string) => void;
 
-    // Language & Time
-    language: string;
-    setLanguage: (val: Language) => void;
-    timeFormat: string;
-    setTimeFormat: (val: string) => void;
-    dateFormat: string;
-    setDateFormat: (val: string) => void;
-    autoTimezone: boolean;
-    setAutoTimezone: (val: boolean) => void;
-    timezone: string;
-    setTimezone: (val: string) => void;
-
     // Feature Preferences
     showSuggestions: boolean;
     setShowSuggestions: (val: boolean) => void;
@@ -62,16 +44,6 @@ export function PreferencesTab({
     setThemeSync,
     theme,
     setTheme,
-    language,
-    setLanguage,
-    timeFormat,
-    setTimeFormat,
-    dateFormat,
-    setDateFormat,
-    autoTimezone,
-    setAutoTimezone,
-    timezone,
-    setTimezone,
     showSuggestions,
     setShowSuggestions,
     autoPaperVersioning,
@@ -202,109 +174,6 @@ export function PreferencesTab({
                             <span className="text-xs text-muted-foreground italic">Manual mode active</span>
                         </div>
                     )}
-                </div>
-            </div>
-
-            {/* Language & Regional Section */}
-            <div className="border-t pt-8 space-y-6">
-                <h3 className="text-lg font-semibold">Language & Regional</h3>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Language Selection */}
-                    <div className="space-y-2">
-                        <Label htmlFor="language-select" className="text-sm font-medium">{t('settings.language.label')}</Label>
-                        <div className="flex items-center gap-2">
-                            <IconLanguage className="h-4 w-4 text-muted-foreground" />
-                            <Select value={language} onValueChange={(val) => setLanguage(val as Language)}>
-                                <SelectTrigger id="language-select" className="w-full">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="en">English</SelectItem>
-                                    <SelectItem value="fr">Français</SelectItem>
-                                    <SelectItem value="es">Español</SelectItem>
-                                    <SelectItem value="de">Deutsch</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-
-                    {/* Time Format */}
-                    <div className="space-y-2">
-                        <Label htmlFor="time-format-select" className="text-sm font-medium">{t('settings.timeFormat.label')}</Label>
-                        <div className="flex items-center gap-2">
-                            {timeFormat === '12h' ? <IconClock12 className="h-4 w-4 text-muted-foreground" /> : <IconClock24 className="h-4 w-4 text-muted-foreground" />}
-                            <Select value={timeFormat} onValueChange={setTimeFormat}>
-                                <SelectTrigger id="time-format-select" className="w-full">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="12h">{t('settings.timeFormat.12h')}</SelectItem>
-                                    <SelectItem value="24h">{t('settings.timeFormat.24h')}</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-
-                    {/* Date Format */}
-                    <div className="space-y-2">
-                        <Label htmlFor="date-format-select" className="text-sm font-medium">{t('settings.dateFormat.label')}</Label>
-                        <div className="flex items-center gap-2">
-                            <IconCalendar className="h-4 w-4 text-muted-foreground" />
-                            <Select value={dateFormat} onValueChange={setDateFormat}>
-                                <SelectTrigger id="date-format-select" className="w-full">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="MM/DD/YYYY">MM/DD/YYYY (01/25/2024)</SelectItem>
-                                    <SelectItem value="DD/MM/YYYY">DD/MM/YYYY (25/01/2024)</SelectItem>
-                                    <SelectItem value="YYYY-MM-DD">YYYY-MM-DD (2024-01-25)</SelectItem>
-                                    <SelectItem value="MMM D, YYYY">MMM D, YYYY (Jan 25, 2024)</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-
-                    {/* Timezone */}
-                    <div className="space-y-2">
-                        <Label htmlFor="timezone-select" className="text-sm font-medium">{t('settings.timezone.label')}</Label>
-                        <div className="flex items-center gap-2">
-                            <IconWorld className="h-4 w-4 text-muted-foreground" />
-                            <Select value={timezone} onValueChange={setTimezone} disabled={autoTimezone}>
-                                <SelectTrigger id="timezone-select" className="w-full">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="UTC">UTC (GMT+0)</SelectItem>
-                                    <SelectItem value="America/New_York">Eastern Time (ET)</SelectItem>
-                                    <SelectItem value="America/Chicago">Central Time (CT)</SelectItem>
-                                    <SelectItem value="America/Denver">Mountain Time (MT)</SelectItem>
-                                    <SelectItem value="America/Los_Angeles">Pacific Time (PT)</SelectItem>
-                                    <SelectItem value="Europe/London">London (GMT+0/BST)</SelectItem>
-                                    <SelectItem value="Europe/Paris">Paris (CET/CEST)</SelectItem>
-                                    <SelectItem value="Asia/Tokyo">Tokyo (JST)</SelectItem>
-                                    <SelectItem value="Australia/Sydney">Sydney (AEST/AEDT)</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="flex items-center justify-between p-4 bg-muted/20 rounded-lg border border-dashed transition-all">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-background rounded-full border shadow-sm">
-                            <IconWorld className="w-4 h-4 text-muted-foreground" />
-                        </div>
-                        <div className="space-y-0.5">
-                            <Label className="text-sm font-semibold">{t('settings.autoTimezone.label')}</Label>
-                            <p className="text-xs text-muted-foreground">{t('settings.autoTimezone.desc')}</p>
-                        </div>
-                    </div>
-                    <Switch
-                        id="auto-timezone"
-                        checked={autoTimezone}
-                        onCheckedChange={setAutoTimezone}
-                    />
                 </div>
             </div>
 

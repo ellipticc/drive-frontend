@@ -12,6 +12,21 @@ import {
   IconChevronRight,
   IconLock,
   IconInfoCircle,
+  IconUpload,
+  IconPencil,
+  IconArrowsMove,
+  IconTrash,
+  IconTrashX,
+  IconRestore,
+  IconFolderPlus,
+  IconLink,
+  IconLinkOff,
+  IconLogin,
+  IconLogout,
+  IconUserPlus,
+  IconShieldLock,
+  IconFilePlus,
+  IconFileText,
 } from "@tabler/icons-react"
 import { format } from "date-fns"
 
@@ -71,41 +86,30 @@ const DecryptedSummary = ({ log }: { log: ActivityLog }) => {
           const decryptedName = await decryptFilename(encryptedName, nameSalt, masterKey);
 
           let summary = log.summary;
+          const type = log.event_type;
 
-          // Custom summary logic for decrypted names
-          if (log.event_type === 'FILE_UPLOAD') {
-            summary = `Uploaded file "${decryptedName}"`;
-          } else if (log.event_type === 'FILE_RENAME') {
-            const oldEncryptedName = meta.oldEncryptedName;
-            const oldNameSalt = meta.oldNameSalt;
-            if (oldEncryptedName && oldNameSalt) {
-              const oldName = await decryptFilename(oldEncryptedName, oldNameSalt, masterKey);
-              summary = `Renamed "${oldName}" to "${decryptedName}"`;
-            } else {
-              summary = `Renamed file to "${decryptedName}"`;
-            }
-          } else if (log.event_type === 'FILE_MOVE') {
-            summary = `Moved file "${decryptedName}"`;
-          } else if (log.event_type === 'TRASH_MOVE') {
-            summary = `Moved file "${decryptedName}" to trash`;
-          } else if (log.event_type === 'TRASH_RESTORE') {
-            summary = `Restored file "${decryptedName}" from trash`;
-          } else if (log.event_type === 'FOLDER_CREATE') {
-            summary = `Created folder "${decryptedName}"`;
-          } else if (log.event_type === 'FOLDER_RENAME') {
-            const oldEncryptedName = meta.oldEncryptedName;
-            const oldNameSalt = meta.oldNameSalt;
-            if (oldEncryptedName && oldNameSalt) {
-              const oldName = await decryptFilename(oldEncryptedName, oldNameSalt, masterKey);
-              summary = `Renamed folder "${oldName}" to "${decryptedName}"`;
-            } else {
-              summary = `Renamed folder to "${decryptedName}"`;
-            }
-          } else if (log.event_type === 'FOLDER_MOVE') {
-            summary = `Moved folder "${decryptedName}"`;
-          } else if (log.event_type === 'FOLDER_TRASH_MOVE') {
-            summary = `Moved folder "${decryptedName}" to trash`;
+          if (type === 'FILE_UPLOAD') summary = `Uploaded file "${decryptedName}"`;
+          else if (type === 'FILE_CREATE') summary = `Created file "${decryptedName}"`;
+          else if (type === 'FILE_RENAME') {
+            const oldName = meta.oldEncryptedName ? await decryptFilename(meta.oldEncryptedName, meta.oldNameSalt, masterKey) : 'unknown';
+            summary = `Renamed file from "${oldName}" to "${decryptedName}"`;
           }
+          else if (type === 'FILE_MOVE') summary = `Moved file "${decryptedName}"`;
+          else if (type === 'TRASH_MOVE') summary = `Moved file "${decryptedName}" to trash`;
+          else if (type === 'FILE_DELETE') summary = `Permanently deleted file "${decryptedName}"`;
+          else if (type === 'TRASH_RESTORE') summary = `Restored file "${decryptedName}" from trash`;
+
+          else if (type === 'FOLDER_CREATE') summary = `Created folder "${decryptedName}"`;
+          else if (type === 'FOLDER_RENAME') {
+            const oldName = meta.oldEncryptedName ? await decryptFilename(meta.oldEncryptedName, meta.oldNameSalt, masterKey) : 'unknown';
+            summary = `Renamed folder from "${oldName}" to "${decryptedName}"`;
+          }
+          else if (type === 'FOLDER_MOVE') summary = `Moved folder "${decryptedName}"`;
+          else if (type === 'FOLDER_TRASH_MOVE') summary = `Moved folder "${decryptedName}" to trash`;
+          else if (type === 'FOLDER_DELETE') summary = `Permanently deleted folder "${decryptedName}"`;
+
+          else if (type === 'SHARE_CREATE') summary = `Created share for "${decryptedName}"`;
+          else if (type === 'SHARE_REVOKE') summary = `Revoked share for "${decryptedName}"`;
 
           setDecryptedText(summary);
         } catch (err) {
@@ -158,10 +162,40 @@ export const columns: ColumnDef<ActivityLog>[] = [
     header: "Event",
     cell: ({ row }) => {
       const type = row.getValue("event_type") as string
+
+      const getPillProps = (eventType: string) => {
+        switch (eventType) {
+          case 'FILE_UPLOAD': return { icon: IconUpload, color: 'text-blue-500 bg-blue-500/10 border-blue-500/20' };
+          case 'FILE_CREATE': return { icon: IconFilePlus, color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' };
+          case 'FILE_RENAME':
+          case 'FOLDER_RENAME': return { icon: IconPencil, color: 'text-amber-500 bg-amber-500/10 border-amber-500/20' };
+          case 'FILE_MOVE':
+          case 'FOLDER_MOVE': return { icon: IconArrowsMove, color: 'text-purple-500 bg-purple-500/10 border-purple-500/20' };
+          case 'TRASH_MOVE':
+          case 'FOLDER_TRASH_MOVE': return { icon: IconTrash, color: 'text-orange-500 bg-orange-500/10 border-orange-500/20' };
+          case 'FILE_DELETE':
+          case 'FOLDER_DELETE':
+          case 'TRASH_EMPTY': return { icon: IconTrashX, color: 'text-red-500 bg-red-500/10 border-red-500/20' };
+          case 'TRASH_RESTORE':
+          case 'RESTORE': return { icon: IconRestore, color: 'text-green-500 bg-green-500/10 border-green-500/20' };
+          case 'FOLDER_CREATE': return { icon: IconFolderPlus, color: 'text-cyan-500 bg-cyan-500/10 border-cyan-500/20' };
+          case 'SHARE_CREATE': return { icon: IconLink, color: 'text-indigo-500 bg-indigo-500/10 border-indigo-500/20' };
+          case 'SHARE_REVOKE': return { icon: IconLinkOff, color: 'text-rose-500 bg-rose-500/10 border-rose-500/20' };
+          case 'LOGIN': return { icon: IconLogin, color: 'text-teal-500 bg-teal-500/10 border-teal-500/20' };
+          case 'LOGOUT': return { icon: IconLogout, color: 'text-slate-500 bg-slate-500/10 border-slate-500/20' };
+          case 'PASSWORD_CHANGE':
+          case 'SECURITY_UPDATE': return { icon: IconShieldLock, color: 'text-amber-600 bg-amber-600/10 border-amber-600/20' };
+          default: return { icon: IconInfoCircle, color: 'text-muted-foreground bg-muted border-muted-foreground/20' };
+        }
+      }
+
+      const { icon: Icon, color } = getPillProps(type);
+
       return (
-        <span className="font-medium text-sm capitalize whitespace-nowrap">
-          {type.replace(/_/g, ' ').toLowerCase()}
-        </span>
+        <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wider ${color}`}>
+          <Icon className="w-3 h-3" />
+          <span>{type.replace(/_/g, ' ')}</span>
+        </div>
       )
     },
   },
