@@ -70,9 +70,9 @@ export class PerformanceTracker {
             // 3. Export Public Key (JWK)
             const pubkey = await window.crypto.subtle.exportKey("jwk", keyPair.publicKey);
 
-            // 4. Sign (Challenge + Payload)
-            // Binding challenge to payload prevents replay of the signature with a different challenge
-            const dataToSign = challenge + JSON.stringify(payload);
+            // 4. Sign stable string (challenge:op:duration:browser:concurrency:version)
+            // Using a stable format instead of JSON.stringify to avoid serialization differences
+            const dataToSign = `${challenge}:${payload.cryptoOp}:${payload.durationMs}:${payload.browser}:${payload.hwConcurrency}:${payload.algoVersion || '1.0'}`;
             const encoder = new TextEncoder();
             const signature = await window.crypto.subtle.sign(
                 {
