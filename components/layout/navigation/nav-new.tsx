@@ -91,9 +91,9 @@ export function NavNew({ onFileUpload, onFolderUpload }: NavNewProps) {
 
                 // Redirect the opened tab to the newly created paper
                 if (newWin && !newWin.closed) {
-                    newWin.location.href = `/paper/${fileId}`;
+                    newWin.location.href = `/paper?fileId=${fileId}`;
                 } else {
-                    window.open(`/paper/${fileId}`, '_blank');
+                    window.open(`/paper?fileId=${fileId}`, '_blank');
                 }
             } catch (err) {
                 console.error('Failed to create paper:', err);

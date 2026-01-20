@@ -23,7 +23,7 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   const publicRoutes = ['/login', '/signup', '/register', '/otp', '/recover', '/recover/otp', '/recover/reset', '/backup', '/backup/verify', '/totp', '/totp/recovery', '/terms-of-service', '/privacy-policy'];
 
   // Check if current path is public or paper (standalone)
-  const isPublic = publicRoutes.includes(normalizedPathname) || pathname.startsWith('/s/') || pathname.startsWith('/paper/');
+  const isPublic = publicRoutes.includes(normalizedPathname) || pathname.startsWith('/s/') || pathname.startsWith('/paper');
 
   // For public routes, render children without sidebar
   if (isPublic) {

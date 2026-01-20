@@ -2,7 +2,7 @@
 
 import { IconChevronRight, IconLoader2, type Icon } from "@tabler/icons-react"
 import { useState, useEffect, useCallback } from "react"
-import { useRouter, usePathname } from "next/navigation"
+import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import { useLanguage } from "@/lib/i18n/language-context"
 import { apiClient, FolderContentItem } from "@/lib/api"
 import { decryptFilename } from "@/lib/crypto"
@@ -34,6 +34,7 @@ export function NavMain({
   const router = useRouter()
   const pathname = usePathname()
   const { state } = useSidebar()
+  const searchParams = useSearchParams()
 
   // States for "My files" expansion
   const [isMyFilesExpanded, setIsMyFilesExpanded] = useState(() => {
@@ -120,7 +121,9 @@ export function NavMain({
                     onClick={(e) => {
                       if (item.url === '/') {
                         // Force simple navigation to root
-                        if (pathname === '/') return; // Already there
+                        // If we are at root pathname but have a folderId, we still want to navigate to clear it
+                        const hasFolderId = searchParams.get('folderId');
+                        if (pathname === '/' && !hasFolderId) return; // Already at real root
                         handleNavigate('/');
                       } else {
                         handleNavigate(item.url);

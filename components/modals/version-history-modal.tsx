@@ -224,7 +224,7 @@ export function VersionHistoryModal({
             if (res.success && res.data) {
                 toast.success("Copy created successfully")
                 // Open the new paper in a new tab
-                window.open(`/paper/${res.data.newFileId}`, '_blank')
+                window.open(`/paper?fileId=${res.data.newFileId}`, '_blank')
                 onClose()
             } else {
                 toast.error(res.error || "Failed to create copy")

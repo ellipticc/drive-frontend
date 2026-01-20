@@ -1728,7 +1728,7 @@ export const Table01DividerLineSm = ({
                     if (item.type === 'file') {
                         handlePreviewClick(item.id, item.name, item.mimeType);
                     } else if (item.type === 'paper') {
-                        window.open(`/paper/${item.id}`, '_blank');
+                        window.open(`/paper?fileId=${item.id}`, '_blank');
                     }
                     break;
                 case 'copyLink':
@@ -2246,7 +2246,7 @@ export const Table01DividerLineSm = ({
                             <IconFileUpload className="mr-2 h-4 w-4" />
                             {t("files.uploadFile")}
                         </Button>
-                        <Button variant="outline" onClick={() => window.open('/paper/new', '_blank')}>
+                        <Button variant="outline" onClick={() => window.open('/paper/new?creating=1', '_blank')}>
                             <IconStack className="mr-2 h-4 w-4" />
                             {t("files.newPaper") || "New Paper"}
                         </Button>
@@ -2486,7 +2486,7 @@ export const Table01DividerLineSm = ({
                 <BreadcrumbList className="flex-nowrap overflow-x-auto pb-0 gap-0.5 sm:gap-1 no-scrollbar duration-300">
                     {folderPath.map((folder, index) => {
                         const isLast = index === folderPath.length - 1;
-                        const label = index === 0 ? "My Files" : folder.name;
+                        const label = folder.name;
 
                         return (
                             <React.Fragment key={folder.id}>
@@ -2714,9 +2714,9 @@ export const Table01DividerLineSm = ({
                                             if (newPaperId) {
                                                 toast.success('Paper created');
                                                 if (newWin && !newWin.closed) {
-                                                    newWin.location.href = `/paper/${newPaperId}`;
+                                                    newWin.location.href = `/paper?fileId=${newPaperId}`;
                                                 } else {
-                                                    window.open(`/paper/${newPaperId}`, '_blank');
+                                                    window.open(`/paper?fileId=${newPaperId}`, '_blank');
                                                 }
                                             }
                                         } catch (err) {
@@ -3261,7 +3261,7 @@ export const Table01DividerLineSm = ({
                                                             item={item}
                                                             isSelected={isSelected}
                                                             isDraggingSomewhere={isDraggingSomewhere}
-                                                            onDoubleClick={item.type === 'folder' ? () => handleFolderDoubleClick(item.id, item.name) : (item.type === 'file' ? () => handlePreviewClick(item.id, item.name, item.mimeType) : (item.type === 'paper' ? () => window.open('/paper/' + item.id, '_blank') : undefined))}
+                                                            onDoubleClick={item.type === 'folder' ? () => handleFolderDoubleClick(item.id, item.name) : (item.type === 'file' ? () => handlePreviewClick(item.id, item.name, item.mimeType) : (item.type === 'paper' ? () => window.open('/paper?fileId=' + item.id, '_blank') : undefined))}
                                                             className="group hover:bg-muted/50 transition-colors duration-150"
                                                             onContextMenu={handleContextMenu}
                                                             // Ensure the row height is tracked
@@ -3588,7 +3588,7 @@ export const Table01DividerLineSm = ({
                                                     } else if (item.type === 'file') {
                                                         handlePreviewClick(item.id, item.name, item.mimeType);
                                                     } else if (item.type === 'paper') {
-                                                        window.open('/paper/' + item.id, '_blank');
+                                                        window.open('/paper?fileId=' + item.id, '_blank');
                                                     }
                                                     return;
                                                 }
@@ -3615,7 +3615,7 @@ export const Table01DividerLineSm = ({
                                                 } else if (item.type === 'file') {
                                                     handlePreviewClick(item.id, item.name, item.mimeType);
                                                 } else if (item.type === 'paper') {
-                                                    window.open('/paper/' + item.id, '_blank');
+                                                    window.open('/paper?fileId=' + item.id, '_blank');
                                                 }
                                             }}
                                             onContextMenu={(e) => handleContextMenu(e, item)}

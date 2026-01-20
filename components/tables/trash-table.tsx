@@ -126,7 +126,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
         if (!item) return;
         if (item.type === 'paper') {
             // Papers open in view-mode only
-            window.open('/paper/' + item.id + '?viewMode=view', '_blank');
+            window.open('/paper?fileId=' + item.id + '&viewMode=view', '_blank');
             return;
         }
         // Files: open preview modal
@@ -731,7 +731,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                                             ref={rowVirtualizer.measureElement}
                                             onDoubleClick={() => {
                                                 if (item.type === 'paper') {
-                                                    window.open('/paper/' + item.id + '?viewMode=view', '_blank');
+                                                    window.open('/paper?fileId=' + item.id + '&viewMode=view', '_blank');
                                                 } else {
                                                     openPreviewForTrash(item.id);
                                                 }
@@ -807,7 +807,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                                                             <DropdownMenuSeparator />
                                                             <DropdownMenuItem onClick={() => {
                                                                 if (item.type === 'paper') {
-                                                                    window.open('/paper/' + item.id + '?viewMode=view', '_blank');
+                                                                    window.open('/paper?fileId=' + item.id + '&viewMode=view', '_blank');
                                                                 } else if (item.filename || item.mimeType) {
                                                                     openPreviewForTrash(item.id);
                                                                 } else {

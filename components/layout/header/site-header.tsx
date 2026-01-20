@@ -95,9 +95,9 @@ export function SiteHeader({ onSearch, onFileUpload, onFolderUpload, searchValue
 
         if (fileId) {
           if (newWin && !newWin.closed) {
-            newWin.location.href = `/paper/${fileId}`
+            newWin.location.href = `/paper?fileId=${fileId}`
           } else {
-            window.open(`/paper/${fileId}`, '_blank')
+            window.open(`/paper?fileId=${fileId}`, '_blank')
           }
         }
       } catch (err) {

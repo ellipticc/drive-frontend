@@ -53,7 +53,7 @@ export default function NewPaperPage() {
             const fileId = await paperService.createPaper(filename, newValue, null);
 
             // Redirect to the newly created paper
-            router.replace(`/paper/${fileId}`);
+            router.replace(`/paper?fileId=${fileId}`);
         } catch (e) {
             console.error(e);
             toast.error("Failed to create paper");
