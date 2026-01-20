@@ -446,7 +446,7 @@ export function DetailsModal({
     if (itemType === 'folder' || !itemId) return;
 
     if (itemType === 'paper') {
-      router.push(`/paper/${itemId}`);
+      router.push(`/paper?fileId=${itemId}`);
     } else {
       // Set the 'preview' URL param to trigger the FullPagePreviewModal in the parent
       const params = new URLSearchParams(searchParams.toString());

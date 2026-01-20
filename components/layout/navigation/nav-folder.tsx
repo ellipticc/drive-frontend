@@ -91,7 +91,7 @@ export function NavFolder({ folder, level = 0 }: NavFolderProps) {
 
     const handleNavigate = (e: React.MouseEvent) => {
         e.preventDefault()
-        router.push(`/${folder.id}`)
+        router.push(`/?folderId=${folder.id}`)
     }
 
     return (

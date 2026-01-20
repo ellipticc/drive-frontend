@@ -618,18 +618,18 @@ export function NavSpaces() {
     const handleItemClick = (e: React.MouseEvent, item: SpaceItem) => {
         e.preventDefault()
         if (item.folder_id) {
-            router.push(`/${item.folder_id}`)
+            router.push(`/?folderId=${item.folder_id}`)
         } else if (item.file_id) {
             // If this is a Paper, open the editor page instead of preview
             const isPaper = (item.mimetype || '').toLowerCase() === 'application/x-paper'
             if (isPaper) {
-                const url = `/paper/${item.file_id}`
+                const url = `/paper?fileId=${item.file_id}`
                 const newWin = window.open(url, '_blank')
                 if (newWin) newWin.opener = null
                 return
             }
-            const folderId = item.file_folder_id || ''
-            router.push(`/${folderId}?preview=${item.file_id}`)
+            const folderId = item.file_folder_id || 'root'
+            router.push(`/?folderId=${folderId}&preview=${item.file_id}`)
         }
     }
 
