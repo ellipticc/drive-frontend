@@ -235,6 +235,8 @@ export default function PaperPage() {
         latestIconRef.current = icon;
     }, [icon]);
 
+    const lastSavedTitleRef = useRef<string>("Untitled Paper");
+
     useEffect(() => {
         const handler = (e: Event) => {
             const detail = (e as CustomEvent).detail;
@@ -300,6 +302,7 @@ export default function PaperPage() {
                 const paper = await paperService.getPaper(fileId);
 
                 setPaperTitle(paper.title);
+                lastSavedTitleRef.current = paper.title || "Untitled Paper";
                 document.title = paper.title;
 
                 let loadedContent: Value;
@@ -383,7 +386,7 @@ export default function PaperPage() {
 
     // Save Logic (Title)
     const handleTitleSave = async (newTitle: string) => {
-        if (newTitle.trim() === paperTitle || newTitle.trim() === '') {
+        if (newTitle.trim() === lastSavedTitleRef.current || newTitle.trim() === '') {
             return;
         }
 
@@ -392,6 +395,7 @@ export default function PaperPage() {
             // Pass undefined for content to only update title
             await paperService.savePaper(fileId, undefined, newTitle);
             setPaperTitle(newTitle);
+            lastSavedTitleRef.current = newTitle;
             document.title = newTitle;
         } catch (e) {
             console.error(e);
