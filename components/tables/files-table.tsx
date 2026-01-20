@@ -377,8 +377,8 @@ export const Table01DividerLineSm = ({
     // Folder navigation state
     const [currentFolderId, setCurrentFolderId] = useState<string>(() => {
         if (typeof window === 'undefined') return 'root';
-        const segments = window.location.pathname.replace(/^\//, '').split('/').filter(Boolean);
-        return segments.length > 0 ? segments[segments.length - 1] : 'root';
+        const params = new URLSearchParams(window.location.search);
+        return params.get('folderId') || 'root';
     });
     const [folderPath, setFolderPath] = useState<Array<{ id: string, name: string }>>([{ id: 'root', name: t('sidebar.myFiles') }]);
     const [isInitialLoad, setIsInitialLoad] = useState(true);
@@ -690,15 +690,17 @@ export const Table01DividerLineSm = ({
 
     // Parse URL path to get folder navigation
     const parseUrlPath = (path: string): string[] => {
-        // Remove leading slash and split by '/'
-        const segments = path.replace(/^\//, '').split('/').filter(Boolean);
-        return segments;
+        if (typeof window === 'undefined') return [];
+        const params = new URLSearchParams(window.location.search);
+        const fid = params.get('folderId');
+        return fid ? [fid] : [];
     };
 
     // Build URL path from folder path
     const buildUrlPath = (folderPath: Array<{ id: string, name: string }>): string => {
         if (folderPath.length <= 1) return '/';
-        return '/' + folderPath.slice(1).map(f => f.id).join('/');
+        const lastFolder = folderPath[folderPath.length - 1];
+        return '/?folderId=' + lastFolder.id;
     };
 
     // Truncate breadcrumb names that are too long (encrypted names)
@@ -716,6 +718,7 @@ export const Table01DividerLineSm = ({
         router.push(urlPath, { scroll: false });
     };
 
+    // Initialize and sync folder navigation from URL
     // Initialize and sync folder navigation from URL
     useEffect(() => {
         const urlSegments = parseUrlPath(pathname);

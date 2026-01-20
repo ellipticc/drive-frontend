@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { masterKeyManager } from "@/lib/master-key";
 import { IconLoader2, IconArrowLeft, IconCloudCheck } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
@@ -217,9 +217,9 @@ function PaperEditorView({
 }
 
 export default function PaperPage() {
-    const params = useParams();
+    const searchParams = useSearchParams();
     const router = useRouter();
-    const fileId = params.fileId as string;
+    const fileId = searchParams.get('fileId');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [isUnsaved, setIsUnsaved] = useState(false);
@@ -252,6 +252,7 @@ export default function PaperPage() {
 
     // Smart Versioning: 'close' trigger on unmount/tab close
     useEffect(() => {
+        if (!fileId) return;
         const handleUnload = () => {
             // Fire and forget
             const data = JSON.stringify({ isManual: false, triggerType: 'close' });
@@ -290,6 +291,11 @@ export default function PaperPage() {
 
     // Initial Load
     useEffect(() => {
+        if (!fileId) {
+            setLoading(false);
+            return;
+        }
+
         const loadFile = async () => {
             try {
                 if (!masterKeyManager.hasMasterKey()) {
@@ -354,6 +360,7 @@ export default function PaperPage() {
 
     // Save Logic (Content + Icon)
     const handleSave = useCallback(async (newValue: Value, newIcon?: string) => {
+        if (!fileId) return;
         const currentIcon = newIcon !== undefined ? newIcon : icon;
         const dataToSave = { content: newValue, icon: currentIcon };
         const contentString = JSON.stringify(dataToSave);
@@ -386,6 +393,7 @@ export default function PaperPage() {
 
     // Save Logic (Title)
     const handleTitleSave = async (newTitle: string) => {
+        if (!fileId) return;
         if (newTitle.trim() === lastSavedTitleRef.current || newTitle.trim() === '') {
             return;
         }
@@ -449,7 +457,7 @@ export default function PaperPage() {
         }
 
         // Check if we need a final save
-        if (latestContentRef.current) {
+        if (latestContentRef.current && fileId) {
             const currentData = { content: latestContentRef.current, icon: latestIconRef.current };
             const currentDataStr = JSON.stringify(currentData);
 
@@ -480,6 +488,10 @@ export default function PaperPage() {
                 <p className="text-muted-foreground animate-pulse">Loading your fantastic work...</p>
             </div>
         );
+    }
+
+    if (!fileId) {
+        return <div className="p-8 text-center text-muted-foreground">Paper ID required</div>;
     }
 
     if (!content) return null;
@@ -527,4 +539,3 @@ export default function PaperPage() {
         </>
     );
 }
-
