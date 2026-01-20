@@ -11,42 +11,47 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Sync Frontend to VPS
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Build and Export
+        run: npm run build
+        env:
+          # Add any build-time environment variables here if needed
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+
+      - name: Sync static files to VPS
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          source: "."
-          target: "/root/nextjs-frontend"
+          source: "out/*"
+          target: "/var/www/drive-static"
+          strip_components: 1
 
-      - name: Build and Restart via SSH
+      - name: Restart Nginx
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            echo "🚀 Building Frontend in /root/nextjs-frontend..."
-            cd /root/nextjs-frontend
-            
-            # Install dependencies
-            npm install --legacy-peer-deps
-            
-            # Build the Next.js app
-            PORT=3001 npx next build
-            
-            echo "🔄 Restarting Frontend..."
-            # PM2 command to start or reload server
-            pm2 reload frontend || pm2 start npm --name "frontend" -- run start -- --port 3001
-            
-            echo "✅ Deployment Complete!"
+            echo "🔧 Restarting Nginx..."
+            sudo systemctl restart nginx && nginx -s reload
+            echo "✅ Nginx restarted!"
 
       - name: Notify Discord on Success
         if: success()
         run: |
           curl -H "Content-Type: application/json" \
-               -d '{"content": "🚀 **Frontend Deployment Successful!**\n**Project:** Ellipticc Drive\n**Branch:** `${{ github.ref_name }}`\n**Status:** Frontend is live on VPS!"}' \
+               -d '{"content": "🚀 **Static Frontend Deployment Successful!**\n**Project:** Ellipticc Drive\n**Branch:** `${{ github.ref_name }}`\n**Status:** Static files are live on VPS! Serving via Nginx."}' \
                ${{ secrets.DISCORD_WEBHOOK_URL }}
 
       - name: Notify Discord on Failure
