@@ -1,0 +1,108 @@
+
+import { apiClient } from "@/lib/api";
+
+interface PerformancePayload {
+    cryptoOp: string;
+    durationMs: number;
+    browser: string;
+    hwConcurrency: number;
+    algoVersion?: string;
+    [key: string]: any;
+}
+
+export class PerformanceTracker {
+    private static readonly ENABLED_KEY = 'privacy_usage_diagnostics';
+    private static readonly API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://drive.ellipticc.com/api/v1') + '/events/performance';
+
+    static isEnabled(): boolean {
+        // Default to true if not set (or check explicit 'true')
+        // Matching existing settings logical which often defaults to true
+        if (typeof window === 'undefined') return false;
+        return localStorage.getItem(this.ENABLED_KEY) !== 'false';
+    }
+
+    /**
+     * Track a cryptographic operation performance
+     */
+    static async trackCryptoOp(op: string, durationMs: number, algoVersion: string = '1.0') {
+        if (!this.isEnabled()) return;
+
+        const payload: PerformancePayload = {
+            cryptoOp: op,
+            durationMs,
+            browser: this.getBrowserString(),
+            hwConcurrency: navigator.hardwareConcurrency || 1,
+            algoVersion
+        };
+
+        await this.submit(payload);
+    }
+
+    private static getBrowserString(): string {
+        if (typeof navigator === 'undefined') return 'Unknown';
+        // Simple classifier
+        const ua = navigator.userAgent;
+        if (ua.includes('Chrome')) return 'Chrome ' + (ua.match(/Chrome\/(\d+)/)?.[1] || '');
+        if (ua.includes('Firefox')) return 'Firefox ' + (ua.match(/Firefox\/(\d+)/)?.[1] || '');
+        if (ua.includes('Safari')) return 'Safari ' + (ua.match(/Version\/(\d+)/)?.[1] || '');
+        return 'Other';
+    }
+
+    private static async submit(payload: PerformancePayload) {
+        try {
+            // 1. Get Challenge
+            // using fetch directly to avoid apiClient overhead/dependency cycles if any, 
+            // but relying on relative path.
+            const challengeRes = await fetch(`${this.API_BASE}/challenge`);
+            if (!challengeRes.ok) return; // Silent fail
+            const { challenge } = await challengeRes.json();
+
+            // 2. Generate Ephemeral Key
+            const keyPair = await window.crypto.subtle.generateKey(
+                {
+                    name: "ECDSA",
+                    namedCurve: "P-256",
+                },
+                true, // extractable
+                ["sign"]
+            );
+
+            // 3. Export Public Key (JWK)
+            const pubkey = await window.crypto.subtle.exportKey("jwk", keyPair.publicKey);
+
+            // 4. Sign (Challenge + Payload)
+            // Binding challenge to payload prevents replay of the signature with a different challenge
+            const dataToSign = challenge + JSON.stringify(payload);
+            const encoder = new TextEncoder();
+            const signature = await window.crypto.subtle.sign(
+                {
+                    name: "ECDSA",
+                    hash: { name: "SHA-256" },
+                },
+                keyPair.privateKey,
+                encoder.encode(dataToSign)
+            );
+
+            // 5. Send
+            // signature is ArrayBuffer, convert to hex
+            const signatureHex = Array.from(new Uint8Array(signature))
+                .map(b => b.toString(16).padStart(2, '0'))
+                .join('');
+
+            await fetch(this.API_BASE, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    challenge,
+                    pubkey,
+                    signature: signatureHex,
+                    payload
+                })
+            });
+
+        } catch (err) {
+            // Silent failure for analytics
+            console.warn('Failed to submit performance metric', err);
+        }
+    }
+}

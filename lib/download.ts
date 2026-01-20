@@ -10,6 +10,7 @@
  */
 
 import { apiClient } from './api';
+import { PerformanceTracker } from './performance-tracker';
 import { decryptData, uint8ArrayToHex, hexToUint8Array, decryptFilename } from './crypto';
 import { keyManager, UserKeys, UserKeypairs } from './key-manager';
 import { decompressChunk, CompressionAlgorithm } from './compression';
@@ -611,7 +612,10 @@ export async function unwrapCEK(encryption: DownloadEncryption, keypairs: UserKe
   const cekNonce = encryption.nonceWrapKyber;
 
   // Decapsulate to get the shared secret
+  const kyberStart = performance.now();
   const sharedSecret = ml_kem768.decapsulate(kyberCiphertext, keypairs.kyberPrivateKey);
+  const kyberEnd = performance.now();
+  PerformanceTracker.trackCryptoOp('kyber.decapsulate', Math.round(kyberEnd - kyberStart));
 
   // Decrypt the CEK using the shared secret
   const decryptedCek = decryptData(wrappedCek, new Uint8Array(sharedSecret), cekNonce);

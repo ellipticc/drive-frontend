@@ -1849,7 +1849,7 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                         <div className="space-y-0.5">
                             <div className="flex items-center gap-2">
                                 <Label className="text-sm font-semibold">
-                                    Collect usage diagnostics
+                                    Anonymous Performance Tracking
                                 </Label>
                                 <TooltipProvider>
                                     <Tooltip delayDuration={0}>
@@ -1857,13 +1857,13 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                             <IconInfoCircle className="h-4 w-4 text-muted-foreground cursor-help" />
                                         </TooltipTrigger>
                                         <TooltipContent>
-                                            <p>This setting controls Google Analytics</p>
+                                            <p>Helps us optimize encryption speed (no identity or file data revealed)</p>
                                         </TooltipContent>
                                     </Tooltip>
                                 </TooltipProvider>
                             </div>
                             <p className="text-xs text-muted-foreground">
-                                Allow collection of anonymous usage data
+                                Allow collection of anonymous performance metrics
                             </p>
                         </div>
                         <Switch
