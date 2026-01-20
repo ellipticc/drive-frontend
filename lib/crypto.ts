@@ -11,6 +11,7 @@ import { sha512 } from '@noble/hashes/sha2.js';
 import { ml_kem768 } from '@noble/post-quantum/ml-kem.js';
 import { ml_dsa65 } from '@noble/post-quantum/ml-dsa.js';
 import { xchacha20poly1305 } from '@noble/ciphers/chacha.js';
+import { PerformanceTracker } from './performance-tracker';
 
 // Configure SHA-512 for noble/ed25519
 import * as ed from '@noble/ed25519';
@@ -129,6 +130,7 @@ export async function deriveEncryptionKey(password: string, salt: string): Promi
     saltBytes = new Uint8Array(hashBuffer);
   }
 
+  const start = performance.now();
   const hash = await argon2id({
     password: password,
     salt: saltBytes,
@@ -138,6 +140,8 @@ export async function deriveEncryptionKey(password: string, salt: string): Promi
     hashLength: 32,
     outputType: 'binary'
   });
+  const end = performance.now();
+  PerformanceTracker.trackCryptoOp('argon2id.derive_master_key', end - start);
 
   return hash;
 }
@@ -461,6 +465,15 @@ export async function generateAllKeypairs(password: string, providedSalt?: strin
   };
 }
 
+// Wrapper for tracking setup performance
+export async function trackedGenerateAllKeypairs(password: string, providedSalt?: string) {
+  const start = performance.now();
+  const result = await generateAllKeypairs(password, providedSalt);
+  const end = performance.now();
+  PerformanceTracker.trackCryptoOp('setup.generate_all_keys', end - start);
+  return result;
+}
+
 // Decrypt user's PQC private keys using cached master key
 export type UserCryptoData = {
   crypto_keypairs?: {
@@ -490,6 +503,7 @@ export async function decryptUserPrivateKeys(
     throw new Error('User crypto keypairs not found in user data');
   }
 
+  const start = performance.now();
   const pqcKeypairs = userData.crypto_keypairs.pqcKeypairs;
 
   // Validate that all required encrypted private keys are present and non-empty
@@ -555,6 +569,9 @@ export async function decryptUserPrivateKeys(
     if (kyberPrivateKey.length !== 2400) {
       throw new Error(`Invalid Kyber private key length: expected 2400 bytes, got ${kyberPrivateKey.length} bytes`);
     }
+
+    const end = performance.now();
+    PerformanceTracker.trackCryptoOp('login.decrypt_private_keys', end - start);
 
     return {
       ed25519PrivateKey,

@@ -14,11 +14,43 @@ export class PerformanceTracker {
     private static readonly ENABLED_KEY = 'privacy_usage_diagnostics';
     private static readonly API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://drive.ellipticc.com/api/v1') + '/events/performance';
 
+    // Challenge Cache (Internal)
+    private static cachedChallenge: string | null = null;
+    private static challengeExpiry: number = 0;
+
     static isEnabled(): boolean {
         // Default to true if not set (or check explicit 'true')
         // Matching existing settings logical which often defaults to true
         if (typeof window === 'undefined') return false;
         return localStorage.getItem(this.ENABLED_KEY) !== 'false';
+    }
+
+    /**
+     * Get or refresh a cryptographic challenge
+     */
+    private static async getChallenge(): Promise<string | null> {
+        const now = Date.now();
+
+        // If we have a cached challenge that is still valid (4 minute reuse window for 5 min TTL)
+        if (this.cachedChallenge && now < this.challengeExpiry) {
+            return this.cachedChallenge;
+        }
+
+        try {
+            const challengeRes = await fetch(`${this.API_BASE}/challenge`);
+            if (!challengeRes.ok) return null;
+
+            const { challenge, expires } = await challengeRes.json();
+
+            this.cachedChallenge = challenge;
+            // Set local expiry with 30s safety buffer
+            this.challengeExpiry = now + (expires * 1000) - 30000;
+
+            return challenge;
+        } catch (err) {
+            console.warn('Failed to fetch performance challenge', err);
+            return null;
+        }
     }
 
     /**
@@ -29,13 +61,14 @@ export class PerformanceTracker {
 
         const payload: PerformancePayload = {
             cryptoOp: op,
-            durationMs,
+            durationMs: Math.round(durationMs),
             browser: this.getBrowserString(),
             hwConcurrency: navigator.hardwareConcurrency || 1,
             algoVersion
         };
 
-        await this.submit(payload);
+        // Fire and forget, don't block the caller
+        this.submit(payload).catch(err => console.warn('Performance submission failed', err));
     }
 
     private static getBrowserString(): string {
@@ -50,12 +83,9 @@ export class PerformanceTracker {
 
     private static async submit(payload: PerformancePayload) {
         try {
-            // 1. Get Challenge
-            // using fetch directly to avoid apiClient overhead/dependency cycles if any, 
-            // but relying on relative path.
-            const challengeRes = await fetch(`${this.API_BASE}/challenge`);
-            if (!challengeRes.ok) return; // Silent fail
-            const { challenge } = await challengeRes.json();
+            // 1. Get Challenge (Cached or New)
+            const challenge = await this.getChallenge();
+            if (!challenge) return;
 
             // 2. Generate Ephemeral Key
             const keyPair = await window.crypto.subtle.generateKey(
@@ -101,8 +131,10 @@ export class PerformanceTracker {
             });
 
         } catch (err) {
-            // Silent failure for analytics
-            console.warn('Failed to submit performance metric', err);
+            // Internal error - likely WebCrypto related
+            if (process.env.NODE_ENV !== 'production') {
+                console.error('Performance tracker inner error:', err);
+            }
         }
     }
 }

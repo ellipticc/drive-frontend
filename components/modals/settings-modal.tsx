@@ -1640,15 +1640,7 @@ export function SettingsModal({
         localStorage.setItem('privacy_usage_diagnostics', analytics ? 'true' : 'false');
       }
 
-      // If any privacy setting changed, we reload to ensure clean state initialization
-      // This guarantees Sentry is excluded and GA consent is set correctly at start time
-      if (crashReports !== prevCrashReports || analytics !== prevAnalytics) {
-        toast.loading("Applying changes and reloading...", { duration: 2000 });
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
-      }
-
+      toast.success("Privacy settings updated");
     } catch (error) {
       console.error("Failed to update privacy settings:", error)
       toast.error("Failed to save privacy settings")

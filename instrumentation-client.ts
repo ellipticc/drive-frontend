@@ -14,8 +14,6 @@ const crashReportsEnabled = typeof window !== 'undefined'
   ? localStorage.getItem('privacy_crash_reports') !== 'false'
   : true;
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://drive.ellipticc.com/api/v1';
-
 // Only initialize Sentry in production to avoid blocking issues in development AND if enabled by user
 if (process.env.NODE_ENV === 'production' && process.env.NEXT_PUBLIC_SENTRY_DSN && crashReportsEnabled) {
   Sentry.init({
@@ -34,9 +32,6 @@ if (process.env.NODE_ENV === 'production' && process.env.NEXT_PUBLIC_SENTRY_DSN 
         levels: ['error'],
       }),
     ],
-
-    // Tunnel events via our own backend API to avoid ad-blockers and simplify CSP
-    tunnel: `${API_BASE}/events/sentry`,
 
     // Capture all events without filtering
     beforeSend(event) {
