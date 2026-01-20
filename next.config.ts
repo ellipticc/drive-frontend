@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: 'export',
-  trailingSlash: true, // Recommended for static exports with Nginx
+  // trailingSlash: true,
   images: {
     unoptimized: true,
   },
