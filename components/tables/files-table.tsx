@@ -726,7 +726,10 @@ export const Table01DividerLineSm = ({
         const needsBreadcrumbResolution = isInitialLoad && urlSegments.length > 0 && folderPath.length <= 1;
 
         // Prevent update loops if state matches URL (unless we need breadcrumb resolution)
-        if (urlLastId === currentFolderId && !needsBreadcrumbResolution) {
+        // Also ensure we update if URL implies root but state implies we are deeper (fix for sidebar navigation)
+        const isRootMismatch = urlLastId === 'root' && folderPath.length > 1;
+
+        if (urlLastId === currentFolderId && !needsBreadcrumbResolution && !isRootMismatch) {
             if (isInitialLoad) setIsInitialLoad(false);
             return;
         }
