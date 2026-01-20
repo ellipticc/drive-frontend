@@ -113,13 +113,18 @@ export function useGoogleDrive() {
                 })
 
                 // Initialize Token Client
-                const client = (window as unknown as { google: { accounts: { oauth2: { initTokenClient: (config: unknown) => unknown } } } }).google.accounts.oauth2.initTokenClient({
-                    client_id: GOOGLE_CLIENT_ID,
-                    scope: SCOPES,
-                    callback: '', // Defined at request time
-                })
-                setTokenClient(client)
-                setIsApiLoaded(true)
+                if (GOOGLE_CLIENT_ID) {
+                    const client = (window as unknown as { google: { accounts: { oauth2: { initTokenClient: (config: unknown) => unknown } } } }).google.accounts.oauth2.initTokenClient({
+                        client_id: GOOGLE_CLIENT_ID,
+                        scope: SCOPES,
+                        callback: '', // Defined at request time
+                    })
+                    setTokenClient(client)
+                    setIsApiLoaded(true)
+                } else {
+                    console.warn('Google Drive Client ID is missing. Disabling integration.')
+                    setIsApiLoaded(false)
+                }
 
             } catch (error) {
                 console.error('Failed to load Google Drive API:', error)
@@ -203,6 +208,11 @@ export function useGoogleDrive() {
     }
 
     const openPicker = useCallback(() => {
+        if (!GOOGLE_CLIENT_ID) {
+            toast.error('Google Drive integration is not configured. Please add NEXT_PUBLIC_GOOGLE_CLIENT_ID to your environment.')
+            return
+        }
+
         if (!isApiLoaded || !tokenClient) {
             toast.error('Google Drive integration is still loading...')
             return

@@ -22,7 +22,10 @@ export function AuthGuard({ children }: AuthGuardProps) {
 
   // Define public routes that don't require authentication
   const publicRoutes = ['/login', '/signup', '/register', '/otp', '/recover', '/recover/otp', '/recover/reset', '/backup', '/totp', '/totp/recovery', '/terms-of-service', '/privacy-policy', '/pricing'];
-  const isPublic = publicRoutes.includes(pathname) || pathname.startsWith('/s/');
+
+  // Normalize pathname to remove trailing slash for comparison
+  const normalizedPathname = pathname === '/' ? '/' : pathname.replace(/\/$/, '');
+  const isPublic = publicRoutes.includes(normalizedPathname) || pathname.startsWith('/s/');
 
   useLayoutEffect(() => {
     // Initialize session management (synchronous setup doesn't change React state)
