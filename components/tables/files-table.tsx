@@ -690,9 +690,7 @@ export const Table01DividerLineSm = ({
 
     // Parse URL path to get folder navigation
     const parseUrlPath = (path: string): string[] => {
-        if (typeof window === 'undefined') return [];
-        const params = new URLSearchParams(window.location.search);
-        const fid = params.get('folderId');
+        const fid = searchParams.get('folderId');
         return fid ? [fid] : [];
     };
 
@@ -838,7 +836,7 @@ export const Table01DividerLineSm = ({
 
         resolvePath();
 
-    }, [pathname, currentFolderId, isInitialLoad, router, t, folderPath.length]);
+    }, [pathname, searchParams, currentFolderId, isInitialLoad, router, t, folderPath.length]);
 
     // Start file uploads with progress tracking
     const startUploads = async (files: File[]) => {
@@ -968,11 +966,16 @@ export const Table01DividerLineSm = ({
 
         // Prevent fetching for reserved routes or headers
         if (['shared', 'trash', 'photos', 'recent', 'settings', 'admin', 'help', 'feedback'].includes(folderId)) {
+            setIsLoading(false);
+            setIsFetching(false);
             return;
         }
 
         if (!force && lastFetchRef.current === fetchKey) {
             // Already fetching this data or already fetched
+            // Ensure loading states are cleared if we were manually set to loading
+            setIsLoading(false);
+            setIsFetching(false);
             return;
         }
         lastFetchRef.current = fetchKey;
