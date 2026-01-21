@@ -335,11 +335,15 @@ export async function uploadEncryptedFile(
             throw new Error(`No presigned URL available for chunk ${i}`);
           }
 
-          // Build headers — avoid sending Content-MD5 unless server indicated md5 and it is needed
+          // Build headers — include Content-MD5 always when we have it to satisfy Object Lock requirements
           const headers: Record<string, string> = {
             'Content-Type': 'application/octet-stream'
           };
-          if (uploadEntry.md5) {
+          if (processed.md5) {
+            // Use the worker-computed MD5 for the actual encrypted payload (preferred for Object Lock)
+            headers['Content-MD5'] = processed.md5;
+          } else if (uploadEntry.md5) {
+            // Fallback to server-provided md5 if present
             headers['Content-MD5'] = uploadEntry.md5;
           }
 
@@ -446,7 +450,12 @@ export async function uploadEncryptedFile(
             const putUrl = putEntry?.putUrl;
             if (!putUrl) throw new Error('No presigned URL available for chunk ' + idx);
             const headers: Record<string, string> = { 'Content-Type': 'application/octet-stream' };
-            if (putEntry?.md5) headers['Content-MD5'] = processed.md5;
+            // Always attach Content-MD5 for object lock buckets (prefer the worker-computed md5)
+            if (processed.md5) {
+              headers['Content-MD5'] = processed.md5;
+            } else if (putEntry?.md5) {
+              headers['Content-MD5'] = putEntry.md5;
+            }
             const resp = await fetch(putUrl, {
               method: 'PUT',
               body: new Blob([new Uint8Array(processed.encryptedData)]),
