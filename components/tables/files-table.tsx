@@ -2977,7 +2977,7 @@ export const Table01DividerLineSm = ({
             // Selected items state
             return (
                 <>
-                    {!selectedHasPaper && (
+                    {(selectedCount > 1 || !selectedHasPaper) && (
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <Button
@@ -4424,7 +4424,7 @@ export const Table01DividerLineSm = ({
                 </ActionBarSelection>
                 <ActionBarSeparator />
                 <ActionBarGroup>
-                    {!selectedHasPaper && (
+                    {(selectedItems.size > 1 || !selectedHasPaper) && (
                     <ActionBarItem onClick={handleBulkDownload}>
                         <IconDownload className="h-4 w-4 mr-2" />
                         Download
