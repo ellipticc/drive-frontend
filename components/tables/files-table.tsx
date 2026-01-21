@@ -398,6 +398,8 @@ export const Table01DividerLineSm = ({
     // Selection state
     const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
     const [menuOpenRow, setMenuOpenRow] = useState<string | null>(null);
+    // Whether the current selection contains any paper items (papers cannot be downloaded)
+    const selectedHasPaper = useMemo(() => Array.from(selectedItems).some(id => filesMap.get(id)?.type === 'paper'), [selectedItems, filesMap]);
 
     // View mode state
     const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
@@ -1839,15 +1841,23 @@ export const Table01DividerLineSm = ({
 
         if (selectedItemsArray.length === 0) return;
 
-        // If only one item is selected, download it directly (no ZIP for single files)
-        if (selectedItemsArray.length === 1) {
-            const item = selectedItemsArray[0];
+        // Filter out papers (papers cannot be downloaded)
+        const downloadableItems = selectedItemsArray.filter(i => i.type !== 'paper');
+
+        if (downloadableItems.length === 0) {
+            // Nothing download-able selected
+            return;
+        }
+
+        // If only one downloadable item is selected, download it directly (no ZIP for single files)
+        if (downloadableItems.length === 1) {
+            const item = downloadableItems[0];
             await handleDownloadClick(item.id, item.name, item.type);
             return;
         }
 
         // Multiple items selected - create ZIP
-        await startBulkDownload(selectedItemsArray as any);
+        await startBulkDownload(downloadableItems as any);
     }, [selectedItems, handleDownloadClick, startBulkDownload, toast]);
 
     // Handle folder double-click navigation
@@ -2742,6 +2752,7 @@ export const Table01DividerLineSm = ({
         const hasSelection = selectedItems.size > 0;
         const selectedCount = selectedItems.size;
         const hasMultipleSelection = selectedCount > 1;
+        const selectedHasPaper = Array.from(selectedItems).some(id => filesMap.get(id)?.type === 'paper');
 
         const customizeColumnsDropdown = !isMobile && viewMode === 'table' ? (
             <>
@@ -2969,6 +2980,7 @@ export const Table01DividerLineSm = ({
             // Selected items state
             return (
                 <>
+                    {!selectedHasPaper && (
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <Button
@@ -2983,6 +2995,7 @@ export const Table01DividerLineSm = ({
                         </TooltipTrigger>
                         <TooltipContent>{`Download ${selectedCount} item${selectedCount > 1 ? 's' : ''}`}</TooltipContent>
                     </Tooltip>
+                    )}
                     {selectedCount === 1 && (() => {
                         const firstItemId = Array.from(selectedItems)[0];
                         const firstItem = filesMap.get(firstItemId);
@@ -3642,10 +3655,12 @@ export const Table01DividerLineSm = ({
                                                                             </Button>
                                                                         </DropdownMenuTrigger>
                                                                         <DropdownMenuContent align="end" className="w-48">
+                                                                            {item.type !== 'paper' && (
                                                                             <DropdownMenuItem onClick={() => handleDownloadClick(item.id, item.name, item.type as any)}>
                                                                                 <IconDownload className="h-4 w-4 mr-2" />
                                                                                 {t("files.download")}
                                                                             </DropdownMenuItem>
+                                                                            )}
                                                                             {item.type === 'file' && (
                                                                                 <DropdownMenuItem onClick={() => handlePreviewClick(item.id, item.name, item.mimeType)}>
                                                                                     <IconEye className="h-4 w-4 mr-2" />
@@ -3941,10 +3956,12 @@ export const Table01DividerLineSm = ({
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end" className="w-48">
+                                                        {item.type !== 'paper' && (
                                                         <DropdownMenuItem onClick={() => handleDownloadClick(item.id, item.name, item.type as any)}>
                                                             <IconDownload className="h-4 w-4 mr-2" />
                                                             Download
                                                         </DropdownMenuItem>
+                                                        )}
                                                         {item.type === 'file' && (
                                                             <DropdownMenuItem onClick={() => handlePreviewClick(item.id, item.name, item.mimeType)}>
                                                                 <IconEye className="h-4 w-4 mr-2" />
@@ -4243,6 +4260,7 @@ export const Table01DividerLineSm = ({
                             ) : (
                                 // Context menu for items
                                 <>
+                                    {contextMenu.targetItem?.type !== 'paper' && (
                                     <button
                                         className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
                                         onClick={() => handleContextMenuAction('download', contextMenu.targetItem)}
@@ -4250,6 +4268,7 @@ export const Table01DividerLineSm = ({
                                         <IconDownload className="h-4 w-4" />
                                         Download
                                     </button>
+                                    )}
                                     {contextMenu.targetItem?.type === 'file' && (
                                         <div
                                             className="flex items-center px-3 py-2 text-sm text-foreground hover:bg-accent cursor-pointer transition-colors"
@@ -4408,10 +4427,12 @@ export const Table01DividerLineSm = ({
                 </ActionBarSelection>
                 <ActionBarSeparator />
                 <ActionBarGroup>
+                    {!selectedHasPaper && (
                     <ActionBarItem onClick={handleBulkDownload}>
                         <IconDownload className="h-4 w-4 mr-2" />
                         Download
                     </ActionBarItem>
+                    )}
                     <ActionBarItem onClick={handleBulkMoveToFolderClick}>
                         <IconFolder className="h-4 w-4 mr-2" />
                         Move
