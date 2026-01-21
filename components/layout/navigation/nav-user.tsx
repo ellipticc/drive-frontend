@@ -38,6 +38,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { useTheme } from "next-themes"
 import { useUser } from "@/components/user-context"
 import { apiClient } from "@/lib/api"
@@ -150,30 +151,63 @@ export function NavUser({
       <SidebarMenu>
         <SidebarMenuItem>
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <SidebarMenuButton
-                size="lg"
-                className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground relative"
-              >
-                <div className="relative">
-                  <Avatar className="h-8 w-8 rounded-lg">
-                    <AvatarImage src={user.avatar || getDiceBearAvatar(user.id)} alt={displayName} />
-                    <AvatarFallback className="rounded-lg">{getInitials(displayName)}</AvatarFallback>
-                  </Avatar>
-                  {hasUnread && <NotificationDot />}
-                  {user.is_checkmarked && user.show_checkmark !== false && (
-                    <IconRosetteDiscountCheckFilled className="absolute -bottom-1 -right-1 z-20 text-background size-5 fill-sky-500" />
-                  )}
-                </div>
-                <div className="grid flex-1 text-start text-sm leading-tight">
-                  <span className="truncate font-medium">{displayName}</span>
-                  <span className="text-muted-foreground truncate text-xs">
-                    {user.email}
-                  </span>
-                </div>
-                <IconDotsVertical className="ms-auto size-4" />
-              </SidebarMenuButton>
-            </DropdownMenuTrigger>
+            {state === 'collapsed' ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <SidebarMenuButton
+                      size="lg"
+                      className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground relative"
+                    >
+                      <div className="relative">
+                        <Avatar className="h-8 w-8 rounded-lg">
+                          <AvatarImage src={user.avatar || getDiceBearAvatar(user.id)} alt={displayName} />
+                          <AvatarFallback className="rounded-lg">{getInitials(displayName)}</AvatarFallback>
+                        </Avatar>
+                        {hasUnread && <NotificationDot />}
+                        {user.is_checkmarked && user.show_checkmark !== false && (
+                          <IconRosetteDiscountCheckFilled className="absolute -bottom-1 -right-1 z-20 text-background size-5 fill-sky-500" />
+                        )}
+                      </div>
+                      <div className="grid flex-1 text-start text-sm leading-tight">
+                        <span className="truncate font-medium">{displayName}</span>
+                        <span className="text-muted-foreground truncate text-xs">
+                          {user.email}
+                        </span>
+                      </div>
+                      <IconDotsVertical className="ms-auto size-4" />
+                    </SidebarMenuButton>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent side="right">{displayName}</TooltipContent>
+              </Tooltip>
+            ) : (
+              <DropdownMenuTrigger asChild>
+                <SidebarMenuButton
+                  size="lg"
+                  className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground relative"
+                >
+                  <div className="relative">
+                    <Avatar className="h-8 w-8 rounded-lg">
+                      <AvatarImage src={user.avatar || getDiceBearAvatar(user.id)} alt={displayName} />
+                      <AvatarFallback className="rounded-lg">{getInitials(displayName)}</AvatarFallback>
+                    </Avatar>
+                    {hasUnread && <NotificationDot />}
+                    {user.is_checkmarked && user.show_checkmark !== false && (
+                      <IconRosetteDiscountCheckFilled className="absolute -bottom-1 -right-1 z-20 text-background size-5 fill-sky-500" />
+                    )}
+                  </div>
+                  <div className="grid flex-1 text-start text-sm leading-tight">
+                    <span className="truncate font-medium">{displayName}</span>
+                    <span className="text-muted-foreground truncate text-xs">
+                      {user.email}
+                    </span>
+                  </div>
+                  <IconDotsVertical className="ms-auto size-4" />
+                </SidebarMenuButton>
+              </DropdownMenuTrigger>
+            )}
+
             <DropdownMenuContent
               className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
               side={isMobile ? "bottom" : "right"}

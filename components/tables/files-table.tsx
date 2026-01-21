@@ -3404,7 +3404,7 @@ export const Table01DividerLineSm = ({
                                         onContextMenu={(e: React.MouseEvent) => handleContextMenu(e)}
                                     >
                                         {filteredItems.length > 0 && (
-                                            <Table.Header className="group sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+                                            <Table.Header className="group sticky top-0 z-40 bg-background border-b">
                                                 <Table.Head className="w-10 text-center pl-2 md:pl-4 pr-0">
                                                     <Checkbox
                                                         slot="selection"

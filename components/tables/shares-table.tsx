@@ -816,7 +816,7 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                             }
                         }}
                         >
-                            <Table.Header className="group sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+                            <Table.Header className="group sticky top-0 z-40 bg-background border-b">
                                 <Table.Head className="w-10 text-center pl-4 pr-0">
                                     <Checkbox
                                         slot="selection"

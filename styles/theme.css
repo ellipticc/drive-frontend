@@ -1349,3 +1349,13 @@
     transition: box-shadow 240ms ease, background-color 240ms ease, outline-color 240ms ease;
 }
 
+/* Prevent sticky headers (like table header) from hiding behind the site header */
+header[data-sticky="true"] + main {
+    padding-top: var(--header-height);
+}
+
+header[data-sticky="true"] + main .group.sticky,
+header[data-sticky="true"] ~ main .group.sticky {
+    top: var(--header-height) !important;
+}
+
