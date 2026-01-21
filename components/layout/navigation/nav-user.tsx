@@ -98,7 +98,7 @@ export function NavUser({
   }
 }) {
 
-  const { isMobile } = useSidebar()
+  const { isMobile, state } = useSidebar()
   const { t } = useLanguage()
   const { setTheme, theme } = useTheme()
   const { updateUser, refetch, deviceLimitReached } = useUser()

@@ -58,7 +58,7 @@ export function NavSecondary({
                   )}
                 </SupportRequestDialog>
               ) : item.id === "settings" ? (
-                {state === 'collapsed' ? (
+                state === 'collapsed' ? (
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <SidebarMenuButton
@@ -85,7 +85,7 @@ export function NavSecondary({
                     <item.icon />
                     <span>{item.title}</span>
                   </SidebarMenuButton>
-                )}
+                )
               ) : item.id === "feedback" ? (
                 <FeedbackPopover open={feedbackOpen} onOpenChange={setFeedbackOpen}>
                   {state === 'collapsed' ? (
