@@ -10,7 +10,7 @@ import { createBLAKE3 } from 'hash-wasm';
 
 type WorkerMessage =
   | { type: 'hash_file'; id: string; file: File }
-  | { type: 'process_chunk'; id: string; chunk: Uint8Array; key: Uint8Array; index: number };
+  | { type: 'process_chunk'; id: string; chunk: Uint8Array; key: Uint8Array; index: number; shouldCompress: boolean };
 
 // -----------------------------------------------------------------------------
 // Helper Functions
@@ -44,7 +44,13 @@ function encryptChunk(data: Uint8Array, key: Uint8Array): { encryptedData: Uint8
 }
 
 // Simple Gzip compression using CompressionStream if available
-async function compressData(data: Uint8Array): Promise<{ data: Uint8Array, isCompressed: boolean, algorithm: string, ratio: number }> {
+// Now accepts shouldCompress parameter - file-level decision passed from main thread
+async function compressData(data: Uint8Array, shouldCompress: boolean): Promise<{ data: Uint8Array, isCompressed: boolean, algorithm: string, ratio: number }> {
+  // If file-level test determined no compression, skip immediately
+  if (!shouldCompress) {
+    return { data, isCompressed: false, algorithm: 'none', ratio: 1.0 };
+  }
+
   try {
     if (typeof CompressionStream !== 'undefined') {
 
@@ -74,7 +80,7 @@ async function compressData(data: Uint8Array): Promise<{ data: Uint8Array, isCom
         offset += chunk.length;
       }
 
-      // Check if compression was worth it
+      // Check if compression was worth it (this shouldn't happen if file-level test was correct)
       const ratio = result.length / data.length;
       if (ratio < 0.92) {
         return { data: result, isCompressed: true, algorithm: 'gzip', ratio };
@@ -115,10 +121,10 @@ self.onmessage = async (e: MessageEvent) => {
       self.postMessage({ id, success: true, result: hashHex });
 
     } else if (type === 'process_chunk') {
-      const { chunk, key, index } = e.data;
+      const { chunk, key, index, shouldCompress } = e.data;
 
-      // 1. Compress
-      const compressionDesc = await compressData(chunk);
+      // 1. Compress (only if file-level test determined it's worthwhile)
+      const compressionDesc = await compressData(chunk, shouldCompress);
 
       // 2. Encrypt
       const { encryptedData, nonce } = encryptChunk(compressionDesc.data, key);

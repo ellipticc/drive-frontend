@@ -17,6 +17,7 @@ import { decompressChunk, CompressionAlgorithm } from './compression';
 import { WorkerPool } from './worker-pool';
 import { xchacha20poly1305 } from '@noble/ciphers/chacha.js';
 import { masterKeyManager } from './master-key';
+import { getTransferQueue } from './transfer-queue';
 
 // Lazy-initialized worker pool
 let downloadWorkerPool: WorkerPool | null = null;
@@ -378,7 +379,8 @@ async function pipelineDownloadAndDecrypt(
 
           // 1. Fetch
           // Use chunkController signal to allow instant abort on pause
-          const response = await fetch(chunk.getUrl, { signal: chunkController.signal, credentials: 'omit' });
+          // Use transfer queue to prevent API queue throttling
+          const response = await getTransferQueue().enqueue(() => fetch(chunk.getUrl, { signal: chunkController.signal, credentials: 'omit' }));
           if (!response.ok) throw new Error(`Fetch failed ${response.status}`);
 
           const chunkData = new Uint8Array(await response.arrayBuffer());

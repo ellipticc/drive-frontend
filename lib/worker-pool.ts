@@ -17,9 +17,11 @@ export class WorkerPool {
     private taskQueue: WorkerTask<unknown>[] = [];    private workerFactory: () => Worker;
     private maxWorkers: number;
 
-    constructor(workerFactory: () => Worker, maxWorkers: number = Math.min(Math.ceil((navigator.hardwareConcurrency || 4) / 2), 6)) {
+    constructor(workerFactory: () => Worker, maxWorkers: number = Math.min((navigator.hardwareConcurrency || 4) * 2, 20)) {
         this.workerFactory = workerFactory;
         this.maxWorkers = maxWorkers;
+        // Modern browsers handle 20+ workers easily. This matches network concurrency (12-16 parallel transfers)
+        // to prevent workers from becoming the bottleneck. Workers are idle when not transferring.
     }
 
     public execute<T>(message: unknown, transferables?: Transferable[]): Promise<T> {
