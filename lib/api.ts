@@ -2482,6 +2482,8 @@ class ApiClient {
       chunkSize: number;
       sha256Hash?: string;
       nonce?: string;
+      attempts?: number;
+      lastError?: string | null;
     }>;
   }): Promise<ApiResponse<{
     totalChunks: number;
@@ -2493,6 +2495,8 @@ class ApiClient {
       size?: number;
       objectKey?: string;
       error?: string;
+      b2Error?: string | null;
+      b2ErrorStatus?: number | null;
     }>;
   }>> {
     return this.request(`/files/upload/presigned/${sessionId}/confirm-batch`, {

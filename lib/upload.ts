@@ -41,6 +41,14 @@ export interface UploadProgress {
   bytesProcessed?: number;
   totalBytes?: number;
   chunkProgress?: number; // 0-100 for current chunk
+  // Diagnostic info about the last upload attempt for a chunk
+  lastAttempt?: {
+    chunkIndex: number;
+    attempt: number;
+    status?: number | null;
+    error?: string | null;
+    b2Response?: string | null;
+  };
 }
 
 export interface UserKeys {
@@ -80,6 +88,9 @@ export interface ChunkInfo {
   compressionOriginalSize: number;
   compressionCompressedSize: number;
   compressionRatio: number;
+  // Diagnostics
+  attempts?: number;
+  lastError?: string | null;
 }
 
 export interface UploadSession {
@@ -136,6 +147,54 @@ const processChunkInWorker = (chunk: Uint8Array, key: Uint8Array, index: number)
     index
   }, [chunkBuffer]);
 };
+
+/**
+ * Perform a PUT to a presigned URL with client-side retries and exponential backoff.
+ * Reports each attempt via the onAttempt callback (attempt, status, error, body)
+ */
+async function putWithRetries(putUrl: string, body: Blob, headers: Record<string, string>, onAttempt?: (attempt: number, status?: number | null, error?: Error | null, body?: string | null) => void): Promise<{ ok: boolean; attempts: number; status?: number | null; body?: string | null }> {
+  const CLIENT_MAX_RETRIES = 5;
+  let attempt = 0;
+  let lastStatus: number | null = null;
+  let lastBody: string | null = null;
+
+  for (attempt = 1; attempt <= CLIENT_MAX_RETRIES; attempt++) {
+    try {
+      const resp = await fetch(putUrl, { method: 'PUT', body, headers, credentials: 'omit' });
+      lastStatus = resp.status;
+      const txt = await resp.text();
+      lastBody = txt;
+
+      if (resp.ok) {
+        onAttempt?.(attempt, resp.status, null, txt);
+        return { ok: true, attempts: attempt, status: resp.status, body: txt };
+      }
+
+      // Non-200: report attempt
+      onAttempt?.(attempt, resp.status, null, txt);
+
+      // Retry on 5xx and InternalError messages
+      const retryable = resp.status >= 500 || (txt && txt.toLowerCase().includes('internalerror'));
+      if (!retryable) {
+        // Non-retryable client error
+        return { ok: false, attempts: attempt, status: resp.status, body: txt };
+      }
+
+      // Exponential backoff
+      const backoffMs = Math.min(500 * Math.pow(2, attempt - 1), 10000);
+      await new Promise(r => setTimeout(r, backoffMs));
+    } catch (err) {
+      onAttempt?.(attempt, null, err as Error, null);
+      // Network errors are retryable
+      lastStatus = null;
+      lastBody = (err as Error).message;
+      const backoffMs = Math.min(500 * Math.pow(2, attempt - 1), 10000);
+      await new Promise(r => setTimeout(r, backoffMs));
+    }
+  }
+
+  return { ok: false, attempts: attempt - 1, status: lastStatus, body: lastBody };
+}
 
 /**
  * Compute SHA-512 Hash in Worker to avoid UI freeze.
@@ -347,17 +406,27 @@ export async function uploadEncryptedFile(
             headers['Content-MD5'] = uploadEntry.md5;
           }
 
-          const response = await fetch(uploadEntry.putUrl, {
-            method: 'PUT',
-            body: new Blob([new Uint8Array(processed.encryptedData)]),
-            headers,
-            signal: abortSignal,
-            credentials: 'omit'
+          // Perform PUT with client-side retries (preferred) and report attempts to UI
+          const putBlob = new Blob([new Uint8Array(processed.encryptedData)]);
+          const putHeaders = headers;
+
+          const putResult = await putWithRetries(uploadEntry.putUrl, putBlob, putHeaders, (attempt, status, err, body) => {
+            // Report attempt details in progress for UI
+            onProgress?.({
+              stage: 'uploading',
+              overallProgress: (completedBytes / file.size) * 100,
+              currentChunk: completedCount + 1,
+              totalChunks: chunks.length,
+              chunkProgress: Math.round((attempt / (process.env.CLIENT_UPLOAD_MAX_RETRIES ? parseInt(process.env.CLIENT_UPLOAD_MAX_RETRIES) : 5)) * 100),
+              bytesProcessed: completedBytes,
+              totalBytes: file.size,
+              lastAttempt: { chunkIndex: i, attempt, status: status || null, error: err ? (err.message || String(err)) : null, b2Response: body ? String(body).substring(0, 512) : null }
+            });
           });
 
-          if (!response.ok) {
-            const txt = await response.text();
-            throw new Error(`Upload failed for chunk ${i}: ${response.status} - ${txt}`);
+          if (!putResult.ok) {
+            // Expose last attempt details for diagnostics
+            throw new Error(`Upload failed for chunk ${i}: ${putResult.status} - ${putResult.body}`);
           }
 
           // 4. Metadata (Keep only lightweight metadata)
@@ -372,7 +441,9 @@ export async function uploadEncryptedFile(
             compressionAlgorithm: processed.compression.algorithm,
             compressionOriginalSize: processed.compression.originalSize,
             compressionCompressedSize: processed.compression.compressedSize,
-            compressionRatio: processed.compression.ratio
+            compressionRatio: processed.compression.ratio,
+            attempts: putResult.attempts,
+            lastError: putResult.ok ? null : `${putResult.status} - ${putResult.body}`
           };
           chunkHashes[i] = processed.hash;
 
@@ -446,27 +517,53 @@ export async function uploadEncryptedFile(
 
             // Attempt upload (with one retry on 4xx/5xx)
             const performUpload = async () => {
-            const putEntry = session.uploadUrlsMap?.[idx];
-            const putUrl = putEntry?.putUrl;
-            if (!putUrl) throw new Error('No presigned URL available for chunk ' + idx);
-            const headers: Record<string, string> = { 'Content-Type': 'application/octet-stream' };
-            // Always attach Content-MD5 for object lock buckets (prefer the worker-computed md5)
-            if (processed.md5) {
-              headers['Content-MD5'] = processed.md5;
-            } else if (putEntry?.md5) {
-              headers['Content-MD5'] = putEntry.md5;
-            }
-            const resp = await fetch(putUrl, {
-              method: 'PUT',
-              body: new Blob([new Uint8Array(processed.encryptedData)]),
-              headers,
-                credentials: 'omit'
+              const putEntry = session.uploadUrlsMap?.[idx];
+              const putUrl = putEntry?.putUrl;
+              if (!putUrl) throw new Error('No presigned URL available for chunk ' + idx);
+              const headers: Record<string, string> = { 'Content-Type': 'application/octet-stream' };
+              // Always attach Content-MD5 for object lock buckets (prefer the worker-computed md5)
+              if (processed.md5) {
+                headers['Content-MD5'] = processed.md5;
+              } else if (putEntry?.md5) {
+                headers['Content-MD5'] = putEntry.md5;
+              }
+
+              const blob = new Blob([new Uint8Array(processed.encryptedData)]);
+
+              const result = await putWithRetries(putUrl, blob, headers, (attempt, status, err, body) => {
+                // Update UI with attempt info
+                onProgress?.({
+                  stage: 'uploading',
+                  overallProgress: (completedBytes / file.size) * 100,
+                  currentChunk: idx + 1,
+                  totalChunks: chunks.length,
+                  chunkProgress: 0,
+                  bytesProcessed: completedBytes,
+                  totalBytes: file.size,
+                  lastAttempt: { chunkIndex: idx, attempt, status: status || null, error: err ? (err.message || String(err)) : null, b2Response: body ? String(body).substring(0, 512) : null }
+                });
               });
 
-              if (!resp.ok) {
-                const txt = await resp.text();
-                throw new Error(`Upload failed for chunk ${idx}: ${resp.status} - ${txt}`);
+              if (!result.ok) {
+                throw new Error(`Upload failed for chunk ${idx}: ${result.status} - ${result.body}`);
               }
+
+              // Update processed chunk diagnostics
+              processedChunks[idx] = processedChunks[idx] || {
+                index: idx,
+                size: range.end - range.start,
+                encryptedSize: processed.encryptedData.byteLength,
+                blake3Hash: processed.hash,
+                md5: processed.md5,
+                nonce: processed.nonce,
+                isCompressed: processed.compression.isCompressed,
+                compressionAlgorithm: processed.compression.algorithm,
+                compressionOriginalSize: processed.compression.originalSize,
+                compressionCompressedSize: processed.compression.compressedSize,
+                compressionRatio: processed.compression.ratio
+              };
+              processedChunks[idx].attempts = result.attempts;
+              processedChunks[idx].lastError = result.ok ? null : `${result.status} - ${result.body}`;
             };
 
             try {
@@ -901,7 +998,10 @@ async function confirmChunkUploads(
     compressionAlgorithm: chunk.compressionAlgorithm,
     compressionOriginalSize: chunk.compressionOriginalSize,
     compressionCompressedSize: chunk.compressionCompressedSize,
-    compressionRatio: chunk.compressionRatio
+    compressionRatio: chunk.compressionRatio,
+    // Diagnostics
+    attempts: (chunk as any).attempts || 0,
+    lastError: (chunk as any).lastError || null
   }));
 
 
@@ -976,7 +1076,9 @@ async function finalizeUpload(
   }, fileId);
 
   if (!response.success || !response.data) {
-    throw new Error('Failed to finalize upload');
+    // If server returned structured details (B2 verification failure), include that in the thrown error for UI
+    const details = response.data || (response.error ? response.error : null);
+    throw new Error(`Failed to finalize upload${details ? `: ${JSON.stringify(details)}` : ''}`);
   }
 
   return {

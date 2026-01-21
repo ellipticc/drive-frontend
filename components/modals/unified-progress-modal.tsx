@@ -385,6 +385,16 @@ export function UnifiedProgressModal({
                               {formatFileSize(upload.progress.bytesProcessed)} / {formatFileSize(upload.progress.totalBytes)}
                             </div>
                           )}
+
+                        {/* Last attempt diagnostics */}
+                        {upload.progress?.lastAttempt && (
+                          <div className="text-xs text-muted-foreground mt-1 break-words">
+                            Last attempt (chunk #{upload.progress.lastAttempt.chunkIndex}): attempt {upload.progress.lastAttempt.attempt} {upload.progress.lastAttempt.error ? `— Error: ${upload.progress.lastAttempt.error}` : ''}
+                            {upload.progress.lastAttempt.b2Response && (
+                              <div className="text-xs text-muted-foreground mt-1">B2: {upload.progress.lastAttempt.b2Response}</div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
 
