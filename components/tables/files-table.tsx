@@ -434,11 +434,49 @@ export const Table01DividerLineSm = ({
         })
     );
 
+    // Helper: detect a space element under pointer coordinates
+    const detectSpaceAtPoint = (x: number, y: number) => {
+        const el = document.elementFromPoint(x, y) as Element | null;
+        const spaceEl = el?.closest('[data-space-id]') as Element | null;
+        if (!spaceEl) return null;
+        return {
+            el: spaceEl,
+            id: spaceEl.getAttribute('data-space-id') || '',
+            name: spaceEl.getAttribute('data-space-name') || ''
+        };
+    };
+
     const handleDragStart = (event: DragStartEvent) => {
         const { active } = event;
         const item = active.data.current?.item as FileItem;
         if (item) {
             setActiveDragItem(item);
+        }
+
+        // Try an initial detection in case drag starts directly over a Space
+        try {
+            const sensorEvent = (event as any).sensorEvent as PointerEvent | TouchEvent | undefined;
+            let clientX: number | undefined, clientY: number | undefined;
+            if (sensorEvent) {
+                if ((sensorEvent as TouchEvent).touches && (sensorEvent as TouchEvent).touches.length) {
+                    clientX = (sensorEvent as TouchEvent).touches[0].clientX;
+                    clientY = (sensorEvent as TouchEvent).touches[0].clientY;
+                } else if ((sensorEvent as PointerEvent).clientX !== undefined) {
+                    clientX = (sensorEvent as PointerEvent).clientX;
+                    clientY = (sensorEvent as PointerEvent).clientY;
+                }
+            }
+            if (typeof clientX === 'number' && typeof clientY === 'number') {
+                const detected = detectSpaceAtPoint(clientX, clientY);
+                if (detected) {
+                    if (hoveredSpaceElRef.current) hoveredSpaceElRef.current.classList.remove('space-dnd-over');
+                    detected.el.classList.add('space-dnd-over');
+                    hoveredSpaceElRef.current = detected.el;
+                    setHoveredSpace({ id: detected.id, name: detected.name, el: detected.el });
+                }
+            }
+        } catch (err) {
+            // ignore detection errors
         }
     };
 
@@ -448,8 +486,16 @@ export const Table01DividerLineSm = ({
 
         // Reset any space hover if not over a space
         const sensorEvent = (event as any).sensorEvent as PointerEvent | TouchEvent | undefined;
-        const clientX = sensorEvent && (sensorEvent as PointerEvent).clientX ? (sensorEvent as PointerEvent).clientX : undefined;
-        const clientY = sensorEvent && (sensorEvent as PointerEvent).clientY ? (sensorEvent as PointerEvent).clientY : undefined;
+        let clientX: number | undefined, clientY: number | undefined;
+        if (sensorEvent) {
+            if ((sensorEvent as TouchEvent).touches && (sensorEvent as TouchEvent).touches.length) {
+                clientX = (sensorEvent as TouchEvent).touches[0].clientX;
+                clientY = (sensorEvent as TouchEvent).touches[0].clientY;
+            } else if ((sensorEvent as PointerEvent).clientX !== undefined) {
+                clientX = (sensorEvent as PointerEvent).clientX;
+                clientY = (sensorEvent as PointerEvent).clientY;
+            }
+        }
 
         // Prefer folder targets if available
         if (target && target.type === 'folder' && target.id !== activeDragItem?.id) {
@@ -465,18 +511,14 @@ export const Table01DividerLineSm = ({
 
         // If pointer coordinates available, test for space element under cursor
         if (typeof clientX === 'number' && typeof clientY === 'number') {
-            const el = document.elementFromPoint(clientX, clientY) as Element | null;
-            const spaceEl = el?.closest('[data-space-id]') as Element | null;
-            if (spaceEl) {
-                const spaceId = spaceEl.getAttribute('data-space-id') || '';
-                const spaceName = spaceEl.getAttribute('data-space-name') || '';
-
+            const detected = detectSpaceAtPoint(clientX, clientY);
+            if (detected) {
                 // If new space hover, update highlight
-                if (!hoveredSpaceElRef.current || hoveredSpaceElRef.current.getAttribute('data-space-id') !== spaceId) {
+                if (!hoveredSpaceElRef.current || hoveredSpaceElRef.current.getAttribute('data-space-id') !== detected.id) {
                     if (hoveredSpaceElRef.current) hoveredSpaceElRef.current.classList.remove('space-dnd-over');
-                    spaceEl.classList.add('space-dnd-over');
-                    hoveredSpaceElRef.current = spaceEl;
-                    setHoveredSpace({ id: spaceId, name: spaceName, el: spaceEl });
+                    detected.el.classList.add('space-dnd-over');
+                    hoveredSpaceElRef.current = detected.el;
+                    setHoveredSpace({ id: detected.id, name: detected.name, el: detected.el });
                 }
                 // clear folder drop target
                 setCurrentDropTarget(null);
@@ -501,8 +543,34 @@ export const Table01DividerLineSm = ({
         setCurrentDropTarget(null);
 
         // If we were hovering a space, handle space drop
-        if (hoveredSpace) {
-            const spaceId = hoveredSpace.id;
+        // If hoveredSpace is not set for some reason, attempt final detection at pointer location
+        let effectiveHovered = hoveredSpace;
+        if (!effectiveHovered) {
+            try {
+                const sensorEvent = (event as any).sensorEvent as PointerEvent | TouchEvent | undefined;
+                let clientX: number | undefined, clientY: number | undefined;
+                if (sensorEvent) {
+                    if ((sensorEvent as TouchEvent).changedTouches && (sensorEvent as TouchEvent).changedTouches.length) {
+                        clientX = (sensorEvent as TouchEvent).changedTouches[0].clientX;
+                        clientY = (sensorEvent as TouchEvent).changedTouches[0].clientY;
+                    } else if ((sensorEvent as PointerEvent).clientX !== undefined) {
+                        clientX = (sensorEvent as PointerEvent).clientX;
+                        clientY = (sensorEvent as PointerEvent).clientY;
+                    }
+                }
+                if (typeof clientX === 'number' && typeof clientY === 'number') {
+                    const detected = detectSpaceAtPoint(clientX, clientY);
+                    if (detected) {
+                        effectiveHovered = { id: detected.id, name: detected.name, el: detected.el };
+                    }
+                }
+            } catch (err) {
+                // ignore
+            }
+        }
+
+        if (effectiveHovered) {
+            const spaceId = effectiveHovered.id;
 
             const draggedItem = active.data.current?.item as FileItem | undefined;
             if (!draggedItem) {
@@ -553,6 +621,15 @@ export const Table01DividerLineSm = ({
             if (successCount > 0) {
                 toast.success(`Added ${successCount} item${successCount > 1 ? 's' : ''} to space`);
                 window.dispatchEvent(new CustomEvent('space:item-added', { detail: { spaceId } }));
+
+                // Visual success pulse on the space
+                try {
+                    if (effectiveHovered && (effectiveHovered as any).el) {
+                        const el = (effectiveHovered as any).el as Element;
+                        el.classList.add('space-dnd-success');
+                        setTimeout(() => el.classList.remove('space-dnd-success'), 900);
+                    }
+                } catch (err) { /* ignore */ }
             }
             if (errorCount > 0) {
                 toast.error(`Failed to add ${errorCount} item${errorCount > 1 ? 's' : ''} to space`);
