@@ -256,7 +256,7 @@ export default function PhotosPage() {
     }, [groupedItems])
 
     // Handlers
-    const handlePreview = (item: MediaItem) => {
+    const handlePreview = useCallback((item: MediaItem) => {
         // If in selection mode, clear selection so action bar hides and proceed to preview
         if (isSelectionMode) clearSelection();
         const index = filteredItems.findIndex(i => i.id === item.id)
@@ -277,9 +277,9 @@ export default function PhotosPage() {
         } catch (err) {
             // ignore router errors
         }
-    }
+    }, [isSelectionMode, filteredItems, clearSelection, searchParams, pathname, router])
 
-    const handleAction = async (action: string, item: MediaItem) => {
+    const handleAction = useCallback(async (action: string, item: MediaItem) => {
         setActiveItem(item);
         switch (action) {
             case 'preview':
@@ -337,9 +337,9 @@ export default function PhotosPage() {
                 }
                 break;
         }
-    }
+    }, [handlePreview])
 
-    const handleNavigate = (direction: 'prev' | 'next') => {
+    const handleNavigate = useCallback((direction: 'prev' | 'next') => {
         const newIndex = direction === 'prev' ? previewIndex - 1 : previewIndex + 1
         if (newIndex >= 0 && newIndex < filteredItems.length) {
             const newItem = filteredItems[newIndex]
@@ -361,16 +361,16 @@ export default function PhotosPage() {
                 // ignore
             }
         }
-    }
+    }, [previewIndex, filteredItems, searchParams, pathname, router])
 
-    const handleDownload = async (file: PreviewFileItem) => {
+    const handleDownload = useCallback(async (file: PreviewFileItem) => {
         try {
             await downloadFileToBrowser(file.id)
             toast.success("Download started")
         } catch {
             toast.error("Failed to start download")
         }
-    }
+    }, [])
 
     // Bulk Actions Setup
     const prepareBulkAction = () => {

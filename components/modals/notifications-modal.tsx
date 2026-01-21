@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { formatDistanceToNow } from "date-fns"
+import { useWindowVirtualizer } from "@tanstack/react-virtual"
 import {
   IconBell,
   IconCheck,
@@ -25,7 +26,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import { Badge, badgeVariants } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty"
@@ -46,6 +47,168 @@ interface Notification {
 interface NotificationsModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+}
+
+// Virtualized notification list component
+function VirtualizedNotificationList({
+  notifications,
+  markingRead,
+  deleting,
+  onMarkAsRead,
+  onDelete,
+  formatDate,
+  getIcon,
+  getColor
+}: {
+  notifications: Notification[]
+  markingRead: string | null
+  deleting: string | null
+  onMarkAsRead: (id: string) => void
+  onDelete: (id: string) => void
+  formatDate: (date: string) => string
+  getIcon: (type: string) => React.ReactNode
+  getColor: (type: string) => 'default' | 'secondary' | 'destructive' | 'outline'
+}) {
+  const parentRef = useCallback((node: HTMLElement | null) => {
+    if (node) {
+      const scrollContainer = document.getElementById('notifications-scroll')
+      if (scrollContainer) {
+        virtualizer.scrollToOffset(0, { align: 'start' })
+      }
+    }
+  }, [])
+
+  const virtualizer = useWindowVirtualizer({
+    count: notifications.length,
+    estimateSize: () => 120,
+    overscan: 5,
+  })
+
+  type BadgeVariant = 'default' | 'secondary' | 'destructive' | 'outline';
+
+  return (
+    <div
+      ref={parentRef}
+      style={{
+        height: `${virtualizer.getTotalSize()}px`,
+        width: '100%',
+        position: 'relative',
+      }}
+      className="pr-4"
+    >
+      {virtualizer.getVirtualItems().map((virtualRow) => {
+        const notification = notifications[virtualRow.index]
+        const isLast = virtualRow.index === notifications.length - 1
+
+        return (
+          <div
+            key={notification.id}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              transform: `translateY(${virtualRow.start}px)`,
+            }}
+          >
+            <div className={`p-4 rounded-lg border transition-colors ${
+              !notification.read_at
+                ? 'bg-muted/50 border-primary/20'
+                : 'bg-background border-border'
+            }`}>
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0">
+                  {getIcon(notification.type)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h4 className="font-medium text-sm">
+                      {notification.title}
+                    </h4>
+                    <Badge variant={getColor(notification.type)} className="text-xs">
+                      {notification.type.replace('security_', '').replace('_', ' ')}
+                    </Badge>
+                    {!notification.read_at && (
+                      <div className="w-2 h-2 bg-primary rounded-full" />
+                    )}
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-2 break-words whitespace-pre-wrap">
+                    {notification.message}
+                  </p>
+                  {notification.data && (() => {
+                    const data = notification.data as Record<string, unknown> | undefined
+                    const user = data?.user as { avatar?: string; name?: string; email?: string } | undefined
+                    return (
+                      <div className="text-xs text-muted-foreground space-y-1">
+                        {typeof data?.ipAddress === 'string' && (
+                          <div>IP: {String(data.ipAddress)}</div>
+                        )}
+                        {typeof data?.userAgent === 'string' && (
+                          <div>Device: {String(data.userAgent).substring(0, 50)}...</div>
+                        )}
+                        {user && (
+                          <div className="flex items-center gap-2 mt-2">
+                            <Avatar className="h-6 w-6">
+                              <AvatarImage
+                                src={user.avatar || undefined}
+                                alt={user.name || user.email}
+                              />
+                              <AvatarFallback className="text-xs">
+                                {(user.name || user.email || 'U').charAt(0).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="text-xs">
+                              {user.name || user.email}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
+                  <div className="flex items-center justify-between mt-2">
+                    <span className="text-xs text-muted-foreground">
+                      {formatDate(notification.created_at)}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      {!notification.read_at && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onMarkAsRead(notification.id)}
+                          disabled={markingRead === notification.id}
+                          className="h-8 px-2"
+                        >
+                          {markingRead === notification.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <IconCheck className="h-4 w-4" />
+                          )}
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onDelete(notification.id)}
+                        disabled={deleting === notification.id}
+                        className="h-8 px-2 text-destructive hover:text-destructive"
+                      >
+                        {deleting === notification.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <IconTrash className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {!isLast && <Separator className="my-2" />}
+          </div>
+        )
+      })}
+    </div>
+  )
 }
 
 export function NotificationsModal({ open, onOpenChange }: NotificationsModalProps) {
@@ -210,7 +373,7 @@ export function NotificationsModal({ open, onOpenChange }: NotificationsModalPro
           )}
         </div>
 
-        <ScrollArea className="h-[60vh]">
+        <div className="h-[60vh] overflow-auto" id="notifications-scroll">
           {loading && notifications.length === 0 ? (
             <div className="flex items-center justify-center py-8">
               <div className="text-muted-foreground">Loading notifications...</div>
@@ -226,106 +389,18 @@ export function NotificationsModal({ open, onOpenChange }: NotificationsModalPro
               </EmptyDescription>
             </Empty>
           ) : (
-            <div className="space-y-1 pr-4">
-              {notifications.map((notification, index) => (
-                <div key={notification.id}>
-                  <div className={`p-4 rounded-lg border transition-colors ${!notification.read_at
-                    ? 'bg-muted/50 border-primary/20'
-                    : 'bg-background border-border'
-                    }`}>
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0">
-                        {getNotificationIcon(notification.type)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-medium text-sm">
-                            {notification.title}
-                          </h4>
-                          <Badge variant={getNotificationColor(notification.type)} className="text-xs">
-                            {notification.type.replace('security_', '').replace('_', ' ')}
-                          </Badge>
-                          {!notification.read_at && (
-                            <div className="w-2 h-2 bg-primary rounded-full" />
-                          )}
-                        </div>
-                        <p className="text-sm text-muted-foreground mb-2 break-words whitespace-pre-wrap">
-                          {notification.message}
-                        </p>
-                        {notification.data && (() => {
-                          const data = notification.data as Record<string, unknown> | undefined;
-                          const user = data?.user as { avatar?: string; name?: string; email?: string } | undefined;
-                          return (
-                            <div className="text-xs text-muted-foreground space-y-1">
-                              {typeof data?.ipAddress === 'string' && (
-                                <div>IP: {String(data.ipAddress)}</div>
-                              )}
-                              {typeof data?.userAgent === 'string' && (
-                                <div>Device: {String(data.userAgent).substring(0, 50)}...</div>
-                              )}
-                              {user && (
-                                <div className="flex items-center gap-2 mt-2">
-                                  <Avatar className="h-6 w-6">
-                                    <AvatarImage
-                                      src={user.avatar || undefined}
-                                      alt={user.name || user.email}
-                                    />
-                                    <AvatarFallback className="text-xs">
-                                      {(user.name || user.email || 'U').charAt(0).toUpperCase()}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <span className="text-xs">
-                                    {user.name || user.email}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          )
-                        })()}
-                        <div className="flex items-center justify-between mt-2">
-                          <span className="text-xs text-muted-foreground">
-                            {formatNotificationDate(notification.created_at)}
-                          </span>
-                          <div className="flex items-center gap-1">
-                            {!notification.read_at && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => markAsRead(notification.id)}
-                                disabled={markingRead === notification.id}
-                                className="h-8 px-2"
-                              >
-                                {markingRead === notification.id ? (
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
-                                  <IconCheck className="h-4 w-4" />
-                                )}
-                              </Button>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => deleteNotification(notification.id)}
-                              disabled={deleting === notification.id}
-                              className="h-8 px-2 text-destructive hover:text-destructive"
-                            >
-                              {deleting === notification.id ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <IconTrash className="h-4 w-4" />
-                              )}
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  {index < notifications.length - 1 && <Separator className="my-2" />}
-                </div>
-              ))}
-            </div>
+            <VirtualizedNotificationList
+              notifications={notifications}
+              markingRead={markingRead}
+              deleting={deleting}
+              onMarkAsRead={markAsRead}
+              onDelete={deleteNotification}
+              formatDate={formatNotificationDate}
+              getIcon={getNotificationIcon}
+              getColor={getNotificationColor}
+            />
           )}
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   )

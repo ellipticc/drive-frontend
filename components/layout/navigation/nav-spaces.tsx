@@ -172,7 +172,98 @@ const SpaceIconRenderer = ({
     );
 }
 
-function SortableSpaceItem({
+// Memoized space item component to prevent re-renders
+const SpaceItemMemoized = React.memo(function SpaceItemMemoized({
+  item,
+  onItemClick,
+  space,
+  spaces,
+  onMoveItem,
+  onRemoveItem,
+  t
+}: {
+  item: SpaceItem
+  onItemClick: (e: React.MouseEvent, item: SpaceItem) => void
+  space: Space
+  spaces: Space[]
+  onMoveItem: (fromSpaceId: string, itemId: string, toSpaceId: string) => void
+  onRemoveItem: (spaceId: string, itemId: string) => void
+  t: (key: string) => string
+}) {
+  return (
+    <SidebarMenuSubItem key={item.id} className="group/subitem relative">
+      <SidebarMenuSubButton asChild>
+        <div className="flex items-center w-full min-w-0 pr-6">
+          <button
+            onClick={(e) => onItemClick(e, item)}
+            className="flex items-center gap-2 w-full min-w-0 h-full text-left"
+          >
+            {item.file_id ? (
+              <FileIcon filename={item.decryptedName} mimeType={item.mimetype || ''} className="h-4 w-4 shrink-0" />
+            ) : (
+              <TablerIcons.IconFolder size={14} className="text-blue-500 shrink-0" />
+            )}
+            <TruncatedTooltip text={item.decryptedName || ""}>
+              <span className="text-xs font-normal">
+                {item.decryptedName || "Encrypted Item"}
+              </span>
+            </TruncatedTooltip>
+          </button>
+        </div>
+      </SidebarMenuSubButton>
+
+      <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover/subitem:opacity-100 flex items-center">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="p-1 hover:bg-accent rounded-sm transition-colors text-muted-foreground">
+              <IconDotsVertical size={12} />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="right" align="start" className="w-48">
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <IconArrowsMove className="mr-2 h-4 w-4" />
+                <span>{t("sidebar.moveToSpace")}</span>
+              </DropdownMenuSubTrigger>
+              <DropdownMenuPortal>
+                <DropdownMenuSubContent className="w-48">
+                  {space.id !== "spaced-fixed" && (
+                    <DropdownMenuItem
+                      onClick={() => onMoveItem(space.id, item.id, "spaced-fixed")}
+                    >
+                      <SpaceIconRenderer isSpaced={true} size={14} />
+                      <span className="ml-2 truncate">Spaced</span>
+                    </DropdownMenuItem>
+                  )}
+                  {spaces.filter(s => s.id !== space.id).map(targetSpace => (
+                    <DropdownMenuItem
+                      key={targetSpace.id}
+                      onClick={() => onMoveItem(space.id, item.id, targetSpace.id)}
+                    >
+                      <SpaceIconRenderer iconName={targetSpace.icon} color={targetSpace.color} size={14} />
+                      <span className="ml-2 truncate">{targetSpace.decryptedName}</span>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuPortal>
+            </DropdownMenuSub>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onClick={() => onRemoveItem(space.id, item.id)}
+            >
+              <IconTrash className="mr-2 h-4 w-4" />
+              <span>{t("sidebar.removeFromSpace")}</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </SidebarMenuSubItem>
+  )
+})
+
+// Memoized space item to prevent re-renders when other spaces change
+const SortableSpaceItem = React.memo(function SortableSpaceItem({
     space,
     onFetchItems,
     onEdit,
@@ -185,17 +276,17 @@ function SortableSpaceItem({
     spaces,
     isSpaced = false
 }: {
-    space: Space & { items?: SpaceItem[] },
-    onFetchItems: (id: string) => void,
-    onEdit?: (space: { id: string; name: string; color?: string; icon?: string }) => void,
-    onDelete?: (space: { id: string; name: string }) => void,
-    onAdd: (space: { id: string; name: string }) => void,
-    onItemClick: (e: React.MouseEvent, item: SpaceItem) => void,
-    onRemoveItem: (spaceId: string, itemId: string) => void,
-    onMoveItem: (spaceId: string, itemId: string, targetId: string) => void,
-    onNewSpace: () => void,
-    spaces: Space[],
-    isSpaced?: boolean
+    space: Space & { items?: SpaceItem[] };
+    onFetchItems: (id: string) => void;
+    onEdit?: (space: { id: string; name: string; color?: string; icon?: string }) => void;
+    onDelete?: (space: { id: string; name: string }) => void;
+    onAdd: (space: { id: string; name: string }) => void;
+    onItemClick: (e: React.MouseEvent, item: SpaceItem) => void;
+    onRemoveItem: (spaceId: string, itemId: string) => void;
+    onMoveItem: (fromSpaceId: string, itemId: string, toSpaceId: string) => void;
+    onNewSpace: () => void;
+    spaces: Space[];
+    isSpaced?: boolean;
 }) {
     const { t } = useLanguage();
     const {
@@ -321,75 +412,16 @@ function SortableSpaceItem({
                         {(space.items || []).length > 0 && (
                             <SidebarMenuSub className="ml-8 mr-0 border-l border-border/50">
                                 {space.items?.map((item) => (
-                                    <SidebarMenuSubItem key={item.id} className="group/subitem relative">
-                                        <SidebarMenuSubButton asChild>
-                                            <div className="flex items-center w-full min-w-0 pr-6">
-                                                <button
-                                                    onClick={(e) => onItemClick(e, item)}
-                                                    className="flex items-center gap-2 w-full min-w-0 h-full text-left"
-                                                >
-                                                    {item.file_id ? (
-                                                        <FileIcon filename={item.decryptedName} mimeType={item.mimetype || ''} className="h-4 w-4 shrink-0" />
-                                                    ) : (
-                                                        <TablerIcons.IconFolder size={14} className="text-blue-500 shrink-0" />
-                                                    )}
-                                                    <TruncatedTooltip text={item.decryptedName || ""}>
-                                                        <span className="text-xs font-normal">
-                                                            {item.decryptedName || "Encrypted Item"}
-                                                        </span>
-                                                    </TruncatedTooltip>
-                                                </button>
-                                            </div>
-                                        </SidebarMenuSubButton>
-
-                                        <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover/subitem:opacity-100 flex items-center">
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <button className="p-1 hover:bg-accent rounded-sm transition-colors text-muted-foreground">
-                                                        <IconDotsVertical size={12} />
-                                                    </button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent side="right" align="start" className="w-48">
-                                                    <DropdownMenuSub>
-                                                        <DropdownMenuSubTrigger>
-                                                            <IconArrowsMove className="mr-2 h-4 w-4" />
-                                                            <span>{t("sidebar.moveToSpace")}</span>
-                                                        </DropdownMenuSubTrigger>
-                                                        <DropdownMenuPortal>
-                                                            <DropdownMenuSubContent className="w-48">
-                                                                {/* Starred (Spaced) target */}
-                                                                {space.id !== "spaced-fixed" && (
-                                                                    <DropdownMenuItem
-                                                                        onClick={() => onMoveItem(space.id, item.id, "spaced-fixed")}
-                                                                    >
-                                                                        <SpaceIconRenderer isSpaced={true} size={14} />
-                                                                        <span className="ml-2 truncate">Spaced</span>
-                                                                    </DropdownMenuItem>
-                                                                )}
-                                                                {spaces.filter(s => s.id !== space.id).map(targetSpace => (
-                                                                    <DropdownMenuItem
-                                                                        key={targetSpace.id}
-                                                                        onClick={() => onMoveItem(space.id, item.id, targetSpace.id)}
-                                                                    >
-                                                                        <SpaceIconRenderer iconName={targetSpace.icon} color={targetSpace.color} size={14} />
-                                                                        <span className="ml-2 truncate">{targetSpace.decryptedName}</span>
-                                                                    </DropdownMenuItem>
-                                                                ))}
-                                                            </DropdownMenuSubContent>
-                                                        </DropdownMenuPortal>
-                                                    </DropdownMenuSub>
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuItem
-                                                        className="text-destructive focus:text-destructive"
-                                                        onClick={() => onRemoveItem(space.id, item.id)}
-                                                    >
-                                                        <IconTrash className="mr-2 h-4 w-4" />
-                                                        <span>{t("sidebar.removeFromSpace")}</span>
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </div>
-                                    </SidebarMenuSubItem>
+                                    <SpaceItemMemoized
+                                        key={item.id}
+                                        item={item}
+                                        onItemClick={onItemClick}
+                                        space={space}
+                                        spaces={spaces}
+                                        onMoveItem={onMoveItem}
+                                        onRemoveItem={onRemoveItem}
+                                        t={t}
+                                    />
                                 ))}
                             </SidebarMenuSub>
                         )}
@@ -398,7 +430,7 @@ function SortableSpaceItem({
             </Collapsible>
         </div>
     );
-}
+})
 
 export function NavSpaces() {
     const { t } = useLanguage()

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -20,6 +20,7 @@ import { useGlobalUpload } from "@/components/global-upload-context"
 import { useCurrentFolder } from "@/components/current-folder-context"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
+import { useDebounce } from "@/hooks/use-debounce"
 
 import { masterKeyManager } from "@/lib/master-key"
 import { toast } from "sonner"
@@ -39,11 +40,25 @@ interface SiteHeaderProps {
 export function SiteHeader({ onSearch, onFileUpload, onFolderUpload, searchValue, sticky = false }: SiteHeaderProps) {
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false)
   const [, setForceUpdate] = useState(0)
+  const [localSearchValue, setLocalSearchValue] = useState(searchValue || "")
+  const debouncedSearch = useDebounce(localSearchValue, 150)
   const { deviceQuota } = useUser()
   const router = useRouter()
   const { openPicker } = useGoogleDrive()
   const { notifyFileAdded } = useGlobalUpload()
   const { currentFolderId } = useCurrentFolder()
+
+  // Sync external searchValue prop to local state
+  useEffect(() => {
+    setLocalSearchValue(searchValue || "")
+  }, [searchValue])
+
+  // Trigger onSearch callback when debounced value changes
+  useEffect(() => {
+    if (onSearch && debouncedSearch !== searchValue) {
+      onSearch(debouncedSearch)
+    }
+  }, [debouncedSearch, onSearch, searchValue])
 
   // Auto-enable sticky on common dashboard routes unless explicitly set
   const [autoSticky, setAutoSticky] = useState(false)
@@ -75,7 +90,7 @@ export function SiteHeader({ onSearch, onFileUpload, onFolderUpload, searchValue
     }
   }, [cleanUpCallback]);
 
-  const handleNewPaper = async () => {
+  const handleNewPaper = useCallback(async () => {
     try {
       if (!masterKeyManager.hasMasterKey()) {
         toast.error("Encryption key missing. Please login.")
@@ -126,7 +141,7 @@ export function SiteHeader({ onSearch, onFileUpload, onFolderUpload, searchValue
       console.error("Failed to create paper:", error)
       toast.error("Failed to create paper")
     }
-  };
+  }, [currentFolderId, notifyFileAdded]);
 
   const isFreePlan = deviceQuota?.planName === 'Free'
   const showUpgrade = isFreePlan && !isUpgradeDismissedGlobal
@@ -162,8 +177,8 @@ export function SiteHeader({ onSearch, onFileUpload, onFolderUpload, searchValue
             type="search"
             placeholder="Search files and folders..."
             className="pl-9 pr-4"
-            value={searchValue || ""}
-            onChange={(e) => onSearch?.(e.target.value)}
+            value={localSearchValue}
+            onChange={(e) => setLocalSearchValue(e.target.value)}
           />
         </div>
         <div className="ml-auto flex items-center gap-2">
