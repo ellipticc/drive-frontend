@@ -860,7 +860,8 @@ export async function downloadFolderAsZip(
  * Download multiple items as ZIP with proper naming
  */
 export async function downloadMultipleItemsAsZip(
-  items: Array<{ id: string, name: string, type: "file" | "folder" }>,
+  // Items may include 'file', 'folder' or 'paper'. Papers will be added to the ZIP as .url internet shortcut files
+  items: Array<{ id: string, name: string, type: "file" | "folder" | "paper" }>,
   userKeys?: UserKeys,
   onProgress?: (progress: DownloadProgress) => void,
   signal?: AbortSignal,
@@ -872,10 +873,11 @@ export async function downloadMultipleItemsAsZip(
     const randomHex = Math.random().toString(16).substring(2, 10);
     const zipName = `files-${timestamp}-${randomHex}.zip`;
 
-    // Get all files and folders recursively from all selected items
+    // Get all files, folders and papers (papers are not fetched, we add .url shortcuts)
     onProgress?.({ stage: 'initializing', overallProgress: 0, totalBytes: 0, bytesDownloaded: 0 });
     const allFiles: Array<{ fileId: string, relativePath: string, filename: string }> = [];
     const allFolders: Array<{ folderId: string, relativePath: string, folderName: string }> = [];
+    const paperItems: Array<{ paperId: string, name: string }> = [];
 
     for (const item of items) {
       if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
@@ -885,6 +887,9 @@ export async function downloadMultipleItemsAsZip(
           relativePath: '',
           filename: item.name
         });
+      } else if (item.type === 'paper') {
+        // Papers are not downloaded; instead we create .url shortcuts when assembling the ZIP
+        paperItems.push({ paperId: item.id, name: item.name });
       } else {
         // For folders, get recursive contents
         const folderContents = await getRecursiveFolderContents(item.id, item.name, userKeys);
@@ -957,7 +962,19 @@ export async function downloadMultipleItemsAsZip(
       totalDownloadedBytes += result.size;
     }
 
-    // Create ZIP with both files and folders
+    // Before creating ZIP, add .url shortcut files for any selected papers
+    if (paperItems.length > 0) {
+      for (const paper of paperItems) {
+        // Construct a safe filename and an internet shortcut with the paper link
+        const safeName = paper.name.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_').trim() || 'paper';
+        const filename = `${safeName}.url`;
+        const url = `https://drive.ellipticc.com/paper?fileId=${encodeURIComponent(paper.paperId)}`;
+        const content = `[InternetShortcut]\r\nURL=${url}\r\n`;
+        downloadedFiles.push({ relativePath: '', filename, blob: new Blob([content], { type: 'text/plain' }) });
+      }
+    }
+
+    // Create ZIP with both files and folders (and the .url shortcuts)
     onProgress?.({ stage: 'assembling', overallProgress: 95, totalBytes, bytesDownloaded: totalBytes });
     const zipBlob = await createZipFromFilesAndFolders(downloadedFiles, allFolders, '');
     onProgress?.({ stage: 'assembling', overallProgress: 98, totalBytes, bytesDownloaded: totalBytes });

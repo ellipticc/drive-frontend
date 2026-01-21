@@ -71,13 +71,15 @@ interface GlobalUploadContextType {
   // Download state
   downloadProgress: DownloadProgress | null;
   downloadError: string | null;
-  currentDownloadFile: { id: string; name: string; type: 'file' | 'folder' } | null;
+  // currentDownloadFile may represent files, folders or multi-item bundles (papers included)
+  currentDownloadFile: { id: string; name: string; type: 'file' | 'folder' | 'paper' } | null;
   isDownloadPaused: boolean;
 
   // Download handlers
   startFileDownload: (fileId: string, fileName: string) => Promise<void>;
   startFolderDownload: (folderId: string, folderName: string) => Promise<void>;
-  startBulkDownload: (items: Array<{ id: string; name: string; type: 'file' | 'folder' }>) => Promise<void>;
+  // Bulk download may include papers (which will be exported as .url shortcuts when zipped)
+  startBulkDownload: (items: Array<{ id: string; name: string; type: 'file' | 'folder' | 'paper' }>) => Promise<void>;
   startPdfPreview: (fileId: string, fileName: string, fileSize: number) => Promise<void>;
   cancelDownload: () => void;
   pauseDownload: () => void;
@@ -751,7 +753,7 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
     }
   }, []);
 
-  const startBulkDownload = useCallback(async (items: Array<{ id: string; name: string; type: 'file' | 'folder' }>) => {
+  const startBulkDownload = useCallback(async (items: Array<{ id: string; name: string; type: 'file' | 'folder' | 'paper' }>) => {
     try {
       setDownloadError(null);
       setCurrentDownloadFile({ id: 'bulk', name: 'Multiple Items', type: 'file' });

@@ -1841,23 +1841,20 @@ export const Table01DividerLineSm = ({
 
         if (selectedItemsArray.length === 0) return;
 
-        // Filter out papers (papers cannot be downloaded)
-        const downloadableItems = selectedItemsArray.filter(i => i.type !== 'paper');
-
-        if (downloadableItems.length === 0) {
-            // Nothing download-able selected
+        // If only one item is selected, handle single download rules
+        if (selectedItemsArray.length === 1) {
+            const only = selectedItemsArray[0];
+            // Single paper cannot be downloaded
+            if (only.type === 'paper') {
+                return;
+            }
+            // Folder or file: download as usual
+            await handleDownloadClick(only.id, only.name, only.type);
             return;
         }
 
-        // If only one downloadable item is selected, download it directly (no ZIP for single files)
-        if (downloadableItems.length === 1) {
-            const item = downloadableItems[0];
-            await handleDownloadClick(item.id, item.name, item.type);
-            return;
-        }
-
-        // Multiple items selected - create ZIP
-        await startBulkDownload(downloadableItems as any);
+        // Multiple items selected: allow including papers — papers will be exported as .url shortcuts inside the ZIP
+        await startBulkDownload(selectedItemsArray as any);
     }, [selectedItems, handleDownloadClick, startBulkDownload, toast]);
 
     // Handle folder double-click navigation
