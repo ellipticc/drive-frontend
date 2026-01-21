@@ -59,7 +59,7 @@ export function PreferencesTab({
     const { t } = useLanguage()
 
     const themes = [
-        { id: 'default', name: 'Ellipticc', colors: ['#ffffff', '#000000', '#f3f4f6'] },
+        { id: 'default', name: 'Default', colors: ['#ffffff', '#000000', '#f3f4f6'] },
         { id: 'mocha-mousse', name: 'Mocha Mousse', colors: ['#f3f0e9', '#a67c52', '#d9c8a9'] },
         { id: 'quantum-rose', name: 'Quantum Rose', colors: ['#fcecf1', '#e91e63', '#f8bbd0'] },
         { id: 'cosmic-night', name: 'Cosmic Night', colors: ['#922137', '#17223b', '#2e3a59'] },
