@@ -3670,19 +3670,17 @@ export const Table01DividerLineSm = ({
 
                                             {/* File/Folder icon */}
                                             <div className="flex flex-col items-center gap-3 pt-6">
-                                                <div className="text-4xl w-full flex justify-center items-center">
+                                                <div className="text-4xl w-full flex justify-center aspect-square items-center overflow-hidden rounded-md mb-2">
                                                     {item.type === 'folder' ? (
-                                                        <IconFolder className="h-12 w-12 text-blue-500" />
+                                                        <IconFolder className="h-20 w-20 text-blue-500" />
                                                     ) : (
-                                                        <div className="w-full aspect-square flex justify-center items-center overflow-hidden rounded-md bg-muted/20">
-                                                            <FileThumbnail
-                                                                fileId={item.id}
-                                                                mimeType={item.mimeType}
-                                                                name={item.name}
-                                                                className="w-full h-full object-cover"
-                                                                iconClassName="h-12 w-12"
-                                                            />
-                                                        </div>
+                                                        <FileThumbnail
+                                                            fileId={item.id}
+                                                            mimeType={item.mimeType}
+                                                            name={item.name}
+                                                            className="w-full h-full object-cover"
+                                                            iconClassName="h-20 w-20"
+                                                        />
                                                     )}
                                                 </div>
 

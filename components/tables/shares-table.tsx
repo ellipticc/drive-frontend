@@ -1054,16 +1054,16 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                                                 }}
                                             />
                                         </div>
-                                        <div className="text-4xl w-full flex justify-center aspect-square items-center overflow-hidden rounded-md mb-2 bg-muted/20">
+                                        <div className="text-4xl w-full flex justify-center aspect-square items-center overflow-hidden rounded-md mb-2">
                                             {item.isFolder ? (
-                                                <IconFolder className="h-12 w-12 text-blue-500" />
+                                                <IconFolder className="h-20 w-20 text-blue-500" />
                                             ) : (
                                                 <FileThumbnail
                                                     fileId={item.fileId!}
                                                     mimeType={item.mimeType}
                                                     name={item.fileName || ''}
                                                     className="w-full h-full object-cover"
-                                                    iconClassName="h-12 w-12"
+                                                    iconClassName="h-20 w-20"
                                                 />
                                             )}
                                         </div>
