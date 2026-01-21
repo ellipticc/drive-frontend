@@ -469,6 +469,7 @@ export default function PhotosPage() {
                 searchValue={searchQuery}
                 onFileUpload={handleFileUpload}
                 onFolderUpload={handleFolderUpload}
+                sticky
             />
 
             <main className="flex-1">

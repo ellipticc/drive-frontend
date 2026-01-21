@@ -43,6 +43,7 @@ export default function Shared() {
         searchValue={searchQuery}
         onFileUpload={handleFileUpload}
         onFolderUpload={handleFolderUpload}
+        sticky
       />
       <main className="flex-1">
         <div className="@container/main flex flex-1 flex-col gap-2">

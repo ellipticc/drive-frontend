@@ -75,7 +75,7 @@ export default function NewPaperPage() {
 
     return (
         <div className="flex flex-col h-screen bg-background">
-            <header className="flex h-14 items-center gap-4 border-b px-6 shrink-0">
+            <header className="flex h-14 items-center gap-4 border-b px-6 shrink-0 bg-background rounded-tl-lg rounded-bl-lg">
                 <div className="flex items-center gap-2">
                     <Button variant="ghost" size="icon" onClick={() => router.push('/')}>
                         <IconArrowLeft className="w-5 h-5" />

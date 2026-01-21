@@ -64,7 +64,7 @@ function PaperHeader({
     const displayIcon = icon || (paperTitle ? paperTitle.charAt(0).toUpperCase() : "U");
 
     return (
-        <header className="flex h-16 items-center gap-4 border-b px-6 shrink-0 bg-background z-50">
+        <header className="flex h-16 items-center gap-4 border-b px-6 shrink-0 bg-background z-50 rounded-tl-lg rounded-bl-lg">
             <div className="flex items-center gap-3 w-full max-w-2xl">
                 <Button variant="ghost" size="icon" onClick={onBack} className="hover:bg-muted shrink-0">
                     <IconArrowLeft className="w-5 h-5" />
