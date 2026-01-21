@@ -634,7 +634,7 @@ const BillingPage = () => {
   return (
     <div className="flex flex-1 flex-col">
       {/* Integrated Header */}
-      <header className="flex h-(--header-height) shrink-0 items-center justify-between border-b bg-background rounded-tl-lg rounded-bl-lg transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">
+      <header data-sticky="true" className="flex h-(--header-height) shrink-0 items-center justify-between sticky top-0 z-50 border-b bg-background rounded-tl-lg rounded-bl-lg transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">
         <div className="flex w-full items-center gap-1 px-4 lg:gap-2 lg:px-6">
           <TooltipProvider delayDuration={0}>
             <Tooltip>
