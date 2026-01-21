@@ -327,7 +327,9 @@ async function pipelineDownloadAndDecrypt(
     }
   };
 
-  const concurrency = 6; // High concurrency for small chunks, B2 handles parallel well
+  // Optimize concurrency based on hardware capabilities
+  const concurrency = Math.min(navigator.hardwareConcurrency * 2 || 12, 16);
+  console.log(`Starting parallel download with concurrency=${concurrency} (hardwareConcurrency=${navigator.hardwareConcurrency || 'unknown'})`);
   const semaphore = new Semaphore(concurrency);
 
   const tasks = chunks.map(async (chunk) => {
@@ -439,6 +441,11 @@ async function pipelineDownloadAndDecrypt(
   });
 
   await Promise.all(tasks);
+  
+  const downloadDurationSec = (Date.now() - startTime) / 1000;
+  const throughputMBps = (totalBytes / (1024 * 1024)) / downloadDurationSec;
+  console.log(`Download completed: ${totalChunks} chunks in ${downloadDurationSec.toFixed(2)}s (${throughputMBps.toFixed(2)} MB/s)`);
+  
   return decryptedChunks;
 }
 

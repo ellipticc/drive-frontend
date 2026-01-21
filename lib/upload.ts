@@ -336,7 +336,10 @@ export async function uploadEncryptedFile(
     }
 
     const activeTasks = new Set<Promise<void>>();
-    const concurrency = 4;
+    // Increase concurrency based on hardware capabilities
+    const concurrency = Math.min(navigator.hardwareConcurrency * 2 || 12, 16);
+    console.log(`Starting parallel upload with concurrency=${concurrency} (hardwareConcurrency=${navigator.hardwareConcurrency || 'unknown'})`);
+    const uploadStartTime = performance.now();
 
     for (let i = 0; i < chunks.length; i++) {
       // Skip if already processed
@@ -346,7 +349,7 @@ export async function uploadEncryptedFile(
       if (abortSignal?.aborted) throw new Error('Upload cancelled');
       if (isPaused?.()) throw new Error('Upload paused');
 
-      // Flow Control
+      // Flow Control - wait for a slot to open up
       while (activeTasks.size >= concurrency) {
         await Promise.race(activeTasks);
       }
@@ -354,7 +357,8 @@ export async function uploadEncryptedFile(
       const task = (async () => {
         try {
           // 1. Read (Lazy Load from Disk)
-          // This ensures we only hold ~16MB in memory (4 chunks * 4MB)
+          // With concurrency=12-16, we hold ~48-64MB in memory (12-16 chunks * 4MB)
+          // This is acceptable for modern systems and dramatically increases speed
           const range = chunks[i];
           const chunkBlob = file.slice(range.start, range.end);
           const chunkData = new Uint8Array(await chunkBlob.arrayBuffer());
@@ -474,6 +478,11 @@ export async function uploadEncryptedFile(
 
     // Wait for all remaining uploads
     await Promise.all(activeTasks);
+
+    const uploadEndTime = performance.now();
+    const uploadDurationSec = (uploadEndTime - uploadStartTime) / 1000;
+    const throughputMBps = (file.size / (1024 * 1024)) / uploadDurationSec;
+    console.log(`Upload completed: ${chunks.length} chunks in ${uploadDurationSec.toFixed(2)}s (${throughputMBps.toFixed(2)} MB/s)`);
 
     // Update Session with REAL hashes for finalization
     session.chunkHashes = chunkHashes;
