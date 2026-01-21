@@ -84,7 +84,10 @@ export interface ChunkInfo {
 
 export interface UploadSession {
   sessionId: string;
-  uploadUrls: string[];
+  // Map of chunk index -> presigned entry (contains URL and optional metadata like md5/hash)
+  uploadUrlsMap?: Record<number, { putUrl: string; md5?: string; objectKey?: string; sha256?: string; size?: number }>;
+  // Backwards-compatible array (may be undefined in new flow)
+  uploadUrls?: string[];
   chunks: ChunkInfo[];
   fileId: string;
   chunkHashes: string[]; // SHA256 hashes of encrypted chunks
@@ -302,10 +305,11 @@ export async function uploadEncryptedFile(
 
           // 3. Upload (Streaming Network Request)
           // Upload encrypted data immediately and discard it to free memory
-          let uploadUrl = session.uploadUrls[i];
+          // Lookup upload entry (may contain md5)
+          let uploadEntry = session.uploadUrlsMap?.[i];
 
-          // If the upload URL is missing (e.g. initial batch exhausted), fetch additional presigned URLs from server
-          if (!uploadUrl) {
+          // If the upload entry is missing (e.g. initial batch exhausted), fetch additional presigned URLs from server
+          if (!uploadEntry || !uploadEntry.putUrl) {
             try {
               const start = i;
               const count = Math.min(100, chunks.length - start);
@@ -314,30 +318,35 @@ export async function uploadEncryptedFile(
                 throw new Error('Server did not return additional presigned URLs');
               }
 
-              // Map returned presigned entries into the session.uploadUrls array
+              // Map returned presigned entries into the session.uploadUrlsMap
               for (const p of resp.data.presigned) {
-                // Defensive: set at exact index
-                session.uploadUrls[p.index] = p.putUrl;
+                session.uploadUrlsMap = session.uploadUrlsMap || {};
+                session.uploadUrlsMap[p.index] = { putUrl: p.putUrl, md5: p.md5, objectKey: p.objectKey, sha256: p.sha256, size: p.size };
               }
 
-              uploadUrl = session.uploadUrls[i];
+              uploadEntry = session.uploadUrlsMap ? session.uploadUrlsMap[i] : undefined;
             } catch (err) {
               throw new Error(`Failed to fetch additional presigned URLs for chunk ${i}: ${err instanceof Error ? err.message : String(err)}`);
             }
           }
 
-          if (!uploadUrl) {
+          if (!uploadEntry || !uploadEntry.putUrl) {
             // Sanity: still missing after attempted fetch
             throw new Error(`No presigned URL available for chunk ${i}`);
           }
 
-          const response = await fetch(uploadUrl, {
+          // Build headers — avoid sending Content-MD5 unless server indicated md5 and it is needed
+          const headers: Record<string, string> = {
+            'Content-Type': 'application/octet-stream'
+          };
+          if (uploadEntry.md5) {
+            headers['Content-MD5'] = uploadEntry.md5;
+          }
+
+          const response = await fetch(uploadEntry.putUrl, {
             method: 'PUT',
             body: new Blob([new Uint8Array(processed.encryptedData)]),
-            headers: {
-              'Content-Type': 'application/octet-stream',
-              'Content-MD5': processed.md5 // Required for Object Lock
-            },
+            headers,
             signal: abortSignal,
             credentials: 'omit'
           });
@@ -396,7 +405,95 @@ export async function uploadEncryptedFile(
     session.chunks = processedChunks;
 
     // Stage 6: Confirm chunk uploads with backend
-    await confirmChunkUploads(session.sessionId, processedChunks, session.chunkHashes);
+    let confirmData = await confirmChunkUploads(session.sessionId, processedChunks, session.chunkHashes);
+
+    // If there are failed chunks, attempt retries by reprocessing and re-uploading the missing chunks
+    if (confirmData.failedChunks > 0) {
+      const maxRetries = 3;
+      let attempt = 0;
+      let missingIndices = confirmData.results.filter(r => !r.success).map(r => r.index);
+
+      while (missingIndices.length > 0 && attempt < maxRetries) {
+        attempt++;
+        // Re-upload missing chunks sequentially (to avoid thundering requests for large numbers)
+        for (const idx of missingIndices) {
+          try {
+            // Ensure an upload URL exists for this index, fetching more if necessary
+            if (!session.uploadUrlsMap || !session.uploadUrlsMap[idx] || !session.uploadUrlsMap[idx].putUrl) {
+              const start = idx;
+              const count = Math.min(100, chunks.length - start);
+              const urlsResp = await apiClient.getUploadPresignedUrls(session.sessionId, start, count);
+              if (urlsResp.success && urlsResp.data && Array.isArray(urlsResp.data.presigned)) {
+                session.uploadUrlsMap = session.uploadUrlsMap || {};
+                for (const p of urlsResp.data.presigned) {
+                  session.uploadUrlsMap[p.index] = { putUrl: p.putUrl, md5: p.md5, objectKey: p.objectKey, sha256: p.sha256, size: p.size };
+                }
+              } else {
+                // Could not fetch additional URLs; continue to next index and we'll fail later if still missing
+                continue;
+              }
+            }
+
+            const range = chunks[idx];
+            const chunkBlob = file.slice(range.start, range.end);
+            const chunkData = new Uint8Array(await chunkBlob.arrayBuffer());
+
+            const processed = await processChunkInWorker(chunkData, keys.cek, idx);
+
+            // Attempt upload (with one retry on 4xx/5xx)
+            const performUpload = async () => {
+            const putEntry = session.uploadUrlsMap?.[idx];
+            const putUrl = putEntry?.putUrl;
+            if (!putUrl) throw new Error('No presigned URL available for chunk ' + idx);
+            const headers: Record<string, string> = { 'Content-Type': 'application/octet-stream' };
+            if (putEntry?.md5) headers['Content-MD5'] = processed.md5;
+            const resp = await fetch(putUrl, {
+              method: 'PUT',
+              body: new Blob([new Uint8Array(processed.encryptedData)]),
+              headers,
+                credentials: 'omit'
+              });
+
+              if (!resp.ok) {
+                const txt = await resp.text();
+                throw new Error(`Upload failed for chunk ${idx}: ${resp.status} - ${txt}`);
+              }
+            };
+
+            try {
+              await performUpload();
+            } catch (e) {
+              // Try to fetch a fresh URL and retry once
+              const urlsResp = await apiClient.getUploadPresignedUrls(session.sessionId, idx, 1);
+              if (urlsResp.success && urlsResp.data && Array.isArray(urlsResp.data.presigned) && urlsResp.data.presigned.length > 0) {
+                session.uploadUrlsMap = session.uploadUrlsMap || {};
+                session.uploadUrlsMap[urlsResp.data.presigned[0].index] = { putUrl: urlsResp.data.presigned[0].putUrl, md5: urlsResp.data.presigned[0].md5, objectKey: urlsResp.data.presigned[0].objectKey, sha256: urlsResp.data.presigned[0].sha256, size: urlsResp.data.presigned[0].size };
+                await performUpload();
+              } else {
+                throw e;
+              }
+            }
+
+          } catch (err) {
+            // Log and continue; we will re-confirm later
+            console.warn(`Re-upload attempt failed for chunk ${idx}:`, err);
+            continue;
+          }
+        }
+
+        // Exponential backoff before re-confirming
+        const backoffMs = Math.min(1000 * Math.pow(2, attempt), 10000);
+        await new Promise(res => setTimeout(res, backoffMs));
+
+        // Re-confirm and update missingIndices
+        confirmData = await confirmChunkUploads(session.sessionId, processedChunks, session.chunkHashes);
+        missingIndices = confirmData.results.filter(r => !r.success).map(r => r.index);
+      }
+
+      if (missingIndices.length > 0) {
+        throw new Error(`${missingIndices.length} chunks failed confirmation after ${maxRetries} retries`);
+      }
+    }
 
     onProgress?.({ stage: 'finalizing', overallProgress: 100 });
 
@@ -746,11 +843,11 @@ async function initializeUploadSession(
     throw new Error('Failed to initialize upload session: ' + (response.error || 'Unknown error'));
   }  // Extract upload URLs from presigned array
   // The response.data contains the nested object with presigned array
-  const uploadUrls = response.data?.presigned?.map(item => item.putUrl);
+  const presignedEntries = response.data?.presigned || [];
 
-  // Only throw if we expected chunks but got no URLs
-  if (!uploadUrls || (chunks.length > 0 && uploadUrls.length === 0)) {
-    console.error('Failed to extract upload URLs from response:', response);
+  // Only throw if we expected chunks but got no entries
+  if (!presignedEntries || (chunks.length > 0 && presignedEntries.length === 0)) {
+    console.error('Failed to extract presigned entries from response:', response);
     throw new Error('No presigned URLs returned from server');
   }
 
@@ -758,10 +855,16 @@ async function initializeUploadSession(
     throw new Error('Missing sessionId or fileId in response');
   }
 
+  // Build a map of index -> presigned entry (keeps md5/sha/etc for headers decisions)
+  const uploadUrlsMap: Record<number, { putUrl: string; md5?: string; objectKey?: string; sha256?: string; size?: number }> = {};
+  for (const e of presignedEntries) {
+    uploadUrlsMap[e.index] = { putUrl: e.putUrl, md5: e.md5, objectKey: e.objectKey, sha256: e.sha256, size: e.size };
+  }
+
   return {
     sessionId: response.data.sessionId,
     fileId: response.data.fileId,
-    uploadUrls,
+    uploadUrlsMap,
     thumbnailPutUrl: response.data.thumbnailPutUrl,
     chunks,
     chunkHashes,
@@ -778,7 +881,7 @@ async function confirmChunkUploads(
   sessionId: string,
   chunks: ChunkInfo[],
   chunkHashes: string[]
-): Promise<void> {
+): Promise<{ totalChunks: number; confirmedChunks: number; failedChunks: number; results: Array<{ index: number; success: boolean; size?: number; objectKey?: string; error?: string }> }> {
   const confirmationData = chunks.map((chunk, index) => ({
     index: chunk.index,
     chunkSize: chunk.encryptedSize,
@@ -801,9 +904,8 @@ async function confirmChunkUploads(
     throw new Error('Failed to confirm chunk uploads');
   }
 
-  if (response.data.failedChunks > 0) {
-    throw new Error(`${response.data.failedChunks} chunks failed confirmation`);
-  }
+  // Return the server response to allow caller to retry missing chunks if needed
+  return response.data;
 }
 async function finalizeUpload(
   sessionId: string,

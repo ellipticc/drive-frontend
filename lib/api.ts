@@ -2438,6 +2438,7 @@ class ApiClient {
       sha256: string;
       putUrl: string;
       objectKey: string;
+      md5?: string;
     }>;
     thumbnailPutUrl?: string | null;
     manifestVerified: boolean;
@@ -2501,7 +2502,7 @@ class ApiClient {
   }
 
   // Fetch additional presigned PUT URLs when the initial batch has been exhausted
-  async getUploadPresignedUrls(sessionId: string, start: number = 0, count: number = 100): Promise<ApiResponse<{ presigned: Array<{ index: number; putUrl: string; objectKey?: string; sha256?: string }> }>> {
+  async getUploadPresignedUrls(sessionId: string, start: number = 0, count: number = 100): Promise<ApiResponse<{ presigned: Array<{ index: number; putUrl: string; objectKey?: string; sha256?: string; md5?: string; size?: number }> }>> {
     return this.request(`/files/upload/presigned/${sessionId}/urls?start=${start}&count=${count}`, {
       method: 'GET'
     });
