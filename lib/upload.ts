@@ -302,7 +302,35 @@ export async function uploadEncryptedFile(
 
           // 3. Upload (Streaming Network Request)
           // Upload encrypted data immediately and discard it to free memory
-          const uploadUrl = session.uploadUrls[i];
+          let uploadUrl = session.uploadUrls[i];
+
+          // If the upload URL is missing (e.g. initial batch exhausted), fetch additional presigned URLs from server
+          if (!uploadUrl) {
+            try {
+              const start = i;
+              const count = Math.min(100, chunks.length - start);
+              const resp = await apiClient.getUploadPresignedUrls(session.sessionId, start, count);
+              if (!resp.success || !resp.data || !Array.isArray(resp.data.presigned) || resp.data.presigned.length === 0) {
+                throw new Error('Server did not return additional presigned URLs');
+              }
+
+              // Map returned presigned entries into the session.uploadUrls array
+              for (const p of resp.data.presigned) {
+                // Defensive: set at exact index
+                session.uploadUrls[p.index] = p.putUrl;
+              }
+
+              uploadUrl = session.uploadUrls[i];
+            } catch (err) {
+              throw new Error(`Failed to fetch additional presigned URLs for chunk ${i}: ${err instanceof Error ? err.message : String(err)}`);
+            }
+          }
+
+          if (!uploadUrl) {
+            // Sanity: still missing after attempted fetch
+            throw new Error(`No presigned URL available for chunk ${i}`);
+          }
+
           const response = await fetch(uploadUrl, {
             method: 'PUT',
             body: new Blob([new Uint8Array(processed.encryptedData)]),

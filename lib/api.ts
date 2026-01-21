@@ -2500,6 +2500,13 @@ class ApiClient {
     });
   }
 
+  // Fetch additional presigned PUT URLs when the initial batch has been exhausted
+  async getUploadPresignedUrls(sessionId: string, start: number = 0, count: number = 100): Promise<ApiResponse<{ presigned: Array<{ index: number; putUrl: string; objectKey?: string; sha256?: string }> }>> {
+    return this.request(`/files/upload/presigned/${sessionId}/urls?start=${start}&count=${count}`, {
+      method: 'GET'
+    });
+  }
+
   // Paper Update Endpoints
   // Paper Update Endpoints
   async initializePaperUpdate(fileId: string, data: {
