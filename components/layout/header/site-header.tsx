@@ -19,6 +19,7 @@ import { useGoogleDrive } from "@/hooks/use-google-drive"
 import { useGlobalUpload } from "@/components/global-upload-context"
 import { useCurrentFolder } from "@/components/current-folder-context"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { cn } from "@/lib/utils"
 
 import { masterKeyManager } from "@/lib/master-key"
 import { toast } from "sonner"
