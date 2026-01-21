@@ -47,17 +47,32 @@ function Tooltip({
     }
   };
 
-  // Clone children to attach pointer handler to TooltipTrigger child
+  // Clone children to attach pointer handler to TooltipTrigger child and forward any event handlers
   const childrenWithHandler = React.Children.map(children, (child) => {
     if (!React.isValidElement(child)) return child;
     // If child is the TooltipTrigger exported from this module, attach handler
     if ((child.type as any)?.name === TooltipTrigger.name) {
       const existing = child.props as any;
+
+      // Collect any event handlers passed to Tooltip (e.g., from a parent trying to attach onClick/onKeyDown via asChild)
+      const forwardedHandlers: Record<string, any> = {};
+      Object.keys(props).forEach((k) => {
+        if (k.startsWith('on') && typeof (props as any)[k] === 'function') {
+          forwardedHandlers[k] = (props as any)[k];
+        }
+      });
+
       return React.cloneElement(child, {
         ...existing,
+        ...forwardedHandlers,
         onPointerDown: (e: React.PointerEvent) => {
           try {
             if (typeof existing.onPointerDown === 'function') existing.onPointerDown(e);
+          } catch (err) {
+            // ignore
+          }
+          try {
+            if (typeof (props as any).onPointerDown === 'function') (props as any).onPointerDown(e);
           } catch (err) {
             // ignore
           }
