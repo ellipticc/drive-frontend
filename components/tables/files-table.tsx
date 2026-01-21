@@ -416,6 +416,9 @@ export const Table01DividerLineSm = ({
     // DND State
     const [activeDragItem, setActiveDragItem] = useState<FileItem | null>(null);
     const [currentDropTarget, setCurrentDropTarget] = useState<FileItem | null>(null);
+    // Hovered Space (drop target in Nav Spaces)
+    const [hoveredSpace, setHoveredSpace] = useState<{ id: string; name: string; el?: Element } | null>(null);
+    const hoveredSpaceElRef = useRef<Element | null>(null);
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -442,17 +445,128 @@ export const Table01DividerLineSm = ({
     const handleDragOver = (event: DragOverEvent) => {
         const { over } = event;
         const target = over?.data.current?.item as FileItem;
+
+        // Reset any space hover if not over a space
+        const sensorEvent = (event as any).sensorEvent as PointerEvent | TouchEvent | undefined;
+        const clientX = sensorEvent && (sensorEvent as PointerEvent).clientX ? (sensorEvent as PointerEvent).clientX : undefined;
+        const clientY = sensorEvent && (sensorEvent as PointerEvent).clientY ? (sensorEvent as PointerEvent).clientY : undefined;
+
+        // Prefer folder targets if available
         if (target && target.type === 'folder' && target.id !== activeDragItem?.id) {
+            // remove any space hover
+            if (hoveredSpaceElRef.current) {
+                hoveredSpaceElRef.current.classList.remove('space-dnd-over');
+                hoveredSpaceElRef.current = null;
+                setHoveredSpace(null);
+            }
             setCurrentDropTarget(target);
-        } else {
-            setCurrentDropTarget(null);
+            return;
         }
+
+        // If pointer coordinates available, test for space element under cursor
+        if (typeof clientX === 'number' && typeof clientY === 'number') {
+            const el = document.elementFromPoint(clientX, clientY) as Element | null;
+            const spaceEl = el?.closest('[data-space-id]') as Element | null;
+            if (spaceEl) {
+                const spaceId = spaceEl.getAttribute('data-space-id') || '';
+                const spaceName = spaceEl.getAttribute('data-space-name') || '';
+
+                // If new space hover, update highlight
+                if (!hoveredSpaceElRef.current || hoveredSpaceElRef.current.getAttribute('data-space-id') !== spaceId) {
+                    if (hoveredSpaceElRef.current) hoveredSpaceElRef.current.classList.remove('space-dnd-over');
+                    spaceEl.classList.add('space-dnd-over');
+                    hoveredSpaceElRef.current = spaceEl;
+                    setHoveredSpace({ id: spaceId, name: spaceName, el: spaceEl });
+                }
+                // clear folder drop target
+                setCurrentDropTarget(null);
+                return;
+            }
+        }
+
+        // Not over folder nor space
+        if (hoveredSpaceElRef.current) {
+            hoveredSpaceElRef.current.classList.remove('space-dnd-over');
+            hoveredSpaceElRef.current = null;
+            setHoveredSpace(null);
+        }
+        setCurrentDropTarget(null);
     };
 
     const handleDragEnd = async (event: DragEndEvent) => {
         const { active, over } = event;
+
+        // Clear drag visuals
         setActiveDragItem(null);
         setCurrentDropTarget(null);
+
+        // If we were hovering a space, handle space drop
+        if (hoveredSpace) {
+            const spaceId = hoveredSpace.id;
+
+            const draggedItem = active.data.current?.item as FileItem | undefined;
+            if (!draggedItem) {
+                // cleanup
+                if (hoveredSpaceElRef.current) {
+                    hoveredSpaceElRef.current.classList.remove('space-dnd-over');
+                    hoveredSpaceElRef.current = null;
+                }
+                setHoveredSpace(null);
+                return;
+            }
+
+            // Determine items to add (support multi-select)
+            const itemsToAdd = selectedItems.has(draggedItem.id)
+                ? Array.from(selectedItems).map(id => filesMap.get(id)).filter(Boolean) as FileItem[]
+                : [draggedItem];
+
+            let successCount = 0;
+            let errorCount = 0;
+
+            for (const item of itemsToAdd) {
+                try {
+                    if (spaceId === 'spaced-fixed') {
+                        // Starred/Spaced behaviour
+                        const response = await apiClient.setItemStarred({ fileId: item.type === 'file' ? item.id : undefined, folderId: item.type === 'folder' ? item.id : undefined, isStarred: true });
+                        if (response.success) successCount++; else errorCount++;
+                    } else {
+                        const body: any = {};
+                        if (item.type === 'file') body.fileId = item.id;
+                        if (item.type === 'folder') body.folderId = item.id;
+                        const response = await apiClient.addItemToSpace(spaceId, body);
+                        if (response.success) successCount++; else {
+                            // treat duplicate index as not-fatal
+                            if (response.error && /already|duplicate/i.test((response.error || ''))) {
+                                // ignore duplicate
+                            } else {
+                                errorCount++;
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.error('Failed to add item to space', err);
+                    errorCount++;
+                }
+            }
+
+            // Feedback & refresh
+            if (successCount > 0) {
+                toast.success(`Added ${successCount} item${successCount > 1 ? 's' : ''} to space`);
+                window.dispatchEvent(new CustomEvent('space:item-added', { detail: { spaceId } }));
+            }
+            if (errorCount > 0) {
+                toast.error(`Failed to add ${errorCount} item${errorCount > 1 ? 's' : ''} to space`);
+            }
+
+            // cleanup highlight
+            if (hoveredSpaceElRef.current) {
+                hoveredSpaceElRef.current.classList.remove('space-dnd-over');
+                hoveredSpaceElRef.current = null;
+            }
+            setHoveredSpace(null);
+
+            return;
+        }
 
         if (!over) return;
 
@@ -3569,7 +3683,7 @@ export const Table01DividerLineSm = ({
                                         </div>
                                     )}
                                 </DragOverlay>
-                                <DropHelper folderName={currentDropTarget?.name || null} isVisible={!!activeDragItem} />
+                                <DropHelper folderName={hoveredSpace?.name || currentDropTarget?.name || null} isVisible={!!activeDragItem} />
                             </DndContext>
                         ) : (
                             // Grid View

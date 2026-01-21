@@ -14,7 +14,6 @@ import {
     IconGripVertical,
     IconPlus as IconAdd,
     IconPlanet,
-    IconSpace,
 } from "@tabler/icons-react"
 import * as TablerIcons from "@tabler/icons-react"
 import {
@@ -218,7 +217,8 @@ function SortableSpaceItem({
     const { isMobile } = useSidebar()
 
     return (
-        <div ref={setNodeRef} style={style} className="relative">
+        <div ref={setNodeRef} style={style} className="relative" data-space-id={space.id} data-space-name={space.decryptedName || ''}>
+
             <Collapsible
                 asChild
                 className="group/collapsible"
@@ -527,6 +527,27 @@ export function NavSpaces() {
     useEffect(() => {
         fetchSpaces()
     }, [fetchSpaces])
+
+    useEffect(() => {
+        const onSpaceItemAdded = (e: any) => {
+            const spaceId = e?.detail?.spaceId as string | undefined;
+            // refresh spaces and the changed space
+            if (spaceId) {
+                fetchSpaces();
+                fetchSpaceItems(spaceId);
+                fetchSpaceItems("spaced-fixed");
+            } else {
+                fetchSpaces();
+                fetchSpaceItems("spaced-fixed");
+            }
+        };
+        window.addEventListener('space:item-added', onSpaceItemAdded as EventListener);
+        window.addEventListener('space:item-removed', onSpaceItemAdded as EventListener);
+        return () => {
+            window.removeEventListener('space:item-added', onSpaceItemAdded as EventListener);
+            window.removeEventListener('space:item-removed', onSpaceItemAdded as EventListener);
+        };
+    }, [fetchSpaces]);
 
     const handleDeleteSpace = async () => {
         if (!selectedSpace) return

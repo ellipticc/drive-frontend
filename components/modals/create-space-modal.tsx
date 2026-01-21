@@ -9,6 +9,16 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -78,6 +88,7 @@ export function CreateSpaceModal({
     const [isLoading, setIsLoading] = useState(false)
     const [iconSearch, setIconSearch] = useState("")
     const [isIconPopoverOpen, setIsIconPopoverOpen] = useState(false)
+    const [upgradeDialogData, setUpgradeDialogData] = useState<{ open: boolean; currentUsage: string; limit: string; plan: string } | null>(null)
 
     useEffect(() => {
         if (open) {
@@ -165,17 +176,12 @@ export function CreateSpaceModal({
                 } else {
                     const errorData = response.data as Record<string, unknown>;
                     if (errorData?.error_code === 'SPACE_LIMIT_REACHED') {
-                        toast.error(`Space limit reached`, {
-                            description: `You have used ${errorData.currentUsage} of ${errorData.limit} spaces on the ${errorData.plan} plan. Upgrade to create more.`,
-                            action: {
-                                label: "Upgrade",
-                                onClick: () => {
-                                    onOpenChange(false);
-                                    router.push('/pricing');
-                                }
-                            },
-                            duration: 5000,
-                        })
+                        setUpgradeDialogData({
+                            open: true,
+                            currentUsage: String(errorData.currentUsage || ''),
+                            limit: String(errorData.limit || ''),
+                            plan: String(errorData.plan || '')
+                        });
                     } else {
                         toast.error(response.error || "Creation failed")
                     }
@@ -330,6 +336,31 @@ export function CreateSpaceModal({
                     </Button>
                 </DialogFooter>
             </DialogContent>
+
+            {/* Upgrade Alert Dialog */}
+            <AlertDialog open={!!upgradeDialogData?.open} onOpenChange={(open: boolean) => !open && setUpgradeDialogData(null)}>
+                <AlertDialogContent className="rounded-2xl">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Space limit reached</AlertDialogTitle>
+                        <AlertDialogDescription className="font-medium pt-2 leading-relaxed">
+                            You have used {upgradeDialogData?.currentUsage} of {upgradeDialogData?.limit} spaces on the {upgradeDialogData?.plan} plan. Upgrade to create more.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="pt-2">
+                        <AlertDialogCancel className="rounded-full">Maybe later</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => {
+                                setUpgradeDialogData(null);
+                                onOpenChange(false);
+                                router.push('/pricing');
+                            }}
+                            className="bg-primary rounded-full"
+                        >
+                            Upgrade
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </Dialog>
     )
 }
