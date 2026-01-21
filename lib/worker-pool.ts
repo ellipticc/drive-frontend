@@ -17,7 +17,7 @@ export class WorkerPool {
     private taskQueue: WorkerTask<unknown>[] = [];    private workerFactory: () => Worker;
     private maxWorkers: number;
 
-    constructor(workerFactory: () => Worker, maxWorkers: number = navigator.hardwareConcurrency || 4) {
+    constructor(workerFactory: () => Worker, maxWorkers: number = Math.min(Math.ceil((navigator.hardwareConcurrency || 4) / 2), 6)) {
         this.workerFactory = workerFactory;
         this.maxWorkers = maxWorkers;
     }

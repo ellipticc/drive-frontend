@@ -1,5 +1,6 @@
 import { generateIdempotencyKey } from './idempotency';
 import { getDevicePublicKey, signWithDeviceKey } from './device-keys';
+import { getRequestQueue } from './request-queue';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://drive.ellipticc.com/api/v1';
 
@@ -668,7 +669,8 @@ class ApiClient {
 
   private async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    priority: 'high' | 'normal' | 'low' = 'normal'
   ): Promise<ApiResponse<T>> {
     // Build the request URL
     const requestUrl = `${this.baseURL}${endpoint}`;
@@ -703,7 +705,8 @@ class ApiClient {
     };
 
     try {
-      const response = await fetch(requestUrl, config);
+      // Queue the fetch request based on priority to prevent UI blocking
+      const response = await getRequestQueue().enqueue(() => fetch(requestUrl, config), priority);
 
 
 
@@ -1216,7 +1219,7 @@ class ApiClient {
     used_readable: string;
     quota_readable: string;
   }>> {
-    return this.request('/auth/storage');
+    return this.request('/auth/storage', {}, 'high');
   }
 
   async storePQCKeys(userId: string, pqcKeypairs: PQCKeypairs): Promise<ApiResponse> {
@@ -1475,7 +1478,7 @@ class ApiClient {
     if (params?.limit) query.append('limit', params.limit.toString());
     const queryString = query.toString();
     const endpoint = `/folders/${normalizedFolderId}/contents${queryString ? `?${queryString}` : ''}`;
-    return this.request(endpoint);
+    return this.request(endpoint, {}, 'high');
   }
 
   // Get folder contents recursively (including all nested folders and files)
@@ -2502,14 +2505,14 @@ class ApiClient {
     return this.request(`/files/upload/presigned/${sessionId}/confirm-batch`, {
       method: 'POST',
       body: JSON.stringify(data),
-    });
+    }, 'low');
   }
 
   // Fetch additional presigned PUT URLs when the initial batch has been exhausted
   async getUploadPresignedUrls(sessionId: string, start: number = 0, count: number = 100): Promise<ApiResponse<{ presigned: Array<{ index: number; putUrl: string; objectKey?: string; sha256?: string; md5?: string; size?: number }> }>> {
     return this.request(`/files/upload/presigned/${sessionId}/urls?start=${start}&count=${count}`, {
       method: 'GET'
-    });
+    }, 'low');
   }
 
   // Paper Update Endpoints
@@ -2648,7 +2651,7 @@ class ApiClient {
   }
 
   async getDownloadUrls(fileId: string): Promise<ApiResponse<DownloadUrlsResponse>> {
-    return this.request(`/files/download/${fileId}/urls`);
+    return this.request(`/files/download/${fileId}/urls`, {}, 'low');
   }
 
   // Billing endpoints

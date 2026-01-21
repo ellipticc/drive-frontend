@@ -339,7 +339,13 @@ async function pipelineDownloadAndDecrypt(
 
       // Initial check
       if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-      if (pauseController?.isPaused) await pauseController.waitIfPaused();
+      if (pauseController?.isPaused) {
+        // CRITICAL: Release semaphore while paused so other chunks can continue
+        semaphore.release();
+        await pauseController.waitIfPaused();
+        // Reacquire semaphore after resume
+        await semaphore.acquire();
+      }
       if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
 
       // Retry loop for Instant Pause functionality
@@ -425,8 +431,10 @@ async function pipelineDownloadAndDecrypt(
             (chunkController.signal.aborted && pauseController?.isPaused);
 
           if (isPauseAbort && !signal?.aborted) {
-            // It was a pause! Wait and retry.
+            // It was a pause! Release semaphore, wait, then reacquire
+            semaphore.release();
             await pauseController?.waitIfPaused();
+            await semaphore.acquire();
             continue;
           }
 
