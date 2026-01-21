@@ -36,7 +36,9 @@ export function NavSecondary({
     <SidebarGroup {...props}>
       <SidebarGroupContent>
         <SidebarMenu>
-          {items.map((item) => (
+          {items.map((item) => {
+            const label = item.id === 'feedback' ? `${item.title} (F)` : item.title;
+            return (
             <SidebarMenuItem key={item.title}>
               {item.id === "help" ? (
                 <SupportRequestDialog>
@@ -93,18 +95,18 @@ export function NavSecondary({
                       <TooltipTrigger asChild>
                         <SidebarMenuButton isActive={feedbackOpen}>
                           <item.icon />
-                          <span>{item.title}</span>
+                          <span>{label}</span>
                           <div className="ms-auto">
                             <Kbd>F</Kbd>
                           </div>
                         </SidebarMenuButton>
                       </TooltipTrigger>
-                      <TooltipContent side="right">{item.title}</TooltipContent>
+                      <TooltipContent side="right">{label}</TooltipContent>
                     </Tooltip>
                   ) : (
                     <SidebarMenuButton isActive={feedbackOpen}>
                       <item.icon />
-                      <span>{item.title}</span>
+                      <span>{label}</span>
                       <div className="ms-auto">
                         <Kbd>F</Kbd>
                       </div>
@@ -134,7 +136,7 @@ export function NavSecondary({
                 )
               )}
             </SidebarMenuItem>
-          ))}
+          ); })}
         </SidebarMenu>
       </SidebarGroupContent>
     </SidebarGroup>
