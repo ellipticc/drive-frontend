@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, JetBrains_Mono } from "next/font/google";
+import { Geist_Mono, JetBrains_Mono, Roboto } from "next/font/google";
 import Script from "next/script";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
@@ -18,9 +18,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
 // Font definitions
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const roboto = Roboto({
+  weight: ["300", "400", "500", "700"],
   subsets: ["latin"],
+  variable: "--font-roboto",
 });
 
 const geistMono = Geist_Mono({
@@ -230,7 +231,7 @@ export default function RootLayout({
         </Script>
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${jetbrainsMono.variable} antialiased`}
+        className={`${roboto.variable} ${geistMono.variable} ${jetbrainsMono.variable} antialiased`}
       >
         <script
           dangerouslySetInnerHTML={{
@@ -272,7 +273,7 @@ export default function RootLayout({
                             richColors
                             duration={5000}
                             style={{
-                              fontFamily: 'var(--font-geist-sans)',
+                              fontFamily: 'var(--font-roboto)',
                             }}
                           />
                         </TooltipProvider>
