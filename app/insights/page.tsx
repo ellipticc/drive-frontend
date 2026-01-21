@@ -224,7 +224,7 @@ export default function InsightsPage() {
   if (isLoading) {
     return (
       <div className="flex min-h-screen w-full flex-col">
-        <SiteHeader onFileUpload={handleFileUpload} onFolderUpload={handleFolderUpload} />
+        <SiteHeader onFileUpload={handleFileUpload} onFolderUpload={handleFolderUpload} sticky />
         <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
           <div className="w-full flex flex-col gap-6">
             <div className="h-16 w-full max-w-sm rounded-lg bg-muted/20 animate-pulse" />
@@ -241,7 +241,7 @@ export default function InsightsPage() {
   if (!analytics) {
     return (
       <div className="flex min-h-screen w-full flex-col">
-        <SiteHeader onFileUpload={handleFileUpload} onFolderUpload={handleFolderUpload} />
+        <SiteHeader onFileUpload={handleFileUpload} onFolderUpload={handleFolderUpload} sticky />
         <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
           <div className="w-full flex items-center justify-center h-full">
             <p className="text-muted-foreground">Failed to load analytics data</p>
@@ -283,7 +283,7 @@ export default function InsightsPage() {
 
   return (
     <div className="flex min-h-screen w-full flex-col">
-      <SiteHeader onFileUpload={handleFileUpload} onFolderUpload={handleFolderUpload} />
+      <SiteHeader onFileUpload={handleFileUpload} onFolderUpload={handleFolderUpload} sticky />
 
       {/* Hidden file/folder inputs */}
       <input

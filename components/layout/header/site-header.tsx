@@ -32,9 +32,10 @@ interface SiteHeaderProps {
   onFileUpload?: () => void
   onFolderUpload?: () => void
   searchValue?: string
+  sticky?: boolean
 }
 
-export function SiteHeader({ onSearch, onFileUpload, onFolderUpload, searchValue }: SiteHeaderProps) {
+export function SiteHeader({ onSearch, onFileUpload, onFolderUpload, searchValue, sticky = false }: SiteHeaderProps) {
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false)
   const [, setForceUpdate] = useState(0)
   const { deviceQuota } = useUser()
@@ -42,6 +43,21 @@ export function SiteHeader({ onSearch, onFileUpload, onFolderUpload, searchValue
   const { openPicker } = useGoogleDrive()
   const { notifyFileAdded } = useGlobalUpload()
   const { currentFolderId } = useCurrentFolder()
+
+  // Auto-enable sticky on common dashboard routes unless explicitly set
+  const [autoSticky, setAutoSticky] = useState(false)
+  useEffect(() => {
+    try {
+      const dashboardPaths = ['/insights', '/analytics', '/dashboard', '/commissions', '/backup']
+      const p = typeof window !== 'undefined' ? window.location.pathname : ''
+      setAutoSticky(dashboardPaths.some(dp => p.startsWith(dp)))
+    } catch (err) {
+      // ignore
+    }
+  }, [])
+
+  const effectiveSticky = sticky || autoSticky
+
 
   const handleUpgradeClick = () => {
     isUpgradeDismissedGlobal = true
@@ -115,7 +131,11 @@ export function SiteHeader({ onSearch, onFileUpload, onFolderUpload, searchValue
   const showUpgrade = isFreePlan && !isUpgradeDismissedGlobal
 
   return (
-    <header className="flex h-(--header-height) shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">
+    <header className={cn(
+      "flex h-(--header-height) shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)",
+      effectiveSticky ? "sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60" : "border-b"
+    )}>
+
       <div className="flex w-full items-center gap-1 px-4 lg:gap-2 lg:px-6">
         <TooltipProvider delayDuration={0}>
           <Tooltip>
