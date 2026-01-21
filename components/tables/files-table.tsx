@@ -382,6 +382,7 @@ export const Table01DividerLineSm = ({
     });
     const [folderPath, setFolderPath] = useState<Array<{ id: string, name: string }>>([{ id: 'root', name: t('sidebar.myFiles') }]);
     const [isInitialLoad, setIsInitialLoad] = useState(true);
+    const isNavigatingRef = useRef(false);
 
     // Update root folder name when language changes
     useEffect(() => {
@@ -924,6 +925,12 @@ export const Table01DividerLineSm = ({
 
         if (urlLastId === currentFolderId && !needsBreadcrumbResolution && !isRootMismatch) {
             if (isInitialLoad) setIsInitialLoad(false);
+            if (isNavigatingRef.current) isNavigatingRef.current = false;
+            return;
+        }
+
+        // If we initiated a navigation, ignore stale URL params until they match our optimistic state
+        if (isNavigatingRef.current && urlLastId !== currentFolderId) {
             return;
         }
 
@@ -1490,6 +1497,7 @@ export const Table01DividerLineSm = ({
         const newPath = [...folderPath, { id: folderId, name: folderName }];
 
         // Immediate updates without transition
+        isNavigatingRef.current = true;
         setPage(1); // Reset page to 1
         setIsLoading(true);
         setCurrentFolderId(folderId);
@@ -1505,6 +1513,7 @@ export const Table01DividerLineSm = ({
             const parentFolder = newPath[newPath.length - 1];
 
             // Immediate updates without transition
+            isNavigatingRef.current = true;
             setPage(1); // Reset page to 1
             setIsLoading(true);
             setCurrentFolderId(parentFolder.id);
@@ -1522,6 +1531,7 @@ export const Table01DividerLineSm = ({
             const newPath = folderPath.slice(0, folderIndex + 1);
 
             // Immediate updates without transition
+            isNavigatingRef.current = true;
             setPage(1); // Reset page to 1
             setIsLoading(true);
             setCurrentFolderId(folderId);
@@ -2978,20 +2988,20 @@ export const Table01DividerLineSm = ({
             return (
                 <>
                     {(selectedCount > 1 || !selectedHasPaper) && (
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-7 w-7 p-0"
-                                onClick={handleBulkDownload}
-                                aria-label={`Download ${selectedCount} item${selectedCount > 1 ? 's' : ''}`}
-                            >
-                                <IconDownload className="h-4 w-4" />
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>{`Download ${selectedCount} item${selectedCount > 1 ? 's' : ''}`}</TooltipContent>
-                    </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-7 w-7 p-0"
+                                    onClick={handleBulkDownload}
+                                    aria-label={`Download ${selectedCount} item${selectedCount > 1 ? 's' : ''}`}
+                                >
+                                    <IconDownload className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>{`Download ${selectedCount} item${selectedCount > 1 ? 's' : ''}`}</TooltipContent>
+                        </Tooltip>
                     )}
                     {selectedCount === 1 && (() => {
                         const firstItemId = Array.from(selectedItems)[0];
@@ -3653,10 +3663,10 @@ export const Table01DividerLineSm = ({
                                                                         </DropdownMenuTrigger>
                                                                         <DropdownMenuContent align="end" className="w-48">
                                                                             {item.type !== 'paper' && (
-                                                                            <DropdownMenuItem onClick={() => handleDownloadClick(item.id, item.name, item.type as any)}>
-                                                                                <IconDownload className="h-4 w-4 mr-2" />
-                                                                                {t("files.download")}
-                                                                            </DropdownMenuItem>
+                                                                                <DropdownMenuItem onClick={() => handleDownloadClick(item.id, item.name, item.type as any)}>
+                                                                                    <IconDownload className="h-4 w-4 mr-2" />
+                                                                                    {t("files.download")}
+                                                                                </DropdownMenuItem>
                                                                             )}
                                                                             {item.type === 'file' && (
                                                                                 <DropdownMenuItem onClick={() => handlePreviewClick(item.id, item.name, item.mimeType)}>
@@ -3954,10 +3964,10 @@ export const Table01DividerLineSm = ({
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end" className="w-48">
                                                         {item.type !== 'paper' && (
-                                                        <DropdownMenuItem onClick={() => handleDownloadClick(item.id, item.name, item.type as any)}>
-                                                            <IconDownload className="h-4 w-4 mr-2" />
-                                                            Download
-                                                        </DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={() => handleDownloadClick(item.id, item.name, item.type as any)}>
+                                                                <IconDownload className="h-4 w-4 mr-2" />
+                                                                Download
+                                                            </DropdownMenuItem>
                                                         )}
                                                         {item.type === 'file' && (
                                                             <DropdownMenuItem onClick={() => handlePreviewClick(item.id, item.name, item.mimeType)}>
@@ -4258,13 +4268,13 @@ export const Table01DividerLineSm = ({
                                 // Context menu for items
                                 <>
                                     {contextMenu.targetItem?.type !== 'paper' && (
-                                    <button
-                                        className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
-                                        onClick={() => handleContextMenuAction('download', contextMenu.targetItem)}
-                                    >
-                                        <IconDownload className="h-4 w-4" />
-                                        Download
-                                    </button>
+                                        <button
+                                            className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
+                                            onClick={() => handleContextMenuAction('download', contextMenu.targetItem)}
+                                        >
+                                            <IconDownload className="h-4 w-4" />
+                                            Download
+                                        </button>
                                     )}
                                     {contextMenu.targetItem?.type === 'file' && (
                                         <div
@@ -4425,10 +4435,10 @@ export const Table01DividerLineSm = ({
                 <ActionBarSeparator />
                 <ActionBarGroup>
                     {(selectedItems.size > 1 || !selectedHasPaper) && (
-                    <ActionBarItem onClick={handleBulkDownload}>
-                        <IconDownload className="h-4 w-4 mr-2" />
-                        Download
-                    </ActionBarItem>
+                        <ActionBarItem onClick={handleBulkDownload}>
+                            <IconDownload className="h-4 w-4 mr-2" />
+                            Download
+                        </ActionBarItem>
                     )}
                     <ActionBarItem onClick={handleBulkMoveToFolderClick}>
                         <IconFolder className="h-4 w-4 mr-2" />
