@@ -20,6 +20,8 @@ import {
     IconChevronRight,
 } from "@tabler/icons-react"
 import { UpcomingCharges } from "@/components/billingsdk/upcoming-charges"
+import { SubscriptionHistory as SubscriptionHistoryTable } from "@/components/billingsdk/subscription-history"
+import { InvoiceHistory } from "@/components/billingsdk/invoice-history"
 import { Subscription, BillingUsage, SubscriptionHistory } from "@/lib/api"
 
 // Helper to format bytes
@@ -153,20 +155,21 @@ export function BillingTab({
                             )}
                         </div>
 
-                        {/* Upcoming Charges */}
-                        {subscription && subscription.status === 'active' && !subscription.cancelAtPeriodEnd && subscription.currentPeriodEnd && subscriptionHistory?.history && subscriptionHistory.history.length > 0 && (
+                        {/* Upcoming Charges*/}
+                        {subscription && subscription.status === 'active' && !subscription.cancelAtPeriodEnd && subscription.currentPeriodEnd && (
                             (() => {
-                                const activeSubscription = subscriptionHistory.history.find(h => h.status === 'active');
-                                if (!activeSubscription) return null;
+                                const activeSubscription = subscriptionHistory?.history?.find(h => h.status === 'active');
+                                const amountStr = activeSubscription ? `${activeSubscription.currency?.toUpperCase() || 'USD'} $${(activeSubscription.amount / 100).toFixed(2)}` : 'TBD';
+                                const description = activeSubscription?.planName || subscription.plan?.name || 'Subscription';
                                 return (
                                     <UpcomingCharges
                                         nextBillingDate={formatDate(subscription.currentPeriodEnd * 1000)}
-                                        totalAmount={`${activeSubscription.currency?.toUpperCase() || 'USD'} $${(activeSubscription.amount / 100).toFixed(2)}`}
+                                        totalAmount={amountStr}
                                         charges={[
                                             {
-                                                id: '1',
-                                                description: activeSubscription.planName || 'Subscription',
-                                                amount: `${activeSubscription.currency?.toUpperCase() || 'USD'} $${(activeSubscription.amount / 100).toFixed(2)}`,
+                                                id: activeSubscription?.id || 'subscription',
+                                                description,
+                                                amount: amountStr,
                                                 date: formatDate(subscription.currentPeriodEnd * 1000),
                                                 type: 'recurring' as const,
                                             },
@@ -327,162 +330,68 @@ export function BillingTab({
                             </div>
                         ) : subscriptionHistory ? (
                             <>
-                                {/* Subscription History Table */}
-                                {subscriptionHistory.history && subscriptionHistory.history.length > 0 && (
+                                {/* Subscription History (using shared component) */}
+                                {subscriptionHistory?.history && subscriptionHistory.history.length > 0 && (
                                     <div className="space-y-4">
                                         <div className="flex items-center justify-between">
                                             <h4 className="text-sm font-medium text-muted-foreground">Subscriptions</h4>
                                             {subsTotalPages > 1 && (
                                                 <div className="flex items-center gap-2">
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="h-7 w-7 p-0"
-                                                        onClick={() => loadSubscriptionHistory(subsPage - 1, invoicesPage)}
-                                                        disabled={subsPage === 1}
-                                                    >
-                                                        <IconChevronLeft className="h-4 w-4" />
-                                                    </Button>
                                                     <span className="text-xs text-muted-foreground whitespace-nowrap">
                                                         {subsPage} / {subsTotalPages}
                                                     </span>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="h-7 w-7 p-0"
-                                                        onClick={() => loadSubscriptionHistory(subsPage + 1, invoicesPage)}
-                                                        disabled={subsPage >= subsTotalPages}
-                                                    >
-                                                        <IconChevronRight className="h-4 w-4" />
-                                                    </Button>
                                                 </div>
                                             )}
                                         </div>
-                                        <div className="border rounded-lg overflow-hidden bg-card max-h-80">
-                                            <div className="overflow-x-auto overflow-y-auto h-full">
-                                                <table className="w-full text-sm font-mono">
-                                                    <thead className="bg-muted/50 border-b">
-                                                        <tr>
-                                                            <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Plan</th>
-                                                            <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Status</th>
-                                                            <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Amount</th>
-                                                            <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Billing Period</th>
-                                                            <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Date</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y">
-                                                        {subscriptionHistory.history.map((sub: SubscriptionHistory['history'][0]) => (
-                                                            <tr key={sub.id} className="hover:bg-muted/30 transition-colors">
-                                                                <td className="px-4 py-3 min-w-[160px]">
-                                                                    <div>
-                                                                        <p className="font-medium">{sub.planName}</p>
-                                                                        <p className="text-xs text-muted-foreground capitalize">{sub.interval}ly</p>
-                                                                    </div>
-                                                                </td>
-                                                                <td className="px-4 py-3 text-left min-w-[120px]">
-                                                                    <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${sub.status === 'active'
-                                                                        ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
-                                                                        : sub.status === 'canceled'
-                                                                            ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                                                                            : sub.status === 'past_due'
-                                                                                ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
-                                                                                : 'bg-slate-100 dark:bg-slate-900/30 text-slate-700 dark:text-slate-400'
-                                                                        }`}>
-                                                                        {sub.status === 'active' ? 'Active' :
-                                                                            sub.status === 'canceled' ? 'Cancelled' :
-                                                                                sub.status === 'past_due' ? 'Past Due' :
-                                                                                    sub.status}
-                                                                        {sub.cancelAtPeriodEnd && ' (Cancelling)'}
-                                                                    </span>
-                                                                </td>
-                                                                <td className="px-4 py-3 text-left min-w-[120px]">
-                                                                    <p className="font-medium">${sub.amount.toFixed(2)}</p>
-                                                                    <p className="text-xs text-muted-foreground">{sub.currency.toUpperCase()}</p>
-                                                                </td>
-                                                                <td className="px-4 py-3 text-left min-w-[120px]">
-                                                                    <p className="text-xs capitalize">{sub.interval}ly</p>
-                                                                </td>
-                                                                <td className="px-4 py-3 text-right min-w-[120px]">
-                                                                    <p className="text-xs">{formatDate(sub.created * 1000)}</p>
-                                                                </td>
-                                                            </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
 
-                                {/* Invoices Table */}
-                                {subscriptionHistory.invoices && subscriptionHistory.invoices.length > 0 && (
+                                        <SubscriptionHistoryTable
+                                            subscriptions={subscriptionHistory.history.map((sub) => ({
+                                                id: sub.id,
+                                                plan: sub.planName,
+                                                status: sub.status as any,
+                                                amount: `$${sub.amount.toFixed(2)}`,
+                                                interval: sub.interval,
+                                                created: formatDate(sub.created * 1000),
+                                                cancelAtPeriodEnd: sub.cancelAtPeriodEnd,
+                                            }))}
+                                            currentPage={subsPage}
+                                            totalPages={subsTotalPages}
+                                            onPageChange={(page) => loadSubscriptionHistory(page, invoicesPage)}
+                                        />
+                                    </div>
+                                )} 
+
+                                {/* Invoices (using shared component) */}
+                                {subscriptionHistory?.invoices && subscriptionHistory.invoices.length > 0 && (
                                     <div className="space-y-4">
                                         <div className="flex items-center justify-between">
                                             <h4 className="text-sm font-medium text-muted-foreground">Invoices</h4>
                                             {invoicesTotalPages > 1 && (
                                                 <div className="flex items-center gap-2">
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="h-7 w-7 p-0"
-                                                        onClick={() => loadSubscriptionHistory(subsPage, invoicesPage - 1)}
-                                                        disabled={invoicesPage === 1}
-                                                    >
-                                                        <IconChevronLeft className="h-4 w-4" />
-                                                    </Button>
                                                     <span className="text-xs text-muted-foreground whitespace-nowrap">
                                                         {invoicesPage} / {invoicesTotalPages}
                                                     </span>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="h-7 w-7 p-0"
-                                                        onClick={() => loadSubscriptionHistory(subsPage, invoicesPage + 1)}
-                                                        disabled={invoicesPage >= invoicesTotalPages}
-                                                    >
-                                                        <IconChevronRight className="h-4 w-4" />
-                                                    </Button>
                                                 </div>
                                             )}
                                         </div>
-                                        <div className="border rounded-lg overflow-hidden bg-card max-h-80">
-                                            <div className="overflow-x-auto overflow-y-auto h-full">
-                                                <table className="w-full text-sm font-mono">
-                                                    <thead className="bg-muted/50 border-b">
-                                                        <tr>
-                                                            <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Invoice #</th>
-                                                            <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Status</th>
-                                                            <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Amount</th>
-                                                            <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Date</th>
-                                                            <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Action</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y">
-                                                        {subscriptionHistory.invoices.map((invoice: SubscriptionHistory['invoices'][0]) => (
-                                                            <tr key={invoice.id} className="hover:bg-muted/30 transition-colors">
-                                                                <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{invoice.id}</td>
-                                                                <td className="px-4 py-3 text-left">
-                                                                    <span className={`text-xs font-bold uppercase py-1 px-2 rounded ${invoice.status === 'paid' ? 'bg-emerald-100 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400' :
-                                                                        'bg-yellow-100 dark:bg-yellow-950/30 text-yellow-600 dark:text-yellow-400'
-                                                                        }`}>
-                                                                        {invoice.status}
-                                                                    </span>
-                                                                </td>
-                                                                <td className="px-4 py-3 text-left text-sm">${invoice.amount.toFixed(2)}</td>
-                                                                <td className="px-4 py-3 text-right text-xs text-muted-foreground">
-                                                                    {formatDate(invoice.created * 1000)}
-                                                                </td>
-                                                                <td className="px-4 py-3 text-right">
-                                                                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => window.open(invoice.invoicePdf, '_blank')}>
-                                                                        <IconDownload className="h-4 w-4 text-muted-foreground" />
-                                                                    </Button>
-                                                                </td>
-                                                            </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
+
+                                        <InvoiceHistory
+                                            invoices={subscriptionHistory.invoices.map((inv) => ({
+                                                id: inv.id,
+                                                date: formatDate(inv.created * 1000),
+                                                amount: `${inv.currency?.toUpperCase() || 'USD'} $${inv.amount.toFixed(2)}`,
+                                                status: inv.status as any,
+                                                invoiceUrl: inv.invoicePdf,
+                                                description: inv.number || inv.subscriptionId || 'Invoice',
+                                            }))}
+                                            currentPage={invoicesPage}
+                                            totalPages={invoicesTotalPages}
+                                            onPageChange={(page) => loadSubscriptionHistory(subsPage, page)}
+                                            onDownload={(id) => {
+                                                const inv = subscriptionHistory.invoices.find(i => i.id === id)
+                                                if (inv?.invoicePdf) window.open(inv.invoicePdf, '_blank')
+                                            }}
+                                        />
                                     </div>
                                 )}
 

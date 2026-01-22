@@ -233,25 +233,25 @@ export function SettingsModal({
   const [autoEventInsights, setAutoEventInsights] = useState(true)
   const [showCheckmark, setShowCheckmark] = useState(true)
 
-  // Tab state - initialize from URL hash or initialTab prop
+  // Tab state - initialize from URL hash or initialTab prop (normalize to lowercase)
   const [activeTab, setActiveTab] = useState(() => {
     // Check URL hash first
     if (typeof window !== 'undefined') {
       const hash = window.location.hash
       if (hash.startsWith('#settings/')) {
         const tabFromHash = hash.replace('#settings/', '').split('?')[0]
-        // Capitalize first letter to match our tab IDs
-        return tabFromHash.charAt(0).toUpperCase() + tabFromHash.slice(1).toLowerCase()
+        // Normalize to lowercase to match internal tab IDs (e.g., 'billing')
+        return tabFromHash.toLowerCase()
       }
     }
-    // Fall back to initialTab prop or default
-    return initialTab || "general"
+    // Fall back to initialTab prop or default, normalize to lowercase
+    return (initialTab || "general").toLowerCase()
   })
 
   // Update activeTab when initialTab prop changes
   useEffect(() => {
     if (initialTab && !window.location.hash.startsWith('#settings/')) {
-      setActiveTab(initialTab)
+      setActiveTab(initialTab.toLowerCase())
     }
   }, [initialTab])
 
