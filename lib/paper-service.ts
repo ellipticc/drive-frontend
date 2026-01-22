@@ -451,8 +451,24 @@ class PaperService {
                 // Rebuild blocks from manifest
                 const blocks: any[] = [];
 
+                // Validate that blocks array exists and is an array
+                if (!Array.isArray(manifest.blocks)) {
+                    console.error("[PaperService] INVALID MANIFEST: blocks is not an array", manifest);
+                    manifest.blocks = [];
+                }
+
                 // Process in parallel to speed up recovery
                 const blockPromises = manifest.blocks.map(async (entry) => {
+                    // Validate entry has required properties
+                    if (!entry || !entry.chunkId) {
+                        console.error("[PaperService] Invalid block entry:", entry);
+                        return { 
+                            id: entry?.id || crypto.randomUUID(), 
+                            type: 'p', 
+                            children: [{ text: '[Invalid block entry]' }] 
+                        };
+                    }
+
                     let chunkData = chunks[entry.chunkId];
 
                     // HEALING LOGIC: If missing, try to fetch individually (Recover from "orphaned index" state)
@@ -480,21 +496,47 @@ class PaperService {
 
                     if (chunkData) {
                         try {
+                            // Validate chunkData has required encryption properties
+                            if (!chunkData.encryptedContent || !chunkData.iv || !chunkData.salt) {
+                                console.error(`[PaperService] Chunk ${entry.chunkId} missing encryption properties`, chunkData);
+                                return { 
+                                    id: entry.id || crypto.randomUUID(), 
+                                    type: 'p', 
+                                    children: [{ text: '[Incomplete chunk data]' }] 
+                                };
+                            }
+
                             const blockStr = await decryptPaperContent(chunkData.encryptedContent, chunkData.iv, chunkData.salt, masterKey);
                             if (blockStr) {
-                                return JSON.parse(blockStr);
+                                const parsedBlock = JSON.parse(blockStr);
+                                
+                                // Ensure the parsed block has a valid structure
+                                if (!parsedBlock || typeof parsedBlock !== 'object') {
+                                    return { 
+                                        id: entry.id || crypto.randomUUID(), 
+                                        type: 'p', 
+                                        children: [{ text: '' }] 
+                                    };
+                                }
+                                
+                                // Ensure children array exists
+                                if (!Array.isArray(parsedBlock.children)) {
+                                    parsedBlock.children = [{ text: '' }];
+                                }
+                                
+                                return parsedBlock;
                             }
                         } catch (err) {
                             console.error(`Failed to decrypt block ${entry.id}`, err);
-                            return { id: entry.id, type: 'p', children: [{ text: '[Error Decrypting Block]' }] };
+                            return { id: entry.id || crypto.randomUUID(), type: 'p', children: [{ text: '[Error Decrypting Block]' }] };
                         }
                     } else {
-                        console.warn(`Missing chunk data for block ${entry.id}`);
+                        console.warn(`Missing chunk data for block ${entry.id || 'unknown'}`);
                         // Push a placeholder so the editor doesn't lose the block position
                         return {
-                            id: entry.id,
+                            id: entry.id || crypto.randomUUID(),
                             type: 'p',
-                            children: [{ text: `[Error: Content for this block (${entry.id}) is missing in this version]` }]
+                            children: [{ text: `[Error: Content for this block is missing in this version]` }]
                         };
                     }
                 });
