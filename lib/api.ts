@@ -176,6 +176,9 @@ export interface CreateShareParams {
   max_views?: number;
   max_downloads?: number;
   permissions?: 'read' | 'write' | 'admin';
+  kyberCiphertext?: string;
+  encryptedCek?: string;
+  nonce?: string;
   comments_enabled?: boolean;
   encrypted_filename?: string;
   nonce_filename?: string;
@@ -442,7 +445,10 @@ export interface SharedItem {
   permissions: 'read' | 'write' | 'admin';
   createdAt: string;
   updatedAt: string;
-  encapsulatedSecret?: string;
+  encapsulatedSecret?: string; // Legacy
+  kyberCiphertext?: string;
+  encryptedCek?: string;
+  encryptedCekNonce?: string;
   owner: {
     id: string;
     name: string;
@@ -1425,6 +1431,11 @@ class ApiClient {
     return this.request(endpoint);
   }
 
+  // Get current user info
+  async getMe(): Promise<ApiResponse<UserData>> {
+    return this.request('/auth/me');
+  }
+
   // Recent items endpoints
   async addRecentItem(data: { id: string; type: 'file' | 'folder' }): Promise<ApiResponse> {
     return this.request('/recent', {
@@ -2190,7 +2201,12 @@ class ApiClient {
     recipientEmail?: string;
     recipientUserId?: string;
     permissions?: string;
-    encapsulatedSecret: string;
+    // Optional encryption fields for KEM-based sharing (kyber)
+    kyberCiphertext?: string;
+    encryptedCek?: string;
+    nonce?: string;
+    // Backwards compatible encapsulated secret field
+    encapsulatedSecret?: string;
   }): Promise<ApiResponse<{ id: string; status: string }>> {
     return this.request<{ id: string; status: string }>('/shared/create', {
       method: 'POST',

@@ -819,21 +819,16 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
           // Encrypt the CEK with the shared secret
           const { encryptedData: encryptedCek, nonce: cekNonce } = encryptData(itemFileCek, senderSharedSecret);
 
-          // Construct encapsulated secret payload
-          const encapsulatedSecret = JSON.stringify({
-            kyberCiphertext: uint8ArrayToHex(kyberCiphertext),
-            encryptedCek: encryptedCek,
-            nonce: cekNonce
-          });
-
-          // Create Share
+          // Construct share payload with separate encryption fields
           const shareRes = await apiClient.createSharedItem({
             fileId: itemType === 'file' ? itemId : undefined,
             folderId: itemType === 'folder' ? itemId : undefined,
             // paperId is not yet supported in createSharedItem API payload fully locally but logic handles it
             recipientEmail: email,
             permissions: 'read', // Default
-            encapsulatedSecret
+            kyberCiphertext: uint8ArrayToHex(kyberCiphertext),
+            encryptedCek: encryptedCek,
+            nonce: cekNonce
           });
 
           if (shareRes.success) {
@@ -852,6 +847,7 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
       if (successCount > 0) {
         toast.success(`Shared successfully with ${successCount} user${successCount > 1 ? 's' : ''}`);
         setOpen(false);
+        if (onShareUpdate) onShareUpdate();
       }
 
       if (failCount > 0) {

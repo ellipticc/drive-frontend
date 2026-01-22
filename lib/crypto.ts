@@ -9,6 +9,7 @@ import { generateMnemonic } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english.js';
 import { sha512 } from '@noble/hashes/sha2.js';
 import { ml_kem768 } from '@noble/post-quantum/ml-kem.js';
+export { ml_kem768 };
 import { ml_dsa65 } from '@noble/post-quantum/ml-dsa.js';
 import { xchacha20poly1305 } from '@noble/ciphers/chacha.js';
 import { PerformanceTracker } from './performance-tracker';
