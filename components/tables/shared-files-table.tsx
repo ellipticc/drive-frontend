@@ -1,14 +1,13 @@
 "use client"
 
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useCallback, useMemo, useRef } from "react"
+import { useWindowVirtualizer } from "@tanstack/react-virtual"
 import {
-    IconLoader2,
     IconDots,
     IconDownload,
     IconCopy,
     IconInfoCircle,
     IconTrash,
-    IconFile,
     IconFolder,
     IconCheck,
     IconX,
@@ -17,8 +16,9 @@ import { toast } from "sonner"
 import { useFormatter } from "@/hooks/use-formatter"
 
 import { apiClient, SharedItem } from "@/lib/api"
-import { masterKeyManager } from "@/lib/master-key"
-import { ml_kem768, decryptData, hexToUint8Array, decryptUserPrivateKeys } from "@/lib/crypto"
+import { decryptUserPrivateKeys } from "@/lib/crypto"
+import { decryptShareInWorker } from '@/lib/decrypt-share-pool'
+import { setCekForShare, getCekForShare } from '@/lib/share-cache'
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import dynamic from 'next/dynamic'
@@ -27,6 +27,8 @@ import { Table, TableCard } from "@/components/application/table/table"
 import { Checkbox } from "@/components/base/checkbox/checkbox"
 import { TableSkeleton } from "@/components/tables/table-skeleton"
 import { useLanguage } from "@/lib/i18n/language-context"
+import { TruncatedNameTooltip } from "@/components/tables/truncated-name-tooltip"
+import { FileThumbnail } from "@/components/files/file-thumbnail"
 import { useIsMobile } from "@/hooks/use-mobile"
 import {
     ActionBar,
@@ -57,17 +59,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import {
-    Dialog,
-    DialogTrigger,
-    DialogContent,
-    DialogTitle,
-    DialogDescription,
-    DialogHeader,
-    DialogFooter,
-    DialogClose,
-} from "@/components/ui/dialog"
-import { downloadEncryptedFileWithCEK, downloadFolderAsZip, downloadMultipleItemsAsZip } from "@/lib/download"
+import { downloadFolderAsZip } from "@/lib/download"
 
 interface SharedFilesTableProps {
     status?: string // Optional filter
@@ -99,7 +91,7 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
 
     // Details & Copy modal state
     const [detailsModalOpen, setDetailsModalOpen] = useState(false)
-    const [selectedItemForDetails, setSelectedItemForDetails] = useState<{ id: string; name: string; type: 'file' | 'folder' | 'paper' } | null>(null)
+    const [selectedItemForDetails, setSelectedItemForDetails] = useState<{ id: string; name: string; type: 'file' | 'folder' | 'paper'; shareId?: string } | null>(null)
 
     const [copyModalOpen, setCopyModalOpen] = useState(false)
     const [selectedItemForCopy, setSelectedItemForCopy] = useState<{ id: string; name: string; type: 'file' | 'folder' } | null>(null)
@@ -128,34 +120,29 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
 
                 let newDecrypted: Record<string, string> = {};
                 if (kyberPrivateKey) {
-                    newDecrypted = {};
+                    // Offload KEM decapsulation + filename decryption to worker pool for responsiveness
                     await Promise.all(response.data.map(async (item) => {
                         if (!item.kyberCiphertext || !item.encryptedCek || !item.encryptedCekNonce) {
                             return;
                         }
 
                         try {
-                            const kyberCiphertext = hexToUint8Array(item.kyberCiphertext);
-                            const sharedSecret = ml_kem768.decapsulate(kyberCiphertext, kyberPrivateKey!);
-
-                            const cek = decryptData(item.encryptedCek, new Uint8Array(sharedSecret), item.encryptedCekNonce!);
-
-                            if (item.item.encryptedName && item.item.nameSalt) {
-                                try {
-                                    const nameBytes = decryptData(item.item.encryptedName, cek, item.item.nameSalt);
-                                    // Convert bytes to string
-                                    const name = new TextDecoder().decode(nameBytes);
-                                    if (name && /^[ -~]+$/.test(name)) { // Simple check for printable ASCII or valid unicode
-                                        newDecrypted[item.id] = name;
-                                    } else {
-                                        newDecrypted[item.id] = "Shared Item (Locked)";
-                                    }
-                                } catch {
+                            // Use worker pool to derive CEK and decrypt filename if available
+                            const res = await decryptShareInWorker({ id: item.id, kyberPrivateKey: kyberPrivateKey.buffer as ArrayBuffer, share: item });
+                            if (res && res.cek) {
+                                const cek = new Uint8Array(res.cek);
+                                setCekForShare(item.id, cek);
+                            }
+                            if (res && res.name) {
+                                const name = res.name;
+                                if (name && /^[ -~]+$/.test(name)) {
+                                    newDecrypted[item.id] = name;
+                                } else {
                                     newDecrypted[item.id] = "Shared Item (Locked)";
                                 }
                             }
                         } catch (e) {
-                            console.error("Decryption failed for item " + item.id, e);
+                            console.error("Worker decryption failed for item " + item.id, e);
                             newDecrypted[item.id] = "Decryption Failed";
                         }
                     }));
@@ -279,34 +266,51 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
         try {
             // If file: decapsulate shared secret and hand to global download manager which shows unified progress
             if (item.item.type === 'file') {
-                if (!item.kyberCiphertext || !item.encryptedCek || !item.encryptedCekNonce) throw new Error('Missing encryption material')
+                // Check if CEK is cached for this share
+                const cachedCek = getCekForShare(item.id);
+                if (cachedCek) {
+                    if (!startFileDownloadWithCEK) throw new Error('Global download manager not available for CEK-based downloads');
+                    await startFileDownloadWithCEK(item.item.id, decryptedNames[item.id] || item.item.name || 'file', cachedCek);
+                    toast.success('Download completed');
+                    return;
+                }
+
+                // If not cached, perform worker-based derivation and cache it
+                if (!item.kyberCiphertext || !item.encryptedCek || !item.encryptedCekNonce) {
+                    throw new Error('Missing encryption material for this shared file');
+                }
 
                 const userRes = await apiClient.getMe();
-                let userKeys: any | undefined;
-                if (userRes.success && userRes.data) {
-                    try {
-                        userKeys = await decryptUserPrivateKeys(userRes.data as any);
-                    } catch (e) {
-                        // ignore
-                    }
+                if (!userRes.success || !userRes.data) {
+                    throw new Error('Unable to retrieve user keys to decrypt this share');
                 }
 
-                const kyberCiphertext = hexToUint8Array(item.kyberCiphertext)
-                const sharedSecret = ml_kem768.decapsulate(kyberCiphertext, userKeys?.kyberPrivateKey)
-                const cek = decryptData(item.encryptedCek, new Uint8Array(sharedSecret), item.encryptedCekNonce!)
-
-                // Use global download pipeline that supports unified progress modal (CEK-aware variant)
-                if (startFileDownloadWithCEK) {
-                    await startFileDownloadWithCEK(item.item.id, decryptedNames[item.id] || item.item.name || 'file', cek)
-                    toast.success('Download completed')
-                } else {
-                    // Fallback: call local download implementation
-                    await downloadEncryptedFileWithCEK(item.item.id, cek, (progress) => {
-                        toast.loading(`Downloading... ${Math.round(progress.overallProgress)}%`)
-                    })
-                    toast.success('Download completed')
+                let keys: any;
+                try {
+                    keys = await decryptUserPrivateKeys(userRes.data as any);
+                } catch (e) {
+                    throw new Error('Failed to decrypt user private keys');
                 }
 
+                if (!keys || !keys.kyberPrivateKey) {
+                    throw new Error('Missing Kyber private key; cannot decrypt this shared file');
+                }
+
+                try {
+                    const res = await decryptShareInWorker({ id: item.id, kyberPrivateKey: keys.kyberPrivateKey.buffer as ArrayBuffer, share: item });
+                    if (!res || !res.cek) throw new Error('Failed to derive CEK from share');
+                    const cek = new Uint8Array(res.cek);
+                    setCekForShare(item.id, cek);
+
+                    if (!startFileDownloadWithCEK) throw new Error('Global download manager not available for CEK-based downloads');
+                    await startFileDownloadWithCEK(item.item.id, decryptedNames[item.id] || item.item.name || 'file', cek);
+                    toast.success('Download completed');
+                } catch (e) {
+                    console.error('Download failed (derivation)', e);
+                    throw e;
+                }
+
+                return;
             } else if (item.item.type === 'folder') {
                 // Use global folder download which shows unified progress
                 if (startFolderDownload) {
@@ -348,7 +352,7 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
     }
 
     const openDetails = (share: SharedItem) => {
-        setSelectedItemForDetails({ id: share.item.id, name: decryptedNames[share.id] || share.item.name || 'item', type: share.item.type === 'folder' ? 'folder' : share.item.type === 'paper' ? 'paper' : 'file' })
+        setSelectedItemForDetails({ id: share.item.id, name: decryptedNames[share.id] || share.item.name || 'item', type: share.item.type === 'folder' ? 'folder' : share.item.type === 'paper' ? 'paper' : 'file', shareId: share.id })
         setDetailsModalOpen(true)
     }
 
@@ -396,7 +400,7 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
                                 className={`h-8 w-8 p-0 ${selectedItems.size > 0 ? 'bg-primary/10 text-primary' : ''}`}
                                 aria-label={selectedItems.size > 0 ? `Accept ${selectedItems.size} Selected` : "Accept All"}
                             >
-                                <IconCheck className="size-4" />
+                                <IconCheck className="h-4 w-4" />
                             </Button>
                             <Button
                                 size="sm"
@@ -404,8 +408,9 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
                                 onClick={handleRemoveBulk}
                                 disabled={items.length === 0 && selectedItems.size === 0}
                                 className="h-8 w-8 p-0"
+                                aria-label={selectedItems.size > 0 ? `Remove ${selectedItems.size} Selected` : "Remove All"}
                             >
-                                <IconTrash className="size-4" />
+                                <IconTrash className="h-4 w-4" />
                             </Button>
                         </div>
                     }
@@ -453,92 +458,255 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
                         <Table.Head id="actions" align="center" />
                     </Table.Header>
 
-                    <Table.Body items={items}>
-                        {(item: SharedItem) => (
-                            <Table.Row key={item.id} className="group hover:bg-muted/50 transition-colors duration-150" onDoubleClick={() => openDetails(item)}>
-                                <Table.Cell className="w-10 text-center pl-4 pr-0">
-                                    <Checkbox
-                                        slot="selection"
-                                        className={`transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}
-                                    />
-                                </Table.Cell>
+                    {items.length > 150 ? (
+                        // Virtualized rendering (use window virtualizer similar to TrashTable)
+                        (() => {
+                            const parentRef = useRef<HTMLDivElement | null>(null);
+                            const rowVirtualizer = useWindowVirtualizer({
+                                count: items.length,
+                                estimateSize: () => 50,
+                                overscan: 5,
+                                scrollMargin: parentRef.current?.offsetTop ?? 0,
+                            });
 
-                                <Table.Cell className="w-full max-w-0">
-                                    <div className="flex items-center gap-3 min-w-0">
-                                        <div className="shrink-0 text-muted-foreground">
-                                            {item.item.type === 'folder' ? (
-                                                <IconFolder className="size-5 text-blue-500 fill-blue-500/20" />
+                            return (
+                                <div ref={parentRef} className="w-full">
+                                    <Table.Body>
+                                        {/* Top Spacer */}
+                                        {rowVirtualizer.getVirtualItems().length > 0 && (
+                                            <Table.Row id="spacer-top" className="hover:bg-transparent border-0 focus-visible:outline-none">
+                                                <Table.Cell colSpan={isMobile ? 3 : 5} style={{ height: Math.max(0, rowVirtualizer.getVirtualItems()[0].start - rowVirtualizer.options.scrollMargin), padding: 0 }} />
+                                            </Table.Row>
+                                        )}
+
+                                        {rowVirtualizer.getVirtualItems().map((virtualItem) => {
+                                            const item = items[virtualItem.index];
+                                            return (
+                                                <Table.Row
+                                                    key={item.id}
+                                                    id={item.id}
+                                                    data-index={virtualItem.index}
+                                                    ref={rowVirtualizer.measureElement}
+                                                    onDoubleClick={() => openDetails(item)}
+                                                    className="group hover:bg-muted/50 transition-colors duration-150"
+                                                >
+                                                    <Table.Cell className="w-10 text-center pl-4 pr-0">
+                                                        <Checkbox
+                                                            slot="selection"
+                                                            className={`transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}
+                                                        />
+                                                    </Table.Cell>
+
+                                                    <Table.Cell className="w-full max-w-0">
+                                                        <div className="flex items-center gap-2 min-w-0">
+                                                            <div className="text-base">
+                                                                {item.item.type === 'folder' ? (
+                                                                    <IconFolder className="h-4 w-4 text-blue-500 inline-block align-middle" />
+                                                                ) : (
+                                                                    <FileThumbnail
+                                                                        fileId={item.item.id}
+                                                                        mimeType={item.item.type === 'paper' ? 'application/x-paper' : item.item.mimeType}
+                                                                        name={decryptedNames[item.id] || item.item.name || ''}
+                                                                        className="h-4 w-4 inline-block align-middle"
+                                                                        iconClassName="h-4 w-4"
+                                                                    />
+                                                                )}
+                                                            </div>
+                                                            <TruncatedNameTooltip
+                                                                name={decryptedNames[item.id] || item.item.name || 'Shared Item'}
+                                                                className="text-sm font-medium whitespace-nowrap text-foreground cursor-default flex-1 min-w-0"
+                                                            />
+                                                        </div>
+                                                    </Table.Cell>
+
+                                                    <Table.Cell>
+                                                        <div className="hidden md:flex items-center gap-2">
+                                                            <Avatar className="size-6">
+                                                                <AvatarImage src={item.owner.avatar} />
+                                                                <AvatarFallback>{item.owner.name.substring(0, 2)}</AvatarFallback>
+                                                            </Avatar>
+                                                            <div className="flex flex-col text-xs truncate">
+                                                                <span className="font-medium truncate">{item.owner.name}</span>
+                                                                <span className="text-muted-foreground text-[10px] truncate">{item.owner.email}</span>
+                                                            </div>
+                                                        </div>
+                                                    </Table.Cell>
+
+                                                    <Table.Cell className="text-right h-12">
+                                                        <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">{formatDate(new Date(item.createdAt))}</span>
+                                                    </Table.Cell>
+
+                                                    <Table.Cell className="px-3 h-12">
+                                                        <div className="flex justify-end gap-1 h-full items-center">
+                                                            {item.status === 'pending' ? (
+                                                                <div className="flex items-center gap-2">
+                                                                    <Button size="sm" className="h-7 text-xs bg-green-600 hover:bg-green-700" onClick={() => handleAccept(item.id)}>
+                                                                        <IconCheck className="h-3 w-3 mr-1" /> Accept
+                                                                    </Button>
+                                                                    <Button size="sm" variant="outline" className="h-7 text-xs text-destructive hover:bg-destructive/10 border-destructive/20" onClick={() => confirmDecline(item.id)}>
+                                                                        <IconX className="h-3 w-3" />
+                                                                    </Button>
+                                                                </div>
+                                                            ) : (
+                                                                <DropdownMenu>
+                                                                    <DropdownMenuTrigger asChild>
+                                                                        <Button
+                                                                            size="sm"
+                                                                            variant="ghost"
+                                                                            className="h-8 w-8 p-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                                                                            aria-label="Open actions"
+                                                                            onClick={(e) => e.stopPropagation()}
+                                                                            onMouseDown={(e) => e.stopPropagation()}
+                                                                            onPointerDown={(e) => e.stopPropagation()}
+                                                                        >
+                                                                            <IconDots className="h-4 w-4" />
+                                                                        </Button>
+                                                                    </DropdownMenuTrigger>
+                                                                    <DropdownMenuContent align="end" className="w-48">
+                                                                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                                                        <DropdownMenuSeparator />
+                                                                        <DropdownMenuItem onClick={() => handleDownload(item)}>
+                                                                            <IconDownload className="h-4 w-4 mr-2" /> Download
+                                                                        </DropdownMenuItem>
+                                                                        <DropdownMenuItem onSelect={() => { setSelectedItemForCopy({ id: item.item.id, name: decryptedNames[item.id] || item.item.name || 'item', type: item.item.type === 'folder' ? 'folder' : 'file' }); setCopyModalOpen(true); }}>
+                                                                            <IconCopy className="h-4 w-4 mr-2" /> Copy
+                                                                        </DropdownMenuItem>
+                                                                        <DropdownMenuItem onSelect={() => { setSelectedItemForDetails({ id: item.item.id, name: decryptedNames[item.id] || item.item.name || 'item', type: item.item.type === 'folder' ? 'folder' : item.item.type === 'paper' ? 'paper' : 'file' }); setDetailsModalOpen(true); }}>
+                                                                            <IconInfoCircle className="h-4 w-4 mr-2" /> Details
+                                                                        </DropdownMenuItem>
+                                                                        <DropdownMenuSeparator />
+                                                                        <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => confirmRemove(item.id)}>
+                                                                            <IconTrash className="h-4 w-4 mr-2" /> Remove
+                                                                        </DropdownMenuItem>
+                                                                    </DropdownMenuContent>
+                                                                </DropdownMenu>
+                                                            )}
+                                                        </div>
+                                                    </Table.Cell>
+                                                </Table.Row>
+                                            );
+                                        })}
+
+                                        {/* Bottom Spacer */}
+                                        {rowVirtualizer.getVirtualItems().length > 0 && (
+                                            (() => {
+                                                const lastItem = rowVirtualizer.getVirtualItems()[rowVirtualizer.getVirtualItems().length - 1];
+                                                const bottomSpace = rowVirtualizer.getTotalSize() - lastItem.end;
+                                                if (bottomSpace > 0) {
+                                                    return (
+                                                        <Table.Row id="spacer-bottom" className="hover:bg-transparent border-0 focus-visible:outline-none">
+                                                            <Table.Cell colSpan={isMobile ? 3 : 5} style={{ height: bottomSpace, padding: 0 }} />
+                                                        </Table.Row>
+                                                    );
+                                                }
+                                                return null;
+                                            })()
+                                        )}
+                                    </Table.Body>
+                                </div>
+                            );
+                        })()
+                    ) : (
+                        <Table.Body items={items}>
+                            {(item: SharedItem) => (
+                                <Table.Row key={item.id} className="group hover:bg-muted/50 transition-colors duration-150" onDoubleClick={() => openDetails(item)}>
+                                    <Table.Cell className="w-10 text-center pl-4 pr-0">
+                                        <Checkbox
+                                            slot="selection"
+                                            className={`transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}
+                                        />
+                                    </Table.Cell>
+
+                                    <Table.Cell className="w-full max-w-0">
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            <div className="text-base">
+                                                {item.item.type === 'folder' ? (
+                                                    <IconFolder className="h-4 w-4 text-blue-500 inline-block align-middle" />
+                                                ) : (
+                                                    <FileThumbnail
+                                                        fileId={item.item.id}
+                                                        mimeType={item.item.type === 'paper' ? 'application/x-paper' : item.item.mimeType}
+                                                        name={decryptedNames[item.id] || item.item.name || ''}
+                                                        className="h-4 w-4 inline-block align-middle"
+                                                        iconClassName="h-4 w-4"
+                                                    />
+                                                )}
+                                            </div>
+                                            <TruncatedNameTooltip
+                                                name={decryptedNames[item.id] || item.item.name || 'Shared Item'}
+                                                className="text-sm font-medium whitespace-nowrap text-foreground cursor-default flex-1 min-w-0"
+                                            />
+                                        </div>
+                                    </Table.Cell>
+
+                                    <Table.Cell>
+                                        <div className="hidden md:flex items-center gap-2">
+                                            <Avatar className="size-6">
+                                                <AvatarImage src={item.owner.avatar} />
+                                                <AvatarFallback>{item.owner.name.substring(0, 2)}</AvatarFallback>
+                                            </Avatar>
+                                            <div className="flex flex-col text-xs truncate">
+                                                <span className="font-medium truncate">{item.owner.name}</span>
+                                                <span className="text-muted-foreground text-[10px] truncate">{item.owner.email}</span>
+                                            </div>
+                                        </div>
+                                    </Table.Cell>
+
+                                    <Table.Cell className="text-right h-12">
+                                        <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">{formatDate(new Date(item.createdAt))}</span>
+                                    </Table.Cell>
+
+                                    <Table.Cell className="px-3 h-12">
+                                        <div className="flex justify-end gap-1 h-full items-center">
+                                            {item.status === 'pending' ? (
+                                                <div className="flex items-center gap-2">
+                                                    <Button size="sm" className="h-7 text-xs bg-green-600 hover:bg-green-700" onClick={() => handleAccept(item.id)}>
+                                                        <IconCheck className="h-3 w-3 mr-1" /> Accept
+                                                    </Button>
+                                                    <Button size="sm" variant="outline" className="h-7 text-xs text-destructive hover:bg-destructive/10 border-destructive/20" onClick={() => confirmDecline(item.id)}>
+                                                        <IconX className="h-3 w-3" />
+                                                    </Button>
+                                                </div>
                                             ) : (
-                                                <IconFile className="size-5" />
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            className="h-8 w-8 p-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                                                            aria-label="Open actions"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            onMouseDown={(e) => e.stopPropagation()}
+                                                            onPointerDown={(e) => e.stopPropagation()}
+                                                        >
+                                                            <IconDots className="h-4 w-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end" className="w-48">
+                                                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem onClick={() => handleDownload(item)}>
+                                                            <IconDownload className="h-4 w-4 mr-2" /> Download
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem onSelect={() => { setSelectedItemForCopy({ id: item.item.id, name: decryptedNames[item.id] || item.item.name || 'item', type: item.item.type === 'folder' ? 'folder' : 'file' }); setCopyModalOpen(true); }}>
+                                                            <IconCopy className="h-4 w-4 mr-2" /> Copy
+                                                        </DropdownMenuItem>
+                                                    <DropdownMenuItem onSelect={() => { setSelectedItemForDetails({ id: item.item.id, name: decryptedNames[item.id] || item.item.name || 'item', type: item.item.type === 'folder' ? 'folder' : item.item.type === 'paper' ? 'paper' : 'file', shareId: item.id }); setDetailsModalOpen(true); }}>
+                                                            <IconInfoCircle className="h-4 w-4 mr-2" /> Details
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => confirmRemove(item.id)}>
+                                                            <IconTrash className="h-4 w-4 mr-2" /> Remove
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
                                             )}
                                         </div>
-                                        <div className="truncate font-medium">
-                                            <button className="text-left w-full truncate" onClick={() => openDetails(item)}>
-                                                {decryptedNames[item.id] || item.item.name || "Shared Item"}
-                                            </button>
-                                        </div>
-                                    </div>
-                                </Table.Cell>
-
-                                <Table.Cell>
-                                    <div className="hidden md:flex items-center gap-2">
-                                        <Avatar className="size-6">
-                                            <AvatarImage src={item.owner.avatar} />
-                                            <AvatarFallback>{item.owner.name.substring(0, 2)}</AvatarFallback>
-                                        </Avatar>
-                                        <div className="flex flex-col text-xs truncate">
-                                            <span className="font-medium truncate">{item.owner.name}</span>
-                                            <span className="text-muted-foreground text-[10px] truncate">{item.owner.email}</span>
-                                        </div>
-                                    </div>
-                                </Table.Cell>
-
-                                <Table.Cell className="min-w-[120px] text-right">
-                                    <span className="text-xs text-muted-foreground">{formatDate(new Date(item.createdAt))}</span>
-                                </Table.Cell>
-
-                                <Table.Cell>
-                                    <div className="flex items-center justify-end gap-2">
-                                        {item.status === 'pending' ? (
-                                            <div className="flex items-center gap-2">
-                                                <Button size="sm" className="h-7 text-xs bg-green-600 hover:bg-green-700" onClick={() => handleAccept(item.id)}>
-                                                    <IconCheck className="size-3 mr-1" /> Accept
-                                                </Button>
-                                                <Button size="sm" variant="outline" className="h-7 text-xs text-destructive hover:bg-destructive/10 border-destructive/20" onClick={() => confirmDecline(item.id)}>
-                                                    <IconX className="size-3" />
-                                                </Button>
-                                            </div>
-                                        ) : (
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                        <IconDots className="size-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuItem onClick={() => handleDownload(item)}>
-                                                        <IconDownload className="size-4 mr-2" /> Download
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem onSelect={() => { setSelectedItemForCopy({ id: item.item.id, name: decryptedNames[item.id] || item.item.name || 'item', type: item.item.type === 'folder' ? 'folder' : 'file' }); setCopyModalOpen(true); }}>
-                                                        <IconCopy className="size-4 mr-2" /> Copy
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem onSelect={() => { setSelectedItemForDetails({ id: item.item.id, name: decryptedNames[item.id] || item.item.name || 'item', type: item.item.type === 'folder' ? 'folder' : item.item.type === 'paper' ? 'paper' : 'file' }); setDetailsModalOpen(true); }}>
-                                                        <IconInfoCircle className="size-4 mr-2" /> Details
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => confirmRemove(item.id)}>
-                                                        <IconTrash className="size-4 mr-2" /> Remove
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        )}
-                                    </div>
-                                </Table.Cell>
-                            </Table.Row>
-                        )}
-                    </Table.Body>
+                                    </Table.Cell>
+                                </Table.Row>
+                            )}
+                        </Table.Body>
+                    )}
                 </Table>
             </TableCard.Root>
 
@@ -565,6 +733,7 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
                 itemId={selectedItemForDetails?.id || ""}
                 itemName={selectedItemForDetails?.name || ""}
                 itemType={selectedItemForDetails?.type || "file"}
+                shareId={selectedItemForDetails?.shareId}
                 open={detailsModalOpen}
                 onOpenChange={setDetailsModalOpen}
             />

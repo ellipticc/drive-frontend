@@ -87,16 +87,21 @@ interface ItemDetails {
   width?: number;
   height?: number;
 }
-import { decryptFilename } from "@/lib/crypto"
+import { decryptFilename, decryptUserPrivateKeys } from "@/lib/crypto"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useFormatter } from "@/hooks/use-formatter"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
+import { getCekForShare, setCekForShare } from '@/lib/share-cache'
+import { decryptShareInWorker } from '@/lib/decrypt-share-pool'
+import { decryptShareFilenameWithCek } from '@/lib/share-crypto'
 
 interface DetailsModalProps {
   children?: React.ReactNode
   itemId?: string
   itemName?: string
   itemType?: "file" | "folder" | "paper"
+  // Optional shareId: when provided, DetailsModal will prefer CEK from cache or derive it via worker
+  shareId?: string
   open?: boolean
   onOpenChange?: (open: boolean) => void
   onTagsUpdated?: () => void
@@ -107,6 +112,7 @@ export function DetailsModal({
   itemId = "",
   itemName = "example-file.pdf",
   itemType = "file",
+  shareId,
   open: externalOpen,
   onOpenChange: externalOnOpenChange,
   onTagsUpdated
@@ -155,18 +161,83 @@ export function DetailsModal({
       const encryptedName = itemDetails?.encrypted_filename || itemDetails?.encryptedFilename
       const filenameSalt = itemDetails?.filename_salt || itemDetails?.nameSalt
 
-      if (encryptedName && filenameSalt) {
+      // If this item is part of a share and caller supplied a shareId, prefer CEK cache/worker
+      if ((encryptedName && filenameSalt) || (itemDetails && (itemDetails as any).shareId && (itemDetails as any).kyber_ciphertext) || shareId) {
+        // Prefer explicit prop 'shareId' passed to the modal, otherwise try itemDetails fields
+        const effectiveShareId = (shareId) || (itemDetails && ((itemDetails as any).shareId || (itemDetails as any).share_id));
+
         try {
-          const { masterKeyManager } = await import('@/lib/master-key')
-          const masterKey = masterKeyManager.getMasterKey()
-          const decrypted = await decryptFilename(
-            encryptedName,
-            filenameSalt,
-            masterKey
-          )
-          setDecryptedFilename(decrypted)
-        } catch (error) {
-          console.error('Failed to decrypt filename:', error)
+          // Try master key decryption first for server-provided encrypted filename
+          if (encryptedName && filenameSalt) {
+            const { masterKeyManager } = await import('@/lib/master-key')
+            const masterKey = masterKeyManager.getMasterKey()
+            try {
+              const decrypted = await decryptFilename(
+                encryptedName,
+                filenameSalt,
+                masterKey
+              )
+              setDecryptedFilename(decrypted)
+              return
+            } catch (err) {
+              // continue to share-CEK approach if that fails
+            }
+          }
+
+          if (!effectiveShareId) {
+            setDecryptedFilename(null);
+            return;
+          }
+
+          // 1. Try cache
+          const cached = getCekForShare(effectiveShareId);
+          if (cached) {
+            const name = decryptShareFilenameWithCek({ item: { encryptedName: encryptedName, nameSalt: filenameSalt } }, cached);
+            if (name) {
+              setDecryptedFilename(name);
+              return;
+            }
+          }
+
+          // 2. Fetch share details and derive CEK via worker
+          const userRes = await apiClient.getMe();
+          if (!userRes.success || !userRes.data) {
+            setDecryptedFilename(null);
+            return;
+          }
+
+          const keys = await decryptUserPrivateKeys(userRes.data as any);
+          const shareRes = await apiClient.getShare(effectiveShareId);
+          if (!shareRes.success || !shareRes.data) {
+            setDecryptedFilename(null);
+            return;
+          }
+
+          // Normalize share object into expected worker shape
+          const sd = shareRes.data as any;
+          const normalizedShare = {
+            kyberCiphertext: sd.kyberCiphertext || sd.kyber_ciphertext,
+            encryptedCek: sd.encryptedCek || sd.encrypted_cek,
+            encryptedCekNonce: sd.encryptedCekNonce || sd.encrypted_cek_nonce,
+            item: {
+              encryptedName: sd.encrypted_filename || encryptedName,
+              nameSalt: sd.nonce_filename || filenameSalt
+            }
+          }
+
+          const workerRes = await decryptShareInWorker({ id: effectiveShareId, kyberPrivateKey: keys.kyberPrivateKey.buffer as ArrayBuffer, share: normalizedShare });
+          if (workerRes && workerRes.cek) {
+            const cek = new Uint8Array(workerRes.cek);
+            setCekForShare(effectiveShareId, cek);
+          }
+          if (workerRes && workerRes.name) {
+            setDecryptedFilename(workerRes.name);
+            return;
+          }
+
+          setDecryptedFilename(null);
+        } catch (err) {
+          console.error('Failed to decrypt shared filename:', err)
           setDecryptedFilename(null)
         }
       } else {
@@ -268,8 +339,22 @@ export function DetailsModal({
           }
 
           try {
-            // 4. Unwrap Content Encryption Key
-            const cek = await unwrapCEK(encryption as DownloadEncryption, keys.keypairs);
+                      // Prefer cached CEK if present to avoid redundant unwrap
+            let usedCek: Uint8Array | null = null;
+            const effectiveShareIdForThumb = (shareId || (details as any)?.shareId || (details as any)?.share_id) as string | undefined;
+            if (encryption && (encryption as any).kyberCiphertext && effectiveShareIdForThumb) {
+              // Try cache first (shareId provided by props or from details)
+              const cached = getCekForShare(effectiveShareIdForThumb);
+              if (cached) {
+                usedCek = cached;
+              }
+            }
+
+            if (!usedCek) {
+              // 4. Unwrap Content Encryption Key (fallback)
+              const cek = await unwrapCEK(encryption as DownloadEncryption, keys.keypairs);
+              usedCek = cek;
+            }
 
             // 5. Read Blob string "encryptedData:nonce"
             const text = await blob.text();
@@ -279,8 +364,8 @@ export function DetailsModal({
               if (parts.length === 2) {
                 const [encryptedData, nonce] = parts;
 
-                // 6. Decrypt
-                const decryptedData = decryptData(encryptedData, cek, nonce);
+                // 6. Decrypt using usedCek
+                const decryptedData = decryptData(encryptedData, usedCek!, nonce);
                 const decryptedBlob = new Blob([new Uint8Array(decryptedData)], { type: 'image/jpeg' });
 
                 objectUrl = URL.createObjectURL(decryptedBlob);

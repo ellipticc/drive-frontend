@@ -1,4 +1,28 @@
-import { decryptData } from '@/lib/crypto';
+import { decryptData, ml_kem768, hexToUint8Array } from '@/lib/crypto';
+
+// Derive CEK from share using Kyber decapsulation
+export function deriveCekFromShare(share: any, kyberPrivateKey: Uint8Array): Uint8Array {
+    if (!share || !share.kyberCiphertext || !share.encryptedCek || !share.encryptedCekNonce) {
+        throw new Error('Missing encryption material');
+    }
+
+    const kyberCiphertext = hexToUint8Array(share.kyberCiphertext);
+    const sharedSecret = ml_kem768.decapsulate(kyberCiphertext, kyberPrivateKey);
+    const cek = decryptData(share.encryptedCek, new Uint8Array(sharedSecret), share.encryptedCekNonce);
+    return cek;
+}
+
+export function decryptShareFilenameWithCek(share: any, cek: Uint8Array): string | null {
+    if (!share || !share.item || !share.item.encryptedName || !share.item.nameSalt) return null;
+    try {
+        const nameBytes = decryptData(share.item.encryptedName, cek, share.item.nameSalt);
+        const name = new TextDecoder().decode(nameBytes);
+        return name;
+    } catch (err) {
+        return null;
+    }
+}
+
 
 // Helper to decrypt filename using share CEK
 export async function decryptShareFilename(encryptedFilename: string, nonce: string, shareCek: Uint8Array): Promise<string> {
