@@ -21,9 +21,21 @@ import { masterKeyManager } from "@/lib/master-key"
 import { ml_kem768, decryptData, hexToUint8Array, decryptUserPrivateKeys } from "@/lib/crypto"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
+import dynamic from 'next/dynamic'
+import { useGlobalUpload } from "@/components/global-upload-context"
+import { Table, TableCard } from "@/components/application/table/table"
+import { Checkbox } from "@/components/base/checkbox/checkbox"
+import { TableSkeleton } from "@/components/tables/table-skeleton"
+import { useLanguage } from "@/lib/i18n/language-context"
+import { useIsMobile } from "@/hooks/use-mobile"
 import {
-    Table,
-} from "@/components/application/table/table"
+    ActionBar,
+    ActionBarSelection,
+    ActionBarGroup,
+    ActionBarItem,
+    ActionBarClose,
+    ActionBarSeparator,
+} from "@/components/ui/action-bar"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -32,6 +44,9 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+
+const DetailsModal = dynamic(() => import("@/components/modals/details-modal").then(mod => mod.DetailsModal));
+const CopyModal = dynamic(() => import("@/components/modals/copy-modal").then(mod => mod.CopyModal));
 import {
     AlertDialog,
     AlertDialogAction,
@@ -59,10 +74,15 @@ interface SharedFilesTableProps {
 }
 
 export function SharedFilesTable({ status }: SharedFilesTableProps) {
+    const { t } = useLanguage()
     const [items, setItems] = useState<SharedItem[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [isProcessing, setIsProcessing] = useState<string | null>(null)
     const { formatDate } = useFormatter()
+    const isMobile = useIsMobile()
+
+    // Selection state
+    const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
 
     // Alert Dialog State
     const [alertOpen, setAlertOpen] = useState(false)
@@ -77,11 +97,14 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
     // Decrypted names cache
     const [decryptedNames, setDecryptedNames] = useState<Record<string, string>>({})
 
-    // Details dialog state
-    const [detailsOpen, setDetailsOpen] = useState(false)
-    const [detailsItem, setDetailsItem] = useState<SharedItem | null>(null)
-    const [detailsData, setDetailsData] = useState<any>(null)
-    const [detailsLoading, setDetailsLoading] = useState(false)
+    // Details & Copy modal state
+    const [detailsModalOpen, setDetailsModalOpen] = useState(false)
+    const [selectedItemForDetails, setSelectedItemForDetails] = useState<{ id: string; name: string; type: 'file' | 'folder' | 'paper' } | null>(null)
+
+    const [copyModalOpen, setCopyModalOpen] = useState(false)
+    const [selectedItemForCopy, setSelectedItemForCopy] = useState<{ id: string; name: string; type: 'file' | 'folder' } | null>(null)
+
+    const { startFileDownload, startFolderDownload, startFileDownloadWithCEK } = useGlobalUpload()
 
     const fetchItems = useCallback(async () => {
         setIsLoading(true)
@@ -151,6 +174,40 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
         fetchItems()
     }, [fetchItems])
 
+    // Bulk actions
+    const handleAcceptBulk = async () => {
+        const ids = Array.from(selectedItems);
+        if (ids.length === 0) return;
+        setIsProcessing('bulk-accept');
+        try {
+            await Promise.all(ids.map(id => apiClient.acceptSharedItem(id)));
+            toast.success('Accepted selected shares');
+            // update local state
+            setItems(prev => prev.map(item => ids.includes(item.id) ? { ...item, status: 'accepted' } : item));
+            setSelectedItems(new Set());
+        } catch (err) {
+            toast.error('Failed to accept selected shares');
+        } finally {
+            setIsProcessing(null);
+        }
+    }
+
+    const handleRemoveBulk = async () => {
+        const ids = Array.from(selectedItems);
+        if (ids.length === 0) return;
+        setIsProcessing('bulk-remove');
+        try {
+            await Promise.all(ids.map(id => apiClient.removeSharedItem(id)));
+            toast.success('Removed selected shares');
+            setItems(prev => prev.filter(i => !ids.includes(i.id)));
+            setSelectedItems(new Set());
+        } catch (err) {
+            toast.error('Failed to remove selected shares');
+        } finally {
+            setIsProcessing(null);
+        }
+    }
+
     const handleAccept = async (id: string) => {
         setIsProcessing(id)
         try {
@@ -219,44 +276,62 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
 
     const handleDownload = async (item: SharedItem) => {
         setIsProcessing(item.id)
-        const toastId = toast.loading('Starting download...')
         try {
-            // Get user keys
-            const userRes = await apiClient.getMe();
-            let userKeys: any | undefined;
-            if (userRes.success && userRes.data) {
-                try {
-                    userKeys = await decryptUserPrivateKeys(userRes.data as any);
-                } catch (e) {
-                    // ignore
-                }
-            }
-
-            // If file
+            // If file: decapsulate shared secret and hand to global download manager which shows unified progress
             if (item.item.type === 'file') {
                 if (!item.kyberCiphertext || !item.encryptedCek || !item.encryptedCekNonce) throw new Error('Missing encryption material')
+
+                const userRes = await apiClient.getMe();
+                let userKeys: any | undefined;
+                if (userRes.success && userRes.data) {
+                    try {
+                        userKeys = await decryptUserPrivateKeys(userRes.data as any);
+                    } catch (e) {
+                        // ignore
+                    }
+                }
 
                 const kyberCiphertext = hexToUint8Array(item.kyberCiphertext)
                 const sharedSecret = ml_kem768.decapsulate(kyberCiphertext, userKeys?.kyberPrivateKey)
                 const cek = decryptData(item.encryptedCek, new Uint8Array(sharedSecret), item.encryptedCekNonce!)
 
-                await downloadEncryptedFileWithCEK(item.item.id, cek, (progress) => {
-                    // Update with progress if you want; keep it simple here
-                    toast.loading(`Downloading... ${Math.round(progress.overallProgress)}%`, { id: toastId })
-                })
-                toast.success('Download completed', { id: toastId })
+                // Use global download pipeline that supports unified progress modal (CEK-aware variant)
+                if (startFileDownloadWithCEK) {
+                    await startFileDownloadWithCEK(item.item.id, decryptedNames[item.id] || item.item.name || 'file', cek)
+                    toast.success('Download completed')
+                } else {
+                    // Fallback: call local download implementation
+                    await downloadEncryptedFileWithCEK(item.item.id, cek, (progress) => {
+                        toast.loading(`Downloading... ${Math.round(progress.overallProgress)}%`)
+                    })
+                    toast.success('Download completed')
+                }
+
             } else if (item.item.type === 'folder') {
-                // Folder download as ZIP
-                await downloadFolderAsZip(item.item.id, decryptedNames[item.id] || item.item.name || 'folder', userKeys, (progress) => {
-                    toast.loading(`Downloading... ${Math.round(progress.overallProgress)}%`, { id: toastId })
-                })
-                toast.success('Folder download completed', { id: toastId })
+                // Use global folder download which shows unified progress
+                if (startFolderDownload) {
+                    await startFolderDownload(item.item.id, decryptedNames[item.id] || item.item.name || 'folder')
+                    toast.success('Folder download completed')
+                } else {
+                    // Fallback
+                    const userRes = await apiClient.getMe();
+                    let userKeys: any | undefined;
+                    if (userRes.success && userRes.data) {
+                        try {
+                            userKeys = await decryptUserPrivateKeys(userRes.data as any);
+                        } catch (e) {
+                            // ignore
+                        }
+                    }
+                    await downloadFolderAsZip(item.item.id, decryptedNames[item.id] || item.item.name || 'folder', userKeys, () => {})
+                    toast.success('Folder download completed')
+                }
             } else {
-                toast.error('Downloading this type is not implemented yet', { id: toastId })
+                toast.error('Downloading this type is not implemented yet')
             }
         } catch (err: any) {
             console.error('Download failed', err)
-            toast.error(err?.message || 'Download failed', { id: toastId })
+            toast.error(err?.message || 'Download failed')
         } finally {
             setIsProcessing(null)
         }
@@ -272,39 +347,9 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
         }
     }
 
-    const openDetails = async (share: SharedItem) => {
-        setDetailsItem(share)
-        setDetailsOpen(true)
-        setDetailsLoading(true)
-        try {
-            const res = await apiClient.getShare(share.id)
-            if (res.success && res.data) {
-                // Try to decrypt name if possible
-                let decryptedName = undefined
-                try {
-                    if (share.kyberCiphertext && share.encryptedCek && share.encryptedCekNonce && res.data.encrypted_filename && res.data.nonce_filename) {
-                        const userRes = await apiClient.getMe();
-                        const keys = await decryptUserPrivateKeys(userRes.data as any)
-                        const kyberCiphertext = hexToUint8Array(share.kyberCiphertext)
-                        const sharedSecret = ml_kem768.decapsulate(kyberCiphertext, keys.kyberPrivateKey)
-                        const cek = decryptData(share.encryptedCek!, new Uint8Array(sharedSecret), share.encryptedCekNonce!)
-                        const nameBytes = decryptData(res.data.encrypted_filename, cek, res.data.nonce_filename)
-                        decryptedName = new TextDecoder().decode(nameBytes)
-                    }
-                } catch (e) {
-                    // ignore
-                }
-
-                setDetailsData({ ...res.data, decryptedName })
-            } else {
-                toast.error('Failed to load share details')
-            }
-        } catch (err) {
-            console.error(err)
-            toast.error('Failed to load share details')
-        } finally {
-            setDetailsLoading(false)
-        }
+    const openDetails = (share: SharedItem) => {
+        setSelectedItemForDetails({ id: share.item.id, name: decryptedNames[share.id] || share.item.name || 'item', type: share.item.type === 'folder' ? 'folder' : share.item.type === 'paper' ? 'paper' : 'file' })
+        setDetailsModalOpen(true)
     }
 
     const columns = useMemo(() => [
@@ -315,152 +360,222 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
 
     if (isLoading) {
         return (
-            <div className="w-full h-full">
-                <div className="flex items-center justify-center p-8 text-muted-foreground">
-                    <IconLoader2 className="animate-spin mr-2" />
-                    Loading shared items...
-                </div>
-            </div>
+            <TableCard.Root size="sm">
+                <TableCard.Header title={t('sidebar.sharedWithMe')} className="h-10 border-0" />
+                <TableSkeleton title={t('sidebar.sharedWithMe')} />
+            </TableCard.Root>
         )
     }
 
     if (items.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center p-12 text-muted-foreground border border-dashed rounded-lg h-[400px]">
-                <IconFolder className="size-10 mb-4 opacity-20" />
-                <p>No items shared with you yet.</p>
-            </div>
+            <TableCard.Root size="sm">
+                <TableCard.Header title={t('sidebar.sharedWithMe')} className="h-10 border-0" />
+                <div className="flex items-center justify-center py-8">
+                    <div className="text-center">
+                        <IconFolder className="size-10 mb-4 opacity-20 mx-auto" />
+                        <p className="text-sm text-muted-foreground">No items shared with you yet.</p>
+                    </div>
+                </div>
+            </TableCard.Root>
         )
     }
 
     return (
         <>
-            <div className="h-full w-full">
-                <Table className="w-full" size="md">
-                    <Table.Header columns={columns}>
-                        {(column) => (
-                            <Table.Head key={column.id} label={column.name} />
+            <TableCard.Root size="sm">
+                <TableCard.Header
+                    title={t('sidebar.sharedWithMe')}
+                    contentTrailing={
+                        <div className="flex items-center gap-1.5 md:gap-2">
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={handleAcceptBulk}
+                                disabled={items.length === 0 && selectedItems.size === 0}
+                                className={`h-8 w-8 p-0 ${selectedItems.size > 0 ? 'bg-primary/10 text-primary' : ''}`}
+                                aria-label={selectedItems.size > 0 ? `Accept ${selectedItems.size} Selected` : "Accept All"}
+                            >
+                                <IconCheck className="size-4" />
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={handleRemoveBulk}
+                                disabled={items.length === 0 && selectedItems.size === 0}
+                                className="h-8 w-8 p-0"
+                            >
+                                <IconTrash className="size-4" />
+                            </Button>
+                        </div>
+                    }
+                />
+
+                <Table
+                    selectionBehavior="replace"
+                    selectedKeys={selectedItems}
+                    onSelectionChange={(keys) => {
+                        if (keys === 'all') {
+                            if (selectedItems.size > 0 && selectedItems.size < items.length) {
+                                setSelectedItems(new Set());
+                            } else {
+                                setSelectedItems(new Set(items.map(item => item.id)));
+                            }
+                        } else {
+                            setSelectedItems(new Set(Array.from(keys as Set<string>)));
+                        }
+                    }}
+                >
+                    <Table.Header className="group sticky top-0 z-40 bg-background border-b">
+                        <Table.Head className="w-10 text-center pl-4 pr-0">
+                            <Checkbox
+                                slot="selection"
+                                className={`transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}
+                            />
+                        </Table.Head>
+                        <Table.Head id="name" isRowHeader className="w-full max-w-0 pointer-events-none cursor-default" align="left">
+                            {selectedItems.size > 0 ? (
+                                <span className="text-xs font-semibold whitespace-nowrap text-foreground px-1.5 py-1">{selectedItems.size} selected</span>
+                            ) : (
+                                <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground">Name</span>
+                            )}
+                        </Table.Head>
+                        {!isMobile && (
+                            <Table.Head id="sharedBy" className="pointer-events-none cursor-default w-[200px]">
+                                <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground">Shared By</span>
+                            </Table.Head>
                         )}
+                        {!isMobile && (
+                            <Table.Head id="date" className="pointer-events-none cursor-default min-w-[120px]" align="right">
+                                <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground">Shared at</span>
+                            </Table.Head>
+                        )}
+                        <Table.Head id="actions" align="center" />
                     </Table.Header>
 
                     <Table.Body items={items}>
                         {(item: SharedItem) => (
-                            <Table.Row key={item.id} columns={columns}>
-                                {(column: any) => {
-                                    switch (column.id) {
-                                        case 'name':
-                                            return (
-                                                <Table.Cell>
-                                                    <div className="flex items-center gap-3 min-w-0">
-                                                        <div className="shrink-0 text-muted-foreground">
-                                                            {item.item.type === 'folder' ? (
-                                                                <IconFolder className="size-5 text-blue-500 fill-blue-500/20" />
-                                                            ) : (
-                                                                <IconFile className="size-5" />
-                                                            )}
-                                                        </div>
-                                                        <div className="truncate font-medium">
-                                                            <button className="text-left w-full truncate" onClick={() => openDetails(item)}>
-                                                                {decryptedNames[item.id] || item.item.name || "Shared Item"}
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                </Table.Cell>
-                                            )
+                            <Table.Row key={item.id} className="group hover:bg-muted/50 transition-colors duration-150" onDoubleClick={() => openDetails(item)}>
+                                <Table.Cell className="w-10 text-center pl-4 pr-0">
+                                    <Checkbox
+                                        slot="selection"
+                                        className={`transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}
+                                    />
+                                </Table.Cell>
 
-                                        case 'sharedBy':
-                                            return (
-                                                <Table.Cell>
-                                                    <div className="hidden md:flex items-center gap-2">
-                                                        <Avatar className="size-6">
-                                                            <AvatarImage src={item.owner.avatar} />
-                                                            <AvatarFallback>{item.owner.name.substring(0, 2)}</AvatarFallback>
-                                                        </Avatar>
-                                                        <div className="flex flex-col text-xs truncate">
-                                                            <span className="font-medium truncate">{item.owner.name}</span>
-                                                            <span className="text-muted-foreground text-[10px] truncate">{item.owner.email}</span>
-                                                        </div>
-                                                    </div>
-                                                </Table.Cell>
-                                            )
+                                <Table.Cell className="w-full max-w-0">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <div className="shrink-0 text-muted-foreground">
+                                            {item.item.type === 'folder' ? (
+                                                <IconFolder className="size-5 text-blue-500 fill-blue-500/20" />
+                                            ) : (
+                                                <IconFile className="size-5" />
+                                            )}
+                                        </div>
+                                        <div className="truncate font-medium">
+                                            <button className="text-left w-full truncate" onClick={() => openDetails(item)}>
+                                                {decryptedNames[item.id] || item.item.name || "Shared Item"}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </Table.Cell>
 
-                                        case 'actions':
-                                            return (
-                                                <Table.Cell>
-                                                    <div className="flex items-center justify-end gap-2">
-                                                        {item.status === 'pending' ? (
-                                                            <div className="flex items-center gap-2">
-                                                                <Button size="sm" className="h-7 text-xs bg-green-600 hover:bg-green-700" onClick={() => handleAccept(item.id)}>
-                                                                    <IconCheck className="size-3 mr-1" /> Accept
-                                                                </Button>
-                                                                <Button size="sm" variant="outline" className="h-7 text-xs text-destructive hover:bg-destructive/10 border-destructive/20" onClick={() => confirmDecline(item.id)}>
-                                                                    <IconX className="size-3" />
-                                                                </Button>
-                                                            </div>
-                                                        ) : (
-                                                            <DropdownMenu>
-                                                                <DropdownMenuTrigger asChild>
-                                                                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                                        <IconDots className="size-4" />
-                                                                    </Button>
-                                                                </DropdownMenuTrigger>
-                                                                <DropdownMenuContent align="end">
-                                                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                                    <DropdownMenuSeparator />
-                                                                    <DropdownMenuItem onClick={() => handleDownload(item)}>
-                                                                        <IconDownload className="size-4 mr-2" /> Download
-                                                                    </DropdownMenuItem>
-                                                                    <DropdownMenuItem onClick={() => handleCopyLink(item)}>
-                                                                        <IconCopy className="size-4 mr-2" /> Copy Link
-                                                                    </DropdownMenuItem>
-                                                                    <DropdownMenuItem onClick={() => openDetails(item)}>
-                                                                        <IconInfoCircle className="size-4 mr-2" /> Details
-                                                                    </DropdownMenuItem>
-                                                                    <DropdownMenuSeparator />
-                                                                    <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => confirmRemove(item.id)}>
-                                                                        <IconTrash className="size-4 mr-2" /> Remove
-                                                                    </DropdownMenuItem>
-                                                                </DropdownMenuContent>
-                                                            </DropdownMenu>
-                                                        )}
-                                                    </div>
-                                                </Table.Cell>
-                                            )
+                                <Table.Cell>
+                                    <div className="hidden md:flex items-center gap-2">
+                                        <Avatar className="size-6">
+                                            <AvatarImage src={item.owner.avatar} />
+                                            <AvatarFallback>{item.owner.name.substring(0, 2)}</AvatarFallback>
+                                        </Avatar>
+                                        <div className="flex flex-col text-xs truncate">
+                                            <span className="font-medium truncate">{item.owner.name}</span>
+                                            <span className="text-muted-foreground text-[10px] truncate">{item.owner.email}</span>
+                                        </div>
+                                    </div>
+                                </Table.Cell>
 
-                                        default:
-                                            return <Table.Cell />
-                                    }
-                                }}</Table.Row>
+                                <Table.Cell className="min-w-[120px] text-right">
+                                    <span className="text-xs text-muted-foreground">{formatDate(new Date(item.createdAt))}</span>
+                                </Table.Cell>
+
+                                <Table.Cell>
+                                    <div className="flex items-center justify-end gap-2">
+                                        {item.status === 'pending' ? (
+                                            <div className="flex items-center gap-2">
+                                                <Button size="sm" className="h-7 text-xs bg-green-600 hover:bg-green-700" onClick={() => handleAccept(item.id)}>
+                                                    <IconCheck className="size-3 mr-1" /> Accept
+                                                </Button>
+                                                <Button size="sm" variant="outline" className="h-7 text-xs text-destructive hover:bg-destructive/10 border-destructive/20" onClick={() => confirmDecline(item.id)}>
+                                                    <IconX className="size-3" />
+                                                </Button>
+                                            </div>
+                                        ) : (
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                        <IconDots className="size-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem onClick={() => handleDownload(item)}>
+                                                        <IconDownload className="size-4 mr-2" /> Download
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onSelect={() => { setSelectedItemForCopy({ id: item.item.id, name: decryptedNames[item.id] || item.item.name || 'item', type: item.item.type === 'folder' ? 'folder' : 'file' }); setCopyModalOpen(true); }}>
+                                                        <IconCopy className="size-4 mr-2" /> Copy
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onSelect={() => { setSelectedItemForDetails({ id: item.item.id, name: decryptedNames[item.id] || item.item.name || 'item', type: item.item.type === 'folder' ? 'folder' : item.item.type === 'paper' ? 'paper' : 'file' }); setDetailsModalOpen(true); }}>
+                                                        <IconInfoCircle className="size-4 mr-2" /> Details
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => confirmRemove(item.id)}>
+                                                        <IconTrash className="size-4 mr-2" /> Remove
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        )}
+                                    </div>
+                                </Table.Cell>
+                            </Table.Row>
                         )}
                     </Table.Body>
                 </Table>
-            </div>
+            </TableCard.Root>
 
-            <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Share details</DialogTitle>
-                        <DialogDescription>
-                            {detailsLoading ? 'Loading...' : detailsData?.decryptedName || detailsData?.encrypted_filename || ''}
-                        </DialogDescription>
-                    </DialogHeader>
+            <ActionBar open={selectedItems.size > 0}>
+                <ActionBarSelection>
+                    {selectedItems.size} selected
+                </ActionBarSelection>
+                <ActionBarSeparator />
+                <ActionBarGroup>
+                    <ActionBarItem onClick={handleAcceptBulk}>
+                        <IconCheck className="h-4 w-4 mr-2" /> Accept
+                    </ActionBarItem>
+                    <ActionBarItem variant="destructive" onClick={handleRemoveBulk}>
+                        <IconTrash className="h-4 w-4 mr-2" /> Remove
+                    </ActionBarItem>
+                </ActionBarGroup>
+                <ActionBarSeparator />
+                <ActionBarClose onClick={() => setSelectedItems(new Set())}>
+                    <IconX className="h-4 w-4" />
+                </ActionBarClose>
+            </ActionBar>
 
-                    <div className="mt-4">
-                        <p className="text-sm text-muted-foreground">Shared by: {detailsData?.sharedBy?.name || detailsItem?.owner.name}</p>
-                        <p className="text-sm text-muted-foreground">Type: {detailsItem?.item.type}</p>
-                        <p className="text-sm text-muted-foreground">Status: {detailsItem?.status}</p>
-                        <p className="text-sm text-muted-foreground">Shared at: {detailsItem ? formatDate(new Date(detailsItem.createdAt)) : ''}</p>
-                    </div>
+            <DetailsModal
+                itemId={selectedItemForDetails?.id || ""}
+                itemName={selectedItemForDetails?.name || ""}
+                itemType={selectedItemForDetails?.type || "file"}
+                open={detailsModalOpen}
+                onOpenChange={setDetailsModalOpen}
+            />
 
-                    <DialogFooter>
-                        <Button variant="ghost" onClick={() => detailsItem && handleDownload(detailsItem)}>Download</Button>
-                        <Button variant="ghost" onClick={() => detailsItem && handleCopyLink(detailsItem)}>Copy link</Button>
-                        <DialogClose asChild>
-                            <Button>Close</Button>
-                        </DialogClose>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <CopyModal
+                itemId={selectedItemForCopy?.id || ""}
+                itemName={selectedItemForCopy?.name || ""}
+                itemType={selectedItemForCopy?.type || "file"}
+                open={copyModalOpen}
+                onOpenChange={setCopyModalOpen}
+            />
 
             <AlertDialog open={alertOpen} onOpenChange={setAlertOpen}>
                 <AlertDialogContent>

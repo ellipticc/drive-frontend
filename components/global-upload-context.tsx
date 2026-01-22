@@ -11,7 +11,7 @@ import { masterKeyManager } from '@/lib/master-key';
 import { useCurrentFolder } from '@/components/current-folder-context';
 import { useUser } from '@/components/user-context';
 import { toast } from 'sonner';
-import { downloadEncryptedFile, downloadFileToBrowser, downloadFolderAsZip, downloadMultipleItemsAsZip, DownloadProgress, PauseController } from "@/lib/download";
+import { downloadEncryptedFile, downloadFileToBrowser, downloadFolderAsZip, downloadMultipleItemsAsZip, DownloadProgress, PauseController, downloadEncryptedFileWithCEK } from "@/lib/download";
 
 import { UploadResult } from '@/lib/upload';
 export type { UploadResult };
@@ -77,6 +77,8 @@ interface GlobalUploadContextType {
 
   // Download handlers
   startFileDownload: (fileId: string, fileName: string) => Promise<void>;
+  // CEK-aware download starter for encrypted shared files
+  startFileDownloadWithCEK: (fileId: string, fileName: string, cek: Uint8Array) => Promise<void>;
   startFolderDownload: (folderId: string, folderName: string) => Promise<void>;
   // Bulk download may include papers (which will be exported as .url shortcuts when zipped)
   startBulkDownload: (items: Array<{ id: string; name: string; type: 'file' | 'folder' | 'paper' }>) => Promise<void>;
@@ -713,6 +715,51 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
     }
   }, []);
 
+  // New: CEK-aware file download start for shares (accepts pre-unwrapped CEK)
+  const startFileDownloadWithCEK = useCallback(async (fileId: string, fileName: string, cek: Uint8Array) => {
+    try {
+      setDownloadError(null);
+      setCurrentDownloadFile({ id: fileId, name: fileName, type: 'file' });
+      setIsModalOpen(true);
+
+      setDownloadProgress({
+        stage: 'initializing',
+        overallProgress: 0,
+        bytesDownloaded: 0,
+        totalBytes: 0
+      });
+
+      downloadAbortControllerRef.current?.abort();
+      const controller = new AbortController();
+      downloadAbortControllerRef.current = controller;
+
+      setIsDownloadPaused(false);
+      pauseControllerRef.current.isPaused = false;
+      if (pauseResolverRef.current) {
+        pauseResolverRef.current();
+        pauseResolverRef.current = null;
+      }
+
+      // Use specialized download that accepts a CEK (for shared items)
+      await downloadEncryptedFileWithCEK(fileId, cek, (progress) => {
+        setDownloadProgress(progress);
+      }, controller.signal, pauseControllerRef.current);
+
+    } catch (error) {
+      if (error instanceof Error && (
+        error.name === 'AbortError' ||
+        error.message.includes('Aborted') ||
+        error.message.includes('BodyStreamBuffer was aborted') ||
+        error.message.includes('The operation was aborted')
+      )) {
+        console.log('Download cancelled by user');
+        return;
+      }
+      console.error('Download error:', error);
+      setDownloadError(error instanceof Error ? error.message : 'Download failed');
+    }
+  }, []);
+
   const startFolderDownload = useCallback(async (folderId: string, folderName: string) => {
     try {
       setDownloadError(null);
@@ -1229,6 +1276,7 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
     currentDownloadFile,
     isDownloadPaused,
     startFileDownload,
+    startFileDownloadWithCEK,
     startFolderDownload,
     startBulkDownload,
     startPdfPreview,
