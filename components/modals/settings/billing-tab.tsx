@@ -80,19 +80,19 @@ export function BillingTab({
     const [usageData, setUsageData] = useState<any>(null);
     const [isLoadingUsage, setIsLoadingUsage] = useState(true);
 
-    useEffect(() => {
-        const fetchUsage = async () => {
-            setIsLoadingUsage(true);
-            try {
-                const res = await apiClient.getUserUsage();
-                if (res.success && res.data?.usage) setUsageData(res.data.usage);
-            } catch (err) {
-                console.error('Failed to fetch usage data:', err);
-            } finally {
-                setIsLoadingUsage(false);
-            }
-        };
+    const fetchUsage = async () => {
+        setIsLoadingUsage(true);
+        try {
+            const res = await apiClient.getUserUsage();
+            if (res.success && res.data?.usage) setUsageData(res.data.usage);
+        } catch (err) {
+            console.error('Failed to fetch usage data:', err);
+        } finally {
+            setIsLoadingUsage(false);
+        }
+    };
 
+    useEffect(() => {
         fetchUsage();
     }, []);
 
@@ -265,17 +265,41 @@ export function BillingTab({
                         )}
 
                         {/* Detailed Usage Table (replaces old storage block) */}
-                        {isLoadingUsage ? (
-                            <div className="flex justify-center py-6">
-                                <IconLoader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                        <div>
+                            <div className="flex items-center justify-between mb-3">
+                                <h3 className="text-sm font-medium text-muted-foreground">Usage Overview</h3>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => fetchUsage()}
+                                    disabled={isLoadingUsage}
+                                >
+                                    {isLoadingUsage ? (
+                                        <>
+                                            <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
+                                            Refreshing...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <IconRefresh className="h-4 w-4 mr-2" />
+                                            Refresh
+                                        </>
+                                    )}
+                                </Button>
                             </div>
-                        ) : (
-                            <DetailedUsageTable
-                                title="Usage Overview"
-                                description="Storage, spaces, webhook events, bandwidth, devices and API calls"
-                                resources={resources}
-                            />
-                        )}
+
+                            {isLoadingUsage ? (
+                                <div className="flex justify-center py-6">
+                                    <IconLoader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                                </div>
+                            ) : (
+                                <DetailedUsageTable
+                                    title=""
+                                    description="Storage, spaces, webhook events, bandwidth, devices and API calls"
+                                    resources={resources}
+                                />
+                            )}
+                        </div>
 
                         {/* Action Buttons */}
                         <div className="flex gap-3">
