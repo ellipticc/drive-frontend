@@ -64,7 +64,7 @@ interface UserData {
             ed25519: { publicKey: string; encryptedPrivateKey: string; privateKeyNonce: string; encryptionKey: string; encryptionNonce: string }
         }
     }
-} 
+}
 
 export function CopyModal({ children, itemId = "", itemName = "item", itemType = "file", items, open: externalOpen, onOpenChange: externalOnOpenChange, onItemCopied, onConflict }: CopyModalProps) {
     const [internalOpen, setInternalOpen] = useState(false)
@@ -349,8 +349,24 @@ export function CopyModal({ children, itemId = "", itemName = "item", itemType =
                     // Compute HMAC and Sign Manifest
                     let nameHmac;
                     let signedManifest;
+                    let encryptedFilename;
+                    let filenameSalt;
+
                     try {
                         nameHmac = await computeFilenameHmac(item.name, destFolderId);
+
+                        // Re-encrypt filename for the copy to ensure it is readable by the current user
+                        // This is critical for shared files where the original encrypted filename uses the owner's key
+                        if (masterKeyManager.hasMasterKey()) {
+                            try {
+                                const masterKey = masterKeyManager.getMasterKey();
+                                const encResult = await import("@/lib/crypto").then(m => m.encryptFilename(item.name, masterKey));
+                                encryptedFilename = encResult.encryptedFilename;
+                                filenameSalt = encResult.filenameSalt;
+                            } catch (e) {
+                                console.warn('Failed to encrypt filename for copy', e);
+                            }
+                        }
 
                         // IMPROVEMENT: Sign the copied file to ensure integrity
                         if (userData && masterKeyManager.hasMasterKey()) {
@@ -387,6 +403,8 @@ export function CopyModal({ children, itemId = "", itemName = "item", itemType =
                     if (item.type === 'file') {
                         response = await apiClient.copyFile(item.id, destFolderId, {
                             nameHmac,
+                            encryptedFilename,
+                            filenameSalt,
                             // Spread signed manifest fields if available
                             ...(signedManifest ? {
                                 manifestHash: signedManifest.manifestHash,
@@ -401,9 +419,9 @@ export function CopyModal({ children, itemId = "", itemName = "item", itemType =
                     } else {
                         response = await apiClient.copyFolder(item.id, destFolderId, {
                             nameHmac,
+                            encryptedName: encryptedFilename,
+                            nameSalt: filenameSalt,
                             ...(signedManifest ? {
-                                encryptedName: (signedManifest as Record<string, unknown>).encryptedName as string,
-                                nameSalt: (signedManifest as Record<string, unknown>).nameSalt as string,
                                 manifestHash: signedManifest.manifestHash,
                                 manifestSignatureEd25519: signedManifest.manifestSignatureEd25519,
                                 manifestPublicKeyEd25519: signedManifest.manifestPublicKeyEd25519,

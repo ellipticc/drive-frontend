@@ -741,9 +741,19 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
       }
 
       // Use specialized download that accepts a CEK (for shared items)
-      await downloadEncryptedFileWithCEK(fileId, cek, (progress) => {
+      const result = await downloadEncryptedFileWithCEK(fileId, cek, (progress) => {
         setDownloadProgress(progress);
       }, controller.signal, pauseControllerRef.current);
+
+      // Create download link and trigger download
+      const url = URL.createObjectURL(result.blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = result.filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
 
     } catch (error) {
       if (error instanceof Error && (
