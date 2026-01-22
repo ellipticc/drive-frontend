@@ -42,15 +42,12 @@ export default function SharedPage() {
         onFileUpload={handleFileUpload}
         onFolderUpload={handleFolderUpload}
         sticky />
-      <main className="flex-1 overflow-hidden">
-        <div className="flex flex-col h-full space-y-4 p-8 pt-6">
-          <div className="flex items-center justify-between space-y-2">
-            <div>
+      <main className="flex-1">
+        <div className="@container/main flex flex-1 flex-col gap-2">
+          <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
+            <div className="px-4 md:px-6">
               <h2 className="text-2xl font-bold tracking-tight">{t("sidebar.shared")}</h2>
             </div>
-          </div>
-          <Separator />
-          <div className="flex-1 overflow-auto -mx-8 px-8">
             <SharesTable mode="sent" />
           </div>
         </div>
