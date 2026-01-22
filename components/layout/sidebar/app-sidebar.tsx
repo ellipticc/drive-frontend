@@ -89,7 +89,7 @@ export const AppSidebar = React.memo(function AppSidebar({
         id: "shared",
       },
       {
-        title: t("sidebar.sharedwithme"),
+        title: t("sidebar.sharedWithMe"),
         url: "/shared-with-me",
         icon: IconUsers,
         id: "shared-with-me",
