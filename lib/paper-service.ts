@@ -541,8 +541,54 @@ class PaperService {
                     }
                 });
 
-                blocks.push(...(await Promise.all(blockPromises)));
+                const resolvedBlocks = await Promise.all(blockPromises);
+                
+                // Filter out any null/undefined blocks and ensure all have proper structure
+                blocks.push(...resolvedBlocks.filter(block => {
+                    if (!block || typeof block !== 'object') {
+                        console.warn('[PaperService] Filtered out invalid block:', block);
+                        return false;
+                    }
+                    // Ensure children exists
+                    if (!Array.isArray(block.children)) {
+                        console.warn('[PaperService] Block missing children array, adding default:', block);
+                        block.children = [{ text: '' }];
+                    }
+                    return true;
+                }));
+                
                 content = blocks;
+            }
+
+            // Final validation: ensure content is an array of valid blocks
+            if (!Array.isArray(content)) {
+                console.error('[PaperService] Content is not an array, resetting to default');
+                content = [{ id: crypto.randomUUID(), type: 'p', children: [{ text: '' }] }];
+            } else if (content.length === 0) {
+                console.warn('[PaperService] Content array is empty, adding default block');
+                content = [{ id: crypto.randomUUID(), type: 'p', children: [{ text: '' }] }];
+            } else {
+                // Deep validation: ensure every block has children
+                content = content.map(block => {
+                    if (!block || typeof block !== 'object') {
+                        return { id: crypto.randomUUID(), type: 'p', children: [{ text: '' }] };
+                    }
+                    if (!Array.isArray(block.children)) {
+                        block.children = [{ text: '' }];
+                    }
+                    // Ensure children are valid
+                    block.children = block.children.map((child: any) => {
+                        if (!child || typeof child !== 'object') {
+                            return { text: '' };
+                        }
+                        // If it's a nested block, ensure it has children
+                        if ('children' in child && !Array.isArray(child.children)) {
+                            child.children = [{ text: '' }];
+                        }
+                        return child;
+                    });
+                    return block;
+                });
             }
 
             return {
@@ -555,12 +601,27 @@ class PaperService {
             };
         } catch (e) {
             console.error('Failed to decrypt content', e);
+            // Return safe fallback with valid block structure
+            return {
+                id: paper.id,
+                title,
+                content: { 
+                    content: [{ id: crypto.randomUUID(), type: 'p', children: [{ text: '[Error loading paper content]' }] }], 
+                    icon: null 
+                },
+                folderId: paper.folderId,
+                createdAt: paper.createdAt,
+                updatedAt: paper.updatedAt
+            };
         }
 
         return {
             id: paper.id,
             title,
-            content: { content: [], icon: null },
+            content: { 
+                content: [{ id: crypto.randomUUID(), type: 'p', children: [{ text: '' }] }], 
+                icon: null 
+            },
             folderId: paper.folderId,
             createdAt: paper.createdAt,
             updatedAt: paper.updatedAt
