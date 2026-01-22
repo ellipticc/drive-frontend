@@ -19,6 +19,7 @@ import {
     IconChevronLeft,
     IconChevronRight,
 } from "@tabler/icons-react"
+import { UpcomingCharges } from "@/components/billingsdk/upcoming-charges"
 import { Subscription, BillingUsage, SubscriptionHistory } from "@/lib/api"
 
 // Helper to format bytes
@@ -151,6 +152,29 @@ export function BillingTab({
                                 </div>
                             )}
                         </div>
+
+                        {/* Upcoming Charges */}
+                        {subscription && subscription.status === 'active' && !subscription.cancelAtPeriodEnd && subscription.currentPeriodEnd && subscriptionHistory?.history && subscriptionHistory.history.length > 0 && (
+                            (() => {
+                                const activeSubscription = subscriptionHistory.history.find(h => h.status === 'active');
+                                if (!activeSubscription) return null;
+                                return (
+                                    <UpcomingCharges
+                                        nextBillingDate={formatDate(subscription.currentPeriodEnd * 1000)}
+                                        totalAmount={`${activeSubscription.currency?.toUpperCase() || 'USD'} $${(activeSubscription.amount / 100).toFixed(2)}`}
+                                        charges={[
+                                            {
+                                                id: '1',
+                                                description: activeSubscription.planName || 'Subscription',
+                                                amount: `${activeSubscription.currency?.toUpperCase() || 'USD'} $${(activeSubscription.amount / 100).toFixed(2)}`,
+                                                date: formatDate(subscription.currentPeriodEnd * 1000),
+                                                type: 'recurring' as const,
+                                            },
+                                        ]}
+                                    />
+                                );
+                            })()
+                        )}
 
                         {/* Storage Usage */}
                         {billingUsage && (

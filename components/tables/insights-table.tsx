@@ -37,6 +37,16 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { getDiceBearAvatar } from "@/lib/avatar"
 import { decryptFilename } from "@/lib/crypto"
@@ -319,6 +329,9 @@ export function InsightsDataTable<TData, TValue>({
     },
   })
 
+  // Upgrade dialog state for blurred/archived rows
+  const [upgradeDialogData, setUpgradeDialogData] = React.useState<{ open: boolean; title: string; description: string } | null>(null)
+
   return (
     <div className="w-full space-y-4">
       <div className="border rounded-lg overflow-hidden bg-card shadow-sm">
@@ -349,29 +362,42 @@ export function InsightsDataTable<TData, TValue>({
               {table.getRowModel().rows?.length ? (
                 table.getRowModel().rows.map((row) => {
                   const createdAt = (row.original as any).created_at;
-                  const isBlurred = new Date(createdAt).getTime() < Date.now() - (retentionDays * 24 * 60 * 60 * 1000);
+                  const isArchived = (row.original as any).event_type === 'ARCHIVED';
+                  const isBlurred = isArchived || new Date(createdAt).getTime() < Date.now() - (retentionDays * 24 * 60 * 60 * 1000);
 
                   return (
                     <tr
                       key={row.id}
-                      className={`transition-colors group relative ${isBlurred ? 'pointer-events-none select-none' : 'hover:bg-muted/30'}`}
+                      className={`transition-colors group relative ${isBlurred ? '' : 'hover:bg-muted/30'}`}
+                      onClick={() => {
+                        if (isBlurred) {
+                          setUpgradeDialogData({ open: true, title: 'Upgrade required', description: 'Upgrade to view older history' });
+                        }
+                      }}
                     >
-                      {row.getVisibleCells().map((cell) => (
-                        <td key={cell.id} className={`px-4 py-3 ${isBlurred ? 'blur-[4px] opacity-50' : ''}`}>
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext()
-                          )}
-                        </td>
-                      ))}
+                      {row.getVisibleCells().map((cell) => {
+                        const cellId = cell.column.id;
+                        const cellBlurClass = (isBlurred && cellId !== 'id' && cellId !== 'created_at') ? 'blur-[4px] opacity-50' : '';
+                        return (
+                          <td key={cell.id} className={`px-4 py-3 ${cellBlurClass}`}>
+                            {flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext()
+                            )}
+                          </td>
+                        )
+                      })}
                       {isBlurred && (
                         <td className="absolute inset-0 flex items-center justify-center z-10">
-                          <div className="bg-background/80 backdrop-blur-sm px-3 py-1 rounded-full border shadow-sm flex items-center gap-2 pointer-events-auto cursor-help">
+                          <button
+                            className="bg-background/80 backdrop-blur-sm px-3 py-1 rounded-full border shadow-sm flex items-center gap-2 pointer-events-auto cursor-pointer"
+                            onClick={(e) => { e.stopPropagation(); setUpgradeDialogData({ open: true, title: 'Upgrade required', description: 'Upgrade to view older history' }); }}
+                          >
                             <IconLock className="h-3 w-3 text-muted-foreground" />
                             <span className="text-[10px] font-medium text-muted-foreground max-w-[150px] truncate text-center">
                               upgrade to view older history
                             </span>
-                          </div>
+                          </button>
                         </td>
                       )}
                     </tr>
@@ -391,6 +417,22 @@ export function InsightsDataTable<TData, TValue>({
             </tbody>
           </table>
         </div>
+
+        {/* Upgrade Alert Dialog */}
+        <AlertDialog open={!!upgradeDialogData?.open} onOpenChange={(open: boolean) => !open && setUpgradeDialogData(null)}>
+          <AlertDialogContent className="rounded-2xl">
+            <AlertDialogHeader>
+              <AlertDialogTitle>{upgradeDialogData?.title}</AlertDialogTitle>
+              <AlertDialogDescription className="pt-2 text-sm">
+                {upgradeDialogData?.description}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="pt-2">
+              <AlertDialogCancel className="rounded-full">Maybe later</AlertDialogCancel>
+              <AlertDialogAction onClick={() => { setUpgradeDialogData(null); window.location.href = '/pricing'; }} className="bg-primary rounded-full">Upgrade</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <div className="flex items-center justify-between px-6 py-4 border-t bg-muted/5 rounded-b-lg">
           <p className="text-xs text-muted-foreground font-medium">

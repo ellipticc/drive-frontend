@@ -72,6 +72,16 @@ import { cn } from "@/lib/utils"
 import { getUAInfo, getOSIcon, getBrowserIcon } from './device-icons'
 import { apiClient } from "@/lib/api"
 import { masterKeyManager } from "@/lib/master-key"
+import {
+    AlertDialog,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import OPAQUE, { OPAQUELogin, OPAQUERegistration } from "@/lib/opaque"
 import { deriveEncryptionKey, encryptData, generateKeyDerivationSalt } from "@/lib/crypto"
 import type { UserData, SecurityEvent } from "@/lib/api"
@@ -291,6 +301,9 @@ export function SecurityTab(props: SecurityTabProps) {
     const [copiedCodes, setCopiedCodes] = useState(false);
     const [copiedSecret, setCopiedSecret] = useState(false);
     const [showWipeDialog, setShowWipeDialog] = useState(false);
+
+    // Upgrade dialog state for Pro features / archived events
+    const [upgradeDialogData, setUpgradeDialogData] = useState<{ open: boolean; title: string; description: string } | null>(null);
 
     // Master Key Reveal/Export state
     const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -1004,8 +1017,10 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                                                         setEditingDeviceId(device.id);
                                                                         setEditNameValue(device.device_name || 'Unknown Device');
                                                                     } else {
-                                                                        toast.info("Pro Feature", {
-                                                                            description: "Upgrading to a Pro plan allows you to customize your device names."
+                                                                        setUpgradeDialogData({
+                                                                            open: true,
+                                                                            title: 'Pro Feature',
+                                                                            description: 'Upgrade to a Pro plan to customize your device names.'
                                                                         });
                                                                     }
                                                                 }}
@@ -1270,8 +1285,14 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                         <Button
                                             variant="ghost"
                                             size="sm"
-                                            onClick={handleDownloadSecurityEvents}
-                                            disabled={!hasExportAccess}
+                                            onClick={() => {
+                                                if (hasExportAccess) {
+                                                    handleDownloadSecurityEvents();
+                                                } else {
+                                                    setUpgradeDialogData({ open: true, title: 'Export is a premium feature', description: 'Exporting security events is available on Pro & Unlimited plans.' });
+                                                }
+                                            }}
+                                            aria-disabled={!hasExportAccess}
                                             className={`h-8 w-8 p-0 ${!hasExportAccess ? 'opacity-50' : ''}`}
                                         >
                                             <IconDownload className="h-4 w-4" />
@@ -1398,7 +1419,13 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                                         <TooltipTrigger asChild>
                                                             <tr
                                                                 className={`hover:bg-muted/30 transition-colors cursor-pointer group ${isBlurred ? 'opacity-70 cursor-not-allowed' : ''}`}
-                                                                onClick={() => !isBlurred && handleExpandEvent(event.id)}
+                                                                onClick={() => {
+                                                                    if (isBlurred) {
+                                                                        setUpgradeDialogData({ open: true, title: 'Upgrade required', description: 'Upgrade your plan to view full history.' });
+                                                                    } else {
+                                                                        handleExpandEvent(event.id);
+                                                                    }
+                                                                }}
                                                             >
                                                                 <td className="px-4 py-3 font-mono text-xs text-muted-foreground hidden sm:table-cell">
                                                                     <div className="flex items-center gap-2">
@@ -1728,6 +1755,22 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Upgrade Alert Dialog */}
+            <AlertDialog open={!!upgradeDialogData?.open} onOpenChange={(open: boolean) => !open && setUpgradeDialogData(null)}>
+                <AlertDialogContent className="rounded-2xl">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>{upgradeDialogData?.title}</AlertDialogTitle>
+                        <AlertDialogDescription className="pt-2 text-sm">
+                            {upgradeDialogData?.description}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="pt-2">
+                        <AlertDialogCancel className="rounded-full">Maybe later</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => { setUpgradeDialogData(null); window.location.href = '/pricing'; }} className="bg-primary rounded-full">Upgrade</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
             {/* Master Key & Cryptographic Identity Section */}
             <div className="border-t pt-6 space-y-4">

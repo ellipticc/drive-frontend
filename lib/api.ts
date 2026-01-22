@@ -1222,6 +1222,19 @@ class ApiClient {
     return this.request('/auth/storage', {}, 'high');
   }
 
+  async getUserUsage(): Promise<ApiResponse<{
+    usage: {
+      storage: { used: number; limit: number; unit: string };
+      devices: { used: number; limit: number };
+      spaces: { used: number; limit: number };
+      webhookEvents: { used: number; limit: number };
+      bandwidth: { used: number; limit: number };
+      apiCalls: { used: number; limit: number };
+    }
+  }>> {
+    return this.request('/user/usage', {}, 'high');
+  }
+
   async storePQCKeys(userId: string, pqcKeypairs: PQCKeypairs): Promise<ApiResponse> {
     return this.request('/auth/crypto', {
       method: 'PUT',

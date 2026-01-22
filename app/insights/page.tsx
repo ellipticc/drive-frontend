@@ -84,6 +84,8 @@ export default function InsightsPage() {
   const [isExporting, setIsExporting] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [showWipeDialog, setShowWipeDialog] = useState(false)
+  
+  const [upgradeDialogData, setUpgradeDialogData] = useState<{ open: boolean; title: string; description: string } | null>(null)
 
   const { startUploadWithFiles, startUploadWithFolders } = useGlobalUpload()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -148,7 +150,7 @@ export default function InsightsPage() {
   const handleExport = async () => {
     const plan = analytics?.overview?.plan || 'free';
     if (plan !== 'pro' && plan !== 'unlimited') {
-      toast.error("CSV Export is a premium feature. Upgrade to Pro or Unlimited to unlock.");
+      setUpgradeDialogData({ open: true, title: 'Export is a premium feature', description: 'Exporting activity logs is available on Pro & Unlimited plans.' });
       return;
     }
 
@@ -684,8 +686,11 @@ export default function InsightsPage() {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                            onClick={handleExport}
-                            disabled={isExporting}
+                            onClick={() => {
+                              if (isExporting) return;
+                              handleExport();
+                            }}
+                            aria-disabled={isExporting}
                           >
                             {isExporting ? (
                               <IconLoader2 className="h-4 w-4 animate-spin" />
@@ -749,6 +754,22 @@ export default function InsightsPage() {
             <AlertDialogAction onClick={confirmWipe} className="bg-red-500 hover:bg-red-600">
               Clear History
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Upgrade Alert Dialog */}
+      <AlertDialog open={!!upgradeDialogData?.open} onOpenChange={(open: boolean) => !open && setUpgradeDialogData(null)}>
+        <AlertDialogContent className="rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{upgradeDialogData?.title}</AlertDialogTitle>
+            <AlertDialogDescription className="pt-2 text-sm">
+              {upgradeDialogData?.description}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="pt-2">
+            <AlertDialogCancel className="rounded-full">Maybe later</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setUpgradeDialogData(null); window.location.href = '/pricing'; }} className="bg-primary rounded-full">Upgrade</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
