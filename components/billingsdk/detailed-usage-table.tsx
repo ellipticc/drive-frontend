@@ -59,8 +59,8 @@ export function DetailedUsageTable({
       return `${formatNumber(val, 2)} ${resource.unit}`;
     }
 
-    // Unlimited handling
-    if ((isLimit ? resource.limit : resource.limit) >= 999999) {
+    // Unlimited handling: only display 'Unlimited' for the limit column
+    if (isLimit && (resource.limit ?? 0) >= 999999) {
       return (
         <div className="inline-flex items-center gap-2 text-muted-foreground">
           <IconInfinity className="h-4 w-4" />
@@ -69,9 +69,9 @@ export function DetailedUsageTable({
       );
     }
 
-    // Default formatting (integers)
+    // Default formatting (integers or numbers)
     const val = isLimit ? resource.limit : resource.used;
-    return formatNumber(val);
+    return typeof val === 'number' && Number.isFinite(val) ? formatNumber(val) : String(val);
   };
 
   const getPercentageBar = (percentage: number) => {
