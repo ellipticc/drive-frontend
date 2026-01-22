@@ -128,13 +128,11 @@ export function DetailedUsageTable({
                 </TableRow>
               ) : (
                 resources.map((resource, index) => {
+                  // For unlimited limits, treat percentage as 0 to avoid tiny fractions showing up
+                  const isUnlimited = (resource.limit ?? 0) >= 999999;
                   const percentage =
                     resource.percentage ??
-                    (resource.limit > 0
-                      ? (resource.used / resource.limit) * 100
-                      : 0);
-
-                  const unit = resource.unit ? ` ${resource.unit}` : "";
+                    (isUnlimited ? 0 : (resource.limit > 0 ? (resource.used / resource.limit) * 100 : 0));
 
                   return (
                     <TableRow key={resource.name || index}>

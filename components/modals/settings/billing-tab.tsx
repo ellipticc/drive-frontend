@@ -118,14 +118,7 @@ export function BillingTab({
             used: usageData.webhookEvents.used,
             limit: usageData.webhookEvents.limit,
         });
-
-        resources.push({
-            name: 'Bandwidth (month)',
-            used: usageData.bandwidth.used,
-            limit: usageData.bandwidth.limit,
-            unit: 'GB'
-        });
-
+        
         resources.push({
             name: 'Devices',
             used: usageData.devices.used,
