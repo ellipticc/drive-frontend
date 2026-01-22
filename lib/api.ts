@@ -2205,6 +2205,11 @@ class ApiClient {
     kyberCiphertext?: string;
     encryptedCek?: string;
     nonce?: string;
+    // Optional encrypted metadata for recipient (email share)
+    encrypted_filename?: string;
+    nonce_filename?: string;
+    encrypted_foldername?: string;
+    nonce_foldername?: string;
     // Backwards compatible encapsulated secret field
     encapsulatedSecret?: string;
   }): Promise<ApiResponse<{ id: string; status: string }>> {

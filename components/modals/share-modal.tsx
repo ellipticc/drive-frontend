@@ -819,6 +819,9 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
           // Encrypt the CEK with the shared secret
           const { encryptedData: encryptedCek, nonce: cekNonce } = encryptData(itemFileCek, senderSharedSecret);
 
+          // Encrypt the filename with the CEK so recipient can see it
+          const nameEnc = encryptData(new TextEncoder().encode(itemName), itemFileCek);
+
           // Construct share payload with separate encryption fields
           const shareRes = await apiClient.createSharedItem({
             fileId: itemType === 'file' ? itemId : undefined,
@@ -828,7 +831,12 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
             permissions: 'read', // Default
             kyberCiphertext: uint8ArrayToHex(kyberCiphertext),
             encryptedCek: encryptedCek,
-            nonce: cekNonce
+            nonce: cekNonce,
+            // Pass encrypted filename/foldername (nonce is used as salt)
+            encrypted_filename: itemType === 'file' ? nameEnc.encryptedData : undefined,
+            nonce_filename: itemType === 'file' ? nameEnc.nonce : undefined,
+            encrypted_foldername: itemType === 'folder' ? nameEnc.encryptedData : undefined,
+            nonce_foldername: itemType === 'folder' ? nameEnc.nonce : undefined,
           });
 
           if (shareRes.success) {

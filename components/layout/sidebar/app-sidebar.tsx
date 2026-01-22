@@ -145,7 +145,7 @@ export const AppSidebar = React.memo(function AppSidebar({
       try {
         const response = await apiClient.getPendingSharedCount();
         if (response.success && response.data) {
-          setPendingCount(response.data.count);
+          setPendingCount(Number(response.data.count));
         }
       } catch (err) {
         console.error("Failed to fetch pending share count", err);
