@@ -30,6 +30,7 @@ import { useLanguage } from "@/lib/i18n/language-context"
 import { TruncatedNameTooltip } from "@/components/tables/truncated-name-tooltip"
 import { FileThumbnail } from "@/components/files/file-thumbnail"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import {
     ActionBar,
     ActionBarSelection,
@@ -46,6 +47,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { IconGrid3x3, IconListDetails, IconDownload as IconDownload2, IconCopy as IconCopy2, IconInfoSquare } from "@tabler/icons-react"
 
 const DetailsModal = dynamic(() => import("@/components/modals/details-modal").then(mod => mod.DetailsModal));
 const CopyModal = dynamic(() => import("@/components/modals/copy-modal").then(mod => mod.CopyModal));
@@ -96,7 +98,21 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
     const [copyModalOpen, setCopyModalOpen] = useState(false)
     const [selectedItemForCopy, setSelectedItemForCopy] = useState<{ id: string; name: string; type: 'file' | 'folder' } | null>(null)
 
-    const { startFileDownload, startFolderDownload, startFileDownloadWithCEK } = useGlobalUpload()
+    // View mode for toggle (table vs grid)
+    const [viewMode, setViewMode] = useState<'table' | 'grid'>(() => {
+        try {
+            return (localStorage.getItem('sharedWithMeViewMode') as 'table' | 'grid') || 'table'
+        } catch (e) {
+            return 'table'
+        }
+    })
+
+    const handleViewModeChange = (newMode: 'table' | 'grid') => {
+        setViewMode(newMode)
+        try { localStorage.setItem('sharedWithMeViewMode', newMode) } catch (e) { }
+    }
+
+    const { startFileDownload, startFolderDownload, startFileDownloadWithCEK, startBulkDownload } = useGlobalUpload()
 
     const fetchItems = useCallback(async () => {
         setIsLoading(true)
@@ -177,6 +193,55 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
         } finally {
             setIsProcessing(null);
         }
+    }
+
+    const handleDeclineBulk = async () => {
+        const ids = Array.from(selectedItems);
+        if (ids.length === 0) return;
+        setIsProcessing('bulk-decline');
+        try {
+            await Promise.all(ids.map(id => apiClient.declineSharedItem(id)));
+            toast.success('Declined selected shares');
+            setItems(prev => prev.filter(i => !ids.includes(i.id)));
+            setSelectedItems(new Set());
+        } catch (err) {
+            toast.error('Failed to decline selected shares');
+        } finally {
+            setIsProcessing(null);
+        }
+    }
+
+    const handleHeaderDownloadBulk = async () => {
+        const ids = Array.from(selectedItems);
+        if (ids.length === 0) return;
+        // Build items compatible with startBulkDownload
+        const itemsForDownload = items.filter(i => ids.includes(i.id)).map(i => ({ id: i.item.id, name: decryptedNames[i.id] || i.item.name || '', type: i.item.type === 'folder' ? 'folder' as const : i.item.type === 'paper' ? 'paper' as const : 'file' as const }));
+        try {
+            await startBulkDownload(itemsForDownload);
+        } catch (err) {
+            console.error('Bulk download failed', err);
+            toast.error('Bulk download failed');
+        }
+    }
+
+    const handleHeaderCopy = () => {
+        const ids = Array.from(selectedItems);
+        if (ids.length === 0) return;
+        const firstId = ids[0];
+        const item = items.find(i => i.id === firstId);
+        if (!item) return;
+        setSelectedItemForCopy({ id: item.item.id, name: decryptedNames[item.id] || item.item.name || 'item', type: item.item.type === 'folder' ? 'folder' : 'file' });
+        setCopyModalOpen(true);
+    }
+
+    const handleHeaderDetails = () => {
+        const ids = Array.from(selectedItems);
+        if (ids.length === 0) return;
+        const firstId = ids[0];
+        const item = items.find(i => i.id === firstId);
+        if (!item) return;
+        setSelectedItemForDetails({ id: item.item.id, name: decryptedNames[item.id] || item.item.name || 'item', type: item.item.type === 'folder' ? 'folder' : item.item.type === 'paper' ? 'paper' : 'file', shareId: item.id });
+        setDetailsModalOpen(true);
     }
 
     const handleRemoveBulk = async () => {
@@ -362,12 +427,108 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
         { id: "actions", name: "Status / Actions" },
     ], [])
 
-    if (isLoading) {
+    const renderHeaderIcons = () => {
+        const selCount = selectedItems.size
+        const ids = Array.from(selectedItems)
+        const selected = items.filter(i => ids.includes(i.id))
+        const hasPending = selected.some(i => i.status === 'pending')
+        const hasAccepted = selected.some(i => i.status === 'accepted')
+
+        // No selection: only grid toggle
+        if (selCount === 0) {
+            return (
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleViewModeChange(viewMode === 'table' ? 'grid' : 'table')} aria-label={viewMode === 'table' ? 'Switch to grid view' : 'Switch to table view'}>
+                            {viewMode === 'table' ? <IconGrid3x3 className="h-3.5 w-3.5" /> : <IconListDetails className="h-3.5 w-3.5" />}
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{viewMode === 'table' ? 'Switch to grid view' : 'Switch to table view'}</TooltipContent>
+                </Tooltip>
+            )
+        }
+
+        // Selection present: conditionally show accept/decline and accepted-actions
         return (
-            <TableCard.Root size="sm">
-                <TableCard.Header title={t('sidebar.sharedWithMe')} className="h-10 border-0" />
-                <TableSkeleton title={t('sidebar.sharedWithMe')} />
-            </TableCard.Root>
+            <div className="flex items-center gap-1.5 md:gap-2">
+                {hasPending && (
+                    <>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={handleAcceptBulk} aria-label={`Accept ${selCount} selected`}>
+                                    <IconCheck className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Accept</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={handleDeclineBulk} aria-label={`Decline ${selCount} selected`}>
+                                    <IconX className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Decline</TooltipContent>
+                        </Tooltip>
+                        <div className="h-5 w-px bg-border mx-1" />
+                    </>
+                )}
+
+                {hasAccepted && (
+                    <>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={handleHeaderDownloadBulk} aria-label={`Download ${selCount} selected`}>
+                                    <IconDownload className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Download</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={handleHeaderCopy} aria-label="Copy">
+                                    <IconCopy className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Copy</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={handleHeaderDetails} aria-label="Details">
+                                    <IconInfoSquare className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Details</TooltipContent>
+                        </Tooltip>
+                        <div className="h-5 w-px bg-border mx-1" />
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={handleRemoveBulk} aria-label={`Remove ${selCount} selected`}>
+                                    <IconTrash className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Remove</TooltipContent>
+                        </Tooltip>
+                        <div className="h-5 w-px bg-border mx-1" />
+                    </>
+                )}
+
+                {/* Always show view toggle */}
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleViewModeChange(viewMode === 'table' ? 'grid' : 'table')} aria-label={viewMode === 'table' ? 'Switch to grid view' : 'Switch to table view'}>
+                            {viewMode === 'table' ? <IconGrid3x3 className="h-3.5 w-3.5" /> : <IconListDetails className="h-3.5 w-3.5" />}
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{viewMode === 'table' ? 'Switch to grid view' : 'Switch to table view'}</TooltipContent>
+                </Tooltip>
+            </div>
+        )
+    }
+
+    if (isLoading) {
+        // Show a single TableSkeleton to prevent duplicate headers / flicker
+        return (
+            <TableSkeleton title={t('sidebar.sharedWithMe')} headerIcons={null} />
         )
     }
 
@@ -390,30 +551,8 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
             <TableCard.Root size="sm">
                 <TableCard.Header
                     title={t('sidebar.sharedWithMe')}
-                    contentTrailing={
-                        <div className="flex items-center gap-1.5 md:gap-2">
-                            <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={handleAcceptBulk}
-                                disabled={items.length === 0 && selectedItems.size === 0}
-                                className={`h-8 w-8 p-0 ${selectedItems.size > 0 ? 'bg-primary/10 text-primary' : ''}`}
-                                aria-label={selectedItems.size > 0 ? `Accept ${selectedItems.size} Selected` : "Accept All"}
-                            >
-                                <IconCheck className="h-4 w-4" />
-                            </Button>
-                            <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={handleRemoveBulk}
-                                disabled={items.length === 0 && selectedItems.size === 0}
-                                className="h-8 w-8 p-0"
-                                aria-label={selectedItems.size > 0 ? `Remove ${selectedItems.size} Selected` : "Remove All"}
-                            >
-                                <IconTrash className="h-4 w-4" />
-                            </Button>
-                        </div>
-                    }
+                    contentTrailing={renderHeaderIcons()}
+                    className="h-10 border-0"
                 />
 
                 <Table
