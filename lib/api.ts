@@ -2408,6 +2408,8 @@ class ApiClient {
     encryptedFilename?: string,
     filenameSalt?: string,
     nameHmac?: string,
+    wrappedCek?: string,
+    cekNonce?: string,
     // Manifest fields for signed copied file
     manifestHash?: string,
     manifestSignatureEd25519?: string,

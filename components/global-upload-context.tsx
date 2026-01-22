@@ -749,7 +749,8 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
       const url = URL.createObjectURL(result.blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = result.filename;
+      // Use the explicitly passed fileName (which comes from our local decryption)
+      a.download = fileName || result.filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

@@ -351,20 +351,37 @@ export function CopyModal({ children, itemId = "", itemName = "item", itemType =
                     let signedManifest;
                     let encryptedFilename;
                     let filenameSalt;
+                    let wrappedCek;
+                    let cekNonce;
 
                     try {
                         nameHmac = await computeFilenameHmac(item.name, destFolderId);
 
-                        // Re-encrypt filename for the copy to ensure it is readable by the current user
-                        // This is critical for shared files where the original encrypted filename uses the owner's key
+                        // Re-encrypt filename & CEK for the copy to ensure it is readable by the current user
                         if (masterKeyManager.hasMasterKey()) {
                             try {
                                 const masterKey = masterKeyManager.getMasterKey();
+
+                                // 1. Re-encrypt Filename
                                 const encResult = await import("@/lib/crypto").then(m => m.encryptFilename(item.name, masterKey));
                                 encryptedFilename = encResult.encryptedFilename;
                                 filenameSalt = encResult.filenameSalt;
+
+                                // 2. Re-encrypt CEK if this is a shared file and we have the CEK cached
+                                // (Dynamic import to avoid circular dep if any)
+                                const { getCekForShare } = await import("@/lib/share-cache");
+                                const { encryptData } = await import("@/lib/crypto");
+
+                                // We check if there's a cached CEK for this item ID (from SharedFilesTable)
+                                const cachedCek = getCekForShare(item.id);
+                                if (cachedCek) {
+                                    // Re-wrap the CEK with our master key so we can read the copied file
+                                    const encCek = encryptData(cachedCek, masterKey);
+                                    wrappedCek = encCek.encryptedData;
+                                    cekNonce = encCek.nonce;
+                                }
                             } catch (e) {
-                                console.warn('Failed to encrypt filename for copy', e);
+                                console.warn('Failed to encrypt filename/CEK for copy', e);
                             }
                         }
 
@@ -405,6 +422,8 @@ export function CopyModal({ children, itemId = "", itemName = "item", itemType =
                             nameHmac,
                             encryptedFilename,
                             filenameSalt,
+                            wrappedCek,
+                            cekNonce,
                             // Spread signed manifest fields if available
                             ...(signedManifest ? {
                                 manifestHash: signedManifest.manifestHash,

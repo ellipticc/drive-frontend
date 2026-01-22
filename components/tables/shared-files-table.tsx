@@ -333,7 +333,8 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
                 }
 
                 // If not cached, perform worker-based derivation and cache it
-                if (!item.kyberCiphertext || !item.encryptedCek || !item.encryptedCekNonce) {
+                // We check for EITHER Kyber ciphertext (PQC share) OR Encrypted CEK (XChaCha share)
+                if ((!item.kyberCiphertext && !item.encryptedCek) || !item.encryptedCekNonce) {
                     throw new Error('Missing encryption material for this shared file');
                 }
 
@@ -720,11 +721,12 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
                                         className={`group transition-colors duration-150 ${selectedItems.has(item.id) ? "bg-muted/50" : "hover:bg-muted/50"}`}
                                     >
                                         <Table.Cell className="w-10 text-center pl-4 pr-0">
-                                            <Checkbox
-                                                slot="selection"
-                                                aria-label={`Select ${decryptedNames[item.id] || item.item.name || 'shared item'}`}
-                                                className={`transition-opacity duration-200 ${selectedItems.size > 0 || selectedItems.has(item.id) ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}
-                                            />
+                                            <div className={`transition-opacity duration-200 flex justify-center ${selectedItems.size > 0 || selectedItems.has(item.id) ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}>
+                                                <Checkbox
+                                                    slot="selection"
+                                                    aria-label={`Select ${decryptedNames[item.id] || item.item.name || 'shared item'}`}
+                                                />
+                                            </div>
                                         </Table.Cell>
 
                                         <Table.Cell className="w-full max-w-0">
