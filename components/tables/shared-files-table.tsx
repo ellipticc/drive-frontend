@@ -128,7 +128,8 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
 
                 if (userRes.success && userRes.data) {
                     try {
-                        const keys = await decryptUserPrivateKeys(userRes.data as any);
+                        const userData = (userRes.data as any).user || userRes.data;
+                        const keys = await decryptUserPrivateKeys(userData);
                         kyberPrivateKey = keys.kyberPrivateKey;
                     } catch (e) {
                         // Fallback or ignore if keys unavailable (e.g. not fully setup)
@@ -625,13 +626,13 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
                                                     data-index={virtualItem.index}
                                                     ref={rowVirtualizer.measureElement}
                                                     onDoubleClick={() => openDetails(item)}
-                                                    className="group hover:bg-muted/50 transition-colors duration-150"
+                                                    className={`group transition-colors duration-150 ${selectedItems.has(item.id) ? "bg-muted/50" : "hover:bg-muted/50"}`}
                                                 >
                                                     <Table.Cell className="w-10 text-center pl-4 pr-0">
                                                         <Checkbox
                                                             slot="selection"
                                                             aria-label={`Select ${decryptedNames[item.id] || item.item.name || 'shared item'}`}
-                                                            className={`transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}
+                                                            className={`transition-opacity duration-200 ${selectedItems.size > 0 || selectedItems.has(item.id) ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}
                                                         />
                                                     </Table.Cell>
 
@@ -749,11 +750,11 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
                     ) : (
                         <Table.Body items={items}>
                             {(item: SharedItem) => (
-                                <Table.Row key={item.id} className="group hover:bg-muted/50 transition-colors duration-150" onDoubleClick={() => openDetails(item)}>
+                                <Table.Row key={item.id} className={`group transition-colors duration-150 ${selectedItems.has(item.id) ? "bg-muted/50" : "hover:bg-muted/50"}`} onDoubleClick={() => openDetails(item)}>
                                     <Table.Cell className="w-10 text-center pl-4 pr-0">
                                         <Checkbox
                                             slot="selection"
-                                            className={`transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}
+                                            className={`transition-opacity duration-200 ${selectedItems.size > 0 || selectedItems.has(item.id) ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}
                                         />
                                     </Table.Cell>
 
