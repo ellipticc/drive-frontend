@@ -37,7 +37,7 @@ export function NavSecondary({
       <SidebarGroupContent>
         <SidebarMenu>
           {items.map((item) => {
-            const label = item.id === 'feedback' ? `${item.title} (F)` : item.title;
+            const collapsedTooltipLabel = item.id === 'feedback' ? `${item.title} (F)` : item.title;
             return (
             <SidebarMenuItem key={item.title}>
               {item.id === "help" ? (
@@ -90,25 +90,25 @@ export function NavSecondary({
                 )
               ) : item.id === "feedback" ? (
                 state === 'collapsed' ? (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <FeedbackPopover open={feedbackOpen} onOpenChange={setFeedbackOpen}>
+                  <FeedbackPopover open={feedbackOpen} onOpenChange={setFeedbackOpen}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
                         <SidebarMenuButton isActive={feedbackOpen}>
                           <item.icon />
-                          <span>{label}</span>
+                          <span>{item.title}</span>
                           <div className="ms-auto">
                             <Kbd>F</Kbd>
                           </div>
                         </SidebarMenuButton>
-                      </FeedbackPopover>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">{label}</TooltipContent>
-                  </Tooltip>
+                      </TooltipTrigger>
+                      <TooltipContent side="right">{collapsedTooltipLabel}</TooltipContent>
+                    </Tooltip>
+                  </FeedbackPopover>
                 ) : (
                   <FeedbackPopover open={feedbackOpen} onOpenChange={setFeedbackOpen}>
                     <SidebarMenuButton isActive={feedbackOpen}>
                       <item.icon />
-                      <span>{label}</span>
+                      <span>{item.title}</span>
                       <div className="ms-auto">
                         <Kbd>F</Kbd>
                       </div>

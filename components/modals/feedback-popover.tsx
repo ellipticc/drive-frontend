@@ -15,13 +15,13 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Kbd } from "@/components/ui/kbd"
 
-interface FeedbackPopoverProps {
+interface FeedbackPopoverProps extends React.HTMLAttributes<HTMLElement> {
     children: React.ReactNode
     open: boolean
     onOpenChange: (open: boolean) => void
 }
 
-export function FeedbackPopover({ children, open, onOpenChange }: FeedbackPopoverProps) {
+export function FeedbackPopover({ children, open, onOpenChange, ...triggerProps }: FeedbackPopoverProps) {
     const [text, setText] = React.useState("")
     const [sending, setSending] = React.useState(false)
     const isSendingRef = React.useRef(false)
@@ -99,7 +99,7 @@ export function FeedbackPopover({ children, open, onOpenChange }: FeedbackPopove
 
     return (
         <Popover open={open} onOpenChange={onOpenChange}>
-            <PopoverTrigger asChild>
+            <PopoverTrigger asChild {...(triggerProps as any)}>
                 {children}
             </PopoverTrigger>
             <PopoverContent
