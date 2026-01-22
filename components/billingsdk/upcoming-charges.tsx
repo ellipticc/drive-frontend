@@ -50,7 +50,7 @@ export function UpcomingCharges({
   };
 
   return (
-    <Card className={cn("mx-auto w-full max-w-2xl", className)}>
+    <Card className={cn("w-full", className)}>
       <CardHeader>
         <CardTitle>{title}</CardTitle>
         {description && <CardDescription>{description}</CardDescription>}

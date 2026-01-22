@@ -372,7 +372,7 @@ export function SettingsModal({
   // Billing state
   const [subscription, setSubscription] = useState<Subscription | null>(null)
   const [billingUsage, setBillingUsage] = useState<BillingUsage | null>(null)
-  const [, setPricingPlans] = useState<PricingPlan[]>([])
+  const [pricingPlans, setPricingPlans] = useState<PricingPlan[]>([])
   const [isLoadingBilling, setIsLoadingBilling] = useState(false)
   const [showCancelDialog, setShowCancelDialog] = useState(false)
   const [showCancelReasonDialog, setShowCancelReasonDialog] = useState(false)
@@ -1969,6 +1969,7 @@ export function SettingsModal({
                   invoicesPage={invoicesPage}
                   subsTotalPages={subsTotalPages}
                   invoicesTotalPages={invoicesTotalPages}
+                  pricingPlans={pricingPlans}
                 />
               )}
             </div>

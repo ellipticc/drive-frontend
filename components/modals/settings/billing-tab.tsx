@@ -20,9 +20,11 @@ import {
     IconChevronRight,
 } from "@tabler/icons-react"
 import { UpcomingCharges } from "@/components/billingsdk/upcoming-charges"
+import { DetailedUsageTable } from "@/components/billingsdk/detailed-usage-table"
 import { SubscriptionHistory as SubscriptionHistoryTable } from "@/components/billingsdk/subscription-history"
 import { InvoiceHistory } from "@/components/billingsdk/invoice-history"
-import { Subscription, BillingUsage, SubscriptionHistory } from "@/lib/api"
+import { Subscription, BillingUsage, SubscriptionHistory, PricingPlan, apiClient } from "@/lib/api"
+import { useEffect, useState } from "react"
 
 // Helper to format bytes
 const formatStorageSize = (bytes: number) => {
@@ -50,6 +52,7 @@ interface BillingTabProps {
     invoicesPage: number;
     subsTotalPages: number;
     invoicesTotalPages: number;
+    pricingPlans?: PricingPlan[];
 }
 
 export function BillingTab({
@@ -68,9 +71,74 @@ export function BillingTab({
     subsPage,
     invoicesPage,
     subsTotalPages,
-    invoicesTotalPages
+    invoicesTotalPages,
+    pricingPlans
 }: BillingTabProps) {
     const { formatDate } = useFormatter();
+
+    // Usage state
+    const [usageData, setUsageData] = useState<any>(null);
+    const [isLoadingUsage, setIsLoadingUsage] = useState(true);
+
+    useEffect(() => {
+        const fetchUsage = async () => {
+            setIsLoadingUsage(true);
+            try {
+                const res = await apiClient.getUserUsage();
+                if (res.success && res.data?.usage) setUsageData(res.data.usage);
+            } catch (err) {
+                console.error('Failed to fetch usage data:', err);
+            } finally {
+                setIsLoadingUsage(false);
+            }
+        };
+
+        fetchUsage();
+    }, []);
+
+    // Prepare resources for detailed usage table
+    const resources = [] as any[];
+    if (usageData) {
+        resources.push({
+            name: 'Storage',
+            used: usageData.storage.used,
+            limit: usageData.storage.limit,
+            percentage: usageData.storage.limit > 0 ? (usageData.storage.used / usageData.storage.limit) * 100 : 0,
+            unit: usageData.storage.unit || 'GB'
+        });
+
+        resources.push({
+            name: 'Spaces',
+            used: usageData.spaces.used,
+            limit: usageData.spaces.limit,
+        });
+
+        resources.push({
+            name: 'Webhook Events (30d)',
+            used: usageData.webhookEvents.used,
+            limit: usageData.webhookEvents.limit,
+        });
+
+        resources.push({
+            name: 'Bandwidth (month)',
+            used: usageData.bandwidth.used,
+            limit: usageData.bandwidth.limit,
+            unit: 'GB'
+        });
+
+        resources.push({
+            name: 'Devices',
+            used: usageData.devices.used,
+            limit: usageData.devices.limit,
+        });
+
+        resources.push({
+            name: 'API Calls (30d)',
+            used: usageData.apiCalls.used,
+            limit: usageData.apiCalls.limit,
+        });
+    }
+
     return (
         <div className="space-y-6">
             <h2 className="text-xl font-semibold">Billing & Subscription</h2>
@@ -155,14 +223,31 @@ export function BillingTab({
                             )}
                         </div>
 
-                        {/* Upcoming Charges*/}
+                        {/* Upcoming Charges */}
                         {subscription && subscription.status === 'active' && !subscription.cancelAtPeriodEnd && subscription.currentPeriodEnd && (
                             (() => {
+                                // Prefer subscriptionHistory entry for active subscription amount
                                 const activeSubscription = subscriptionHistory?.history?.find(h => h.status === 'active');
-                                const amountStr = activeSubscription ? `${activeSubscription.currency?.toUpperCase() || 'USD'} $${(activeSubscription.amount / 100).toFixed(2)}` : 'TBD';
+
+                                let amountStr = 'TBD';
+
+                                if (activeSubscription) {
+                                    amountStr = `${activeSubscription.currency?.toUpperCase() || 'USD'} $${(activeSubscription.amount / 100).toFixed(2)}`;
+                                } else if (pricingPlans && subscription?.plan) {
+                                    // Try to find matching pricing plan passed from parent
+                                    const planById = pricingPlans.find(p => p.id === (subscription.plan as any).id);
+                                    const planByName = pricingPlans.find(p => p.name === subscription.plan?.name);
+                                    const plan = planById || planByName;
+                                    if (plan) {
+                                        amountStr = `${plan.currency?.toUpperCase() || 'USD'} $${plan.price.toFixed(2)}`;
+                                    }
+                                }
+
                                 const description = activeSubscription?.planName || subscription.plan?.name || 'Subscription';
+
                                 return (
                                     <UpcomingCharges
+                                        className="w-full"
                                         nextBillingDate={formatDate(subscription.currentPeriodEnd * 1000)}
                                         totalAmount={amountStr}
                                         charges={[
@@ -179,35 +264,17 @@ export function BillingTab({
                             })()
                         )}
 
-                        {/* Storage Usage */}
-                        {billingUsage && (
-                            <div className="p-4 border rounded-lg">
-                                <h3 className="font-medium mb-2">Storage Usage</h3>
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-sm text-muted-foreground">Used:</span>
-                                        <span className="font-medium">{formatStorageSize(billingUsage.usedBytes)}</span>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-sm text-muted-foreground">Limit:</span>
-                                        <span className="font-medium">{formatStorageSize(billingUsage.quotaBytes)}</span>
-                                    </div>
-                                    <div className="w-full bg-gray-200 rounded-full h-2">
-                                        <div
-                                            className={`h-2 rounded-full ${billingUsage.percentUsed > 90
-                                                ? 'bg-red-500'
-                                                : billingUsage.percentUsed > 75
-                                                    ? 'bg-yellow-500'
-                                                    : 'bg-green-500'
-                                                }`}
-                                            style={{ width: `${Math.min(billingUsage.percentUsed, 100)}%` }}
-                                        ></div>
-                                    </div>
-                                    <p className="text-xs text-muted-foreground text-center">
-                                        {billingUsage.percentUsed.toFixed(1)}% used
-                                    </p>
-                                </div>
+                        {/* Detailed Usage Table (replaces old storage block) */}
+                        {isLoadingUsage ? (
+                            <div className="flex justify-center py-6">
+                                <IconLoader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                             </div>
+                        ) : (
+                            <DetailedUsageTable
+                                title="Usage Overview"
+                                description="Storage, spaces, webhook events, bandwidth, devices and API calls"
+                                resources={resources}
+                            />
                         )}
 
                         {/* Action Buttons */}
