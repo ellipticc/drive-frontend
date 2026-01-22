@@ -846,7 +846,11 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
 
       if (successCount > 0) {
         toast.success(`Shared successfully with ${successCount} user${successCount > 1 ? 's' : ''}`);
-        setOpen(false);
+        // Revert to basic state instead of closing
+        setMessageModalOpen(false);
+        setEmails([]);
+        setMessage("");
+        setIncludeMessage(true);
         if (onShareUpdate) onShareUpdate();
       }
 

@@ -8,6 +8,7 @@ import {
     IconCopy,
     IconInfoCircle,
     IconTrash,
+    IconFile,
     IconFolder,
     IconCheck,
     IconX,
@@ -150,12 +151,8 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
                                 setCekForShare(item.id, cek);
                             }
                             if (res && res.name) {
-                                const name = res.name;
-                                if (name && /^[ -~]+$/.test(name)) {
-                                    newDecrypted[item.id] = name;
-                                } else {
-                                    newDecrypted[item.id] = "Shared Item (Locked)";
-                                }
+                                // Allow valid names (removed strict ASCII check)
+                                newDecrypted[item.id] = res.name;
                             }
                         } catch (e) {
                             console.error("Worker decryption failed for item " + item.id, e);
@@ -392,7 +389,7 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
                             // ignore
                         }
                     }
-                    await downloadFolderAsZip(item.item.id, decryptedNames[item.id] || item.item.name || 'folder', userKeys, () => {})
+                    await downloadFolderAsZip(item.item.id, decryptedNames[item.id] || item.item.name || 'folder', userKeys, () => { })
                     toast.success('Folder download completed')
                 }
             } else {
@@ -556,7 +553,7 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
                 />
 
                 <Table
-                    selectionBehavior="replace"
+                    selectionBehavior="toggle"
                     selectedKeys={selectedItems}
                     onSelectionChange={(keys) => {
                         if (keys === 'all') {
@@ -643,7 +640,7 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
                                                             <div className="text-base">
                                                                 {item.item.type === 'folder' ? (
                                                                     <IconFolder className="h-4 w-4 text-blue-500 inline-block align-middle" />
-                                                                ) : (
+                                                                ) : item.status === 'accepted' ? (
                                                                     <FileThumbnail
                                                                         fileId={item.item.id}
                                                                         mimeType={item.item.type === 'paper' ? 'application/x-paper' : item.item.mimeType}
@@ -651,6 +648,8 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
                                                                         className="h-4 w-4 inline-block align-middle"
                                                                         iconClassName="h-4 w-4"
                                                                     />
+                                                                ) : (
+                                                                    <IconFile className="h-4 w-4 inline-block align-middle text-muted-foreground" />
                                                                 )}
                                                             </div>
                                                             <TruncatedNameTooltip
@@ -763,7 +762,7 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
                                             <div className="text-base">
                                                 {item.item.type === 'folder' ? (
                                                     <IconFolder className="h-4 w-4 text-blue-500 inline-block align-middle" />
-                                                ) : (
+                                                ) : item.status === 'accepted' ? (
                                                     <FileThumbnail
                                                         fileId={item.item.id}
                                                         mimeType={item.item.type === 'paper' ? 'application/x-paper' : item.item.mimeType}
@@ -771,6 +770,8 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
                                                         className="h-4 w-4 inline-block align-middle"
                                                         iconClassName="h-4 w-4"
                                                     />
+                                                ) : (
+                                                    <IconFile className="h-4 w-4 inline-block align-middle text-muted-foreground" />
                                                 )}
                                             </div>
                                             <TruncatedNameTooltip
@@ -832,7 +833,7 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
                                                         <DropdownMenuItem onSelect={() => { setSelectedItemForCopy({ id: item.item.id, name: decryptedNames[item.id] || item.item.name || 'item', type: item.item.type === 'folder' ? 'folder' : 'file' }); setCopyModalOpen(true); }}>
                                                             <IconCopy className="h-4 w-4 mr-2" /> Copy
                                                         </DropdownMenuItem>
-                                                    <DropdownMenuItem onSelect={() => { setSelectedItemForDetails({ id: item.item.id, name: decryptedNames[item.id] || item.item.name || 'item', type: item.item.type === 'folder' ? 'folder' : item.item.type === 'paper' ? 'paper' : 'file', shareId: item.id }); setDetailsModalOpen(true); }}>
+                                                        <DropdownMenuItem onSelect={() => { setSelectedItemForDetails({ id: item.item.id, name: decryptedNames[item.id] || item.item.name || 'item', type: item.item.type === 'folder' ? 'folder' : item.item.type === 'paper' ? 'paper' : 'file', shareId: item.id }); setDetailsModalOpen(true); }}>
                                                             <IconInfoCircle className="h-4 w-4 mr-2" /> Details
                                                         </DropdownMenuItem>
                                                         <DropdownMenuSeparator />
