@@ -53,6 +53,7 @@ export const AppSidebar = React.memo(function AppSidebar({
   const { t } = useLanguage()
   const { handleFileUpload, handleFolderUpload } = useGlobalUpload()
   const { user: contextUser, loading: userLoading } = useUser()
+  const [pendingCount, setPendingCount] = React.useState(0) // State for pending shared items count moved up
 
   const data = {
     user: contextUser ? {
@@ -93,6 +94,7 @@ export const AppSidebar = React.memo(function AppSidebar({
         url: "/shared-with-me",
         icon: IconUsers,
         id: "shared-with-me",
+        badge: pendingCount > 0 ? pendingCount : undefined, // Display badge if count > 0
       },
       {
         title: t("sidebar.trash"),
@@ -124,6 +126,7 @@ export const AppSidebar = React.memo(function AppSidebar({
   }
 
   const [isAuthenticated, setIsAuthenticated] = React.useState(false)
+  // pendingCount state moved up
   const [storage, setStorage] = React.useState({
     used_bytes: 0,
     quota_bytes: 2147483648, // 2GB default
@@ -136,6 +139,22 @@ export const AppSidebar = React.memo(function AppSidebar({
     const checkAuth = async () => {
       // Check if token exists
       let token = localStorage.getItem('auth_token');
+
+      // Fetch pending share count if authenticated
+      try {
+        const res = await fetch('/api/v1/shared/count', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success) {
+            setPendingCount(data.count);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch pending share count", err);
+      }
+
       if (!token) {
         // Try to get from cookies
         const cookies = document.cookie.split(';');

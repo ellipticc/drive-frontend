@@ -28,6 +28,7 @@ export function NavMain({
     url: string
     icon?: Icon
     id?: string
+    badge?: number // Optional badge count
   }[]
 }) {
   const { t } = useLanguage()
@@ -133,6 +134,11 @@ export function NavMain({
                   >
                     {item.icon && <item.icon className="shrink-0" />}
                     <span>{item.title}</span>
+                    {item.badge && (
+                      <span className="ml-auto inline-flex items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-medium text-white min-w-[1.25rem]">
+                        {item.badge}
+                      </span>
+                    )}
                     {!isMyFilesLeaf && state !== 'collapsed' && (
                       <div
                         onClick={(e) => {
