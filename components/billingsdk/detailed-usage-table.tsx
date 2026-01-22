@@ -17,6 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { IconInfinity } from "@tabler/icons-react";
 
 export interface UsageResource {
   name: string;
@@ -39,8 +40,38 @@ export function DetailedUsageTable({
   description,
   resources,
 }: DetailedUsageTableProps) {
-  const formatNumber = (num: number) => {
+  const formatNumber = (num: number, decimals = 0) => {
+    if (decimals > 0) {
+      return new Intl.NumberFormat(undefined, { maximumFractionDigits: decimals, minimumFractionDigits: decimals }).format(num);
+    }
     return new Intl.NumberFormat().format(num);
+  };
+
+  const formatResourceValue = (resource: UsageResource, isLimit = false) => {
+    // Storage special handling (show GB used with 2 decimals; show TB for large limits)
+    if ((resource.unit || '').toUpperCase() === 'GB') {
+      if (isLimit && resource.limit >= 1024) {
+        const tb = resource.limit / 1024;
+        return `${Number.isInteger(tb) ? tb : tb.toFixed(2)} TB`;
+      }
+
+      const val = isLimit ? resource.limit : resource.used;
+      return `${formatNumber(val, 2)} ${resource.unit}`;
+    }
+
+    // Unlimited handling
+    if ((isLimit ? resource.limit : resource.limit) >= 999999) {
+      return (
+        <div className="inline-flex items-center gap-2 text-muted-foreground">
+          <IconInfinity className="h-4 w-4" />
+          <span className="text-xs">Unlimited</span>
+        </div>
+      );
+    }
+
+    // Default formatting (integers)
+    const val = isLimit ? resource.limit : resource.used;
+    return formatNumber(val);
   };
 
   const getPercentageBar = (percentage: number) => {
@@ -111,12 +142,10 @@ export function DetailedUsageTable({
                         {resource.name}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
-                        {formatNumber(resource.used)}
-                        {unit}
+                        {formatResourceValue(resource, false)}
                       </TableCell>
                       <TableCell className="text-muted-foreground text-right tabular-nums">
-                        {formatNumber(resource.limit)}
-                        {unit}
+                        {formatResourceValue(resource, true)}
                       </TableCell>
                       <TableCell className="text-right">
                         {getPercentageBar(percentage)}

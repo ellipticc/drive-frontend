@@ -131,12 +131,6 @@ export function BillingTab({
             used: usageData.devices.used,
             limit: usageData.devices.limit,
         });
-
-        resources.push({
-            name: 'API Calls (30d)',
-            used: usageData.apiCalls.used,
-            limit: usageData.apiCalls.limit,
-        });
     }
 
     return (
@@ -231,15 +225,24 @@ export function BillingTab({
 
                                 let amountStr = 'TBD';
 
+                                const formatPrice = (price: number | undefined, currency?: string) => {
+                                    if (price === undefined || price === null) return 'TBD';
+                                    let dollars = price;
+                                    // If price looks like cents (integer large number), divide by 100
+                                    if (Number.isInteger(price) && price > 1000) dollars = price / 100;
+                                    return `${(currency || 'USD').toUpperCase()} $${dollars.toFixed(2)}`;
+                                };
+
                                 if (activeSubscription) {
-                                    amountStr = `${activeSubscription.currency?.toUpperCase() || 'USD'} $${(activeSubscription.amount / 100).toFixed(2)}`;
+                                    // activeSubscription.amount is expressed in dollars from backend
+                                    amountStr = formatPrice(activeSubscription.amount, activeSubscription.currency);
                                 } else if (pricingPlans && subscription?.plan) {
                                     // Try to find matching pricing plan passed from parent
                                     const planById = pricingPlans.find(p => p.id === (subscription.plan as any).id);
                                     const planByName = pricingPlans.find(p => p.name === subscription.plan?.name);
                                     const plan = planById || planByName;
                                     if (plan) {
-                                        amountStr = `${plan.currency?.toUpperCase() || 'USD'} $${plan.price.toFixed(2)}`;
+                                        amountStr = formatPrice(plan.price, plan.currency);
                                     }
                                 }
 
@@ -295,7 +298,7 @@ export function BillingTab({
                             ) : (
                                 <DetailedUsageTable
                                     title=""
-                                    description="Storage, spaces, webhook events, bandwidth, devices and API calls"
+                                    description="Storage, spaces, webhook events, bandwidth, and devices"
                                     resources={resources}
                                 />
                             )}
