@@ -37,6 +37,7 @@ import { useGlobalUpload } from "@/components/global-upload-context"
 import { useUser } from "@/components/user-context"
 import { getDiceBearAvatar } from "@/lib/avatar"
 import { useLanguage } from "@/lib/i18n/language-context"
+import { apiClient } from "@/lib/api"
 
 const defaultUser = {
   name: "Loading...",
@@ -142,14 +143,9 @@ export const AppSidebar = React.memo(function AppSidebar({
 
       // Fetch pending share count if authenticated
       try {
-        const res = await fetch('/api/v1/shared/count', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.success) {
-            setPendingCount(data.count);
-          }
+        const response = await apiClient.getPendingSharedCount();
+        if (response.success && response.data) {
+          setPendingCount(response.data.count);
         }
       } catch (err) {
         console.error("Failed to fetch pending share count", err);

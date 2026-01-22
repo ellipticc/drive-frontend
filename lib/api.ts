@@ -2226,6 +2226,10 @@ class ApiClient {
     return this.request<void>(`/shared/${id}`, { method: 'DELETE' });
   }
 
+  async getPendingSharedCount(): Promise<ApiResponse<{ count: number }>> {
+    return this.request<{ count: number }>('/shared/count');
+  }
+
   async getSpaceItems(spaceId: string): Promise<ApiResponse<SpaceItem[]>> {
     return this.request(`/spaces/${spaceId}/items`);
   }
