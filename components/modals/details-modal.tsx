@@ -339,7 +339,7 @@ export function DetailsModal({
           }
 
           try {
-                      // Prefer cached CEK if present to avoid redundant unwrap
+            // Prefer cached CEK if present to avoid redundant unwrap
             let usedCek: Uint8Array | null = null;
             const effectiveShareIdForThumb = (shareId || (details as any)?.shareId || (details as any)?.share_id) as string | undefined;
             if (encryption && (encryption as any).kyberCiphertext && effectiveShareIdForThumb) {

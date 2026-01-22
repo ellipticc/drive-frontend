@@ -58,6 +58,36 @@ export function PaperPreview({ fileId, initialContent, filename }: PaperPreviewP
         } else {
           loadedContent = [{ type: 'p', children: [{ text: '' }] }]
         }
+
+        // Sanitize content: ensure all blocks have a children array
+        const sanitizeBlock = (block: any): any => {
+          if (!block || typeof block !== 'object') {
+            return { type: 'p', children: [{ text: '' }] }
+          }
+          
+          if (!Array.isArray(block.children)) {
+            block.children = [{ text: '' }]
+          }
+          
+          block.children = block.children.map((child: any) => {
+            if (typeof child === 'object' && child !== null && 'children' in child) {
+              return sanitizeBlock(child)
+            }
+            if (typeof child === 'object' && child !== null && !('text' in child)) {
+              return { text: '' }
+            }
+            return child
+          })
+          
+          return block
+        }
+
+        if (Array.isArray(loadedContent)) {
+          loadedContent = loadedContent.map(sanitizeBlock)
+        } else {
+          loadedContent = [{ type: 'p', children: [{ text: '' }] }]
+        }
+
         setContent(loadedContent)
         setEditorKey(prev => prev + 1)
       } catch (err) {

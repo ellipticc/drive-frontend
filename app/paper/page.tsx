@@ -337,6 +337,38 @@ export default function PaperPage() {
                     loadedContent = [{ type: 'h1', children: [{ text: '' }] }];
                 }
 
+                // Sanitize content: ensure all blocks have a children array
+                const sanitizeBlock = (block: any): any => {
+                    if (!block || typeof block !== 'object') {
+                        return { type: 'p', children: [{ text: '' }] };
+                    }
+                    
+                    // Ensure children exists and is an array
+                    if (!Array.isArray(block.children)) {
+                        block.children = [{ text: '' }];
+                    }
+                    
+                    // Recursively sanitize children
+                    block.children = block.children.map((child: any) => {
+                        if (typeof child === 'object' && child !== null && 'children' in child) {
+                            return sanitizeBlock(child);
+                        }
+                        // Leaf nodes (text nodes) should have a text property
+                        if (typeof child === 'object' && child !== null && !('text' in child)) {
+                            return { text: '' };
+                        }
+                        return child;
+                    });
+                    
+                    return block;
+                };
+
+                if (Array.isArray(loadedContent)) {
+                    loadedContent = loadedContent.map(sanitizeBlock);
+                } else {
+                    loadedContent = [{ type: 'h1', children: [{ text: '' }] }];
+                }
+
                 setContent(loadedContent);
                 setIcon(loadedIcon);
                 latestContentRef.current = loadedContent;
