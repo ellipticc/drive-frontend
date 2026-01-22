@@ -436,6 +436,31 @@ export interface ShareComment {
   }>;
 }
 
+export interface SharedItem {
+  id: string;
+  status: 'pending' | 'accepted' | 'declined' | 'removed';
+  permissions: 'read' | 'write' | 'admin';
+  createdAt: string;
+  updatedAt: string;
+  encapsulatedSecret?: string;
+  owner: {
+    id: string;
+    name: string;
+    email: string;
+    avatar: string;
+  };
+  item: {
+    id: string;
+    type: 'file' | 'folder' | 'paper';
+    encryptedName: string;
+    nameSalt: string;
+    size?: number;
+    mimeType?: string;
+    createdAt: string;
+    name?: string; // Decrypted on client
+  };
+}
+
 export interface Paper {
   id: string;
   title: string;
@@ -2148,6 +2173,41 @@ class ApiClient {
     return this.request(`/spaces/${spaceId}`, {
       method: 'DELETE',
     });
+  }
+
+  async getRecipientPublicKey(email: string): Promise<ApiResponse<{ email: string; kyberPublicKey: string }>> {
+    return this.request<{ email: string; kyberPublicKey: string }>(`/user/public-key?email=${encodeURIComponent(email)}`);
+  }
+
+  async getSharedWithMe(status?: string): Promise<ApiResponse<SharedItem[]>> {
+    const query = status ? `?status=${status}` : '';
+    return this.request<SharedItem[]>(`/shared/received${query}`);
+  }
+
+  async createSharedItem(payload: {
+    fileId?: string;
+    folderId?: string;
+    recipientEmail?: string;
+    recipientUserId?: string;
+    permissions?: string;
+    encapsulatedSecret: string;
+  }): Promise<ApiResponse<{ id: string; status: string }>> {
+    return this.request<{ id: string; status: string }>('/shared/create', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  }
+
+  async acceptSharedItem(id: string): Promise<ApiResponse<void>> {
+    return this.request<void>(`/shared/${id}/accept`, { method: 'POST' });
+  }
+
+  async declineSharedItem(id: string): Promise<ApiResponse<void>> {
+    return this.request<void>(`/shared/${id}/decline`, { method: 'POST' });
+  }
+
+  async removeSharedItem(id: string): Promise<ApiResponse<void>> {
+    return this.request<void>(`/shared/${id}`, { method: 'DELETE' });
   }
 
   async getSpaceItems(spaceId: string): Promise<ApiResponse<SpaceItem[]>> {

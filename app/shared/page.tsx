@@ -1,29 +1,20 @@
 "use client"
 
-import { useState, useLayoutEffect } from "react"
-import { SiteHeader } from "@/components/layout/header/site-header"
+import { useLanguage } from "@/lib/i18n/language-context"
 import { SharesTable } from "@/components/tables/shares-table"
+import { Separator } from "@/components/ui/separator"
+import { SiteHeader } from "@/components/layout/header/site-header"
 import { useGlobalUpload } from "@/components/global-upload-context"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useSearchParams, usePathname, useRouter } from "next/navigation"
 
-export default function Shared() {
+export default function SharedPage() {
+  const { t } = useLanguage()
   const [searchQuery, setSearchQuery] = useState("")
   const { handleFileUpload, handleFolderUpload } = useGlobalUpload()
   const searchParams = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()
-
-  useLayoutEffect(() => {
-    document.title = "Shared - Ellipticc Drive"
-  }, [])
-
-  // Sync search param from URL
-  useEffect(() => {
-    const q = searchParams.get('q');
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSearchQuery(q || "");
-  }, [searchParams]);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query)
@@ -36,6 +27,13 @@ export default function Shared() {
     router.replace(`${pathname}?${params.toString()}`, { scroll: false })
   }
 
+  // Sync search param from URL
+  useEffect(() => {
+    const q = searchParams.get('q');
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSearchQuery(q || "");
+  }, [searchParams]);
+
   return (
     <div className="flex w-full flex-col">
       <SiteHeader
@@ -43,12 +41,20 @@ export default function Shared() {
         searchValue={searchQuery}
         onFileUpload={handleFileUpload}
         onFolderUpload={handleFolderUpload}
-        sticky
-      />
+        sticky />
       <main className="flex-1">
-        <div className="@container/main flex flex-1 flex-col gap-2">
-          <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-            <SharesTable searchQuery={searchQuery} />
+        <div className="flex flex-col h-full space-y-4 p-8 pt-6">
+          <div className="flex items-center justify-between space-y-2">
+            <div>
+              <h2 className="text-2xl font-bold tracking-tight">{t("sidebar.shared")}</h2>
+              <p className="text-muted-foreground">
+                Files and folders you have shared
+              </p>
+            </div>
+          </div>
+          <Separator />
+          <div className="flex-1">
+            <SharesTable mode="sent" />
           </div>
         </div>
       </main>

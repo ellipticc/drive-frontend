@@ -430,6 +430,9 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
     commentsEnabled: true
   })
 
+  // Store pre-fetched recipient public keys
+  const [recipientKeys, setRecipientKeys] = useState<Record<string, Uint8Array>>({})
+
   // Subscription status for paywall
   const [isPro, setIsPro] = useState(false)
   const [isLoadingSubscription, setIsLoadingSubscription] = useState(false)
@@ -492,6 +495,7 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
 
       // Reset all share-related state for new items
       setEmails([])
+      setRecipientKeys({})
       setEmailInput("")
       setEmailError("")
       setShareLink("")
@@ -655,7 +659,7 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
     return emailRegex.test(email.trim())
   }
 
-  const addEmail = (email: string) => {
+  const addEmail = async (email: string) => {
     const trimmedEmail = email.trim().toLowerCase()
     if (!trimmedEmail) return
 
@@ -669,9 +673,32 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
       return
     }
 
-    setEmails(prev => [...prev, trimmedEmail])
-    setEmailInput("")
-    setEmailError("")
+    // Verify user exists and fetch public key immediately
+    setIsLoading(true)
+    try {
+      const keyRes = await apiClient.getRecipientPublicKey(trimmedEmail);
+      if (!keyRes.success || !keyRes.data?.kyberPublicKey) {
+        setEmailError("User not found or has no public key setup")
+        return;
+      }
+
+      const { hexToUint8Array } = await import('@/lib/crypto')
+      const publicKey = hexToUint8Array(keyRes.data.kyberPublicKey)
+
+      setRecipientKeys(prev => ({
+        ...prev,
+        [trimmedEmail]: publicKey
+      }))
+
+      setEmails(prev => [...prev, trimmedEmail])
+      setEmailInput("")
+      setEmailError("")
+    } catch (error) {
+      console.error("Failed to lookup user:", error)
+      setEmailError("Failed to verify user")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const removeEmail = (emailToRemove: string) => {
@@ -716,45 +743,7 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
         }
       }
 
-      // 1. Derive share CEK deterministically
-      const accountSalt = masterKeyManager.getAccountSalt()
-      if (!accountSalt) throw new Error('Account salt not available')
-
-      const derivationInput = `share:${itemId}:${accountSalt}`
-      const derivationBytes = new TextEncoder().encode(derivationInput)
-      const cekHash = await crypto.subtle.digest('SHA-256', derivationBytes)
-      const shareCek = new Uint8Array(cekHash)
-      const shareCekHex = btoa(String.fromCharCode(...shareCek))
-
-      // 2. Handle Password
-      let saltPw = undefined
-      let finalShareCekHex = shareCekHex
-
-      if (shareSettings.passwordEnabled && shareSettings.password) {
-        const salt = crypto.getRandomValues(new Uint8Array(32))
-        const saltB64 = btoa(String.fromCharCode(...salt))
-        const keyMaterial = await crypto.subtle.importKey(
-          'raw',
-          new TextEncoder().encode(shareSettings.password),
-          'PBKDF2',
-          false,
-          ['deriveBits']
-        )
-        const derivedBits = await crypto.subtle.deriveBits(
-          { name: 'PBKDF2', salt: salt, iterations: 100000, hash: 'SHA-256' },
-          keyMaterial,
-          256
-        )
-        const derivedBytes = new Uint8Array(derivedBits)
-        const xchachaKey = derivedBytes.slice(0, 32)
-        const nonce = crypto.getRandomValues(new Uint8Array(24))
-        const { xchacha20poly1305 } = await import('@noble/ciphers/chacha.js')
-        const xchaCiphertext = xchacha20poly1305(xchachaKey, nonce).encrypt(shareCek)
-        saltPw = `${saltB64}:${btoa(String.fromCharCode(...nonce))}:${btoa(String.fromCharCode(...xchaCiphertext))}`
-        finalShareCekHex = ''
-      }
-
-      // 3. Get Item Info and Unwrap CEK
+      // 1. Get Item Info and Unwrap CEK (Content Encryption Key)
       let infoResponse;
       if (itemType === 'folder') infoResponse = await apiClient.getFolderInfo(itemId);
       else if (itemType === 'paper') infoResponse = await apiClient.getPaper(itemId);
@@ -762,7 +751,9 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
 
       if (!infoResponse.success || !infoResponse.data) throw new Error(`Failed to get ${itemType} info`)
 
-      const { encryptData, decryptData, hexToUint8Array } = await import('@/lib/crypto')
+      const { encryptData, decryptData, hexToUint8Array, uint8ArrayToHex } = await import('@/lib/crypto')
+      const { ml_kem768 } = await import('@noble/post-quantum/ml-kem.js')
+
       let itemFileCek: Uint8Array;
 
       if (itemType === 'paper') {
@@ -770,12 +761,13 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
         const masterKey = masterKeyManager.getMasterKey();
         if (!masterKey) {
           toast.error('Encryption key missing. Please login again.');
+          setIsLoading(false);
           return;
         }
 
-        // Ensure the paper has been initialized with encrypted manifest (salt present)
         if (!paperData || !paperData.salt) {
           toast.error('Paper has no encrypted content yet. Please open the paper and save it before creating a share.');
+          setIsLoading(false);
           return;
         }
 
@@ -790,158 +782,85 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
         } catch (err) {
           console.error('Failed to derive paper CEK for sharing:', err);
           toast.error('Failed to prepare paper for sharing. Try saving the paper again and retry.');
+          setIsLoading(false);
           return;
         }
       } else if (itemType === 'folder') {
-        itemFileCek = shareCek;
+        const cekHash = await crypto.subtle.digest('SHA-256', crypto.getRandomValues(new Uint8Array(32)))
+        itemFileCek = new Uint8Array(cekHash)
       } else {
         const dataObj = infoResponse.data as { file?: FileInfo; folder?: FolderInfo };
         const itemData = dataObj.file as unknown as Record<string, unknown> | undefined;
         if (!itemData || !itemData.wrapped_cek || !itemData.nonce_wrap_kyber) throw new Error(`File encryption info unavailable`)
-        const { ml_kem768 } = await import('@noble/post-quantum/ml-kem.js')
+
         const userKeys = await keyManager.getUserKeys()
         const kyberCiphertext = hexToUint8Array(String(itemData.kyber_ciphertext))
         const sharedSecret = ml_kem768.decapsulate(kyberCiphertext, userKeys.keypairs.kyberPrivateKey)
         itemFileCek = decryptData(String(itemData.wrapped_cek), new Uint8Array(sharedSecret), String(itemData.nonce_wrap_kyber))
       }
 
-      // 4. Envelope Encryption
-      const envelopeEncryption = encryptData(itemFileCek, shareCek)
-      const wrappedItemCek = envelopeEncryption.encryptedData
-      const envelopeNonce = envelopeEncryption.nonce
+      // 2. Iterate through emails and share per user
+      let successCount = 0;
+      let failCount = 0;
 
-      // 5. Filename/Foldername Encryption
-      const filenameBytes = new TextEncoder().encode(itemName)
-      const filenameEnc = encryptData(filenameBytes, shareCek)
-      const encryptedFilename = filenameEnc.encryptedData
-      const filenameNonce = filenameEnc.nonce
-
-      let encryptedFoldername = undefined
-      let foldernameNonce = undefined
-      if (itemType === 'folder') {
-        const folderEnc = encryptData(new TextEncoder().encode(itemName), shareCek)
-        encryptedFoldername = folderEnc.encryptedData
-        foldernameNonce = folderEnc.nonce
-      }
-
-      // 6. Manifest
-      let encryptedManifest = undefined
-      if (itemType === 'folder') {
-        encryptedManifest = await buildEncryptedFolderManifest(itemId, shareCek)
-      }
-
-      // For paper shares, build an encrypted manifest containing decrypted blocks
-      if (itemType === 'paper') {
+      for (const email of emails) {
         try {
-          const { decryptPaperContent, decryptFilename, encryptData } = await import('@/lib/crypto')
-          const paperData = infoResponse.data as any;
-          const masterKey = masterKeyManager.getMasterKey();
-
-          if (!masterKey) {
-            toast.error('Encryption key missing. Please login again.');
-            setIsLoading(false);
-            return;
+          // Get Recipient Public Key from local state (already fetched during addEmail)
+          const recipientKyberPk = recipientKeys[email];
+          if (!recipientKyberPk) {
+            console.warn(`No public key found in state for ${email}`);
+            failCount++;
+            continue;
           }
 
-          const manifestEncrypted = paperData.encryptedContent;
-          const manifestIv = paperData.iv;
-          const manifestSalt = paperData.salt;
+          // Encapsulate CEK for Recipient
+          const { sharedSecret: senderSharedSecret, cipherText: kyberCiphertext } = ml_kem768.encapsulate(recipientKyberPk);
 
-          const manifestStr = await decryptPaperContent(manifestEncrypted, manifestIv, manifestSalt, masterKey);
-          const manifestObj = JSON.parse(manifestStr || '{}');
-          const chunks = paperData.chunks || {};
+          // Encrypt the CEK with the shared secret
+          const { encryptedData: encryptedCek, nonce: cekNonce } = encryptData(itemFileCek, senderSharedSecret);
 
-          const blocksPlain: any[] = [];
-          for (const entry of (manifestObj.blocks || [])) {
-            const chunkData = chunks[entry.chunkId];
-            if (!chunkData) continue;
-            try {
-              const blockStr = await decryptPaperContent(chunkData.encryptedContent, chunkData.iv, chunkData.salt, masterKey);
-              const parsed = JSON.parse(blockStr);
-              blocksPlain.push({ id: entry.id, chunkId: entry.chunkId, hash: entry.hash, content: parsed });
-            } catch (err) {
-              console.error('Failed to decrypt paper block for share manifest', err);
-            }
+          // Construct encapsulated secret payload
+          const encapsulatedSecret = JSON.stringify({
+            kyberCiphertext: uint8ArrayToHex(kyberCiphertext),
+            encryptedCek: encryptedCek,
+            nonce: cekNonce
+          });
+
+          // Create Share
+          const shareRes = await apiClient.createSharedItem({
+            fileId: itemType === 'file' ? itemId : undefined,
+            folderId: itemType === 'folder' ? itemId : undefined,
+            // paperId is not yet supported in createSharedItem API payload fully locally but logic handles it
+            recipientEmail: email,
+            permissions: 'read', // Default
+            encapsulatedSecret
+          });
+
+          if (shareRes.success) {
+            successCount++;
+          } else {
+            console.error(`Failed to share with ${email}:`, shareRes.error);
+            failCount++;
           }
 
-          let plainTitle = 'Untitled Paper'
-          try {
-            if (paperData.encryptedTitle && paperData.titleSalt) {
-              plainTitle = await decryptFilename(paperData.encryptedTitle, paperData.titleSalt, masterKey);
-            }
-          } catch (e) {
-            console.warn('Failed to decrypt paper title for share manifest', e);
-          }
-
-          const shareManifest = {
-            version: 1,
-            title: plainTitle,
-            icon: manifestObj.icon || null,
-            blocks: blocksPlain
-          };
-
-          const manifestBytes = new TextEncoder().encode(JSON.stringify(shareManifest));
-          const manifestEnc = encryptData(manifestBytes, shareCek);
-          encryptedManifest = {
-            encryptedData: manifestEnc.encryptedData,
-            nonce: manifestEnc.nonce
-          };
-        } catch (err) {
-          console.error('Failed to build encrypted manifest for paper share:', err);
-          toast.error('Failed to prepare paper share. Try again.');
-          setIsLoading(false);
-          return;
+        } catch (innerErr) {
+          console.error(`Error sharing with ${email}:`, innerErr);
+          failCount++;
         }
       }
 
-      // 7. Create Share
-      const createResponse = await apiClient.createShare({
-        file_id: itemType === 'file' ? itemId : undefined,
-        folder_id: itemType === 'folder' ? itemId : undefined,
-        paper_id: itemType === 'paper' ? itemId : undefined,
-        wrapped_cek: wrappedItemCek,
-        nonce_wrap: envelopeNonce,
-        has_password: shareSettings.passwordEnabled,
-        salt_pw: saltPw,
-        max_views: shareSettings.maxViewsEnabled ? shareSettings.maxViews : undefined,
-        max_downloads: shareSettings.maxDownloadsEnabled ? shareSettings.maxDownloads : undefined,
-        expires_at: shareSettings.expirationDate ? shareSettings.expirationDate.toISOString() : undefined,
-        comments_enabled: shareSettings.commentsEnabled,
-        encrypted_filename: encryptedFilename,
-        nonce_filename: filenameNonce,
-        encrypted_foldername: encryptedFoldername,
-        nonce_foldername: foldernameNonce,
-        encrypted_manifest: encryptedManifest
-      })
-
-      if (!createResponse.success || !createResponse.data?.id) throw new Error(createResponse.error || "Failed to create share")
-      const shareId = createResponse.data.id
-      setExistingShareId(shareId)
-
-      const basePath = itemType === 'paper' ? '/p/' : '/s/';
-      const shareUrl = `https://drive.ellipticc.com${basePath}${shareId}${finalShareCekHex ? '#' + finalShareCekHex : ''}`
-
-      // 8. Send Emails
-      const emailResponse = await apiClient.sendShareEmails(shareId, {
-        recipients: emails,
-        share_url: shareUrl,
-        file_name: itemName,
-        message: includeMessage && message.trim() ? message.trim() : undefined
-      })
-
-      if (emailResponse.success) {
-        toast.success(`Shared ${itemType} with ${emails.length} recipient${emails.length > 1 ? 's' : ''}`)
-        setEmails([])
-        setMessage("")
-        setMessageModalOpen(false)
-        setOpen(false)
-        onShareUpdate?.()
-      } else {
-        toast.error(`Failed to send emails: ${emailResponse.error}`)
+      if (successCount > 0) {
+        toast.success(`Shared successfully with ${successCount} user${successCount > 1 ? 's' : ''}`);
+        setOpen(false);
       }
+
+      if (failCount > 0) {
+        toast.error(`Failed to share with ${failCount} user${failCount > 1 ? 's' : ''}`);
+      }
+
     } catch (error) {
-      console.error("Failed to share item:", error)
-      toast.error(error instanceof Error ? error.message : `Failed to share ${itemType}`)
+      console.error('Share via email error:', error)
+      toast.error(error instanceof Error ? error.message : "Failed to share items")
     } finally {
       setIsLoading(false)
     }

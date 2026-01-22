@@ -14,6 +14,7 @@ import {
   IconStack2,
   IconBubbleText,
   IconChartAreaLine,
+  IconUsers,
 } from "@tabler/icons-react"
 
 import { NavMain } from "@/components/layout/navigation/nav-main"
@@ -43,8 +44,6 @@ const defaultUser = {
   avatar: getDiceBearAvatar("loading"),
   id: "",
 }
-
-
 
 export const AppSidebar = React.memo(function AppSidebar({
   ...props
@@ -88,6 +87,12 @@ export const AppSidebar = React.memo(function AppSidebar({
         url: "/shared",
         icon: IconLink,
         id: "shared",
+      },
+      {
+        title: t("sidebar.sharedwithme"),
+        url: "/shared-with-me",
+        icon: IconUsers,
+        id: "shared-with-me",
       },
       {
         title: t("sidebar.trash"),
