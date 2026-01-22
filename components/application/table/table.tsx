@@ -199,7 +199,7 @@ const TableHeader = <T extends object>({ columns, children, bordered = true, cla
                 <AriaColumn className={cx("relative py-2 pe-0 ps-4", size === "sm" ? "w-9 md:ps-5" : "w-11 md:ps-6")}>
                     {selectionMode === "multiple" && (
                         <div className="flex items-start">
-                            <Checkbox slot="selection" size={size} />
+                            <Checkbox slot="selection" size={size} aria-label={selectionMode === 'multiple' ? 'Select all rows' : 'Select row'} />
                         </div>
                     )}
                 </AriaColumn>
@@ -303,7 +303,7 @@ const TableRow = forwardRef(<T extends object>(
             {selectionBehavior === "toggle" && (
                 <AriaCell className={cx("relative py-2 pe-0 ps-4", size === "sm" ? "md:ps-5" : "md:ps-6")}>
                     <div className="flex items-end">
-                        <Checkbox slot="selection" size={size} />
+                        <Checkbox slot="selection" size={size} aria-label="Select row" />
                     </div>
                 </AriaCell>
             )}

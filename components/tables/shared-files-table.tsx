@@ -574,6 +574,7 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
                         <Table.Head className="w-10 text-center pl-4 pr-0">
                             <Checkbox
                                 slot="selection"
+                                aria-label={selectedItems.size > 0 && selectedItems.size === items.length ? `Deselect all ${selectedItems.size} selected` : `Select all`}
                                 className={`transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}
                             />
                         </Table.Head>
@@ -632,6 +633,7 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
                                                     <Table.Cell className="w-10 text-center pl-4 pr-0">
                                                         <Checkbox
                                                             slot="selection"
+                                                            aria-label={`Select ${decryptedNames[item.id] || item.item.name || 'shared item'}`}
                                                             className={`transition-opacity duration-200 ${selectedItems.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}
                                                         />
                                                     </Table.Cell>
