@@ -222,7 +222,7 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
         const firstId = ids[0];
         const item = items.find(i => i.id === firstId);
         if (!item) return;
-        setSelectedItemForCopy({ id: item.item.id, name: decryptedNames[item.id] || item.item.name || 'item', type: item.item.type === 'folder' ? 'folder' : 'file' });
+        setSelectedItemForCopy({ id: item.id, name: decryptedNames[item.id] || item.item.name || 'item', type: item.item.type === 'folder' ? 'folder' : 'file' });
         setCopyModalOpen(true);
     }
 
@@ -232,7 +232,7 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
         const firstId = ids[0];
         const item = items.find(i => i.id === firstId);
         if (!item) return;
-        setSelectedItemForDetails({ id: item.item.id, name: decryptedNames[item.id] || item.item.name || 'item', type: item.item.type === 'folder' ? 'folder' : item.item.type === 'paper' ? 'paper' : 'file', shareId: item.id });
+        setSelectedItemForDetails({ id: item.id, name: decryptedNames[item.id] || item.item.name || 'item', type: item.item.type === 'folder' ? 'folder' : item.item.type === 'paper' ? 'paper' : 'file', shareId: item.id });
         setDetailsModalOpen(true);
     }
 
@@ -410,7 +410,7 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
     }
 
     const openDetails = (share: SharedItem) => {
-        setSelectedItemForDetails({ id: share.item.id, name: decryptedNames[share.id] || share.item.name || 'item', type: share.item.type === 'folder' ? 'folder' : share.item.type === 'paper' ? 'paper' : 'file', shareId: share.id })
+        setSelectedItemForDetails({ id: share.id, name: decryptedNames[share.id] || share.item.name || 'item', type: share.item.type === 'folder' ? 'folder' : share.item.type === 'paper' ? 'paper' : 'file', shareId: share.id })
         setDetailsModalOpen(true)
     }
 
@@ -615,7 +615,7 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
                                     <IconFolder className="size-12 text-blue-500" />
                                 ) : (
                                     <FileThumbnail
-                                        fileId={item.item.id}
+                                        fileId={item.id}
                                         mimeType={item.item.type === 'paper' ? 'application/x-paper' : item.item.mimeType}
                                         name={decryptedNames[item.id] || item.item.name || ''}
                                         className="size-12"
@@ -737,7 +737,7 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
                                                     ) : (
                                                         item.status === 'accepted' ? (
                                                             <FileThumbnail
-                                                                fileId={item.item.id}
+                                                                fileId={item.id}
                                                                 mimeType={item.item.type === 'paper' ? 'application/x-paper' : item.item.mimeType}
                                                                 name={decryptedNames[item.id] || item.item.name || ''}
                                                                 className={`h-4 w-4 inline-block align-middle`}

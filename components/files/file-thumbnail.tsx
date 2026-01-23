@@ -145,6 +145,7 @@ export function FileThumbnail({
 
                 if (isMounted) {
                     const url = URL.createObjectURL(decryptedBlob);
+                    console.log(`[FileThumbnail] Successfully decrypted thumbnail for ${fileId}`);
 
                     // Re-check cache to prevent race
                     const existing = thumbnailCache.get(fileId);
@@ -157,8 +158,11 @@ export function FileThumbnail({
                         setThumbnailUrl(url);
                     }
                 }
-            } catch (err) {
+            } catch (err: any) {
                 console.error(`[FileThumbnail] Error for ${fileId}:`, err);
+                if (err?.message?.includes("invalid tag") || err?.message?.includes("MAC check failed")) {
+                    console.error(`[FileThumbnail] Decryption failed for ${fileId}. This usually means incorrect keys or corrupted data.`);
+                }
                 if (retryCount < 2 && isMounted) {
                     setTimeout(() => setRetryCount(prev => prev + 1), 1000 * (retryCount + 1));
                 } else if (isMounted) {
