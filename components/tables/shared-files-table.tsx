@@ -804,10 +804,10 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
                                             <div className="flex justify-end gap-1 h-full items-center">
                                                 {isPending ? (
                                                     <div className="flex items-center gap-2">
-                                                        <Button size="sm" className="h-7 text-xs bg-green-600 hover:bg-green-700" onClick={() => handleAccept(item.id)}>
+                                                        <Button size="sm" className="h-7 text-xs bg-green-600 hover:bg-green-700" onClick={(e) => { e.stopPropagation(); handleAccept(item.id); }} onMouseDown={(e) => e.stopPropagation()}>
                                                             <IconCheck className="h-3 w-3 mr-1" /> Accept
                                                         </Button>
-                                                        <Button size="sm" variant="outline" className="h-7 text-xs text-destructive hover:bg-destructive/10 border-destructive/20" onClick={() => confirmDecline(item.id)}>
+                                                        <Button size="sm" variant="outline" className="h-7 text-xs text-destructive hover:bg-destructive/10 border-destructive/20" onClick={(e) => { e.stopPropagation(); confirmDecline(item.id); }} onMouseDown={(e) => e.stopPropagation()}>
                                                             <IconX className="h-3 w-3" />
                                                         </Button>
                                                     </div>
