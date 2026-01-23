@@ -4,6 +4,14 @@ import React, { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Combobox,
+  ComboboxTrigger,
+  ComboboxContent,
+  ComboboxList,
+  ComboboxItem,
+  ComboboxValue,
+} from "@/components/ui/combobox"
 import { Switch } from "@/components/ui/switch"
 import { apiClient } from "@/lib/api"
 import { toast } from "sonner"
@@ -59,6 +67,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
+import { DateRange } from 'react-day-picker'
+import { format } from 'date-fns'
+import { IconCalendar as CalendarIcon } from '@tabler/icons-react'
 // @ts-expect-error JSONHighlighter has no type defs
 import JSONHighlighter from 'react-json-syntax-highlighter'
 
@@ -92,12 +105,16 @@ const LogView = ({ title, content, isJson = false }: { title: string, content: a
           <div className="p-4 font-mono text-[11px] text-muted-foreground/90 selection:bg-primary/30 leading-relaxed">
             {title.toLowerCase().includes('headers') && content && typeof content === 'object' ? (
               <div className="space-y-1">
-                {Object.keys(content).map((k) => (
-                  <div key={k} className="flex items-start gap-3">
-                    <div className="font-mono text-[11px] text-muted-foreground/80 w-36 break-all">{k}</div>
-                    <div className="flex-1 text-[11px] break-words">{String(content[k])}</div>
-                  </div>
-                ))}
+                {(() => {
+                  const headerKeys = content && typeof content === 'object' ? Object.keys(content) : [];
+                  if (headerKeys.length === 0) return <div className="italic text-[11px]">No headers captured</div>;
+                  return headerKeys.map((k) => (
+                    <div key={k} className="flex items-start gap-3">
+                      <div className="font-mono text-[11px] text-muted-foreground/80 w-36 break-all">{k}</div>
+                      <div className="flex-1 text-[11px] break-words">{String((content as any)[k])}</div>
+                    </div>
+                  ));
+                })()}
               </div>
             ) : isJson ? (
               <div className="json-theme-custom">
@@ -170,7 +187,7 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
   const [exportLoading, setExportLoading] = useState(false)
 
   // Filters & batch actions
-  const [filters, setFilters] = useState<Record<string, { eventType?: string; start?: string; end?: string }>>({})
+  const [filters, setFilters] = useState<Record<string, { eventType?: string; dateRange?: DateRange }>>({})
   const [deleteAllId, setDeleteAllId] = useState<string | null>(null)
 
   // Form State
@@ -210,6 +227,14 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
   const resetForm = () => {
     setFormData({ url: '', events: [], secret: '' })
     setEditingWebhook(null)
+  }
+
+  const safeParse = (s: string | null | undefined) => {
+    try {
+      return s ? JSON.parse(s) : null
+    } catch (e) {
+      return null
+    }
   }
 
   const handleEventToggle = (eventId: string) => {
@@ -368,10 +393,20 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
     }
   }
 
-  async function loadWebhookEvents(id: string, page: number = 1, appliedFilters?: { eventType?: string; start?: string; end?: string }) {
+  async function loadWebhookEvents(id: string, page: number = 1, appliedFilters?: { eventType?: string; dateRange?: DateRange }) {
     setEvents(prev => ({ ...(prev || {}), [id]: { ...(prev[id] || { data: [], total: 0, page: 1, pageSize: 10 }), isLoading: true } }))
     const fil = appliedFilters || filters[id]
-    const res = await apiClient.listWebhookEvents(id, page, 10, fil)
+
+    const start = fil?.dateRange?.from ? format(fil.dateRange.from, 'yyyy-MM-dd') : undefined
+    const end = fil?.dateRange?.to ? format(fil.dateRange.to, 'yyyy-MM-dd') : undefined
+
+    const payload = {
+      eventType: fil?.eventType,
+      start,
+      end
+    }
+
+    const res = await apiClient.listWebhookEvents(id, page, 10, payload)
     if (res.success) {
       setEvents(prev => ({
         ...(prev || {}),
@@ -1055,30 +1090,49 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
                                 <div className="flex items-center gap-2">
                                   {/* Date range filters */}
                                   <div className="flex items-center gap-2">
-                                    <input
-                                      type="date"
-                                      value={filters[w.id]?.start || ''}
-                                      onChange={(e) => setFilters(prev => ({ ...(prev || {}), [w.id]: { ...(prev[w.id] || {}), start: e.target.value } }))}
-                                      className="h-8 rounded-md bg-background border border-muted-foreground/10 text-xs px-2"
-                                    />
-                                    <span className="text-muted-foreground text-xs">to</span>
-                                    <input
-                                      type="date"
-                                      value={filters[w.id]?.end || ''}
-                                      onChange={(e) => setFilters(prev => ({ ...(prev || {}), [w.id]: { ...(prev[w.id] || {}), end: e.target.value } }))}
-                                      className="h-8 rounded-md bg-background border border-muted-foreground/10 text-xs px-2"
-                                    />
-                                  </div>
+                                  <Popover>
+                                    <PopoverTrigger asChild>
+                                      <Button variant="outline" size="sm" className="h-8 px-3 rounded-lg text-[10px] font-bold">
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {(() => {
+                                          const dr = filters[w.id]?.dateRange;
+                                          if (!dr?.from) return <span>Pick a date</span>;
+                                          return dr?.to ? (
+                                            <>
+                                              {format(dr.from as Date, "LLL dd, y")} - {format(dr.to as Date, "LLL dd, y")}
+                                            </>
+                                          ) : (
+                                            format(dr.from as Date, "LLL dd, y")
+                                          )
+                                        })()}
+                                      </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="end">
+                                      <Calendar
+                                        initialFocus
+                                        mode="range"
+                                        defaultMonth={filters[w.id]?.dateRange?.from}
+                                        selected={filters[w.id]?.dateRange}
+                                        onSelect={(dr) => setFilters(prev => ({ ...(prev || {}), [w.id]: { ...(prev[w.id] || {}), dateRange: dr } }))}
+                                        numberOfMonths={1}
+                                      />
+                                    </PopoverContent>
+                                  </Popover>
 
-                                  {/* Event type selector */}
-                                  <select
-                                    value={filters[w.id]?.eventType || ''}
-                                    onChange={(e) => setFilters(prev => ({ ...(prev || {}), [w.id]: { ...(prev[w.id] || {}), eventType: e.target.value } }))}
-                                    className="h-8 rounded-md bg-background border border-muted-foreground/10 text-xs px-2"
-                                  >
-                                    <option value="">All Events</option>
-                                    {EVENT_TYPES.map(et => <option key={et.id} value={et.id}>{et.label}</option>)}
-                                  </select>
+                                  <Combobox value={filters[w.id]?.eventType || ''} onValueChange={(val) => setFilters(prev => ({ ...(prev || {}), [w.id]: { ...(prev[w.id] || {}), eventType: val } }))}>
+                                    <ComboboxTrigger className="h-8 w-36 text-xs">
+                                      <span className="truncate text-sm">
+                                        {filters[w.id]?.eventType ? (EVENT_TYPES.find(et => et.id === filters[w.id].eventType)?.label || 'Selected') : 'All Events'}
+                                      </span>
+                                    </ComboboxTrigger>
+                                    <ComboboxContent>
+                                      <ComboboxList>
+                                        <ComboboxItem value="">All Events</ComboboxItem>
+                                        {EVENT_TYPES.map(et => <ComboboxItem key={et.id} value={et.id}>{et.label}</ComboboxItem>)}
+                                      </ComboboxList>
+                                    </ComboboxContent>
+                                  </Combobox> 
+                                </div> 
 
                                   <Tooltip>
                                     <TooltipTrigger asChild>
@@ -1277,12 +1331,12 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
                                                               <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-8">
                                                                 <LogView
                                                                   title="Request Headers"
-                                                                  content={ev.request_headers ? JSON.parse(ev.request_headers) : null}
+                                                                  content={safeParse(ev.request_headers)}
                                                                   isJson={true}
                                                                 />
                                                                 <LogView
                                                                   title="Payload Content"
-                                                                  content={JSON.parse(ev.request_body || '{}')}
+                                                                  content={safeParse(ev.request_body) || {}}
                                                                   isJson={true}
                                                                 />
                                                               </div>
@@ -1292,12 +1346,12 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
                                                               <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-8">
                                                                 <LogView
                                                                   title="Response Headers"
-                                                                  content={ev.response_headers ? JSON.parse(ev.response_headers) : null}
+                                                                  content={safeParse(ev.response_headers)}
                                                                   isJson={true}
                                                                 />
                                                                 <LogView
                                                                   title="Response Body"
-                                                                  content={ev.response_body}
+                                                                  content={safeParse(ev.response_body) || ev.response_body}
                                                                 />
                                                               </div>
                                                             )}
