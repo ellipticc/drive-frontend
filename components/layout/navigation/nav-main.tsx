@@ -202,6 +202,11 @@ export function NavMain({
                 >
                   {item.icon && <item.icon />}
                   <span>{item.title}</span>
+                  {item.badge && item.badge > 0 && (
+                    <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-medium text-primary-foreground">
+                      {item.badge}
+                    </span>
+                  )}
                 </SidebarMenuButton>
               )}
             </SidebarMenuItem>
