@@ -1,13 +1,41 @@
 import apiClient from './api';
 import { masterKeyManager } from './master-key';
 import { uuidv7 } from 'uuidv7-js'; // Client-side UUIDv7 for optimistic block IDs (allowed for client-only use)
+import { ml_kem768 } from '@noble/post-quantum/ml-kem.js';
+import { ml_dsa65 } from '@noble/post-quantum/ml-dsa.js';
+import { sign as ed25519Sign } from '@noble/ed25519';
+import { sha512 } from '@noble/hashes/sha2.js';
+import { xchacha20poly1305 } from '@noble/ciphers/chacha.js';
+import { keyManager } from './key-manager';
 
 import {
     encryptPaperContent,
     decryptPaperContent,
     encryptFilename,
-    decryptFilename
+    decryptFilename,
+    hexToUint8Array,
+    uint8ArrayToHex
 } from './crypto';
+
+// Local helpers for crypto operations
+function uint8ArrayToBase64(bytes: Uint8Array): string {
+    let binary = '';
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
+}
+
+function encryptData(data: Uint8Array, key: Uint8Array): { encryptedData: string; nonce: string } {
+    const nonce = new Uint8Array(24);
+    crypto.getRandomValues(nonce);
+    const encrypted = xchacha20poly1305(key, nonce).encrypt(data);
+    return {
+        encryptedData: uint8ArrayToBase64(encrypted),
+        nonce: uint8ArrayToBase64(nonce)
+    };
+}
 
 interface ManifestEntry {
     id: string; // Block ID
@@ -48,44 +76,102 @@ class PaperService {
     ): Promise<string> {
         try {
             const masterKey = masterKeyManager.getMasterKey();
+            const userKeys = await keyManager.getUserKeys();
 
-            // 1. Encrypt Title
+            // 1. Encrypt Title (Zero-Knowledge)
             const { encryptedFilename, filenameSalt } = await encryptFilename(title, masterKey);
 
-            // 2. Prepare Initial Block (Chunk 1)
+            // 2. Generate Random Content Encryption Key (CEK)
+            const cek = new Uint8Array(32);
+            crypto.getRandomValues(cek);
+
+            // 3. Wrap CEK with Kyber (PQC)
+            const kyberPublicKeyBytes = hexToUint8Array(userKeys.keypairs.kyberPublicKey);
+            const kyberEncapsulation = ml_kem768.encapsulate(kyberPublicKeyBytes);
+            const kyberSharedSecret = new Uint8Array(kyberEncapsulation.sharedSecret);
+            const kyberCiphertext = new Uint8Array(kyberEncapsulation.cipherText);
+
+            // XChaCha20-Poly1305 Encrypt the CEK
+            const cekEncryption = encryptData(cek, kyberSharedSecret); // Returns { encryptedData (base64 or string?), nonce (base64) } -> encryptData from crypto.ts returns { encryptedData: string, nonce: string } (Base64)
+
+            // 4. Prepare Initial Block (Chunk 1)
             const defaultContent = [{ id: uuidv7(), type: 'h1', children: [{ text: '' }] }];
             const initialBlock = (content as any[])?.[0] || defaultContent[0];
 
             // Ensure ID exists
             if (!initialBlock.id) initialBlock.id = uuidv7();
             const blockStr = JSON.stringify(initialBlock);
-            const { encryptedContent, iv, salt } = await encryptPaperContent(blockStr, masterKey);
+
+            // Encrypt Content with CEK (NOT Master Key directly)
+            // We use xchacha20poly1305 directly here to match standard file encryption pattern
+            const contentBytes = new TextEncoder().encode(blockStr);
+            const blockNonce = new Uint8Array(24);
+            crypto.getRandomValues(blockNonce);
+            const encryptedBlockBytes = xchacha20poly1305(cek, blockNonce).encrypt(contentBytes);
+
+            const encryptedContent = uint8ArrayToBase64(encryptedBlockBytes);
+            const iv = uint8ArrayToBase64(blockNonce);
+
+            const contentSalt = new Uint8Array(32);
+            crypto.getRandomValues(contentSalt);
+            const salt = uint8ArrayToBase64(contentSalt);
+
             const blockHash = await this.hashBlock(initialBlock);
             const chunkId = uuidv7();
 
-            // 3. Prepare Manifest (Chunk 0)
-            const manifest: PaperManifest = {
-                version: 1,
-                blocks: [{
-                    id: initialBlock.id,
-                    chunkId: chunkId,
-                    hash: blockHash,
-                    iv,
-                    salt
-                }]
+            // 5. Prepare Canonical Manifest for Signing
+            // This manifest represents the "File" entity metadata, matching standard file uploads
+            const manifestCreatedAt = Math.floor(Date.now() / 1000);
+
+            // Canonical Manifest Structure (must match backend expectation/standard file expectation)
+            // { filename, size, mimeType, shaHash, created, version, algorithmVersion }
+            // Since papers are weird (content is in chunks), size is 0 for now.
+            const canonicalManifest = {
+                filename: encryptedFilename,
+                size: 0, // Initial size placeholder
+                mimeType: 'application/x-paper',
+                shaHash: null,
+                created: manifestCreatedAt,
+                version: '2.0-file', // Standard file version
+                algorithmVersion: 'v3-hybrid-pqc-xchacha20'
             };
 
-            // Send to API (Basic file creation, followed by savePaper for blocks)
+            const manifestJson = JSON.stringify(canonicalManifest);
+            const manifestBytes = new TextEncoder().encode(manifestJson);
+            const manifestHashBuffer = sha512(manifestBytes);
+            const manifestHashHex = uint8ArrayToHex(new Uint8Array(manifestHashBuffer));
 
-            // Step A: Create the "File" entry (Legacy API)
-            // We pass empty content to create just the file record + Chunk 0 (which we will overwrite immediately)
+            // 6. Sign Manifest (Ed25519 + Dilithium)
+            const ed25519Signature = await ed25519Sign(manifestHashBuffer, userKeys.keypairs.ed25519PrivateKey);
+            const manifestSignatureEd25519 = uint8ArrayToBase64(ed25519Signature);
+
+            const dilithiumSignature = ml_dsa65.sign(userKeys.keypairs.dilithiumPrivateKey, manifestHashBuffer);
+            const manifestSignatureDilithium = uint8ArrayToBase64(dilithiumSignature);
+
+            // 7. Create Paper API Call
+            // We pass ALL the new metadata fields
             const response = await apiClient.createPaper({
                 folderId,
                 encryptedTitle: encryptedFilename,
                 titleSalt: filenameSalt,
-                encryptedContent: '', // Placeholder
-                iv: '',
-                salt: ''
+                encryptedContent, // Chunk 0 content (Initial Block)
+                iv,
+                salt,
+
+                // PQC Fields
+                wrappedCek: cekEncryption.encryptedData,
+                cekNonce: cekEncryption.nonce, // This uses the nonce from CEK encryption
+                nonceWrapKyber: cekEncryption.nonce, // Redundant but standard
+                kyberPublicKey: userKeys.keypairs.kyberPublicKey,
+                kyberCiphertext: uint8ArrayToHex(kyberCiphertext),
+
+                // Manifest Fields
+                manifestSignatureEd25519,
+                manifestPublicKeyEd25519: userKeys.keypairs.ed25519PublicKey,
+                manifestSignatureDilithium,
+                manifestPublicKeyDilithium: userKeys.keypairs.dilithiumPublicKey,
+                manifestHash: manifestHashHex,
+                manifestCreatedAt
             });
 
             if (!response.success || !response.data) {
@@ -94,7 +180,17 @@ class PaperService {
 
             const paperId = response.data.id;
 
-            // Step B: Immediately Save with correct Block Structure
+            this.manifestCache.set(paperId, {
+                version: 1,
+                blocks: [{
+                    id: initialBlock.id,
+                    chunkId: chunkId,
+                    hash: blockHash,
+                    iv,
+                    salt
+                }] as any
+            });
+
             await this.savePaper(paperId, [initialBlock], title);
 
             return paperId;
@@ -367,8 +463,29 @@ class PaperService {
 
         const paper = response.data;
         const masterKey = masterKeyManager.getMasterKey();
+        let cek: Uint8Array | null = null;
 
-        // 1. Decrypt Title
+        // 1. Unwrap CEK (Content Encryption Key) if PQC metadata exists
+        if (paper.wrappedCek && paper.kyberCiphertext) {
+            try {
+                const userKeys = await keyManager.getUserKeys();
+                const kyberPrivateKey = userKeys.keypairs.kyberPrivateKey;
+                const kyberCiphertextBytes = hexToUint8Array(paper.kyberCiphertext);
+
+                // Decapsulate to get shared secret
+                const kyberSharedSecret = ml_kem768.decapsulate(kyberCiphertextBytes, kyberPrivateKey);
+
+                // Decrypt wrapped CEK
+                const wrappedCekBytes = Uint8Array.from(atob(paper.wrappedCek), c => c.charCodeAt(0));
+                const nonceBytes = Uint8Array.from(atob(paper.nonceWrapKyber || paper.cekNonce || ''), c => c.charCodeAt(0)); // Handle both field names
+
+                cek = xchacha20poly1305(kyberSharedSecret, nonceBytes).decrypt(wrappedCekBytes);
+            } catch (err) {
+                console.error('[PaperService] Failed to unwrap CEK:', err);
+            }
+        }
+
+        // 2. Decrypt Title
         let title = 'Untitled Paper';
         try {
             if (paper.encryptedTitle && paper.titleSalt) {
@@ -414,14 +531,25 @@ class PaperService {
             const manifestChunk = chunkList.find((c: any) => c.chunkIndex === 0);
             if (manifestChunk && chunks[manifestChunk.id]) {
                 const manifestData = chunks[manifestChunk.id];
-                
-                if (manifestData.encryptedContent && manifestData.iv && manifestData.salt) {
-                    const decryptedStr = await decryptPaperContent(
-                        manifestData.encryptedContent,
-                        manifestData.iv,
-                        manifestData.salt,
-                        masterKey
-                    );
+
+                if (manifestData.encryptedContent && manifestData.iv) { // Salt is strictly required only for legacy
+                    let decryptedStr = '';
+
+                    if (cek) {
+                        // Use CEK for decryption
+                        const encryptedBytes = Uint8Array.from(atob(manifestData.encryptedContent), c => c.charCodeAt(0));
+                        const nonceBytes = Uint8Array.from(atob(manifestData.iv), c => c.charCodeAt(0));
+                        const decryptedBytes = xchacha20poly1305(cek, nonceBytes).decrypt(encryptedBytes);
+                        decryptedStr = new TextDecoder().decode(decryptedBytes);
+                    } else if (manifestData.salt) {
+                        // Legacy Fallback
+                        decryptedStr = await decryptPaperContent(
+                            manifestData.encryptedContent,
+                            manifestData.iv,
+                            manifestData.salt,
+                            masterKey
+                        );
+                    }
                     if (decryptedStr) {
                         try {
                             const parsed = JSON.parse(decryptedStr);
@@ -463,10 +591,10 @@ class PaperService {
                     // Validate entry has required properties
                     if (!entry || !entry.chunkId) {
                         console.error("[PaperService] Invalid block entry:", entry);
-                        return { 
-                            id: entry?.id || uuidv7(), 
-                            type: 'p', 
-                            children: [{ text: '[Invalid block entry]' }] 
+                        return {
+                            id: entry?.id || uuidv7(),
+                            type: 'p',
+                            children: [{ text: '[Invalid block entry]' }]
                         };
                     }
 
@@ -500,31 +628,39 @@ class PaperService {
                             // Validate chunkData has required encryption properties
                             if (!chunkData.encryptedContent || !chunkData.iv || !chunkData.salt) {
                                 console.error(`[PaperService] Chunk ${entry.chunkId} missing encryption properties`, chunkData);
-                                return { 
-                                    id: entry.id || uuidv7(), 
-                                    type: 'p', 
-                                    children: [{ text: '[Incomplete chunk data]' }] 
+                                return {
+                                    id: entry.id || uuidv7(),
+                                    type: 'p',
+                                    children: [{ text: '[Incomplete chunk data]' }]
                                 };
                             }
 
-                            const blockStr = await decryptPaperContent(chunkData.encryptedContent, chunkData.iv, chunkData.salt, masterKey);
+                            let blockStr = '';
+                            if (cek) {
+                                const encryptedBytes = Uint8Array.from(atob(chunkData.encryptedContent), c => c.charCodeAt(0));
+                                const nonceBytes = Uint8Array.from(atob(chunkData.iv), c => c.charCodeAt(0));
+                                const decryptedBytes = xchacha20poly1305(cek, nonceBytes).decrypt(encryptedBytes);
+                                blockStr = new TextDecoder().decode(decryptedBytes);
+                            } else {
+                                blockStr = await decryptPaperContent(chunkData.encryptedContent, chunkData.iv, chunkData.salt, masterKey);
+                            }
                             if (blockStr) {
                                 const parsedBlock = JSON.parse(blockStr);
-                                
+
                                 // Ensure the parsed block has a valid structure
                                 if (!parsedBlock || typeof parsedBlock !== 'object') {
-                                    return { 
-                                        id: entry.id || uuidv7(), 
-                                        type: 'p', 
-                                        children: [{ text: '' }] 
+                                    return {
+                                        id: entry.id || uuidv7(),
+                                        type: 'p',
+                                        children: [{ text: '' }]
                                     };
                                 }
-                                
+
                                 // Ensure children array exists
                                 if (!Array.isArray(parsedBlock.children)) {
                                     parsedBlock.children = [{ text: '' }];
                                 }
-                                
+
                                 return parsedBlock;
                             }
                         } catch (err) {
@@ -543,7 +679,7 @@ class PaperService {
                 });
 
                 const resolvedBlocks = await Promise.all(blockPromises);
-                
+
                 // Filter out any null/undefined blocks and ensure all have proper structure
                 blocks.push(...resolvedBlocks.filter(block => {
                     if (!block || typeof block !== 'object') {
@@ -557,7 +693,7 @@ class PaperService {
                     }
                     return true;
                 }));
-                
+
                 content = blocks;
             }
 
@@ -606,9 +742,9 @@ class PaperService {
             return {
                 id: paper.id,
                 title,
-                content: { 
+                content: {
                     content: [{ id: uuidv7(), type: 'p', children: [{ text: '[Error loading paper content]' }] }],
-                    icon: null 
+                    icon: null
                 },
                 folderId: paper.folderId,
                 createdAt: paper.createdAt,
@@ -619,9 +755,9 @@ class PaperService {
         return {
             id: paper.id,
             title,
-            content: { 
+            content: {
                 content: [{ id: uuidv7(), type: 'p', children: [{ text: '' }] }],
-                icon: null 
+                icon: null
             },
             folderId: paper.folderId,
             createdAt: paper.createdAt,

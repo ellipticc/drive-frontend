@@ -1822,6 +1822,19 @@ class ApiClient {
     encryptedContent?: string;
     iv: string;
     salt: string;
+    // PQC Fields
+    wrappedCek?: string;
+    cekNonce?: string;
+    nonceWrapKyber?: string;
+    kyberPublicKey?: string;
+    kyberCiphertext?: string;
+    // Manifest Fields
+    manifestSignatureEd25519?: string;
+    manifestPublicKeyEd25519?: string;
+    manifestSignatureDilithium?: string;
+    manifestPublicKeyDilithium?: string;
+    manifestHash?: string;
+    manifestCreatedAt?: number;
   }): Promise<ApiResponse<{ id: string; message: string }>> {
     return this.request('/papers', {
       method: 'POST',
@@ -1839,6 +1852,11 @@ class ApiClient {
     createdAt: string;
     updatedAt: string;
     folderId: string | null;
+    wrappedCek?: string;
+    cekNonce?: string;
+    kyberCiphertext?: string;
+    kyberPublicKey?: string;
+    nonceWrapKyber?: string;
     chunks?: Record<string, { encryptedContent: string; iv: string; salt: string }>;
   }>> {
     return this.request(`/papers/${id}`);
