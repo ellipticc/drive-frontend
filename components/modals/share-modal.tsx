@@ -46,6 +46,7 @@ import { getUAInfo } from "./settings/device-icons"
 import { format, startOfToday } from "date-fns"
 import { truncateFilename } from "@/lib/utils"
 import Link from "next/link"
+import { SharedUsersList } from "./shared-users-list"
 
 const getFlagEmoji = (countryCode: string | null) => {
   if (!countryCode || countryCode.length !== 2) return "🌐";
@@ -433,6 +434,18 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
   // Store pre-fetched recipient public keys
   const [recipientKeys, setRecipientKeys] = useState<Record<string, Uint8Array>>({})
 
+  // Track shared users (from shared_items table)
+  const [sharedUsers, setSharedUsers] = useState<Array<{
+    id: string
+    userId: string
+    email: string
+    name?: string
+    avatar?: string
+    permissions: 'read' | 'write' | 'admin'
+    status: 'pending' | 'accepted' | 'declined' | 'removed'
+    sharedAt?: string
+  }>>([])
+
   // Subscription status for paywall
   const [isPro, setIsPro] = useState(false)
   const [isLoadingSubscription, setIsLoadingSubscription] = useState(false)
@@ -587,6 +600,30 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
       setExistingShareId(null)
     } finally {
       setIsModalLoading(false)
+    }
+  }
+
+  const fetchSharedUsers = async () => {
+    if (!itemId || !itemType) return
+
+    try {
+      const response = await apiClient.getSharedUsers(itemId, itemType as 'file' | 'folder')
+      if (response.success && response.data) {
+        // Cast to ensure correct types for status and permissions
+        setSharedUsers(response.data as Array<{
+          id: string
+          userId: string
+          email: string
+          name?: string
+          avatar?: string
+          permissions: 'read' | 'write' | 'admin'
+          status: 'pending' | 'accepted' | 'declined' | 'removed'
+          sharedAt?: string
+        }>)
+      }
+    } catch (error) {
+      console.error('Failed to fetch shared users:', error)
+      setSharedUsers([])
     }
   }
 
@@ -1297,6 +1334,47 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
                   </Button>
                 </div>
               </div>
+
+              {/* Shared Users List (User-to-User Sharing) */}
+              {sharedUsers.length > 0 && (
+                <>
+                  <Separator />
+                  <div className="grid gap-3">
+                    <Label className="text-sm font-medium">Shared With</Label>
+                    <SharedUsersList 
+                      users={sharedUsers}
+                      maxVisible={5}
+                      onPermissionChange={async (userId, permission) => {
+                        try {
+                          const response = await apiClient.updateSharedUserPermissions(userId, permission as 'read' | 'write' | 'admin')
+                          if (response.success) {
+                            await fetchSharedUsers()
+                          } else {
+                            console.error('Failed to update permissions')
+                          }
+                        } catch (error) {
+                          console.error('Error updating permissions:', error)
+                        }
+                      }}
+                      onRemoveAccess={async (userId) => {
+                        try {
+                          const response = await apiClient.removeSharedItem(userId)
+                          if (response.success) {
+                            await fetchSharedUsers()
+                          } else {
+                            console.error('Failed to remove access')
+                          }
+                        } catch (error) {
+                          console.error('Error removing access:', error)
+                        }
+                      }}
+                      onRefresh={() => {
+                        fetchSharedUsers()
+                      }}
+                    />
+                  </div>
+                </>
+              )}
 
               <Separator />
 

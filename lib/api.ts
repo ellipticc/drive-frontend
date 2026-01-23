@@ -2235,6 +2235,26 @@ class ApiClient {
     return this.request<{ count: number }>('/shared/count');
   }
 
+  async getSharedUsers(itemId: string, itemType: 'file' | 'folder'): Promise<ApiResponse<{
+    id: string;
+    userId: string;
+    name: string;
+    email: string;
+    avatar: string;
+    status: 'pending' | 'accepted' | 'declined' | 'removed';
+    permissions: 'read' | 'write' | 'admin';
+    sharedAt: string;
+  }[]>> {
+    return this.request(`/shared/users?itemId=${itemId}&itemType=${itemType}`);
+  }
+
+  async updateSharedUserPermissions(sharedItemId: string, permissions: 'read' | 'write' | 'admin'): Promise<ApiResponse<void>> {
+    return this.request<void>(`/shared/${sharedItemId}/permissions`, {
+      method: 'PATCH',
+      body: JSON.stringify({ permissions })
+    });
+  }
+
   async getSpaceItems(spaceId: string): Promise<ApiResponse<SpaceItem[]>> {
     return this.request(`/spaces/${spaceId}/items`);
   }
