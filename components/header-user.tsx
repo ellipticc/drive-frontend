@@ -175,7 +175,7 @@ export function HeaderUser() {
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56" align="end" forceMount>
-                    <DropdownMenuLabel className="font-normal">
+                    <DropdownMenuLabel className="font-normal pointer-events-auto">
                         <div className="flex flex-col space-y-1">
                             <div className="flex items-center gap-1.5 direction-row">
                                 <p className="text-sm font-medium leading-none">{displayName}</p>
@@ -188,13 +188,14 @@ export function HeaderUser() {
                                 onClick={handleEmailClick}
                                 role="button"
                                 tabIndex={0}
-                                className={`text-xs leading-none ${emailSelected ? 'bg-muted/30 rounded px-1' : 'text-muted-foreground'} cursor-pointer hover:underline transition-colors`}
+                                className={`text-xs leading-none ${emailSelected ? 'bg-primary/20 rounded px-1 -mx-1' : 'text-muted-foreground'} cursor-pointer hover:underline hover:text-foreground transition-colors select-none`}
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter' || e.key === ' ') {
                                         e.preventDefault()
                                         handleEmailClick(e as any)
                                     }
                                 }}
+                                onMouseDown={(e) => e.stopPropagation()}
                                 aria-label="Copy email to clipboard"
                             >
                                 {safeUser.email}
