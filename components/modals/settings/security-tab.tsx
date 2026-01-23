@@ -1758,7 +1758,7 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
 
             {/* Upgrade Alert Dialog */}
             <AlertDialog open={!!upgradeDialogData?.open} onOpenChange={(open: boolean) => !open && setUpgradeDialogData(null)}>
-                <AlertDialogContent className="rounded-2xl">
+                <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>{upgradeDialogData?.title}</AlertDialogTitle>
                         <AlertDialogDescription className="pt-2 text-sm">
@@ -1766,8 +1766,8 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter className="pt-2">
-                        <AlertDialogCancel className="rounded-full">Maybe later</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => { setUpgradeDialogData(null); window.location.href = '/pricing'; }} className="bg-primary rounded-full">Upgrade</AlertDialogAction>
+                        <AlertDialogCancel>Maybe later</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => { setUpgradeDialogData(null); window.location.href = '/pricing'; }} className="bg-primary">Upgrade</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>

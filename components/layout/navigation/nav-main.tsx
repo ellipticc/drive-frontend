@@ -206,7 +206,7 @@ export function NavMain({
                   {item.badge && item.badge > 0 && (
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <span className="ml-auto flex h-5 w-6 items-center justify-center rounded-[4px] bg-primary px-1 text-[11px] font-semibold text-primary-foreground">
+                        <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-[4px] bg-primary px-0.5 text-[11px] font-semibold text-primary-foreground">
                           {item.badge}
                         </span>
                       </TooltipTrigger>

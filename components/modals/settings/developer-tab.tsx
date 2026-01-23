@@ -653,8 +653,8 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="pt-2">
-            <AlertDialogCancel className="rounded-full">Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90 rounded-full px-6 shadow-lg shadow-destructive/20">
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90 shadow-lg shadow-destructive/20">
               Delete Forever
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -676,8 +676,8 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="pt-2">
-            <AlertDialogCancel className="rounded-full">Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmRotate} className="bg-amber-600 hover:bg-amber-700 text-white rounded-full px-6 shadow-lg shadow-amber-600/20">
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmRotate} className="bg-amber-600 hover:bg-amber-700 text-white shadow-lg shadow-amber-600/20">
               Generate New Secret
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -686,10 +686,10 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
 
       {/* Upgrade Alert */}
       <AlertDialog open={upgradeModalOpen} onOpenChange={setUpgradeModalOpen}>
-        <AlertDialogContent className="rounded-2xl">
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
-              <div className="p-2 rounded-full bg-primary/10">
+              <div className="p-2 rounded-lg bg-primary/10">
                 <IconWebhook className="h-5 w-5 text-primary" />
               </div>
               Upgrade to Pro
@@ -699,9 +699,9 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="pt-2">
-            <AlertDialogCancel className="rounded-full">Maybe Later</AlertDialogCancel>
+            <AlertDialogCancel>Maybe Later</AlertDialogCancel>
             <AlertDialogAction
-              className="rounded-full px-6 shadow-lg shadow-primary/20"
+              className="shadow-lg shadow-primary/20"
               onClick={() => window.location.href = '/pricing'}
             >
               View Plans

@@ -760,7 +760,7 @@ export default function InsightsPage() {
 
       {/* Upgrade Alert Dialog */}
       <AlertDialog open={!!upgradeDialogData?.open} onOpenChange={(open: boolean) => !open && setUpgradeDialogData(null)}>
-        <AlertDialogContent className="rounded-2xl">
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{upgradeDialogData?.title}</AlertDialogTitle>
             <AlertDialogDescription className="pt-2 text-sm">
@@ -768,8 +768,8 @@ export default function InsightsPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="pt-2">
-            <AlertDialogCancel className="rounded-full">Maybe later</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { setUpgradeDialogData(null); window.location.href = '/pricing'; }} className="bg-primary rounded-full">Upgrade</AlertDialogAction>
+            <AlertDialogCancel>Maybe later</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setUpgradeDialogData(null); window.location.href = '/pricing'; }} className="bg-primary">Upgrade</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

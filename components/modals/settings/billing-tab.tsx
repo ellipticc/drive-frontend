@@ -11,6 +11,7 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { CancelSubscriptionDialog } from "@/components/billingsdk/cancel-subscription-dialog"
 import {
     IconLoader2,
     IconInfoCircle,
@@ -118,7 +119,7 @@ export function BillingTab({
             used: usageData.webhookEvents.used,
             limit: usageData.webhookEvents.limit,
         });
-        
+
         resources.push({
             name: 'Devices',
             used: usageData.devices.used,
@@ -290,8 +291,8 @@ export function BillingTab({
                                 </div>
                             ) : (
                                 <DetailedUsageTable
-                                    title=""
-                                    description="Storage, spaces, webhook events, bandwidth, and devices"
+                                    title="Usage Details"
+                                    description="Storage, spaces, webhook events and devices"
                                     resources={resources}
                                 />
                             )}
@@ -300,48 +301,62 @@ export function BillingTab({
                         {/* Action Buttons */}
                         <div className="flex gap-3">
                             {subscription && !subscription.cancelAtPeriodEnd ? (
-                                <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
-                                    <AlertDialogTrigger asChild>
-                                        <Button
-                                            variant="destructive"
-                                            disabled={isCancellingSubscription}
+                                (() => {
+                                    // Get actual price from subscription history or pricing plans
+                                    const activeSubscription = subscriptionHistory?.history?.find(h => h.status === 'active');
+                                    let monthlyPrice = '0';
+                                    let yearlyPrice = '0';
+                                    
+                                    if (activeSubscription?.amount) {
+                                        monthlyPrice = activeSubscription.amount.toFixed(2);
+                                    } else if (pricingPlans && subscription?.plan) {
+                                        const matchingPlan = pricingPlans.find(p => 
+                                            p.id === (subscription.plan as any).id || p.name === subscription.plan?.name
+                                        );
+                                        if (matchingPlan?.price) {
+                                            const price = Number.isInteger(matchingPlan.price) && matchingPlan.price > 1000 
+                                                ? matchingPlan.price / 100 
+                                                : matchingPlan.price;
+                                            monthlyPrice = price.toFixed(2);
+                                            yearlyPrice = price.toFixed(2);
+                                        }
+                                    }
+
+                                    return (
+                                        <CancelSubscriptionDialog
+                                            title="We're sorry to see you go..."
+                                            description={`Before you cancel, we hope you'll consider keeping your ${subscription.plan?.name || 'subscription'} active.`}
+                                            plan={{
+                                                id: subscription.id || 'subscription',
+                                                title: subscription.plan?.name || 'Your Plan',
+                                                description: 'Current subscription',
+                                                monthlyPrice,
+                                                yearlyPrice,
+                                                buttonText: 'Cancel',
+                                                features: [],
+                                            }}
+                                            triggerButtonText="Cancel Subscription"
+                                            leftPanelImageUrl="https://framerusercontent.com/images/GWE8vop9hubsuh3uWWn0vyuxEg.webp"
+                                            warningTitle="You will lose access to premium features"
+                                            warningText="If you cancel your subscription, you will lose access to premium features and increased storage limits."
+                                            keepButtonText={`Keep My ${subscription.plan?.name || 'Subscription'}`}
+                                            continueButtonText="Continue with Cancellation"
+                                            finalTitle="Final Step - Confirm Cancellation"
+                                            finalSubtitle="This action will cancel your subscription at the end of your billing period"
+                                            finalWarningText="• You will retain access until the end of your billing period\n• No future charges will be made\n• You can reactivate at any time before it expires"
+                                            goBackButtonText="Wait, Go Back"
+                                            confirmButtonText="Yes, Cancel My Subscription"
+                                            onCancel={handleCancelSubscription}
+                                            onKeepSubscription={async () => {
+                                                setShowCancelDialog(false);
+                                            }}
+                                            onDialogClose={() => {
+                                                setShowCancelDialog(false);
+                                            }}
                                             className="flex-1"
-                                        >
-                                            Cancel Subscription
-                                        </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                            <AlertDialogTitle>Cancel Subscription</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                                Are you sure you want to cancel your subscription?
-                                                <br /><br />
-                                                • You will retain access to your current plan until the end of your billing period
-                                                <br />
-                                                • No future charges will be made
-                                                <br />
-                                                • You can reactivate your subscription at any time before it expires
-                                            </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                            <AlertDialogCancel>Keep Subscription</AlertDialogCancel>
-                                            <AlertDialogAction
-                                                onClick={handleCancelSubscription}
-                                                disabled={isCancellingSubscription}
-                                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                            >
-                                                {isCancellingSubscription ? (
-                                                    <>
-                                                        <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
-                                                        Cancelling...
-                                                    </>
-                                                ) : (
-                                                    'Cancel Subscription'
-                                                )}
-                                            </AlertDialogAction>
-                                        </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                </AlertDialog>
+                                        />
+                                    );
+                                })()
                             ) : subscription?.cancelAtPeriodEnd ? (
                                 <div className="flex-1 p-3 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
                                     <p className="text-sm text-yellow-800 dark:text-yellow-200 text-center font-medium">

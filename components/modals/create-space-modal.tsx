@@ -339,7 +339,7 @@ export function CreateSpaceModal({
 
             {/* Upgrade Alert Dialog */}
             <AlertDialog open={!!upgradeDialogData?.open} onOpenChange={(open: boolean) => !open && setUpgradeDialogData(null)}>
-                <AlertDialogContent className="rounded-2xl">
+                <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>Space limit reached</AlertDialogTitle>
                         <AlertDialogDescription className="font-medium pt-2 leading-relaxed">
@@ -347,14 +347,14 @@ export function CreateSpaceModal({
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter className="pt-2">
-                        <AlertDialogCancel className="rounded-full">Maybe later</AlertDialogCancel>
+                        <AlertDialogCancel>Maybe later</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={() => {
                                 setUpgradeDialogData(null);
                                 onOpenChange(false);
                                 router.push('/pricing');
                             }}
-                            className="bg-primary rounded-full"
+                            className="bg-primary"
                         >
                             Upgrade
                         </AlertDialogAction>

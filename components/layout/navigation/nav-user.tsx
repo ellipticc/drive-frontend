@@ -273,7 +273,7 @@ export function NavUser({
                           {user.email}
                         </span>
                       </TooltipTrigger>
-                      <TooltipContent side="right" align="start">Copy Address</TooltipContent>
+                      <TooltipContent>Copy Address</TooltipContent>
                     </Tooltip>
                   </div>
                 </div>
