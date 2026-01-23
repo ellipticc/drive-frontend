@@ -100,7 +100,7 @@ export function FileThumbnail({
 
                 const hasPQCKeys = fileEncryption &&
                     'kyberCiphertext' in fileEncryption &&
-                    'nonceWrapKyber' in fileEncryption;
+                    ('nonceWrapKyber' in fileEncryption || 'cekNonce' in fileEncryption);
 
                 if (!fileEncryption || !hasPQCKeys) {
                     // Fetch full file info to get complete encryption keys
@@ -132,7 +132,7 @@ export function FileThumbnail({
                     wrappedCek: fileEncryption.wrappedCek,
                     cekNonce: fileEncryption.cekNonce,
                     kyberCiphertext: fileEncryption.kyberCiphertext,
-                    nonceWrapKyber: fileEncryption.nonceWrapKyber,
+                    nonceWrapKyber: fileEncryption.nonceWrapKyber || fileEncryption.cekNonce || fileEncryption.iv,
                     algorithm: 'v3-hybrid-pqc',
                     version: '3.0'
                 } as DownloadEncryption, userKeys.keypairs);

@@ -451,11 +451,11 @@ async function pipelineDownloadAndDecrypt(
   });
 
   await Promise.all(tasks);
-  
+
   const downloadDurationSec = (Date.now() - startTime) / 1000;
   const throughputMBps = (totalBytes / (1024 * 1024)) / downloadDurationSec;
   console.log(`Download completed: ${totalChunks} chunks in ${downloadDurationSec.toFixed(2)}s (${throughputMBps.toFixed(2)} MB/s)`);
-  
+
   return decryptedChunks;
 }
 
@@ -600,7 +600,7 @@ export async function unwrapCEK(encryption: DownloadEncryption, keypairs: UserKe
     throw new Error('No wrapped CEK available for unwrapping');
   }
 
-  if (!encryption.nonceWrapKyber) {
+  if (!encryption.nonceWrapKyber && !encryption.cekNonce) {
     throw new Error('No CEK nonce available for unwrapping');
   }
 
@@ -626,7 +626,7 @@ export async function unwrapCEK(encryption: DownloadEncryption, keypairs: UserKe
   }
 
   const wrappedCek = encryption.wrappedCek;
-  const cekNonce = encryption.nonceWrapKyber;
+  const cekNonce = encryption.nonceWrapKyber || encryption.cekNonce;
 
   // Decapsulate to get the shared secret
   const kyberStart = performance.now();
