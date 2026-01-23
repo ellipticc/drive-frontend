@@ -29,7 +29,8 @@ import {
   IconShieldCheck,
   IconSend,
   IconDeviceDesktop,
-  IconBrowser
+  IconBrowser,
+  IconDownload
 } from "@tabler/icons-react"
 import {
   Dialog,
@@ -157,6 +158,7 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
   const [rotateId, setRotateId] = useState<string | null>(null)
   const [rotationLoading, setRotationLoading] = useState<string | null>(null)
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false)
+  const [exportLoading, setExportLoading] = useState(false)
 
   // Form State
   const [formData, setFormData] = useState<{ url: string; events: string[]; secret?: string }>({ url: '', events: [] })
@@ -498,7 +500,7 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
               </div>
             )}
             {(userPlan === 'Free' || userPlan === 'Plus') && (
-              <div className="flex items-start gap-2 text-xs text-amber-600 font-medium mt-3 bg-amber-500/10 p-2.5 rounded-lg border border-amber-500/20 dark:text-amber-400">
+              <div className="flex items-start gap-2 text-xs text-muted-foreground font-medium mt-3 bg-muted/10 p-2.5 rounded-lg border border-muted-foreground/10">
                 <IconAlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                 <span>Webhooks are an advanced feature available on Pro and Unlimited plans. Upgrade to enable.</span>
               </div>
@@ -511,19 +513,17 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center shadow-sm">
-              <IconWebhook className="h-6 w-6 text-primary" />
-            </div>
+            <IconWebhook className="h-8 w-8 text-primary" />
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-xl font-bold tracking-tight">Manage Webhooks</h3>
+                <h3 className="text-sm font-medium">Manage Webhooks</h3>
                 {usageData && (
                   <Badge variant="outline" className="h-5 px-1.5 text-[9px] font-black uppercase tracking-widest bg-primary/5 text-primary border-primary/20">
                     {usageData.plan}
                   </Badge>
                 )}
               </div>
-              <p className="text-sm text-muted-foreground font-medium mt-0.5">Configure endpoints to receive real-time updates and automate your secure workflow.</p>
+              <p className="text-sm text-muted-foreground mt-0.5">Configure endpoints to receive real-time updates and automate your secure workflow.</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -544,17 +544,52 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
               </Tooltip>
             </TooltipProvider>
 
-            <Dialog open={createModalOpen} onOpenChange={(open) => { if (!open) resetForm(); setCreateModalOpen(open) }}>
-              <DialogTrigger asChild>
-                <Button
-                  className="rounded-xl px-5 h-11 font-bold shadow-lg shadow-primary/15 transition-all hover:shadow-primary/25 active:scale-95 translate-y-0 hover:-translate-y-0.5"
-                  disabled={usageData ? !usageData.allowed : false}
-                >
-                  <IconPlus className="h-4.5 w-4.5 mr-2 stroke-[2.5]" />
-                  New Webhook
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button size="icon" variant="ghost" className="h-10 w-10 rounded-md" onClick={async () => {
+                  if (exportLoading) return;
+                  setExportLoading(true);
+                  try {
+                    const res = await apiClient.exportAllWebhookEvents();
+                    if (!res.success) throw new Error(res.error || 'Export failed');
+                    const blob = res.data as Blob;
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `webhook_events_${Date.now()}.csv`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    URL.revokeObjectURL(url);
+                    toast.success('Export started');
+                  } catch (err) {
+                    console.error(err);
+                    toast.error('Failed to export webhook events');
+                  } finally {
+                    setExportLoading(false);
+                  }
+                }} disabled={exportLoading}>
+                  {exportLoading ? <IconLoader2 className="h-5 w-5 text-muted-foreground animate-spin" /> : <IconDownload className="h-5 w-5 text-muted-foreground" />}
                 </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md rounded-2xl border-muted/70 shadow-2xl">
+              </TooltipTrigger>
+              <TooltipContent>Export Events (CSV)</TooltipContent>
+            </Tooltip>
+
+            <Dialog open={createModalOpen} onOpenChange={(open) => { if (!open) resetForm(); setCreateModalOpen(open) }}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-10 w-10 rounded-xl"
+                    disabled={usageData ? !usageData.allowed : false}
+                  >
+                    <IconPlus className="h-5 w-5 text-muted-foreground" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>New Webhook</TooltipContent>
+              </Tooltip>
+              <DialogContent className="sm:max-w-md rounded-lg border-muted/70 shadow-sm">
                 <DialogHeader className="space-y-1.5">
                   <DialogTitle className="text-xl font-black flex items-center gap-2">
                     <IconPlus className="h-5 w-5 text-primary" />
@@ -583,8 +618,8 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
                   <EventSelector />
                 </div>
                 <DialogFooter className="gap-2 sm:gap-0">
-                  <Button variant="ghost" onClick={() => setCreateModalOpen(false)} className="rounded-xl h-11 font-bold px-6">Cancel</Button>
-                  <Button onClick={handleCreate} disabled={loading} className="rounded-xl h-11 font-bold px-8 shadow-lg shadow-primary/10">Create Webhook</Button>
+                  <Button variant="ghost" onClick={() => setCreateModalOpen(false)} className="rounded-lg h-11 font-bold px-6">Cancel</Button>
+                  <Button onClick={handleCreate} disabled={loading} className="rounded-lg h-11 font-bold px-8 shadow-sm shadow-primary/10">Create Webhook</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -623,15 +658,15 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
                 </div>
               </div>
             </div>
-            <div className="mt-4 flex items-start gap-2 text-[11px] text-muted-foreground bg-amber-500/5 border border-amber-500/20 rounded-lg p-3">
-              <IconInfoCircle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+            <div className="mt-4 flex items-start gap-2 text-[11px] text-muted-foreground bg-muted/10 border border-muted-foreground/10 rounded-lg p-3">
+              <IconInfoCircle className="h-4 w-4 text-primary shrink-0 mt-0.5" />
               <p className="font-medium leading-relaxed">
-                <span className="font-bold text-amber-600 dark:text-amber-400">Security Tip:</span> Keep this secret safe. You can view it again or rotate it anytime from the webhook settings.
+                <span className="font-bold text-foreground">Security Tip:</span> Keep this secret safe. You can view it again or rotate it anytime from the webhook settings.
               </p>
             </div>
           </div>
           <DialogFooter>
-            <Button className="w-full rounded-xl h-11" onClick={() => setSuccessModalOpen(false)}>
+            <Button className="w-full rounded-lg h-11" onClick={() => setSuccessModalOpen(false)}>
               I&apos;ve saved it
             </Button>
           </DialogFooter>
@@ -666,18 +701,16 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
         <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
-              <div className="p-2 rounded-full bg-amber-500/10">
-                <IconRefresh className="h-5 w-5 text-amber-500" />
-              </div>
+              <IconRefresh className="h-5 w-5 text-primary" />
               Rotate Signing Secret?
             </AlertDialogTitle>
             <AlertDialogDescription className="font-medium pt-2 leading-relaxed">
-              The existing secret will be invalidated <span className="font-bold text-foreground underline decoration-amber-500/30 decoration-2">immediately</span>. Any applications using the old secret will fail to verify signatures.
+              The existing secret will be invalidated <span className="font-bold text-foreground underline decoration-primary/30 decoration-2">immediately</span>. Any applications using the old secret will fail to verify signatures.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="pt-2">
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmRotate} className="bg-amber-600 hover:bg-amber-700 text-white shadow-lg shadow-amber-600/20">
+            <AlertDialogAction onClick={confirmRotate} className="bg-destructive hover:bg-destructive/90 text-white shadow-lg shadow-destructive/20">
               Generate New Secret
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -735,7 +768,7 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
               <div className="grid gap-2">
                 <Label htmlFor="edit-secret" className="text-xs uppercase tracking-wider font-bold text-muted-foreground flex items-center justify-between">
                   <span>Custom Signing Secret</span>
-                  <Badge variant="outline" className="text-[10px] h-5 px-1.5 py-0 border-amber-500/30 text-amber-600 bg-amber-500/10 dark:text-amber-400">UNLIMITED ONLY</Badge>
+                  <Badge variant="outline" className="text-[10px] h-5 px-1.5 py-0">UNLIMITED ONLY</Badge>
                 </Label>
                 <div className="relative">
                   <IconShieldCheck className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground/50" />
@@ -767,14 +800,12 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
       <div className="border rounded-2xl bg-card shadow-sm overflow-hidden">
         {webhooks.length === 0 ? (
           <div className="p-16 text-center bg-muted/5 flex flex-col items-center">
-            <div className="h-16 w-16 rounded-full bg-muted/20 flex items-center justify-center mb-6">
-              <IconWebhook className="h-8 w-8 text-muted-foreground/40" />
-            </div>
-            <h3 className="text-xl font-bold">No endpoints found</h3>
+            <IconWebhook className="h-8 w-8 text-muted-foreground/40 mb-6" />
+            <h3 className="text-sm font-medium">No endpoints found</h3>
             <p className="text-muted-foreground text-sm mt-2 max-w-sm mx-auto font-medium leading-relaxed">
               Configure your first webhook to start receiving real-time events.
             </p>
-            <Button variant="outline" onClick={() => setCreateModalOpen(true)} className="mt-8 rounded-full h-11 px-8">
+            <Button onClick={() => setCreateModalOpen(true)} className="mt-8 h-11 px-6 bg-primary text-primary-foreground">
               Create Webhook
             </Button>
           </div>
@@ -913,7 +944,7 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
                                       <Button
                                         size="icon"
                                         variant="outline"
-                                        className="h-10 w-10 rounded-xl bg-background shadow-sm hover:border-primary/30 transition-colors"
+                                        className="h-10 w-10 rounded-md bg-background shadow-sm hover:border-primary/30 transition-colors"
                                         onClick={() => { navigator.clipboard.writeText(w.secret); toast.success('Secret copied') }}
                                       >
                                         <IconCopy className="h-4 w-4" />
@@ -921,7 +952,7 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
                                       <Button
                                         size="icon"
                                         variant="outline"
-                                        className="h-10 w-10 rounded-xl bg-background shadow-sm hover:text-amber-600 hover:border-amber-600/30 group/rotate"
+                                        className="h-10 w-10 rounded-md bg-background shadow-sm hover:text-primary hover:border-primary/30 group/rotate"
                                         onClick={() => setRotateId(w.id)}
                                         disabled={rotationLoading === w.id}
                                       >
@@ -941,7 +972,7 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
                                   <div className="grid grid-cols-2 gap-3">
                                     <Button
                                       variant="outline"
-                                      className="h-12 rounded-xl text-xs font-bold bg-background shadow-sm border-primary/10 hover:border-primary/30 hover:bg-primary/5 transition-all"
+                                      className="h-12 rounded-lg text-xs font-bold bg-background shadow-sm border-primary/10 hover:border-primary/30 hover:bg-primary/5 transition-all"
                                       onClick={() => testWebhook(w.id)}
                                     >
                                       <IconRefresh className="h-3.5 w-3.5 mr-2 opacity-60" />
@@ -949,7 +980,7 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
                                     </Button>
                                     <Button
                                       variant="outline"
-                                      className="h-12 rounded-xl text-xs font-bold bg-background shadow-sm hover:bg-muted"
+                                      className="h-12 rounded-lg text-xs font-bold bg-background shadow-sm hover:bg-muted"
                                       onClick={() => openEditModal(w)}
                                     >
                                       <IconSettings className="h-3.5 w-3.5 mr-2 opacity-60" />

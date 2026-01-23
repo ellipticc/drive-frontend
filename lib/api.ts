@@ -3669,6 +3669,30 @@ class ApiClient {
     return this.request('/user/webhooks/usage');
   }
 
+  // Export all webhook events as CSV
+  async exportAllWebhookEvents(): Promise<ApiResponse<Blob>> {
+    const authHeaders = await this.getAuthHeaders('/user/webhooks/events/export', 'GET');
+    const response = await fetch(`${this.baseURL}/user/webhooks/events/export`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: {
+        ...authHeaders,
+      },
+    });
+
+    if (!response.ok) {
+      try {
+        const json = await response.json();
+        return { success: false, error: json.error || 'Failed to export' };
+      } catch (e) {
+        return { success: false, error: `Export failed: ${response.status}` };
+      }
+    }
+
+    const blob = await response.blob();
+    return { success: true, data: blob };
+  }
+
   async getSecurityEvent(eventId: string): Promise<ApiResponse<SecurityEvent>> {
     return this.request(`/security/events/${eventId}`)
   }
