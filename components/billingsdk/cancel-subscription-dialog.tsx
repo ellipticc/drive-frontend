@@ -19,6 +19,8 @@ export interface CancelSubscriptionDialogProps {
   description: string;
   plan: Plan;
   triggerButtonText?: string;
+  /** Use 'destructive' to make the trigger red, otherwise 'outline' */
+  triggerVariant?: 'destructive' | 'outline';
   leftPanelImageUrl?: string;
   warningTitle?: string;
   warningText?: string;
@@ -137,7 +139,7 @@ export function CancelSubscriptionDialog({
       }}
     >
       <DialogTrigger asChild>
-        <Button variant="outline">
+        <Button variant={triggerVariant ?? "outline"}>
           {triggerButtonText || "Cancel Subscription"}
         </Button>
       </DialogTrigger>
@@ -262,10 +264,20 @@ export function CancelSubscriptionDialog({
                   {finalSubtitle ||
                     "Are you sure you want to cancel your subscription?"}
                 </p>
-                <p className="text-destructive text-sm">
-                  {finalWarningText ||
-                    "This action cannot be undone and you'll lose access to all premium features."}
-                </p>
+                {finalWarningText ? (
+                  (finalWarningText.includes('\n') || finalWarningText.includes('•')) ? (
+                    <ul className="text-destructive text-sm list-disc list-inside space-y-1">
+                      {finalWarningText.split('\n').map((line, idx) => {
+                        const text = line.replace(/^\s*•\s*/, '').trim();
+                        return <li key={idx}>{text}</li>;
+                      })}
+                    </ul>
+                  ) : (
+                    <p className="text-destructive text-sm">{finalWarningText}</p>
+                  )
+                ) : (
+                  <p className="text-destructive text-sm">This action cannot be undone and you'll lose access to all premium features.</p>
+                )}
               </div>
               <div className="flex flex-col gap-3 sm:flex-row">
                 <Button

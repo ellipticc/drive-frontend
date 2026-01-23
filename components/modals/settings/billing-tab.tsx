@@ -336,6 +336,7 @@ export function BillingTab({
                                                 features: [],
                                             }}
                                             triggerButtonText="Cancel Subscription"
+                                            triggerVariant="destructive"
                                             leftPanelImageUrl="https://framerusercontent.com/images/GWE8vop9hubsuh3uWWn0vyuxEg.webp"
                                             warningTitle="You will lose access to premium features"
                                             warningText="If you cancel your subscription, you will lose access to premium features and increased storage limits."
