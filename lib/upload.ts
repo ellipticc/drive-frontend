@@ -12,6 +12,7 @@
  */
 
 import { apiClient } from './api';
+import { uuidv7 } from 'uuidv7-js';
 import { PerformanceTracker } from './performance-tracker';
 import { encryptData, uint8ArrayToHex, hexToUint8Array, encryptFilename, computeFilenameHmac } from './crypto';
 import { keyManager } from './key-manager';
@@ -275,20 +276,6 @@ async function putWithRetries(putUrl: string, body: Blob, headers: Record<string
 }
 
 /**
- * Compute SHA-512 Hash in Worker to avoid UI freeze.
- * Updated to stream file in worker using FileReaderSync (supports 5GB+ files).
- */
-const computeFileHashInWorker = async (file: File): Promise<string> => {
-  // Use a unique ID for hashing tasks to avoid collisions if multiple hashes run
-  const id = `hash-${crypto.randomUUID()}`;
-  return getUploadWorkerPool().execute({
-    type: 'hash_file',
-    id,
-    file
-  });
-};
-
-/**
  * Main upload function - orchestrates the entire secure upload pipeline
  */
 export async function uploadEncryptedFile(
@@ -310,7 +297,7 @@ export async function uploadEncryptedFile(
   onChunkComplete?: (chunk: ChunkInfo) => void
 ): Promise<UploadResult> {
   // Generate fileId or reuse from resume state
-  const fileId = resumeState?.fileId || crypto.randomUUID();
+  const fileId = resumeState?.fileId || uuidv7();
 
   try {
     const storageInfo = await apiClient.getUserStorage();

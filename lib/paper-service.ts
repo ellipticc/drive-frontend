@@ -1,5 +1,7 @@
 import apiClient from './api';
 import { masterKeyManager } from './master-key';
+import { uuidv7 } from 'uuidv7-js'; // Client-side UUIDv7 for optimistic block IDs (allowed for client-only use)
+
 import {
     encryptPaperContent,
     decryptPaperContent,
@@ -51,16 +53,15 @@ class PaperService {
             const { encryptedFilename, filenameSalt } = await encryptFilename(title, masterKey);
 
             // 2. Prepare Initial Block (Chunk 1)
-            const defaultContent = [{ id: crypto.randomUUID(), type: 'h1', children: [{ text: '' }] }];
+            const defaultContent = [{ id: uuidv7(), type: 'h1', children: [{ text: '' }] }];
             const initialBlock = (content as any[])?.[0] || defaultContent[0];
 
             // Ensure ID exists
-            if (!initialBlock.id) initialBlock.id = crypto.randomUUID();
-
+            if (!initialBlock.id) initialBlock.id = uuidv7();
             const blockStr = JSON.stringify(initialBlock);
             const { encryptedContent, iv, salt } = await encryptPaperContent(blockStr, masterKey);
             const blockHash = await this.hashBlock(initialBlock);
-            const chunkId = crypto.randomUUID();
+            const chunkId = uuidv7();
 
             // 3. Prepare Manifest (Chunk 0)
             const manifest: PaperManifest = {
@@ -174,7 +175,7 @@ class PaperService {
                 const blocksToProcess: any[] = [];
                 for (const block of contentBlocks) {
                     // Ensure Block ID is unique
-                    if (!block.id || seenIds.has(block.id)) block.id = crypto.randomUUID();
+                    if (!block.id || seenIds.has(block.id)) block.id = uuidv7();
                     seenIds.add(block.id);
                     blocksToProcess.push(block);
                 }
@@ -195,7 +196,7 @@ class PaperService {
                         const { encryptedContent, iv, salt } = await encryptPaperContent(blockStr, masterKey);
 
                         // Reuse chunkId if modified, or new if new block
-                        const blockId = existingEntry ? existingEntry.chunkId : crypto.randomUUID();
+                        const blockId = existingEntry ? existingEntry.chunkId : uuidv7();
 
                         // Add to upload queue
                         // Backend expects: Object (will be stringified by backend before storage)
@@ -463,7 +464,7 @@ class PaperService {
                     if (!entry || !entry.chunkId) {
                         console.error("[PaperService] Invalid block entry:", entry);
                         return { 
-                            id: entry?.id || crypto.randomUUID(), 
+                            id: entry?.id || uuidv7(), 
                             type: 'p', 
                             children: [{ text: '[Invalid block entry]' }] 
                         };
@@ -500,7 +501,7 @@ class PaperService {
                             if (!chunkData.encryptedContent || !chunkData.iv || !chunkData.salt) {
                                 console.error(`[PaperService] Chunk ${entry.chunkId} missing encryption properties`, chunkData);
                                 return { 
-                                    id: entry.id || crypto.randomUUID(), 
+                                    id: entry.id || uuidv7(), 
                                     type: 'p', 
                                     children: [{ text: '[Incomplete chunk data]' }] 
                                 };
@@ -513,7 +514,7 @@ class PaperService {
                                 // Ensure the parsed block has a valid structure
                                 if (!parsedBlock || typeof parsedBlock !== 'object') {
                                     return { 
-                                        id: entry.id || crypto.randomUUID(), 
+                                        id: entry.id || uuidv7(), 
                                         type: 'p', 
                                         children: [{ text: '' }] 
                                     };
@@ -528,13 +529,13 @@ class PaperService {
                             }
                         } catch (err) {
                             console.error(`Failed to decrypt block ${entry.id}`, err);
-                            return { id: entry.id || crypto.randomUUID(), type: 'p', children: [{ text: '[Error Decrypting Block]' }] };
+                            return { id: entry.id || uuidv7(), type: 'p', children: [{ text: '[Error Decrypting Block]' }] };
                         }
                     } else {
                         console.warn(`Missing chunk data for block ${entry.id || 'unknown'}`);
                         // Push a placeholder so the editor doesn't lose the block position
                         return {
-                            id: entry.id || crypto.randomUUID(),
+                            id: entry.id || uuidv7(),
                             type: 'p',
                             children: [{ text: `[Error: Content for this block is missing in this version]` }]
                         };
@@ -563,15 +564,15 @@ class PaperService {
             // Final validation: ensure content is an array of valid blocks
             if (!Array.isArray(content)) {
                 console.error('[PaperService] Content is not an array, resetting to default');
-                content = [{ id: crypto.randomUUID(), type: 'p', children: [{ text: '' }] }];
+                content = [{ id: uuidv7(), type: 'p', children: [{ text: '' }] }];
             } else if (content.length === 0) {
                 console.warn('[PaperService] Content array is empty, adding default block');
-                content = [{ id: crypto.randomUUID(), type: 'p', children: [{ text: '' }] }];
+                content = [{ id: uuidv7(), type: 'p', children: [{ text: '' }] }];
             } else {
                 // Deep validation: ensure every block has children
                 content = content.map(block => {
                     if (!block || typeof block !== 'object') {
-                        return { id: crypto.randomUUID(), type: 'p', children: [{ text: '' }] };
+                        return { id: uuidv7(), type: 'p', children: [{ text: '' }] };
                     }
                     if (!Array.isArray(block.children)) {
                         block.children = [{ text: '' }];
@@ -606,7 +607,7 @@ class PaperService {
                 id: paper.id,
                 title,
                 content: { 
-                    content: [{ id: crypto.randomUUID(), type: 'p', children: [{ text: '[Error loading paper content]' }] }], 
+                    content: [{ id: uuidv7(), type: 'p', children: [{ text: '[Error loading paper content]' }] }],
                     icon: null 
                 },
                 folderId: paper.folderId,
@@ -619,7 +620,7 @@ class PaperService {
             id: paper.id,
             title,
             content: { 
-                content: [{ id: crypto.randomUUID(), type: 'p', children: [{ text: '' }] }], 
+                content: [{ id: uuidv7(), type: 'p', children: [{ text: '' }] }],
                 icon: null 
             },
             folderId: paper.folderId,

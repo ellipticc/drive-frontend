@@ -7,6 +7,7 @@
 import { apiClient } from './api';
 import { createSignedFolderManifest } from './crypto';
 import { keyManager } from './key-manager';
+import { uuidv7 } from 'uuidv7-js';
 
 export interface FolderStructure {
   [folderPath: string]: File[];
@@ -156,7 +157,7 @@ export async function createFolderHierarchy(
 
       // Create folder with encrypted name and signed manifest
       // manifestData contains manifestHash, signatures, and encryptedName/nameSalt
-      const folderId = crypto.randomUUID(); // Generate folderId client-side for idempotency
+      const folderId = uuidv7(); // Generate folderId client-side for idempotency (UUIDv7)
       const response = await apiClient.createFolder({
         encryptedName: manifestData.encryptedName,
         nameSalt: manifestData.nameSalt,
