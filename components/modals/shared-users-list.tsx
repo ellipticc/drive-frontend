@@ -26,6 +26,7 @@ import {
 } from "@tabler/icons-react"
 import { toast } from "sonner"
 import { apiClient } from "@/lib/api"
+import { getDiceBearAvatar } from "@/lib/avatar"
 
 interface SharedUser {
   id: string // shared_items.id
@@ -112,11 +113,22 @@ export function SharedUsersList({
   const renderUserRow = (user: SharedUser) => (
     <div key={user.id} className="flex items-center justify-between py-2 px-1 hover:bg-muted/50 rounded-lg transition-colors">
       <div className="flex items-center gap-3 flex-1 min-w-0">
-        <Avatar className="h-8 w-8 flex-shrink-0">
-          <AvatarFallback className="text-xs">
-            {getInitials(user.email, user.name)}
-          </AvatarFallback>
-        </Avatar>
+        {user.avatar ? (
+          <img 
+            src={user.avatar} 
+            alt={user.name || user.email}
+            className="h-8 w-8 rounded-full flex-shrink-0"
+            onError={(e) => {
+              e.currentTarget.src = getDiceBearAvatar(user.userId, 32)
+            }}
+          />
+        ) : (
+          <img 
+            src={getDiceBearAvatar(user.userId, 32)}
+            alt={user.name || user.email}
+            className="h-8 w-8 rounded-full flex-shrink-0"
+          />
+        )}
         <div className="flex flex-col min-w-0 flex-1">
           {user.name && (
             <span className="text-sm font-medium truncate">{user.name}</span>

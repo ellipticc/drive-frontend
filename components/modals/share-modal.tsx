@@ -34,7 +34,16 @@ import {
   IconActivity,
   IconChevronLeft,
   IconChevronRight,
+  IconDotsVertical,
+  IconEye,
+  IconEdit,
 } from "@tabler/icons-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { toast } from "sonner"
 import { apiClient } from "@/lib/api"
@@ -45,6 +54,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 import { getUAInfo } from "./settings/device-icons"
 import { format, startOfToday } from "date-fns"
 import { truncateFilename } from "@/lib/utils"
+import { getDiceBearAvatar } from "@/lib/avatar"
 import Link from "next/link"
 import { SharedUsersList } from "./shared-users-list"
 
@@ -1370,22 +1380,33 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
                 </div>
               </div>
 
-              {/* People with access section */}
-              {(currentUser || sharedUsers.length > 0) && (
+              {/* People with access section - ONLY show if there are shared users */}
+              {sharedUsers.length > 0 && (
                 <>
                   <Separator />
                   <div className="grid gap-3">
                     <Label className="text-sm font-medium">People with access</Label>
                     <div className="grid gap-2">
-                      {/* Current user (owner) */}
+                      {/* Current user (owner) - NON-INTERACTIVE */}
                       {currentUser && (
-                        <div className="flex items-center justify-between py-2 px-1 hover:bg-muted/50 rounded-lg transition-colors">
+                        <div className="flex items-center justify-between py-2 px-1 rounded-lg">
                           <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                              <span className="text-xs font-medium text-primary">
-                                {currentUser.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || currentUser.email.slice(0, 2).toUpperCase()}
-                              </span>
-                            </div>
+                            {currentUser.avatar ? (
+                              <img 
+                                src={currentUser.avatar} 
+                                alt={currentUser.name}
+                                className="h-8 w-8 rounded-full flex-shrink-0"
+                                onError={(e) => {
+                                  e.currentTarget.src = getDiceBearAvatar(currentUser.email, 32)
+                                }}
+                              />
+                            ) : (
+                              <img 
+                                src={getDiceBearAvatar(currentUser.email, 32)}
+                                alt={currentUser.name}
+                                className="h-8 w-8 rounded-full flex-shrink-0"
+                              />
+                            )}
                             <div className="flex flex-col min-w-0 flex-1">
                               <div className="flex items-center gap-2">
                                 <span className="text-sm font-medium truncate">{currentUser.name}</span>
@@ -1401,11 +1422,22 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
                       {sharedUsers.slice(0, 5).map((user) => (
                         <div key={user.id} className="flex items-center justify-between py-2 px-1 hover:bg-muted/50 rounded-lg transition-colors">
                           <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
-                              <span className="text-xs font-medium">
-                                {user.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || user.email.slice(0, 2).toUpperCase()}
-                              </span>
-                            </div>
+                            {user.avatar ? (
+                              <img 
+                                src={user.avatar} 
+                                alt={user.name || user.email}
+                                className="h-8 w-8 rounded-full flex-shrink-0"
+                                onError={(e) => {
+                                  e.currentTarget.src = getDiceBearAvatar(user.userId, 32)
+                                }}
+                              />
+                            ) : (
+                              <img 
+                                src={getDiceBearAvatar(user.userId, 32)}
+                                alt={user.name || user.email}
+                                className="h-8 w-8 rounded-full flex-shrink-0"
+                              />
+                            )}
                             <div className="flex flex-col min-w-0 flex-1">
                               {user.name && (
                                 <span className="text-sm font-medium truncate">{user.name}</span>
@@ -1416,28 +1448,79 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
                               )}
                             </div>
                           </div>
-                          <select
-                            value={user.permissions}
-                            onChange={async (e) => {
-                              const newPermission = e.target.value as 'read' | 'write' | 'admin'
-                              try {
-                                const response = await apiClient.updateSharedUserPermissions(user.id, newPermission)
-                                if (response.success) {
-                                  await fetchSharedUsers()
-                                  toast.success('Permissions updated')
-                                } else {
-                                  toast.error('Failed to update permissions')
-                                }
-                              } catch (error) {
-                                console.error('Error updating permissions:', error)
-                                toast.error('Failed to update permissions')
-                              }
-                            }}
-                            className="h-8 rounded-md border border-input bg-background px-2 py-1 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                          >
-                            <option value="read">Viewer</option>
-                            <option value="write">Editor</option>
-                          </select>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                              >
+                                <IconDotsVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                              <DropdownMenuItem
+                                onClick={async () => {
+                                  try {
+                                    const response = await apiClient.updateSharedUserPermissions(user.id, 'read')
+                                    if (response.success) {
+                                      await fetchSharedUsers()
+                                      toast.success('Changed to Viewer')
+                                    } else {
+                                      toast.error('Failed to update permissions')
+                                    }
+                                  } catch (error) {
+                                    console.error('Error updating permissions:', error)
+                                    toast.error('Failed to update permissions')
+                                  }
+                                }}
+                                disabled={user.permissions === 'read'}
+                              >
+                                <IconEye className="h-4 w-4 mr-2" />
+                                Viewer
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={async () => {
+                                  try {
+                                    const response = await apiClient.updateSharedUserPermissions(user.id, 'write')
+                                    if (response.success) {
+                                      await fetchSharedUsers()
+                                      toast.success('Changed to Editor')
+                                    } else {
+                                      toast.error('Failed to update permissions')
+                                    }
+                                  } catch (error) {
+                                    console.error('Error updating permissions:', error)
+                                    toast.error('Failed to update permissions')
+                                  }
+                                }}
+                                disabled={user.permissions === 'write'}
+                              >
+                                <IconEdit className="h-4 w-4 mr-2" />
+                                Editor
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={async () => {
+                                  try {
+                                    const response = await apiClient.removeSharedItem(user.id)
+                                    if (response.success) {
+                                      await fetchSharedUsers()
+                                      toast.success('Access removed')
+                                    } else {
+                                      toast.error('Failed to remove access')
+                                    }
+                                  } catch (error) {
+                                    console.error('Error removing access:', error)
+                                    toast.error('Failed to remove access')
+                                  }
+                                }}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <IconTrash className="h-4 w-4 mr-2" />
+                                Remove access
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       ))}
                       {/* View all button if more than 5 users */}
