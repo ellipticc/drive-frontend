@@ -1,15 +1,31 @@
-const SW_VERSION = '1.0.0';
+const SW_VERSION = '1.0.1';
 
 self.addEventListener('install', (event) => {
     console.log('[SW] Installing SW version:', SW_VERSION);
+    // Skip waiting immediately to take control faster
     event.waitUntil(self.skipWaiting());
 });
 
 self.addEventListener('activate', (event) => {
     console.log('[SW] Activating SW version:', SW_VERSION);
-    event.waitUntil(self.clients.claim().then(() => {
-        console.log('[SW] Clients claimed.');
-    }));
+    event.waitUntil(
+        self.clients.claim().then(() => {
+            console.log('[SW] Clients claimed. SW now controlling all clients.');
+            // Notify all clients that SW is ready
+            return self.clients.matchAll({ type: 'window' }).then(clients => {
+                clients.forEach(client => {
+                    client.postMessage({ type: 'SW_READY' });
+                });
+            });
+        })
+    );
+});
+
+// Handle skip waiting message from clients
+self.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        self.skipWaiting();
+    }
 });
 
 self.addEventListener('fetch', (event) => {

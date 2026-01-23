@@ -102,23 +102,58 @@ export function VideoPreview({
 
           if (!navigator.serviceWorker.controller) {
             console.debug("[VideoPreview] SW active but not controlling. Waiting for claim...");
+            
+            // Wait for either controllerchange or SW_READY message
             await new Promise<void>((resolve) => {
-              const onControllerChange = () => {
+              let resolved = false;
+              
+              const cleanup = () => {
+                if (resolved) return;
+                resolved = true;
                 navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
+                navigator.serviceWorker.removeEventListener('message', onMessage);
+                clearTimeout(timeout);
+              };
+              
+              const onControllerChange = () => {
+                console.debug("[VideoPreview] Controller changed, SW now controlling.");
+                cleanup();
                 resolve();
               };
+              
+              const onMessage = (event: MessageEvent) => {
+                if (event.data && event.data.type === 'SW_READY') {
+                  console.debug("[VideoPreview] Received SW_READY message.");
+                  cleanup();
+                  resolve();
+                }
+              };
+              
               navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
+              navigator.serviceWorker.addEventListener('message', onMessage);
 
-              // 4s timeout to prevent infinite hang
-              setTimeout(() => {
-                navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
+              // 8s timeout to prevent infinite hang (doubled from 4s)
+              const timeout = setTimeout(() => {
+                console.warn("[VideoPreview] Timeout waiting for SW control after 8s.");
+                cleanup();
                 resolve();
-              }, 4000);
+              }, 8000);
+              
+              // If SW is already controlling (race condition), resolve immediately
+              if (navigator.serviceWorker.controller) {
+                cleanup();
+                resolve();
+              }
             });
           }
 
           if (!navigator.serviceWorker.controller) {
-            console.warn("[VideoPreview] Service Worker failed to take control. Video playback might fail.");
+            console.warn("[VideoPreview] Service Worker failed to take control. Reloading page...");
+            // Force reload once to get SW control
+            window.location.reload();
+            return;
+          } else {
+            console.debug("[VideoPreview] Service Worker is controlling the page.");
           }
         }
 
