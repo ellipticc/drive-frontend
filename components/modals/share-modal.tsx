@@ -412,7 +412,10 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
   const [emailInput, setEmailInput] = useState("")
   const [emails, setEmails] = useState<string[]>([])
   const [emailError, setEmailError] = useState("")
+  const [sharePermission, setSharePermission] = useState<'read' | 'write'>('read')
   const [isLoading, setIsLoading] = useState(false)
+  const [currentUser, setCurrentUser] = useState<{name: string; email: string; avatar?: string} | null>(null)
+  const [showAllUsersModal, setShowAllUsersModal] = useState(false)
   const [isModalLoading, setIsModalLoading] = useState(false)
   const [shareLink, setShareLink] = useState("")
   const [copied, setCopied] = useState(false)
@@ -478,6 +481,27 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
   // Use external state if provided, otherwise use internal state
   const open = externalOpen !== undefined ? externalOpen : internalOpen
   const setOpen = externalOnOpenChange || setInternalOpen
+
+  // Fetch current user profile
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      try {
+        const response = await apiClient.getProfile()
+        if (response.success && response.data?.user) {
+          setCurrentUser({
+            name: response.data.user.name,
+            email: response.data.user.email,
+            avatar: response.data.user.avatar
+          })
+        }
+      } catch (error) {
+        console.error('Failed to fetch current user:', error)
+      }
+    }
+    if (open) {
+      fetchCurrentUser()
+    }
+  }, [open])
 
   // Message modal state
   const [message, setMessage] = useState("")
@@ -865,7 +889,7 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
             folderId: itemType === 'folder' ? itemId : undefined,
             // paperId is not yet supported in createSharedItem API payload fully locally but logic handles it
             recipientEmail: email,
-            permissions: 'read', // Default
+            permissions: sharePermission, // Use selected permission (read/write)
             kyberCiphertext: uint8ArrayToHex(kyberCiphertext),
             encryptedCek: encryptedCek,
             nonce: cekNonce,
@@ -896,6 +920,7 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
         setEmails([]);
         setMessage("");
         setIncludeMessage(true);
+        await fetchSharedUsers(); // Refresh the shared users list
         if (onShareUpdate) onShareUpdate();
       }
 
@@ -1294,15 +1319,25 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
                   <Label htmlFor="emails" className="text-xs text-muted-foreground">
                     Enter email addresses (press Enter, Space, or Comma to add)
                   </Label>
-                  <Input
-                    id="emails"
-                    value={emailInput}
-                    onChange={(e) => handleEmailInputChange(e.target.value)}
-                    onKeyDown={handleEmailInputKeyDown}
-                    onBlur={handleEmailInputBlur}
-                    placeholder="user1@example.com, user2@example.com"
-                    className={emailError ? "border-destructive" : ""}
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      id="emails"
+                      value={emailInput}
+                      onChange={(e) => handleEmailInputChange(e.target.value)}
+                      onKeyDown={handleEmailInputKeyDown}
+                      onBlur={handleEmailInputBlur}
+                      placeholder="user1@example.com, user2@example.com"
+                      className={emailError ? "border-destructive" : ""}
+                    />
+                    <select
+                      value={sharePermission}
+                      onChange={(e) => setSharePermission(e.target.value as 'read' | 'write')}
+                      className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    >
+                      <option value="read">Viewer</option>
+                      <option value="write">Editor</option>
+                    </select>
+                  </div>
                   {emailError && (
                     <p className="text-xs text-destructive">{emailError}</p>
                   )}
@@ -1335,15 +1370,105 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
                 </div>
               </div>
 
-              {/* Shared Users List (User-to-User Sharing) */}
-              {sharedUsers.length > 0 && (
+              {/* People with access section */}
+              {(currentUser || sharedUsers.length > 0) && (
                 <>
                   <Separator />
                   <div className="grid gap-3">
-                    <Label className="text-sm font-medium">Shared With</Label>
+                    <Label className="text-sm font-medium">People with access</Label>
+                    <div className="grid gap-2">
+                      {/* Current user (owner) */}
+                      {currentUser && (
+                        <div className="flex items-center justify-between py-2 px-1 hover:bg-muted/50 rounded-lg transition-colors">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                              <span className="text-xs font-medium text-primary">
+                                {currentUser.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || currentUser.email.slice(0, 2).toUpperCase()}
+                              </span>
+                            </div>
+                            <div className="flex flex-col min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium truncate">{currentUser.name}</span>
+                                <span className="text-xs text-muted-foreground">(you)</span>
+                              </div>
+                              <span className="text-xs text-muted-foreground truncate">{currentUser.email}</span>
+                            </div>
+                          </div>
+                          <span className="text-sm text-muted-foreground">Owner</span>
+                        </div>
+                      )}
+                      {/* Shared users - show first 5 */}
+                      {sharedUsers.slice(0, 5).map((user) => (
+                        <div key={user.id} className="flex items-center justify-between py-2 px-1 hover:bg-muted/50 rounded-lg transition-colors">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+                              <span className="text-xs font-medium">
+                                {user.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || user.email.slice(0, 2).toUpperCase()}
+                              </span>
+                            </div>
+                            <div className="flex flex-col min-w-0 flex-1">
+                              {user.name && (
+                                <span className="text-sm font-medium truncate">{user.name}</span>
+                              )}
+                              <span className="text-xs text-muted-foreground truncate">{user.email}</span>
+                              {user.status === 'pending' && (
+                                <span className="text-xs text-amber-600 dark:text-amber-400">Pending</span>
+                              )}
+                            </div>
+                          </div>
+                          <select
+                            value={user.permissions}
+                            onChange={async (e) => {
+                              const newPermission = e.target.value as 'read' | 'write' | 'admin'
+                              try {
+                                const response = await apiClient.updateSharedUserPermissions(user.id, newPermission)
+                                if (response.success) {
+                                  await fetchSharedUsers()
+                                  toast.success('Permissions updated')
+                                } else {
+                                  toast.error('Failed to update permissions')
+                                }
+                              } catch (error) {
+                                console.error('Error updating permissions:', error)
+                                toast.error('Failed to update permissions')
+                              }
+                            }}
+                            className="h-8 rounded-md border border-input bg-background px-2 py-1 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                          >
+                            <option value="read">Viewer</option>
+                            <option value="write">Editor</option>
+                          </select>
+                        </div>
+                      ))}
+                      {/* View all button if more than 5 users */}
+                      {sharedUsers.length > 5 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowAllUsersModal(true)}
+                          className="w-full justify-center text-xs text-muted-foreground hover:text-foreground mt-1"
+                        >
+                          View all {sharedUsers.length} people
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Shared Users List Modal for viewing all users */}
+              {sharedUsers.length > 5 && showAllUsersModal && (
+                <Dialog open={showAllUsersModal} onOpenChange={setShowAllUsersModal}>
+                  <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                      <DialogTitle>People with access</DialogTitle>
+                      <DialogDescription>
+                        Manage who has access to this {itemType}
+                      </DialogDescription>
+                    </DialogHeader>
                     <SharedUsersList 
                       users={sharedUsers}
-                      maxVisible={5}
+                      maxVisible={10}
                       onPermissionChange={async (userId, permission) => {
                         try {
                           const response = await apiClient.updateSharedUserPermissions(userId, permission as 'read' | 'write' | 'admin')
@@ -1372,8 +1497,8 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
                         fetchSharedUsers()
                       }}
                     />
-                  </div>
-                </>
+                  </DialogContent>
+                </Dialog>
               )}
 
               <Separator />
