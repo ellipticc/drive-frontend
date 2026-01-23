@@ -89,8 +89,17 @@ const LogView = ({ title, content, isJson = false }: { title: string, content: a
     <div className="relative">
       <div className="bg-muted/30 dark:bg-muted/15 border border-muted-foreground/10 rounded-xl overflow-hidden shadow-sm transition-all hover:border-primary/20">
         <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent max-h-[500px]">
-          <div className="p-4 font-mono text-[11px] whitespace-pre text-muted-foreground/90 selection:bg-primary/30 leading-relaxed">
-            {isJson ? (
+          <div className="p-4 font-mono text-[11px] text-muted-foreground/90 selection:bg-primary/30 leading-relaxed">
+            {title.toLowerCase().includes('headers') && content && typeof content === 'object' ? (
+              <div className="space-y-1">
+                {Object.keys(content).map((k) => (
+                  <div key={k} className="flex items-start gap-3">
+                    <div className="font-mono text-[11px] text-muted-foreground/80 w-36 break-all">{k}</div>
+                    <div className="flex-1 text-[11px] break-words">{String(content[k])}</div>
+                  </div>
+                ))}
+              </div>
+            ) : isJson ? (
               <div className="json-theme-custom">
                 <JSONHighlighter obj={content} className="p-0 bg-transparent text-[11px] font-mono" />
               </div>
@@ -159,6 +168,10 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
   const [rotationLoading, setRotationLoading] = useState<string | null>(null)
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false)
   const [exportLoading, setExportLoading] = useState(false)
+
+  // Filters & batch actions
+  const [filters, setFilters] = useState<Record<string, { eventType?: string; start?: string; end?: string }>>({})
+  const [deleteAllId, setDeleteAllId] = useState<string | null>(null)
 
   // Form State
   const [formData, setFormData] = useState<{ url: string; events: string[]; secret?: string }>({ url: '', events: [] })
@@ -329,6 +342,18 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
     }
   }
 
+  async function confirmDeleteAll() {
+    if (!deleteAllId) return
+    const res = await apiClient.deleteAllWebhookEvents(deleteAllId)
+    setDeleteAllId(null)
+    if (res.success) {
+      toast.success('All logs deleted')
+      loadWebhookEvents(deleteAllId, 1)
+    } else {
+      toast.error(res.error || 'Failed to delete logs')
+    }
+  }
+
   async function testWebhook(id: string) {
     const promise = apiClient.testWebhook(id)
     toast.promise(promise, {
@@ -343,9 +368,10 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
     }
   }
 
-  async function loadWebhookEvents(id: string, page: number = 1) {
+  async function loadWebhookEvents(id: string, page: number = 1, appliedFilters?: { eventType?: string; start?: string; end?: string }) {
     setEvents(prev => ({ ...(prev || {}), [id]: { ...(prev[id] || { data: [], total: 0, page: 1, pageSize: 10 }), isLoading: true } }))
-    const res = await apiClient.listWebhookEvents(id, page, 10)
+    const fil = appliedFilters || filters[id]
+    const res = await apiClient.listWebhookEvents(id, page, 10, fil)
     if (res.success) {
       setEvents(prev => ({
         ...(prev || {}),
@@ -526,7 +552,7 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
               <p className="text-sm text-muted-foreground mt-0.5">Configure endpoints to receive real-time updates and automate your secure workflow.</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -575,20 +601,24 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
               <TooltipContent>Export Events (CSV)</TooltipContent>
             </Tooltip>
 
-            <Dialog open={createModalOpen} onOpenChange={(open) => { if (!open) resetForm(); setCreateModalOpen(open) }}>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-10 w-10 rounded-xl"
+              onClick={() => setCreateModalOpen(true)}
+              disabled={usageData ? !usageData.allowed : false}
+            >
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-10 w-10 rounded-xl"
-                    disabled={usageData ? !usageData.allowed : false}
-                  >
+                  <span>
                     <IconPlus className="h-5 w-5 text-muted-foreground" />
-                  </Button>
+                  </span>
                 </TooltipTrigger>
                 <TooltipContent>New Webhook</TooltipContent>
               </Tooltip>
+            </Button>
+
+            <Dialog open={createModalOpen} onOpenChange={(open) => { if (!open) resetForm(); setCreateModalOpen(open) }}>
               <DialogContent className="sm:max-w-md rounded-lg border-muted/70 shadow-sm">
                 <DialogHeader className="space-y-1.5">
                   <DialogTitle className="text-xl font-black flex items-center gap-2">
@@ -712,6 +742,29 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={confirmRotate} className="bg-destructive hover:bg-destructive/90 text-white shadow-lg shadow-destructive/20">
               Generate New Secret
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Wipe All Logs Confirm */}
+      <AlertDialog open={!!deleteAllId} onOpenChange={(open) => !open && setDeleteAllId(null)}>
+        <AlertDialogContent className="rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <div className="p-2 rounded-full bg-destructive/10">
+                <IconTrash className="h-5 w-5 text-destructive" />
+              </div>
+              Wipe All Delivery Logs?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="font-medium pt-2 leading-relaxed">
+              This will permanently delete <span className="font-bold">all delivery logs</span> for this webhook. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="pt-2">
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteAll} className="bg-destructive hover:bg-destructive/90 shadow-lg shadow-destructive/20">
+              Wipe Logs
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -998,16 +1051,83 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
                                   <div className="h-1.5 w-1.5 rounded-full bg-primary" />
                                   Delivery History
                                 </h4>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 px-3 rounded-lg text-[10px] font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground hover:bg-muted"
-                                  onClick={() => loadWebhookEvents(w.id, events[w.id]?.page || 1)}
-                                  disabled={events[w.id]?.isLoading}
-                                >
-                                  {events[w.id]?.isLoading ? <IconLoader2 className="h-3.5 w-3.5 mr-2 animate-spin" /> : <IconRefresh className="h-3.5 w-3.5 mr-2" />}
-                                  Refresh Logs
-                                </Button>
+
+                                <div className="flex items-center gap-2">
+                                  {/* Date range filters */}
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      type="date"
+                                      value={filters[w.id]?.start || ''}
+                                      onChange={(e) => setFilters(prev => ({ ...(prev || {}), [w.id]: { ...(prev[w.id] || {}), start: e.target.value } }))}
+                                      className="h-8 rounded-md bg-background border border-muted-foreground/10 text-xs px-2"
+                                    />
+                                    <span className="text-muted-foreground text-xs">to</span>
+                                    <input
+                                      type="date"
+                                      value={filters[w.id]?.end || ''}
+                                      onChange={(e) => setFilters(prev => ({ ...(prev || {}), [w.id]: { ...(prev[w.id] || {}), end: e.target.value } }))}
+                                      className="h-8 rounded-md bg-background border border-muted-foreground/10 text-xs px-2"
+                                    />
+                                  </div>
+
+                                  {/* Event type selector */}
+                                  <select
+                                    value={filters[w.id]?.eventType || ''}
+                                    onChange={(e) => setFilters(prev => ({ ...(prev || {}), [w.id]: { ...(prev[w.id] || {}), eventType: e.target.value } }))}
+                                    className="h-8 rounded-md bg-background border border-muted-foreground/10 text-xs px-2"
+                                  >
+                                    <option value="">All Events</option>
+                                    {EVENT_TYPES.map(et => <option key={et.id} value={et.id}>{et.label}</option>)}
+                                  </select>
+
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button size="icon" variant="ghost" className="h-8 w-8 rounded-md" onClick={() => loadWebhookEvents(w.id, 1)}>
+                                        <IconRefresh className="h-4 w-4 text-muted-foreground" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Refresh Logs</TooltipContent>
+                                  </Tooltip>
+
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button size="icon" variant="ghost" className="h-8 w-8 rounded-md" onClick={async () => {
+                                        setExportLoading(true);
+                                        try {
+                                          const res = await apiClient.exportWebhookEventsForWebhook(w.id);
+                                          if (!res.success) throw new Error(res.error || 'Export failed');
+                                          const blob = res.data as Blob;
+                                          const url = URL.createObjectURL(blob);
+                                          const a = document.createElement('a');
+                                          a.href = url;
+                                          a.download = `webhook_${w.id}_events_${Date.now()}.csv`;
+                                          document.body.appendChild(a);
+                                          a.click();
+                                          a.remove();
+                                          URL.revokeObjectURL(url);
+                                          toast.success('Export started');
+                                        } catch (err) {
+                                          console.error(err);
+                                          toast.error('Failed to export webhook events');
+                                        } finally {
+                                          setExportLoading(false);
+                                        }
+                                      }}>
+                                        <IconDownload className="h-4 w-4 text-muted-foreground" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Export Events (CSV)</TooltipContent>
+                                  </Tooltip>
+
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button size="icon" variant="ghost" className="h-8 w-8 rounded-md text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setDeleteAllId(w.id)}>
+                                        <IconTrash className="h-4 w-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Wipe All Logs</TooltipContent>
+                                  </Tooltip>
+                                </div>
                               </div>
 
                               {(events[w.id]?.isLoading && !(events[w.id]?.data || []).length) ? (

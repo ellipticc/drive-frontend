@@ -3644,8 +3644,13 @@ class ApiClient {
     return this.request(`/user/webhooks/${id}/test`, { method: 'POST' });
   }
 
-  async listWebhookEvents(id: string, page: number = 1, limit: number = 10): Promise<ApiResponse<any[]>> {
+  async listWebhookEvents(id: string, page: number = 1, limit: number = 10, filters?: { eventType?: string; start?: string; end?: string }): Promise<ApiResponse<any[]>> {
     const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+    if (filters) {
+      if (filters.eventType) params.set('eventType', filters.eventType);
+      if (filters.start) params.set('start', filters.start);
+      if (filters.end) params.set('end', filters.end);
+    }
     return this.request(`/user/webhooks/${id}/events?${params.toString()}`);
   }
 
@@ -3655,6 +3660,32 @@ class ApiClient {
 
   async deleteWebhookEvent(eventId: string): Promise<ApiResponse<{ success: boolean }>> {
     return this.request(`/user/webhooks/events/${eventId}`, { method: 'DELETE' });
+  }
+
+  // Export events for a specific webhook as CSV
+  async exportWebhookEventsForWebhook(id: string): Promise<ApiResponse<Blob>> {
+    const authHeaders = await this.getAuthHeaders(`/user/webhooks/${id}/events/export`, 'GET');
+    const response = await fetch(`${this.baseURL}/user/webhooks/${id}/events/export`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: { ...authHeaders },
+    });
+
+    if (!response.ok) {
+      try {
+        const json = await response.json();
+        return { success: false, error: json.error || 'Failed to export' };
+      } catch (e) {
+        return { success: false, error: `Export failed: ${response.status}` };
+      }
+    }
+
+    const blob = await response.blob();
+    return { success: true, data: blob };
+  }
+
+  async deleteAllWebhookEvents(id: string): Promise<ApiResponse<{ deleted: number }>> {
+    return this.request(`/user/webhooks/${id}/events`, { method: 'DELETE' });
   }
 
   async resendWebhookEvent(eventId: string): Promise<ApiResponse<{ success: boolean; event: any }>> {
