@@ -755,6 +755,7 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
                                                                 name={decryptedNames[item.id] || item.item.name || ''}
                                                                 className={`h-4 w-4 inline-block align-middle`}
                                                                 iconClassName="h-4 w-4"
+                                                                shareId={item.id} // Pass shareId to enable cached CEK usage
                                                             />
                                                         ) : (
                                                             <div className="h-4 w-4 inline-flex items-center justify-center align-middle">
@@ -775,7 +776,7 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
                                             <Table.Cell className="w-[200px]">
                                                 <div className="flex items-center gap-2">
                                                     <Avatar className="size-6">
-                                                        <AvatarImage src={item.owner.avatar} />
+                                                        <AvatarImage src={item.owner.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${item.owner.id}`} />
                                                         <AvatarFallback>{item.owner.name.substring(0, 2)}</AvatarFallback>
                                                     </Avatar>
                                                     <div className="flex flex-col text-xs truncate">

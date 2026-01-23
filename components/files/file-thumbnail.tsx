@@ -30,6 +30,7 @@ interface FileThumbnailProps {
         nonceWrapKyber: string;
     };
     thumbnailPath?: string; // Optimization: If we know it has one from API response
+    shareId?: string; // NEW: For shared files, use the share context to get the CEK
 }
 
 export function FileThumbnail({
@@ -40,6 +41,7 @@ export function FileThumbnail({
     iconClassName = "h-4 w-4",
     encryption,
     thumbnailPath,
+    shareId,
 }: FileThumbnailProps) {
     const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -96,46 +98,64 @@ export function FileThumbnail({
                 const [encryptedPart, noncePart] = encryptedText.split(':');
                 if (!encryptedPart || !noncePart) throw new Error("Invalid thumbnail format");
 
-                let fileEncryption = encryption;
+                // 2. Get CEK
+                let cek: Uint8Array | null = null;
 
-                const hasPQCKeys = fileEncryption &&
-                    'kyberCiphertext' in fileEncryption &&
-                    ('nonceWrapKyber' in fileEncryption || 'cekNonce' in fileEncryption);
+                // Priority 1: Check if we have a cached CEK for this share (Fastest & Most Reliable for Shares)
+                if (shareId) {
+                    const { getCekForShare } = await import('@/lib/share-cache');
+                    const cachedCek = getCekForShare(shareId);
+                    if (cachedCek) {
+                        cek = cachedCek;
+                    }
+                }
 
-                if (!fileEncryption || !hasPQCKeys) {
-                    // Fetch full file info to get complete encryption keys
-                    const fileInfo = await apiClient.getFileInfo(fileId);
+                // If no cached CEK found, proceed with standard derivation
+                if (!cek) {
+                    let fileEncryption = encryption;
 
-                    if (fileInfo.success && fileInfo.data?.encryption) {
-                        fileEncryption = fileInfo.data.encryption as any;
-                        // Double check keys in fetched info
-                        if (!('kyberCiphertext' in (fileEncryption || {}))) {
-                            // Fallback to getDownloadUrls which guarantees keys
+                    const hasPQCKeys = fileEncryption &&
+                        'kyberCiphertext' in fileEncryption &&
+                        ('nonceWrapKyber' in fileEncryption || 'cekNonce' in fileEncryption);
+
+                    if (!fileEncryption || !hasPQCKeys) {
+                        // Fetch full file info to get complete encryption keys
+                        const fileInfo = await apiClient.getFileInfo(fileId);
+
+                        if (fileInfo.success && fileInfo.data?.encryption) {
+                            fileEncryption = fileInfo.data.encryption as any;
+                            // Double check keys in fetched info
+                            if (!('kyberCiphertext' in (fileEncryption || {}))) {
+                                // Fallback to getDownloadUrls which guarantees keys
+                                const dlUrls = await apiClient.getDownloadUrls(fileId);
+                                if (dlUrls.success && dlUrls.data?.encryption) {
+                                    fileEncryption = dlUrls.data.encryption as any;
+                                }
+                            }
+                        } else {
                             const dlUrls = await apiClient.getDownloadUrls(fileId);
                             if (dlUrls.success && dlUrls.data?.encryption) {
                                 fileEncryption = dlUrls.data.encryption as any;
                             }
                         }
-                    } else {
-                        const dlUrls = await apiClient.getDownloadUrls(fileId);
-                        if (dlUrls.success && dlUrls.data?.encryption) {
-                            fileEncryption = dlUrls.data.encryption as any;
-                        }
                     }
+
+                    if (!fileEncryption) throw new Error("Could not obtain encryption keys");
+
+                    const userKeys = await keyManager.getUserKeys();
+
+                    cek = await unwrapCEK({
+                        wrappedCek: fileEncryption.wrappedCek,
+                        cekNonce: fileEncryption.cekNonce,
+                        kyberCiphertext: fileEncryption.kyberCiphertext,
+                        // Prefer cekNonce (which is reliably swapped by backend) over nonceWrapKyber (which might be the owner's nonce in older backends)
+                        nonceWrapKyber: fileEncryption.nonceWrapKyber || fileEncryption.cekNonce || fileEncryption.iv,
+                        algorithm: 'v3-hybrid-pqc',
+                        version: '3.0'
+                    } as DownloadEncryption, userKeys.keypairs);
                 }
 
-                if (!fileEncryption) throw new Error("Could not obtain encryption keys");
-
-                const userKeys = await keyManager.getUserKeys();
-
-                const cek = await unwrapCEK({
-                    wrappedCek: fileEncryption.wrappedCek,
-                    cekNonce: fileEncryption.cekNonce,
-                    kyberCiphertext: fileEncryption.kyberCiphertext,
-                    nonceWrapKyber: fileEncryption.nonceWrapKyber || fileEncryption.cekNonce || fileEncryption.iv,
-                    algorithm: 'v3-hybrid-pqc',
-                    version: '3.0'
-                } as DownloadEncryption, userKeys.keypairs);
+                if (!cek) throw new Error("Failed to obtain CEK");
 
                 const decryptedBytes = decryptData(encryptedPart, cek, noncePart);
                 const decryptedBlob = new Blob(
@@ -192,7 +212,7 @@ export function FileThumbnail({
                 }
             }
         };
-    }, [fileId, retryCount, hasError, encryption, mimeType, name, isKnownNonMedia]);
+    }, [fileId, retryCount, hasError, encryption, mimeType, name, isKnownNonMedia, shareId]);
 
     if (isKnownNonMedia) {
         return <FileIcon mimeType={mimeType} filename={name} className={className} />;
