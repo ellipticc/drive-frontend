@@ -19,6 +19,7 @@ import {
   SidebarMenuSub,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 
 export function NavMain({
   items,
@@ -203,9 +204,16 @@ export function NavMain({
                   {item.icon && <item.icon />}
                   <span>{item.title}</span>
                   {item.badge && item.badge > 0 && (
-                    <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-medium text-primary-foreground">
-                      {item.badge}
-                    </span>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="ml-auto flex h-5 w-6 items-center justify-center rounded-[4px] bg-primary px-1 text-[11px] font-semibold text-primary-foreground">
+                          {item.badge}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="right">
+                        {item.badge} pending invitation{item.badge !== 1 ? 's' : ''}
+                      </TooltipContent>
+                    </Tooltip>
                   )}
                 </SidebarMenuButton>
               )}

@@ -203,6 +203,19 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
         }
     }
 
+    const confirmDeclineBulk = () => {
+        const count = selectedItems.size;
+        if (count === 0) return;
+        setAlertConfig({
+            title: "Decline Selected Shares",
+            description: `Are you sure you want to decline ${count} selected share${count !== 1 ? 's' : ''}? They will be removed from your list.`,
+            actionLabel: "Decline",
+            actionVariant: "destructive",
+            onConfirm: handleDeclineBulk
+        });
+        setAlertOpen(true);
+    }
+
     const handleHeaderDownloadBulk = async () => {
         const ids = Array.from(selectedItems);
         if (ids.length === 0) return;
@@ -502,7 +515,7 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
                         </Tooltip>
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={handleDeclineBulk} aria-label={`Decline ${selCount} selected`}>
+                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={confirmDeclineBulk} aria-label={`Decline ${selCount} selected`}>
                                     <IconX className="h-4 w-4" />
                                 </Button>
                             </TooltipTrigger>
