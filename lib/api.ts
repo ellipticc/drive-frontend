@@ -3542,7 +3542,7 @@ class ApiClient {
     return this.request(`/shares/${shareId}/comments/banned`);
   }
 
-  async getSecurityEvents(limit = 10, offset = 0, format?: string, startDate?: string, endDate?: string): Promise<ApiResponse<{
+  async getSecurityEvents(limit = 10, offset = 0, format?: string, startDate?: string, endDate?: string, eventType?: string): Promise<ApiResponse<{
     events: SecurityEvent[];
     pagination: { total: number; limit: number; offset: number; hasMore: boolean };
     csv?: string;
@@ -3551,6 +3551,7 @@ class ApiClient {
     let query = `limit=${limit}&offset=${offset}${format ? `&format=${format}` : ''}`;
     if (startDate) query += `&startDate=${startDate}`;
     if (endDate) query += `&endDate=${endDate}`;
+    if (eventType) query += `&eventType=${eventType}`;
     return this.request(`/auth/security/events?${query}`, {
       method: 'GET',
     });
@@ -3816,7 +3817,7 @@ class ApiClient {
     return this.request(`/analytics/dashboard${query}`);
   }
 
-  async getActivityLogsInsights(page = 1, limit = 10, startDate?: string, endDate?: string): Promise<ApiResponse<{
+  async getActivityLogsInsights(page = 1, limit = 10, startDate?: string, endDate?: string, eventType?: string): Promise<ApiResponse<{
     activity: any[],
     pagination: {
       page: number,
@@ -3828,6 +3829,7 @@ class ApiClient {
     let query = `page=${page}&limit=${limit}`;
     if (startDate) query += `&startDate=${startDate}`;
     if (endDate) query += `&endDate=${endDate}`;
+    if (eventType) query += `&eventType=${eventType}`;
     return this.request(`/analytics/activity?${query}`);
   }
 

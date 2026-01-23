@@ -211,6 +211,8 @@ interface SecurityTabProps {
     setSecurityEventsHasMore: (val: boolean) => void;
     securityEventsDateRange?: DateRange;
     setSecurityEventsDateRange?: (val: DateRange | undefined) => void;
+    securityEventType?: string;
+    setSecurityEventType?: (val: string) => void;
 
     // Account
     handleLogout: () => void;
@@ -256,7 +258,8 @@ export function SecurityTab(props: SecurityTabProps) {
         showRevoked, setShowRevoked,
         usageDiagnosticsEnabled, crashReportsEnabled, handleUpdatePrivacySettings,
         userPlan,
-        securityEventsDateRange, setSecurityEventsDateRange
+        securityEventsDateRange, setSecurityEventsDateRange,
+        securityEventType, setSecurityEventType
     } = props;
 
     const { formatDate } = useFormatter();
@@ -264,6 +267,40 @@ export function SecurityTab(props: SecurityTabProps) {
     const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
     const [loadingDetails, setLoadingDetails] = useState<string | null>(null);
     const [eventActiveTab, setEventActiveTab] = useState<'overview' | 'metadata'>('overview');
+
+    const SECURITY_EVENT_TYPES = [
+        { id: 'login', label: 'Login' },
+        { id: 'logout', label: 'Logout' },
+        { id: 'password_changed', label: 'Password Changed' },
+        { id: '2fa_enabled', label: '2FA Enabled' },
+        { id: '2fa_disabled', label: '2FA Disabled' },
+        { id: 'device_added', label: 'Device Added' },
+        { id: 'device_removed', label: 'Device Removed' },
+        { id: 'session_revoked', label: 'Session Revoked' },
+    ];
+
+    const SecurityEventTypeSelector = React.memo(function SecurityEventTypeSelector() {
+        const [open, setOpen] = useState(false);
+        return (
+            <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-8 w-36 justify-start text-xs px-3">
+                        <span className="truncate text-xs">{securityEventType ? (SECURITY_EVENT_TYPES.find(et => et.id === securityEventType)?.label || 'Selected') : 'All Events'}</span>
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[200px] p-0" align="start">
+                    <div className="max-h-[300px] overflow-y-auto">
+                        <div className="flex flex-col">
+                            <button onClick={() => { setSecurityEventType?.(''); setOpen(false); }} className="px-3 py-2 text-xs text-left hover:bg-muted transition-colors">All Events</button>
+                            {SECURITY_EVENT_TYPES.map(et => (
+                                <button key={et.id} onClick={() => { setSecurityEventType?.(et.id); setOpen(false); }} className="px-3 py-2 text-xs text-left hover:bg-muted transition-colors">{et.label}</button>
+                            ))}
+                        </div>
+                    </div>
+                </PopoverContent>
+            </Popover>
+        );
+    });
 
     const handleExpandEvent = async (eventId: string) => {
         if (expandedEventId === eventId) {
@@ -1196,6 +1233,8 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
+                        <SecurityEventTypeSelector />
+
                         <Popover>
                             <PopoverTrigger asChild>
                                 <Button

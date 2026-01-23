@@ -333,6 +333,7 @@ export function SettingsModal({
   const [securityEventsTotal, setSecurityEventsTotal] = useState(0)
   const [securityEventsHasMore, setSecurityEventsHasMore] = useState(false)
   const [securityEventsDateRange, setSecurityEventsDateRange] = useState<DateRange | undefined>()
+  const [securityEventType, setSecurityEventType] = useState<string>('')
   const [activityMonitorEnabled, setActivityMonitorEnabled] = useState(true)
   const [detailedEventsEnabled, setDetailedEventsEnabled] = useState(true)
   const [showDisableMonitorDialog, setShowDisableMonitorDialog] = useState(false)
@@ -979,7 +980,7 @@ export function SettingsModal({
       const offset = (page - 1) * limit
       const startDate = securityEventsDateRange?.from ? format(securityEventsDateRange.from, "yyyy-MM-dd") : undefined
       const endDate = securityEventsDateRange?.to ? format(securityEventsDateRange.to, "yyyy-MM-dd") : undefined
-      const response = await apiClient.getSecurityEvents(limit, offset, undefined, startDate, endDate)
+      const response = await apiClient.getSecurityEvents(limit, offset, undefined, startDate, endDate, securityEventType || undefined)
       if (response.success && response.data) {
         setSecurityEvents(response.data.events || [])
         if (response.data.pagination) {
@@ -1170,12 +1171,12 @@ export function SettingsModal({
 
 
 
-  // Handle security events reload on date range change
+  // Handle security events reload on date range or event type change
   useEffect(() => {
     if (activeTab === 'Security' || activeTab === 'security') {
       loadSecurityEvents(1)
     }
-  }, [securityEventsDateRange])
+  }, [securityEventsDateRange, securityEventType])
 
   // Handle avatar click to open file picker
   const handleAvatarClick = () => {
@@ -1901,6 +1902,8 @@ export function SettingsModal({
                   setSecurityEventsHasMore={setSecurityEventsHasMore}
                   securityEventsDateRange={securityEventsDateRange}
                   setSecurityEventsDateRange={setSecurityEventsDateRange}
+                  securityEventType={securityEventType}
+                  setSecurityEventType={setSecurityEventType}
 
                   // Account
                   handleLogout={handleLogout}

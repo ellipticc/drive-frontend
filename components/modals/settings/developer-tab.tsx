@@ -4,14 +4,6 @@ import React, { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Combobox,
-  ComboboxTrigger,
-  ComboboxContent,
-  ComboboxList,
-  ComboboxItem,
-  ComboboxValue,
-} from "@/components/ui/combobox"
 import { Switch } from "@/components/ui/switch"
 import { apiClient } from "@/lib/api"
 import { toast } from "sonner"
@@ -108,7 +100,8 @@ const LogView = ({ title, content, isJson = false }: { title: string, content: a
               {title.toLowerCase().includes('headers') && content && typeof content === 'object' ? (
                 <div className="space-y-1">
                   {(() => {
-                    const headerKeys = content && typeof content === 'object' ? Object.keys(content) : [];
+                    if (!content || typeof content !== 'object') return <div className="italic text-[11px]">No headers captured</div>;
+                    const headerKeys = Object.keys(content);
                     if (headerKeys.length === 0) return <div className="italic text-[11px]">No headers captured</div>;
                     return headerKeys.map((k) => (
                       <div key={k} className="flex items-start gap-3">
@@ -189,6 +182,8 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
   const [rotationLoading, setRotationLoading] = useState<string | null>(null)
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false)
   const [exportLoading, setExportLoading] = useState(false)
+  const [perWebhookExportLoading, setPerWebhookExportLoading] = useState<Record<string, boolean>>({})
+  const [perWebhookWipeLoading, setPerWebhookWipeLoading] = useState<Record<string, boolean>>({})
 
   // Filters & batch actions
   const [filters, setFilters] = useState<Record<string, { eventType?: string; dateRange?: DateRange }>>({})
@@ -243,18 +238,36 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
 
   const EventTypeSelector = React.memo(function EventTypeSelector({ value, onChange }: { value: string, onChange: (v: string) => void }) {
     const safeValue = value || '';
+    const [open, setOpen] = useState(false);
     return (
-      <Combobox value={safeValue} onValueChange={(val) => onChange(val ?? '')}>
-        <ComboboxTrigger className="h-8 w-36 text-xs">
-          <span className="truncate text-sm">{safeValue ? (EVENT_TYPES.find(et => et.id === safeValue)?.label || 'Selected') : 'All Events'}</span>
-        </ComboboxTrigger>
-        <ComboboxContent>
-          <ComboboxList>
-            <ComboboxItem value="">All Events</ComboboxItem>
-            {EVENT_TYPES.map(et => <ComboboxItem key={et.id} value={et.id}>{et.label}</ComboboxItem>)}
-          </ComboboxList>
-        </ComboboxContent>
-      </Combobox>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button variant="outline" size="sm" className="h-8 w-36 justify-start text-xs px-3">
+            <span className="truncate text-xs">{safeValue ? (EVENT_TYPES.find(et => et.id === safeValue)?.label || 'Selected') : 'All Events'}</span>
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[200px] p-0" align="start">
+          <div className="max-h-[300px] overflow-y-auto">
+            <div className="flex flex-col">
+              <button
+                onClick={() => { onChange(''); setOpen(false); }}
+                className="px-3 py-2 text-xs text-left hover:bg-muted transition-colors"
+              >
+                All Events
+              </button>
+              {EVENT_TYPES.map(et => (
+                <button
+                  key={et.id}
+                  onClick={() => { onChange(et.id); setOpen(false); }}
+                  className="px-3 py-2 text-xs text-left hover:bg-muted transition-colors"
+                >
+                  {et.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
     )
   })
 
@@ -391,14 +404,17 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
 
   async function confirmDeleteAll() {
     if (!deleteAllId) return
+    setPerWebhookWipeLoading(prev => ({ ...prev, [deleteAllId]: true }));
     const res = await apiClient.deleteAllWebhookEvents(deleteAllId)
+    const webhookId = deleteAllId;
     setDeleteAllId(null)
     if (res.success) {
       toast.success('All logs deleted')
-      loadWebhookEvents(deleteAllId, 1)
+      loadWebhookEvents(webhookId, 1)
     } else {
       toast.error(res.error || 'Failed to delete logs')
     }
+    setPerWebhookWipeLoading(prev => ({ ...prev, [webhookId]: false }));
   }
 
   async function testWebhook(id: string) {
@@ -1160,8 +1176,8 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
 
                                   <Tooltip>
                                     <TooltipTrigger asChild>
-                                      <Button size="icon" variant="ghost" className="h-8 w-8 rounded-md" onClick={async () => {
-                                        setExportLoading(true);
+                                      <Button size="icon" variant="ghost" className="h-8 w-8 rounded-md" disabled={perWebhookExportLoading[w.id]} onClick={async () => {
+                                        setPerWebhookExportLoading(prev => ({ ...prev, [w.id]: true }));
                                         try {
                                           const res = await apiClient.exportWebhookEventsForWebhook(w.id);
                                           if (!res.success) throw new Error(res.error || 'Export failed');
@@ -1174,15 +1190,15 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
                                           a.click();
                                           a.remove();
                                           URL.revokeObjectURL(url);
-                                          toast.success('Export started');
+                                          toast.success('Export completed');
                                         } catch (err) {
                                           console.error(err);
                                           toast.error('Failed to export webhook events');
                                         } finally {
-                                          setExportLoading(false);
+                                          setPerWebhookExportLoading(prev => ({ ...prev, [w.id]: false }));
                                         }
                                       }}>
-                                        <IconDownload className="h-4 w-4 text-muted-foreground" />
+                                        {perWebhookExportLoading[w.id] ? <IconLoader2 className="h-4 w-4 animate-spin" /> : <IconDownload className="h-4 w-4 text-muted-foreground" />}
                                       </Button>
                                     </TooltipTrigger>
                                     <TooltipContent>Export Events (CSV)</TooltipContent>
@@ -1190,8 +1206,8 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
 
                                   <Tooltip>
                                     <TooltipTrigger asChild>
-                                      <Button size="icon" variant="ghost" className="h-8 w-8 rounded-md text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setDeleteAllId(w.id)}>
-                                        <IconTrash className="h-4 w-4" />
+                                      <Button size="icon" variant="ghost" className="h-8 w-8 rounded-md text-destructive hover:text-destructive hover:bg-destructive/10" disabled={perWebhookWipeLoading[w.id]} onClick={() => setDeleteAllId(w.id)}>
+                                        {perWebhookWipeLoading[w.id] ? <IconLoader2 className="h-4 w-4 animate-spin" /> : <IconTrash className="h-4 w-4" />}
                                       </Button>
                                     </TooltipTrigger>
                                     <TooltipContent>Wipe All Logs</TooltipContent>

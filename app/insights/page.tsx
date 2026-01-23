@@ -84,6 +84,7 @@ export default function InsightsPage() {
   const [isExporting, setIsExporting] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [showWipeDialog, setShowWipeDialog] = useState(false)
+  const [activityEventType, setActivityEventType] = useState<string>('')
   
   const [upgradeDialogData, setUpgradeDialogData] = useState<{ open: boolean; title: string; description: string } | null>(null)
 
@@ -128,7 +129,8 @@ export default function InsightsPage() {
         logsPagination.pageIndex + 1,
         logsPagination.pageSize,
         startDate,
-        endDate
+        endDate,
+        activityEventType || undefined
       )
       if (logsResponse.success && logsResponse.data) {
         setActivityLogs(logsResponse.data.activity)
@@ -218,10 +220,10 @@ export default function InsightsPage() {
     fetchAnalytics()
   }, [timeRange])
 
-  // Fetch activity logs (Pagination or Date Filter change)
+  // Fetch activity logs (Pagination or Date Filter or Event Type change)
   useEffect(() => {
     fetchLogsOnly()
-  }, [logsPagination.pageIndex, logsPagination.pageSize, dateRange])
+  }, [logsPagination.pageIndex, logsPagination.pageSize, dateRange, activityEventType])
 
   if (isLoading) {
     return (
@@ -665,6 +667,36 @@ export default function InsightsPage() {
                         <IconX className="h-4 w-4" />
                       </Button>
                     )}
+
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className="h-8 w-36 justify-start text-xs px-3">
+                          <span className="truncate text-xs">{activityEventType ? activityEventType.replace(/_/g, ' ') : 'All Events'}</span>
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[200px] p-0" align="start">
+                        <div className="max-h-[300px] overflow-y-auto">
+                          <div className="flex flex-col">
+                            <button onClick={() => setActivityEventType('')} className="px-3 py-2 text-xs text-left hover:bg-muted transition-colors">All Events</button>
+                            <button onClick={() => setActivityEventType('FILE_UPLOAD')} className="px-3 py-2 text-xs text-left hover:bg-muted transition-colors">File Upload</button>
+                            <button onClick={() => setActivityEventType('FILE_CREATE')} className="px-3 py-2 text-xs text-left hover:bg-muted transition-colors">File Create</button>
+                            <button onClick={() => setActivityEventType('FILE_RENAME')} className="px-3 py-2 text-xs text-left hover:bg-muted transition-colors">File Rename</button>
+                            <button onClick={() => setActivityEventType('FILE_MOVE')} className="px-3 py-2 text-xs text-left hover:bg-muted transition-colors">File Move</button>
+                            <button onClick={() => setActivityEventType('FILE_DELETE')} className="px-3 py-2 text-xs text-left hover:bg-muted transition-colors">File Delete</button>
+                            <button onClick={() => setActivityEventType('TRASH_MOVE')} className="px-3 py-2 text-xs text-left hover:bg-muted transition-colors">Trash Move</button>
+                            <button onClick={() => setActivityEventType('TRASH_RESTORE')} className="px-3 py-2 text-xs text-left hover:bg-muted transition-colors">Trash Restore</button>
+                            <button onClick={() => setActivityEventType('FOLDER_CREATE')} className="px-3 py-2 text-xs text-left hover:bg-muted transition-colors">Folder Create</button>
+                            <button onClick={() => setActivityEventType('FOLDER_RENAME')} className="px-3 py-2 text-xs text-left hover:bg-muted transition-colors">Folder Rename</button>
+                            <button onClick={() => setActivityEventType('FOLDER_MOVE')} className="px-3 py-2 text-xs text-left hover:bg-muted transition-colors">Folder Move</button>
+                            <button onClick={() => setActivityEventType('FOLDER_DELETE')} className="px-3 py-2 text-xs text-left hover:bg-muted transition-colors">Folder Delete</button>
+                            <button onClick={() => setActivityEventType('SHARE_CREATE')} className="px-3 py-2 text-xs text-left hover:bg-muted transition-colors">Share Create</button>
+                            <button onClick={() => setActivityEventType('SHARE_REVOKE')} className="px-3 py-2 text-xs text-left hover:bg-muted transition-colors">Share Revoke</button>
+                            <button onClick={() => setActivityEventType('LOGIN')} className="px-3 py-2 text-xs text-left hover:bg-muted transition-colors">Login</button>
+                            <button onClick={() => setActivityEventType('LOGOUT')} className="px-3 py-2 text-xs text-left hover:bg-muted transition-colors">Logout</button>
+                          </div>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
 
                     <TooltipProvider>
                       <Tooltip>
