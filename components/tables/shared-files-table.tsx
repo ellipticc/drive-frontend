@@ -650,7 +650,7 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
                     <Table
                         aria-label="Shared With Me"
                         selectionMode="multiple"
-                        selectionBehavior="toggle"
+                        selectionBehavior="replace"
                         sortDescriptor={sortDescriptor}
                         onSortChange={setSortDescriptor}
                         selectedKeys={selectedItems}
@@ -735,13 +735,19 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
                                                     {item.item.type === 'folder' ? (
                                                         <IconFolder className="h-4 w-4 text-blue-500 inline-block align-middle" />
                                                     ) : (
-                                                        <FileThumbnail
-                                                            fileId={item.item.id}
-                                                            mimeType={item.item.type === 'paper' ? 'application/x-paper' : item.item.mimeType}
-                                                            name={decryptedNames[item.id] || item.item.name || ''}
-                                                            className={`h-4 w-4 inline-block align-middle ${isPending ? 'opacity-70' : ''}`}
-                                                            iconClassName="h-4 w-4"
-                                                        />
+                                                        item.status === 'accepted' ? (
+                                                            <FileThumbnail
+                                                                fileId={item.item.id}
+                                                                mimeType={item.item.type === 'paper' ? 'application/x-paper' : item.item.mimeType}
+                                                                name={decryptedNames[item.id] || item.item.name || ''}
+                                                                className={`h-4 w-4 inline-block align-middle`}
+                                                                iconClassName="h-4 w-4"
+                                                            />
+                                                        ) : (
+                                                            <div className="h-4 w-4 inline-flex items-center justify-center align-middle">
+                                                                <IconFile className="h-4 w-4 text-muted-foreground opacity-50" />
+                                                            </div>
+                                                        )
                                                     )}
                                                 </div>
                                                 <TruncatedNameTooltip

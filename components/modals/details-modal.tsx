@@ -747,7 +747,8 @@ export function DetailsModal({
                 {/* Preview Area */}
                 <div className="px-6 flex flex-col items-center justify-center py-4">
                   <div
-                    className="rounded-2xl bg-white dark:bg-zinc-900 border shadow-sm flex items-center justify-center mb-4 overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary/20 transition-all group"
+                    className={`rounded-2xl bg-white dark:bg-zinc-900 border shadow-sm flex items-center justify-center mb-4 overflow-hidden group ${!shareId ? 'cursor-pointer hover:ring-2 hover:ring-primary/20 hover:scale-[1.02] active:scale-[0.98]' : 'select-none pointer-events-none opacity-90'
+                      } transition-all`}
                     style={{
                       width: itemDetails?.width && itemDetails?.height
                         ? (itemDetails.width > itemDetails.height ? '160px' : (itemDetails.width < itemDetails.height ? '96px' : '128px'))
@@ -756,13 +757,13 @@ export function DetailsModal({
                         ? (itemDetails.width > itemDetails.height ? '90px' : (itemDetails.width < itemDetails.height ? '128px' : '128px'))
                         : '128px',
                     }}
-                    onClick={handlePreview}
+                    onClick={!shareId ? handlePreview : undefined}
                   >
                     {thumbnailUrl ? (
                       <img
                         src={thumbnailUrl}
                         alt="Thumbnail"
-                        className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                        className={`w-full h-full object-cover transition-transform ${!shareId ? 'group-hover:scale-105' : ''}`}
                         draggable={false}
                         onDragStart={(e) => e.preventDefault()}
                       />
@@ -789,6 +790,11 @@ export function DetailsModal({
                       </>
                     ) : (
                       <span className="font-medium text-foreground">Folder</span>
+                    )}
+                    {shareId && (
+                      <Badge variant="secondary" className="px-1.5 h-4 text-[10px] ml-1">
+                        Shared
+                      </Badge>
                     )}
                   </p>
                 </div>
@@ -819,111 +825,118 @@ export function DetailsModal({
                     </div>
 
                     <div
-                      className="flex flex-wrap gap-1.5 min-h-[2.5rem] p-2 rounded-lg border bg-muted/20 focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary/30 transition-all cursor-text items-center"
+                      className={`flex flex-wrap gap-1.5 min-h-[2.5rem] p-2 rounded-lg border bg-muted/20 items-center ${!shareId ? 'focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary/30 transition-all cursor-text' : 'opacity-80 cursor-default'
+                        }`}
                       onClick={() => {
-                        if (!openCombobox) setOpenCombobox(true);
+                        if (!shareId && !openCombobox) setOpenCombobox(true);
                       }}
                     >
                       {tags.map((tag) => (
                         <Badge
                           key={tag.id}
                           variant="secondary"
-                          className="pl-2 pr-1 h-7 flex items-center gap-1 hover:bg-muted cursor-pointer group"
+                          className={`pl-2 pr-1 h-7 flex items-center gap-1 group ${!shareId ? 'hover:bg-muted cursor-pointer' : ''}`}
                           onClick={(e) => {
                             e.stopPropagation();
                             handleTagClick(tag.decryptedName || "")
                           }}
                         >
                           <span className="max-w-[100px] truncate state-text-muted-foreground"># {tag.decryptedName}</span>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDetachTag(tag.id, tag.decryptedName || "");
-                            }}
-                            className="p-0.5 hover:bg-muted-foreground/20 rounded-full transition-colors opacity-60 hover:opacity-100"
-                          >
-                            <IconX className="h-3 w-3" />
-                          </button>
+                          {!shareId && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDetachTag(tag.id, tag.decryptedName || "");
+                              }}
+                              className="p-0.5 hover:bg-muted-foreground/20 rounded-full transition-colors opacity-60 hover:opacity-100"
+                            >
+                              <IconX className="h-3 w-3" />
+                            </button>
+                          )}
                         </Badge>
                       ))}
 
-                      <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            role="combobox"
-                            aria-expanded={openCombobox}
-                            className="h-7 border-none bg-transparent hover:bg-muted/50 p-2 text-xs font-normal text-muted-foreground min-w-[2px] px-1 flex-grow justify-start"
-                          >
-                            {tags.length === 0 && !openCombobox && "Add tags..."}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[200px] p-0" align="start">
-                          <Command shouldFilter={false}>
-                            <CommandInput
-                              placeholder="Search or create tag..."
-                              value={tagInput}
-                              onValueChange={setTagInput}
-                            />
-                            <CommandList>
-                              {!tagInput && (
-                                <div className="py-6 text-center text-xs text-muted-foreground px-2">
-                                  <p>Use words that will help you or teammates find this file.</p>
-                                </div>
-                              )}
+                      {!shareId ? (
+                        <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              role="combobox"
+                              aria-expanded={openCombobox}
+                              className="h-7 border-none bg-transparent hover:bg-muted/50 p-2 text-xs font-normal text-muted-foreground min-w-[2px] px-1 flex-grow justify-start"
+                            >
+                              {tags.length === 0 && !openCombobox && "Add tags..."}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[200px] p-0" align="start">
+                            <Command shouldFilter={false}>
+                              <CommandInput
+                                placeholder="Search or create tag..."
+                                value={tagInput}
+                                onValueChange={setTagInput}
+                              />
+                              <CommandList>
+                                {!tagInput && (
+                                  <div className="py-6 text-center text-xs text-muted-foreground px-2">
+                                    <p>Use words that will help you or teammates find this file.</p>
+                                  </div>
+                                )}
 
-                              {tagInput && availableTags.length === 0 && (
-                                <CommandEmpty>No matching tags found.</CommandEmpty>
-                              )}
+                                {tagInput && availableTags.length === 0 && (
+                                  <CommandEmpty>No matching tags found.</CommandEmpty>
+                                )}
 
-                              {availableTags.length > 0 && (
-                                <CommandGroup heading="Suggestions">
-                                  {availableTags
-                                    .filter((t) => !tags.some((existing) => existing.id === t.id))
-                                    .filter((t) => !tagInput || t.decryptedName?.toLowerCase().includes(tagInput.toLowerCase()))
-                                    .slice(0, 5)
-                                    .map((tag) => (
+                                {availableTags.length > 0 && (
+                                  <CommandGroup heading="Suggestions">
+                                    {availableTags
+                                      .filter((t) => !tags.some((existing) => existing.id === t.id))
+                                      .filter((t) => !tagInput || t.decryptedName?.toLowerCase().includes(tagInput.toLowerCase()))
+                                      .slice(0, 5)
+                                      .map((tag) => (
+                                        <CommandItem
+                                          key={tag.id}
+                                          value={tag.decryptedName || ""}
+                                          onSelect={() => {
+                                            handleAttachExistingTag(tag)
+                                            setTagInput("")
+                                            setOpenCombobox(false)
+                                          }}
+                                          className="text-xs"
+                                        >
+                                          <IconTag className="mr-2 h-3 w-3 opacity-50" />
+                                          # {tag.decryptedName}
+                                        </CommandItem>
+                                      ))}
+                                  </CommandGroup>
+                                )}
+
+                                {tagInput && (
+                                  <>
+                                    <CommandSeparator />
+                                    <CommandGroup>
                                       <CommandItem
-                                        key={tag.id}
-                                        value={tag.decryptedName || ""}
+                                        value={`create:${tagInput}`}
                                         onSelect={() => {
-                                          handleAttachExistingTag(tag)
+                                          handleAddTag(tagInput)
                                           setTagInput("")
                                           setOpenCombobox(false)
                                         }}
                                         className="text-xs"
                                       >
-                                        <IconTag className="mr-2 h-3 w-3 opacity-50" />
-                                        # {tag.decryptedName}
+                                        <IconPlus className="mr-2 h-3 w-3" />
+                                        Create tag &quot;# {tagInput}&quot;
                                       </CommandItem>
-                                    ))}
-                                </CommandGroup>
-                              )}
-
-                              {tagInput && (
-                                <>
-                                  <CommandSeparator />
-                                  <CommandGroup>
-                                    <CommandItem
-                                      value={`create:${tagInput}`}
-                                      onSelect={() => {
-                                        handleAddTag(tagInput)
-                                        setTagInput("")
-                                        setOpenCombobox(false)
-                                      }}
-                                      className="text-xs"
-                                    >
-                                      <IconPlus className="mr-2 h-3 w-3" />
-                                      Create tag &quot;# {tagInput}&quot;
-                                    </CommandItem>
-                                  </CommandGroup>
-                                </>
-                              )}
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
+                                    </CommandGroup>
+                                  </>
+                                )}
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                      ) : (
+                        tags.length === 0 && <span className="text-xs text-muted-foreground px-1 italic">No tags</span>
+                      )}
                     </div>
                   </div>
 
