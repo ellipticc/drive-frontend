@@ -13,6 +13,7 @@ import {
   IconCopy,
   IconRefresh,
   IconChevronDown,
+  IconChevronUp,
   IconChevronLeft,
   IconChevronRight,
   IconPlus,
@@ -30,7 +31,8 @@ import {
   IconSend,
   IconDeviceDesktop,
   IconBrowser,
-  IconDownload
+  IconDownload,
+  IconX as IconClose
 } from "@tabler/icons-react"
 import {
   Dialog,
@@ -53,6 +55,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   Tooltip,
   TooltipContent,
@@ -181,9 +184,11 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
   const [rotateId, setRotateId] = useState<string | null>(null)
   const [rotationLoading, setRotationLoading] = useState<string | null>(null)
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false)
+  const [exportUpgradeDialogOpen, setExportUpgradeDialogOpen] = useState(false)
   const [exportLoading, setExportLoading] = useState(false)
   const [perWebhookExportLoading, setPerWebhookExportLoading] = useState<Record<string, boolean>>({})
   const [perWebhookWipeLoading, setPerWebhookWipeLoading] = useState<Record<string, boolean>>({})
+  const [initialLoading, setInitialLoading] = useState(true)
 
   // Filters & batch actions
   const [filters, setFilters] = useState<Record<string, { eventType?: string; dateRange?: DateRange }>>({})
@@ -202,6 +207,7 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
     setLoading(true)
     const res = await apiClient.listWebhooks()
     setLoading(false)
+    setInitialLoading(false)
     if (res.success) {
       setWebhooks(res.data || [])
     } else {
@@ -608,23 +614,50 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
         )}
       </div>
 
-      {/* Header Section */}
-      <div className="flex flex-col gap-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <IconWebhook className="h-8 w-8 text-primary" />
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-medium">Manage Webhooks</h3>
-                {usageData && (
-                  <Badge variant="outline" className="h-5 px-1.5 text-[9px] font-black uppercase tracking-widest bg-primary/5 text-primary border-primary/20">
-                    {usageData.plan}
-                  </Badge>
-                )}
+      {/* Loading Skeleton */}
+      {initialLoading ? (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Skeleton className="h-8 w-8 rounded-lg" />
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-3 w-64" />
               </div>
-              <p className="text-sm text-muted-foreground mt-0.5">Configure endpoints to receive real-time updates and automate your secure workflow.</p>
             </div>
+            <Skeleton className="h-10 w-32" />
           </div>
+          <div className="border rounded-lg overflow-hidden">
+            <div className="bg-muted/50 border-b p-4">
+              <Skeleton className="h-4 w-full" />
+            </div>
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="p-4 border-b last:border-b-0 space-y-2">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-3 w-1/2" />
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Header Section */}
+          <div className="flex flex-col gap-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <IconWebhook className="h-8 w-8 text-primary" />
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-medium">Manage Webhooks</h3>
+                    {usageData && (
+                      <Badge variant="outline" className="h-5 px-1.5 text-[9px] font-black uppercase tracking-widest bg-primary/5 text-primary border-primary/20">
+                        {usageData.plan}
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-0.5">Configure endpoints to receive real-time updates and automate your secure workflow.</p>
+                </div>
+              </div>
           <div className="flex items-center gap-2">
             <TooltipProvider>
               <Tooltip>
@@ -843,9 +876,35 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Export Upgrade Alert */}
+      <AlertDialog open={exportUpgradeDialogOpen} onOpenChange={setExportUpgradeDialogOpen}>
+        <AlertDialogContent className="rounded-lg">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <IconDownload className="h-5 w-5 text-primary" />
+              </div>
+              Export is a Premium Feature
+            </AlertDialogTitle>
+            <AlertDialogDescription className="font-medium pt-2 leading-relaxed">
+              CSV export is available on <span className="font-bold text-foreground">Pro</span> and <span className="font-bold text-foreground">Unlimited</span> plans. Upgrade now to export your webhook delivery logs.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="pt-2">
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="shadow-lg shadow-primary/20"
+              onClick={() => window.location.href = '/pricing'}
+            >
+              View Plans
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Upgrade Alert */}
       <AlertDialog open={upgradeModalOpen} onOpenChange={setUpgradeModalOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="rounded-lg">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <div className="p-2 rounded-lg bg-primary/10">
@@ -940,26 +999,23 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
             <table className="w-full text-sm">
               <thead className="bg-muted/50 border-b">
                 <tr>
-                  <th className="px-4 py-3 text-left w-10"></th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground text-[10px] uppercase tracking-wider">Webhook ID</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground text-[10px] uppercase tracking-wider">Endpoint URL</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground text-[10px] uppercase tracking-wider">Status</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground text-[10px] uppercase tracking-wider">Enabled</th>
-                  <th className="text-right px-4 py-3 font-medium text-muted-foreground text-[10px] uppercase tracking-wider">Actions</th>
+                  <th className="text-left px-4 py-2 font-medium text-muted-foreground text-xs tracking-wider hidden sm:table-cell">Webhook ID</th>
+                  <th className="text-left px-4 py-2 font-medium text-muted-foreground text-xs tracking-wider">Endpoint</th>
+                  <th className="text-left px-4 py-2 font-medium text-muted-foreground text-xs tracking-wider hidden md:table-cell">Events</th>
+                  <th className="text-left px-4 py-2 font-medium text-muted-foreground text-xs tracking-wider">Status</th>
+                  <th className="text-right px-4 py-2 font-medium text-muted-foreground text-xs tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
                 {webhooks.map(w => (
                   <React.Fragment key={w.id}>
                     <tr
-                      className={`hover:bg-muted/30 transition-colors cursor-pointer group ${expanded === w.id ? 'bg-muted/20' : ''}`}
+                      className="hover:bg-muted/30 transition-colors cursor-pointer group"
                       onClick={() => { setExpanded(expanded === w.id ? null : w.id); if (expanded !== w.id) loadWebhookEvents(w.id, 1) }}
                     >
-                      <td className="px-4 py-3 text-center">
-                        {expanded === w.id ? <IconChevronDown className="h-3 w-3 rotate-180 transition-transform" /> : <IconChevronDown className="h-3 w-3 transition-transform" />}
-                      </td>
-                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground hidden sm:table-cell">
                         <div className="flex items-center gap-2">
+                          {expanded === w.id ? <IconChevronUp className="h-3 w-3" /> : <IconChevronDown className="h-3 w-3" />}
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -967,38 +1023,44 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
                                   {w.id.substring(0, 8)}...
                                 </span>
                               </TooltipTrigger>
-                              <TooltipContent side="top" className="font-mono text-xs">{w.id}</TooltipContent>
+                              <TooltipContent side="top">
+                                <p className="font-mono text-xs">{w.id}</p>
+                              </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
                         </div>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex flex-col">
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <span className="font-medium text-sm truncate max-w-[280px] cursor-help">{w.url}</span>
-                              </TooltipTrigger>
-                              <TooltipContent side="top" className="max-w-[400px] break-all">{w.url}</TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                          <span className="text-[10px] text-muted-foreground flex items-center gap-1.5 mt-0.5">
-                            <IconCode className="h-3 w-3" />
-                            {w.events ? `${w.events.length} events subscribed` : 'All events'}
+                          <span className="font-medium text-sm">{w.url}</span>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <Switch
+                              checked={w.enabled}
+                              onCheckedChange={() => toggleWebhookEnabled(w.id, w.enabled)}
+                              onClick={(e) => e.stopPropagation()}
+                              className="scale-75"
+                            />
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 hidden md:table-cell">
+                        <div className="flex flex-col">
+                          <span className="text-sm font-mono whitespace-nowrap">
+                            {w.events ? `${w.events.length} subscribed` : 'All events'}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">
+                            {w.events && w.events.length > 0 ? w.events.slice(0, 2).join(', ') + (w.events.length > 2 ? '...' : '') : 'Listening to all'}
                           </span>
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <Badge variant={w.enabled ? "default" : "secondary"} className={`text-[10px] px-2 font-bold uppercase tracking-wider h-5 rounded-md border-transparent ${w.enabled ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' : ''}`}>
+                        <span className={`text-xs font-bold uppercase py-0.5 px-1.5 rounded ${
+                          w.enabled
+                            ? 'text-emerald-600 bg-emerald-100/50 dark:bg-emerald-950/30'
+                            : 'text-gray-500 bg-gray-100/50 dark:bg-gray-950/30'
+                        }`}>
                           {w.enabled ? 'Active' : 'Paused'}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                        <Switch
-                          checked={w.enabled}
-                          onCheckedChange={() => toggleWebhookEnabled(w.id, w.enabled)}
-                          className="scale-75"
-                        />
+                        </span>
                       </td>
                       <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1">
@@ -1162,6 +1224,22 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
                                     </PopoverContent>
                                   </Popover>
 
+                                  {filters[w.id]?.dateRange && (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                          onClick={() => setFilters(prev => ({ ...(prev || {}), [w.id]: { ...(prev[w.id] || {}), dateRange: undefined } }))}
+                                        >
+                                          <IconClose className="h-4 w-4" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Clear date filter</TooltipContent>
+                                    </Tooltip>
+                                  )}
+
                                   <EventTypeSelector value={filters[w.id]?.eventType ?? ''} onChange={(val) => setFilters(prev => ({ ...(prev || {}), [w.id]: { ...(prev[w.id] || {}), eventType: val } }))} /> 
                                 </div> 
 
@@ -1176,7 +1254,13 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
 
                                   <Tooltip>
                                     <TooltipTrigger asChild>
-                                      <Button size="icon" variant="ghost" className="h-8 w-8 rounded-md" disabled={perWebhookExportLoading[w.id]} onClick={async () => {
+                                      <Button size="icon" variant="ghost" className="h-8 w-8 rounded-md" disabled={perWebhookExportLoading[w.id]} onClick={async (e) => {
+                                        e.stopPropagation();
+                                        const isPaidPlan = userPlan === 'Pro' || userPlan === 'Unlimited';
+                                        if (!isPaidPlan) {
+                                          setExportUpgradeDialogOpen(true);
+                                          return;
+                                        }
                                         setPerWebhookExportLoading(prev => ({ ...prev, [w.id]: true }));
                                         try {
                                           const res = await apiClient.exportWebhookEventsForWebhook(w.id);
@@ -1448,6 +1532,8 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
           </div>
         )}
       </div>
+        </>
+      )}
     </div >
   )
 }
