@@ -533,7 +533,7 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={handleHeaderDetails} aria-label="Details">
-                                    <IconInfoSquare className="h-4 w-4" />
+                                    <IconInfoCircle className="h-4 w-4" />
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent>Details</TooltipContent>
