@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useRef, useEffect, useCallback } from "react"
+import React, { useState } from "react"
 import {
     IconCreditCard,
     IconLogout,
@@ -38,7 +38,6 @@ import { masterKeyManager } from "@/lib/master-key"
 import { getDiceBearAvatar } from "@/lib/avatar"
 import { SettingsModal } from "@/components/modals/settings-modal"
 import { useLanguage } from "@/lib/i18n/language-context"
-import { toast } from 'sonner'
 
 // Generate initials from name (e.g., "John Doe" -> "JD", "John" -> "J")
 export function getInitials(name: string): string {
@@ -85,45 +84,6 @@ export function HeaderUser() {
     }
 
     const [settingsOpen, setSettingsOpen] = useState(false)
-    // Click-to-copy & selection state for email
-    const emailRef = useRef<HTMLParagraphElement | null>(null)
-    const [emailSelected, setEmailSelected] = useState(false)
-
-    // Copy email to clipboard and select the text until clicking elsewhere
-    const handleEmailClick = useCallback(async (e: React.MouseEvent) => {
-        e.stopPropagation()
-        const email = safeUser.email || ''
-        try {
-            await navigator.clipboard.writeText(email)
-            toast.success('Copied email')
-        } catch (err) {
-            console.error('Clipboard write failed', err)
-            toast.error('Failed to copy email')
-        }
-
-        // Select the email text
-        if (emailRef.current) {
-            const range = document.createRange()
-            range.selectNodeContents(emailRef.current)
-            const sel = window.getSelection()
-            sel?.removeAllRanges()
-            sel?.addRange(range)
-            setEmailSelected(true)
-        }
-    }, [safeUser.email])
-
-    // Clear selection when clicking outside
-    useEffect(() => {
-        function handleDocClick(ev: MouseEvent) {
-            if (emailRef.current && !emailRef.current.contains(ev.target as Node)) {
-                setEmailSelected(false)
-                const sel = window.getSelection()
-                sel?.removeAllRanges()
-            }
-        }
-        document.addEventListener('mousedown', handleDocClick)
-        return () => document.removeEventListener('mousedown', handleDocClick)
-    }, [])
 
     const displayName = getDisplayName(safeUser)
 
@@ -175,7 +135,7 @@ export function HeaderUser() {
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56" align="end" forceMount>
-                    <DropdownMenuLabel className="font-normal pointer-events-auto">
+                    <DropdownMenuLabel className="font-normal">
                         <div className="flex flex-col space-y-1">
                             <div className="flex items-center gap-1.5 direction-row">
                                 <p className="text-sm font-medium leading-none">{displayName}</p>
@@ -183,21 +143,7 @@ export function HeaderUser() {
                                     <IconRosetteDiscountCheckFilled className="size-4 text-blue-500 fill-blue-500" />
                                 )}
                             </div>
-                            <p
-                                ref={emailRef}
-                                onClick={handleEmailClick}
-                                role="button"
-                                tabIndex={0}
-                                className={`text-xs leading-none ${emailSelected ? 'bg-primary/20 rounded px-1 -mx-1' : 'text-muted-foreground'} cursor-pointer hover:underline hover:text-foreground transition-colors select-none`}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter' || e.key === ' ') {
-                                        e.preventDefault()
-                                        handleEmailClick(e as any)
-                                    }
-                                }}
-                                onMouseDown={(e) => e.stopPropagation()}
-                                aria-label="Copy email to clipboard"
-                            >
+                            <p className="text-xs leading-none text-muted-foreground">
                                 {safeUser.email}
                             </p>
                         </div>

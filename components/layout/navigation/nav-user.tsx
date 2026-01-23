@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useRef, useEffect, useCallback } from "react"
 import {
   IconCreditCard,
   IconDotsVertical,
@@ -48,6 +48,7 @@ import { SettingsModal } from "@/components/modals/settings-modal"
 import { NotificationsModal } from "@/components/modals/notifications-modal"
 import { useNotifications } from "@/hooks/use-notifications"
 import { useLanguage } from "@/lib/i18n/language-context"
+import { toast } from 'sonner'
 
 // Notification dot component for indicating unread notifications
 function NotificationDot() {
@@ -106,6 +107,46 @@ export function NavUser({
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const { hasUnread } = useNotifications()
   const displayName = getDisplayName(user)
+
+  // Click-to-copy & selection state for email
+  const emailRef = useRef<HTMLSpanElement | null>(null)
+  const [emailSelected, setEmailSelected] = useState(false)
+
+  // Copy email to clipboard and select the text until clicking elsewhere
+  const handleEmailClick = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    const email = user.email || ''
+    try {
+      await navigator.clipboard.writeText(email)
+      toast.success('Copied email')
+    } catch (err) {
+      console.error('Clipboard write failed', err)
+      toast.error('Failed to copy email')
+    }
+
+    // Select the email text
+    if (emailRef.current) {
+      const range = document.createRange()
+      range.selectNodeContents(emailRef.current)
+      const sel = window.getSelection()
+      sel?.removeAllRanges()
+      sel?.addRange(range)
+      setEmailSelected(true)
+    }
+  }, [user.email])
+
+  // Clear selection when clicking outside
+  useEffect(() => {
+    function handleDocClick(ev: MouseEvent) {
+      if (emailRef.current && !emailRef.current.contains(ev.target as Node)) {
+        setEmailSelected(false)
+        const sel = window.getSelection()
+        sel?.removeAllRanges()
+      }
+    }
+    document.addEventListener('mousedown', handleDocClick)
+    return () => document.removeEventListener('mousedown', handleDocClick)
+  }, [])
 
   const handleSettingsOpenChange = (open: boolean) => {
     setSettingsOpen(open)
@@ -214,7 +255,7 @@ export function NavUser({
               align="end"
               sideOffset={4}
             >
-              <DropdownMenuLabel className="p-0 font-normal">
+              <DropdownMenuLabel className="p-0 font-normal pointer-events-auto">
                 <div className="flex items-center gap-2 px-1 py-1.5 text-start text-sm">
                   <div className="relative">
                     <Avatar className="h-8 w-8 rounded-lg">
@@ -227,7 +268,21 @@ export function NavUser({
                   </div>
                   <div className="grid flex-1 text-start text-sm leading-tight">
                     <span className="truncate font-medium">{displayName}</span>
-                    <span className="text-muted-foreground truncate text-xs">
+                    <span
+                      ref={emailRef}
+                      onClick={handleEmailClick}
+                      role="button"
+                      tabIndex={0}
+                      className={`text-xs truncate ${emailSelected ? 'bg-primary/20 rounded px-1 -mx-1' : 'text-muted-foreground'} cursor-pointer hover:underline hover:text-foreground transition-colors select-none`}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          handleEmailClick(e as any)
+                        }
+                      }}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      aria-label="Copy email to clipboard"
+                    >
                       {user.email}
                     </span>
                   </div>
