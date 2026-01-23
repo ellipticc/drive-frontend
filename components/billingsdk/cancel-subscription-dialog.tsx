@@ -42,6 +42,7 @@ export function CancelSubscriptionDialog({
   description,
   plan,
   triggerButtonText,
+  triggerVariant,
   leftPanelImageUrl,
   warningTitle,
   warningText,
