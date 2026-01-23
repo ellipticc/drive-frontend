@@ -52,6 +52,7 @@ import {
 } from "@tabler/icons-react"
 import { format } from "date-fns"
 import { DateRange } from "react-day-picker"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   GeneralTab
 } from "./settings/general-tab"
@@ -351,6 +352,15 @@ export function SettingsModal({
   const loadedRef = React.useRef(false)
   const loadedTabsRef = React.useRef<Set<string>>(new Set())
 
+  // Initial loading states for tabs
+  const [generalTabLoading, setGeneralTabLoading] = useState(true)
+  const [securityTabLoading, setSecurityTabLoading] = useState(true)
+  const [preferencesTabLoading, setPreferencesTabLoading] = useState(true)
+  const [languageTabLoading, setLanguageTabLoading] = useState(true)
+  const [notificationsTabLoading, setNotificationsTabLoading] = useState(true)
+  const [billingTabLoading, setBillingTabLoading] = useState(true)
+  const [referralsTabLoading, setReferralsTabLoading] = useState(true)
+
   // Referral state
   const [referralCode, setReferralCode] = useState("")
   const [referralLink, setReferralLink] = useState("")
@@ -471,6 +481,8 @@ export function SettingsModal({
     // General tab data is mostly user state which is already loaded
     // Only load session config if not present
     loadSessionConfig()
+    // Set loading to false immediately for general tab (user data already loaded)
+    setGeneralTabLoading(false)
   }, [])
 
   const loadSecurityData = useCallback(() => {
@@ -479,19 +491,27 @@ export function SettingsModal({
     loadUserDevices(1)
     loadSecurityEvents(1)
     loadSecurityPreferences()
+    // Security data loads complete when all are done
+    setTimeout(() => setSecurityTabLoading(false), 100)
   }, [])
 
   const loadBillingDataTab = useCallback(() => {
     loadBillingData()
     loadSubscriptionHistory(1, 1)
+    // Billing loads complete when data arrives
+    setTimeout(() => setBillingTabLoading(false), 100)
   }, [])
 
   const loadNotificationsData = useCallback(() => {
     loadNotificationPreferences()
+    // Notification prefs load complete
+    setTimeout(() => setNotificationsTabLoading(false), 100)
   }, [])
 
   const loadReferralsData = useCallback(() => {
     loadReferralData(1)
+    // Referral data load complete
+    setTimeout(() => setReferralsTabLoading(false), 100)
   }, [])
 
   // Master load function that delegates to specific tab loaders
@@ -504,6 +524,11 @@ export function SettingsModal({
         break
       case 'preferences':
         // Preferences tab doesn't need specific extra loads currently
+        setPreferencesTabLoading(false)
+        break
+      case 'language':
+        // Language tab doesn't need specific extra loads currently
+        setLanguageTabLoading(false)
         break
       case 'security':
         loadSecurityData()
@@ -1731,145 +1756,240 @@ export function SettingsModal({
             )}
             <div className="flex flex-1 flex-col gap-4 p-6 pb-20 overflow-y-auto scroll-smooth">
               {activeTab === "general" && (
-                <GeneralTab
-                  user={user}
-                  displayName={displayName}
-                  setDisplayName={setDisplayName}
-                  originalName={originalName}
-                  isEditingName={isEditingName}
-                  setIsEditingName={setIsEditingName}
-                  isSavingName={isSavingName}
-                  handleSaveName={handleSaveName}
-                  handleCancelEdit={handleCancelEdit}
-                  handleAvatarClick={handleAvatarClick}
-                  isLoadingAvatar={isLoadingAvatar}
-                  isDiceBearAvatar={isDiceBearAvatar}
-                  handleRemoveAvatar={handleRemoveAvatar}
-                  nameInputRef={nameInputRef as React.RefObject<HTMLInputElement>}
-                />
+                <>
+                  {generalTabLoading ? (
+                    <div className="space-y-6">
+                      <div>
+                        <Skeleton className="h-6 w-32 mb-2" />
+                        <Skeleton className="h-4 w-64 mb-4" />
+                        <div className="flex items-center gap-4">
+                          <Skeleton className="h-20 w-20 rounded-full" />
+                          <div className="space-y-2">
+                            <Skeleton className="h-4 w-40" />
+                            <Skeleton className="h-9 w-32" />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="space-y-3">
+                        <Skeleton className="h-4 w-24" />
+                        <Skeleton className="h-10 w-full max-w-md" />
+                      </div>
+                      <div className="space-y-3">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-10 w-full max-w-md" />
+                      </div>
+                    </div>
+                  ) : (
+                    <GeneralTab
+                      user={user}
+                      displayName={displayName}
+                      setDisplayName={setDisplayName}
+                      originalName={originalName}
+                      isEditingName={isEditingName}
+                      setIsEditingName={setIsEditingName}
+                      isSavingName={isSavingName}
+                      handleSaveName={handleSaveName}
+                      handleCancelEdit={handleCancelEdit}
+                      handleAvatarClick={handleAvatarClick}
+                      isLoadingAvatar={isLoadingAvatar}
+                      isDiceBearAvatar={isDiceBearAvatar}
+                      handleRemoveAvatar={handleRemoveAvatar}
+                      nameInputRef={nameInputRef as React.RefObject<HTMLInputElement>}
+                    />
+                  )}
+                </>
               )}
 
               {activeTab === "preferences" && (
-                <PreferencesTab
-                  appearanceTheme={appearanceTheme}
-                  setAppearanceTheme={async (newTheme: string) => {
-                    setAppearanceTheme(newTheme);
-                    await handleUpdatePreferences({ appearance_theme: newTheme });
-                  }}
-                  themeSync={themeSync}
-                  setThemeSync={async (sync: boolean) => {
-                    setThemeSync(sync);
-                    await handleUpdatePreferences({ theme_sync: sync ? 1 : 0 });
-                  }}
-                  theme={theme}
-                  setTheme={setTheme}
-                  showSuggestions={showSuggestions}
-                  setShowSuggestions={async (val: boolean) => {
-                    setShowSuggestions(val);
-                    await handleUpdatePreferences({ show_suggestions: val ? 1 : 0 });
-                  }}
-                  autoPaperVersioning={autoPaperVersioning}
-                  setAutoPaperVersioning={async (val: boolean) => {
-                    setAutoPaperVersioning(val);
-                    await handleUpdatePreferences({ auto_paper_versioning: val ? 1 : 0 });
-                  }}
-                  autoEventInsights={autoEventInsights}
-                  setAutoEventInsights={async (val: boolean) => {
-                    setAutoEventInsights(val);
-                    await handleUpdatePreferences({ auto_event_insights: val ? 1 : 0 });
-                  }}
-                  showCheckmark={showCheckmark}
-                  setShowCheckmark={async (val: boolean) => {
-                    setShowCheckmark(val);
-                    await handleUpdatePreferences({ show_checkmark: val ? 1 : 0 });
-                  }}
-                />
+                <>
+                  {preferencesTabLoading ? (
+                    <div className="space-y-6">
+                      <div>
+                        <Skeleton className="h-6 w-32 mb-2" />
+                        <Skeleton className="h-4 w-80 mb-4" />
+                      </div>
+                      {[1, 2, 3, 4, 5, 6].map((i) => (
+                        <div key={i} className="flex items-center justify-between py-3">
+                          <div className="space-y-1">
+                            <Skeleton className="h-4 w-40" />
+                            <Skeleton className="h-3 w-64" />
+                          </div>
+                          <Skeleton className="h-6 w-11 rounded-full" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <PreferencesTab
+                      appearanceTheme={appearanceTheme}
+                      setAppearanceTheme={async (newTheme: string) => {
+                        setAppearanceTheme(newTheme);
+                        await handleUpdatePreferences({ appearance_theme: newTheme });
+                      }}
+                      themeSync={themeSync}
+                      setThemeSync={async (sync: boolean) => {
+                        setThemeSync(sync);
+                        await handleUpdatePreferences({ theme_sync: sync ? 1 : 0 });
+                      }}
+                      theme={theme}
+                      setTheme={setTheme}
+                      showSuggestions={showSuggestions}
+                      setShowSuggestions={async (val: boolean) => {
+                        setShowSuggestions(val);
+                        await handleUpdatePreferences({ show_suggestions: val ? 1 : 0 });
+                      }}
+                      autoPaperVersioning={autoPaperVersioning}
+                      setAutoPaperVersioning={async (val: boolean) => {
+                        setAutoPaperVersioning(val);
+                        await handleUpdatePreferences({ auto_paper_versioning: val ? 1 : 0 });
+                      }}
+                      autoEventInsights={autoEventInsights}
+                      setAutoEventInsights={async (val: boolean) => {
+                        setAutoEventInsights(val);
+                        await handleUpdatePreferences({ auto_event_insights: val ? 1 : 0 });
+                      }}
+                      showCheckmark={showCheckmark}
+                      setShowCheckmark={async (val: boolean) => {
+                        setShowCheckmark(val);
+                        await handleUpdatePreferences({ show_checkmark: val ? 1 : 0 });
+                      }}
+                    />
+                  )}
+                </>
               )}
 
               {activeTab === "language" && (
-                <LanguageTimeTab
-                  language={language}
-                  setLanguage={async (val: string) => {
-                    setLanguage(val as any);
-                    await handleUpdatePreferences({ language: val });
-                  }}
-                  dateTimePreference={dateTimePreference}
-                  setDateTimePreference={async (val: string) => {
-                    setDateTimePreference(val);
-                    await handleUpdatePreferences({ time_format: val });
-                  }}
-                  dateFormat={dateFormat}
-                  setDateFormat={async (val: string) => {
-                    setDateFormat(val);
-                    await handleUpdatePreferences({ date_format: val });
-                  }}
-                  autoTimezone={autoTimezone}
-                  setAutoTimezone={async (val: boolean) => {
-                    setAutoTimezone(val);
-                    await handleUpdatePreferences({ auto_timezone: val ? 1 : 0 });
-                  }}
-                  timezone={timezone}
-                  setTimezone={async (val: string) => {
-                    setTimezone(val);
-                    await handleUpdatePreferences({ timezone: val });
-                  }}
-                />
+                <>
+                  {languageTabLoading ? (
+                    <div className="space-y-6">
+                      <div>
+                        <Skeleton className="h-6 w-48 mb-2" />
+                        <Skeleton className="h-4 w-96 mb-4" />
+                      </div>
+                      {[1, 2, 3, 4, 5].map((i) => (
+                        <div key={i} className="space-y-2">
+                          <Skeleton className="h-4 w-32" />
+                          <Skeleton className="h-10 w-full max-w-xs" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <LanguageTimeTab
+                      language={language}
+                      setLanguage={async (val: string) => {
+                        setLanguage(val as any);
+                        await handleUpdatePreferences({ language: val });
+                      }}
+                      dateTimePreference={dateTimePreference}
+                      setDateTimePreference={async (val: string) => {
+                        setDateTimePreference(val);
+                        await handleUpdatePreferences({ time_format: val });
+                      }}
+                      dateFormat={dateFormat}
+                      setDateFormat={async (val: string) => {
+                        setDateFormat(val);
+                        await handleUpdatePreferences({ date_format: val });
+                      }}
+                      autoTimezone={autoTimezone}
+                      setAutoTimezone={async (val: boolean) => {
+                        setAutoTimezone(val);
+                        await handleUpdatePreferences({ auto_timezone: val ? 1 : 0 });
+                      }}
+                      timezone={timezone}
+                      setTimezone={async (val: string) => {
+                        setTimezone(val);
+                        await handleUpdatePreferences({ timezone: val });
+                      }}
+                    />
+                  )}
+                </>
               )}
 
               {activeTab === "security" && (
-                <SecurityTab
-                  user={user}
-                  userPlan={user?.plan || "Free"}
-                  setShowEmailModal={setShowEmailModal}
-                  setShowPasswordModal={setShowPasswordModal}
+                <>
+                  {securityTabLoading ? (
+                    <div className="space-y-6">
+                      <div>
+                        <Skeleton className="h-6 w-40 mb-2" />
+                        <Skeleton className="h-4 w-96 mb-4" />
+                      </div>
+                      {/* 2FA Section Skeleton */}
+                      <div className="space-y-3">
+                        <Skeleton className="h-5 w-48" />
+                        <div className="flex items-center justify-between">
+                          <Skeleton className="h-4 w-64" />
+                          <Skeleton className="h-9 w-24" />
+                        </div>
+                      </div>
+                      {/* Table Skeleton */}
+                      <div className="space-y-2">
+                        <Skeleton className="h-5 w-32" />
+                        <div className="border rounded-lg">
+                          <div className="p-4 border-b">
+                            <Skeleton className="h-4 w-full" />
+                          </div>
+                          {[1, 2, 3].map((i) => (
+                            <div key={i} className="p-4 border-b last:border-b-0">
+                              <Skeleton className="h-4 w-3/4 mb-2" />
+                              <Skeleton className="h-3 w-1/2" />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <SecurityTab
+                      user={user}
+                      userPlan={user?.plan || "Free"}
+                      setShowEmailModal={setShowEmailModal}
+                      setShowPasswordModal={setShowPasswordModal}
 
-                  // 2FA
-                  totpEnabled={totpEnabled}
-                  isLoadingTOTP={isLoadingTOTP}
-                  setShowTOTPDisable={setShowTOTPDisable}
-                  handleTOTPSetup={handleTOTPSetup}
-                  handleTOTPDisable={handleTOTPDisable}
-                  showTOTPSetup={showTOTPSetup}
-                  setShowTOTPSetup={setShowTOTPSetup}
-                  totpQrCode={totpQrCode}
-                  totpSecret={totpSecret}
-                  totpToken={totpToken}
-                  setTotpToken={setTotpToken}
-                  isVerifyingTOTP={isVerifyingTOTP}
-                  handleTOTPVerify={handleTOTPVerify}
+                      // 2FA
+                      totpEnabled={totpEnabled}
+                      isLoadingTOTP={isLoadingTOTP}
+                      setShowTOTPDisable={setShowTOTPDisable}
+                      handleTOTPSetup={handleTOTPSetup}
+                      handleTOTPDisable={handleTOTPDisable}
+                      showTOTPSetup={showTOTPSetup}
+                      setShowTOTPSetup={setShowTOTPSetup}
+                      totpQrCode={totpQrCode}
+                      totpSecret={totpSecret}
+                      totpToken={totpToken}
+                      setTotpToken={setTotpToken}
+                      isVerifyingTOTP={isVerifyingTOTP}
+                      handleTOTPVerify={handleTOTPVerify}
 
-                  showRecoveryCodesModal={showRecoveryCodesModal}
-                  setShowRecoveryCodesModal={setShowRecoveryCodesModal}
-                  recoveryCodes={recoveryCodes}
-                  showTOTPDisable={showTOTPDisable}
-                  disableToken={disableToken}
-                  setDisableToken={setDisableToken}
-                  disableRecoveryCode={disableRecoveryCode}
-                  setDisableRecoveryCode={setDisableRecoveryCode}
-                  isDisablingTOTP={isDisablingTOTP}
+                      showRecoveryCodesModal={showRecoveryCodesModal}
+                      setShowRecoveryCodesModal={setShowRecoveryCodesModal}
+                      recoveryCodes={recoveryCodes}
+                      showTOTPDisable={showTOTPDisable}
+                      disableToken={disableToken}
+                      setDisableToken={setDisableToken}
+                      disableRecoveryCode={disableRecoveryCode}
+                      setDisableRecoveryCode={setDisableRecoveryCode}
+                      isDisablingTOTP={isDisablingTOTP}
 
-                  // Session Duration
-                  sessionExpiry={sessionExpiry}
-                  setSessionExpiry={setSessionExpiry}
+                      // Session Duration
+                      sessionExpiry={sessionExpiry}
+                      setSessionExpiry={setSessionExpiry}
 
-                  // Sessions
-                  userSessions={userSessions}
-                  isLoadingSessions={isLoadingSessions}
-                  sessionsTotal={sessionsTotal}
-                  sessionsPage={sessionsPage}
-                  sessionsTotalPages={sessionsTotalPages}
-                  loadUserSessions={loadUserSessions}
-                  handleRevokeSession={handleRevokeSession}
-                  currentSessionId={currentSessionId}
-                  showRevokeAllDialog={showRevokeAllDialog}
-                  setShowRevokeAllDialog={setShowRevokeAllDialog}
-                  handleRevokeAllSessions={handleRevokeAllSessions}
+                      // Sessions
+                      userSessions={userSessions}
+                      isLoadingSessions={isLoadingSessions}
+                      sessionsTotal={sessionsTotal}
+                      sessionsPage={sessionsPage}
+                      sessionsTotalPages={sessionsTotalPages}
+                      loadUserSessions={loadUserSessions}
+                      handleRevokeSession={handleRevokeSession}
+                      currentSessionId={currentSessionId}
+                      showRevokeAllDialog={showRevokeAllDialog}
+                      setShowRevokeAllDialog={setShowRevokeAllDialog}
+                      handleRevokeAllSessions={handleRevokeAllSessions}
 
-                  // Devices
-                  userDevices={userDevices}
-                  isLoadingDevices={isLoadingDevices}
-                  devicesTotal={devicesTotal}
-                  devicesPage={devicesPage}
+                      // Devices
+                      userDevices={userDevices}
+                      isLoadingDevices={isLoadingDevices}
+                      devicesTotal={devicesTotal}
+                      devicesPage={devicesPage}
                   devicesTotalPages={devicesTotalPages}
                   loadUserDevices={loadUserDevices}
                   handleRevokeDevice={handleRevokeDevice}
@@ -1914,40 +2034,99 @@ export function SettingsModal({
                   showRevoked={showRevoked}
                   setShowRevoked={setShowRevoked}
                 />
+                  )}
+                </>
               )}
 
               {activeTab === "notifications" && (
-                <NotificationsTab
-                  inAppNotifications={inAppNotifications}
-                  setInAppNotifications={setInAppNotifications}
-                  emailNotifications={emailNotifications}
-                  setEmailNotifications={setEmailNotifications}
-                  loginNotifications={loginNotifications}
-                  setLoginNotifications={setLoginNotifications}
-                  fileShareNotifications={fileShareNotifications}
-                  setFileShareNotifications={setFileShareNotifications}
-                  billingNotifications={billingNotifications}
-                  setBillingNotifications={setBillingNotifications}
-                  isLoadingNotificationPrefs={isLoadingNotificationPrefs}
-                  saveNotificationPreferences={saveNotificationPreferences}
-                />
+                <>
+                  {notificationsTabLoading ? (
+                    <div className="space-y-6">
+                      <div>
+                        <Skeleton className="h-6 w-40 mb-2" />
+                        <Skeleton className="h-4 w-96 mb-4" />
+                      </div>
+                      {[1, 2, 3, 4, 5].map((i) => (
+                        <div key={i} className="flex items-center justify-between py-3">
+                          <div className="space-y-1">
+                            <Skeleton className="h-4 w-48" />
+                            <Skeleton className="h-3 w-72" />
+                          </div>
+                          <Skeleton className="h-6 w-11 rounded-full" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <NotificationsTab
+                      inAppNotifications={inAppNotifications}
+                      setInAppNotifications={setInAppNotifications}
+                      emailNotifications={emailNotifications}
+                      setEmailNotifications={setEmailNotifications}
+                      loginNotifications={loginNotifications}
+                      setLoginNotifications={setLoginNotifications}
+                      fileShareNotifications={fileShareNotifications}
+                      setFileShareNotifications={setFileShareNotifications}
+                      billingNotifications={billingNotifications}
+                      setBillingNotifications={setBillingNotifications}
+                      isLoadingNotificationPrefs={isLoadingNotificationPrefs}
+                      saveNotificationPreferences={saveNotificationPreferences}
+                    />
+                  )}
+                </>
               )}
 
               {activeTab === "referrals" && (
-                <ReferralsTab
-                  referralCode={referralCode}
-                  referralLink={referralLink}
-                  isLoadingReferrals={isLoadingReferrals}
-                  handleCopyReferralCode={handleCopyReferralCode}
-                  handleCopyReferralLink={handleCopyReferralLink}
-                  copiedCode={copiedCode}
-                  copiedLink={copiedLink}
-                  recentReferrals={recentReferrals}
-                  referralsPage={referralsPage}
-                  referralsTotal={referralsTotal}
-                  loadReferralData={loadReferralData}
-                  referralStats={referralStats}
-                />
+                <>
+                  {referralsTabLoading ? (
+                    <div className="space-y-6">
+                      <div>
+                        <Skeleton className="h-6 w-32 mb-2" />
+                        <Skeleton className="h-4 w-80 mb-4" />
+                      </div>
+                      {/* Stats Cards Skeleton */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {[1, 2, 3].map((i) => (
+                          <div key={i} className="p-4 border rounded-lg">
+                            <Skeleton className="h-4 w-24 mb-2" />
+                            <Skeleton className="h-8 w-16" />
+                          </div>
+                        ))}
+                      </div>
+                      {/* Referral Code Skeleton */}
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-10 w-full max-w-md" />
+                      </div>
+                      {/* Table Skeleton */}
+                      <div className="space-y-2">
+                        <Skeleton className="h-5 w-40" />
+                        <div className="border rounded-lg">
+                          {[1, 2, 3].map((i) => (
+                            <div key={i} className="p-4 border-b last:border-b-0">
+                              <Skeleton className="h-4 w-2/3 mb-2" />
+                              <Skeleton className="h-3 w-1/3" />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <ReferralsTab
+                      referralCode={referralCode}
+                      referralLink={referralLink}
+                      isLoadingReferrals={isLoadingReferrals}
+                      handleCopyReferralCode={handleCopyReferralCode}
+                      handleCopyReferralLink={handleCopyReferralLink}
+                      copiedCode={copiedCode}
+                      copiedLink={copiedLink}
+                      recentReferrals={recentReferrals}
+                      referralsPage={referralsPage}
+                      referralsTotal={referralsTotal}
+                      loadReferralData={loadReferralData}
+                      referralStats={referralStats}
+                    />
+                  )}
+                </>
               )}
 
               {activeTab === "developer" && (
@@ -1955,25 +2134,56 @@ export function SettingsModal({
               )}
 
               {activeTab === "billing" && (
-                <BillingTab
-                  isLoadingBilling={isLoadingBilling}
-                  subscription={subscription}
-                  billingUsage={billingUsage}
-                  showCancelDialog={showCancelDialog}
-                  setShowCancelDialog={setShowCancelDialog}
-                  isCancellingSubscription={isCancellingSubscription}
-                  handleCancelSubscription={handleCancelSubscription}
-                  handleManageSubscription={handleManageSubscription}
-                  isRedirectingToPortal={isRedirectingToPortal}
-                  loadSubscriptionHistory={loadSubscriptionHistory}
-                  isLoadingHistory={isLoadingHistory}
-                  subscriptionHistory={subscriptionHistory}
-                  subsPage={subsPage}
-                  invoicesPage={invoicesPage}
-                  subsTotalPages={subsTotalPages}
-                  invoicesTotalPages={invoicesTotalPages}
-                  pricingPlans={pricingPlans}
-                />
+                <>
+                  {billingTabLoading ? (
+                    <div className="space-y-6">
+                      <div>
+                        <Skeleton className="h-6 w-32 mb-2" />
+                        <Skeleton className="h-4 w-96 mb-4" />
+                      </div>
+                      {/* Current Plan Card Skeleton */}
+                      <div className="p-6 border rounded-lg space-y-4">
+                        <Skeleton className="h-6 w-40 mb-2" />
+                        <Skeleton className="h-8 w-32 mb-3" />
+                        <div className="space-y-2">
+                          <Skeleton className="h-4 w-full" />
+                          <Skeleton className="h-2 w-full rounded-full" />
+                        </div>
+                        <Skeleton className="h-9 w-32" />
+                      </div>
+                      {/* Usage Stats Skeleton */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {[1, 2].map((i) => (
+                          <div key={i} className="p-4 border rounded-lg">
+                            <Skeleton className="h-4 w-24 mb-2" />
+                            <Skeleton className="h-6 w-32 mb-2" />
+                            <Skeleton className="h-2 w-full rounded-full" />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <BillingTab
+                      isLoadingBilling={isLoadingBilling}
+                      subscription={subscription}
+                      billingUsage={billingUsage}
+                      showCancelDialog={showCancelDialog}
+                      setShowCancelDialog={setShowCancelDialog}
+                      isCancellingSubscription={isCancellingSubscription}
+                      handleCancelSubscription={handleCancelSubscription}
+                      handleManageSubscription={handleManageSubscription}
+                      isRedirectingToPortal={isRedirectingToPortal}
+                      loadSubscriptionHistory={loadSubscriptionHistory}
+                      isLoadingHistory={isLoadingHistory}
+                      subscriptionHistory={subscriptionHistory}
+                      subsPage={subsPage}
+                      invoicesPage={invoicesPage}
+                      subsTotalPages={subsTotalPages}
+                      invoicesTotalPages={invoicesTotalPages}
+                      pricingPlans={pricingPlans}
+                    />
+                  )}
+                </>
               )}
             </div>
           </main>
