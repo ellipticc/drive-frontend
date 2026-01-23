@@ -104,8 +104,9 @@ const discussionsData: TDiscussion[] = [
   },
 ];
 
-const avatarUrl = (seed: string) =>
-  `https://api.dicebear.com/9.x/glass/svg?seed=${seed}`;
+import { getDiceBearAvatar } from '@/lib/avatar';
+
+const avatarUrl = (seed: string) => getDiceBearAvatar(seed, 32);
 
 const usersData: Record<
   string,

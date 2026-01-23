@@ -17,12 +17,12 @@ import { toast } from "sonner"
 import { useFormatter } from "@/hooks/use-formatter"
 import { formatFileSize } from "@/lib/utils";
 import type { SortDescriptor } from "react-aria-components";
-
 import { apiClient, SharedItem } from "@/lib/api"
 import { decryptUserPrivateKeys } from "@/lib/crypto"
 import { decryptShareInWorker } from '@/lib/decrypt-share-pool'
 import { setCekForShare, getCekForShare } from '@/lib/share-cache'
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { getDiceBearAvatar } from "@/lib/avatar"
 import { Button } from "@/components/ui/button"
 import dynamic from 'next/dynamic'
 import { useGlobalUpload } from "@/components/global-upload-context"
@@ -776,7 +776,7 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
                                             <Table.Cell className="w-[200px]">
                                                 <div className="flex items-center gap-2">
                                                     <Avatar className="size-6">
-                                                        <AvatarImage src={item.owner.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${item.owner.id}`} />
+                                                        <AvatarImage src={item.owner.avatar || getDiceBearAvatar(item.owner.id, 32)} />
                                                         <AvatarFallback>{item.owner.name.substring(0, 2)}</AvatarFallback>
                                                     </Avatar>
                                                     <div className="flex flex-col text-xs truncate">
