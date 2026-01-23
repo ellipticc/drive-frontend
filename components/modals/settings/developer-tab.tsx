@@ -75,64 +75,68 @@ import { IconCalendar as CalendarIcon } from '@tabler/icons-react'
 // @ts-expect-error JSONHighlighter has no type defs
 import JSONHighlighter from 'react-json-syntax-highlighter'
 
-const LogView = ({ title, content, isJson = false }: { title: string, content: any, isJson?: boolean }) => (
-  <div className="space-y-2.5 group">
-    <div className="flex items-center justify-between px-1">
-      <h4 className="text-[10px] uppercase tracking-[0.15em] font-black text-muted-foreground/50">{title}</h4>
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 rounded-md opacity-0 group-hover:opacity-100 transition-all hover:bg-primary/5 hover:text-primary"
-              onClick={() => {
-                const text = isJson ? JSON.stringify(content, null, 2) : content;
-                navigator.clipboard.writeText(text);
-                toast.success(`${title} copied`);
-              }}
-            >
-              <IconCopy className="h-3 w-3" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="left" className="text-[10px]">Copy {title}</TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    </div>
-    <div className="relative">
-      <div className="bg-muted/30 dark:bg-muted/15 border border-muted-foreground/10 rounded-xl overflow-hidden shadow-sm transition-all hover:border-primary/20">
-        <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent max-h-[500px]">
-          <div className="p-4 font-mono text-[11px] text-muted-foreground/90 selection:bg-primary/30 leading-relaxed">
-            {title.toLowerCase().includes('headers') && content && typeof content === 'object' ? (
-              <div className="space-y-1">
-                {(() => {
-                  const headerKeys = content && typeof content === 'object' ? Object.keys(content) : [];
-                  if (headerKeys.length === 0) return <div className="italic text-[11px]">No headers captured</div>;
-                  return headerKeys.map((k) => (
-                    <div key={k} className="flex items-start gap-3">
-                      <div className="font-mono text-[11px] text-muted-foreground/80 w-36 break-all">{k}</div>
-                      <div className="flex-1 text-[11px] break-words">{String((content as any)[k])}</div>
-                    </div>
-                  ));
-                })()}
-              </div>
-            ) : isJson ? (
-              <div className="json-theme-custom">
-                <JSONHighlighter obj={content} className="p-0 bg-transparent text-[11px] font-mono" />
-              </div>
-            ) : (
-              content || <span className="italic opacity-50 font-sans tracking-normal">No data recorded for this request</span>
-            )}
+const LogView = ({ title, content, isJson = false }: { title: string, content: any, isJson?: boolean }) => {
+  const autoJson = isJson || (content && typeof content === 'object');
+  return (
+    <div className="space-y-2.5 group">
+      <div className="flex items-center justify-between px-1">
+        <h4 className="text-[10px] uppercase tracking-[0.15em] font-black text-muted-foreground/50">{title}</h4>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 rounded-md opacity-0 group-hover:opacity-100 transition-all hover:bg-primary/5 hover:text-primary"
+                onClick={() => {
+                  const text = autoJson ? JSON.stringify(content, null, 2) : String(content || '');
+                  navigator.clipboard.writeText(text);
+                  toast.success(`${title} copied`);
+                }}
+              >
+                <IconCopy className="h-3 w-3" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left" className="text-[10px]">Copy {title}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+      <div className="relative">
+        <div className="bg-muted/30 dark:bg-muted/15 border border-muted-foreground/10 rounded-xl overflow-hidden shadow-sm transition-all hover:border-primary/20">
+          <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent max-h-[500px]">
+            <div className="p-4 font-mono text-[11px] text-muted-foreground/90 selection:bg-primary/30 leading-relaxed">
+              {title.toLowerCase().includes('headers') && content && typeof content === 'object' ? (
+                <div className="space-y-1">
+                  {(() => {
+                    const headerKeys = content && typeof content === 'object' ? Object.keys(content) : [];
+                    if (headerKeys.length === 0) return <div className="italic text-[11px]">No headers captured</div>;
+                    return headerKeys.map((k) => (
+                      <div key={k} className="flex items-start gap-3">
+                        <div className="font-mono text-[11px] text-muted-foreground/80 w-36 break-all">{k}</div>
+                        <div className="flex-1 text-[11px] break-words">{String((content as any)[k])}</div>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              ) : autoJson ? (
+                <div className="json-theme-custom">
+                  <JSONHighlighter obj={content} className="p-0 bg-transparent text-[11px] font-mono" />
+                </div>
+              ) : (
+                content || <span className="italic opacity-50 font-sans tracking-normal">No data recorded for this request</span>
+              )}
+            </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
-)
+  )
+} 
 
 const EVENT_TYPES = [
   { id: 'login.success', label: 'Login Success', description: 'Triggered when a user successfully logs in' },
   { id: 'login.fail', label: 'Login Failure', description: 'Triggered when a login attempt fails' },
+  { id: 'logout', label: 'Logout', description: 'Triggered when a user logs out' },
   { id: 'file.uploaded', label: 'File Uploaded', description: 'Triggered when a file is successfully uploaded' },
   { id: 'file.deleted', label: 'File Deleted/Trashed', description: 'Triggered when a file is moved to trash or permanently deleted' },
   { id: 'file.moved', label: 'File Moved', description: 'Triggered when a file is moved between folders' },
@@ -236,6 +240,24 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
       return null
     }
   }
+
+  const EventTypeSelector = React.memo(function EventTypeSelector({ value, onChange }: { value: string, onChange: (v: string) => void }) {
+    const safeValue = value || '';
+    return (
+      <Combobox value={safeValue} onValueChange={(val) => onChange(val ?? '')}>
+        <ComboboxTrigger className="h-8 w-36 text-xs">
+          <span className="truncate text-sm">{safeValue ? (EVENT_TYPES.find(et => et.id === safeValue)?.label || 'Selected') : 'All Events'}</span>
+        </ComboboxTrigger>
+        <ComboboxContent>
+          <ComboboxList>
+            <ComboboxItem value="">All Events</ComboboxItem>
+            {EVENT_TYPES.map(et => <ComboboxItem key={et.id} value={et.id}>{et.label}</ComboboxItem>)}
+          </ComboboxList>
+        </ComboboxContent>
+      </Combobox>
+    )
+  })
+
 
   const handleEventToggle = (eventId: string) => {
     setFormData(prev => {
@@ -401,7 +423,7 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
     const end = fil?.dateRange?.to ? format(fil.dateRange.to, 'yyyy-MM-dd') : undefined
 
     const payload = {
-      eventType: fil?.eventType,
+      eventType: fil?.eventType ? fil.eventType : undefined,
       start,
       end
     }
@@ -1113,25 +1135,18 @@ export function DeveloperTab({ user, userPlan }: { user?: UserData, userPlan: st
                                         mode="range"
                                         defaultMonth={filters[w.id]?.dateRange?.from}
                                         selected={filters[w.id]?.dateRange}
-                                        onSelect={(dr) => setFilters(prev => ({ ...(prev || {}), [w.id]: { ...(prev[w.id] || {}), dateRange: dr } }))}
+                                        onSelect={(dr) => {
+                                          const newFilter = { ...(filters[w.id] || {}), dateRange: dr };
+                                          setFilters(prev => ({ ...(prev || {}), [w.id]: newFilter }))
+                                          // Immediately reload with applied filter
+                                          loadWebhookEvents(w.id, 1, newFilter)
+                                        }}
                                         numberOfMonths={1}
                                       />
                                     </PopoverContent>
                                   </Popover>
 
-                                  <Combobox value={filters[w.id]?.eventType || ''} onValueChange={(val) => setFilters(prev => ({ ...(prev || {}), [w.id]: { ...(prev[w.id] || {}), eventType: val } }))}>
-                                    <ComboboxTrigger className="h-8 w-36 text-xs">
-                                      <span className="truncate text-sm">
-                                        {filters[w.id]?.eventType ? (EVENT_TYPES.find(et => et.id === filters[w.id].eventType)?.label || 'Selected') : 'All Events'}
-                                      </span>
-                                    </ComboboxTrigger>
-                                    <ComboboxContent>
-                                      <ComboboxList>
-                                        <ComboboxItem value="">All Events</ComboboxItem>
-                                        {EVENT_TYPES.map(et => <ComboboxItem key={et.id} value={et.id}>{et.label}</ComboboxItem>)}
-                                      </ComboboxList>
-                                    </ComboboxContent>
-                                  </Combobox> 
+                                  <EventTypeSelector value={filters[w.id]?.eventType ?? ''} onChange={(val) => setFilters(prev => ({ ...(prev || {}), [w.id]: { ...(prev[w.id] || {}), eventType: val } }))} /> 
                                 </div> 
 
                                   <Tooltip>
