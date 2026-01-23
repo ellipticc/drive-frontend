@@ -108,11 +108,10 @@ export function NavUser({
   const { hasUnread } = useNotifications()
   const displayName = getDisplayName(user)
 
-  // Click-to-copy & selection state for email
+  // Click-to-copy for email
   const emailRef = useRef<HTMLSpanElement | null>(null)
-  const [emailSelected, setEmailSelected] = useState(false)
 
-  // Copy email to clipboard and select the text until clicking elsewhere
+  // Copy email to clipboard and select the text
   const handleEmailClick = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation()
     const email = user.email || ''
@@ -124,29 +123,15 @@ export function NavUser({
       toast.error('Failed to copy email')
     }
 
-    // Select the email text
+    // Select the email text with native browser selection
     if (emailRef.current) {
       const range = document.createRange()
       range.selectNodeContents(emailRef.current)
       const sel = window.getSelection()
       sel?.removeAllRanges()
       sel?.addRange(range)
-      setEmailSelected(true)
     }
   }, [user.email])
-
-  // Clear selection when clicking outside
-  useEffect(() => {
-    function handleDocClick(ev: MouseEvent) {
-      if (emailRef.current && !emailRef.current.contains(ev.target as Node)) {
-        setEmailSelected(false)
-        const sel = window.getSelection()
-        sel?.removeAllRanges()
-      }
-    }
-    document.addEventListener('mousedown', handleDocClick)
-    return () => document.removeEventListener('mousedown', handleDocClick)
-  }, [])
 
   const handleSettingsOpenChange = (open: boolean) => {
     setSettingsOpen(open)
@@ -268,23 +253,28 @@ export function NavUser({
                   </div>
                   <div className="grid flex-1 text-start text-sm leading-tight">
                     <span className="truncate font-medium">{displayName}</span>
-                    <span
-                      ref={emailRef}
-                      onClick={handleEmailClick}
-                      role="button"
-                      tabIndex={0}
-                      className={`text-xs truncate ${emailSelected ? 'bg-primary/20 rounded px-1 -mx-1' : 'text-muted-foreground'} cursor-pointer hover:underline hover:text-foreground transition-colors select-none`}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault()
-                          handleEmailClick(e as any)
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span
+                          ref={emailRef}
+                          onClick={handleEmailClick}
+                          role="button"
+                          tabIndex={0}
+                          className="text-xs truncate text-muted-foreground cursor-pointer hover:underline hover:text-foreground transition-colors"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault()
+                              handleEmailClick(e as any)
                         }
                       }}
-                      onMouseDown={(e) => e.stopPropagation()}
-                      aria-label="Copy email to clipboard"
-                    >
-                      {user.email}
-                    </span>
+                          onMouseDown={(e) => e.stopPropagation()}
+                          aria-label="Copy email to clipboard"
+                        >
+                          {user.email}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>Copy Address</TooltipContent>
+                    </Tooltip>
                   </div>
                 </div>
               </DropdownMenuLabel>

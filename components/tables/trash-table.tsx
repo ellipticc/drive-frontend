@@ -608,7 +608,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                                 <TooltipTrigger className="cursor-default">
                                     <IconInfoCircle className="h-4 w-4 text-muted-foreground/70 hover:text-muted-foreground transition-colors" />
                                 </TooltipTrigger>
-                                <TooltipContent>
+                                <TooltipContent side="right">
                                     <p>{retentionText}</p>
                                 </TooltipContent>
                             </Tooltip>
