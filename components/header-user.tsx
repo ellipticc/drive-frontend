@@ -72,6 +72,18 @@ export function HeaderUser() {
     const { t } = useLanguage()
     const { setTheme, theme } = useTheme()
     const { user, updateUser, refetch, deviceLimitReached } = useUser()
+
+    // Default user if context not loaded yet
+    const safeUser = user || {
+        id: "",
+        name: "Loading...",
+        email: "loading@example.com",
+        avatar: getDiceBearAvatar("loading"),
+        is_checkmarked: false,
+        show_checkmark: true,
+        connectedDevicesCount: 0
+    }
+
     const [settingsOpen, setSettingsOpen] = useState(false)
     // Click-to-copy & selection state for email
     const emailRef = useRef<HTMLParagraphElement | null>(null)
@@ -112,17 +124,6 @@ export function HeaderUser() {
         document.addEventListener('mousedown', handleDocClick)
         return () => document.removeEventListener('mousedown', handleDocClick)
     }, [])
-
-    // Default user if context not loaded yet
-    const safeUser = user || {
-        id: "",
-        name: "Loading...",
-        email: "loading@example.com",
-        avatar: getDiceBearAvatar("loading"),
-        is_checkmarked: false,
-        show_checkmark: true,
-        connectedDevicesCount: 0
-    }
 
     const displayName = getDisplayName(safeUser)
 
