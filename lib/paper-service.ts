@@ -873,12 +873,20 @@ class PaperService {
                     const chunkData = await blockResponse.json();
 
                     // Decrypt block content
-                    const decryptedBlockStr = await decryptPaperContent(
-                        chunkData.encryptedContent,
-                        chunkData.iv || chunkData.nonce || '',
-                        chunkData.salt,
-                        masterKey
-                    );
+                    let decryptedBlockStr = '';
+                    if (cachedCek) {
+                        const encryptedBytes = Uint8Array.from(atob(chunkData.encryptedContent), c => c.charCodeAt(0));
+                        const nonceBytes = Uint8Array.from(atob(chunkData.iv || chunkData.nonce || ''), c => c.charCodeAt(0));
+                        const decryptedBytes = xchacha20poly1305(cachedCek, nonceBytes).decrypt(encryptedBytes);
+                        decryptedBlockStr = new TextDecoder().decode(decryptedBytes);
+                    } else {
+                        decryptedBlockStr = await decryptPaperContent(
+                            chunkData.encryptedContent,
+                            chunkData.iv || chunkData.nonce || '',
+                            chunkData.salt,
+                            masterKey
+                        );
+                    }
                     return JSON.parse(decryptedBlockStr);
                 } catch (e) {
                     console.error(`Failed to decrypt block ${entry.id}`, e);
