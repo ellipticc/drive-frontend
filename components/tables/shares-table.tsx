@@ -2,7 +2,6 @@
 
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useFormatter } from "@/hooks/use-formatter";
-import { useWindowVirtualizer } from "@tanstack/react-virtual";
 
 import { DotsVertical } from "@untitledui/icons";
 import type { SortDescriptor } from "react-aria-components";
@@ -461,16 +460,6 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
         );
     }, [sortedItems, deferredQuery]);
 
-    // Virtualization setup
-    const parentRef = useRef<HTMLDivElement>(null);
-
-    const rowVirtualizer = useWindowVirtualizer({
-        count: filteredItems.length,
-        estimateSize: () => 50, // Estimate row height
-        overscan: 5,
-        scrollMargin: parentRef.current?.offsetTop ?? 0,
-    });
-
     const handleBulkDownload = async () => {
         if (selectedItems.size === 0) return;
 
@@ -800,10 +789,7 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                     className="h-10 border-0"
                 />
                 {viewMode === 'table' ? (
-                    <div
-                        ref={parentRef}
-                        className="w-full relative"
-                    >
+                    <div className="w-full relative">
                         <Table aria-label="Shares" selectionMode="multiple" selectionBehavior="replace" sortDescriptor={sortDescriptor} onSortChange={setSortDescriptor} selectedKeys={selectedItems} onSelectionChange={(keys) => {
                             if (keys === 'all') {
                                 if (selectedItems.size > 0 && selectedItems.size < filteredItems.length) {
@@ -853,25 +839,15 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                                 <Table.Head id="actions" align="center" />
                             </Table.Header>
 
-                            <Table.Body dependencies={[filteredItems, selectedItems.size, rowVirtualizer.getVirtualItems()]}>
-                                {/* Top Spacer */}
-                                {rowVirtualizer.getVirtualItems().length > 0 && rowVirtualizer.getVirtualItems()[0].start - rowVirtualizer.options.scrollMargin > 0 && (
-                                    <Table.Row id="spacer-top" className="hover:bg-transparent border-0 focus-visible:outline-none">
-                                        <Table.Cell colSpan={isMobile ? 3 : 7} style={{ height: rowVirtualizer.getVirtualItems()[0].start - rowVirtualizer.options.scrollMargin, padding: 0 }} />
-                                    </Table.Row>
-                                )}
-
-                                {rowVirtualizer.getVirtualItems().map((virtualItem) => {
-                                    const item = filteredItems[virtualItem.index];
+                            <Table.Body dependencies={[filteredItems, selectedItems.size, filteredItems.length]}>
+                                {filteredItems.map((item, itemIndex) => {
                                     return (
                                         <Table.Row
                                             key={item.id}
                                             id={item.id}
-                                            data-index={virtualItem.index}
-                                            ref={rowVirtualizer.measureElement}
                                             onDoubleClick={() => {
                                                 if (item.fileId && !item.isFolder) {
-                                                    openPreviewFor(virtualItem.index);
+                                                    openPreviewFor(itemIndex);
                                                 } else {
                                                     handleDetailsClick(item.isFolder ? (item.folderId || item.id) : (item.fileId || item.id), item.fileName || '', item.isFolder ? 'folder' : 'file');
                                                 }
@@ -997,22 +973,6 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                                         </Table.Row>
                                     );
                                 })}
-
-                                {/* Bottom Spacer */}
-                                {rowVirtualizer.getVirtualItems().length > 0 && (
-                                    (() => {
-                                        const lastItem = rowVirtualizer.getVirtualItems()[rowVirtualizer.getVirtualItems().length - 1];
-                                        const bottomSpace = rowVirtualizer.getTotalSize() - lastItem.end;
-                                        if (bottomSpace > 0) {
-                                            return (
-                                                <Table.Row id="spacer-bottom" className="hover:bg-transparent border-0 focus-visible:outline-none">
-                                                    <Table.Cell colSpan={isMobile ? 3 : 7} style={{ height: bottomSpace, padding: 0 }} />
-                                                </Table.Row>
-                                            );
-                                        }
-                                        return null;
-                                    })()
-                                )}
                             </Table.Body>
                         </Table>
                     </div>

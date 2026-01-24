@@ -1,7 +1,6 @@
 "use client"
 
 import React, { useMemo, useRef } from "react"
-import { useWindowVirtualizer } from "@tanstack/react-virtual"
 import { format, parseISO, isToday, isYesterday } from "date-fns"
 import { GalleryItem } from "./gallery-item"
 import { Tag } from "@/lib/api"
@@ -58,24 +57,7 @@ export function GalleryGrid({
     onAction,
     timeScale
 }: GalleryGridProps) {
-    const parentRef = useRef<HTMLDivElement>(null)
-    const [containerWidth, setContainerWidth] = React.useState(0)
     const columnCount = Math.max(2, Math.min(12, zoomLevel)) // Clamp between 2 and 12
-
-    // Resize Observer to get exact container width
-    React.useEffect(() => {
-        if (!parentRef.current) return
-
-        const resizeObserver = new ResizeObserver((entries) => {
-            for (const entry of entries) {
-                setContainerWidth(entry.contentRect.width)
-            }
-        })
-
-        resizeObserver.observe(parentRef.current)
-        return () => resizeObserver.disconnect()
-    }, [])
-
 
     // Flatten data into rows
     const virtualRows = useMemo(() => {
@@ -105,29 +87,6 @@ export function GalleryGrid({
         return rows
     }, [sortedDates, groupedItems, columnCount])
 
-    const rowVirtualizer = useWindowVirtualizer({
-        count: virtualRows.length,
-        estimateSize: (index) => {
-            const row = virtualRows[index]
-            if (row.type === 'header') return 56 // Fixed height
-
-            // Use exact container width or fallback to window if not yet measured
-            const width = containerWidth || (typeof window !== 'undefined' ? window.innerWidth : 1200)
-
-            // Critical: Match the gap used in CSS exactly (8px)
-            const gap = 8
-            const paddingX = 48 // px-6 = 24px * 2 = 48px
-
-            const availableWidth = width - paddingX
-            const itemWidth = Math.floor((availableWidth - (gap * (columnCount - 1))) / columnCount)
-
-            // Add buffer to prevent sub-pixel rounding overlaps which cause the next row to be pulled up
-            return itemWidth + gap + 2
-        },
-        overscan: 5,
-        scrollMargin: parentRef.current?.offsetTop ?? 0,
-    })
-
     const formatHeaderDate = (dateStr: string) => {
         const date = parseISO(dateStr)
         if (isToday(date)) return "Today"
@@ -143,31 +102,13 @@ export function GalleryGrid({
     }
 
     return (
-        <div ref={parentRef} className="flex-1 w-full">
-            <div
-                style={{
-                    height: `${rowVirtualizer.getTotalSize()}px`,
-                    width: '100%',
-                    position: 'relative',
-                    transition: 'height 0.2s ease-out' // Smooth height transition
-                }}
-            >
-                {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                    const row = virtualRows[virtualRow.index]
+        <div className="flex-1 w-full">
+            <div className="w-full">
+                {virtualRows.map((row) => {
 
                     return (
                         <div
                             key={row.id}
-                            style={{
-                                position: 'absolute',
-                                top: 0,
-                                left: 0,
-                                width: '100%',
-                                height: `${virtualRow.size}px`,
-                                transform: `translateY(${virtualRow.start - (rowVirtualizer.options.scrollMargin)}px)`,
-                                transition: 'transform 0.2s ease-out', // Smooth row movement
-                                willChange: 'transform'
-                            }}
                             className={row.type === 'header' ? "px-6 pt-6 pb-2" : "px-6 pb-2"}
                         >
                             {row.type === 'header' ? (

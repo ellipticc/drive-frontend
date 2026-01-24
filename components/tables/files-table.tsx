@@ -69,7 +69,6 @@ import {
 import { snapCenterToCursor } from "@dnd-kit/modifiers";
 import { AnimatePresence, motion } from "motion/react";
 import { useLanguage } from "@/lib/i18n/language-context";
-import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import {
     ActionBar,
     ActionBarSelection,
@@ -2417,16 +2416,6 @@ export const Table01DividerLineSm = ({
         };
     }, [selectedItemForPreview, getPreviewableFiles]);
 
-    // Virtualization setup
-    const parentRef = useRef<HTMLDivElement>(null);
-
-    const rowVirtualizer = useWindowVirtualizer({
-        count: filteredItems.length,
-        estimateSize: () => 50,
-        overscan: 5,
-        scrollMargin: parentRef.current?.offsetTop ?? 0,
-    });
-
     const emptyState = (
         <div className="flex flex-col items-center justify-center py-20 px-4">
             <Empty>
@@ -3226,16 +3215,10 @@ export const Table01DividerLineSm = ({
         if (keys === 'all') {
             const allIds = filteredItems.map(item => item.id);
             setSelectedItems(prev => {
-                // If we have some items selected (Indeterminate) and click check, we want to DESELECT ALL
-                // If we have 0 items selected, we want to SELECT ALL
-                if (prev.size > 0 && prev.size < allIds.length) {
-                    return new Set();
-                }
-
                 if (prev.size === allIds.length && allIds.every(id => prev.has(id))) {
-                    return prev; // No change needed
+                    return new Set(); // Clear selection when all are selected
                 }
-                return new Set(allIds);
+                return new Set(allIds); // Select all visible rows
             });
         } else {
             const newKeys = Array.from(keys as Set<string>);
@@ -3416,10 +3399,7 @@ export const Table01DividerLineSm = ({
                                 onDragOver={handleDragOver}
                                 onDragEnd={handleDragEnd}
                             >
-                                <div
-                                    ref={parentRef}
-                                    className="w-full relative"
-                                >
+                                <div className="w-full relative">
                                     <Table aria-label="Files" selectionMode="multiple" selectionBehavior="replace" sortDescriptor={sortDescriptor} onSortChange={setSortDescriptor} selectedKeys={selectedItems} onSelectionChange={handleTableSelectionChange}
                                         onContextMenu={(e: React.MouseEvent) => handleContextMenu(e)}
                                     >
@@ -3455,16 +3435,8 @@ export const Table01DividerLineSm = ({
 
 
                                         {filteredItems.length > 0 ? (
-                                            <Table.Body dependencies={[visibleColumns, selectedItems.size, rowVirtualizer.getVirtualItems()]}>
-                                                {/* Top Spacer */}
-                                                {rowVirtualizer.getVirtualItems().length > 0 && rowVirtualizer.getVirtualItems()[0].start - rowVirtualizer.options.scrollMargin > 0 && (
-                                                    <Table.Row id="spacer-top" className="hover:bg-transparent border-0 focus-visible:outline-none">
-                                                        <Table.Cell colSpan={8} style={{ height: rowVirtualizer.getVirtualItems()[0].start - rowVirtualizer.options.scrollMargin, padding: 0 }} />
-                                                    </Table.Row>
-                                                )}
-
-                                                {rowVirtualizer.getVirtualItems().map((virtualItem) => {
-                                                    const item = filteredItems[virtualItem.index];
+                                            <Table.Body dependencies={[visibleColumns, selectedItems.size, filteredItems.length]}>
+                                                {filteredItems.map((item) => {
                                                     const isSelected = selectedItems.has(item.id);
                                                     const isDraggingSomewhere = !!activeDragItem;
 
@@ -3478,8 +3450,6 @@ export const Table01DividerLineSm = ({
                                                             onDoubleClick={item.type === 'folder' ? () => handleFolderDoubleClick(item.id, item.name) : (item.type === 'file' ? () => handlePreviewClick(item.id, item.name, item.mimeType) : (item.type === 'paper' ? () => window.open('/paper?fileId=' + item.id, '_blank') : undefined))}
                                                             className="group hover:bg-muted/50 transition-colors duration-150"
                                                             onContextMenu={handleContextMenu}
-                                                            // Ensure the row height is tracked
-                                                            data-index={virtualItem.index}
                                                         >
                                                             <Table.Cell className="w-10 text-center pl-2 md:pl-4 pr-0">
                                                                 <Checkbox
@@ -3731,22 +3701,6 @@ export const Table01DividerLineSm = ({
                                                         </DraggableDroppableRow>
                                                     );
                                                 })}
-
-                                                {/* Bottom Spacer */}
-                                                {rowVirtualizer.getVirtualItems().length > 0 && (
-                                                    (() => {
-                                                        const lastItem = rowVirtualizer.getVirtualItems()[rowVirtualizer.getVirtualItems().length - 1];
-                                                        const bottomSpace = rowVirtualizer.getTotalSize() - lastItem.end;
-                                                        if (bottomSpace > 0) {
-                                                            return (
-                                                                <Table.Row id="spacer-bottom" className="hover:bg-transparent border-0 focus-visible:outline-none">
-                                                                    <Table.Cell colSpan={8} style={{ height: bottomSpace, padding: 0 }} />
-                                                                </Table.Row>
-                                                            );
-                                                        }
-                                                        return null;
-                                                    })()
-                                                )}
                                             </Table.Body>
 
                                         ) : null}

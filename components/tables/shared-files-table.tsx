@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react"
-import { useWindowVirtualizer } from "@tanstack/react-virtual"
 import {
     IconDots,
     IconDownload,
@@ -470,15 +469,6 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
         });
     }, [filteredItems, sortDescriptor, decryptedNames]);
 
-    // Virtualization setup
-    const parentRef = useRef<HTMLDivElement>(null);
-    const rowVirtualizer = useWindowVirtualizer({
-        count: sortedItems.length,
-        estimateSize: () => 50,
-        overscan: 5,
-        scrollMargin: parentRef.current?.offsetTop ?? 0,
-    });
-
     const renderHeaderIcons = () => {
         const selCount = selectedItems.size
         const ids = Array.from(selectedItems)
@@ -659,7 +649,7 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
                     className="h-10 border-0"
                 />
 
-                <div ref={parentRef} className="w-full relative">
+                <div className="w-full relative">
                     <Table
                         aria-label="Shared With Me"
                         selectionMode="multiple"
@@ -712,24 +702,14 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
                             <Table.Head id="actions" align="center" />
                         </Table.Header>
 
-                        <Table.Body dependencies={[sortedItems, selectedItems.size, rowVirtualizer.getVirtualItems()]}>
-                            {/* Top Spacer */}
-                            {rowVirtualizer.getVirtualItems().length > 0 && rowVirtualizer.getVirtualItems()[0].start - rowVirtualizer.options.scrollMargin > 0 && (
-                                <Table.Row id="spacer-top" className="hover:bg-transparent border-0 focus-visible:outline-none">
-                                    <Table.Cell colSpan={isMobile ? 3 : 6} style={{ height: rowVirtualizer.getVirtualItems()[0].start - rowVirtualizer.options.scrollMargin, padding: 0 }} />
-                                </Table.Row>
-                            )}
-
-                            {rowVirtualizer.getVirtualItems().map((virtualItem) => {
-                                const item = sortedItems[virtualItem.index];
+                        <Table.Body dependencies={[sortedItems, selectedItems.size, sortedItems.length]}>
+                            {sortedItems.map((item) => {
                                 const isPending = item.status === 'pending';
 
                                 return (
                                     <Table.Row
                                         key={item.id}
                                         id={item.id}
-                                        data-index={virtualItem.index}
-                                        ref={rowVirtualizer.measureElement}
                                         onDoubleClick={() => openDetails(item)}
                                         className={`group transition-colors duration-150 ${selectedItems.has(item.id) ? "bg-muted/50" : "hover:bg-muted/50"}`}
                                     >
@@ -851,22 +831,6 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
                                     </Table.Row>
                                 );
                             })}
-
-                            {/* Bottom Spacer */}
-                            {rowVirtualizer.getVirtualItems().length > 0 && (
-                                (() => {
-                                    const lastItem = rowVirtualizer.getVirtualItems()[rowVirtualizer.getVirtualItems().length - 1];
-                                    const bottomSpace = rowVirtualizer.getTotalSize() - lastItem.end;
-                                    if (bottomSpace > 0) {
-                                        return (
-                                            <Table.Row id="spacer-bottom" className="hover:bg-transparent border-0 focus-visible:outline-none">
-                                                <Table.Cell colSpan={isMobile ? 3 : 5} style={{ height: bottomSpace, padding: 0 }} />
-                                            </Table.Row>
-                                        );
-                                    }
-                                    return null;
-                                })()
-                            )}
                         </Table.Body>
                     </Table>
                 </div>

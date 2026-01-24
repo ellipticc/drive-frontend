@@ -3,7 +3,6 @@
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useFormatter } from "@/hooks/use-formatter";
 import dynamic from "next/dynamic";
-import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { DotsVertical } from "@untitledui/icons";
 import type { SortDescriptor } from "react-aria-components";
 import { Table, TableCard } from "@/components/application/table/table";
@@ -511,16 +510,6 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
         });
     }, [trashItems, sortDescriptor, deferredQuery]);
 
-    // Virtualization setup
-    const parentRef = useRef<HTMLDivElement>(null);
-
-    const rowVirtualizer = useWindowVirtualizer({
-        count: sortedItems.length,
-        estimateSize: () => 50, // Estimate row height
-        overscan: 5,
-        scrollMargin: parentRef.current?.offsetTop ?? 0,
-    });
-
     // Keyboard shortcuts
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -658,10 +647,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                         </div>
                     </div>
                 ) : (
-                    <div
-                        ref={parentRef}
-                        className="w-full relative"
-                    >
+                    <div className="w-full relative">
                         <Table
                             aria-label="Trash"
                             selectionMode="multiple"
@@ -713,22 +699,12 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                                 <Table.Head id="actions" align="center" />
                             </Table.Header>
 
-                            <Table.Body dependencies={[sortedItems, selectedItems.size, rowVirtualizer.getVirtualItems()]}>
-                                {/* Top Spacer */}
-                                {rowVirtualizer.getVirtualItems().length > 0 && rowVirtualizer.getVirtualItems()[0].start - rowVirtualizer.options.scrollMargin > 0 && (
-                                    <Table.Row id="spacer-top" className="hover:bg-transparent border-0 focus-visible:outline-none">
-                                        <Table.Cell colSpan={isMobile ? 3 : 6} style={{ height: rowVirtualizer.getVirtualItems()[0].start - rowVirtualizer.options.scrollMargin, padding: 0 }} />
-                                    </Table.Row>
-                                )}
-
-                                {rowVirtualizer.getVirtualItems().map((virtualItem) => {
-                                    const item = sortedItems[virtualItem.index];
+                            <Table.Body dependencies={[sortedItems, selectedItems.size, sortedItems.length]}>
+                                {sortedItems.map((item) => {
                                     return (
                                         <Table.Row
                                             key={item.id}
                                             id={item.id}
-                                            data-index={virtualItem.index}
-                                            ref={rowVirtualizer.measureElement}
                                             onDoubleClick={() => {
                                                 if (item.type === 'paper') {
                                                     window.open('/paper?fileId=' + item.id + '&viewMode=view', '_blank');
@@ -837,22 +813,6 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                                         </Table.Row>
                                     );
                                 })}
-
-                                {/* Bottom Spacer */}
-                                {rowVirtualizer.getVirtualItems().length > 0 && (
-                                    (() => {
-                                        const lastItem = rowVirtualizer.getVirtualItems()[rowVirtualizer.getVirtualItems().length - 1];
-                                        const bottomSpace = rowVirtualizer.getTotalSize() - lastItem.end;
-                                        if (bottomSpace > 0) {
-                                            return (
-                                                <Table.Row id="spacer-bottom" className="hover:bg-transparent border-0 focus-visible:outline-none">
-                                                    <Table.Cell colSpan={isMobile ? 3 : 6} style={{ height: bottomSpace, padding: 0 }} />
-                                                </Table.Row>
-                                            );
-                                        }
-                                        return null;
-                                    })()
-                                )}
                             </Table.Body>
                         </Table>
                     </div>
