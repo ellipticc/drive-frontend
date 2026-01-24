@@ -507,7 +507,11 @@ class PaperService {
         if (paper.wrappedCek && paper.kyberCiphertext) {
             try {
                 const userKeys = await keyManager.getUserKeys();
-                const kyberPrivateKey = userKeys.keypairs.kyberPrivateKey;
+                // Ensure private key is Uint8Array
+                const kyberPrivateKey = typeof userKeys.keypairs.kyberPrivateKey === 'string'
+                    ? hexToUint8Array(userKeys.keypairs.kyberPrivateKey)
+                    : userKeys.keypairs.kyberPrivateKey;
+
                 const kyberCiphertextBytes = hexToUint8Array(paper.kyberCiphertext);
 
                 // Decapsulate to get shared secret
