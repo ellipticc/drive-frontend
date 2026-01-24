@@ -17,14 +17,9 @@ export function useMediaUrl(paperId: string, fileId?: string, initialUrl?: strin
     const createdUrls = useState<Set<string>>(() => new Set())[0];
 
     useEffect(() => {
-        if (!fileId) {
-            if (initialUrl) {
-                setState({ url: initialUrl, loading: false, error: null });
-            }
-            return;
-        }
-
-        if (!fileId) {
+        // If we don't have a fileId (asset ID) OR a paperId, we can't download from backend.
+        // Fallback to initialUrl if available.
+        if (!fileId || !paperId) {
             if (initialUrl) {
                 setState({ url: initialUrl, loading: false, error: null });
             }
@@ -49,13 +44,18 @@ export function useMediaUrl(paperId: string, fileId?: string, initialUrl?: strin
                     createdUrls.add(blobUrl);
                     setState({ url: blobUrl, loading: false, error: null });
                 }
-            } catch (err) {
+            } catch (err: any) {
                 if (isMounted) {
                     // If abort error, ignore
-                    if (err instanceof Error && err.name === 'AbortError') return;
+                    if ((err instanceof Error && err.name === 'AbortError') || (typeof err === 'object' && err?.name === 'AbortError')) return;
 
                     console.error(`Failed to load media ${fileId}`, err);
-                    setState({ url: null, loading: false, error: 'Failed to load media' });
+
+                    if (initialUrl) {
+                        setState({ url: initialUrl, loading: false, error: null });
+                    } else {
+                        setState({ url: null, loading: false, error: 'Failed to load media' });
+                    }
                 }
             }
         };
@@ -66,7 +66,7 @@ export function useMediaUrl(paperId: string, fileId?: string, initialUrl?: strin
             isMounted = false;
             abortController.abort();
         };
-    }, [fileId, initialUrl, createdUrls]);
+    }, [paperId, fileId, initialUrl, createdUrls]);
 
     // Cleanup effect for created blob URLs when component unmounts
     useEffect(() => {
