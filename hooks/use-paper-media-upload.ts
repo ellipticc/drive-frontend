@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import { uploadEncryptedPaperAsset, UploadResult, UploadProgress } from '@/lib/upload';
+import { usePaperId } from '@/components/paper-id-context';
 
 export interface UploadedFile {
     id: string;
@@ -10,22 +11,15 @@ export interface UploadedFile {
     type: string;
 }
 
-export function usePaperMediaUpload(paperId: string) {
+export function usePaperMediaUpload() {
+    const paperId = usePaperId();
     const [isUploading, setIsUploading] = useState(false);
     const [progress, setProgress] = useState(0);
     const [uploadingFile, setUploadingFile] = useState<File | undefined>(undefined);
     const [uploadedFile, setUploadedFile] = useState<UploadedFile | undefined>(undefined);
 
     const uploadFile = useCallback(async (file: File) => {
-        let activePaperId = paperId;
-
-        // Fallback: If paperId is missing/undefined, try to grab it from URL (Robustness for existing papers)
-        if ((!activePaperId || activePaperId === 'undefined') && typeof window !== 'undefined') {
-            const urlParams = new URLSearchParams(window.location.search);
-            activePaperId = urlParams.get('fileId') as string;
-        }
-
-        if (!activePaperId || activePaperId === 'undefined') {
+        if (!paperId || paperId === 'undefined') {
             toast.error("Please type some text to create the paper first.");
             setIsUploading(false);
             setUploadingFile(undefined);
@@ -38,7 +32,7 @@ export function usePaperMediaUpload(paperId: string) {
 
         try {
             const result: UploadResult = await uploadEncryptedPaperAsset(
-                activePaperId,
+                paperId,
                 file,
                 (p: UploadProgress) => {
                     setProgress(p.overallProgress);

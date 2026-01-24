@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
 import { downloadEncryptedPaperAsset } from '@/lib/download';
 
+import { usePaperId } from '@/components/paper-id-context';
+
 interface MediaUrlState {
     url: string | null;
     loading: boolean;
     error: string | null;
 }
 
-export function useMediaUrl(paperId: string, fileId?: string, initialUrl?: string) {
+export function useMediaUrl(fileId?: string, initialUrl?: string) {
+    const paperId = usePaperId();
     const [state, setState] = useState<MediaUrlState>({
         url: initialUrl || null,
         loading: false,

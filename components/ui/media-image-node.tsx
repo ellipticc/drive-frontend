@@ -10,9 +10,9 @@ import { Image, ImagePlugin, useMediaState } from '@platejs/media/react';
 import { ResizableProvider, useResizableValue } from '@platejs/resizable';
 import { PlateElement, withHOC } from 'platejs/react';
 
-import { useParams, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useMediaUrl } from '@/hooks/use-media-url';
+import { usePaperId } from '@/components/paper-id-context';
 
 import { Caption, CaptionTextarea } from './caption';
 import { MediaToolbar } from './media-toolbar';
@@ -27,16 +27,9 @@ export const ImageElement = withHOC(
   function ImageElement(props: PlateElementProps<TImageElement>) {
     const { align = 'center', focused, readOnly, selected } = useMediaState();
     const width = useResizableValue('width');
-    const searchParams = useSearchParams();
-    const params = useParams();
-    // Robust Retrieval: Try hooks first, fallback to manual URL parsing (fixes hydration/context issues)
-    let paperId = (searchParams?.get('fileId') || params?.fileId) as string;
+    const paperId = usePaperId();
 
-    if (!paperId && typeof window !== 'undefined') {
-      const urlParams = new URLSearchParams(window.location.search);
-      paperId = urlParams.get('fileId') || '';
-    }
-    const { url } = useMediaUrl(paperId, props.element.fileId as string, props.element.url as string);
+    const { url } = useMediaUrl(props.element.fileId as string, props.element.url as string);
 
     const { isDragging, handleRef } = useDraggable({
       element: props.element,

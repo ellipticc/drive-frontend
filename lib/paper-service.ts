@@ -8,6 +8,7 @@ import { sha512 } from '@noble/hashes/sha2.js';
 import { xchacha20poly1305 } from '@noble/ciphers/chacha.js';
 import { keyManager } from './key-manager';
 import { syncManager } from './sync-manager';
+import { LexoRank } from './lexorank';
 
 import {
     encryptPaperContent,
@@ -44,6 +45,7 @@ interface ManifestEntry {
     hash: string; // SHA-256 hash of the block's content
     iv: string; // Encryption IV
     salt: string; // Encryption Salt
+    position?: string; // LexoRank position
 }
 
 interface PaperManifest {
@@ -98,6 +100,13 @@ class PaperService {
         });
     }
 
+    async getPaperAssets(id: string) {
+        return apiClient.getPaperAssets(id);
+    }
+
+    async updatePaperAssetPosition(paperId: string, assetId: string, position: string) {
+        return apiClient.updatePaperAssetPosition(paperId, assetId, position);
+    }
     /**
      * Encrypt raw asset data using the worker (Master Key encryption)
      */
@@ -346,24 +355,45 @@ class PaperService {
                 const existingChunkIds = new Set(currentManifest.blocks.map(b => b.chunkId));
                 const seenIds = new Set<string>();
 
-                // Process each block in the new content
-                const blocksToProcess: any[] = [];
-                for (const block of contentBlocks) {
-                    // Ensure Block ID is unique
+                // B. Assign LexoRank positions for blocks
+                let lastPos = null;
+                const blocksWithPositions: Array<any & { position: string }> = [];
+
+                for (let i = 0; i < contentBlocks.length; i++) {
+                    const block = contentBlocks[i];
                     if (!block.id || seenIds.has(block.id)) block.id = uuidv7();
                     seenIds.add(block.id);
-                    blocksToProcess.push(block);
+
+                    // Find if it has a position or calculate it
+                    let currentPos = block.position || currentManifest.blocks.find(b => b.id === block.id)?.position;
+
+                    if (!currentPos || (lastPos && currentPos <= lastPos)) {
+                        // Look ahead for next valid position
+                        let nextPos = null;
+                        for (let j = i + 1; j < contentBlocks.length; j++) {
+                            const candidate = contentBlocks[j].position || currentManifest.blocks.find(b => b.id === contentBlocks[j].id)?.position;
+                            if (candidate && (!lastPos || candidate > lastPos)) {
+                                nextPos = candidate;
+                                break;
+                            }
+                        }
+                        currentPos = LexoRank.between(lastPos, nextPos);
+                    }
+
+                    block.position = currentPos;
+                    lastPos = currentPos;
+                    blocksWithPositions.push(block);
                 }
 
-                await Promise.all(blocksToProcess.map(async (block) => {
+                await Promise.all(blocksWithPositions.map(async (block) => {
                     const blockHash = await this.hashBlock(block);
 
                     // Check if block exists and is unchanged
                     const existingEntry = currentManifest.blocks.find(b => b.id === block.id);
 
                     if (existingEntry && existingEntry.hash === blockHash) {
-                        // UNCHANGED: Keep existing entry
-                        newManifestBlocks.push(existingEntry);
+                        // UNCHANGED: Keep existing entry, update position
+                        newManifestBlocks.push({ ...existingEntry, position: block.position });
                         existingChunkIds.delete(existingEntry.chunkId); // Mark as "kept"
                     } else {
                         // NEW or MODIFIED: Encrypt
@@ -391,16 +421,15 @@ class PaperService {
                         const blockId = existingEntry ? existingEntry.chunkId : uuidv7();
 
                         // Add to upload queue
-                        // Backend expects: Object (will be stringified by backend before storage)
                         const payload = { encryptedContent, iv, salt };
                         const payloadStr = JSON.stringify(payload);
                         const checksum = await this.hashPayload(payloadStr);
 
                         chunksToUpload.push({
-                            blockId: blockId, // Using blockId now
+                            blockId: blockId,
                             content: payload as any,
                             size: new Blob([payloadStr]).size,
-                            payloadStr, // Store stringified for direct upload
+                            payloadStr,
                             checksum
                         });
 
@@ -409,7 +438,8 @@ class PaperService {
                             chunkId: blockId,
                             hash: blockHash,
                             iv,
-                            salt
+                            salt,
+                            position: block.position
                         });
 
                         if (existingEntry) existingChunkIds.delete(existingEntry.chunkId);
@@ -462,9 +492,7 @@ class PaperService {
                     salt: saltManifest,
                     isManifest: true,
                     // Hint for backend to enable chunk indexing/synchronization for performance
-                    // This only reveals which chunks belong to the paper and their order, 
-                    // not their content or block types.
-                    blocks: newManifest.blocks.map(b => ({ chunkId: b.chunkId }))
+                    blocks: newManifest.blocks.map(b => ({ chunkId: b.chunkId, position: b.position }))
                 };
             }
 

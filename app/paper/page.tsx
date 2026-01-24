@@ -31,6 +31,7 @@ import { FixedToolbarButtons } from "@/components/ui/fixed-toolbar-buttons";
 import { EmojiPopover, EmojiPicker } from "@/components/ui/emoji-toolbar-button";
 import { VersionHistoryModal } from "@/components/modals/version-history-modal";
 import { IconHistory } from "@tabler/icons-react";
+import { PaperIdProvider } from "@/components/paper-id-context";
 
 interface PaperHeaderProps {
     fileId: string;
@@ -178,41 +179,43 @@ function PaperEditorView({
     });
 
     return (
-        <Plate
-            editor={editor}
-            onChange={({ value }) => onChange(value)}
-        >
-            <div className="flex flex-col h-screen bg-background w-full overflow-hidden">
-                <PaperHeader
-                    fileId={fileId}
-                    paperTitle={paperTitle}
-                    setPaperTitle={setPaperTitle}
-                    handleTitleSave={handleTitleSave}
-                    icon={icon}
-                    onSelectEmoji={onSelectEmoji}
-                    saving={saving}
-                    isUnsaved={isUnsaved}
-                    setHistoryOpen={setHistoryOpen}
-                    onBack={onBack}
-                />
+        <PaperIdProvider paperId={fileId}>
+            <Plate
+                editor={editor}
+                onChange={({ value }) => onChange(value)}
+            >
+                <div className="flex flex-col h-screen bg-background w-full overflow-hidden">
+                    <PaperHeader
+                        fileId={fileId}
+                        paperTitle={paperTitle}
+                        setPaperTitle={setPaperTitle}
+                        handleTitleSave={handleTitleSave}
+                        icon={icon}
+                        onSelectEmoji={onSelectEmoji}
+                        saving={saving}
+                        isUnsaved={isUnsaved}
+                        setHistoryOpen={setHistoryOpen}
+                        onBack={onBack}
+                    />
 
-                <FixedToolbar className="border-b shrink-0 !relative !top-0">
-                    <FixedToolbarButtons />
-                </FixedToolbar>
+                    <FixedToolbar className="border-b shrink-0 !relative !top-0">
+                        <FixedToolbarButtons />
+                    </FixedToolbar>
 
-                <main className="flex-1 overflow-hidden relative">
-                    <EditorContainer className="h-full w-full overflow-y-auto flex justify-center">
-                        <div className="w-full max-w-[850px] px-8 md:px-12">
-                            <Editor
-                                className="min-h-full w-full py-4 border-none shadow-none focus-visible:ring-0 transition-all"
-                                autoFocus
-                                placeholder="New Page"
-                            />
-                        </div>
-                    </EditorContainer>
-                </main>
-            </div>
-        </Plate>
+                    <main className="flex-1 overflow-hidden relative">
+                        <EditorContainer className="h-full w-full overflow-y-auto flex justify-center">
+                            <div className="w-full max-w-[850px] px-8 md:px-12">
+                                <Editor
+                                    className="min-h-full w-full py-4 border-none shadow-none focus-visible:ring-0 transition-all"
+                                    autoFocus
+                                    placeholder="New Page"
+                                />
+                            </div>
+                        </EditorContainer>
+                    </main>
+                </div>
+            </Plate>
+        </PaperIdProvider>
     );
 }
 
@@ -342,12 +345,12 @@ export default function PaperPage() {
                     if (!block || typeof block !== 'object') {
                         return { type: 'p', children: [{ text: '' }] };
                     }
-                    
+
                     // Ensure children exists and is an array
                     if (!Array.isArray(block.children)) {
                         block.children = [{ text: '' }];
                     }
-                    
+
                     // Recursively sanitize children
                     block.children = block.children.map((child: any) => {
                         if (typeof child === 'object' && child !== null && 'children' in child) {
@@ -359,7 +362,7 @@ export default function PaperPage() {
                         }
                         return child;
                     });
-                    
+
                     return block;
                 };
 

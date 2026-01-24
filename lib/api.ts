@@ -1943,6 +1943,17 @@ class ApiClient {
     });
   }
 
+  async getPaperAssets(id: string): Promise<ApiResponse<any[]>> {
+    return this.request(`/papers/${id}/assets`);
+  }
+
+  async updatePaperAssetPosition(paperId: string, assetId: string, position: string): Promise<ApiResponse> {
+    return this.request(`/papers/${paperId}/assets/${assetId}/position`, {
+      method: 'PATCH',
+      body: JSON.stringify({ position })
+    });
+  }
+
   async deletePapersPermanently(paperIds: string[]): Promise<ApiResponse<{ message: string; storageFreed: number }>> {
     // Bulk permanent delete (using unified endpoint)
     return this.request('/trash', {

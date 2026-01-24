@@ -48,27 +48,18 @@ const CONTENT: Record<
   },
 };
 
-import { useParams, useSearchParams } from 'next/navigation';
+import { usePaperId } from '@/components/paper-id-context';
 
 export const PlaceholderElement = withHOC(
   PlaceholderProvider,
   function PlaceholderElement(props: PlateElementProps<TPlaceholderElement>) {
     const { editor, element } = props;
-    const searchParams = useSearchParams();
-    // Support both query param (paper page) and path param (if used elsewhere)
-    const params = useParams();
-    // Robust Retrieval: Try hooks first, fallback to manual URL parsing (fixes hydration/context issues)
-    let paperId = (searchParams?.get('fileId') || params?.fileId) as string;
-
-    if (!paperId && typeof window !== 'undefined') {
-      const urlParams = new URLSearchParams(window.location.search);
-      paperId = urlParams.get('fileId') || '';
-    }
+    const paperId = usePaperId();
 
     const { api } = useEditorPlugin(PlaceholderPlugin);
 
     const { isUploading, progress, uploadedFile, uploadFile, uploadingFile } =
-      usePaperMediaUpload(paperId);
+      usePaperMediaUpload();
 
     const loading = isUploading && uploadingFile;
 
