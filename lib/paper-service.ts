@@ -582,8 +582,8 @@ class PaperService {
 
         // 4. Decrypt Content (Manifest -> Blocks)
         let content: any[] = [];
+        let manifest: PaperManifest | null = null;
         try {
-            let manifest: PaperManifest | null = null;
 
             // Find chunk 0 (manifest)
             const manifestChunk = chunkList.find((c: any) => c.chunkIndex === 0);
@@ -785,43 +785,104 @@ class PaperService {
                     return block;
                 });
             }
-
-            return {
-                id: paper.id,
-                title,
-                content: { content, icon: manifest?.icon ?? null }, // Return wrapped object
-                folderId: paper.folderId,
-                createdAt: paper.createdAt,
-                updatedAt: paper.updatedAt
-            };
         } catch (e) {
             console.error('Failed to decrypt content', e);
-            // Return safe fallback with valid block structure
-            return {
-                id: paper.id,
-                title,
-                content: {
-                    content: [{ id: uuidv7(), type: 'p', children: [{ text: '[Error loading paper content]' }] }],
-                    icon: null
-                },
-                folderId: paper.folderId,
-                createdAt: paper.createdAt,
-                updatedAt: paper.updatedAt
-            };
+        }
+
+        // 5. Apply Pending Offline Changes (SyncQueue Overlay)
+        try {
+            const result = await this.applyPendingOfflineChanges(paperId, content, null);
+            content = result.content;
+        } catch (err) {
+            console.error('[PaperService] Failed to apply offline changes', err);
         }
 
         return {
             id: paper.id,
             title,
-            content: {
-                content: [{ id: uuidv7(), type: 'p', children: [{ text: '' }] }],
-                icon: null
-            },
+            content: { content, icon: manifest?.icon ?? null }, // Return wrapped object
             folderId: paper.folderId,
             createdAt: paper.createdAt,
             updatedAt: paper.updatedAt
         };
     }
+
+    private async applyPendingOfflineChanges(paperId: string, currentContent: any[], currentManifest: PaperManifest | null): Promise<{ content: any[], manifest: PaperManifest | null }> {
+        const { syncDb } = await import('./db/sync-db');
+        const queue = await syncDb.getAll();
+
+        // Filter for this paper and sort by time
+        const paperItems = queue.filter(i => i.paperId === paperId).sort((a, b) => a.createdAt - b.createdAt);
+
+        if (paperItems.length === 0) return { content: currentContent, manifest: currentManifest };
+
+        console.log(`[PaperService] Applying ${paperItems.length} pending offline changes to paper ${paperId}`);
+
+        // Create a map of current blocks for easy update
+        const contentMap = new Map((currentContent || []).map(b => [b.id, b]));
+
+        // We need the CEK to decrypt pending chunks
+        const cek = this.cekCache.get(paperId);
+        if (!cek) {
+            console.warn('[PaperService] Cannot apply offline changes: CEK not found in cache.');
+            return { content: currentContent, manifest: currentManifest };
+        }
+
+        for (const item of paperItems) {
+            // 1. Handle individual chunk uploads (content blocks)
+            if (item.type === 'upload_chunk' && item.payload) {
+                const chunk = item.payload; // { blockId, content: {encrypted...}, size, uploaded }
+                if (chunk.content && chunk.content.encryptedContent) {
+                    try {
+                        const encryptedBytes = Uint8Array.from(atob(chunk.content.encryptedContent), c => c.charCodeAt(0));
+                        const nonceBytes = Uint8Array.from(atob(chunk.content.iv), c => c.charCodeAt(0));
+                        const decryptedBytes = xchacha20poly1305(cek, nonceBytes).decrypt(encryptedBytes);
+
+                        const decryptedStr = new TextDecoder().decode(decryptedBytes);
+                        const blockData = JSON.parse(decryptedStr);
+
+                        // Override content map with local version
+                        contentMap.set(blockData.id, blockData);
+                    } catch (err) {
+                        console.error('[PaperService] Failed to decrypt offline chunk', err);
+                    }
+                }
+            }
+
+            // 2. Handle 'save_manifest'
+            if (item.type === 'save_manifest' && item.payload) {
+                const payload = item.payload;
+
+                // Apply deletions
+                if (payload.chunksToDelete && Array.isArray(payload.chunksToDelete)) {
+                    payload.chunksToDelete.forEach((id: string) => contentMap.delete(id));
+                }
+
+                // Apply chunks explicitly in this payload
+                if (payload.chunksToUpload && Array.isArray(payload.chunksToUpload)) {
+                    for (const chunk of payload.chunksToUpload) {
+                        if (chunk.content && chunk.content.encryptedContent) {
+                            try {
+                                const encryptedBytes = Uint8Array.from(atob(chunk.content.encryptedContent), c => c.charCodeAt(0));
+                                const nonceBytes = Uint8Array.from(atob(chunk.content.iv), c => c.charCodeAt(0));
+                                const decryptedBytes = xchacha20poly1305(cek, nonceBytes).decrypt(encryptedBytes);
+
+                                const decryptedStr = new TextDecoder().decode(decryptedBytes);
+                                const blockData = JSON.parse(decryptedStr);
+                                contentMap.set(blockData.id, blockData);
+                            } catch (err) {
+                                console.error('[PaperService] Failed to decrypt offline chunk in manifest', err);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        const mergedContent = Array.from(contentMap.values());
+        return { content: mergedContent, manifest: currentManifest };
+    }
+
     async getPaperVersion(fileId: string, versionId: string): Promise<any> {
         try {
             const masterKey = masterKeyManager.getMasterKey();
