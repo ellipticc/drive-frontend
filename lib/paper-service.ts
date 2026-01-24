@@ -330,15 +330,15 @@ class PaperService {
 
                         if (cachedCek) {
                             // Use Worker for Encryption
-                            const response = await this.postMessageToWorker('ENCRYPT_BLOCK', {
-                                content: block,
-                                cek: cachedCek
-                            });
-
-                            if (response.success && response.data) {
-                                ({ encryptedContent, iv, salt } = response.data);
-                            } else {
-                                throw new Error(response.error || 'Worker encryption failed');
+                            try {
+                                const result = await this.postMessageToWorker('ENCRYPT_BLOCK', {
+                                    content: block,
+                                    cek: cachedCek
+                                });
+                                ({ encryptedContent, iv, salt } = result);
+                            } catch (err: any) {
+                                console.error('[PaperService] Encryption error:', err);
+                                throw new Error(err.message || 'Worker encryption failed');
                             }
                         } else {
                             const blockStr = JSON.stringify(block);
@@ -730,19 +730,19 @@ class PaperService {
 
                             if (cek) {
                                 // Use Worker for Decryption
-                                const response = await this.postMessageToWorker('DECRYPT_BLOCK', {
-                                    chunkId: entry.chunkId,
-                                    encryptedContent: chunkData.encryptedContent,
-                                    iv: chunkData.iv,
-                                    hash: chunkData.hash,
-                                    salt: chunkData.salt, // Not strictly needed for CEK but good for completeness
-                                    cek: cek
-                                });
-
-                                if (response.success && response.data) {
-                                    return response.data;
-                                } else {
-                                    throw new Error(response.error || 'Worker decryption failed');
+                                try {
+                                    const decryptedBlock = await this.postMessageToWorker('DECRYPT_BLOCK', {
+                                        chunkId: entry.chunkId,
+                                        encryptedContent: chunkData.encryptedContent,
+                                        iv: chunkData.iv,
+                                        hash: chunkData.hash,
+                                        salt: chunkData.salt,
+                                        cek: cek
+                                    });
+                                    return decryptedBlock;
+                                } catch (err: any) {
+                                    console.error('[PaperService] Decryption error:', err);
+                                    throw err;
                                 }
                             } else {
                                 // Fallback: Legacy Main Thread Decryption
