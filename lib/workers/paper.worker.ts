@@ -24,6 +24,25 @@ export type EncryptBlockRequest = {
     id: string;
 };
 
+export type EncryptAssetRequest = {
+    type: 'ENCRYPT_ASSET';
+    payload: {
+        content: Uint8Array | ArrayBuffer;
+        key: Uint8Array;
+    };
+    id: string;
+};
+
+export type DecryptAssetRequest = {
+    type: 'DECRYPT_ASSET';
+    payload: {
+        content: Uint8Array | ArrayBuffer;
+        key: Uint8Array;
+        nonce: Uint8Array;
+    };
+    id: string;
+};
+
 export type WorkerResponse = {
     id: string;
     success: boolean;
@@ -104,6 +123,29 @@ self.onmessage = async (e: MessageEvent) => {
             };
 
             self.postMessage({ id, success: true, data: result });
+        } else if (type === 'ENCRYPT_ASSET') {
+            const { content, key } = payload;
+            if (!key) throw new Error('Missing encryption key');
+            if (!content) throw new Error('Missing content');
+
+            // Generate nonce
+            const nonce = crypto.getRandomValues(new Uint8Array(24));
+
+            // Encrypt raw buffer
+            // content should be Uint8Array or ArrayBuffer
+            const contentBytes = content instanceof Uint8Array ? content : new Uint8Array(content);
+            const encryptedBytes = xchacha20poly1305(key, nonce).encrypt(contentBytes);
+
+            // Transferrable workaround: we should ideally transfer the buffer, but `postMessage` handles it efficiently if structured clone is used.
+            self.postMessage({
+                id,
+                success: true,
+                data: {
+                    encryptedData: encryptedBytes,
+                    nonce: nonce
+                }
+            }, [encryptedBytes.buffer, nonce.buffer] as any);
+
         } else {
             console.warn('Unknown worker message type:', type);
         }

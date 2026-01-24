@@ -23,6 +23,7 @@ import { CompressionAlgorithm, CompressionMetadata } from './compression';
 import { generateThumbnail } from './thumbnail';
 import { WorkerPool } from './worker-pool';
 import { getTransferQueue } from './transfer-queue';
+import { paperService } from './paper-service';
 
 // Lazy-initialized worker pool
 let uploadWorkerPool: WorkerPool | null = null;
@@ -192,10 +193,10 @@ async function testFileCompressibility(file: File): Promise<{ shouldCompress: bo
 
       const ratio = totalLength / testData.length;
       const shouldCompress = ratio < 0.92; // 8%+ savings required
-      
+
       return {
         shouldCompress,
-        reason: shouldCompress 
+        reason: shouldCompress
           ? `Compressible: ${((1 - ratio) * 100).toFixed(1)}% savings detected`
           : `Not compressible: Only ${((1 - ratio) * 100).toFixed(1)}% savings`
       };
@@ -1209,10 +1210,11 @@ export async function uploadEncryptedPaperAsset(
 
     const fileBuffer = await file.arrayBuffer();
     const data = new Uint8Array(fileBuffer);
-    const nonce = crypto.getRandomValues(new Uint8Array(24));
 
-    // Encrypt using XChaCha20-Poly1305
-    const ciphertext = xchacha20poly1305(masterKey, nonce).encrypt(data);
+    // Encrypt using Worker via PaperService
+    const { encryptedData, nonce } = await paperService.encryptAsset(data, masterKey);
+    const ciphertext = encryptedData; // naming compatibility with rest of function
+
     onProgress({ stage: 'encrypting', overallProgress: 15 });
 
     const nonceBase64 = btoa(String.fromCharCode(...nonce));

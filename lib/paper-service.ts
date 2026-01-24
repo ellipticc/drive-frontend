@@ -82,14 +82,47 @@ class PaperService {
         };
     }
 
-    private postMessageToWorker(type: 'DECRYPT_BLOCK' | 'ENCRYPT_BLOCK', payload: any): Promise<any> {
+    private postMessageToWorker(type: 'DECRYPT_BLOCK' | 'ENCRYPT_BLOCK' | 'ENCRYPT_ASSET' | 'DECRYPT_ASSET', payload: any): Promise<any> {
         return new Promise((resolve, reject) => {
             const id = uuidv7();
             this.workerCallbacks.set(id, { resolve, reject });
-            this.worker.postMessage({ type, payload, id });
+
+            // Optimization: Transfer ArrayBuffers for asset operations
+            // We check if payload.content is an ArrayBuffer or TypedArray
+            let transferables: Transferable[] = [];
+            if ((type === 'ENCRYPT_ASSET' || type === 'DECRYPT_ASSET') && payload.content && payload.content.buffer) {
+                transferables.push(payload.content.buffer);
+            }
+
+            this.worker.postMessage({ type, payload, id }, transferables);
         });
     }
 
+    /**
+     * Encrypt raw asset data using the worker (Master Key encryption)
+     */
+    async encryptAsset(content: ArrayBuffer | Uint8Array, key: Uint8Array): Promise<{ encryptedData: Uint8Array; nonce: Uint8Array }> {
+        try {
+            const response = await this.postMessageToWorker('ENCRYPT_ASSET', { content, key });
+            return response;
+        } catch (err: any) {
+            console.error('[PaperService] Asset encryption failed:', err);
+            throw err;
+        }
+    }
+
+    /**
+     * Decrypt raw asset data using the worker (Master Key decryption)
+     */
+    async decryptAsset(content: ArrayBuffer | Uint8Array, key: Uint8Array, nonce: Uint8Array): Promise<Uint8Array> {
+        try {
+            const response = await this.postMessageToWorker('DECRYPT_ASSET', { content, key, nonce });
+            return response.decryptedData;
+        } catch (err: any) {
+            console.error('[PaperService] Asset decryption failed:', err);
+            throw err;
+        }
+    }
     /**
      * Helper: Generate SHA-256 Hash of a block to detect changes
      */

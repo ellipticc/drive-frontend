@@ -10,6 +10,7 @@
  */
 
 import { apiClient } from './api';
+import { paperService } from './paper-service';
 import { PerformanceTracker } from './performance-tracker';
 import { decryptData, uint8ArrayToHex, hexToUint8Array, decryptFilename } from './crypto';
 import { keyManager, UserKeys, UserKeypairs } from './key-manager';
@@ -1190,8 +1191,8 @@ export async function downloadEncryptedPaperAsset(
     const nonce = new Uint8Array(binaryNonce.length);
     for (let i = 0; i < binaryNonce.length; i++) nonce[i] = binaryNonce.charCodeAt(i);
 
-    // Decrypt using XChaCha20-Poly1305
-    const decryptedContent = xchacha20poly1305(masterKey, nonce).decrypt(new Uint8Array(encryptedBuffer));
+    // Decrypt using Worker via PaperService
+    const decryptedContent = await paperService.decryptAsset(new Uint8Array(encryptedBuffer), masterKey, nonce);
 
     const blob = new Blob([decryptedContent as any], { type: contentType });
 

@@ -10,7 +10,7 @@ import { Image, ImagePlugin, useMediaState } from '@platejs/media/react';
 import { ResizableProvider, useResizableValue } from '@platejs/resizable';
 import { PlateElement, withHOC } from 'platejs/react';
 
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useMediaUrl } from '@/hooks/use-media-url';
 
@@ -27,8 +27,9 @@ export const ImageElement = withHOC(
   function ImageElement(props: PlateElementProps<TImageElement>) {
     const { align = 'center', focused, readOnly, selected } = useMediaState();
     const width = useResizableValue('width');
+    const searchParams = useSearchParams();
     const params = useParams();
-    const paperId = params?.fileId as string;
+    const paperId = (searchParams.get('fileId') || params?.fileId) as string;
     const { url } = useMediaUrl(paperId, props.element.fileId as string, props.element.url as string);
 
     const { isDragging, handleRef } = useDraggable({

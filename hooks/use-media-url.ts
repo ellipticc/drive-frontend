@@ -24,8 +24,10 @@ export function useMediaUrl(paperId: string, fileId?: string, initialUrl?: strin
             return;
         }
 
-        if (initialUrl?.startsWith('blob:')) {
-            setState({ url: initialUrl, loading: false, error: null });
+        if (!fileId) {
+            if (initialUrl) {
+                setState({ url: initialUrl, loading: false, error: null });
+            }
             return;
         }
 
