@@ -11,8 +11,14 @@ interface MediaUrlState {
 
 export function useMediaUrl(fileId?: string, initialUrl?: string) {
     const paperId = usePaperId();
+
+    // Default to the provided initialUrl ONLY if it's not a blob URL, 
+    // or if we don't have a backend ID to fetch a fresh one.
+    const isBlobUrl = initialUrl?.startsWith('blob:');
+    const safeInitialUrl = (isBlobUrl && fileId) ? null : (initialUrl || null);
+
     const [state, setState] = useState<MediaUrlState>({
-        url: initialUrl || null,
+        url: safeInitialUrl,
         loading: false,
         error: null
     });

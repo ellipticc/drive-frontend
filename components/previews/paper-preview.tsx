@@ -8,6 +8,7 @@ import { paperService } from '@/lib/paper-service'
 import { masterKeyManager } from '@/lib/master-key'
 import { Editor, EditorContainer } from '@/components/ui/editor'
 import { EditorKit } from '@/components/editor-kit'
+import { PaperIdProvider } from '@/components/paper-id-context'
 
 interface PaperPreviewProps {
   fileId: string
@@ -64,11 +65,11 @@ export function PaperPreview({ fileId, initialContent, filename }: PaperPreviewP
           if (!block || typeof block !== 'object') {
             return { type: 'p', children: [{ text: '' }] }
           }
-          
+
           if (!Array.isArray(block.children)) {
             block.children = [{ text: '' }]
           }
-          
+
           block.children = block.children.map((child: any) => {
             if (typeof child === 'object' && child !== null && 'children' in child) {
               return sanitizeBlock(child)
@@ -78,7 +79,7 @@ export function PaperPreview({ fileId, initialContent, filename }: PaperPreviewP
             }
             return child
           })
-          
+
           return block
         }
 
@@ -110,15 +111,17 @@ export function PaperPreview({ fileId, initialContent, filename }: PaperPreviewP
   }
 
   return (
-    <PlateController>
-      <Plate editor={editor} key={editorKey}>
-        <div className="w-full flex justify-center bg-background min-h-full">
-          <div className="w-full max-w-[850px] px-8 md:px-16 py-12">
-            <Editor readOnly className="border-none shadow-none focus-visible:ring-0" />
+    <PaperIdProvider paperId={fileId}>
+      <PlateController>
+        <Plate editor={editor} key={editorKey}>
+          <div className="w-full flex justify-center bg-background min-h-full">
+            <div className="w-full max-w-[850px] px-8 md:px-16 py-12">
+              <Editor readOnly className="border-none shadow-none focus-visible:ring-0" />
+            </div>
           </div>
-        </div>
-      </Plate>
-    </PlateController>
+        </Plate>
+      </PlateController>
+    </PaperIdProvider>
   )
 }
 
