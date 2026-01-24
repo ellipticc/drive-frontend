@@ -823,7 +823,7 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                                 )}
                                 {!isMobile && (
                                     <Table.Head id="createdAt" allowsSorting align="right" className={`pointer-events-none cursor-default min-w-[120px] ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
-                                        <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Created at</span>
+                                        <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>Modified</span>
                                     </Table.Head>
                                 )}
                                 {!isMobile && (

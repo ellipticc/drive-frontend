@@ -2305,8 +2305,8 @@ export const Table01DividerLineSm = ({
         return [...files].sort((a, b) => {
             // Handle different column types
             if (sortDescriptor.column === 'modified') {
-                const firstDate = new Date(a.createdAt).getTime();
-                const secondDate = new Date(b.createdAt).getTime();
+                const firstDate = new Date(a.updatedAt || a.createdAt).getTime();
+                const secondDate = new Date(b.updatedAt || b.createdAt).getTime();
                 return sortDescriptor.direction === "descending" ? secondDate - firstDate : firstDate - secondDate;
             }
 
@@ -3552,7 +3552,7 @@ export const Table01DividerLineSm = ({
                                                             </Table.Cell>
                                                             <Table.Cell className={`hidden md:table-cell text-right w-40 ${visibleColumns.has('modified') ? '' : '[&>*]:invisible'} px-4`}>
                                                                 <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
-                                                                    {formatDate(item.createdAt)}
+                                                                    {formatDate(item.updatedAt || item.createdAt)}
                                                                 </span>
                                                             </Table.Cell>
                                                             <Table.Cell className={`hidden md:table-cell text-right w-28 ${visibleColumns.has('size') ? '' : '[&>*]:invisible'} px-4`}>
@@ -3897,7 +3897,7 @@ export const Table01DividerLineSm = ({
 
                                                 {/* Modified date */}
                                                 <p className="text-xs text-muted-foreground text-center font-[var(--font-jetbrains-mono)] font-semibold tracking-wider">
-                                                    {formatDate(item.createdAt)}
+                                                    {formatDate(item.updatedAt || item.createdAt)}
                                                 </p>
                                             </div>
 

@@ -57,6 +57,9 @@ interface PaperManifest {
 class PaperService {
     private manifestCache = new Map<string, PaperManifest>();
     private cekCache = new Map<string, Uint8Array>();
+    private sessionId: string | null = null;
+    private sessionTimer: NodeJS.Timeout | null = null;
+    private readonly SESSION_TIMEOUT = 60 * 60 * 1000; // 1 hour in milliseconds
 
     private worker: Worker;
     private workerCallbacks = new Map<string, { resolve: (data: any) => void; reject: (err: any) => void }>();
@@ -82,6 +85,27 @@ class PaperService {
         this.worker.onerror = (err) => {
             console.error('Paper Worker Error:', err);
         };
+    }
+
+    /**
+     * Generate or renew the sessionId for activity deduplication
+     */
+    private ensureSessionId(): string {
+        if (!this.sessionId) {
+            this.sessionId = uuidv7();
+        }
+        
+        // Reset session timeout
+        if (this.sessionTimer) {
+            clearTimeout(this.sessionTimer);
+        }
+        
+        this.sessionTimer = setTimeout(() => {
+            this.sessionId = null;
+            this.sessionTimer = null;
+        }, this.SESSION_TIMEOUT);
+        
+        return this.sessionId;
     }
 
     private postMessageToWorker(type: 'DECRYPT_BLOCK' | 'ENCRYPT_BLOCK' | 'ENCRYPT_ASSET' | 'DECRYPT_ASSET', payload: any): Promise<any> {
@@ -576,7 +600,8 @@ class PaperService {
                 ...updateData,
                 manifest: manifestPayload,
                 chunksToUpload: finalChunksPayload, // Note: backend won't save these if empty or uploaded=true
-                chunksToDelete: blocksToDelete
+                chunksToDelete: blocksToDelete,
+                sessionId: this.ensureSessionId() // Add session ID for activity deduplication
             };
 
             try {
