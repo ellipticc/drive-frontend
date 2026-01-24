@@ -53,6 +53,7 @@ interface PaperManifest {
 
 class PaperService {
     private manifestCache = new Map<string, PaperManifest>();
+    private cekCache = new Map<string, Uint8Array>();
 
     /**
      * Helper: Generate SHA-256 Hash of a block to detect changes
@@ -191,6 +192,9 @@ class PaperService {
                 }] as any
             });
 
+            // Cache the CEK so subsequent save operations (like savePaper below) use it
+            this.cekCache.set(paperId, cek);
+
             await this.savePaper(paperId, [initialBlock], title);
 
             return paperId;
@@ -289,7 +293,23 @@ class PaperService {
                     } else {
                         // NEW or MODIFIED: Encrypt
                         const blockStr = JSON.stringify(block);
-                        const { encryptedContent, iv, salt } = await encryptPaperContent(blockStr, masterKey);
+                        let encryptedContent, iv, salt;
+
+                        const cachedCek = this.cekCache.get(paperId);
+                        if (cachedCek) {
+                            const contentBytes = new TextEncoder().encode(blockStr);
+                            const nonce = new Uint8Array(24);
+                            crypto.getRandomValues(nonce);
+                            const encrypted = xchacha20poly1305(cachedCek, nonce).encrypt(contentBytes);
+                            encryptedContent = uint8ArrayToBase64(encrypted);
+                            iv = uint8ArrayToBase64(nonce);
+
+                            const saltBytes = new Uint8Array(32);
+                            crypto.getRandomValues(saltBytes);
+                            salt = uint8ArrayToBase64(saltBytes);
+                        } else {
+                            ({ encryptedContent, iv, salt } = await encryptPaperContent(blockStr, masterKey));
+                        }
 
                         // Reuse chunkId if modified, or new if new block
                         const blockId = existingEntry ? existingEntry.chunkId : uuidv7();
@@ -340,8 +360,26 @@ class PaperService {
 
 
                 // Encrypt Manifest
+                // Encrypt Manifest
                 const manifestStr = JSON.stringify(newManifest);
-                const { encryptedContent: encManifest, iv: ivManifest, salt: saltManifest } = await encryptPaperContent(manifestStr, masterKey);
+                let encManifest, ivManifest, saltManifest;
+
+                const cachedCek = this.cekCache.get(paperId);
+                if (cachedCek) {
+                    const contentBytes = new TextEncoder().encode(manifestStr);
+                    const nonce = new Uint8Array(24);
+                    crypto.getRandomValues(nonce);
+                    const encrypted = xchacha20poly1305(cachedCek, nonce).encrypt(contentBytes);
+                    encManifest = uint8ArrayToBase64(encrypted);
+                    ivManifest = uint8ArrayToBase64(nonce);
+
+                    const saltBytes = new Uint8Array(32);
+                    crypto.getRandomValues(saltBytes);
+                    saltManifest = uint8ArrayToBase64(saltBytes);
+                } else {
+                    ({ encryptedContent: encManifest, iv: ivManifest, salt: saltManifest } = await encryptPaperContent(manifestStr, masterKey));
+                }
+
                 manifestPayload = {
                     encryptedContent: encManifest,
                     iv: ivManifest,
@@ -480,6 +518,8 @@ class PaperService {
                 const nonceBytes = Uint8Array.from(atob(paper.nonceWrapKyber || paper.cekNonce || ''), c => c.charCodeAt(0)); // Handle both field names
 
                 cek = xchacha20poly1305(kyberSharedSecret, nonceBytes).decrypt(wrappedCekBytes);
+                // Cache the unwrapped Cek
+                this.cekCache.set(paperId, cek);
             } catch (err) {
                 console.error('[PaperService] Failed to unwrap CEK:', err);
             }
