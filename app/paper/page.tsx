@@ -70,6 +70,75 @@ function PaperHeader({
     const router = useRouter();
     const { emojiPickerState, isOpen, setIsOpen } = useEmojiDropdownMenuState();
 
+    // Animated theme toggle functionality
+    const toggleThemeWithAnimation = useCallback(() => {
+        // Animation CSS for circle variant, top-right, no blur
+        const animationCSS = `
+          ::view-transition-group(root) {
+            animation-duration: 1.5s;
+            animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+          }
+                
+          ::view-transition-new(root) {
+            animation-name: reveal-light-top-right;
+          }
+
+          ::view-transition-old(root),
+          .dark::view-transition-old(root) {
+            animation: none;
+            z-index: -1;
+          }
+          
+          .dark::view-transition-new(root) {
+            animation-name: reveal-dark-top-right;
+          }
+
+          @keyframes reveal-dark-top-right {
+            from {
+              clip-path: circle(0% at 100% 0%);
+            }
+            to {
+              clip-path: circle(150.0% at 100% 0%);
+            }
+          }
+
+          @keyframes reveal-light-top-right {
+            from {
+              clip-path: circle(0% at 100% 0%);
+            }
+            to {
+              clip-path: circle(150.0% at 100% 0%);
+            }
+          }
+        `;
+
+        // Update styles
+        const styleId = "theme-transition-styles";
+        let styleElement = document.getElementById(styleId) as HTMLStyleElement;
+
+        if (!styleElement) {
+            styleElement = document.createElement("style");
+            styleElement.id = styleId;
+            document.head.appendChild(styleElement);
+        }
+
+        styleElement.textContent = animationCSS;
+
+        // Switch theme
+        const newTheme = theme === "light" ? "dark" : "light";
+        
+        const switchTheme = () => {
+            setTheme(newTheme);
+        };
+
+        if (!document.startViewTransition) {
+            switchTheme();
+            return;
+        }
+
+        document.startViewTransition(switchTheme);
+    }, [theme, setTheme]);
+
     // Determine display icon (emoji or first letter)
     const displayIcon = icon || (paperTitle ? paperTitle.charAt(0).toUpperCase() : "U");
 
@@ -147,7 +216,7 @@ function PaperHeader({
                             <IconHistory className="w-4 h-4 mr-2" />
                             Version History
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+                        <DropdownMenuItem onClick={toggleThemeWithAnimation}>
                             {theme === 'dark' ? <IconSun className="w-4 h-4 mr-2" /> : <IconMoon className="w-4 h-4 mr-2" />}
                             {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
                         </DropdownMenuItem>
