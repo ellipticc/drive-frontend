@@ -146,12 +146,21 @@ class PaperService {
             const manifestStr = JSON.stringify(initialManifest);
             const manifestBytesContent = new TextEncoder().encode(manifestStr);
 
-            const manifestNonce = new Uint8Array(24);
-            crypto.getRandomValues(manifestNonce);
-            const encryptedManifestBytes = xchacha20poly1305(cek, manifestNonce).encrypt(manifestBytesContent);
+            // Encrypt Initial Manifest via Worker
+            let encryptedContent: string, iv: string;
 
-            const encryptedContent = uint8ArrayToBase64(encryptedManifestBytes);
-            const iv = uint8ArrayToBase64(manifestNonce);
+            try {
+                // We treat the manifest as a "block" content for encryption purposes here
+                const response = await this.postMessageToWorker('ENCRYPT_BLOCK', {
+                    content: initialManifest,
+                    cek: cek
+                });
+                encryptedContent = response.encryptedContent;
+                iv = response.iv;
+            } catch (err: any) {
+                console.error('[createPaper] Worker encryption failed for manifest', err);
+                throw err;
+            }
 
             const contentSalt = new Uint8Array(32);
             crypto.getRandomValues(contentSalt);
@@ -981,10 +990,19 @@ class PaperService {
                     // Decrypt block content
                     let decryptedBlockStr = '';
                     if (cachedCek) {
-                        const encryptedBytes = Uint8Array.from(atob(chunkData.encryptedContent), c => c.charCodeAt(0));
-                        const nonceBytes = Uint8Array.from(atob(chunkData.iv || chunkData.nonce || ''), c => c.charCodeAt(0));
-                        const decryptedBytes = xchacha20poly1305(cachedCek, nonceBytes).decrypt(encryptedBytes);
-                        decryptedBlockStr = new TextDecoder().decode(decryptedBytes);
+                        try {
+                            const decryptedBlock = await this.postMessageToWorker('DECRYPT_BLOCK', {
+                                chunkId: entry.chunkId,
+                                encryptedContent: chunkData.encryptedContent,
+                                iv: chunkData.iv || chunkData.nonce || '',
+                                salt: chunkData.salt,
+                                cek: cachedCek
+                            });
+                            return decryptedBlock;
+                        } catch (err: any) {
+                            console.error(`[getPaperVersion] Worker Decrypt Error for ${entry.id}`, err);
+                            throw err;
+                        }
                     } else {
                         decryptedBlockStr = await decryptPaperContent(
                             chunkData.encryptedContent,
@@ -992,8 +1010,8 @@ class PaperService {
                             chunkData.salt,
                             masterKey
                         );
+                        return JSON.parse(decryptedBlockStr);
                     }
-                    return JSON.parse(decryptedBlockStr);
                 } catch (e) {
                     console.error(`Failed to decrypt block ${entry.id}`, e);
                     return {
