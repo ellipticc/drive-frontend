@@ -87,27 +87,29 @@ export function FixedToolbarButtons() {
             >
               <UnderlineIcon />
             </MarkToolbarButton>
+          </ToolbarGroup>
 
+          <ToolbarGroup className="gap-0.5 md:gap-1 hidden sm:flex">
             <MarkToolbarButton
               nodeType={KEYS.strikethrough}
               tooltip="Strikethrough (⌘+⇧+M)"
-              className="hidden sm:inline-flex"
             >
               <StrikethroughIcon />
             </MarkToolbarButton>
 
-            <MarkToolbarButton nodeType={KEYS.code} tooltip="Code (⌘+E)" className="hidden sm:inline-flex">
+            <MarkToolbarButton nodeType={KEYS.code} tooltip="Code (⌘+E)">
               <Code2Icon />
             </MarkToolbarButton>
+          </ToolbarGroup>
 
-            <FontColorToolbarButton nodeType={KEYS.color} tooltip="Text color" className="hidden md:inline-flex">
+          <ToolbarGroup className="gap-0.5 md:gap-1 hidden md:flex">
+            <FontColorToolbarButton nodeType={KEYS.color} tooltip="Text color">
               <BaselineIcon />
             </FontColorToolbarButton>
 
             <FontColorToolbarButton
               nodeType={KEYS.backgroundColor}
               tooltip="Background color"
-              className="hidden md:inline-flex"
             >
               <PaintBucketIcon />
             </FontColorToolbarButton>
@@ -119,13 +121,19 @@ export function FixedToolbarButtons() {
             <NumberedListToolbarButton />
             <BulletedListToolbarButton />
             <TodoListToolbarButton />
-            <ToggleToolbarButton className="hidden sm:inline-flex" />
+          </ToolbarGroup>
+
+          <ToolbarGroup className="gap-0.5 md:gap-1 hidden sm:flex">
+            <ToggleToolbarButton />
           </ToolbarGroup>
 
           <ToolbarGroup className="gap-0.5 md:gap-1">
             <LinkToolbarButton />
-            <TableToolbarButton className="hidden sm:inline-flex" />
             <EmojiToolbarButton />
+          </ToolbarGroup>
+
+          <ToolbarGroup className="gap-0.5 md:gap-1 hidden sm:flex">
+            <TableToolbarButton />
           </ToolbarGroup>
 
           <ToolbarGroup className="gap-0.5 md:gap-1 hidden md:flex">
