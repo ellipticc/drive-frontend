@@ -821,13 +821,30 @@ class PaperService {
 
             let manifest: PaperManifest;
 
-            if (paperData.encryptedContent && paperData.iv && paperData.salt) {
-                const manifestStr = await decryptPaperContent(
-                    paperData.encryptedContent,
-                    paperData.iv,
-                    paperData.salt,
-                    masterKey
-                );
+            // Try to use cached CEK first (PQC Flow)
+            const cachedCek = this.cekCache.get(fileId);
+
+            if (paperData.encryptedContent && paperData.iv) {
+                let manifestStr = '';
+
+                if (cachedCek) {
+                    const encryptedBytes = Uint8Array.from(atob(paperData.encryptedContent), c => c.charCodeAt(0));
+                    const nonceBytes = Uint8Array.from(atob(paperData.iv), c => c.charCodeAt(0));
+                    const decryptedBytes = xchacha20poly1305(cachedCek, nonceBytes).decrypt(encryptedBytes);
+                    manifestStr = new TextDecoder().decode(decryptedBytes);
+                } else if (paperData.salt) {
+                    manifestStr = await decryptPaperContent(
+                        paperData.encryptedContent,
+                        paperData.iv,
+                        paperData.salt,
+                        masterKey
+                    );
+                } else {
+                    // If no salt and no cached CEK, we might be stuck unless we fetch file metadata to get PQC keys
+                    // For now, prompt error or try legacy without salt (unlikely)
+                    console.warn('[PaperService] No salt and no cached CEK for version manifest. Decryption might fail.');
+                }
+
                 manifest = JSON.parse(manifestStr);
             } else {
                 throw new Error("Version Manifest or encryption params missing");
