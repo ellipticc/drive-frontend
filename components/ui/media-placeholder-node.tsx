@@ -48,14 +48,16 @@ const CONTENT: Record<
   },
 };
 
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 
 export const PlaceholderElement = withHOC(
   PlaceholderProvider,
   function PlaceholderElement(props: PlateElementProps<TPlaceholderElement>) {
     const { editor, element } = props;
+    const searchParams = useSearchParams();
+    // Support both query param (paper page) and path param (if used elsewhere)
     const params = useParams();
-    const paperId = params.fileId as string;
+    const paperId = (searchParams.get('fileId') || params?.fileId) as string;
 
     const { api } = useEditorPlugin(PlaceholderPlugin);
 
