@@ -49,16 +49,16 @@ export function FixedToolbarButtons() {
   const readOnly = useEditorReadOnly();
 
   return (
-    <div className="flex w-full sticky top-0 z-50 bg-background">
+    <div className="flex w-full md:w-auto sticky top-0 z-50 bg-background min-w-max">
       {!readOnly && (
         <>
-          <ToolbarGroup>
+          <ToolbarGroup className="gap-0.5 md:gap-1">
             <UndoToolbarButton />
             <RedoToolbarButton />
           </ToolbarGroup>
 
 
-          <ToolbarGroup>
+          <ToolbarGroup className="gap-0.5 md:gap-1 hidden sm:flex">
             <ExportToolbarButton>
               <ArrowUpToLineIcon />
             </ExportToolbarButton>
@@ -66,13 +66,13 @@ export function FixedToolbarButtons() {
             <ImportToolbarButton />
           </ToolbarGroup>
 
-          <ToolbarGroup>
+          <ToolbarGroup className="gap-0.5 md:gap-1">
             <InsertToolbarButton />
             <TurnIntoToolbarButton />
             <FontSizeToolbarButton />
           </ToolbarGroup>
 
-          <ToolbarGroup>
+          <ToolbarGroup className="gap-0.5 md:gap-1">
             <MarkToolbarButton nodeType={KEYS.bold} tooltip="Bold (⌘+B)">
               <BoldIcon />
             </MarkToolbarButton>
@@ -91,55 +91,57 @@ export function FixedToolbarButtons() {
             <MarkToolbarButton
               nodeType={KEYS.strikethrough}
               tooltip="Strikethrough (⌘+⇧+M)"
+              className="hidden sm:inline-flex"
             >
               <StrikethroughIcon />
             </MarkToolbarButton>
 
-            <MarkToolbarButton nodeType={KEYS.code} tooltip="Code (⌘+E)">
+            <MarkToolbarButton nodeType={KEYS.code} tooltip="Code (⌘+E)" className="hidden sm:inline-flex">
               <Code2Icon />
             </MarkToolbarButton>
 
-            <FontColorToolbarButton nodeType={KEYS.color} tooltip="Text color">
+            <FontColorToolbarButton nodeType={KEYS.color} tooltip="Text color" className="hidden md:inline-flex">
               <BaselineIcon />
             </FontColorToolbarButton>
 
             <FontColorToolbarButton
               nodeType={KEYS.backgroundColor}
               tooltip="Background color"
+              className="hidden md:inline-flex"
             >
               <PaintBucketIcon />
             </FontColorToolbarButton>
           </ToolbarGroup>
 
-          <ToolbarGroup>
+          <ToolbarGroup className="gap-0.5 md:gap-1">
             <AlignToolbarButton />
 
             <NumberedListToolbarButton />
             <BulletedListToolbarButton />
             <TodoListToolbarButton />
-            <ToggleToolbarButton />
+            <ToggleToolbarButton className="hidden sm:inline-flex" />
           </ToolbarGroup>
 
-          <ToolbarGroup>
+          <ToolbarGroup className="gap-0.5 md:gap-1">
             <LinkToolbarButton />
-            <TableToolbarButton />
+            <TableToolbarButton className="hidden sm:inline-flex" />
             <EmojiToolbarButton />
           </ToolbarGroup>
 
-          <ToolbarGroup>
+          <ToolbarGroup className="gap-0.5 md:gap-1 hidden md:flex">
             <MediaToolbarButton nodeType={KEYS.img} />
             <MediaToolbarButton nodeType={KEYS.video} />
             <MediaToolbarButton nodeType={KEYS.audio} />
             <MediaToolbarButton nodeType={KEYS.file} />
           </ToolbarGroup>
 
-          <ToolbarGroup>
+          <ToolbarGroup className="gap-0.5 md:gap-1 hidden lg:flex">
             <LineHeightToolbarButton />
             <OutdentToolbarButton />
             <IndentToolbarButton />
           </ToolbarGroup>
 
-          <ToolbarGroup>
+          <ToolbarGroup className="gap-0.5 md:gap-1">
             <MoreToolbarButton />
           </ToolbarGroup>
         </>

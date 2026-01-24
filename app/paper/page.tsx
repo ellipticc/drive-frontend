@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { masterKeyManager } from "@/lib/master-key";
-import { IconLoader2, IconArrowLeft, IconCloudCheck } from "@tabler/icons-react";
+import { IconLoader2, IconArrowLeft, IconCloudCheck, IconDotsVertical } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
 import {
     AlertDialog,
@@ -15,6 +15,12 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { type Value } from "platejs";
 import { paperService } from "@/lib/paper-service";
@@ -32,6 +38,8 @@ import { EmojiPopover, EmojiPicker } from "@/components/ui/emoji-toolbar-button"
 import { VersionHistoryModal } from "@/components/modals/version-history-modal";
 import { IconHistory } from "@tabler/icons-react";
 import { PaperIdProvider } from "@/components/paper-id-context";
+import { IconMoon, IconSun } from "@tabler/icons-react";
+import { useTheme } from "next-themes";
 
 interface PaperHeaderProps {
     fileId: string;
@@ -58,6 +66,7 @@ function PaperHeader({
     setHistoryOpen,
     onBack
 }: PaperHeaderProps) {
+    const { theme, setTheme } = useTheme();
     const router = useRouter();
     const { emojiPickerState, isOpen, setIsOpen } = useEmojiDropdownMenuState();
 
@@ -65,10 +74,10 @@ function PaperHeader({
     const displayIcon = icon || (paperTitle ? paperTitle.charAt(0).toUpperCase() : "U");
 
     return (
-        <header className="flex h-16 items-center gap-4 border-b px-6 shrink-0 bg-background z-50 rounded-tl-lg rounded-bl-lg">
-            <div className="flex items-center gap-3 w-full max-w-2xl">
-                <Button variant="ghost" size="icon" onClick={onBack} className="hover:bg-muted shrink-0">
-                    <IconArrowLeft className="w-5 h-5" />
+        <header className="flex h-14 md:h-16 items-center gap-2 md:gap-4 border-b px-3 md:px-6 shrink-0 bg-background z-50 md:rounded-tl-lg md:rounded-bl-lg">
+            <div className="flex items-center gap-2 md:gap-3 w-full max-w-2xl">
+                <Button variant="ghost" size="icon" onClick={onBack} className="hover:bg-muted shrink-0 h-9 w-9 md:h-10 md:w-10">
+                    <IconArrowLeft className="w-4 h-4 md:w-5 md:h-5" />
                 </Button>
 
                 <EmojiPopover
@@ -77,7 +86,7 @@ function PaperHeader({
                     control={
                         <Button
                             variant="ghost"
-                            className="w-8 h-8 rounded-md bg-transparent flex items-center justify-center shrink-0 hover:bg-muted p-0 text-lg overflow-hidden"
+                            className="w-7 h-7 md:w-8 md:h-8 rounded-md bg-transparent flex items-center justify-center shrink-0 hover:bg-muted p-0 text-base md:text-lg overflow-hidden"
                         >
                             {displayIcon}
                         </Button>
@@ -104,33 +113,53 @@ function PaperHeader({
                         }
                     }}
                     maxLength={255}
-                    className="text-2xl font-semibold bg-transparent border-transparent hover:border-border focus:border-input focus:bg-background transition-colors w-full h-11 px-2 shadow-none truncate"
+                    className="text-lg md:text-2xl font-semibold bg-transparent border-transparent hover:border-border focus:border-input focus:bg-background transition-colors w-full h-9 md:h-11 px-1 md:px-2 shadow-none truncate"
                     placeholder="Untitled Paper"
                 />
             </div>
 
-            <div className="ml-auto flex items-center gap-4 shrink-0">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-[80px] justify-end">
+            <div className="ml-auto flex items-center gap-2 md:gap-4 shrink-0">
+                <div className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm text-muted-foreground min-w-[60px] md:min-w-[80px] justify-end">
                     {saving ? (
                         <>
-                            <IconLoader2 className="w-4 h-4 animate-spin" />
-                            <span>Saving...</span>
+                            <IconLoader2 className="w-3.5 h-3.5 md:w-4 md:h-4 animate-spin" />
+                            <span className="hidden sm:inline">Saving...</span>
                         </>
                     ) : isUnsaved ? (
-                        <span className="text-muted-foreground/70">Unsaved</span>
+                        <span className="text-muted-foreground/70 hidden sm:inline">Unsaved</span>
                     ) : (
                         <>
-                            <IconCloudCheck className="w-4 h-4 text-green-500" />
-                            <span className="text-green-500 font-medium">Saved</span>
+                            <IconCloudCheck className="w-3.5 h-3.5 md:w-4 md:h-4 text-green-500" />
+                            <span className="text-green-500 font-medium hidden sm:inline">Saved</span>
                         </>
                     )}
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => setHistoryOpen(true)} title="Version History">
-                    <IconHistory className="w-5 h-5 text-muted-foreground" />
+                
+                {/* Mobile Menu Dropdown */}
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild className="md:hidden">
+                        <Button variant="ghost" size="icon" className="h-9 w-9">
+                            <IconDotsVertical className="w-4 h-4" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem onClick={() => setHistoryOpen(true)}>
+                            <IconHistory className="w-4 h-4 mr-2" />
+                            Version History
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+                            {theme === 'dark' ? <IconSun className="w-4 h-4 mr-2" /> : <IconMoon className="w-4 h-4 mr-2" />}
+                            {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+
+                <Button variant="ghost" size="icon" onClick={() => setHistoryOpen(true)} title="Version History" className="hidden md:flex h-9 w-9 md:h-10 md:w-10">
+                    <IconHistory className="w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />
                 </Button>
                 <Tooltip>
                     <TooltipTrigger asChild>
-                        <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest px-2 py-1 rounded bg-muted/50 hidden md:block cursor-help hover:bg-muted transition-colors">
+                        <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest px-2 py-1 rounded bg-muted/50 hidden lg:block cursor-help hover:bg-muted transition-colors">
                             Zero-Knowledge Encrypted
                         </span>
                     </TooltipTrigger>
@@ -138,8 +167,10 @@ function PaperHeader({
                         <p>Your paper is encrypted with your private key before leaving your device. Only you can read it.</p>
                     </TooltipContent>
                 </Tooltip>
-                <ThemeToggle />
-                <div className="h-6 w-px bg-border mx-1" />
+                <div className="hidden md:block">
+                    <ThemeToggle />
+                </div>
+                <div className="h-6 w-px bg-border mx-1 hidden md:block" />
                 <HeaderUser />
             </div>
         </header>
@@ -198,15 +229,15 @@ function PaperEditorView({
                         onBack={onBack}
                     />
 
-                    <FixedToolbar className="border-b shrink-0 !relative !top-0">
+                    <FixedToolbar className="border-b shrink-0 !relative !top-0 overflow-x-auto overflow-y-hidden scrollbar-hide touch-pan-x">
                         <FixedToolbarButtons />
                     </FixedToolbar>
 
                     <main className="flex-1 overflow-hidden relative">
-                        <EditorContainer className="h-full w-full overflow-y-auto flex justify-center">
-                            <div className="w-full max-w-[850px] px-8 md:px-12">
+                        <EditorContainer className="h-full w-full overflow-y-auto flex md:justify-center">
+                            <div className="w-full md:max-w-[850px] px-4 sm:px-6 md:px-12">
                                 <Editor
-                                    className="min-h-full w-full py-4 border-none shadow-none focus-visible:ring-0 transition-all"
+                                    className="min-h-full w-full py-3 md:py-4 border-none shadow-none focus-visible:ring-0 transition-all text-base md:text-base"
                                     autoFocus
                                     placeholder="New Page"
                                 />
