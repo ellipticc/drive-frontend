@@ -56,6 +56,40 @@ class PaperService {
     private manifestCache = new Map<string, PaperManifest>();
     private cekCache = new Map<string, Uint8Array>();
 
+    private worker: Worker;
+    private workerCallbacks = new Map<string, { resolve: (data: any) => void; reject: (err: any) => void }>();
+
+    constructor() {
+        // Initialize Web Worker
+        this.worker = new Worker(new URL('./workers/paper.worker.ts', import.meta.url), { type: 'module' });
+
+        // Handle worker responses
+        this.worker.onmessage = (e) => {
+            const { id, success, data, error } = e.data;
+            const callback = this.workerCallbacks.get(id);
+            if (callback) {
+                if (success) {
+                    callback.resolve(data);
+                } else {
+                    callback.reject(new Error(error));
+                }
+                this.workerCallbacks.delete(id);
+            }
+        };
+
+        this.worker.onerror = (err) => {
+            console.error('Paper Worker Error:', err);
+        };
+    }
+
+    private postMessageToWorker(type: 'DECRYPT_BLOCK' | 'ENCRYPT_BLOCK', payload: any): Promise<any> {
+        return new Promise((resolve, reject) => {
+            const id = uuidv7();
+            this.workerCallbacks.set(id, { resolve, reject });
+            this.worker.postMessage({ type, payload, id });
+        });
+    }
+
     /**
      * Helper: Generate SHA-256 Hash of a block to detect changes
      */
@@ -291,22 +325,23 @@ class PaperService {
                         existingChunkIds.delete(existingEntry.chunkId); // Mark as "kept"
                     } else {
                         // NEW or MODIFIED: Encrypt
-                        const blockStr = JSON.stringify(block);
-                        let encryptedContent, iv, salt;
-
+                        let encryptedContent: string, iv: string, salt: string;
                         const cachedCek = this.cekCache.get(paperId);
-                        if (cachedCek) {
-                            const contentBytes = new TextEncoder().encode(blockStr);
-                            const nonce = new Uint8Array(24);
-                            crypto.getRandomValues(nonce);
-                            const encrypted = xchacha20poly1305(cachedCek, nonce).encrypt(contentBytes);
-                            encryptedContent = uint8ArrayToBase64(encrypted);
-                            iv = uint8ArrayToBase64(nonce);
 
-                            const saltBytes = new Uint8Array(32);
-                            crypto.getRandomValues(saltBytes);
-                            salt = uint8ArrayToBase64(saltBytes);
+                        if (cachedCek) {
+                            // Use Worker for Encryption
+                            const response = await this.postMessageToWorker('ENCRYPT_BLOCK', {
+                                content: block,
+                                cek: cachedCek
+                            });
+
+                            if (response.success && response.data) {
+                                ({ encryptedContent, iv, salt } = response.data);
+                            } else {
+                                throw new Error(response.error || 'Worker encryption failed');
+                            }
                         } else {
+                            const blockStr = JSON.stringify(block);
                             ({ encryptedContent, iv, salt } = await encryptPaperContent(blockStr, masterKey));
                         }
 
@@ -693,34 +728,28 @@ class PaperService {
                                 };
                             }
 
-                            let blockStr = '';
                             if (cek) {
-                                const encryptedBytes = Uint8Array.from(atob(chunkData.encryptedContent), c => c.charCodeAt(0));
-                                const nonceBytes = Uint8Array.from(atob(chunkData.iv), c => c.charCodeAt(0));
-                                const decryptedBytes = xchacha20poly1305(cek, nonceBytes).decrypt(encryptedBytes);
-                                blockStr = new TextDecoder().decode(decryptedBytes);
+                                // Use Worker for Decryption
+                                const response = await this.postMessageToWorker('DECRYPT_BLOCK', {
+                                    chunkId: entry.chunkId,
+                                    encryptedContent: chunkData.encryptedContent,
+                                    iv: chunkData.iv,
+                                    hash: chunkData.hash,
+                                    salt: chunkData.salt, // Not strictly needed for CEK but good for completeness
+                                    cek: cek
+                                });
+
+                                if (response.success && response.data) {
+                                    return response.data;
+                                } else {
+                                    throw new Error(response.error || 'Worker decryption failed');
+                                }
                             } else {
-                                blockStr = await decryptPaperContent(chunkData.encryptedContent, chunkData.iv, chunkData.salt, masterKey);
+                                // Fallback: Legacy Main Thread Decryption
+                                const blockStr = await decryptPaperContent(chunkData.encryptedContent, chunkData.iv, chunkData.salt, masterKey);
+                                return JSON.parse(blockStr);
                             }
-                            if (blockStr) {
-                                const parsedBlock = JSON.parse(blockStr);
 
-                                // Ensure the parsed block has a valid structure
-                                if (!parsedBlock || typeof parsedBlock !== 'object') {
-                                    return {
-                                        id: entry.id || uuidv7(),
-                                        type: 'p',
-                                        children: [{ text: '' }]
-                                    };
-                                }
-
-                                // Ensure children array exists
-                                if (!Array.isArray(parsedBlock.children)) {
-                                    parsedBlock.children = [{ text: '' }];
-                                }
-
-                                return parsedBlock;
-                            }
                         } catch (err) {
                             console.error(`Failed to decrypt block ${entry.id}`, err);
                             return { id: entry.id || uuidv7(), type: 'p', children: [{ text: '[Error Decrypting Block]' }] };
