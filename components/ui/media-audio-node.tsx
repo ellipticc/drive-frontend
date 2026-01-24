@@ -29,7 +29,7 @@ export const AudioElement = withHOC(
           contentEditable={false}
         >
           <div className="h-16">
-            <audio className="size-full" src={audioUrl || unsafeUrl} controls />
+            <audio className="size-full" src={audioUrl!} controls />
           </div>
 
           <Caption style={{ width: '100%' }} align={align}>

@@ -13,7 +13,10 @@ export function BillingProvider({ children }: { children: ReactNode }) {
     const stripePromise = useMemo(() => {
         const key = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
         if (!key) {
-            console.warn("BillingProvider: Stripe publishable key is missing");
+            // Only warn in development
+            if (process.env.NODE_ENV === 'development') {
+                console.warn("BillingProvider: Stripe publishable key is missing (NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)");
+            }
             return Promise.resolve(null);
         }
         return loadStripe(key);

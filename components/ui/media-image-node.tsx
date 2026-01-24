@@ -58,8 +58,7 @@ export const ImageElement = withHOC(
                   isDragging && 'opacity-50'
                 )}
                 alt={props.attributes.alt as string | undefined}
-                src={url || (props.element.url as string)}
-                {...props.attributes}
+                src={url!}
                 ref={handleRef}
               />
               <ResizeHandle
