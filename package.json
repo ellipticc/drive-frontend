@@ -116,6 +116,7 @@
     "input-otp": "^1.4.2",
     "leaflet": "^1.9.4",
     "leaflet-draw": "^1.0.4",
+    "lexorank": "^1.0.5",
     "lodash": "^4.17.21",
     "lowlight": "^3.3.0",
     "lucide-react": "^0.562.0",
