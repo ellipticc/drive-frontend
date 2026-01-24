@@ -123,6 +123,27 @@ self.onmessage = async (e: MessageEvent) => {
             };
 
             self.postMessage({ id, success: true, data: result });
+
+        } else if (type === 'DECRYPT_ASSET') {
+            const { content, key, nonce } = payload;
+            if (!key) throw new Error('Missing decryption key');
+            if (!content) throw new Error('Missing content');
+            if (!nonce) throw new Error('Missing nonce');
+
+            // Decrypt raw buffer
+            const contentBytes = content instanceof Uint8Array ? content : new Uint8Array(content);
+            const nonceBytes = nonce instanceof Uint8Array ? nonce : new Uint8Array(nonce);
+
+            const decryptedBytes = xchacha20poly1305(key, nonceBytes).decrypt(contentBytes);
+
+            self.postMessage({
+                id,
+                success: true,
+                data: {
+                    decryptedData: decryptedBytes
+                }
+            }, [decryptedBytes.buffer] as any);
+
         } else if (type === 'ENCRYPT_ASSET') {
             const { content, key } = payload;
             if (!key) throw new Error('Missing encryption key');

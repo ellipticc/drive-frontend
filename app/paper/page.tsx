@@ -310,6 +310,9 @@ export default function PaperPage() {
                 // Fetch paper using new internal service
                 const paper = await paperService.getPaper(fileId);
 
+                // Pre-fetch assets to ensure they are available and satisfy user requirement
+                paperService.getPaperAssets(fileId).catch(err => console.warn('[PaperPage] Failed to pre-fetch assets:', err));
+
                 setPaperTitle(paper.title);
                 lastSavedTitleRef.current = paper.title || "Untitled Paper";
                 document.title = paper.title;
