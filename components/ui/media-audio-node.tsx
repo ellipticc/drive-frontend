@@ -20,7 +20,7 @@ export const AudioElement = withHOC(
     const { align = 'center', readOnly, unsafeUrl } = useMediaState();
     const params = useParams();
     const paperId = params?.fileId as string;
-    const { url: audioUrl } = useMediaUrl(paperId, props.element.fileId as string, unsafeUrl);
+    const { url: audioUrl } = useMediaUrl(props.element.fileId as string, unsafeUrl);
 
     return (
       <PlateElement {...props} className="mb-1">

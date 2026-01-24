@@ -41,7 +41,7 @@ export const VideoElement = withHOC(
     });
     const params = useParams();
     const paperId = params?.fileId as string;
-    const { url: videoUrl } = useMediaUrl(paperId, props.element.fileId as string, unsafeUrl);
+    const { url: videoUrl } = useMediaUrl(props.element.fileId as string, unsafeUrl);
 
     const isEditorMounted = useEditorMounted();
 

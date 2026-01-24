@@ -22,7 +22,7 @@ export const FileElement = withHOC(
     const { name, unsafeUrl } = useMediaState();
     const params = useParams();
     const paperId = params?.fileId as string;
-    const { url: fileUrl } = useMediaUrl(paperId, props.element.fileId as string, unsafeUrl);
+    const { url: fileUrl } = useMediaUrl(props.element.fileId as string, unsafeUrl);
 
     return (
       <PlateElement className="my-px rounded-sm" {...props}>
