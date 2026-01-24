@@ -103,15 +103,20 @@ class PaperService {
             if (!initialBlock.id) initialBlock.id = uuidv7();
             const blockStr = JSON.stringify(initialBlock);
 
-            // Encrypt Content with CEK (NOT Master Key directly)
-            // We use xchacha20poly1305 directly here to match standard file encryption pattern
-            const contentBytes = new TextEncoder().encode(blockStr);
-            const blockNonce = new Uint8Array(24);
-            crypto.getRandomValues(blockNonce);
-            const encryptedBlockBytes = xchacha20poly1305(cek, blockNonce).encrypt(contentBytes);
+            // Create initial empty manifest for Chunk 0 (which backend saves as the file content/chunk 0)
+            const initialManifest: PaperManifest = {
+                version: 1,
+                blocks: [] // Empty initially, savePaper will fill it
+            };
+            const manifestStr = JSON.stringify(initialManifest);
+            const manifestBytesContent = new TextEncoder().encode(manifestStr);
 
-            const encryptedContent = uint8ArrayToBase64(encryptedBlockBytes);
-            const iv = uint8ArrayToBase64(blockNonce);
+            const manifestNonce = new Uint8Array(24);
+            crypto.getRandomValues(manifestNonce);
+            const encryptedManifestBytes = xchacha20poly1305(cek, manifestNonce).encrypt(manifestBytesContent);
+
+            const encryptedContent = uint8ArrayToBase64(encryptedManifestBytes);
+            const iv = uint8ArrayToBase64(manifestNonce);
 
             const contentSalt = new Uint8Array(32);
             crypto.getRandomValues(contentSalt);
@@ -181,19 +186,12 @@ class PaperService {
 
             const paperId = response.data.id;
 
-            this.manifestCache.set(paperId, {
-                version: 1,
-                blocks: [{
-                    id: initialBlock.id,
-                    chunkId: chunkId,
-                    hash: blockHash,
-                    iv,
-                    salt
-                }] as any
-            });
-
             // Cache the CEK so subsequent save operations (like savePaper below) use it
             this.cekCache.set(paperId, cek);
+
+            // DO NOT populate manifestCache with blocks yet. 
+            // Leave it empty so savePaper sees initialBlock as NEW and uploads it.
+            this.manifestCache.set(paperId, initialManifest);
 
             await this.savePaper(paperId, [initialBlock], title);
 
