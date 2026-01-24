@@ -17,13 +17,28 @@ export function usePaperMediaUpload(paperId: string) {
     const [uploadedFile, setUploadedFile] = useState<UploadedFile | undefined>(undefined);
 
     const uploadFile = useCallback(async (file: File) => {
+        let activePaperId = paperId;
+
+        // Fallback: If paperId is missing/undefined, try to grab it from URL (Robustness for existing papers)
+        if ((!activePaperId || activePaperId === 'undefined') && typeof window !== 'undefined') {
+            const urlParams = new URLSearchParams(window.location.search);
+            activePaperId = urlParams.get('fileId') as string;
+        }
+
+        if (!activePaperId || activePaperId === 'undefined') {
+            toast.error("Please type some text to create the paper first.");
+            setIsUploading(false);
+            setUploadingFile(undefined);
+            return;
+        }
+
         setIsUploading(true);
         setUploadingFile(file);
         setProgress(0);
 
         try {
             const result: UploadResult = await uploadEncryptedPaperAsset(
-                paperId,
+                activePaperId,
                 file,
                 (p: UploadProgress) => {
                     setProgress(p.overallProgress);

@@ -57,7 +57,13 @@ export const PlaceholderElement = withHOC(
     const searchParams = useSearchParams();
     // Support both query param (paper page) and path param (if used elsewhere)
     const params = useParams();
-    const paperId = (searchParams.get('fileId') || params?.fileId) as string;
+    // Robust Retrieval: Try hooks first, fallback to manual URL parsing (fixes hydration/context issues)
+    let paperId = (searchParams?.get('fileId') || params?.fileId) as string;
+
+    if (!paperId && typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      paperId = urlParams.get('fileId') || '';
+    }
 
     const { api } = useEditorPlugin(PlaceholderPlugin);
 

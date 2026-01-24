@@ -584,6 +584,16 @@ class PaperService {
         createdAt: string;
         updatedAt: string;
     }> {
+        // [Race Condition Fix] Capture offline queue state BEFORE fetching from backend.
+        let offlineQueueSnapshot: any[] = [];
+        try {
+            const { syncDb } = await import('./db/sync-db');
+            const queue = await syncDb.getAll();
+            offlineQueueSnapshot = queue.filter(i => i.paperId === paperId).sort((a, b) => a.createdAt - b.createdAt);
+        } catch (e) {
+            console.warn('[PaperService] Failed to snapshot offline queue', e);
+        }
+
         // Get paper metadata
         const response = await apiClient.getPaper(paperId);
         if (!response.success || !response.data) {
@@ -861,8 +871,9 @@ class PaperService {
         }
 
         // 5. Apply Pending Offline Changes (SyncQueue Overlay)
+        // Use the snapshot we took BEFORE the network call
         try {
-            const result = await this.applyPendingOfflineChanges(paperId, content, null);
+            const result = await this.applyPendingOfflineChanges(paperId, content, null, offlineQueueSnapshot);
             content = result.content;
         } catch (err) {
             console.error('[PaperService] Failed to apply offline changes', err);
@@ -878,12 +889,12 @@ class PaperService {
         };
     }
 
-    private async applyPendingOfflineChanges(paperId: string, currentContent: any[], currentManifest: PaperManifest | null): Promise<{ content: any[], manifest: PaperManifest | null }> {
-        const { syncDb } = await import('./db/sync-db');
-        const queue = await syncDb.getAll();
+    private async applyPendingOfflineChanges(paperId: string, currentContent: any[], currentManifest: PaperManifest | null, offlineQueueSnapshot?: any[]): Promise<{ content: any[], manifest: PaperManifest | null }> {
+        // Use provided snapshot to prevent race conditions during sync, fallback to DB if not provided
+        const queue = offlineQueueSnapshot || (await (await import('./db/sync-db')).syncDb.getAll());
 
         // Filter for this paper and sort by time
-        const paperItems = queue.filter(i => i.paperId === paperId).sort((a, b) => a.createdAt - b.createdAt);
+        const paperItems = queue.filter((i: any) => i.paperId === paperId).sort((a: any, b: any) => a.createdAt - b.createdAt);
 
         if (paperItems.length === 0) return { content: currentContent, manifest: currentManifest };
 
