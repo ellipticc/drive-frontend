@@ -341,8 +341,8 @@ export const Table01DividerLineSm = ({
     const { setCurrentFolderId: setGlobalCurrentFolderId } = useCurrentFolder();
 
     const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({
-        column: "modified",
-        direction: "descending",
+        column: "name",
+        direction: "ascending",
     });
 
     const [files, setFiles] = useState<FileItem[]>([]);
@@ -2303,7 +2303,14 @@ export const Table01DividerLineSm = ({
 
     const sortedItems = useMemo(() => {
         return [...files].sort((a, b) => {
-            // Handle different column types
+            // ALWAYS separate folders from files first (folders on top)
+            const aIsFolder = a.type === 'folder';
+            const bIsFolder = b.type === 'folder';
+            
+            if (aIsFolder && !bIsFolder) return -1;
+            if (!aIsFolder && bIsFolder) return 1;
+
+            // Within same type, apply user-selected sort or default to name ascending
             if (sortDescriptor.column === 'modified') {
                 const firstDate = new Date(a.updatedAt || a.createdAt).getTime();
                 const secondDate = new Date(b.updatedAt || b.createdAt).getTime();

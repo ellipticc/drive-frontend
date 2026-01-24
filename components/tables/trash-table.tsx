@@ -87,8 +87,8 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
     }, [user?.plan]);
 
     const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({
-        column: "deletedAt",
-        direction: "descending",
+        column: "name",
+        direction: "ascending",
     });
 
     const [trashItems, setTrashItems] = useState<TrashItem[]>([]);
@@ -483,7 +483,14 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
             : trashItems;
 
         return filteredItems.sort((a, b) => {
-            // Handle different column types
+            // ALWAYS separate folders from files first (folders on top)
+            const aIsFolder = a.type === 'folder';
+            const bIsFolder = b.type === 'folder';
+            
+            if (aIsFolder && !bIsFolder) return -1;
+            if (!aIsFolder && bIsFolder) return 1;
+
+            // Within same type, apply user-selected sort
             if (sortDescriptor.column === 'deletedAt') {
                 const firstDate = new Date(a.deletedAt).getTime();
                 const secondDate = new Date(b.deletedAt).getTime();

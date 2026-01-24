@@ -51,8 +51,8 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
     const [menuOpenRow, setMenuOpenRow] = useState<string | null>(null);
 
     const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({
-        column: "createdAt",
-        direction: "descending",
+        column: "fileName",
+        direction: "ascending",
     });
 
     const [shares, setShares] = useState<ShareItem[]>([]);
@@ -404,8 +404,14 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
 
     const sortedItems = useMemo(() => {
         return shares.sort((a, b) => {
+            // ALWAYS separate folders from files first (folders on top)
+            const aIsFolder = a.isFolder || false;
+            const bIsFolder = b.isFolder || false;
+            
+            if (aIsFolder && !bIsFolder) return -1;
+            if (!aIsFolder && bIsFolder) return 1;
 
-
+            // Within same type, apply user-selected sort
             if (sortDescriptor.column === 'createdAt') {
                 const firstDate = new Date(a.createdAt ?? 0).getTime();
                 const secondDate = new Date(b.createdAt ?? 0).getTime();

@@ -433,13 +433,21 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
     }, [items, status]);
 
     const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({
-        column: "date",
-        direction: "descending",
+        column: "name",
+        direction: "ascending",
     });
 
     // Sort items
     const sortedItems = useMemo(() => {
         return [...filteredItems].sort((a, b) => {
+            // ALWAYS separate folders from files first (folders on top)
+            const aIsFolder = a.item.type === 'folder';
+            const bIsFolder = b.item.type === 'folder';
+            
+            if (aIsFolder && !bIsFolder) return -1;
+            if (!aIsFolder && bIsFolder) return 1;
+
+            // Within same type, apply user-selected sort
             if (sortDescriptor.column === 'date') {
                 const firstDate = new Date(a.createdAt).getTime();
                 const secondDate = new Date(b.createdAt).getTime();
