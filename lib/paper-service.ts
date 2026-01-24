@@ -719,7 +719,7 @@ class PaperService {
                     if (chunkData) {
                         try {
                             // Validate chunkData has required encryption properties
-                            if (!chunkData.encryptedContent || !chunkData.iv || !chunkData.salt) {
+                            if (!chunkData.encryptedContent || !chunkData.iv || chunkData.salt === undefined || chunkData.salt === null) {
                                 console.error(`[PaperService] Chunk ${entry.chunkId} missing encryption properties`, chunkData);
                                 return {
                                     id: entry.id || uuidv7(),
