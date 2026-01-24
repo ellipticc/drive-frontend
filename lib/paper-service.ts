@@ -7,6 +7,7 @@ import { sign as ed25519Sign } from '@noble/ed25519';
 import { sha512 } from '@noble/hashes/sha2.js';
 import { xchacha20poly1305 } from '@noble/ciphers/chacha.js';
 import { keyManager } from './key-manager';
+import { syncManager } from './sync-manager';
 
 import {
     encryptPaperContent,
@@ -434,17 +435,25 @@ class PaperService {
                                 if (!uploadRes.ok) {
                                     const errText = await uploadRes.text();
                                     console.error(`[PaperService] B2 Upload Failed ${uploadRes.status}: ${errText}`);
-                                    throw new Error(`B2 Upload Failed: ${uploadRes.statusText}`);
+                                    // Queue for retry
+                                    await syncManager.enqueueFailedUpload(paperId, 'upload_chunk', chunk, title);
                                 }
 
-                                // Mark as uploaded so backend doesn't try to upload again
+                                // Mark as uploaded so backend doesn't try to upload again (legacy path)
                                 chunk.uploaded = true;
                             }
                         }));
                     }
                 } catch (err) {
-                    console.error('[PaperService] Failed to get/use upload URLs, falling back to legacy upload', err);
-                    // Fallback: Do nothing, let chunksToUpload go to savePaperBlocks as before
+                    console.error('[PaperService] Failed to get/use upload URLs, falling back or queuing', err);
+                    // If we failed to get URLs, we should probably queue ALL chunks
+                    for (const chunk of chunksToUpload) {
+                        if (!chunk.uploaded) {
+                            await syncManager.enqueueFailedUpload(paperId, 'upload_chunk', chunk, title);
+                            // Optimistically mark as uploaded so commit payload is light
+                            chunk.uploaded = true;
+                        }
+                    }
                 }
             }
 
@@ -458,24 +467,31 @@ class PaperService {
                 return { ...base, content: c.content };
             });
 
-            const response = await apiClient.savePaperBlocks(paperId, {
+            const commitPayload = {
                 ...updateData,
                 manifest: manifestPayload,
-                chunksToUpload: finalChunksPayload,
+                chunksToUpload: finalChunksPayload, // Note: backend won't save these if empty or uploaded=true
                 chunksToDelete: blocksToDelete
-            });
+            };
 
-            if (!response.success) {
-                throw new Error(response.error || 'Failed to save paper');
+            try {
+                const response = await apiClient.savePaperBlocks(paperId, commitPayload);
+                if (!response.success) {
+                    throw new Error(response.error || 'Failed to save paper');
+                }
+            } catch (err) {
+                console.warn('[PaperService] API Save failed. Queueing manifest update...', err);
+                // Queue the manifest update (which commits the new state)
+                await syncManager.enqueueFailedUpload(paperId, 'save_manifest', commitPayload, title);
             }
 
-            // Update Cache ONLY after successful save
+            // Update Cache ONLY after "success" (or queued success)
             if (manifestPayload && newManifest) {
                 this.manifestCache.set(paperId, newManifest);
             }
 
         } catch (err) {
-            console.error('Paper save failed:', err);
+            console.error('Paper save failed (Critial):', err);
             throw err;
         }
     }
