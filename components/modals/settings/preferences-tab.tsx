@@ -4,6 +4,7 @@ import {
     IconBrain,
     IconChecks,
     IconRosetteDiscountCheckFilled,
+    IconArrowsShuffle,
 } from "@tabler/icons-react"
 import { Label } from "@/components/ui/label"
 import {
@@ -179,6 +180,24 @@ export function PreferencesTab({
                             <span className="text-xs text-muted-foreground italic">Manual mode active</span>
                         </div>
                     )}
+                </div>
+
+                {/* Avatar Customization - Coming Soon */}
+                <div className="mt-6 p-4 bg-muted/20 rounded-lg border border-dashed">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-background rounded-full border shadow-sm">
+                                <IconArrowsShuffle className="w-4 h-4 text-muted-foreground" />
+                            </div>
+                            <div className="space-y-0.5">
+                                <Label className="text-sm font-semibold">Default Avatar Style</Label>
+                                <p className="text-xs text-muted-foreground">Customize your avatar appearance</p>
+                            </div>
+                        </div>
+                        <span className="text-xs px-2 py-1 rounded-md bg-muted text-muted-foreground font-medium">
+                            Coming Soon
+                        </span>
+                    </div>
                 </div>
             </div>
 
