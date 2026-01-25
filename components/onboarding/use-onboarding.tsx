@@ -28,8 +28,15 @@ export function useOnboarding() {
         try {
             console.log('[Onboarding] Checking for existing welcome paper...');
 
-            // Check if welcome paper already exists FIRST
-            const existingFiles = await apiClient.getFiles({ limit: 100 });
+            // FIRST: Check if onboarding was already completed in DB (most reliable check)
+            const userDataResponse = await apiClient.getProfile();
+            if (userDataResponse.data?.user?.onboarding_completed === true) {
+                console.log('[Onboarding] Onboarding already completed in DB, skipping paper creation');
+                return;
+            }
+
+            // SECOND: Check if welcome paper already exists in files
+            const existingFiles = await apiClient.getFiles({ limit: 1000 });
             const hasWelcomePaper = existingFiles.data?.files?.some(
                 (f: any) => f.filename === WELCOME_PAPER_TITLE && f.mimetype === 'application/x-paper'
             );
