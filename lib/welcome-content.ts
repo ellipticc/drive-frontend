@@ -1,13 +1,13 @@
 /**
  * Welcome paper content for new users
  * This content is created client-side with proper E2EE + PQC encryption
+ * Content will be imported as markdown for proper formatting
  */
-
-import { uuidv7 } from "uuidv7-js";
 
 export const WELCOME_PAPER_TITLE = "Welcome to Ellipticc Drive!";
 
-export const WELCOME_PAPER_CONTENT = `# Welcome to Ellipticc Drive!
+// Full markdown content with all features
+export const WELCOME_PAPER_MARKDOWN = `# Welcome to Ellipticc Drive!
 
 Your **post-quantum**, **end-to-end encrypted** cloud workspace.
 
@@ -54,19 +54,33 @@ function hello() {
 }
 \`\`\`
 
-Create links, @mention users, or insert emojis ✨. Use the slash command (/) for quick access to elements. 🚀
+Create [links](/docs/link), [@mention](/docs/mention) users like [Alice](mention:Alice), or insert [emojis](/docs/emoji) ✨. Use the [slash command](/docs/slash-command) (/) for quick access to elements. 🚀
 
 ## To-do List:
 
-* [x] Create my account
-* [x] Save my seed phrase
-* [x] Read this Paper
-* [ ] Modify this Paper
-* [ ] Finish the to-do list? 🤔
+* [x] <span style="font-size: 17px;">Create my account</span>
+* [x] <span style="font-size: 17px;">Save my seed phrase</span>
+* [x] <span style="font-size: 17px;">Read this Paper</span>
+* [ ] <span style="font-size: 17px;">Modify this Paper</span>
+* [ ] <span style="font-size: 17px;">Finish the to-do list?</span> 🤔
 
 ## Media & Files — All E2EE
 
 Drag & drop images, PDFs, audio here. They'll stay encrypted at rest and in transit!
+
+![OpenPeeps, that's what we use to generate your beautiful avatar!](https://cdn.prod.website-files.com/5e51b3b0337309d672efd94c/5e5346352c16e8d69e1649f2_cover_hero-1.svg "OpenPeeps, that's what we use to generate your beautiful avatar!")
+
+_What we use to protect your data:_
+
+<file name="whitepaper.pdf" position="0|i0007q:zzz" _id="null" src="https://cdn.ellipticc.com/whitepaper.pdf" />
+
+<audio name="null" position="0|i0007q:zzzi" _id="null" src="https://cdn.ellipticc.com/welcome_.mp3" />
+
+_And a warm welcoming message!_
+
+#### Table of Contents
+
+<toc />
 
 ## Tables for Organized Notes
 
@@ -78,14 +92,48 @@ Drag & drop images, PDFs, audio here. They'll stay encrypted at rest and in tran
 | Open Source         | ✅                    | Usually proprietary      |
 | Price               | Free tier + generous | Paid for basics          |
 
+## Callout for Key Info
+
+<callout variant="info" id="74TbTveeSM" position="0|i0007r:" _id>
+  This entire page (and your whole workspace) is protected by post-quantum encryption. Test it: write something confidential, refresh, log out/in, it stays yours alone.
+</callout>
+
+## Dates & Quick Inserts
+
+Today's date: <date>Sun Jan 25 2026</date> (auto-insert with /date)
+
+Inline math if useful: $E = mc^2$ or block equations:
+$\\text{Security} = \\text{E2EE} \\times \\text{PQC}$
+
+### Multi-column Layout
+
+<column_group _id="null" position="0|i0008v:">
+  <column width="50%">
+    First column content. Great for side-by-side comparisons.
+  </column>
+  <column width="50%">
+    Second column content. Layout flexibility at its best.
+  </column>
+</column_group>
+
+***
+
 ## Technical Highlights ⚙️
 
 Ellipticc Papers are built for **security, performance, and reliability**:
 
 * **Block-based architecture** - Each Paper is made of independent blocks. Changes are tracked per block for efficiency and integrity.
 * **Auto-save & versioning** - All your edits are saved automatically. Every version is stored, so you can always revert.
+  **Retention history by plan:**
+  - _Free_ users: 7 days
+  - _Plus_ users: 14 days
+  - _Pro_ users: 30 days
+  - _Unlimited_ users: 90 days
+  [Upgrade your plan →](https://drive.ellipticc.com/pricing)
 * **Secure diffing** - Block changes are hashed using **SHA-256** to detect modifications safely and efficiently.
 * **Encryption & performance** - All content is encrypted client-side with **XChaCha20-Poly1305**. Heavy cryptography operations run in **Web Workers** for smooth editing without lag.
+
+***
 
 Experience **fast, safe, and collaborative editing** without sacrificing security.
 
@@ -94,19 +142,7 @@ Experience **fast, safe, and collaborative editing** without sacrificing securit
 * Delete this page anytime (on dashboard)
 * Click **+ New Paper** to create your first real note
 * Upload files/folders from your device
-* Check docs: [docs.ellipticc.com](https://docs.ellipticc.com) or [blog.ellipticc.com](https://blog.ellipticc.com) for deep dives
+* Check docs: [docs.ellipticc.com](https://docs.ellipticc.com) or blog for deep dives
 
 Welcome aboard, your fortress in the cloud awaits! 🔐
 `;
-
-/**
- * Initial block content for the welcome paper
- * This creates a simple paragraph block with the markdown content
- */
-export function getWelcomeBlockContent() {
-    return [{
-        id: uuidv7(),
-        type: 'p',
-        children: [{ text: WELCOME_PAPER_CONTENT }]
-    }];
-}

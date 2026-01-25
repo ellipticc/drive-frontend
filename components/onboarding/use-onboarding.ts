@@ -5,8 +5,8 @@ import { driver } from "driver.js";
 import "driver.js/dist/driver.css";
 import { useUser } from "@/components/user-context";
 import { apiClient } from "@/lib/api";
-import { paperService } from "@/lib/paper-service";
-import { WELCOME_PAPER_TITLE, getWelcomeBlockContent } from "@/lib/welcome-content";
+import { WELCOME_PAPER_TITLE, WELCOME_PAPER_MARKDOWN } from "@/lib/welcome-content";
+import { uuidv7 } from "uuidv7-js";
 
 export function useOnboarding() {
     const { user, refetch } = useUser();
@@ -32,12 +32,28 @@ export function useOnboarding() {
                 return;
             }
 
-            // Create the welcome paper with initial block content
-            // The paperService will handle proper E2EE + PQC encryption client-side
-            const initialContent = getWelcomeBlockContent();
+            // Create simple block with markdown content
+            // The editor will parse it when the paper is opened
+            const initialContent = [{
+                id: uuidv7(),
+                type: 'p',
+                children: [{ text: WELCOME_PAPER_MARKDOWN }]
+            }];
+            
+            // Dynamically import paperService to avoid circular dependencies
+            const { paperService } = await import('@/lib/paper-service');
+            
+            // Create the welcome paper
             const paperId = await paperService.createPaper(WELCOME_PAPER_TITLE, initialContent, null);
             
             console.log('[Onboarding] Welcome paper created successfully:', paperId);
+            
+            // Dispatch event to refresh files list instantly (no page refresh needed)
+            if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('file-created', { 
+                    detail: { fileId: paperId, type: 'paper' } 
+                }));
+            }
         } catch (error) {
             console.error('[Onboarding] Failed to create welcome paper:', error);
             // Don't throw - onboarding tour should still work even if paper creation fails
@@ -117,7 +133,8 @@ export function useOnboarding() {
                 // We'll mark it regardless once destroyed to not annoy them next time
                 try {
                     await apiClient.completeOnboarding();
-                    refetch();
+                    // User data will be automatically refetched by useUser hook
+                    // No need to manually call refetch() here to avoid duplicate API calls
                 } catch (error) {
                     console.error("Failed to complete onboarding:", error);
                 }

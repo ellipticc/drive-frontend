@@ -95,6 +95,7 @@
     "@types/leaflet": "^1.9.21",
     "@types/ua-parser-js": "^0.7.39",
     "@udecode/cn": "^52.0.11",
+    "@udecode/plate-core": "^48.0.5",
     "@untitledui/icons": "^0.0.19",
     "@uploadthing/react": "7.3.3",
     "ai": "5.0.28",
