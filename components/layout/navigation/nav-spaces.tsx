@@ -232,7 +232,7 @@ const SpaceItemMemoized = React.memo(function SpaceItemMemoized({
                       onClick={() => onMoveItem(space.id, item.id, "spaced-fixed")}
                     >
                       <SpaceIconRenderer isSpaced={true} size={14} />
-                      <span className="ml-2 truncate">Spaced</span>
+                      <span className="ml-2 truncate">Space</span>
                     </DropdownMenuItem>
                   )}
                   {spaces.filter(s => s.id !== space.id).map(targetSpace => (
