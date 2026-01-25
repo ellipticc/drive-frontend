@@ -182,7 +182,7 @@ function PaperHeader({
                         }
                     }}
                     maxLength={255}
-                    className="text-lg md:text-2xl font-semibold bg-transparent border-transparent hover:border-border focus:border-input focus:bg-background transition-colors w-full h-9 md:h-11 px-1 md:px-2 shadow-none truncate"
+                    className="text-lg md:text-xl font-semibold bg-transparent border-transparent hover:border-border focus:border-input focus:bg-background transition-colors w-full h-9 md:h-10 px-1 md:px-2 shadow-none truncate"
                     placeholder="Untitled Paper"
                 />
             </div>
@@ -223,9 +223,16 @@ function PaperHeader({
                     </DropdownMenuContent>
                 </DropdownMenu>
 
-                <Button variant="ghost" size="icon" onClick={() => setHistoryOpen(true)} title="Version History" className="hidden md:flex h-9 w-9 md:h-10 md:w-10">
-                    <IconHistory className="w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />
-                </Button>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" onClick={() => setHistoryOpen(true)} className="hidden md:flex h-9 w-9 md:h-10 md:w-10">
+                            <IconHistory className="w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">
+                        <p>Version History</p>
+                    </TooltipContent>
+                </Tooltip>
                 <Tooltip>
                     <TooltipTrigger asChild>
                         <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest px-2 py-1 rounded bg-muted/50 hidden lg:block cursor-help hover:bg-muted transition-colors">
@@ -304,7 +311,7 @@ function PaperEditorView({
 
                     <main className="flex-1 overflow-hidden relative">
                         <EditorContainer className="h-full w-full overflow-y-auto flex md:justify-center">
-                            <div className="w-full md:max-w-[850px] px-4 sm:px-6 md:px-12">
+                            <div className="w-full md:max-w-[950px] px-4 sm:px-6 md:px-12 pb-32">
                                 <Editor
                                     className="min-h-full w-full py-3 md:py-4 border-none shadow-none focus-visible:ring-0 transition-all text-base md:text-base"
                                     autoFocus
