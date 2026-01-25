@@ -16,7 +16,7 @@ interface ExtendedFile extends File {
 }
 
 export default function Home() {
-  useOnboarding()
+  const { TourDialog } = useOnboarding()
   const { user } = useUser()
   const router = useRouter()
   const pathname = usePathname()
@@ -227,6 +227,7 @@ export default function Home() {
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       />
+      <TourDialog />
     </div>
   )
 }

@@ -15,6 +15,7 @@ import { LanguageProvider } from "@/lib/i18n/language-context";
 import { ThemeConfiguration } from "@/components/theme-configuration";
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { TourProvider } from "@/components/tour";
 import "./globals.css";
 
 // Font definitions
@@ -264,18 +265,20 @@ export default function RootLayout({
                     <LanguageProvider>
                       <GlobalUploadProvider>
                         <TooltipProvider>
-                          <ThemeConfiguration />
-                          <ServiceWorkerRegister />
+                          <TourProvider>
+                            <ThemeConfiguration />
+                            <ServiceWorkerRegister />
 
-                          <ConditionalLayout>{children}</ConditionalLayout>
-                          <Toaster
-                            position="bottom-right"
-                            richColors
-                            duration={5000}
-                            style={{
-                              fontFamily: 'var(--font-roboto)',
-                            }}
-                          />
+                            <ConditionalLayout>{children}</ConditionalLayout>
+                            <Toaster
+                              position="bottom-right"
+                              richColors
+                              duration={5000}
+                              style={{
+                                fontFamily: 'var(--font-roboto)',
+                              }}
+                            />
+                          </TourProvider>
                         </TooltipProvider>
                       </GlobalUploadProvider>
                     </LanguageProvider>
