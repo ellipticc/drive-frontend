@@ -1,13 +1,47 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useRef } from "react";
 import { driver } from "driver.js";
 import "driver.js/dist/driver.css";
 import { useUser } from "@/components/user-context";
 import { apiClient } from "@/lib/api";
+import { paperService } from "@/lib/paper-service";
+import { WELCOME_PAPER_TITLE } from "@/lib/welcome-content";
 
 export function useOnboarding() {
     const { user, refetch } = useUser();
+    const welcomePaperCreated = useRef(false);
+
+    // Create welcome paper with markdown content
+    const createWelcomePaper = useCallback(async () => {
+        // Prevent duplicate creation
+        if (welcomePaperCreated.current) return;
+        welcomePaperCreated.current = true;
+
+        try {
+            console.log('[Onboarding] Creating welcome paper...');
+            
+            // Check if welcome paper already exists
+            const existingFiles = await apiClient.getFiles({ limit: 100 });
+            const hasWelcomePaper = existingFiles.data?.files?.some(
+                (f: any) => f.filename === WELCOME_PAPER_TITLE && f.mimetype === 'application/x-paper'
+            );
+            
+            if (hasWelcomePaper) {
+                console.log('[Onboarding] Welcome paper already exists, skipping creation');
+                return;
+            }
+
+            // Create the welcome paper with markdown content
+            // The paperService will handle proper E2EE + PQC encryption client-side
+            const paperId = await paperService.createPaper(WELCOME_PAPER_TITLE, undefined, null);
+            
+            console.log('[Onboarding] Welcome paper created successfully:', paperId);
+        } catch (error) {
+            console.error('[Onboarding] Failed to create welcome paper:', error);
+            // Don't throw - onboarding tour should still work even if paper creation fails
+        }
+    }, []);
 
     const startTour = useCallback(() => {
         const driverObj = driver({
@@ -95,13 +129,18 @@ export function useOnboarding() {
     useEffect(() => {
         // Only trigger if user data is loaded and onboarding is NOT completed
         if (user && user.onboarding_completed === false) {
-            // Small timeout to ensure everything is rendered
+            // Create welcome paper first (non-blocking)
+            createWelcomePaper().catch(err => {
+                console.error('[Onboarding] Welcome paper creation failed:', err);
+            });
+
+            // Start tour after a small delay to ensure everything is rendered
             const timer = setTimeout(() => {
                 startTour();
             }, 1000);
             return () => clearTimeout(timer);
         }
-    }, [user, startTour]);
+    }, [user, startTour, createWelcomePaper]);
 
     return { startTour };
 }
