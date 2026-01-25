@@ -41,11 +41,8 @@ export function useOnboarding() {
                 return;
             }
 
-            // Mark onboarding as started BEFORE creating paper to prevent duplicates
-            console.log('[Onboarding] No existing welcome paper found, marking onboarding complete...');
-            await apiClient.completeOnboarding();
-            // Don't refetch here - let the tour dialog show first, it will refetch when user completes/skips
-            console.log('[Onboarding] Creating welcome paper...');
+            // Create the paper FIRST before marking onboarding complete
+            console.log('[Onboarding] No existing welcome paper found, creating welcome paper...');
 
             // Dynamically import paperService to avoid circular dependencies
             const { paperService } = await import('@/lib/paper-service');
@@ -57,6 +54,11 @@ export function useOnboarding() {
             const paperId = await paperService.createPaper(WELCOME_PAPER_TITLE, content, null);
 
             console.log('[Onboarding] Welcome paper created successfully:', paperId);
+
+            // NOW mark onboarding as complete AFTER paper creation succeeds
+            console.log('[Onboarding] Marking onboarding complete...');
+            await apiClient.completeOnboarding();
+            // Don't refetch here - let the tour dialog show first, it will refetch when user completes/skips
 
             // Dispatch event to refresh files list instantly (no page refresh needed)
             if (typeof window !== 'undefined') {
