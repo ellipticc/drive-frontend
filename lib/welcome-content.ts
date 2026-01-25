@@ -3,6 +3,8 @@
  * This content is created client-side with proper E2EE + PQC encryption
  */
 
+import { uuidv7 } from "uuidv7-js";
+
 export const WELCOME_PAPER_TITLE = "Welcome to Ellipticc Drive!";
 
 export const WELCOME_PAPER_CONTENT = `# Welcome to Ellipticc Drive!
@@ -96,3 +98,15 @@ Experience **fast, safe, and collaborative editing** without sacrificing securit
 
 Welcome aboard, your fortress in the cloud awaits! 🔐
 `;
+
+/**
+ * Initial block content for the welcome paper
+ * This creates a simple paragraph block with the markdown content
+ */
+export function getWelcomeBlockContent() {
+    return [{
+        id: uuidv7(),
+        type: 'p',
+        children: [{ text: WELCOME_PAPER_CONTENT }]
+    }];
+}

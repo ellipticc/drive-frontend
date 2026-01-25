@@ -6,7 +6,7 @@ import "driver.js/dist/driver.css";
 import { useUser } from "@/components/user-context";
 import { apiClient } from "@/lib/api";
 import { paperService } from "@/lib/paper-service";
-import { WELCOME_PAPER_TITLE } from "@/lib/welcome-content";
+import { WELCOME_PAPER_TITLE, getWelcomeBlockContent } from "@/lib/welcome-content";
 
 export function useOnboarding() {
     const { user, refetch } = useUser();
@@ -32,9 +32,10 @@ export function useOnboarding() {
                 return;
             }
 
-            // Create the welcome paper with markdown content
+            // Create the welcome paper with initial block content
             // The paperService will handle proper E2EE + PQC encryption client-side
-            const paperId = await paperService.createPaper(WELCOME_PAPER_TITLE, undefined, null);
+            const initialContent = getWelcomeBlockContent();
+            const paperId = await paperService.createPaper(WELCOME_PAPER_TITLE, initialContent, null);
             
             console.log('[Onboarding] Welcome paper created successfully:', paperId);
         } catch (error) {
