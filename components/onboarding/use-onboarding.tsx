@@ -21,27 +21,31 @@ export function useOnboarding() {
 
     // Create welcome paper with markdown content
     const createWelcomePaper = useCallback(async () => {
-        // Prevent duplicate creation
+        // Prevent duplicate creation within same component lifecycle
         if (welcomePaperCreated.current) return;
         welcomePaperCreated.current = true;
 
         try {
-            console.log('[Onboarding] Creating welcome paper...');
+            console.log('[Onboarding] Checking for existing welcome paper...');
 
-            // Mark onboarding as started IMMEDIATELY to prevent duplicate papers on page reload
-            await apiClient.completeOnboarding();
-            console.log('[Onboarding] Marked onboarding as complete in DB');
-
-            // Check if welcome paper already exists
+            // Check if welcome paper already exists FIRST
             const existingFiles = await apiClient.getFiles({ limit: 100 });
             const hasWelcomePaper = existingFiles.data?.files?.some(
                 (f: any) => f.filename === WELCOME_PAPER_TITLE && f.mimetype === 'application/x-paper'
             );
 
             if (hasWelcomePaper) {
-                console.log('[Onboarding] Welcome paper already exists, skipping creation');
+                console.log('[Onboarding] Welcome paper already exists, marking onboarding complete and skipping creation');
+                await apiClient.completeOnboarding();
+                await refetch(); // Update user context immediately
                 return;
             }
+
+            // Mark onboarding as started BEFORE creating paper to prevent duplicates
+            console.log('[Onboarding] No existing welcome paper found, marking onboarding complete...');
+            await apiClient.completeOnboarding();
+            await refetch(); // Update user context immediately so useEffect won't re-trigger
+            console.log('[Onboarding] Creating welcome paper...');
 
             // Dynamically import paperService to avoid circular dependencies
             const { paperService } = await import('@/lib/paper-service');
@@ -64,7 +68,7 @@ export function useOnboarding() {
             console.error('[Onboarding] Failed to create welcome paper:', error);
             // Don't throw - onboarding tour should still work even if paper creation fails
         }
-    }, [editor]);
+    }, [editor, refetch]);
 
     // Define tour steps
     const tourSteps: TourStep[] = [
