@@ -37,14 +37,14 @@ export function useOnboarding() {
             if (hasWelcomePaper) {
                 console.log('[Onboarding] Welcome paper already exists, marking onboarding complete and skipping creation');
                 await apiClient.completeOnboarding();
-                await refetch(); // Update user context immediately
+                // Don't refetch here - let the tour dialog show, it will refetch when user completes/skips
                 return;
             }
 
             // Mark onboarding as started BEFORE creating paper to prevent duplicates
             console.log('[Onboarding] No existing welcome paper found, marking onboarding complete...');
             await apiClient.completeOnboarding();
-            await refetch(); // Update user context immediately so useEffect won't re-trigger
+            // Don't refetch here - let the tour dialog show first, it will refetch when user completes/skips
             console.log('[Onboarding] Creating welcome paper...');
 
             // Dynamically import paperService to avoid circular dependencies
@@ -164,11 +164,11 @@ export function useOnboarding() {
             console.log('[Onboarding] Completing onboarding...');
             await apiClient.completeOnboarding();
             setIsTourCompleted(true);
-            // User data will be automatically refetched by useUser hook
+            await refetch(); // Refetch user data to update onboarding_completed flag
         } catch (error) {
             console.error("Failed to complete onboarding:", error);
         }
-    }, [setIsTourCompleted]);
+    }, [setIsTourCompleted, refetch]);
 
     // Handle skip/cancel - also mark as complete to prevent re-showing
     const handleSkipTour = useCallback(async () => {
@@ -177,10 +177,11 @@ export function useOnboarding() {
             await apiClient.completeOnboarding();
             setIsTourCompleted(true);
             setOpenTourDialog(false);
+            await refetch(); // Refetch user data to update onboarding_completed flag
         } catch (error) {
             console.error("Failed to complete onboarding:", error);
         }
-    }, [setIsTourCompleted]);
+    }, [setIsTourCompleted, refetch]);
 
     // Start tour function
     const startTour = useCallback(() => {
