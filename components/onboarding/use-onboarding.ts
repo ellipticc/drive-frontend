@@ -144,9 +144,10 @@ export function useOnboarding() {
         driverObj.drive();
     }, [user, refetch]);
 
+    // Separate effect for paper creation - runs only once when onboarding starts
     useEffect(() => {
         // Only trigger if user data is loaded and onboarding is NOT completed
-        if (user && user.onboarding_completed === false) {
+        if (user && user.onboarding_completed === false && !welcomePaperCreated.current) {
             // Create welcome paper first (non-blocking)
             createWelcomePaper().catch(err => {
                 console.error('[Onboarding] Welcome paper creation failed:', err);
@@ -158,7 +159,7 @@ export function useOnboarding() {
             }, 1000);
             return () => clearTimeout(timer);
         }
-    }, [user, startTour, createWelcomePaper, editor]);
+    }, [user?.id, user?.onboarding_completed, startTour, createWelcomePaper]);
 
     return { startTour };
 }

@@ -1482,6 +1482,22 @@ export const Table01DividerLineSm = ({
         setTotalItems(prev => Math.max(0, prev - 1));
     }, []));
 
+    // Listen for file-created events (e.g., from onboarding welcome paper creation)
+    useEffect(() => {
+        const handleFileCreated = (event: CustomEvent) => {
+            const { fileId, type } = event.detail || {};
+            console.log('[FilesTable] file-created event received:', { fileId, type });
+
+            // Force refresh to show the newly created file/paper
+            refreshFiles(currentFolderId, true);
+        };
+
+        window.addEventListener('file-created', handleFileCreated as EventListener);
+        return () => {
+            window.removeEventListener('file-created', handleFileCreated as EventListener);
+        };
+    }, [currentFolderId, refreshFiles]);
+
 
 
     // Navigate to a folder
@@ -2306,7 +2322,7 @@ export const Table01DividerLineSm = ({
             // ALWAYS separate folders from files first (folders on top)
             const aIsFolder = a.type === 'folder';
             const bIsFolder = b.type === 'folder';
-            
+
             if (aIsFolder && !bIsFolder) return -1;
             if (!aIsFolder && bIsFolder) return 1;
 
