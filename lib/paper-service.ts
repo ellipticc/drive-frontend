@@ -94,17 +94,17 @@ class PaperService {
         if (!this.sessionId) {
             this.sessionId = uuidv7();
         }
-        
+
         // Reset session timeout
         if (this.sessionTimer) {
             clearTimeout(this.sessionTimer);
         }
-        
+
         this.sessionTimer = setTimeout(() => {
             this.sessionId = null;
             this.sessionTimer = null;
         }, this.SESSION_TIMEOUT);
-        
+
         return this.sessionId;
     }
 
@@ -196,13 +196,20 @@ class PaperService {
             // XChaCha20-Poly1305 Encrypt the CEK
             const cekEncryption = encryptData(cek, kyberSharedSecret); // Returns { encryptedData (base64 or string?), nonce (base64) } -> encryptData from crypto.ts returns { encryptedData: string, nonce: string } (Base64)
 
-            // 4. Prepare Initial Block (Chunk 1)
+            // 4. Prepare Content
             const defaultContent = [{ id: uuidv7(), type: 'h1', children: [{ text: '' }] }];
-            const initialBlock = (content as any[])?.[0] || defaultContent[0];
+            let contentBlocks: any[] = [];
 
-            // Ensure ID exists
-            if (!initialBlock.id) initialBlock.id = uuidv7();
-            const blockStr = JSON.stringify(initialBlock);
+            if (Array.isArray(content) && content.length > 0) {
+                contentBlocks = content;
+            } else {
+                contentBlocks = defaultContent;
+            }
+
+            // Ensure all blocks have IDs
+            contentBlocks.forEach(block => {
+                if (!block.id) block.id = uuidv7();
+            });
 
             // Create initial empty manifest for Chunk 0 (which backend saves as the file content/chunk 0)
             const initialManifest: PaperManifest = {
@@ -231,9 +238,6 @@ class PaperService {
             const contentSalt = new Uint8Array(32);
             crypto.getRandomValues(contentSalt);
             const salt = uint8ArrayToBase64(contentSalt);
-
-            const blockHash = await this.hashBlock(initialBlock);
-            const chunkId = uuidv7();
 
             // 5. Prepare Canonical Manifest for Signing
             // This manifest represents the "File" entity metadata, matching standard file uploads
@@ -303,7 +307,9 @@ class PaperService {
             // Leave it empty so savePaper sees initialBlock as NEW and uploads it.
             this.manifestCache.set(paperId, initialManifest);
 
-            await this.savePaper(paperId, [initialBlock], title);
+            this.manifestCache.set(paperId, initialManifest);
+
+            await this.savePaper(paperId, contentBlocks, title);
 
             return paperId;
         } catch (err) {

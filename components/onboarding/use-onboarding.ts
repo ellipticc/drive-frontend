@@ -6,11 +6,16 @@ import "driver.js/dist/driver.css";
 import { useUser } from "@/components/user-context";
 import { apiClient } from "@/lib/api";
 import { WELCOME_PAPER_TITLE, WELCOME_PAPER_MARKDOWN } from "@/lib/welcome-content";
-import { uuidv7 } from "uuidv7-js";
+import { usePlateEditor } from "platejs/react";
+import { deserializeMd } from "@platejs/markdown";
+import { EditorKit } from "../editor-kit";
 
 export function useOnboarding() {
     const { user, refetch } = useUser();
     const welcomePaperCreated = useRef(false);
+
+    // Initialize headless editor for deserialization
+    const editor = usePlateEditor({ plugins: EditorKit });
 
     // Create welcome paper with markdown content
     const createWelcomePaper = useCallback(async () => {
@@ -20,45 +25,40 @@ export function useOnboarding() {
 
         try {
             console.log('[Onboarding] Creating welcome paper...');
-            
+
             // Check if welcome paper already exists
             const existingFiles = await apiClient.getFiles({ limit: 100 });
             const hasWelcomePaper = existingFiles.data?.files?.some(
                 (f: any) => f.filename === WELCOME_PAPER_TITLE && f.mimetype === 'application/x-paper'
             );
-            
+
             if (hasWelcomePaper) {
                 console.log('[Onboarding] Welcome paper already exists, skipping creation');
                 return;
             }
 
-            // Create simple block with markdown content
-            // The editor will parse it when the paper is opened
-            const initialContent = [{
-                id: uuidv7(),
-                type: 'p',
-                children: [{ text: WELCOME_PAPER_MARKDOWN }]
-            }];
-            
             // Dynamically import paperService to avoid circular dependencies
             const { paperService } = await import('@/lib/paper-service');
-            
-            // Create the welcome paper
-            const paperId = await paperService.createPaper(WELCOME_PAPER_TITLE, initialContent, null);
-            
+
+            // Deserialize markdown content
+            const content = deserializeMd(editor, WELCOME_PAPER_MARKDOWN);
+
+            // Create the welcome paper with the deserialized content (blocks)
+            const paperId = await paperService.createPaper(WELCOME_PAPER_TITLE, content, null);
+
             console.log('[Onboarding] Welcome paper created successfully:', paperId);
-            
+
             // Dispatch event to refresh files list instantly (no page refresh needed)
             if (typeof window !== 'undefined') {
-                window.dispatchEvent(new CustomEvent('file-created', { 
-                    detail: { fileId: paperId, type: 'paper' } 
+                window.dispatchEvent(new CustomEvent('file-created', {
+                    detail: { fileId: paperId, type: 'paper' }
                 }));
             }
         } catch (error) {
             console.error('[Onboarding] Failed to create welcome paper:', error);
             // Don't throw - onboarding tour should still work even if paper creation fails
         }
-    }, []);
+    }, [editor]);
 
     const startTour = useCallback(() => {
         const driverObj = driver({
@@ -158,7 +158,7 @@ export function useOnboarding() {
             }, 1000);
             return () => clearTimeout(timer);
         }
-    }, [user, startTour, createWelcomePaper]);
+    }, [user, startTour, createWelcomePaper, editor]);
 
     return { startTour };
 }
