@@ -30,9 +30,12 @@ export default function SignupPage() {
       <div className="bg-muted relative hidden lg:block overflow-hidden">
         <Image
           src="/register.png"
-          alt="Image"
+          alt="Ellipticc Drive Signup"
           fill
-          className="object-cover"
+          className="object-cover object-center"
+          priority
+          quality={100}
+          sizes="(max-width: 1024px) 0vw, 45vw"
         />
       </div>
     </div>

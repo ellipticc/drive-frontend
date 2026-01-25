@@ -16,9 +16,12 @@ export default function LoginPage() {
       <div className="bg-muted relative hidden lg:block overflow-hidden">
         <Image
           src="/login.png"
-          alt="Image"
+          alt="Ellipticc Drive Login"
           fill
-          className="object-cover"
+          className="object-cover object-center"
+          priority
+          quality={100}
+          sizes="(max-width: 1024px) 0vw, 45vw"
         />
       </div>
       {/* Form on right side */}
