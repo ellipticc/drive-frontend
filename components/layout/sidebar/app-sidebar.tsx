@@ -15,6 +15,7 @@ import {
   IconBubbleText,
   IconChartAreaLine,
   IconUsers,
+  IconSignature,
 } from "@tabler/icons-react"
 
 import { NavMain } from "@/components/layout/navigation/nav-main"
@@ -96,6 +97,12 @@ export const AppSidebar = React.memo(function AppSidebar({
         icon: IconUsers,
         id: "shared-with-me",
         badge: pendingCount > 0 ? pendingCount : undefined, // Display badge if count > 0
+      },
+      {
+        title: "Attestations",
+        url: "/attestations",
+        icon: IconSignature,
+        id: "attestations",
       },
       {
         title: t("sidebar.trash"),
