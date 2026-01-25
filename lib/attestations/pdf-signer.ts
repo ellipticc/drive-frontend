@@ -10,34 +10,65 @@ import type { AttestationKey } from './types';
 const cryptoEngine = new pkijs.CryptoEngine({ name: '', crypto: window.crypto, subtle: window.crypto.subtle });
 setEngine("newEngine", cryptoEngine);
 
-// Placeholder size for the signature (approx 12KB to be safe)
-const SIGNATURE_LENGTH = 12288;
+// Placeholder size
+const SIGNATURE_LENGTH = 16000; // Increased safety margin
+
+// Helper: Convert Raw P-1363 ECDSA signature to ASN.1 DER
+function ecdsaRawToDer(signature: ArrayBuffer): ArrayBuffer {
+    // P-256 signature is 64 bytes: 32 bytes R + 32 bytes S
+    if (signature.byteLength !== 64) {
+        throw new Error(`Invalid raw ECDSA signature length: ${signature.byteLength}. Expected 64.`);
+    }
+
+    const r = new Uint8Array(signature, 0, 32);
+    const s = new Uint8Array(signature, 32, 32);
+
+    // Convert to Integer (must handle leading zeros and sign bit)
+    // If MSB is 1, prepend 0x00
+    const toInteger = (bytes: Uint8Array) => {
+        let start = 0;
+        while (start < bytes.length - 1 && bytes[start] === 0) start++;
+        let slice = bytes.subarray(start);
+
+        if (slice[0] & 0x80) {
+            const padded = new Uint8Array(slice.length + 1);
+            padded[0] = 0x00;
+            padded.set(slice, 1);
+            return new asn1js.Integer({ valueHex: padded });
+        } else {
+            return new asn1js.Integer({ valueHex: slice });
+        }
+    };
+
+    const rInt = toInteger(r);
+    const sInt = toInteger(s);
+
+    const sequence = new asn1js.Sequence({
+        value: [rInt, sInt]
+    });
+
+    return sequence.toBER(false);
+}
 
 export async function signPdf(
     pdfBytes: Uint8Array,
     key: AttestationKey,
     masterKey: Uint8Array
 ): Promise<Uint8Array> {
-    // 1. Decrypt Private Key
+    // 1. Decrypt Keys
     const privateKeyPem = await decryptPrivateKeyInternal(key.encryptedPrivateKey, key.privateKeyNonce, masterKey);
     const cryptoKey = await importPrivateKeyFromPem(privateKeyPem);
     const certificate = await importCertificateFromPem(key.certPem);
 
-    // 2. Load PDF and add placeholder
+    // 2. Load PDF & Add Placeholder
     const pdfDoc = await PDFDocument.load(pdfBytes);
     const pages = pdfDoc.getPages();
     const firstPage = pages[0];
-
-    // Create a signature field and widget
     const signatureFieldName = 'Signature1';
 
-    const byteRangePlaceholder = [
-        0,
-        999999999,
-        999999999,
-        999999999
-    ];
+    const byteRangePlaceholder = [0, 999999999, 999999999, 999999999];
 
+    // Create Signature Dictionary
     const signatureDict = pdfDoc.context.obj({
         Type: 'Sig',
         Filter: 'Adobe.PPKLite',
@@ -47,9 +78,9 @@ export async function signPdf(
         Reason: PDFString.of('Attested by Ellipticc User'),
         M: PDFString.fromDate(new Date()),
     });
-
     const signatureRef = pdfDoc.context.register(signatureDict);
 
+    // Widget
     const widgetDict = pdfDoc.context.obj({
         Type: 'Annot',
         Subtype: 'Widget',
@@ -60,72 +91,47 @@ export async function signPdf(
         F: 4,
         P: firstPage.ref,
     });
-
     const widgetRef = pdfDoc.context.register(widgetDict);
-
     firstPage.node.set(PDFName.of('Annots'), pdfDoc.context.obj([widgetRef]));
 
-    // Add field to AcroForm
+    // AcroForm
     let acroForm = pdfDoc.catalog.lookup(PDFName.of('AcroForm'));
-
     if (!acroForm) {
-        // Create new AcroForm if it doesn't exist
-        acroForm = pdfDoc.context.obj({
-            Fields: [],
-            SigFlags: 3 // SignaturesExist | AppendOnly
-        });
+        acroForm = pdfDoc.context.obj({ Fields: [], SigFlags: 3 });
         pdfDoc.catalog.set(PDFName.of('AcroForm'), acroForm);
     }
+    if (!(acroForm instanceof PDFDict)) throw new Error('AcroForm invalid');
 
-    if (!(acroForm instanceof PDFDict)) {
-        throw new Error('AcroForm is not a dictionary');
-    }
-
-    // Ensure SigFlags is set
-    const sigFlags = acroForm.lookup(PDFName.of('SigFlags'));
-    if (!sigFlags) {
+    if (!acroForm.has(PDFName.of('SigFlags'))) {
         acroForm.set(PDFName.of('SigFlags'), pdfDoc.context.obj(3));
     }
 
     let fields = acroForm.lookup(PDFName.of('Fields'));
-
     if (!fields) {
         fields = pdfDoc.context.obj([]);
         acroForm.set(PDFName.of('Fields'), fields);
     }
-
-    if (!(fields instanceof PDFArray)) {
-        throw new Error('AcroForm Fields is not an array');
-    }
-
-    fields.push(widgetRef);
+    (fields as PDFArray).push(widgetRef);
 
     const savedPdfWithPlaceholder = await pdfDoc.save({ useObjectStreams: false });
 
-    // 3. Find placeholders and update ByteRange
-    // Same logic as before to find ByteRange and Contents
-    const decoder = new TextDecoder('latin1'); // Use latin1 to safely handle binary string as char codes
+    // 3. Update ByteRange
+    const decoder = new TextDecoder('latin1');
     const pdfString = decoder.decode(savedPdfWithPlaceholder);
 
     const byteRangeTag = '/ByteRange [';
     const contentsTag = '/Contents <';
-
-    const byteRangeStart = pdfString.indexOf(byteRangeTag);
-    if (byteRangeStart === -1) throw new Error('Could not find ByteRange placeholder');
-
     const contentsStart = pdfString.indexOf(contentsTag);
-    if (contentsStart === -1) throw new Error('Could not find Contents placeholder');
-
+    if (contentsStart === -1) throw new Error('Contents not found');
     const contentsHexStart = contentsStart + contentsTag.length;
-
-    // Find the end of the hex string (next '>')
     const contentsEnd = pdfString.indexOf('>', contentsHexStart);
-    if (contentsEnd === -1) throw new Error('Could not find end of Contents placeholder');
-
+    if (contentsEnd === -1) throw new Error('Contents end not found');
     const contentsHexEnd = contentsEnd;
     const placeholderLength = contentsHexEnd - contentsHexStart;
 
-    // Make mutable copy
+    const byteRangeStart = pdfString.indexOf(byteRangeTag);
+    if (byteRangeStart === -1) throw new Error('ByteRange not found');
+
     const pdfBuffer = new Uint8Array(savedPdfWithPlaceholder);
 
     const range1Start = 0;
@@ -136,33 +142,47 @@ export async function signPdf(
     const originalByteRangeArrayStr = pdfString.substring(byteRangeStart + byteRangeTag.length, pdfString.indexOf(']', byteRangeStart));
     const newByteRangeStr = `${range1Start} ${range1Length} ${range2Start} ${range2Length}`;
 
-    if (newByteRangeStr.length > originalByteRangeArrayStr.length) {
-        throw new Error(`Calculated ByteRange string "${newByteRangeStr}" is longer than placeholder space.`);
-    }
+    if (newByteRangeStr.length > originalByteRangeArrayStr.length) throw new Error('ByteRange string too short');
 
     const paddedByteRangeStr = newByteRangeStr.padEnd(originalByteRangeArrayStr.length, ' ');
-    const paddedByteRangeBytes = new TextEncoder().encode(paddedByteRangeStr);
+    pdfBuffer.set(new TextEncoder().encode(paddedByteRangeStr), byteRangeStart + byteRangeTag.length);
 
-    // Write ByteRange
-    const byteRangeValueOffset = byteRangeStart + byteRangeTag.length;
-    pdfBuffer.set(paddedByteRangeBytes, byteRangeValueOffset);
-
-    // 4. Compute Hash of the PDF data
+    // 4. Hash Document
     const part1 = pdfBuffer.subarray(range1Start, range1Start + range1Length);
     const part2 = pdfBuffer.subarray(range2Start, range2Start + range2Length);
-
-    // Hash concatenation of part1 + part2
     const concatenated = new Uint8Array(part1.length + part2.length);
     concatenated.set(part1);
     concatenated.set(part2, part1.length);
+    const hash = await window.crypto.subtle.digest('SHA-256', concatenated);
 
-    const pdfHash = await window.crypto.subtle.digest('SHA-256', concatenated);
+    // 5. Create CMS (pkijs)
+    // Calculate cert hash
+    const certDer = certificate.toSchema(true).toBER(false);
+    const certHash = await window.crypto.subtle.digest('SHA-256', certDer);
 
-    // 5. Create CMS SignedData using PKIjs
+    const essCertIdv2 = new asn1js.Sequence({
+        value: [
+            new asn1js.Sequence({
+                value: [
+                    new asn1js.ObjectIdentifier({ value: "2.16.840.1.101.3.4.2.1" }), // SHA-256 
+                ]
+            }), // hashAlgorithm
+            new asn1js.OctetString({ valueHex: certHash }) // certHash
+        ]
+    });
+
+    const signingCertificateV2Value = new asn1js.Sequence({
+        value: [
+            new asn1js.Sequence({
+                value: [essCertIdv2] // certs
+            })
+        ]
+    });
+
     const signedData = new pkijs.SignedData({
         version: 1,
         encapContentInfo: new pkijs.EncapsulatedContentInfo({
-            eContentType: "1.2.840.113549.1.7.1" // id-data
+            eContentType: "1.2.840.113549.1.7.1"
         }),
         signerInfos: [
             new pkijs.SignerInfo({
@@ -170,33 +190,57 @@ export async function signPdf(
                 sid: new pkijs.IssuerAndSerialNumber({
                     issuer: certificate.issuer,
                     serialNumber: certificate.serialNumber
+                }),
+                signedAttrs: new pkijs.SignedAndUnsignedAttributes({
+                    type: 0,
+                    attributes: [
+                        new pkijs.Attribute({
+                            type: "1.2.840.113549.1.9.3", // ContentType
+                            values: [new asn1js.ObjectIdentifier({ value: "1.2.840.113549.1.7.1" })]
+                        }),
+                        new pkijs.Attribute({
+                            type: "1.2.840.113549.1.9.5", // Signing Time
+                            values: [new asn1js.UTCTime({ valueDate: new Date() })]
+                        }),
+                        new pkijs.Attribute({
+                            type: "1.2.840.113549.1.9.4", // Message Digest (will be filled by sign)
+                            values: [new asn1js.OctetString({ valueHex: new Uint8Array(32) })]
+                        }),
+                        new pkijs.Attribute({
+                            type: "1.2.840.113549.1.9.16.2.47", // id-aa-signingCertificateV2
+                            values: [signingCertificateV2Value]
+                        })
+                    ]
                 })
             })
         ],
         certificates: [certificate]
     });
 
-    // Sign
     await signedData.sign(cryptoKey, 0, "SHA-256", concatenated);
 
-    // Export to BER (DER)
-    const cmsDer = signedData.toSchema().toBER(false);
+    // 6. FIX SIGNATURE FORMAT (Raw -> DER)
+    // Get the signature value generated by pkijs
+    const signatureRaw = signedData.signerInfos[0].signature.valueBlock.valueHex;
 
-    // Convert ArrayBuffer to Hex String
+    // Convert Raw P-256 to DER
+    const signatureDer = ecdsaRawToDer(signatureRaw);
+
+    // Update the signature in the SignedData object
+    signedData.signerInfos[0].signature = new asn1js.OctetString({ valueHex: signatureDer });
+
+    // Export CMS
+    const cmsDer = signedData.toSchema().toBER(false);
     const cmsBytes = new Uint8Array(cmsDer);
     let signatureHex = '';
     for (let i = 0; i < cmsBytes.length; i++) {
         signatureHex += cmsBytes[i].toString(16).padStart(2, '0');
     }
 
-    // 6. Inject Signature
-    if (signatureHex.length > placeholderLength) {
-        throw new Error(`Signature length (${signatureHex.length}) exceeds placeholder (${placeholderLength}).`);
-    }
+    if (signatureHex.length > placeholderLength) throw new Error('Signature exceeds placeholder');
 
     const paddedSignatureHex = signatureHex.padEnd(placeholderLength, '0');
-    const signatureBytes = new TextEncoder().encode(paddedSignatureHex);
-    pdfBuffer.set(signatureBytes, contentsHexStart);
+    pdfBuffer.set(new TextEncoder().encode(paddedSignatureHex), contentsHexStart);
 
     return pdfBuffer;
 }
