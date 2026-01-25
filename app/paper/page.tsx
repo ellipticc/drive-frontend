@@ -182,7 +182,7 @@ function PaperHeader({
                         }
                     }}
                     maxLength={255}
-                    className="text-base md:text-lg font-semibold bg-transparent border-transparent hover:border-border focus:border-input focus:bg-background transition-colors w-full h-8 md:h-9 px-1 shadow-none truncate"
+                    className="text-sm md:text-base font-semibold bg-transparent border-transparent hover:border-border focus:border-input focus:bg-background transition-colors w-full h-8 px-1 shadow-none truncate"
                     placeholder="Untitled Paper"
                 />
             </div>

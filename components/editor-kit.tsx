@@ -37,6 +37,11 @@ import { TocKit } from '@/components/toc-kit';
 import { ToggleKit } from '@/components/toggle-kit';
 
 export const EditorKit = [
+  // Collaboration - MUST be first for proper initialization
+  ...DiscussionKit,
+  ...CommentKit,
+  ...SuggestionKit,
+
   // Elements
   ...BasicBlocksKit,
   ...CodeBlockKit,
@@ -59,11 +64,6 @@ export const EditorKit = [
   ...ListKit,
   ...AlignKit,
   ...LineHeightKit,
-
-  // Collaboration
-  ...DiscussionKit,
-  ...CommentKit,
-  ...SuggestionKit,
 
   // Editing
   ...SlashKit,
