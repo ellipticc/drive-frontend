@@ -325,10 +325,10 @@ function PaperEditorView({
                     </FixedToolbar>
 
                     <main className="flex-1 overflow-hidden relative">
-                        <EditorContainer className="h-full w-full overflow-y-auto flex md:justify-center pb-32">
-                            <div className="w-full md:max-w-[950px] px-4 sm:px-6 md:px-12">
+                        <EditorContainer className="h-full w-full overflow-y-auto flex md:justify-center">
+                            <div className="w-full md:max-w-[950px] px-4 sm:px-6 md:px-12 pt-3 md:pt-4 pb-48">
                                 <Editor
-                                    className="min-h-[calc(100vh-200px)] w-full py-3 md:py-4 border-none shadow-none focus-visible:ring-0 transition-all text-base md:text-base"
+                                    className="min-h-full w-full border-none shadow-none focus-visible:ring-0 transition-all text-base md:text-base"
                                     autoFocus
                                     placeholder="New Page"
                                 />
