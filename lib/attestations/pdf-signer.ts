@@ -117,7 +117,13 @@ export async function signPdf(
     if (contentsStart === -1) throw new Error('Could not find Contents placeholder');
 
     const contentsHexStart = contentsStart + contentsTag.length;
-    const contentsHexEnd = contentsHexStart + SIGNATURE_LENGTH;
+
+    // Find the end of the hex string (next '>')
+    const contentsEnd = pdfString.indexOf('>', contentsHexStart);
+    if (contentsEnd === -1) throw new Error('Could not find end of Contents placeholder');
+
+    const contentsHexEnd = contentsEnd;
+    const placeholderLength = contentsHexEnd - contentsHexStart;
 
     // Make mutable copy
     const pdfBuffer = new Uint8Array(savedPdfWithPlaceholder);
@@ -184,11 +190,11 @@ export async function signPdf(
     }
 
     // 6. Inject Signature
-    if (signatureHex.length > SIGNATURE_LENGTH) {
-        throw new Error(`Signature length (${signatureHex.length}) exceeds placeholder (${SIGNATURE_LENGTH}).`);
+    if (signatureHex.length > placeholderLength) {
+        throw new Error(`Signature length (${signatureHex.length}) exceeds placeholder (${placeholderLength}).`);
     }
 
-    const paddedSignatureHex = signatureHex.padEnd(SIGNATURE_LENGTH, '0');
+    const paddedSignatureHex = signatureHex.padEnd(placeholderLength, '0');
     const signatureBytes = new TextEncoder().encode(paddedSignatureHex);
     pdfBuffer.set(signatureBytes, contentsHexStart);
 
