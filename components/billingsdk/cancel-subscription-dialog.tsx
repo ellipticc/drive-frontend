@@ -204,7 +204,7 @@ export function CancelSubscriptionDialog({
                 </div>
                 <Badge variant="secondary">
                   {parseFloat(plan.monthlyPrice) >= 0
-                    ? `${plan.currency}${plan.monthlyPrice}/monthly`
+                    ? `${plan.currency || '$'}${plan.monthlyPrice}/monthly`
                     : `${plan.monthlyPrice}/monthly`}
                 </Badge>
               </div>
@@ -267,14 +267,19 @@ export function CancelSubscriptionDialog({
                 </p>
                 {finalWarningText ? (
                   (finalWarningText.includes('\n') || finalWarningText.includes('•')) ? (
-                    <ul className="text-destructive text-sm list-disc list-inside space-y-1">
-                      {finalWarningText.split('\n').map((line, idx) => {
+                    <ul className="text-muted-foreground text-sm space-y-1.5 text-left">
+                      {finalWarningText.split('\n').filter(line => line.trim()).map((line, idx) => {
                         const text = line.replace(/^\s*•\s*/, '').trim();
-                        return <li key={idx}>{text}</li>;
+                        return text ? (
+                          <li key={idx} className="flex items-start gap-2">
+                            <span className="text-muted-foreground mt-0.5">•</span>
+                            <span>{text}</span>
+                          </li>
+                        ) : null;
                       })}
                     </ul>
                   ) : (
-                    <p className="text-destructive text-sm">{finalWarningText}</p>
+                    <p className="text-muted-foreground text-sm">{finalWarningText}</p>
                   )
                 ) : (
                   <p className="text-destructive text-sm">This action cannot be undone and you'll lose access to all premium features.</p>
