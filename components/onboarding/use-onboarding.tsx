@@ -28,6 +28,10 @@ export function useOnboarding() {
         try {
             console.log('[Onboarding] Creating welcome paper...');
 
+            // Mark onboarding as started IMMEDIATELY to prevent duplicate papers on page reload
+            await apiClient.completeOnboarding();
+            console.log('[Onboarding] Marked onboarding as complete in DB');
+
             // Check if welcome paper already exists
             const existingFiles = await apiClient.getFiles({ limit: 100 });
             const hasWelcomePaper = existingFiles.data?.files?.some(
