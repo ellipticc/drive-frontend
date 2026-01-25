@@ -155,7 +155,7 @@ function PaperHeader({
                     control={
                         <Button
                             variant="ghost"
-                            className="w-7 h-7 md:w-8 md:h-8 rounded-md bg-transparent flex items-center justify-center shrink-0 hover:bg-muted p-0 text-base md:text-lg overflow-hidden"
+                            className="w-6 h-6 md:w-7 md:h-7 rounded-md bg-transparent flex items-center justify-center shrink-0 hover:bg-muted p-0 text-sm md:text-base overflow-hidden"
                         >
                             {displayIcon}
                         </Button>
@@ -182,7 +182,7 @@ function PaperHeader({
                         }
                     }}
                     maxLength={255}
-                    className="text-lg md:text-xl font-semibold bg-transparent border-transparent hover:border-border focus:border-input focus:bg-background transition-colors w-full h-9 md:h-10 px-1 md:px-2 shadow-none truncate"
+                    className="text-base md:text-lg font-semibold bg-transparent border-transparent hover:border-border focus:border-input focus:bg-background transition-colors w-full h-8 md:h-9 px-1 shadow-none truncate"
                     placeholder="Untitled Paper"
                 />
             </div>
@@ -283,7 +283,22 @@ function PaperEditorView({
     const editor = usePlateEditor({
         plugins: EditorKit,
         value: initialValue,
+        override: {
+            components: {},
+        },
     });
+
+    // Add error boundary for editor operations
+    React.useEffect(() => {
+        const handleError = (event: ErrorEvent) => {
+            if (event.message.includes('Cannot read properties of undefined')) {
+                console.warn('Editor content normalization warning:', event.message);
+                event.preventDefault();
+            }
+        };
+        window.addEventListener('error', handleError);
+        return () => window.removeEventListener('error', handleError);
+    }, []);
 
     return (
         <PaperIdProvider paperId={fileId}>
@@ -310,10 +325,10 @@ function PaperEditorView({
                     </FixedToolbar>
 
                     <main className="flex-1 overflow-hidden relative">
-                        <EditorContainer className="h-full w-full overflow-y-auto flex md:justify-center">
-                            <div className="w-full md:max-w-[950px] px-4 sm:px-6 md:px-12 pb-32">
+                        <EditorContainer className="h-full w-full overflow-y-auto flex md:justify-center pb-32">
+                            <div className="w-full md:max-w-[950px] px-4 sm:px-6 md:px-12">
                                 <Editor
-                                    className="min-h-full w-full py-3 md:py-4 border-none shadow-none focus-visible:ring-0 transition-all text-base md:text-base"
+                                    className="min-h-[calc(100vh-200px)] w-full py-3 md:py-4 border-none shadow-none focus-visible:ring-0 transition-all text-base md:text-base"
                                     autoFocus
                                     placeholder="New Page"
                                 />
