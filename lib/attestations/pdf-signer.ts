@@ -65,18 +65,40 @@ export async function signPdf(
 
     firstPage.node.set(PDFName.of('Annots'), pdfDoc.context.obj([widgetRef]));
 
+    // Add field to AcroForm
     let acroForm = pdfDoc.catalog.lookup(PDFName.of('AcroForm'));
+
     if (!acroForm) {
-        acroForm = pdfDoc.context.obj({ Fields: [] });
+        // Create new AcroForm if it doesn't exist
+        acroForm = pdfDoc.context.obj({
+            Fields: [],
+            SigFlags: 3 // SignaturesExist | AppendOnly
+        });
         pdfDoc.catalog.set(PDFName.of('AcroForm'), acroForm);
     }
 
-    const fields = (acroForm as PDFDict).get(PDFName.of('Fields')) as PDFArray;
-    if (fields) {
-        fields.push(widgetRef);
-    } else {
-        (acroForm as PDFDict).set(PDFName.of('Fields'), pdfDoc.context.obj([widgetRef]));
+    if (!(acroForm instanceof PDFDict)) {
+        throw new Error('AcroForm is not a dictionary');
     }
+
+    // Ensure SigFlags is set
+    const sigFlags = acroForm.lookup(PDFName.of('SigFlags'));
+    if (!sigFlags) {
+        acroForm.set(PDFName.of('SigFlags'), pdfDoc.context.obj(3));
+    }
+
+    let fields = acroForm.lookup(PDFName.of('Fields'));
+
+    if (!fields) {
+        fields = pdfDoc.context.obj([]);
+        acroForm.set(PDFName.of('Fields'), fields);
+    }
+
+    if (!(fields instanceof PDFArray)) {
+        throw new Error('AcroForm Fields is not an array');
+    }
+
+    fields.push(widgetRef);
 
     const savedPdfWithPlaceholder = await pdfDoc.save({ useObjectStreams: false });
 
