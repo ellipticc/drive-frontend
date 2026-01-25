@@ -142,7 +142,7 @@ Experience **fast, safe, and collaborative editing** without sacrificing securit
 * Delete this page anytime (on dashboard)
 * Click **+ New Paper** to create your first real note
 * Upload files/folders from your device
-* Check docs: [docs.ellipticc.com](https://docs.ellipticc.com) or blog for deep dives
+* Check docs: [docs.ellipticc.com](https://docs.ellipticc.com) or [blog.ellipticc.com](https://blog.ellipticc.com) for deep dives
 
 Welcome aboard, your fortress in the cloud awaits! 🔐
 `;

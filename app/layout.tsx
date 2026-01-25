@@ -15,7 +15,7 @@ import { LanguageProvider } from "@/lib/i18n/language-context";
 import { ThemeConfiguration } from "@/components/theme-configuration";
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { TourProvider } from "@/components/tour";
+import { OnboardingTourProvider } from "@/components/onboarding/onboarding-tour-provider";
 import "./globals.css";
 
 // Font definitions
@@ -265,7 +265,7 @@ export default function RootLayout({
                     <LanguageProvider>
                       <GlobalUploadProvider>
                         <TooltipProvider>
-                          <TourProvider>
+                          <OnboardingTourProvider>
                             <ThemeConfiguration />
                             <ServiceWorkerRegister />
 
@@ -278,7 +278,7 @@ export default function RootLayout({
                                 fontFamily: 'var(--font-roboto)',
                               }}
                             />
-                          </TourProvider>
+                          </OnboardingTourProvider>
                         </TooltipProvider>
                       </GlobalUploadProvider>
                     </LanguageProvider>

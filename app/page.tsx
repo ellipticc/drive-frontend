@@ -8,15 +8,12 @@ import { DragDropOverlay } from "@/components/drag-drop-overlay"
 import { keyManager } from "@/lib/key-manager"
 import { useUser } from "@/components/user-context"
 
-import { useOnboarding } from "@/components/onboarding/use-onboarding"
-
 // Extended File interface to include webkitRelativePath
 interface ExtendedFile extends File {
   webkitRelativePath: string;
 }
 
 export default function Home() {
-  const { TourDialog } = useOnboarding()
   const { user } = useUser()
   const router = useRouter()
   const pathname = usePathname()
@@ -227,7 +224,6 @@ export default function Home() {
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       />
-      <TourDialog />
     </div>
   )
 }

@@ -150,12 +150,25 @@ export function useOnboarding() {
         },
     ];
 
-    // Handle tour completion
+    // Handle tour completion - mark onboarding as complete
     const handleTourComplete = useCallback(async () => {
         try {
+            console.log('[Onboarding] Completing onboarding...');
             await apiClient.completeOnboarding();
             setIsTourCompleted(true);
             // User data will be automatically refetched by useUser hook
+        } catch (error) {
+            console.error("Failed to complete onboarding:", error);
+        }
+    }, [setIsTourCompleted]);
+
+    // Handle skip/cancel - also mark as complete to prevent re-showing
+    const handleSkipTour = useCallback(async () => {
+        try {
+            console.log('[Onboarding] Skipping tour, marking onboarding as complete...');
+            await apiClient.completeOnboarding();
+            setIsTourCompleted(true);
+            setOpenTourDialog(false);
         } catch (error) {
             console.error("Failed to complete onboarding:", error);
         }
@@ -187,10 +200,17 @@ export function useOnboarding() {
 
     return {
         startTour,
+        handleTourComplete,
         TourDialog: () => (
             <TourAlertDialog
                 isOpen={openTourDialog}
-                setIsOpen={setOpenTourDialog}
+                setIsOpen={(isOpen) => {
+                    setOpenTourDialog(isOpen);
+                    // If dialog is closed without starting tour, mark onboarding as complete
+                    if (!isOpen) {
+                        handleSkipTour();
+                    }
+                }}
             />
         )
     };
