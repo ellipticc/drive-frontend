@@ -226,7 +226,13 @@ export async function signPdf(
     let timestampVerification = undefined;
 
     // Export CMS
-    const cmsDer = signedData.toSchema().toBER(false);
+    // Must wrap SignedData in ContentInfo
+    const contentInfo = new pkijs.ContentInfo({
+        contentType: "1.2.840.113549.1.7.2", // signedData
+        content: signedData.toSchema()
+    });
+
+    const cmsDer = contentInfo.toSchema().toBER(false);
     const cmsBytes = new Uint8Array(cmsDer);
     let signatureHex = '';
     for (let i = 0; i < cmsBytes.length; i++) {
