@@ -215,19 +215,56 @@ export async function signPdf(
     });
 
     // Now manually sign the signedAttrs
-    const signedAttrsEncoded = signedData.signerInfos[0].signedAttrs!.encodedValue;
-    const signedAttrsHash = await window.crypto.subtle.digest('SHA-256', signedAttrsEncoded);
+    // Need to encode with proper DER tag (SET, not SEQUENCE)
+    const signedAttrsForSigning = new asn1js.Set({
+        value: signedData.signerInfos[0].signedAttrs!.attributes.map((attr: any) => attr.toSchema())
+    });
+    const signedAttrsEncoded = signedAttrsForSigning.toBER(false);
+    
     const signature = await window.crypto.subtle.sign(
         {
             name: "ECDSA",
             hash: { name: "SHA-256" }
         },
         cryptoKey,
-        signedAttrsHash
+        signedAttrsEncoded
     );
 
-    // Set the signature value
-    signedData.signerInfos[0].signature = new asn1js.OctetString({ valueHex: signature });
+    // Convert ECDSA signature from P1363 (raw r||s) to DER format
+    const signatureBytes = new Uint8Array(signature);
+    const r = signatureBytes.slice(0, 32);
+    const s = signatureBytes.slice(32, 64);
+    
+    // Remove leading zeros but keep at least one byte
+    function trimLeadingZeros(arr: Uint8Array): Uint8Array {
+        let i = 0;
+        while (i < arr.length - 1 && arr[i] === 0 && arr[i + 1] < 0x80) i++;
+        return arr.slice(i);
+    }
+    
+    // Add leading zero if high bit is set (to keep it positive)
+    function ensurePositive(arr: Uint8Array): Uint8Array {
+        if (arr[0] >= 0x80) {
+            const result = new Uint8Array(arr.length + 1);
+            result[0] = 0;
+            result.set(arr, 1);
+            return result;
+        }
+        return arr;
+    }
+    
+    const rTrimmed = ensurePositive(trimLeadingZeros(r));
+    const sTrimmed = ensurePositive(trimLeadingZeros(s));
+    
+    const derSignature = new asn1js.Sequence({
+        value: [
+            new asn1js.Integer({ valueHex: new Uint8Array(rTrimmed).buffer as ArrayBuffer }),
+            new asn1js.Integer({ valueHex: new Uint8Array(sTrimmed).buffer as ArrayBuffer })
+        ]
+    });
+    
+    const derSignatureBytes = derSignature.toBER(false);
+    signedData.signerInfos[0].signature = new asn1js.OctetString({ valueHex: derSignatureBytes });
 
     // Export CMS
     const cmsDer = signedData.toSchema().toBER(false);

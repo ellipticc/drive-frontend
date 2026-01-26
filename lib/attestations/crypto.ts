@@ -30,7 +30,7 @@ function arrayBufferToPem(buffer: ArrayBuffer, type: 'PUBLIC KEY' | 'PRIVATE KEY
 export async function generateAttestationKeypair(
     name: string,
     userId: string,
-    appName: string = 'Ellipticc Drive',
+    appName: string = 'Ellipticc Inc.',
     masterKey: Uint8Array
 ): Promise<AttestationKey> {
     // 1. Generate ECDSA P-256 Keypair using WebCrypto
