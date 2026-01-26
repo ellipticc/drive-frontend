@@ -218,6 +218,7 @@ export async function signPdf(
         version: 1,
         encapContentInfo: new pkijs.EncapsulatedContentInfo({
             eContentType: "1.2.840.113549.1.7.1"
+            // eContent is intentionally omitted for detached signatures
         }),
         signerInfos: [
             new pkijs.SignerInfo({
@@ -236,6 +237,14 @@ export async function signPdf(
                         new pkijs.Attribute({
                             type: "1.2.840.113549.1.9.4", // Message Digest (will be filled by sign)
                             values: [new asn1js.OctetString({ valueHex: new Uint8Array(32) })]
+                        }),
+                        new pkijs.Attribute({
+                            type: "1.2.840.113549.1.9.5", // Signing Time
+                            values: [new asn1js.UTCTime({ valueDate: signingDate })]
+                        }),
+                        new pkijs.Attribute({
+                            type: "1.2.840.113549.1.9.16.2.47", // SigningCertificateV2 (id-aa-signingCertificateV2)
+                            values: [signingCertificateV2Value]
                         })
                     ]
                 })
@@ -290,6 +299,10 @@ export async function signPdf(
     console.log("Signature hex length (chars):", signatureHex.length);
     console.log("Placeholder length:", placeholderLength);
     console.log("First 100 chars of signature hex:", signatureHex.substring(0, 100));
+    console.log("SignedData version:", signedData.version);
+    console.log("Certificates included:", signedData.certificates?.length || 0);
+    console.log("SignerInfo count:", signedData.signerInfos.length);
+    console.log("SignedAttrs count:", signedData.signerInfos[0].signedAttrs?.attributes?.length || 0);
 
     // Ensure signature fits in placeholder
     if (signatureHex.length > placeholderLength) {
