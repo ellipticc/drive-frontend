@@ -122,6 +122,13 @@ export async function signPdf(
     const byteRangeStart = pdfString.indexOf(byteRangeTag);
     if (byteRangeStart === -1) throw new Error('ByteRange not found');
 
+    console.log("=== BYTERANGE POSITION DEBUG ===");
+    console.log("byteRangeStart:", byteRangeStart);
+    console.log("byteRangeTag.length:", byteRangeTag.length);
+    console.log("ByteRange write will start at:", byteRangeStart + byteRangeTag.length);
+    console.log("Gap between ByteRange and Contents:", contentsStart - (byteRangeStart + byteRangeTag.length));
+    console.log("Text between ByteRange and Contents:", pdfString.substring(byteRangeStart, contentsStart + 20));
+
     const pdfBuffer = new Uint8Array(savedPdfWithPlaceholder);
 
     const range1Start = 0;
