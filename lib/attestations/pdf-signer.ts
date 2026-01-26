@@ -243,7 +243,22 @@ export async function signPdf(
     // --- Fix: Convert WebCrypto Raw ECDSA Signature to DER ---
     // WebCrypto returns P1363 (raw R+S), but CMS requires ASN.1 DER
     const rawSignature = signedData.signerInfos[0].signature.valueBlock.valueHex;
-    const derSignature = ecdsaSignatureRawToDer(rawSignature);
+    const rawBytes = new Uint8Array(rawSignature);
+    console.log("Raw Signature Length:", rawBytes.length);
+    console.log("Raw Signature Hex:", Array.from(rawBytes).map(b => b.toString(16).padStart(2, '0')).join(''));
+
+    let derSignature: ArrayBuffer;
+
+    // Check if it's already DER encoded (starts with 0x30 sequence tag)
+    if (rawBytes.length > 0 && rawBytes[0] === 0x30) {
+        console.log("Signature is already DER encoded. Using as is.");
+        derSignature = rawSignature;
+    } else {
+        if (rawBytes.length !== 64) {
+            console.warn(`Warning: Expected 64-byte signature for P-256, got ${rawBytes.length}. Attempting conversion anyway if even length.`);
+        }
+        derSignature = ecdsaSignatureRawToDer(rawSignature);
+    }
 
     // Replace the signature with the DER encoded one
     signedData.signerInfos[0].signature = new asn1js.OctetString({ valueHex: derSignature });
