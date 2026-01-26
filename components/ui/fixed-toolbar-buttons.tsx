@@ -21,6 +21,7 @@ import { CommentToolbarButton } from './comment-toolbar-button';
 import { EmojiToolbarButton } from './emoji-toolbar-button';
 import { ExportToolbarButton } from './export-toolbar-button';
 import { FontColorToolbarButton } from './font-color-toolbar-button';
+import { FontFamilyToolbarButton } from './font-family-toolbar-button';
 import { FontSizeToolbarButton } from './font-size-toolbar-button';
 import { RedoToolbarButton, UndoToolbarButton } from './history-toolbar-button';
 import { ImportToolbarButton } from './import-toolbar-button';
@@ -69,6 +70,7 @@ export function FixedToolbarButtons() {
           <ToolbarGroup className="gap-0.5 md:gap-1">
             <InsertToolbarButton />
             <TurnIntoToolbarButton />
+            <FontFamilyToolbarButton />
             <FontSizeToolbarButton />
           </ToolbarGroup>
 

@@ -11,7 +11,7 @@ import {
 import { KEYS } from 'platejs';
 
 const options = {
-  inject: { targetPlugins: [KEYS.p] },
+  inject: { targetPlugins: [...KEYS.heading, KEYS.p] },
 } satisfies PlatePluginConfig;
 
 export const FontKit = [
@@ -25,5 +25,20 @@ export const FontKit = [
   }),
   FontBackgroundColorPlugin.configure(options),
   FontSizePlugin.configure(options),
-  FontFamilyPlugin.configure(options),
+  FontFamilyPlugin.configure({
+    inject: {
+      ...options.inject,
+      nodeProps: {
+        defaultNodeValue: 'Arial',
+        validNodeValues: [
+          'Arial',
+          'Times New Roman',
+          'Ubuntu',
+          'Geist',
+          'Helvetica',
+          'sans-serif',
+        ],
+      },
+    },
+  }),
 ];

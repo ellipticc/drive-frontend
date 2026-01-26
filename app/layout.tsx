@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist_Mono, JetBrains_Mono, Roboto } from "next/font/google";
+import { Geist_Mono, JetBrains_Mono, Roboto, Ubuntu } from "next/font/google";
 import Script from "next/script";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
@@ -33,6 +33,12 @@ const geistMono = Geist_Mono({
 const jetbrainsMono = JetBrains_Mono({
   variable: "--font-jetbrains-mono",
   subsets: ["latin"],
+});
+
+const ubuntu = Ubuntu({
+  weight: ["300", "400", "500", "700"],
+  subsets: ["latin"],
+  variable: "--font-ubuntu",
 });
 
 export const metadata: Metadata = {
@@ -232,7 +238,7 @@ export default function RootLayout({
         </Script>
       </head>
       <body
-        className={`${roboto.variable} ${geistMono.variable} ${jetbrainsMono.variable} antialiased`}
+        className={`${roboto.variable} ${geistMono.variable} ${jetbrainsMono.variable} ${ubuntu.variable} antialiased`}
       >
         <script
           dangerouslySetInnerHTML={{

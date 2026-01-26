@@ -945,4 +945,25 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
+  /* Font family utilities for the editor */
+  .font-times-new-roman {
+    font-family: 'Times New Roman', Times, serif;
+  }
+
+  .font-ubuntu {
+    font-family: var(--font-ubuntu), sans-serif;
+  }
+
+  .font-geist {
+    font-family: var(--font-geist-mono), monospace;
+  }
+
+  .font-helvetica {
+    font-family: Helvetica, Arial, sans-serif;
+  }
+
+  .font-sans-serif {
+    font-family: sans-serif;
+  }
 }
