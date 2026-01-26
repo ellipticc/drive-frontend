@@ -129,12 +129,26 @@ export async function signPdf(
     const range2Start = contentsHexEnd;
     const range2Length = pdfBuffer.length - contentsHexEnd;
 
+    console.log("=== BYTERANGE DEBUG ===");
+    console.log("PDF total length:", pdfBuffer.length);
+    console.log("range1Start:", range1Start);
+    console.log("range1Length:", range1Length);
+    console.log("range2Start:", range2Start);
+    console.log("range2Length:", range2Length);
+    console.log("Skipped region (signature):", contentsHexStart, "to", contentsHexEnd, "=", contentsHexEnd - contentsHexStart, "bytes");
+
     const originalByteRangeArrayStr = pdfString.substring(byteRangeStart + byteRangeTag.length, pdfString.indexOf(']', byteRangeStart));
     const newByteRangeStr = `${range1Start} ${range1Length} ${range2Start} ${range2Length}`;
+
+    console.log("Original ByteRange string:", originalByteRangeArrayStr);
+    console.log("New ByteRange string:", newByteRangeStr);
 
     if (newByteRangeStr.length > originalByteRangeArrayStr.length) throw new Error('ByteRange string too short');
 
     const paddedByteRangeStr = newByteRangeStr.padEnd(originalByteRangeArrayStr.length, ' ');
+    console.log("Padded ByteRange string:", paddedByteRangeStr);
+    console.log("ByteRange write offset:", byteRangeStart + byteRangeTag.length);
+
     pdfBuffer.set(new TextEncoder().encode(paddedByteRangeStr), byteRangeStart + byteRangeTag.length);
 
     // 4. Hash Document
