@@ -144,19 +144,35 @@ export async function signPdf(
     console.log("range2Length:", range2Length);
     console.log("Skipped region (signature):", contentsHexStart, "to", contentsHexEnd, "=", contentsHexEnd - contentsHexStart, "bytes");
 
-    const originalByteRangeArrayStr = pdfString.substring(byteRangeStart + byteRangeTag.length, pdfString.indexOf(']', byteRangeStart));
+    // CRITICAL FIX: We need to find where the ] bracket is and only write up to that point
+    const byteRangeEndBracket = pdfString.indexOf(']', byteRangeStart);
+    if (byteRangeEndBracket === -1) throw new Error('ByteRange ] not found');
+
+    // The writable area is from after the [ to before the ]
+    const byteRangeWriteStart = byteRangeStart + byteRangeTag.length;
+    const byteRangeWriteEnd = byteRangeEndBracket;
+    const maxByteRangeLength = byteRangeWriteEnd - byteRangeWriteStart;
+
     const newByteRangeStr = `${range1Start} ${range1Length} ${range2Start} ${range2Length}`;
 
-    console.log("Original ByteRange string:", originalByteRangeArrayStr);
+    console.log("ByteRange ] bracket at:", byteRangeEndBracket);
+    console.log("Max ByteRange content length:", maxByteRangeLength);
+    console.log("New ByteRange string length:", newByteRangeStr.length);
     console.log("New ByteRange string:", newByteRangeStr);
 
-    if (newByteRangeStr.length > originalByteRangeArrayStr.length) throw new Error('ByteRange string too short');
+    if (newByteRangeStr.length > maxByteRangeLength) {
+        throw new Error(`ByteRange string too long: ${newByteRangeStr.length} > ${maxByteRangeLength}`);
+    }
 
-    const paddedByteRangeStr = newByteRangeStr.padEnd(originalByteRangeArrayStr.length, ' ');
-    console.log("Padded ByteRange string:", paddedByteRangeStr);
-    console.log("ByteRange write offset:", byteRangeStart + byteRangeTag.length);
+    // Pad with spaces to fill the available space (but not exceed it)
+    const paddedByteRangeStr = newByteRangeStr.padEnd(maxByteRangeLength, ' ');
+    console.log("Padded ByteRange string length:", paddedByteRangeStr.length);
+    console.log("Padded ByteRange string:", `'${paddedByteRangeStr}'`);
+    console.log("ByteRange write offset:", byteRangeWriteStart);
+    console.log("ByteRange write will end at:", byteRangeWriteStart + paddedByteRangeStr.length);
+    console.log("Should not exceed:", byteRangeEndBracket);
 
-    pdfBuffer.set(new TextEncoder().encode(paddedByteRangeStr), byteRangeStart + byteRangeTag.length);
+    pdfBuffer.set(new TextEncoder().encode(paddedByteRangeStr), byteRangeWriteStart);
 
     // 4. Hash Document
     const part1 = pdfBuffer.subarray(range1Start, range1Start + range1Length);
