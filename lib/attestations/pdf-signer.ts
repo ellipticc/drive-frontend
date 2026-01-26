@@ -275,22 +275,29 @@ export async function signPdf(
         content: signedData.toSchema()
     });
 
-    // --- DIAGNOSTIC: DUMMY SIGNATURE ---
-    // Inject all zeros to test PDF structure integrity
-    let signatureHex = '3082'; // Dummy DER header start
-    signatureHex = ''; // Allow loop below to do nothing or handle it.
+    // Generate the actual signature DER encoding
+    const cmsDer = contentInfo.toSchema().toBER(false);
+    const cmsBytes = new Uint8Array(cmsDer);
+    
+    // Convert signature bytes to hex string
+    let signatureHex = '';
+    for (let i = 0; i < cmsBytes.length; i++) {
+        signatureHex += cmsBytes[i].toString(16).padStart(2, '0');
+    }
 
-    // Override signatureHex with pure zeros for the payload
-    // We want the paddedSignatureHex to be exactly '0' * placeholderLength
-    const paddedSignatureHex = "".padEnd(placeholderLength, '0');
+    console.log("=== SIGNATURE DEBUG ===");
+    console.log("CMS signature length (bytes):", cmsBytes.length);
+    console.log("Signature hex length (chars):", signatureHex.length);
+    console.log("Placeholder length:", placeholderLength);
+    console.log("First 100 chars of signature hex:", signatureHex.substring(0, 100));
 
-    // Bypassing pkijs DER output
-    // const cmsDer = contentInfo.toSchema().toBER(false);
-    // const cmsBytes = new Uint8Array(cmsDer);
-    // let signatureHex = '';
-    // for (let i = 0; i < cmsBytes.length; i++) {
-    //    signatureHex += cmsBytes[i].toString(16).padStart(2, '0');
-    // }
+    // Ensure signature fits in placeholder
+    if (signatureHex.length > placeholderLength) {
+        throw new Error(`Signature too large: ${signatureHex.length} hex chars > ${placeholderLength} placeholder`);
+    }
+
+    // Pad signature hex with zeros to fill placeholder
+    const paddedSignatureHex = signatureHex.padEnd(placeholderLength, '0');
 
     pdfBuffer.set(new TextEncoder().encode(paddedSignatureHex), contentsHexStart);
 
