@@ -119,9 +119,14 @@ export async function signPdf(
     const hash = await window.crypto.subtle.digest('SHA-256', concatenated);
 
     // 5. Create CMS (pkijs)
-    // Calculate cert hash
-    const certDer = certificate.toSchema(true).toBER(false);
-    const certHash = await window.crypto.subtle.digest('SHA-256', certDer);
+    // Calculate cert hash from the original PEM bytes (decoded) to ensure exact match
+    const b64 = key.certPem.replace(/(-----(BEGIN|END) CERTIFICATE-----|\n)/g, '');
+    const binary = atob(b64);
+    const certBytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+        certBytes[i] = binary.charCodeAt(i);
+    }
+    const certHash = await window.crypto.subtle.digest('SHA-256', certBytes);
 
     const essCertIdv2 = new asn1js.Sequence({
         value: [
@@ -157,18 +162,7 @@ export async function signPdf(
                 signedAttrs: new pkijs.SignedAndUnsignedAttributes({
                     type: 0,
                     attributes: [
-                        new pkijs.Attribute({
-                            type: "1.2.840.113549.1.9.3", // ContentType
-                            values: [new asn1js.ObjectIdentifier({ value: "1.2.840.113549.1.7.1" })]
-                        }),
-                        new pkijs.Attribute({
-                            type: "1.2.840.113549.1.9.5", // Signing Time
-                            values: [new asn1js.UTCTime({ valueDate: new Date() })]
-                        }),
-                        new pkijs.Attribute({
-                            type: "1.2.840.113549.1.9.4", // Message Digest (will be filled by sign)
-                            values: [new asn1js.OctetString({ valueHex: new Uint8Array(32) })]
-                        }),
+                        // ContentType, SigningTime, and MessageDigest will be added by pkijs automatically
                         new pkijs.Attribute({
                             type: "1.2.840.113549.1.9.16.2.47", // id-aa-signingCertificateV2
                             values: [signingCertificateV2Value]
