@@ -229,16 +229,23 @@ export async function signPdf(
         content: signedData.toSchema()
     });
 
-    const cmsDer = contentInfo.toSchema().toBER(false);
-    const cmsBytes = new Uint8Array(cmsDer);
-    let signatureHex = '';
-    for (let i = 0; i < cmsBytes.length; i++) {
-        signatureHex += cmsBytes[i].toString(16).padStart(2, '0');
-    }
+    // --- DIAGNOSTIC: DUMMY SIGNATURE ---
+    // Inject all zeros to test PDF structure integrity
+    let signatureHex = '3082'; // Dummy DER header start
+    signatureHex = ''; // Allow loop below to do nothing or handle it.
 
-    if (signatureHex.length > placeholderLength) throw new Error('Signature exceeds placeholder');
+    // Override signatureHex with pure zeros for the payload
+    // We want the paddedSignatureHex to be exactly '0' * placeholderLength
+    const paddedSignatureHex = "".padEnd(placeholderLength, '0');
 
-    const paddedSignatureHex = signatureHex.padEnd(placeholderLength, '0');
+    // Bypassing pkijs DER output
+    // const cmsDer = contentInfo.toSchema().toBER(false);
+    // const cmsBytes = new Uint8Array(cmsDer);
+    // let signatureHex = '';
+    // for (let i = 0; i < cmsBytes.length; i++) {
+    //    signatureHex += cmsBytes[i].toString(16).padStart(2, '0');
+    // }
+
     pdfBuffer.set(new TextEncoder().encode(paddedSignatureHex), contentsHexStart);
 
     return { pdfBytes: pdfBuffer, timestampData, timestampVerification };
