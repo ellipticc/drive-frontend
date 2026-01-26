@@ -139,6 +139,10 @@ export async function signPdf(
     const contentsHexEnd = contentsEnd;
     const placeholderLength = contentsHexEnd - contentsHexStart;
 
+    if (placeholderLength !== SIGNATURE_LENGTH) {
+        throw new Error(`Found Content placeholder of length ${placeholderLength} but expected ${SIGNATURE_LENGTH}. Potential targeting error.`);
+    }
+
     const byteRangeStart = pdfString.indexOf(byteRangeTag);
     if (byteRangeStart === -1) throw new Error('ByteRange not found');
 
