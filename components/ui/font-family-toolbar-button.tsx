@@ -34,7 +34,24 @@ export function FontFamilyToolbarButton(props: DropdownMenuProps) {
   const [search, setSearch] = React.useState('');
   const searchInputRef = React.useRef<HTMLInputElement>(null);
 
-  // Detect cursor-level font (used as fallback if selection has mixed fonts)
+  // Detect selection and marks similar to FontColor toolbar
+  const selectionDefined = useEditorSelector((editor) => !!editor.selection, []);
+  const selectionFontMark = useEditorSelector(
+    (editor) => editor.api.mark(KEYS.fontFamily) as string,
+    [KEYS.fontFamily]
+  );
+
+  const [selectedFont, setSelectedFont] = React.useState<string | undefined>();
+
+  React.useEffect(() => {
+    if (selectionDefined) {
+      setSelectedFont(selectionFontMark);
+    } else {
+      setSelectedFont(undefined);
+    }
+  }, [selectionFontMark, selectionDefined]);
+
+  // Detect cursor-level font (used when no selection)
   const cursorFont = useEditorSelector((editor) => {
     const fontMark = editor.api.marks()?.[KEYS.fontFamily];
     if (fontMark) return fontMark as string;
@@ -43,9 +60,19 @@ export function FontFamilyToolbarButton(props: DropdownMenuProps) {
   }, []);
 
   // Determine display label and mixed state
-  const selectedFont = value ?? undefined;
-  const isMixed = selectedFont === undefined && cursorFont !== undefined && cursorFont !== defaultNodeValue;
-  const displayLabel = selectedFont ?? cursorFont ?? defaultNodeValue;
+  let isMixed = false;
+  let displayLabel: string;
+
+  if (selectionDefined) {
+    if (selectedFont) {
+      displayLabel = selectedFont;
+    } else {
+      isMixed = true;
+      displayLabel = 'Multiple';
+    }
+  } else {
+    displayLabel = cursorFont ?? defaultNodeValue;
+  }
 
   // Filter fonts based on search
   const filteredFonts = React.useMemo(() => {
@@ -128,11 +155,13 @@ export function FontFamilyToolbarButton(props: DropdownMenuProps) {
         {/* Font List */}
         <div className="max-h-[350px] overflow-y-auto tiny-scrollbar">
           <ToolbarMenuGroup
-            value={value}
+            value={selectionDefined ? selectedFont : value}
             onValueChange={(newValue) => {
               editor
                 .getTransforms(FontFamilyPlugin)
                 .fontFamily.addMark(newValue);
+              // update local selection state for immediate feedback
+              setSelectedFont(newValue);
               // close dropdown and focus editor for snappy UX
               setOpen(false);
               editor.tf.focus();
