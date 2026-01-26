@@ -11,7 +11,7 @@ const cryptoEngine = new pkijs.CryptoEngine({ name: '', crypto: window.crypto, s
 setEngine("newEngine", cryptoEngine);
 
 // Placeholder size
-const SIGNATURE_LENGTH = 16000; // Increased safety margin
+const SIGNATURE_LENGTH = 16000;
 
 export async function signPdf(
     pdfBytes: Uint8Array,
@@ -31,7 +31,7 @@ export async function signPdf(
 
     const byteRangePlaceholder = [0, 999999999, 999999999, 999999999];
 
-    // Extract signer name from certificate
+    // Extract signer info for PDF Dictionary
     const commonName = certificate.subject.typesAndValues.find(
         (attr: any) => attr.type === "2.5.4.3"
     )?.value?.valueBlock?.value || "Ellipticc User";
@@ -128,9 +128,7 @@ export async function signPdf(
     const concatenated = new Uint8Array(part1.length + part2.length);
     concatenated.set(part1);
     concatenated.set(part2, part1.length);
-    const hash = await window.crypto.subtle.digest('SHA-256', concatenated);
 
-    // 5. Create CMS (pkijs)
     // Calculate cert hash from the original PEM bytes (decoded) to ensure exact match
     const b64 = key.certPem.replace(/(-----(BEGIN|END) CERTIFICATE-----|\n)/g, '');
     const binary = atob(b64);
@@ -159,7 +157,6 @@ export async function signPdf(
         ]
     });
 
-    // Build proper CMS SignedData structure
     const signedData = new pkijs.SignedData({
         version: 1,
         encapContentInfo: new pkijs.EncapsulatedContentInfo({
@@ -176,16 +173,16 @@ export async function signPdf(
                     type: 0,
                     attributes: [
                         new pkijs.Attribute({
-                            type: "1.2.840.113549.1.9.3", // contentType
+                            type: "1.2.840.113549.1.9.3", // ContentType
                             values: [new asn1js.ObjectIdentifier({ value: "1.2.840.113549.1.7.1" })]
                         }),
                         new pkijs.Attribute({
-                            type: "1.2.840.113549.1.9.5", // signingTime
+                            type: "1.2.840.113549.1.9.5", // Signing Time
                             values: [new asn1js.UTCTime({ valueDate: new Date() })]
                         }),
                         new pkijs.Attribute({
-                            type: "1.2.840.113549.1.9.4", // messageDigest
-                            values: [new asn1js.OctetString({ valueHex: hash })]
+                            type: "1.2.840.113549.1.9.4", // Message Digest (will be filled by sign)
+                            values: [new asn1js.OctetString({ valueHex: new Uint8Array(32) })]
                         }),
                         new pkijs.Attribute({
                             type: "1.2.840.113549.1.9.16.2.47", // id-aa-signingCertificateV2
@@ -198,73 +195,30 @@ export async function signPdf(
         certificates: [certificate]
     });
 
-    // Set digest algorithm
+    // Explicitly set digest algorithm to SHA-256
+    // (pkijs typically infers this, but doing it explicitly helps compliance)
     signedData.digestAlgorithms = [
         new pkijs.AlgorithmIdentifier({
-            algorithmId: "2.16.840.1.101.3.4.2.1" // SHA-256
+            algorithmId: "2.16.840.1.101.3.4.2.1", // SHA-256
+            algorithmParams: new asn1js.Null()
         })
     ];
 
-    // Set digest and signature algorithms in SignerInfo
-    signedData.signerInfos[0].digestAlgorithm = new pkijs.AlgorithmIdentifier({
-        algorithmId: "2.16.840.1.101.3.4.2.1" // SHA-256
-    });
+    await signedData.sign(cryptoKey, 0, "SHA-256", concatenated);
 
-    signedData.signerInfos[0].signatureAlgorithm = new pkijs.AlgorithmIdentifier({
+    // Post-Sign Fixes:
+    // 1. Ensure SignerInfo.signatureAlgorithm is ecdsa-with-SHA256 (1.2.840.10045.4.3.2)
+    //    Default from WebCrypto might be just id-ecPublicKey or similar.
+    const signerInfo = signedData.signerInfos[0];
+    signerInfo.signatureAlgorithm = new pkijs.AlgorithmIdentifier({
         algorithmId: "1.2.840.10045.4.3.2" // ecdsa-with-SHA256
     });
 
-    // Now manually sign the signedAttrs
-    // Need to encode with proper DER tag (SET, not SEQUENCE)
-    const signedAttrsForSigning = new asn1js.Set({
-        value: signedData.signerInfos[0].signedAttrs!.attributes.map((attr: any) => attr.toSchema())
+    // 2. Ensure SignerInfo.digestAlgorithm is SHA-256
+    signerInfo.digestAlgorithm = new pkijs.AlgorithmIdentifier({
+        algorithmId: "2.16.840.1.101.3.4.2.1", // SHA-256
+        algorithmParams: new asn1js.Null()
     });
-    const signedAttrsEncoded = signedAttrsForSigning.toBER(false);
-    
-    const signature = await window.crypto.subtle.sign(
-        {
-            name: "ECDSA",
-            hash: { name: "SHA-256" }
-        },
-        cryptoKey,
-        signedAttrsEncoded
-    );
-
-    // Convert ECDSA signature from P1363 (raw r||s) to DER format
-    const signatureBytes = new Uint8Array(signature);
-    const r = signatureBytes.slice(0, 32);
-    const s = signatureBytes.slice(32, 64);
-    
-    // Remove leading zeros but keep at least one byte
-    function trimLeadingZeros(arr: Uint8Array): Uint8Array {
-        let i = 0;
-        while (i < arr.length - 1 && arr[i] === 0 && arr[i + 1] < 0x80) i++;
-        return arr.slice(i);
-    }
-    
-    // Add leading zero if high bit is set (to keep it positive)
-    function ensurePositive(arr: Uint8Array): Uint8Array {
-        if (arr[0] >= 0x80) {
-            const result = new Uint8Array(arr.length + 1);
-            result[0] = 0;
-            result.set(arr, 1);
-            return result;
-        }
-        return arr;
-    }
-    
-    const rTrimmed = ensurePositive(trimLeadingZeros(r));
-    const sTrimmed = ensurePositive(trimLeadingZeros(s));
-    
-    const derSignature = new asn1js.Sequence({
-        value: [
-            new asn1js.Integer({ valueHex: new Uint8Array(rTrimmed).buffer as ArrayBuffer }),
-            new asn1js.Integer({ valueHex: new Uint8Array(sTrimmed).buffer as ArrayBuffer })
-        ]
-    });
-    
-    const derSignatureBytes = derSignature.toBER(false);
-    signedData.signerInfos[0].signature = new asn1js.OctetString({ valueHex: derSignatureBytes });
 
     // Export CMS
     const cmsDer = signedData.toSchema().toBER(false);
