@@ -3956,11 +3956,10 @@ class ApiClient {
     tsaPolicy?: string;
   }>> {
     try {
-      const response = await fetch('https://timestamp.ellipticc.com/api/v1/attest', {
+      const response = await fetch('https://timestamp.ellipticc.com/api/v1/rfc3161/attest', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'X-Request-ID': crypto.randomUUID()
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ hash, hashAlgorithm }),
       });
@@ -4002,11 +4001,10 @@ class ApiClient {
     tsaUrl?: string;
   }>> {
     try {
-      const response = await fetch('https://timestamp.ellipticc.com/api/v1/verify', {
+      const response = await fetch('https://timestamp.ellipticc.com/api/v1/rfc3161/verify', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'X-Request-ID': crypto.randomUUID()
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ timestampToken, hash, hashAlgorithm }),
       });
