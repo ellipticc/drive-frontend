@@ -1,15 +1,8 @@
 ﻿
 import { PDFDocument, PDFName, PDFString, PDFArray, PDFDict, PDFHexString } from 'pdf-lib';
-import * as pkijs from 'pkijs';
-import * as asn1js from 'asn1js';
-import { getCrypto, setEngine } from 'pkijs';
-import { decryptPrivateKeyInternal, importPrivateKeyFromPem, importCertificateFromPem } from './crypto';
-import { apiClient } from '../api';
+import * as forge from 'node-forge';
+import { decryptPrivateKeyInternal } from './crypto';
 import type { AttestationKey } from './types';
-
-// Ensure crypto engine is set
-const cryptoEngine = new pkijs.CryptoEngine({ name: '', crypto: window.crypto, subtle: window.crypto.subtle });
-setEngine("newEngine", cryptoEngine);
 
 // Placeholder size (large enough for RSA-4096 if needed, though 2048 is ~500 bytes signature + certs)
 const SIGNATURE_LENGTH = 16000;
@@ -19,28 +12,25 @@ export async function signPdf(
     key: AttestationKey,
     masterKey: Uint8Array
 ): Promise<{ pdfBytes: Uint8Array; timestampData?: any; timestampVerification?: any }> {
-    // 1. Decrypt Keys
+    // 1. Decrypt private key
     const privateKeyPem = await decryptPrivateKeyInternal(key.encryptedPrivateKey, key.privateKeyNonce, masterKey);
-    const cryptoKey = await importPrivateKeyFromPem(privateKeyPem);
-    const certificate = await importCertificateFromPem(key.certPem);
+    
+    // Convert PEM to forge objects
+    const forgePrivateKey = forge.pki.privateKeyFromPem(privateKeyPem);
+    const forgeCert = forge.pki.certificateFromPem(key.certPem);
 
     // 2. Load PDF & Add Placeholder
     const pdfDoc = await PDFDocument.load(pdfBytes);
     const pages = pdfDoc.getPages();
     const firstPage = pages[0];
     const signatureFieldName = 'Signature1';
-    const signingDate = new Date(); // Synchronized date for both PDF and CMS
+    const signingDate = new Date();
 
     const byteRangePlaceholder = [0, 999999999, 999999999, 999999999];
 
-    // Extract signer info for PDF Dictionary
-    const commonName = certificate.subject.typesAndValues.find(
-        (attr: any) => attr.type === "2.5.4.3"
-    )?.value?.valueBlock?.value || "Ellipticc User";
-
-    const orgName = certificate.subject.typesAndValues.find(
-        (attr: any) => attr.type === "2.5.4.10"
-    )?.value?.valueBlock?.value || "Ellipticc Inc.";
+    // Extract signer info
+    const commonName = forgeCert.subject.getField('CN')?.value || 'Ellipticc User';
+    const orgName = forgeCert.subject.getField('O')?.value || 'Ellipticc Inc.';
 
     // Create Signature Dictionary
     const signatureDict = pdfDoc.context.obj({
@@ -174,93 +164,61 @@ export async function signPdf(
 
     pdfBuffer.set(new TextEncoder().encode(paddedByteRangeStr), byteRangeWriteStart);
 
-    // 4. Hash Document
+    // 4. Hash Document & Sign with Forge
     const part1 = pdfBuffer.subarray(range1Start, range1Start + range1Length);
     const part2 = pdfBuffer.subarray(range2Start, range2Start + range2Length);
     const concatenated = new Uint8Array(part1.length + part2.length);
     concatenated.set(part1);
     concatenated.set(part2, part1.length);
 
-    const signedData = new pkijs.SignedData({
-        version: 1,
-        encapContentInfo: new pkijs.EncapsulatedContentInfo({
-            eContentType: "1.2.840.113549.1.7.1"
-            // eContent is intentionally omitted for detached signatures
-        }),
-        signerInfos: [
-            new pkijs.SignerInfo({
-                version: 1,
-                sid: new pkijs.IssuerAndSerialNumber({
-                    issuer: certificate.issuer,
-                    serialNumber: certificate.serialNumber
-                }),
-                signedAttrs: new pkijs.SignedAndUnsignedAttributes({
-                    type: 0,
-                    attributes: [
-                        new pkijs.Attribute({
-                            type: "1.2.840.113549.1.9.3", // ContentType
-                            values: [new asn1js.ObjectIdentifier({ value: "1.2.840.113549.1.7.1" })]
-                        }),
-                        new pkijs.Attribute({
-                            type: "1.2.840.113549.1.9.5", // Signing Time
-                            values: [new asn1js.UTCTime({ valueDate: signingDate })]
-                        }),
-                        new pkijs.Attribute({
-                            type: "1.2.840.113549.1.9.4", // Message Digest (will be filled by sign)
-                            values: [new asn1js.OctetString({ valueHex: new Uint8Array(32) })]
-                        })
-                    ]
-                })
-            })
-        ],
-        certificates: [certificate]
-    });
+    // Convert to forge buffer
+    const dataToSign = forge.util.createBuffer(concatenated);
 
-    // Explicitly set digest algorithm to SHA-256
-    signedData.digestAlgorithms = [
-        new pkijs.AlgorithmIdentifier({
-            algorithmId: "2.16.840.1.101.3.4.2.1" // SHA-256
-        })
-    ];
-
-    // RSA Signing
-    await signedData.sign(cryptoKey, 0, "SHA-256", concatenated);
-
-    // Let PKI.js handle the signature algorithm automatically
-    // (it will set sha256WithRSAEncryption correctly based on the key type)
-
-    // --- RFC3161 Timestamping (Temporarily Disabled for Debugging) ---
-    // let timestampData = null;
-    // let timestampVerification = null; 
-    let timestampData = undefined;
-    let timestampVerification = undefined;
-
-    // Export CMS
-    // Must wrap SignedData in ContentInfo
-    const contentInfo = new pkijs.ContentInfo({
-        contentType: "1.2.840.113549.1.7.2", // signedData
-        content: signedData.toSchema()
-    });
-
-    // Generate the actual signature DER encoding
-    const cmsDer = contentInfo.toSchema().toBER(false);
-    const cmsBytes = new Uint8Array(cmsDer);
+    // Create PKCS#7 signed data using forge
+    const p7 = forge.pkcs7.createSignedData();
+    p7.content = dataToSign;
     
-    // Convert signature bytes to hex string
-    let signatureHex = '';
-    for (let i = 0; i < cmsBytes.length; i++) {
-        signatureHex += cmsBytes[i].toString(16).padStart(2, '0');
-    }
+    // Add certificate
+    p7.addCertificate(forgeCert);
+    
+    // Add signer
+    p7.addSigner({
+        key: forgePrivateKey,
+        certificate: forgeCert,
+        digestAlgorithm: forge.pki.oids.sha256,
+        authenticatedAttributes: [
+            {
+                type: forge.pki.oids.contentType,
+                value: forge.pki.oids.data
+            },
+            {
+                type: forge.pki.oids.messageDigest
+                // value will be auto-populated at signing time
+            },
+            {
+                type: forge.pki.oids.signingTime,
+                value: signingDate as any 
+            }
+        ]
+    });
+
+    // Sign detached (critical for PDF signatures)
+    p7.sign({ detached: true });
 
     console.log("=== SIGNATURE DEBUG ===");
-    console.log("CMS signature length (bytes):", cmsBytes.length);
+    console.log("Signing with forge detached mode");
+
+    // Convert to DER and then to hex
+    const der = forge.asn1.toDer(p7.toAsn1()).getBytes();
+    let signatureHex = '';
+    for (let i = 0; i < der.length; i++) {
+        signatureHex += ('0' + der.charCodeAt(i).toString(16)).slice(-2);
+    }
+
+    console.log("CMS signature length (bytes):", der.length);
     console.log("Signature hex length (chars):", signatureHex.length);
     console.log("Placeholder length:", placeholderLength);
     console.log("First 100 chars of signature hex:", signatureHex.substring(0, 100));
-    console.log("SignedData version:", signedData.version);
-    console.log("Certificates included:", signedData.certificates?.length || 0);
-    console.log("SignerInfo count:", signedData.signerInfos.length);
-    console.log("SignedAttrs count:", signedData.signerInfos[0].signedAttrs?.attributes?.length || 0);
 
     // Ensure signature fits in placeholder
     if (signatureHex.length > placeholderLength) {
@@ -271,6 +229,9 @@ export async function signPdf(
     const paddedSignatureHex = signatureHex.padEnd(placeholderLength, '0');
 
     pdfBuffer.set(new TextEncoder().encode(paddedSignatureHex), contentsHexStart);
+
+    let timestampData = undefined;
+    let timestampVerification = undefined;
 
     return { pdfBytes: pdfBuffer, timestampData, timestampVerification };
 }
