@@ -159,17 +159,12 @@ export async function signPdf(
         ]
     });
 
+    // Build proper CMS SignedData structure
     const signedData = new pkijs.SignedData({
         version: 1,
         encapContentInfo: new pkijs.EncapsulatedContentInfo({
             eContentType: "1.2.840.113549.1.7.1"
         }),
-        digestAlgorithms: [
-            new pkijs.AlgorithmIdentifier({
-                algorithmId: "2.16.840.1.101.3.4.2.1", // SHA-256
-                algorithmParams: new asn1js.Null()
-            })
-        ],
         signerInfos: [
             new pkijs.SignerInfo({
                 version: 1,
@@ -180,7 +175,18 @@ export async function signPdf(
                 signedAttrs: new pkijs.SignedAndUnsignedAttributes({
                     type: 0,
                     attributes: [
-                        // ContentType, SigningTime, and MessageDigest will be added by pkijs automatically
+                        new pkijs.Attribute({
+                            type: "1.2.840.113549.1.9.3", // contentType
+                            values: [new asn1js.ObjectIdentifier({ value: "1.2.840.113549.1.7.1" })]
+                        }),
+                        new pkijs.Attribute({
+                            type: "1.2.840.113549.1.9.5", // signingTime
+                            values: [new asn1js.UTCTime({ valueDate: new Date() })]
+                        }),
+                        new pkijs.Attribute({
+                            type: "1.2.840.113549.1.9.4", // messageDigest
+                            values: [new asn1js.OctetString({ valueHex: hash })]
+                        }),
                         new pkijs.Attribute({
                             type: "1.2.840.113549.1.9.16.2.47", // id-aa-signingCertificateV2
                             values: [signingCertificateV2Value]
@@ -192,8 +198,36 @@ export async function signPdf(
         certificates: [certificate]
     });
 
-    // Sign the data - PKIjs will automatically populate digestAlgorithm and signatureAlgorithm
-    await signedData.sign(cryptoKey, 0, "SHA-256", concatenated);
+    // Set digest algorithm
+    signedData.digestAlgorithms = [
+        new pkijs.AlgorithmIdentifier({
+            algorithmId: "2.16.840.1.101.3.4.2.1" // SHA-256
+        })
+    ];
+
+    // Set digest and signature algorithms in SignerInfo
+    signedData.signerInfos[0].digestAlgorithm = new pkijs.AlgorithmIdentifier({
+        algorithmId: "2.16.840.1.101.3.4.2.1" // SHA-256
+    });
+
+    signedData.signerInfos[0].signatureAlgorithm = new pkijs.AlgorithmIdentifier({
+        algorithmId: "1.2.840.10045.4.3.2" // ecdsa-with-SHA256
+    });
+
+    // Now manually sign the signedAttrs
+    const signedAttrsEncoded = signedData.signerInfos[0].signedAttrs!.encodedValue;
+    const signedAttrsHash = await window.crypto.subtle.digest('SHA-256', signedAttrsEncoded);
+    const signature = await window.crypto.subtle.sign(
+        {
+            name: "ECDSA",
+            hash: { name: "SHA-256" }
+        },
+        cryptoKey,
+        signedAttrsHash
+    );
+
+    // Set the signature value
+    signedData.signerInfos[0].signature = new asn1js.OctetString({ valueHex: signature });
 
     // Export CMS
     const cmsDer = signedData.toSchema().toBER(false);
