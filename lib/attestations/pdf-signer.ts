@@ -14,6 +14,27 @@ setEngine("newEngine", cryptoEngine);
 // Placeholder size
 const SIGNATURE_LENGTH = 16000;
 
+// Helper to convert WebCrypto Raw ECDSA signature to ASN.1 DER
+function ecdsaSignatureRawToDer(signature: ArrayBuffer): ArrayBuffer {
+    // ECDSA signature in WebCrypto is concatenation of r and s (raw bytes)
+    // We need to convert it to ASN.1 Sequence of two Integers
+
+    const p1363 = new Uint8Array(signature);
+    if (p1363.length % 2 !== 0) throw new Error("Invalid ECDSA signature length");
+
+    const r = p1363.subarray(0, p1363.length / 2);
+    const s = p1363.subarray(p1363.length / 2);
+
+    const rInteger = new asn1js.Integer({ valueHex: r });
+    const sInteger = new asn1js.Integer({ valueHex: s });
+
+    const sequence = new asn1js.Sequence({
+        value: [rInteger, sInteger]
+    });
+
+    return sequence.toBER(false);
+}
+
 export async function signPdf(
     pdfBytes: Uint8Array,
     key: AttestationKey,
@@ -207,11 +228,19 @@ export async function signPdf(
 
     await signedData.sign(cryptoKey, 0, "SHA-256", concatenated);
 
+    // --- Fix: Convert WebCrypto Raw ECDSA Signature to DER ---
+    // WebCrypto returns P1363 (raw R+S), but CMS requires ASN.1 DER
+    const rawSignature = signedData.signerInfos[0].signature.valueBlock.valueHex;
+    const derSignature = ecdsaSignatureRawToDer(rawSignature);
+
+    // Replace the signature with the DER encoded one
+    signedData.signerInfos[0].signature = new asn1js.OctetString({ valueHex: derSignature });
+
     // --- RFC3161 Timestamping ---
     let timestampData = null;
     let timestampVerification = null;
     try {
-        const signatureValue = signedData.signerInfos[0].signature.valueBlock.valueHex;
+        const signatureValue = derSignature; // Timestamp the DER signature!
 
         // Compute SHA-256 digest of signature value
         const signatureJsHash = await window.crypto.subtle.digest('SHA-256', signatureValue);
