@@ -110,6 +110,15 @@ export async function signPdf(
         throw new Error(`Found Content placeholder of length ${placeholderLength} but expected ${SIGNATURE_LENGTH}. Potential targeting error.`);
     }
 
+    console.log("=== PDF STRUCTURE DEBUG ===");
+    console.log("contentsStart:", contentsStart);
+    console.log("contentsHexStart:", contentsHexStart);
+    console.log("contentsHexEnd:", contentsHexEnd);
+    console.log("placeholderLength:", placeholderLength);
+    console.log("First 100 chars of placeholder:", pdfString.substring(contentsHexStart, contentsHexStart + 100));
+    console.log("Last 100 chars before >:", pdfString.substring(contentsHexEnd - 100, contentsHexEnd));
+    console.log("Char at contentsHexEnd (should be >):", pdfString[contentsHexEnd]);
+
     const byteRangeStart = pdfString.indexOf(byteRangeTag);
     if (byteRangeStart === -1) throw new Error('ByteRange not found');
 
