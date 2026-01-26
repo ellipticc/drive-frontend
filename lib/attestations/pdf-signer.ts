@@ -4,6 +4,7 @@ import * as pkijs from 'pkijs';
 import * as asn1js from 'asn1js';
 import { getCrypto, setEngine } from 'pkijs';
 import { decryptPrivateKeyInternal, importPrivateKeyFromPem, importCertificateFromPem } from './crypto';
+import { apiClient } from '../api';
 import type { AttestationKey } from './types';
 
 // Ensure crypto engine is set
@@ -17,7 +18,7 @@ export async function signPdf(
     pdfBytes: Uint8Array,
     key: AttestationKey,
     masterKey: Uint8Array
-): Promise<Uint8Array> {
+): Promise<{ pdfBytes: Uint8Array; timestampData?: any; timestampVerification?: any }> {
     // 1. Decrypt Keys
     const privateKeyPem = await decryptPrivateKeyInternal(key.encryptedPrivateKey, key.privateKeyNonce, masterKey);
     const cryptoKey = await importPrivateKeyFromPem(privateKeyPem);
@@ -206,6 +207,72 @@ export async function signPdf(
 
     await signedData.sign(cryptoKey, 0, "SHA-256", concatenated);
 
+    // --- RFC3161 Timestamping ---
+    let timestampData = null;
+    let timestampVerification = null;
+    try {
+        const signatureValue = signedData.signerInfos[0].signature.valueBlock.valueHex;
+
+        // Compute SHA-256 digest of signature value
+        const signatureJsHash = await window.crypto.subtle.digest('SHA-256', signatureValue);
+        const signatureHashArray = new Uint8Array(signatureJsHash);
+        const signatureHashHex = Array.from(signatureHashArray)
+            .map(b => b.toString(16).padStart(2, '0'))
+            .join('');
+
+        // Request timestamp from backend
+        const tsResponse = await apiClient.attestTimestamp(signatureHashHex, 'sha256');
+
+        if (tsResponse.success && tsResponse.data) {
+            timestampData = tsResponse.data;
+            const tokenBase64 = tsResponse.data.timestampToken;
+
+            // Verify timestamp immediately
+            try {
+                const verifyRes = await apiClient.verifyTimestamp(tokenBase64, signatureHashHex, 'sha256');
+                if (verifyRes.success) {
+                    timestampVerification = verifyRes.data;
+                }
+            } catch (err) {
+                console.warn("Timestamp verification failed:", err);
+            }
+
+            // Decode Base64 to binary
+            const binaryString = atob(tokenBase64);
+            const tokenBytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                tokenBytes[i] = binaryString.charCodeAt(i);
+            }
+
+            // Parse existing CMS structure of the TimestampToken
+            const asn1 = asn1js.fromBER(tokenBytes.buffer);
+            if (asn1.offset === -1) {
+                throw new Error("Error parsing timestamp token");
+            }
+
+            // Create unsigned attribute id-aa-signatureTimeStampToken
+            const timestampAttribute = new pkijs.Attribute({
+                type: "1.2.840.113549.1.9.16.2.14",
+                values: [asn1.result]
+            });
+
+            // Add to unsignedAttrs
+            if (!signedData.signerInfos[0].unsignedAttrs) {
+                signedData.signerInfos[0].unsignedAttrs = new pkijs.SignedAndUnsignedAttributes({
+                    type: 1, // Unsigned attributes
+                    attributes: []
+                });
+            }
+            signedData.signerInfos[0].unsignedAttrs.attributes.push(timestampAttribute);
+        } else {
+            console.warn("Timestamp request failed:", tsResponse.error);
+        }
+    } catch (e) {
+        console.error("Failed to timestamp signature:", e);
+        // We do not fail the signing process if timestamping fails, just log it.
+        // User requirements: "Provide UI feedback" - so we return the error/absence.
+    }
+
     // Post-Sign Fixes:
     // 1. Ensure SignerInfo.signatureAlgorithm is ecdsa-with-SHA256 (1.2.840.10045.4.3.2)
     //    Default from WebCrypto might be just id-ecPublicKey or similar.
@@ -233,5 +300,5 @@ export async function signPdf(
     const paddedSignatureHex = signatureHex.padEnd(placeholderLength, '0');
     pdfBuffer.set(new TextEncoder().encode(paddedSignatureHex), contentsHexStart);
 
-    return pdfBuffer;
+    return { pdfBytes: pdfBuffer, timestampData, timestampVerification };
 }

@@ -34,6 +34,7 @@ export function PdfSignerView() {
     const [processing, setProcessing] = React.useState(false)
     const [signedPdf, setSignedPdf] = React.useState<Uint8Array | null>(null)
     const [fileName, setFileName] = React.useState<string>("")
+    const [timestampResult, setTimestampResult] = React.useState<any | null>(null)
 
     const { openFilePicker, filesContent, loading, clear } = useFilePicker({
         readAs: 'ArrayBuffer',
@@ -53,6 +54,7 @@ export function PdfSignerView() {
     React.useEffect(() => {
         if (filesContent && filesContent.length > 0) {
             setSignedPdf(null);
+            setTimestampResult(null);
             setFileName(filesContent[0].name);
         }
     }, [filesContent]);
@@ -75,9 +77,21 @@ export function PdfSignerView() {
             const fileContent = filesContent[0].content as ArrayBuffer;
             const pdfBytes = new Uint8Array(fileContent);
 
-            const signedBytes = await signPdf(pdfBytes, key, masterKey);
-            setSignedPdf(signedBytes);
-            toast.success("Document signed successfully!");
+            const result = await signPdf(pdfBytes, key, masterKey);
+            setSignedPdf(result.pdfBytes);
+            if (result.timestampData) {
+                setTimestampResult({
+                    data: result.timestampData,
+                    verification: result.timestampVerification
+                });
+                if (result.timestampVerification?.verified) {
+                    toast.success("Document signed and timestamped successfully!");
+                } else {
+                    toast.success("Document signed, but timestamp verification pending/failed.");
+                }
+            } else {
+                toast.success("Document signed successfully (no timestamp).");
+            }
         } catch (error) {
             console.error(error);
             toast.error("Signing failed: " + (error instanceof Error ? error.message : String(error)));
@@ -164,7 +178,67 @@ export function PdfSignerView() {
                         {processing ? "Signing..." : "Sign Document"}
                     </Button>
                 )}
+
             </CardFooter>
-        </Card>
+
+            {
+                timestampResult && timestampResult.verification && (
+                    <div className="border-t p-6 bg-muted/20">
+                        <h3 className="font-semibold mb-4 flex items-center gap-2">
+                            <IconCheck className="size-5 text-green-600" />
+                            RFC 3161 Timestamp Applied
+                        </h3>
+                        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <dt className="text-muted-foreground">Time</dt>
+                                <dd className="font-medium">
+                                    {timestampResult.verification.genTime
+                                        ? new Date(timestampResult.verification.genTime).toLocaleString()
+                                        : "Unknown"}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt className="text-muted-foreground">TSA Signer</dt>
+                                <dd className="font-medium">
+                                    {timestampResult.verification.tsaSigner?.commonName || "Unknown"}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt className="text-muted-foreground">Organization</dt>
+                                <dd className="font-medium">
+                                    {timestampResult.verification.tsaSigner?.organization || "Unknown"}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt className="text-muted-foreground">Chain Validated</dt>
+                                <dd className="font-medium flex items-center gap-1">
+                                    {timestampResult.verification.tsaCertChainValidated ? (
+                                        <span className="text-green-600 flex items-center gap-1">
+                                            <IconCheck className="size-3" /> Yes
+                                        </span>
+                                    ) : (
+                                        <span className="text-amber-600">No / Unchecked</span>
+                                    )}
+                                </dd>
+                            </div>
+                            {timestampResult.verification.tsaOcspStatus && (
+                                <div>
+                                    <dt className="text-muted-foreground">OCSP Status</dt>
+                                    <dd className="font-medium">
+                                        {timestampResult.verification.tsaOcspStatus}
+                                    </dd>
+                                </div>
+                            )}
+                            <div>
+                                <dt className="text-muted-foreground">Policy OID</dt>
+                                <dd className="font-mono text-xs break-all">
+                                    {timestampResult.verification.policy || timestampResult.data.tsaPolicy || "N/A"}
+                                </dd>
+                            </div>
+                        </dl>
+                    </div>
+                )
+            }
+        </Card >
     )
 }

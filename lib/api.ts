@@ -3949,6 +3949,90 @@ class ApiClient {
   }>> {
     return this.request(`/papers/${paperId}/assets/${assetId}/s3`);
   }
+  async attestTimestamp(hash: string, hashAlgorithm: 'sha256' | 'sha512'): Promise<ApiResponse<{
+    timestampToken: string; // Base64 encoded
+    nonce: string;
+    genTime?: string;
+    tsaPolicy?: string;
+  }>> {
+    try {
+      const response = await fetch('https://timestamp.ellipticc.com/api/v1/attest', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Request-ID': crypto.randomUUID()
+        },
+        body: JSON.stringify({ hash, hashAlgorithm }),
+      });
+
+      const responseData = await response.json();
+
+      if (!response.ok) {
+        return {
+          success: false,
+          status: response.status,
+          error: responseData.error || 'Timestamp attestation failed'
+        };
+      }
+
+      return {
+        success: true,
+        status: response.status,
+        data: responseData
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Network error'
+      };
+    }
+  }
+
+  async verifyTimestamp(timestampToken: string, hash: string, hashAlgorithm: 'sha256' | 'sha512'): Promise<ApiResponse<{
+    verified: boolean;
+    genTime: string;
+    tsaSigner?: {
+      commonName?: string;
+      organization?: string;
+      country?: string;
+    };
+    tsaCertChainValidated?: boolean;
+    tsaOcspStatus?: string;
+    policy?: string;
+    tsaUrl?: string;
+  }>> {
+    try {
+      const response = await fetch('https://timestamp.ellipticc.com/api/v1/verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Request-ID': crypto.randomUUID()
+        },
+        body: JSON.stringify({ timestampToken, hash, hashAlgorithm }),
+      });
+
+      const responseData = await response.json();
+
+      if (!response.ok) {
+        return {
+          success: false,
+          status: response.status,
+          error: responseData.error || 'Timestamp verification failed'
+        };
+      }
+
+      return {
+        success: true,
+        status: response.status,
+        data: responseData
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Network error'
+      };
+    }
+  }
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);
