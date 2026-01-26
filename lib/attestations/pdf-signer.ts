@@ -181,39 +181,6 @@ export async function signPdf(
     concatenated.set(part1);
     concatenated.set(part2, part1.length);
 
-    // Calculate cert hash from the original PEM bytes (decoded) to ensure exact match
-    const b64 = key.certPem.replace(/(-----(BEGIN|END) CERTIFICATE-----|\n)/g, '');
-    const binary = atob(b64);
-    const certBytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-        certBytes[i] = binary.charCodeAt(i);
-    }
-    const certHash = await window.crypto.subtle.digest('SHA-256', certBytes);
-
-    // Create SigningCertificateV2 attribute
-    // ESSCertIDv2 ::= SEQUENCE {
-    //   hashAlgorithm AlgorithmIdentifier DEFAULT {algorithm id-sha256},
-    //   certHash Hash,
-    //   issuerSerial IssuerSerial OPTIONAL
-    // }
-    const essCertIdv2 = new asn1js.Sequence({
-        value: [
-            new pkijs.AlgorithmIdentifier({
-                algorithmId: "2.16.840.1.101.3.4.2.1", // SHA-256
-                algorithmParams: new asn1js.Null()
-            }).toSchema(),
-            new asn1js.OctetString({ valueHex: certHash }) // certHash
-        ]
-    });
-
-    const signingCertificateV2Value = new asn1js.Sequence({
-        value: [
-            new asn1js.Sequence({
-                value: [essCertIdv2] // certs
-            })
-        ]
-    });
-
     const signedData = new pkijs.SignedData({
         version: 1,
         encapContentInfo: new pkijs.EncapsulatedContentInfo({
@@ -235,16 +202,12 @@ export async function signPdf(
                             values: [new asn1js.ObjectIdentifier({ value: "1.2.840.113549.1.7.1" })]
                         }),
                         new pkijs.Attribute({
-                            type: "1.2.840.113549.1.9.4", // Message Digest (will be filled by sign)
-                            values: [new asn1js.OctetString({ valueHex: new Uint8Array(32) })]
-                        }),
-                        new pkijs.Attribute({
                             type: "1.2.840.113549.1.9.5", // Signing Time
                             values: [new asn1js.UTCTime({ valueDate: signingDate })]
                         }),
                         new pkijs.Attribute({
-                            type: "1.2.840.113549.1.9.16.2.47", // SigningCertificateV2 (id-aa-signingCertificateV2)
-                            values: [signingCertificateV2Value]
+                            type: "1.2.840.113549.1.9.4", // Message Digest (will be filled by sign)
+                            values: [new asn1js.OctetString({ valueHex: new Uint8Array(32) })]
                         })
                     ]
                 })
@@ -256,20 +219,15 @@ export async function signPdf(
     // Explicitly set digest algorithm to SHA-256
     signedData.digestAlgorithms = [
         new pkijs.AlgorithmIdentifier({
-            algorithmId: "2.16.840.1.101.3.4.2.1", // SHA-256
-            algorithmParams: new asn1js.Null()
+            algorithmId: "2.16.840.1.101.3.4.2.1" // SHA-256
         })
     ];
 
     // RSA Signing
     await signedData.sign(cryptoKey, 0, "SHA-256", concatenated);
 
-    // Explicitly set encryption algorithm to sha256WithRSAEncryption
-    // (pkijs usually handles this if algorithm is detected, but explicit is safer)
-    signedData.signerInfos[0].signatureAlgorithm = new pkijs.AlgorithmIdentifier({
-        algorithmId: "1.2.840.113549.1.1.11", // sha256WithRSAEncryption
-        algorithmParams: new asn1js.Null()
-    });
+    // Let PKI.js handle the signature algorithm automatically
+    // (it will set sha256WithRSAEncryption correctly based on the key type)
 
     // --- RFC3161 Timestamping (Temporarily Disabled for Debugging) ---
     // let timestampData = null;
