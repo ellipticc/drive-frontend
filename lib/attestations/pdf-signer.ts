@@ -144,13 +144,18 @@ export async function signPdf(
     }
     const certHash = await window.crypto.subtle.digest('SHA-256', certBytes);
 
+    // Create SigningCertificateV2 attribute
+    // ESSCertIDv2 ::= SEQUENCE {
+    //   hashAlgorithm AlgorithmIdentifier DEFAULT {algorithm id-sha256},
+    //   certHash Hash,
+    //   issuerSerial IssuerSerial OPTIONAL
+    // }
     const essCertIdv2 = new asn1js.Sequence({
         value: [
-            new asn1js.Sequence({
-                value: [
-                    new asn1js.ObjectIdentifier({ value: "2.16.840.1.101.3.4.2.1" }), // SHA-256 
-                ]
-            }), // hashAlgorithm
+            new pkijs.AlgorithmIdentifier({
+                algorithmId: "2.16.840.1.101.3.4.2.1", // SHA-256
+                algorithmParams: new asn1js.Null()
+            }).toSchema(),
             new asn1js.OctetString({ valueHex: certHash }) // certHash
         ]
     });
