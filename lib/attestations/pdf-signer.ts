@@ -11,41 +11,8 @@ import type { AttestationKey } from './types';
 const cryptoEngine = new pkijs.CryptoEngine({ name: '', crypto: window.crypto, subtle: window.crypto.subtle });
 setEngine("newEngine", cryptoEngine);
 
-// Placeholder size
+// Placeholder size (large enough for RSA-4096 if needed, though 2048 is ~500 bytes signature + certs)
 const SIGNATURE_LENGTH = 16000;
-
-// Helper to convert WebCrypto Raw ECDSA signature to ASN.1 DER
-function ecdsaSignatureRawToDer(signature: ArrayBuffer): ArrayBuffer {
-    // ECDSA signature in WebCrypto is concatenation of r and s (raw bytes)
-    // We need to convert it to ASN.1 Sequence of two Integers
-
-    const p1363 = new Uint8Array(signature);
-    if (p1363.length % 2 !== 0) throw new Error("Invalid ECDSA signature length");
-
-    const r = p1363.subarray(0, p1363.length / 2);
-    const s = p1363.subarray(p1363.length / 2);
-
-    // Helper to convert raw bytes to ASN.1 Integer, handling the sign bit
-    const toAsn1Integer = (bytes: Uint8Array) => {
-        // If the first bit is set (0x80), we need to prepend 0x00 to denote a positive integer
-        if (bytes[0] & 0x80) {
-            const padded = new Uint8Array(bytes.length + 1);
-            padded[0] = 0x00;
-            padded.set(bytes, 1);
-            return new asn1js.Integer({ valueHex: padded });
-        }
-        return new asn1js.Integer({ valueHex: bytes });
-    };
-
-    const rInteger = toAsn1Integer(r);
-    const sInteger = toAsn1Integer(s);
-
-    const sequence = new asn1js.Sequence({
-        value: [rInteger, sInteger]
-    });
-
-    return sequence.toBER(false);
-}
 
 export async function signPdf(
     pdfBytes: Uint8Array,
@@ -235,7 +202,6 @@ export async function signPdf(
     });
 
     // Explicitly set digest algorithm to SHA-256
-    // (pkijs typically infers this, but doing it explicitly helps compliance)
     signedData.digestAlgorithms = [
         new pkijs.AlgorithmIdentifier({
             algorithmId: "2.16.840.1.101.3.4.2.1", // SHA-256
@@ -243,74 +209,19 @@ export async function signPdf(
         })
     ];
 
+    // RSA Signing
     await signedData.sign(cryptoKey, 0, "SHA-256", concatenated);
+
+    // Explicitly set encryption algorithm to sha256WithRSAEncryption
+    // (pkijs usually handles this if algorithm is detected, but explicit is safer)
+    signedData.signerInfos[0].signatureAlgorithm = new pkijs.AlgorithmIdentifier({
+        algorithmId: "1.2.840.113549.1.1.11", // sha256WithRSAEncryption
+        algorithmParams: new asn1js.Null()
+    });
+
     // --- RFC3161 Timestamping (Temporarily Disabled for Debugging) ---
     // let timestampData = null;
     // let timestampVerification = null; 
-    // try {
-    //     const signatureValue = signedData.signerInfos[0].signature.valueBlock.valueHex;
-
-    //     // Compute SHA-256 digest of signature value
-    //     const signatureJsHash = await window.crypto.subtle.digest('SHA-256', signatureValue);
-    //     const signatureHashArray = new Uint8Array(signatureJsHash);
-    //     const signatureHashHex = Array.from(signatureHashArray)
-    //         .map(b => b.toString(16).padStart(2, '0'))
-    //         .join('');
-
-    //     // Request timestamp from backend
-    //     const tsResponse = await apiClient.attestTimestamp(signatureHashHex, 'sha256');
-
-    //     if (tsResponse.success && tsResponse.data) {
-    //         timestampData = tsResponse.data;
-    //         const tokenBase64 = tsResponse.data.timestampToken;
-
-    //         // Verify timestamp immediately
-    //         try {
-    //             const verifyRes = await apiClient.verifyTimestamp(tokenBase64, signatureHashHex, 'sha256');
-    //             if (verifyRes.success) {
-    //                 timestampVerification = verifyRes.data;
-    //             }
-    //         } catch (err) {
-    //             console.warn("Timestamp verification failed:", err);
-    //         }
-
-    //         // Decode Base64 to binary
-    //         const binaryString = atob(tokenBase64);
-    //         const tokenBytes = new Uint8Array(binaryString.length);
-    //         for (let i = 0; i < binaryString.length; i++) {
-    //             tokenBytes[i] = binaryString.charCodeAt(i);
-    //         }
-
-    //         // Parse existing CMS structure of the TimestampToken
-    //         const asn1 = asn1js.fromBER(tokenBytes.buffer);
-    //         if (asn1.offset === -1) {
-    //             throw new Error("Error parsing timestamp token");
-    //         }
-
-    //         // Create unsigned attribute id-aa-signatureTimeStampToken
-    //         const timestampAttribute = new pkijs.Attribute({
-    //             type: "1.2.840.113549.1.9.16.2.14",
-    //             values: [asn1.result]
-    //         });
-
-    //         // Add to unsignedAttrs
-    //         if (!signedData.signerInfos[0].unsignedAttrs) {
-    //             signedData.signerInfos[0].unsignedAttrs = new pkijs.SignedAndUnsignedAttributes({
-    //                 type: 1, // Unsigned attributes
-    //                 attributes: []
-    //             });
-    //         }
-    //         signedData.signerInfos[0].unsignedAttrs.attributes.push(timestampAttribute);
-    //     } else {
-    //         console.warn("Timestamp request failed:", tsResponse.error);
-    //     }
-    // } catch (e) {
-    //     console.error("Failed to timestamp signature:", e);
-    //     // We do not fail the signing process if timestamping fails, just log it.
-    //     // User requirements: "Provide UI feedback" - so we return the error/absence.
-    // }
-
-    // Explicitly define return variables since traversing is commented out
     let timestampData = undefined;
     let timestampVerification = undefined;
 

@@ -33,11 +33,13 @@ export async function generateAttestationKeypair(
     appName: string = 'Ellipticc Inc.',
     masterKey: Uint8Array
 ): Promise<AttestationKey> {
-    // 1. Generate ECDSA P-256 Keypair using WebCrypto
+    // 1. Generate RSA-2048 Keypair using WebCrypto (RSASSA-PKCS1-v1_5)
     // We need to allow multiple usages for pkijs (sign/verify)
     const algorithm = {
-        name: "ECDSA",
-        namedCurve: "P-256",
+        name: "RSASSA-PKCS1-v1_5",
+        modulusLength: 2048,
+        publicExponent: new Uint8Array([1, 0, 1]), // 65537
+        hash: "SHA-256"
     };
 
     const keyPair = await window.crypto.subtle.generateKey(
@@ -179,8 +181,8 @@ export async function importPrivateKeyFromPem(pem: string): Promise<CryptoKey> {
         'pkcs8',
         buffer,
         {
-            name: "ECDSA",
-            namedCurve: "P-256"
+            name: "RSASSA-PKCS1-v1_5",
+            hash: "SHA-256"
         },
         false, // Not extractable
         ['sign']
