@@ -25,8 +25,20 @@ function ecdsaSignatureRawToDer(signature: ArrayBuffer): ArrayBuffer {
     const r = p1363.subarray(0, p1363.length / 2);
     const s = p1363.subarray(p1363.length / 2);
 
-    const rInteger = new asn1js.Integer({ valueHex: r });
-    const sInteger = new asn1js.Integer({ valueHex: s });
+    // Helper to convert raw bytes to ASN.1 Integer, handling the sign bit
+    const toAsn1Integer = (bytes: Uint8Array) => {
+        // If the first bit is set (0x80), we need to prepend 0x00 to denote a positive integer
+        if (bytes[0] & 0x80) {
+            const padded = new Uint8Array(bytes.length + 1);
+            padded[0] = 0x00;
+            padded.set(bytes, 1);
+            return new asn1js.Integer({ valueHex: padded });
+        }
+        return new asn1js.Integer({ valueHex: bytes });
+    };
+
+    const rInteger = toAsn1Integer(r);
+    const sInteger = toAsn1Integer(s);
 
     const sequence = new asn1js.Sequence({
         value: [rInteger, sInteger]
