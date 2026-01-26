@@ -244,71 +244,75 @@ export async function signPdf(
     ];
 
     await signedData.sign(cryptoKey, 0, "SHA-256", concatenated);
-    // --- RFC3161 Timestamping ---
-    let timestampData = null;
-    let timestampVerification = null;
-    try {
-        const signatureValue = signedData.signerInfos[0].signature.valueBlock.valueHex;
+    // --- RFC3161 Timestamping (Temporarily Disabled for Debugging) ---
+    // let timestampData = null;
+    // let timestampVerification = null; 
+    // try {
+    //     const signatureValue = signedData.signerInfos[0].signature.valueBlock.valueHex;
 
-        // Compute SHA-256 digest of signature value
-        const signatureJsHash = await window.crypto.subtle.digest('SHA-256', signatureValue);
-        const signatureHashArray = new Uint8Array(signatureJsHash);
-        const signatureHashHex = Array.from(signatureHashArray)
-            .map(b => b.toString(16).padStart(2, '0'))
-            .join('');
+    //     // Compute SHA-256 digest of signature value
+    //     const signatureJsHash = await window.crypto.subtle.digest('SHA-256', signatureValue);
+    //     const signatureHashArray = new Uint8Array(signatureJsHash);
+    //     const signatureHashHex = Array.from(signatureHashArray)
+    //         .map(b => b.toString(16).padStart(2, '0'))
+    //         .join('');
 
-        // Request timestamp from backend
-        const tsResponse = await apiClient.attestTimestamp(signatureHashHex, 'sha256');
+    //     // Request timestamp from backend
+    //     const tsResponse = await apiClient.attestTimestamp(signatureHashHex, 'sha256');
 
-        if (tsResponse.success && tsResponse.data) {
-            timestampData = tsResponse.data;
-            const tokenBase64 = tsResponse.data.timestampToken;
+    //     if (tsResponse.success && tsResponse.data) {
+    //         timestampData = tsResponse.data;
+    //         const tokenBase64 = tsResponse.data.timestampToken;
 
-            // Verify timestamp immediately
-            try {
-                const verifyRes = await apiClient.verifyTimestamp(tokenBase64, signatureHashHex, 'sha256');
-                if (verifyRes.success) {
-                    timestampVerification = verifyRes.data;
-                }
-            } catch (err) {
-                console.warn("Timestamp verification failed:", err);
-            }
+    //         // Verify timestamp immediately
+    //         try {
+    //             const verifyRes = await apiClient.verifyTimestamp(tokenBase64, signatureHashHex, 'sha256');
+    //             if (verifyRes.success) {
+    //                 timestampVerification = verifyRes.data;
+    //             }
+    //         } catch (err) {
+    //             console.warn("Timestamp verification failed:", err);
+    //         }
 
-            // Decode Base64 to binary
-            const binaryString = atob(tokenBase64);
-            const tokenBytes = new Uint8Array(binaryString.length);
-            for (let i = 0; i < binaryString.length; i++) {
-                tokenBytes[i] = binaryString.charCodeAt(i);
-            }
+    //         // Decode Base64 to binary
+    //         const binaryString = atob(tokenBase64);
+    //         const tokenBytes = new Uint8Array(binaryString.length);
+    //         for (let i = 0; i < binaryString.length; i++) {
+    //             tokenBytes[i] = binaryString.charCodeAt(i);
+    //         }
 
-            // Parse existing CMS structure of the TimestampToken
-            const asn1 = asn1js.fromBER(tokenBytes.buffer);
-            if (asn1.offset === -1) {
-                throw new Error("Error parsing timestamp token");
-            }
+    //         // Parse existing CMS structure of the TimestampToken
+    //         const asn1 = asn1js.fromBER(tokenBytes.buffer);
+    //         if (asn1.offset === -1) {
+    //             throw new Error("Error parsing timestamp token");
+    //         }
 
-            // Create unsigned attribute id-aa-signatureTimeStampToken
-            const timestampAttribute = new pkijs.Attribute({
-                type: "1.2.840.113549.1.9.16.2.14",
-                values: [asn1.result]
-            });
+    //         // Create unsigned attribute id-aa-signatureTimeStampToken
+    //         const timestampAttribute = new pkijs.Attribute({
+    //             type: "1.2.840.113549.1.9.16.2.14",
+    //             values: [asn1.result]
+    //         });
 
-            // Add to unsignedAttrs
-            if (!signedData.signerInfos[0].unsignedAttrs) {
-                signedData.signerInfos[0].unsignedAttrs = new pkijs.SignedAndUnsignedAttributes({
-                    type: 1, // Unsigned attributes
-                    attributes: []
-                });
-            }
-            signedData.signerInfos[0].unsignedAttrs.attributes.push(timestampAttribute);
-        } else {
-            console.warn("Timestamp request failed:", tsResponse.error);
-        }
-    } catch (e) {
-        console.error("Failed to timestamp signature:", e);
-        // We do not fail the signing process if timestamping fails, just log it.
-        // User requirements: "Provide UI feedback" - so we return the error/absence.
-    }
+    //         // Add to unsignedAttrs
+    //         if (!signedData.signerInfos[0].unsignedAttrs) {
+    //             signedData.signerInfos[0].unsignedAttrs = new pkijs.SignedAndUnsignedAttributes({
+    //                 type: 1, // Unsigned attributes
+    //                 attributes: []
+    //             });
+    //         }
+    //         signedData.signerInfos[0].unsignedAttrs.attributes.push(timestampAttribute);
+    //     } else {
+    //         console.warn("Timestamp request failed:", tsResponse.error);
+    //     }
+    // } catch (e) {
+    //     console.error("Failed to timestamp signature:", e);
+    //     // We do not fail the signing process if timestamping fails, just log it.
+    //     // User requirements: "Provide UI feedback" - so we return the error/absence.
+    // }
+
+    // Explicitly define return variables since traversing is commented out
+    let timestampData = undefined;
+    let timestampVerification = undefined;
 
     // Export CMS
     const cmsDer = signedData.toSchema().toBER(false);
