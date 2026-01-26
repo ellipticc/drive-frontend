@@ -200,13 +200,13 @@ export function PdfSignerView() {
                             <div>
                                 <dt className="text-muted-foreground">TSA Signer</dt>
                                 <dd className="font-medium">
-                                    {timestampResult.verification.tsaSigner?.commonName || "Unknown"}
+                                    {timestampResult.verification.tsaSigner?.subject?.commonName || timestampResult.verification.tsaSigner?.commonName || "Unknown"}
                                 </dd>
                             </div>
                             <div>
                                 <dt className="text-muted-foreground">Organization</dt>
                                 <dd className="font-medium">
-                                    {timestampResult.verification.tsaSigner?.organization || "Unknown"}
+                                    {timestampResult.verification.tsaSigner?.subject?.organizationName || timestampResult.verification.tsaSigner?.organization || "Unknown"}
                                 </dd>
                             </div>
                             <div>

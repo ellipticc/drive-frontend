@@ -3958,9 +3958,6 @@ class ApiClient {
     try {
       const response = await fetch('https://timestamp.ellipticc.com/api/v1/rfc3161/attest', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify({ hash, hashAlgorithm }),
       });
 
@@ -4003,9 +4000,6 @@ class ApiClient {
     try {
       const response = await fetch('https://timestamp.ellipticc.com/api/v1/rfc3161/verify', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify({ timestampToken, hash, hashAlgorithm }),
       });
 
