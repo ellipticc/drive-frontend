@@ -62,6 +62,7 @@ export async function signPdf(
     const pages = pdfDoc.getPages();
     const firstPage = pages[0];
     const signatureFieldName = 'Signature1';
+    const signingDate = new Date(); // Synchronized date for both PDF and CMS
 
     const byteRangePlaceholder = [0, 999999999, 999999999, 999999999];
 
@@ -85,7 +86,7 @@ export async function signPdf(
         Reason: PDFString.of('Attested by Ellipticc User'),
         Location: PDFString.of('Ellipticc Inc.'),
         ContactInfo: PDFString.of(orgName),
-        M: PDFString.fromDate(new Date()),
+        M: PDFString.fromDate(signingDate),
     });
     const signatureRef = pdfDoc.context.register(signatureDict);
 
@@ -212,7 +213,7 @@ export async function signPdf(
                         }),
                         new pkijs.Attribute({
                             type: "1.2.840.113549.1.9.5", // Signing Time
-                            values: [new asn1js.UTCTime({ valueDate: new Date() })]
+                            values: [new asn1js.UTCTime({ valueDate: signingDate })]
                         }),
                         new pkijs.Attribute({
                             type: "1.2.840.113549.1.9.4", // Message Digest (will be filled by sign)
