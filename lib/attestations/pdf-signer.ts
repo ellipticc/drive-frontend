@@ -31,6 +31,15 @@ export async function signPdf(
 
     const byteRangePlaceholder = [0, 999999999, 999999999, 999999999];
 
+    // Extract signer name from certificate
+    const commonName = certificate.subject.typesAndValues.find(
+        (attr: any) => attr.type === "2.5.4.3"
+    )?.value?.valueBlock?.value || "Ellipticc User";
+
+    const orgName = certificate.subject.typesAndValues.find(
+        (attr: any) => attr.type === "2.5.4.10"
+    )?.value?.valueBlock?.value || "Ellipticc Inc.";
+
     // Create Signature Dictionary
     const signatureDict = pdfDoc.context.obj({
         Type: 'Sig',
@@ -38,7 +47,10 @@ export async function signPdf(
         SubFilter: 'adbe.pkcs7.detached',
         ByteRange: byteRangePlaceholder,
         Contents: PDFHexString.of('0'.repeat(SIGNATURE_LENGTH)),
+        Name: PDFString.of(commonName),
         Reason: PDFString.of('Attested by Ellipticc User'),
+        Location: PDFString.of('Ellipticc Inc.'),
+        ContactInfo: PDFString.of(orgName),
         M: PDFString.fromDate(new Date()),
     });
     const signatureRef = pdfDoc.context.register(signatureDict);
@@ -152,6 +164,12 @@ export async function signPdf(
         encapContentInfo: new pkijs.EncapsulatedContentInfo({
             eContentType: "1.2.840.113549.1.7.1"
         }),
+        digestAlgorithms: [
+            new pkijs.AlgorithmIdentifier({
+                algorithmId: "2.16.840.1.101.3.4.2.1", // SHA-256
+                algorithmParams: new asn1js.Null()
+            })
+        ],
         signerInfos: [
             new pkijs.SignerInfo({
                 version: 1,
@@ -174,10 +192,8 @@ export async function signPdf(
         certificates: [certificate]
     });
 
+    // Sign the data - PKIjs will automatically populate digestAlgorithm and signatureAlgorithm
     await signedData.sign(cryptoKey, 0, "SHA-256", concatenated);
-
-    // pkijs produces DER encoded signature automatically for ECDSA
-    // so we don't need manual conversion from Raw P-1363.
 
     // Export CMS
     const cmsDer = signedData.toSchema().toBER(false);

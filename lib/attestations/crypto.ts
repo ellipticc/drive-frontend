@@ -112,13 +112,26 @@ export async function generateAttestationKeypair(
     const bitArray = new ArrayBuffer(1);
     const bitView = new Uint8Array(bitArray);
     bitView[0] = bitView[0] | 0x80; // digitalSignature
-    // bitView[0] = bitView[0] | 0x40; // nonRepudiation (optional)
+    bitView[0] = bitView[0] | 0x40; // nonRepudiation/contentCommitment
 
     const keyUsage = new asn1js.BitString({ valueHex: bitArray });
     certificate.extensions.push(new pkijs.Extension({
         extnID: "2.5.29.15",
-        critical: false,
+        critical: true,
         extnValue: keyUsage.toBER(false)
+    }));
+
+    // Extended Key Usage (for Adobe PDF signing)
+    const extKeyUsage = new asn1js.Sequence({
+        value: [
+            new asn1js.ObjectIdentifier({ value: "1.3.6.1.5.5.7.3.4" }), // Email Protection
+            new asn1js.ObjectIdentifier({ value: "1.2.840.113583.1.1.5" }) // Adobe Authentic Documents Trust
+        ]
+    });
+    certificate.extensions.push(new pkijs.Extension({
+        extnID: "2.5.29.37", // id-ce-extKeyUsage
+        critical: false,
+        extnValue: extKeyUsage.toBER(false)
     }));
 
     // Subject Key Identifier (calculate hash of public key)
