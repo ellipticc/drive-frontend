@@ -283,6 +283,16 @@ export async function signPdf(
     // Write signature to PDF buffer
     pdfBuffer.set(encoder.encode(paddedSignature), contentsHexStart);
 
+    // Verify what was actually written
+    const writtenHex = new TextDecoder().decode(pdfBuffer.subarray(contentsHexStart, contentsHexStart + 100));
+    console.log(`First 100 chars written to Contents: ${writtenHex}`);
+    console.log(`First 100 chars of paddedSignature: ${paddedSignature.substring(0, 100)}`);
+
+    // Check if they match
+    if (writtenHex !== paddedSignature.substring(0, 100)) {
+        console.error("CRITICAL: Written hex does not match intended signature!");
+    }
+
     // Final Validation Step
     validatePdfStructure(pdfBuffer, contentsHexStart, contentsEnd, [range1Start, range1Length, range2Start, range2Length]);
 
