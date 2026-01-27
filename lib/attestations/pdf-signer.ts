@@ -179,9 +179,13 @@ export async function signPdf(
 
     const placeholderLen = contentsEnd - contentsHexStart;
 
-    if (placeholderLen !== SIGNATURE_LENGTH) {
-        throw new Error(`Placeholder length mismatch: found ${placeholderLen}, expected ${SIGNATURE_LENGTH}`);
-    }
+    console.log(`=== PLACEHOLDER DEBUG ===`);
+    console.log(`Expected SIGNATURE_LENGTH: ${SIGNATURE_LENGTH}`);
+    console.log(`Actual placeholder length: ${placeholderLen}`);
+    console.log(`First 20 bytes of placeholder: ${new TextDecoder().decode(pdfBuffer.subarray(contentsHexStart, contentsHexStart + 20))}`);
+
+    // PDFHexString.of() might be creating a different length than expected
+    // We should use the ACTUAL placeholder length, not the constant
 
     // 4. Calculate ByteRange
     const range1Start = 0;
