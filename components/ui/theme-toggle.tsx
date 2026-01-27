@@ -18,93 +18,26 @@ const useThemeToggle = () => {
     setIsDark(resolvedTheme === "dark")
   }, [resolvedTheme])
 
-  const styleId = "theme-transition-styles"
-
-  const updateStyles = React.useCallback((css: string) => {
-    if (typeof window === "undefined") return
-
-    let styleElement = document.getElementById(styleId) as HTMLStyleElement
-
-    if (!styleElement) {
-      styleElement = document.createElement("style")
-      styleElement.id = styleId
-      document.head.appendChild(styleElement)
-    }
-
-    styleElement.textContent = css
-  }, [])
-
   const toggleTheme = React.useCallback(async () => {
     setIsDark(!isDark)
-
-    // Animation CSS for circle variant, top-right, no blur
-    const animationCSS = `
-      ::view-transition-group(root) {
-        animation-duration: 1.5s;
-        animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-      }
-            
-      ::view-transition-new(root) {
-        animation-name: reveal-light-top-right;
-      }
-
-      ::view-transition-old(root),
-      .dark::view-transition-old(root) {
-        animation: none;
-        z-index: -1;
-      }
-      
-      .dark::view-transition-new(root) {
-        animation-name: reveal-dark-top-right;
-      }
-
-      @keyframes reveal-dark-top-right {
-        from {
-          clip-path: circle(0% at 100% 0%);
-        }
-        to {
-          clip-path: circle(150.0% at 100% 0%);
-        }
-      }
-
-      @keyframes reveal-light-top-right {
-        from {
-          clip-path: circle(0% at 100% 0%);
-        }
-        to {
-          clip-path: circle(150.0% at 100% 0%);
-        }
-      }
-    `
-
-    updateStyles(animationCSS)
 
     if (typeof window === "undefined") return
 
     const newMode = theme === "light" ? "dark" : "light"
     
-    const switchTheme = async () => {
-      setTheme(newMode)
-      
-      // If sync is on, disable it because user is making a manual choice
-      if (user?.theme_sync) {
-        try {
-          updateUser({ theme_sync: false })
-          await apiClient.updateProfile({ theme_sync: false })
-          await refetch()
-        } catch (err) {
-          console.error("Failed to disable theme sync:", err)
-        }
+    setTheme(newMode)
+    
+    // If sync is on, disable it because user is making a manual choice
+    if (user?.theme_sync) {
+      try {
+        updateUser({ theme_sync: false })
+        await apiClient.updateProfile({ theme_sync: false })
+        await refetch()
+      } catch (err) {
+        console.error("Failed to disable theme sync:", err)
       }
     }
-
-    if (!document.startViewTransition) {
-      await switchTheme()
-      return
-    }
-
-    document.startViewTransition(switchTheme)
-  }, [theme, setTheme, isDark, setIsDark, updateStyles, user?.theme_sync, updateUser, refetch])
+  }, [theme, setTheme, isDark, setIsDark, user?.theme_sync, updateUser, refetch])
 
   return {
     isDark,
