@@ -233,18 +233,31 @@ export async function signPdf(
                 type: forge.pki.oids.messageDigest
                 // auto-populated
             },
-            {
-                type: forge.pki.oids.signingTime,
-                value: signingDate as unknown as string // Forge types can be loose, it expects Date object or similar
-            }
+            // {
+            //     type: forge.pki.oids.signingTime,
+            //     value: signingDate as unknown as string // Forge types can be loose, it expects Date object or similar
+            // }
         ]
     });
 
-    p7.sign({ detached: true });
+    // Sign detached (critical for PDF signatures)
+    try {
+        p7.sign({ detached: true });
+    } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        throw new Error('Signing failed: ' + errorMessage);
+    }
 
     // DER encode
     const derBuffer = forge.asn1.toDer(p7.toAsn1()).getBytes();
     console.log(`Final CMS DER byte length: ${derBuffer.length}`);
+
+    // Validate ASN.1 Prefix (0x30 is SEQUENCE)
+    if (derBuffer.charCodeAt(0) !== 0x30) {
+        console.error(`CRITICAL: Signature does not start with 0x30 (SEQUENCE). First byte: 0x${derBuffer.charCodeAt(0).toString(16)}`);
+    } else {
+        console.log("Signature starts with 0x30 (Valid ASN.1 SEQUENCE)");
+    }
 
     if (derBuffer.length * 2 > placeholderLen) {
         throw new Error(`Signature too large! DER bytes (${derBuffer.length}) * 2 > Placeholder (${placeholderLen})`);
