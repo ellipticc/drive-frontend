@@ -1,12 +1,13 @@
-﻿
-import { PDFDocument, PDFName, PDFString, PDFArray, PDFDict, PDFHexString } from 'pdf-lib';
-import * as forge from 'node-forge';
+﻿import { PDFDocument, PDFName, PDFString, PDFArray, PDFDict, PDFHexString } from 'pdf-lib';
+import * as asn1js from 'asn1js';
+import * as pkijs from 'pkijs';
+import { fromBER } from 'asn1js';
+import { Certificate } from 'pkijs';
+import * as crypto from 'crypto';
 import { decryptPrivateKeyInternal } from './crypto';
 import type { AttestationKey } from './types';
 
-// Placeholder size must be even number for hex pairs
 const SIGNATURE_LENGTH = 16000;
-
 
 function findSequence(data: Uint8Array, maxLen: number, sequence: Uint8Array, fromIndex = 0): number {
     for (let i = fromIndex; i < data.length - sequence.length; i++) {
@@ -22,44 +23,15 @@ function findSequence(data: Uint8Array, maxLen: number, sequence: Uint8Array, fr
     return -1;
 }
 
-// Helper to validate the signed PDF structure immediately
-function validatePdfStructure(pdfBuffer: Uint8Array, contentsHexStart: number, contentsEnd: number, byteRange: number[]) {
-    console.log("=== STRICT VALIDATION DEBUG ===");
-
-    // 1. Verify Hex String Format
-    const hexContent = new TextDecoder().decode(pdfBuffer.subarray(contentsHexStart, contentsEnd));
-    console.log(`Hex content length: ${hexContent.length}`);
-
-    if (hexContent.length % 2 !== 0) {
-        console.error("CRITICAL: Hex content length is ODD!");
-    }
-
-    if (!/^[0-9A-Fa-f]+$/.test(hexContent)) {
-        console.error("CRITICAL: Hex content contains non-hex characters!");
-        // Find the bad char
-        for (let i = 0; i < hexContent.length; i++) {
-            if (!/[0-9A-Fa-f]/.test(hexContent[i])) {
-                console.error(`Bad char at index ${i}: '${hexContent[i]}' (code ${hexContent.charCodeAt(i)})`);
-                break;
-            }
-        }
-    }
-
-    // 2. Verify ByteRange
-    const [r1s, r1l, r2s, r2l] = byteRange;
-    console.log(`ByteRange: [${r1s}, ${r1l}, ${r2s}, ${r2l}]`);
-    console.log(`Actual Contents Hole: ${contentsHexStart} to ${contentsEnd}`);
-
-    if (r1s !== 0) console.error("CRITICAL: ByteRange[0] must be 0");
-    if (r1l !== contentsHexStart) console.error(`CRITICAL: ByteRange[1] (${r1l}) != contentsHexStart (${contentsHexStart})`);
-    if (r2s !== contentsEnd) console.error(`CRITICAL: ByteRange[2] (${r2s}) != contentsEnd (${contentsEnd})`);
-    if (r2s + r2l !== pdfBuffer.length) {
-        console.error(`CRITICAL: ByteRange covers ${r2s + r2l} bytes, but file is ${pdfBuffer.length} bytes`);
-    } else {
-        console.log("ByteRange strictly covers the entire file skipping ONLY the contents.");
-    }
+// Convert PEM to DER
+function pemToDer(pem: string): ArrayBuffer {
+    const b64 = pem
+        .replace(/-----BEGIN [^-]+-----/, '')
+        .replace(/-----END [^-]+-----/, '')
+        .replace(/\s/g, '');
+    const binary = Buffer.from(b64, 'base64');
+    return binary.buffer.slice(binary.byteOffset, binary.byteOffset + binary.byteLength);
 }
-
 
 export async function signPdf(
     pdfBytes: Uint8Array,
@@ -69,9 +41,15 @@ export async function signPdf(
     // 1. Decrypt private key
     const privateKeyPem = await decryptPrivateKeyInternal(key.encryptedPrivateKey, key.privateKeyNonce, masterKey);
 
-    // Convert PEM to forge objects
-    const forgePrivateKey = forge.pki.privateKeyFromPem(privateKeyPem);
-    const forgeCert = forge.pki.certificateFromPem(key.certPem);
+    // Parse certificate
+    const certDer = pemToDer(key.certPem);
+    const certAsn1 = fromBER(certDer);
+    const certificate = new Certificate({ schema: certAsn1.result });
+
+    // Extract signer info
+    const commonName = certificate.subject.typesAndValues.find(
+        (attr: any) => attr.type === '2.5.4.3'
+    )?.value.valueBlock.value || 'Ellipticc User';
 
     // 2. Load PDF & Add Placeholder
     const pdfDoc = await PDFDocument.load(pdfBytes);
@@ -80,17 +58,8 @@ export async function signPdf(
     const signatureFieldName = 'Signature1';
     const signingDate = new Date();
 
-    // Create a placeholder string that is easy to find.
-    // We'll replace the actual array values later in the buffer.
     const byteRangePlaceholder = [0, 999999999, 999999999, 999999999];
 
-    // Extract signer info
-    const commonName = forgeCert.subject.getField('CN')?.value || 'Ellipticc User';
-    const orgName = forgeCert.subject.getField('O')?.value || 'Ellipticc Inc.';
-
-    // Create Signature Dictionary
-    // We use a hex string of zeros. IMPORTANT: PDFHexString.of will double the length in logic if we aren't careful,
-    // but here we just want '0' repeated.
     const signatureDict = pdfDoc.context.obj({
         Type: 'Sig',
         Filter: 'Adobe.PPKLite',
@@ -100,12 +69,10 @@ export async function signPdf(
         Name: PDFString.of(commonName),
         Reason: PDFString.of('Attested by Ellipticc User'),
         Location: PDFString.of('Ellipticc Inc.'),
-        ContactInfo: PDFString.of(orgName),
         M: PDFString.fromDate(signingDate),
     });
     const signatureRef = pdfDoc.context.register(signatureDict);
 
-    // Widget
     const widgetDict = pdfDoc.context.obj({
         Type: 'Annot',
         Subtype: 'Widget',
@@ -119,21 +86,17 @@ export async function signPdf(
     const widgetRef = pdfDoc.context.register(widgetDict);
     firstPage.node.set(PDFName.of('Annots'), pdfDoc.context.obj([widgetRef]));
 
-    // AcroForm
     let acroForm = pdfDoc.catalog.lookup(PDFName.of('AcroForm'));
     if (!acroForm) {
         acroForm = pdfDoc.context.obj({ Fields: [], SigFlags: 3 });
         pdfDoc.catalog.set(PDFName.of('AcroForm'), acroForm);
     }
     if (!(acroForm instanceof PDFDict)) {
-        // If it exists but isn't a dict (rare), recreate safe version
         acroForm = pdfDoc.context.obj({ Fields: [], SigFlags: 3 });
         pdfDoc.catalog.set(PDFName.of('AcroForm'), acroForm);
     }
 
-    // Explicitly cast to PDFDict to satisfy TypeScript
     const safeAcroForm = acroForm as PDFDict;
-
     if (!safeAcroForm.has(PDFName.of('SigFlags'))) {
         safeAcroForm.set(PDFName.of('SigFlags'), pdfDoc.context.obj(3));
     }
@@ -147,45 +110,31 @@ export async function signPdf(
         fields.push(widgetRef);
     }
 
-    // Save with a generic placeholder. We need no streams to make searching easier.
     const savedPdfWithPlaceholder = await pdfDoc.save({ useObjectStreams: false });
     const pdfBuffer = new Uint8Array(savedPdfWithPlaceholder);
 
-    // 3. Find offsets safely using binary search
-    // We look for "/Contents <" and the closing ">"
+    // 3. Find offsets
     const encoder = new TextEncoder();
     const contentsTag = encoder.encode('/Contents <');
     const byteRangeTag = encoder.encode('/ByteRange [');
 
-    // Find ByteRange Start
     const byteRangeStart = findSequence(pdfBuffer, pdfBuffer.length, byteRangeTag);
-    if (byteRangeStart === -1) throw new Error('ByteRange not found in saved PDF');
+    if (byteRangeStart === -1) throw new Error('ByteRange not found');
 
-    // Find ByteRange End "]"
     const closeBracket = encoder.encode(']');
     const byteRangeEnd = findSequence(pdfBuffer, pdfBuffer.length, closeBracket, byteRangeStart);
-    if (byteRangeEnd === -1) throw new Error('ByteRange closing bracket not found');
+    if (byteRangeEnd === -1) throw new Error('ByteRange ] not found');
 
-    // Find Contents Start
     const contentsStart = findSequence(pdfBuffer, pdfBuffer.length, contentsTag);
     if (contentsStart === -1) throw new Error('Contents not found');
 
     const contentsHexStart = contentsStart + contentsTag.length;
 
-    // Find Contents End ">"
     const closeAngle = encoder.encode('>');
     const contentsEnd = findSequence(pdfBuffer, pdfBuffer.length, closeAngle, contentsHexStart);
-    if (contentsEnd === -1) throw new Error('Contents closing angle not found');
+    if (contentsEnd === -1) throw new Error('Contents > not found');
 
     const placeholderLen = contentsEnd - contentsHexStart;
-
-    console.log(`=== PLACEHOLDER DEBUG ===`);
-    console.log(`Expected SIGNATURE_LENGTH: ${SIGNATURE_LENGTH}`);
-    console.log(`Actual placeholder length: ${placeholderLen}`);
-    console.log(`First 20 bytes of placeholder: ${new TextDecoder().decode(pdfBuffer.subarray(contentsHexStart, contentsHexStart + 20))}`);
-
-    // PDFHexString.of() might be creating a different length than expected
-    // We should use the ACTUAL placeholder length, not the constant
 
     // 4. Calculate ByteRange
     const range1Start = 0;
@@ -193,130 +142,106 @@ export async function signPdf(
     const range2Start = contentsEnd;
     const range2Length = pdfBuffer.length - contentsEnd;
 
-    // Construct ByteRange string
     const byteRangeStr = `${range1Start} ${range1Length} ${range2Start} ${range2Length}`;
-
-    // Calculate available space for ByteRange array
-    // We are replacing "[ 0 999999999 999999999 999999999 ]" with "[ 0 123 456 789              ]"
-    // The start index for writing is byteRangeStart + byteRangeTag.length
     const byteRangeWriteStart = byteRangeStart + byteRangeTag.length;
     const availableSpace = byteRangeEnd - byteRangeWriteStart;
 
     if (byteRangeStr.length > availableSpace) {
-        throw new Error(`ByteRange string "${byteRangeStr}" is too long for placeholder space (${availableSpace})`);
+        throw new Error(`ByteRange too long`);
     }
 
-    // Pad with spaces
     const paddedByteRange = byteRangeStr.padEnd(availableSpace, ' ');
     pdfBuffer.set(encoder.encode(paddedByteRange), byteRangeWriteStart);
 
-    // 5. Hash & Sign
-    // We hash the two byte ranges
+    // 5. Create detached CMS signature using PKI.js
     const part1 = pdfBuffer.subarray(range1Start, range1Start + range1Length);
     const part2 = pdfBuffer.subarray(range2Start, range2Start + range2Length);
+    const dataToSign = new Uint8Array(part1.length + part2.length);
+    dataToSign.set(part1);
+    dataToSign.set(part2, part1.length);
 
-    // Create forge buffer
-    const concatenated = new Uint8Array(part1.length + part2.length);
-    concatenated.set(part1);
-    concatenated.set(part2, part1.length);
+    // Create CMS Signed Data
+    const cmsSigned = new pkijs.SignedData({
+        version: 1,
+        encapContentInfo: new pkijs.EncapsulatedContentInfo({
+            eContentType: '1.2.840.113549.1.7.1' // data
+            // eContent is ABSENT for detached signatures
+        }),
+        signerInfos: [],
+        certificates: [certificate]
+    });
 
-    const p7 = forge.pkcs7.createSignedData();
+    // Hash the data
+    const hashAlgorithm = 'SHA-256';
+    const hash = crypto.createHash('sha256').update(dataToSign).digest();
 
-    p7.content = forge.util.createBuffer(concatenated);
+    // Create signer info
+    const signerInfo = new pkijs.SignerInfo({
+        version: 1,
+        sid: new pkijs.IssuerAndSerialNumber({
+            issuer: certificate.issuer,
+            serialNumber: certificate.serialNumber
+        })
+    });
 
-    // Add certificate first
-    p7.addCertificate(forgeCert);
+    // Set hash algorithm
+    signerInfo.digestAlgorithm = new pkijs.AlgorithmIdentifier({
+        algorithmId: '2.16.840.1.101.3.4.2.1' // SHA-256
+    });
 
-    p7.addSigner({
-        key: forgePrivateKey,
-        certificate: forgeCert,
-        digestAlgorithm: forge.pki.oids.sha256,
-        authenticatedAttributes: [
-            {
-                type: forge.pki.oids.contentType,
-                value: forge.pki.oids.data
-            },
-            {
-                type: forge.pki.oids.messageDigest
-                // auto-populated
-            }
-            // signingTime removed to test if it causes encoding issues
+    // Set signature algorithm
+    signerInfo.signatureAlgorithm = new pkijs.AlgorithmIdentifier({
+        algorithmId: '1.2.840.113549.1.1.1' // RSA
+    });
+
+    // Add signed attributes
+    signerInfo.signedAttrs = new pkijs.SignedAndUnsignedAttributes({
+        type: 0,
+        attributes: [
+            new pkijs.Attribute({
+                type: '1.2.840.113549.1.9.3', // contentType
+                values: [
+                    new asn1js.ObjectIdentifier({ value: '1.2.840.113549.1.7.1' })
+                ]
+            }),
+            new pkijs.Attribute({
+                type: '1.2.840.113549.1.9.4', // messageDigest
+                values: [
+                    new asn1js.OctetString({ valueHex: hash })
+                ]
+            })
         ]
     });
 
-    // Sign with detached mode - this should exclude content from the CMS structure
-    try {
-        p7.sign({ detached: true });
-    } catch (err: unknown) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        throw new Error('Signing failed: ' + errorMessage);
+    // Sign the attributes
+    const signedAttrsEncoded = signerInfo.signedAttrs!.encodedValue;
+    const sign = crypto.createSign('RSA-SHA256');
+    sign.update(Buffer.from(signedAttrsEncoded));
+    const signature = sign.sign(privateKeyPem);
+
+    signerInfo.signature = new asn1js.OctetString({ valueHex: signature });
+
+    cmsSigned.signerInfos.push(signerInfo);
+
+    // Encode to DER
+    const cmsContentInfo = new pkijs.ContentInfo({
+        contentType: '1.2.840.113549.1.7.2', // signedData
+        content: cmsSigned.toSchema(true)
+    });
+
+    const cmsEncoded = cmsContentInfo.toSchema().toBER(false);
+    const signatureHex = Buffer.from(cmsEncoded).toString('hex').toUpperCase();
+
+    console.log(`PKI.js signature length: ${signatureHex.length} chars (${cmsEncoded.byteLength} bytes)`);
+
+    if (signatureHex.length > placeholderLen) {
+        throw new Error(`Signature too large: ${signatureHex.length} > ${placeholderLen}`);
     }
 
-    // Get ASN.1 structure
-    const asn1 = p7.toAsn1();
-
-    if (asn1.value && Array.isArray(asn1.value)) {
-        // Find encapContentInfo (usually at index 2)
-        const encapContentInfo = asn1.value[2];
-        if (encapContentInfo && encapContentInfo.value && Array.isArray(encapContentInfo.value)) {
-            // If there's more than just contentType OID, remove eContent
-            if (encapContentInfo.value.length > 1) {
-                console.log(`Removing eContent from encapContentInfo (had ${encapContentInfo.value.length} elements)`);
-                encapContentInfo.value = [encapContentInfo.value[0]]; // Keep only contentType OID
-            }
-        }
-    }
-
-    // DER encode
-    const derBuffer = forge.asn1.toDer(asn1).getBytes();
-    console.log(`Final CMS DER byte length: ${derBuffer.length}`);
-
-    // Validate ASN.1 Prefix (0x30 is SEQUENCE)
-    if (derBuffer.charCodeAt(0) !== 0x30) {
-        console.error(`CRITICAL: Signature does not start with 0x30 (SEQUENCE). First byte: 0x${derBuffer.charCodeAt(0).toString(16)}`);
-    } else {
-        console.log("Signature starts with 0x30 (Valid ASN.1 SEQUENCE)");
-    }
-
-    if (derBuffer.length * 2 > placeholderLen) {
-        throw new Error(`Signature too large! DER bytes (${derBuffer.length}) * 2 > Placeholder (${placeholderLen})`);
-    }
-
-    // Convert to hex
-    // Helper to faster conversion than string concatenation in loop
-    const hexChars = [];
-    for (let i = 0; i < derBuffer.length; i++) {
-        const byte = derBuffer.charCodeAt(i);
-        hexChars.push(('0' + byte.toString(16)).slice(-2));
-    }
-    // Strict uppercase hex
-    const signatureHex = hexChars.join('').toUpperCase();
-
-    // Pad with '0's to fill the placeholder
     const paddedSignature = signatureHex.padEnd(placeholderLen, '0');
-
-    // Write signature to PDF buffer
     pdfBuffer.set(encoder.encode(paddedSignature), contentsHexStart);
 
-    // Verify what was actually written
-    const writtenHex = new TextDecoder().decode(pdfBuffer.subarray(contentsHexStart, contentsHexStart + 100));
-    console.log(`First 100 chars written to Contents: ${writtenHex}`);
-    console.log(`First 100 chars of paddedSignature: ${paddedSignature.substring(0, 100)}`);
-
-    // Check the END of the signature (where padding starts)
-    const sigEnd = contentsHexStart + signatureHex.length;
-    const paddingStart = new TextDecoder().decode(pdfBuffer.subarray(sigEnd, sigEnd + 20));
-    console.log(`Signature hex length: ${signatureHex.length}`);
-    console.log(`Padding starts at offset ${sigEnd}, first 20 chars: ${paddingStart}`);
-    console.log(`Last 20 chars of actual signature: ${signatureHex.substring(signatureHex.length - 20)}`);
-
-    // Check if they match
-    if (writtenHex !== paddedSignature.substring(0, 100)) {
-        console.error("CRITICAL: Written hex does not match intended signature!");
-    }
-
-    // Final Validation Step
-    validatePdfStructure(pdfBuffer, contentsHexStart, contentsEnd, [range1Start, range1Length, range2Start, range2Length]);
+    console.log('PDF signed successfully with PKI.js');
 
     return { pdfBytes: pdfBuffer };
 }
