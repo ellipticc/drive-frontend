@@ -7,6 +7,7 @@ import type { AttestationKey } from './types';
 // Placeholder size must be even number for hex pairs
 const SIGNATURE_LENGTH = 16000;
 
+
 function findSequence(data: Uint8Array, maxLen: number, sequence: Uint8Array, fromIndex = 0): number {
     for (let i = fromIndex; i < data.length - sequence.length; i++) {
         let match = true;
@@ -20,6 +21,45 @@ function findSequence(data: Uint8Array, maxLen: number, sequence: Uint8Array, fr
     }
     return -1;
 }
+
+// Helper to validate the signed PDF structure immediately
+function validatePdfStructure(pdfBuffer: Uint8Array, contentsHexStart: number, contentsEnd: number, byteRange: number[]) {
+    console.log("=== STRICT VALIDATION DEBUG ===");
+
+    // 1. Verify Hex String Format
+    const hexContent = new TextDecoder().decode(pdfBuffer.subarray(contentsHexStart, contentsEnd));
+    console.log(`Hex content length: ${hexContent.length}`);
+
+    if (hexContent.length % 2 !== 0) {
+        console.error("CRITICAL: Hex content length is ODD!");
+    }
+
+    if (!/^[0-9A-Fa-f]+$/.test(hexContent)) {
+        console.error("CRITICAL: Hex content contains non-hex characters!");
+        // Find the bad char
+        for (let i = 0; i < hexContent.length; i++) {
+            if (!/[0-9A-Fa-f]/.test(hexContent[i])) {
+                console.error(`Bad char at index ${i}: '${hexContent[i]}' (code ${hexContent.charCodeAt(i)})`);
+                break;
+            }
+        }
+    }
+
+    // 2. Verify ByteRange
+    const [r1s, r1l, r2s, r2l] = byteRange;
+    console.log(`ByteRange: [${r1s}, ${r1l}, ${r2s}, ${r2l}]`);
+    console.log(`Actual Contents Hole: ${contentsHexStart} to ${contentsEnd}`);
+
+    if (r1s !== 0) console.error("CRITICAL: ByteRange[0] must be 0");
+    if (r1l !== contentsHexStart) console.error(`CRITICAL: ByteRange[1] (${r1l}) != contentsHexStart (${contentsHexStart})`);
+    if (r2s !== contentsEnd) console.error(`CRITICAL: ByteRange[2] (${r2s}) != contentsEnd (${contentsEnd})`);
+    if (r2s + r2l !== pdfBuffer.length) {
+        console.error(`CRITICAL: ByteRange covers ${r2s + r2l} bytes, but file is ${pdfBuffer.length} bytes`);
+    } else {
+        console.log("ByteRange strictly covers the entire file skipping ONLY the contents.");
+    }
+}
+
 
 export async function signPdf(
     pdfBytes: Uint8Array,
@@ -204,6 +244,11 @@ export async function signPdf(
 
     // DER encode
     const derBuffer = forge.asn1.toDer(p7.toAsn1()).getBytes();
+    console.log(`Final CMS DER byte length: ${derBuffer.length}`);
+
+    if (derBuffer.length * 2 > placeholderLen) {
+        throw new Error(`Signature too large! DER bytes (${derBuffer.length}) * 2 > Placeholder (${placeholderLen})`);
+    }
 
     // Convert to hex
     // Helper to faster conversion than string concatenation in loop
@@ -212,17 +257,17 @@ export async function signPdf(
         const byte = derBuffer.charCodeAt(i);
         hexChars.push(('0' + byte.toString(16)).slice(-2));
     }
-    const signatureHex = hexChars.join('');
-
-    if (signatureHex.length > placeholderLen) {
-        throw new Error(`Signature too large: ${signatureHex.length} > ${placeholderLen}`);
-    }
+    // Strict uppercase hex
+    const signatureHex = hexChars.join('').toUpperCase();
 
     // Pad with '0's to fill the placeholder
     const paddedSignature = signatureHex.padEnd(placeholderLen, '0');
 
     // Write signature to PDF buffer
     pdfBuffer.set(encoder.encode(paddedSignature), contentsHexStart);
+
+    // Final Validation Step
+    validatePdfStructure(pdfBuffer, contentsHexStart, contentsEnd, [range1Start, range1Length, range2Start, range2Length]);
 
     return { pdfBytes: pdfBuffer };
 }
