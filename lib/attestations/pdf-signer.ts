@@ -4,8 +4,22 @@ import * as forge from 'node-forge';
 import { decryptPrivateKeyInternal } from './crypto';
 import type { AttestationKey } from './types';
 
-// Placeholder size (large enough for RSA-4096 if needed, though 2048 is ~500 bytes signature + certs)
+// Placeholder size must be even number for hex pairs
 const SIGNATURE_LENGTH = 16000;
+
+function findSequence(data: Uint8Array, maxLen: number, sequence: Uint8Array, fromIndex = 0): number {
+    for (let i = fromIndex; i < data.length - sequence.length; i++) {
+        let match = true;
+        for (let j = 0; j < sequence.length; j++) {
+            if (data[i + j] !== sequence[j]) {
+                match = false;
+                break;
+            }
+        }
+        if (match) return i;
+    }
+    return -1;
+}
 
 export async function signPdf(
     pdfBytes: Uint8Array,
@@ -14,7 +28,7 @@ export async function signPdf(
 ): Promise<{ pdfBytes: Uint8Array; timestampData?: any; timestampVerification?: any }> {
     // 1. Decrypt private key
     const privateKeyPem = await decryptPrivateKeyInternal(key.encryptedPrivateKey, key.privateKeyNonce, masterKey);
-    
+
     // Convert PEM to forge objects
     const forgePrivateKey = forge.pki.privateKeyFromPem(privateKeyPem);
     const forgeCert = forge.pki.certificateFromPem(key.certPem);
@@ -26,6 +40,8 @@ export async function signPdf(
     const signatureFieldName = 'Signature1';
     const signingDate = new Date();
 
+    // Create a placeholder string that is easy to find.
+    // We'll replace the actual array values later in the buffer.
     const byteRangePlaceholder = [0, 999999999, 999999999, 999999999];
 
     // Extract signer info
@@ -33,6 +49,8 @@ export async function signPdf(
     const orgName = forgeCert.subject.getField('O')?.value || 'Ellipticc Inc.';
 
     // Create Signature Dictionary
+    // We use a hex string of zeros. IMPORTANT: PDFHexString.of will double the length in logic if we aren't careful,
+    // but here we just want '0' repeated.
     const signatureDict = pdfDoc.context.obj({
         Type: 'Sig',
         Filter: 'Adobe.PPKLite',
@@ -67,121 +85,101 @@ export async function signPdf(
         acroForm = pdfDoc.context.obj({ Fields: [], SigFlags: 3 });
         pdfDoc.catalog.set(PDFName.of('AcroForm'), acroForm);
     }
-    if (!(acroForm instanceof PDFDict)) throw new Error('AcroForm invalid');
-
-    if (!acroForm.has(PDFName.of('SigFlags'))) {
-        acroForm.set(PDFName.of('SigFlags'), pdfDoc.context.obj(3));
+    if (!(acroForm instanceof PDFDict)) {
+        // If it exists but isn't a dict (rare), recreate safe version
+        acroForm = pdfDoc.context.obj({ Fields: [], SigFlags: 3 });
+        pdfDoc.catalog.set(PDFName.of('AcroForm'), acroForm);
     }
 
-    let fields = acroForm.lookup(PDFName.of('Fields'));
+    // Explicitly cast to PDFDict to satisfy TypeScript
+    const safeAcroForm = acroForm as PDFDict;
+
+    if (!safeAcroForm.has(PDFName.of('SigFlags'))) {
+        safeAcroForm.set(PDFName.of('SigFlags'), pdfDoc.context.obj(3));
+    }
+
+    let fields = safeAcroForm.lookup(PDFName.of('Fields'));
     if (!fields) {
         fields = pdfDoc.context.obj([]);
-        acroForm.set(PDFName.of('Fields'), fields);
+        safeAcroForm.set(PDFName.of('Fields'), fields);
     }
-    (fields as PDFArray).push(widgetRef);
+    if (fields instanceof PDFArray) {
+        fields.push(widgetRef);
+    }
 
+    // Save with a generic placeholder. We need no streams to make searching easier.
     const savedPdfWithPlaceholder = await pdfDoc.save({ useObjectStreams: false });
-
-    // 3. Update ByteRange
-    const decoder = new TextDecoder('latin1');
-    const pdfString = decoder.decode(savedPdfWithPlaceholder);
-
-    const byteRangeTag = '/ByteRange [';
-    const contentsTag = '/Contents <';
-    const contentsStart = pdfString.indexOf(contentsTag);
-    if (contentsStart === -1) throw new Error('Contents not found');
-    const contentsHexStart = contentsStart + contentsTag.length;
-    const contentsEnd = pdfString.indexOf('>', contentsHexStart);
-    if (contentsEnd === -1) throw new Error('Contents end not found');
-    const contentsHexEnd = contentsEnd;
-    const placeholderLength = contentsHexEnd - contentsHexStart;
-
-    if (placeholderLength !== SIGNATURE_LENGTH) {
-        throw new Error(`Found Content placeholder of length ${placeholderLength} but expected ${SIGNATURE_LENGTH}. Potential targeting error.`);
-    }
-
-    console.log("=== PDF STRUCTURE DEBUG ===");
-    console.log("contentsStart:", contentsStart);
-    console.log("contentsHexStart:", contentsHexStart);
-    console.log("contentsHexEnd:", contentsHexEnd);
-    console.log("placeholderLength:", placeholderLength);
-    console.log("First 100 chars of placeholder:", pdfString.substring(contentsHexStart, contentsHexStart + 100));
-    console.log("Last 100 chars before >:", pdfString.substring(contentsHexEnd - 100, contentsHexEnd));
-    console.log("Char at contentsHexEnd (should be >):", pdfString[contentsHexEnd]);
-
-    const byteRangeStart = pdfString.indexOf(byteRangeTag);
-    if (byteRangeStart === -1) throw new Error('ByteRange not found');
-
-    console.log("=== BYTERANGE POSITION DEBUG ===");
-    console.log("byteRangeStart:", byteRangeStart);
-    console.log("byteRangeTag.length:", byteRangeTag.length);
-    console.log("ByteRange write will start at:", byteRangeStart + byteRangeTag.length);
-    console.log("Gap between ByteRange and Contents:", contentsStart - (byteRangeStart + byteRangeTag.length));
-    console.log("Text between ByteRange and Contents:", pdfString.substring(byteRangeStart, contentsStart + 20));
-
     const pdfBuffer = new Uint8Array(savedPdfWithPlaceholder);
 
-    const range1Start = 0;
-    const range1Length = contentsHexStart;
-    const range2Start = contentsHexEnd;
-    const range2Length = pdfBuffer.length - contentsHexEnd;
+    // 3. Find offsets safely using binary search
+    // We look for "/Contents <" and the closing ">"
+    const encoder = new TextEncoder();
+    const contentsTag = encoder.encode('/Contents <');
+    const byteRangeTag = encoder.encode('/ByteRange [');
 
-    console.log("=== BYTERANGE DEBUG ===");
-    console.log("PDF total length:", pdfBuffer.length);
-    console.log("range1Start:", range1Start);
-    console.log("range1Length:", range1Length);
-    console.log("range2Start:", range2Start);
-    console.log("range2Length:", range2Length);
-    console.log("Skipped region (signature):", contentsHexStart, "to", contentsHexEnd, "=", contentsHexEnd - contentsHexStart, "bytes");
+    // Find ByteRange Start
+    const byteRangeStart = findSequence(pdfBuffer, pdfBuffer.length, byteRangeTag);
+    if (byteRangeStart === -1) throw new Error('ByteRange not found in saved PDF');
 
-    // CRITICAL FIX: We need to find where the ] bracket is and only write up to that point
-    const byteRangeEndBracket = pdfString.indexOf(']', byteRangeStart);
-    if (byteRangeEndBracket === -1) throw new Error('ByteRange ] not found');
+    // Find ByteRange End "]"
+    const closeBracket = encoder.encode(']');
+    const byteRangeEnd = findSequence(pdfBuffer, pdfBuffer.length, closeBracket, byteRangeStart);
+    if (byteRangeEnd === -1) throw new Error('ByteRange closing bracket not found');
 
-    // The writable area is from after the [ to before the ]
-    const byteRangeWriteStart = byteRangeStart + byteRangeTag.length;
-    const byteRangeWriteEnd = byteRangeEndBracket;
-    const maxByteRangeLength = byteRangeWriteEnd - byteRangeWriteStart;
+    // Find Contents Start
+    const contentsStart = findSequence(pdfBuffer, pdfBuffer.length, contentsTag);
+    if (contentsStart === -1) throw new Error('Contents not found');
 
-    const newByteRangeStr = `${range1Start} ${range1Length} ${range2Start} ${range2Length}`;
+    const contentsHexStart = contentsStart + contentsTag.length;
 
-    console.log("ByteRange ] bracket at:", byteRangeEndBracket);
-    console.log("Max ByteRange content length:", maxByteRangeLength);
-    console.log("New ByteRange string length:", newByteRangeStr.length);
-    console.log("New ByteRange string:", newByteRangeStr);
+    // Find Contents End ">"
+    const closeAngle = encoder.encode('>');
+    const contentsEnd = findSequence(pdfBuffer, pdfBuffer.length, closeAngle, contentsHexStart);
+    if (contentsEnd === -1) throw new Error('Contents closing angle not found');
 
-    if (newByteRangeStr.length > maxByteRangeLength) {
-        throw new Error(`ByteRange string too long: ${newByteRangeStr.length} > ${maxByteRangeLength}`);
+    const placeholderLen = contentsEnd - contentsHexStart;
+
+    if (placeholderLen !== SIGNATURE_LENGTH) {
+        throw new Error(`Placeholder length mismatch: found ${placeholderLen}, expected ${SIGNATURE_LENGTH}`);
     }
 
-    // Pad with spaces to fill the available space (but not exceed it)
-    const paddedByteRangeStr = newByteRangeStr.padEnd(maxByteRangeLength, ' ');
-    console.log("Padded ByteRange string length:", paddedByteRangeStr.length);
-    console.log("Padded ByteRange string:", `'${paddedByteRangeStr}'`);
-    console.log("ByteRange write offset:", byteRangeWriteStart);
-    console.log("ByteRange write will end at:", byteRangeWriteStart + paddedByteRangeStr.length);
-    console.log("Should not exceed:", byteRangeEndBracket);
+    // 4. Calculate ByteRange
+    const range1Start = 0;
+    const range1Length = contentsHexStart;
+    const range2Start = contentsEnd;
+    const range2Length = pdfBuffer.length - contentsEnd;
 
-    pdfBuffer.set(new TextEncoder().encode(paddedByteRangeStr), byteRangeWriteStart);
+    // Construct ByteRange string
+    const byteRangeStr = `${range1Start} ${range1Length} ${range2Start} ${range2Length}`;
 
-    // 4. Hash Document & Sign with Forge
+    // Calculate available space for ByteRange array
+    // We are replacing "[ 0 999999999 999999999 999999999 ]" with "[ 0 123 456 789              ]"
+    // The start index for writing is byteRangeStart + byteRangeTag.length
+    const byteRangeWriteStart = byteRangeStart + byteRangeTag.length;
+    const availableSpace = byteRangeEnd - byteRangeWriteStart;
+
+    if (byteRangeStr.length > availableSpace) {
+        throw new Error(`ByteRange string "${byteRangeStr}" is too long for placeholder space (${availableSpace})`);
+    }
+
+    // Pad with spaces
+    const paddedByteRange = byteRangeStr.padEnd(availableSpace, ' ');
+    pdfBuffer.set(encoder.encode(paddedByteRange), byteRangeWriteStart);
+
+    // 5. Hash & Sign
+    // We hash the two byte ranges
     const part1 = pdfBuffer.subarray(range1Start, range1Start + range1Length);
     const part2 = pdfBuffer.subarray(range2Start, range2Start + range2Length);
+
+    // Create forge buffer
     const concatenated = new Uint8Array(part1.length + part2.length);
     concatenated.set(part1);
     concatenated.set(part2, part1.length);
 
-    // Convert to forge buffer
-    const dataToSign = forge.util.createBuffer(concatenated);
-
-    // Create PKCS#7 signed data using forge
     const p7 = forge.pkcs7.createSignedData();
-    p7.content = dataToSign;
-    
-    // Add certificate
+    p7.content = forge.util.createBuffer(concatenated); // This might be heavy for large files
     p7.addCertificate(forgeCert);
-    
-    // Add signer
+
     p7.addSigner({
         key: forgePrivateKey,
         certificate: forgeCert,
@@ -193,45 +191,38 @@ export async function signPdf(
             },
             {
                 type: forge.pki.oids.messageDigest
-                // value will be auto-populated at signing time
+                // auto-populated
             },
             {
                 type: forge.pki.oids.signingTime,
-                value: signingDate as any 
+                value: signingDate as unknown as string // Forge types can be loose, it expects Date object or similar
             }
         ]
     });
 
-    // Sign detached (critical for PDF signatures)
     p7.sign({ detached: true });
 
-    console.log("=== SIGNATURE DEBUG ===");
-    console.log("Signing with forge detached mode");
+    // DER encode
+    const derBuffer = forge.asn1.toDer(p7.toAsn1()).getBytes();
 
-    // Convert to DER and then to hex
-    const der = forge.asn1.toDer(p7.toAsn1()).getBytes();
-    let signatureHex = '';
-    for (let i = 0; i < der.length; i++) {
-        signatureHex += ('0' + der.charCodeAt(i).toString(16)).slice(-2);
+    // Convert to hex
+    // Helper to faster conversion than string concatenation in loop
+    const hexChars = [];
+    for (let i = 0; i < derBuffer.length; i++) {
+        const byte = derBuffer.charCodeAt(i);
+        hexChars.push(('0' + byte.toString(16)).slice(-2));
+    }
+    const signatureHex = hexChars.join('');
+
+    if (signatureHex.length > placeholderLen) {
+        throw new Error(`Signature too large: ${signatureHex.length} > ${placeholderLen}`);
     }
 
-    console.log("CMS signature length (bytes):", der.length);
-    console.log("Signature hex length (chars):", signatureHex.length);
-    console.log("Placeholder length:", placeholderLength);
-    console.log("First 100 chars of signature hex:", signatureHex.substring(0, 100));
+    // Pad with '0's to fill the placeholder
+    const paddedSignature = signatureHex.padEnd(placeholderLen, '0');
 
-    // Ensure signature fits in placeholder
-    if (signatureHex.length > placeholderLength) {
-        throw new Error(`Signature too large: ${signatureHex.length} hex chars > ${placeholderLength} placeholder`);
-    }
+    // Write signature to PDF buffer
+    pdfBuffer.set(encoder.encode(paddedSignature), contentsHexStart);
 
-    // Pad signature hex with zeros to fill placeholder
-    const paddedSignatureHex = signatureHex.padEnd(placeholderLength, '0');
-
-    pdfBuffer.set(new TextEncoder().encode(paddedSignatureHex), contentsHexStart);
-
-    let timestampData = undefined;
-    let timestampVerification = undefined;
-
-    return { pdfBytes: pdfBuffer, timestampData, timestampVerification };
+    return { pdfBytes: pdfBuffer };
 }
