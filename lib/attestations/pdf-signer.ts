@@ -221,7 +221,10 @@ export async function signPdf(
     concatenated.set(part2, part1.length);
 
     const p7 = forge.pkcs7.createSignedData();
-    p7.content = forge.util.createBuffer(concatenated); // This might be heavy for large files
+
+    p7.content = forge.util.createBuffer(concatenated);
+
+    // Add certificate first
     p7.addCertificate(forgeCert);
 
     p7.addSigner({
@@ -236,15 +239,12 @@ export async function signPdf(
             {
                 type: forge.pki.oids.messageDigest
                 // auto-populated
-            },
-            // {
-            //     type: forge.pki.oids.signingTime,
-            //     value: signingDate as unknown as string // Forge types can be loose, it expects Date object or similar
-            // }
+            }
+            // signingTime removed to test if it causes encoding issues
         ]
     });
 
-    // Sign detached (critical for PDF signatures)
+    // Sign with detached mode - this should exclude content from the CMS structure
     try {
         p7.sign({ detached: true });
     } catch (err: unknown) {
@@ -252,8 +252,14 @@ export async function signPdf(
         throw new Error('Signing failed: ' + errorMessage);
     }
 
+    // After signing, verify the content was not embedded
+    const asn1 = p7.toAsn1();
+    console.log(`=== CMS STRUCTURE DEBUG ===`);
+    console.log(`ASN.1 type: ${asn1.type}`);
+    console.log(`ASN.1 value length: ${asn1.value ? asn1.value.length : 'null'}`);
+
     // DER encode
-    const derBuffer = forge.asn1.toDer(p7.toAsn1()).getBytes();
+    const derBuffer = forge.asn1.toDer(asn1).getBytes();
     console.log(`Final CMS DER byte length: ${derBuffer.length}`);
 
     // Validate ASN.1 Prefix (0x30 is SEQUENCE)
@@ -287,6 +293,13 @@ export async function signPdf(
     const writtenHex = new TextDecoder().decode(pdfBuffer.subarray(contentsHexStart, contentsHexStart + 100));
     console.log(`First 100 chars written to Contents: ${writtenHex}`);
     console.log(`First 100 chars of paddedSignature: ${paddedSignature.substring(0, 100)}`);
+
+    // Check the END of the signature (where padding starts)
+    const sigEnd = contentsHexStart + signatureHex.length;
+    const paddingStart = new TextDecoder().decode(pdfBuffer.subarray(sigEnd, sigEnd + 20));
+    console.log(`Signature hex length: ${signatureHex.length}`);
+    console.log(`Padding starts at offset ${sigEnd}, first 20 chars: ${paddingStart}`);
+    console.log(`Last 20 chars of actual signature: ${signatureHex.substring(signatureHex.length - 20)}`);
 
     // Check if they match
     if (writtenHex !== paddedSignature.substring(0, 100)) {
