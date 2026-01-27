@@ -252,11 +252,20 @@ export async function signPdf(
         throw new Error('Signing failed: ' + errorMessage);
     }
 
-    // After signing, verify the content was not embedded
+    // Get ASN.1 structure
     const asn1 = p7.toAsn1();
-    console.log(`=== CMS STRUCTURE DEBUG ===`);
-    console.log(`ASN.1 type: ${asn1.type}`);
-    console.log(`ASN.1 value length: ${asn1.value ? asn1.value.length : 'null'}`);
+
+    if (asn1.value && Array.isArray(asn1.value)) {
+        // Find encapContentInfo (usually at index 2)
+        const encapContentInfo = asn1.value[2];
+        if (encapContentInfo && encapContentInfo.value && Array.isArray(encapContentInfo.value)) {
+            // If there's more than just contentType OID, remove eContent
+            if (encapContentInfo.value.length > 1) {
+                console.log(`Removing eContent from encapContentInfo (had ${encapContentInfo.value.length} elements)`);
+                encapContentInfo.value = [encapContentInfo.value[0]]; // Keep only contentType OID
+            }
+        }
+    }
 
     // DER encode
     const derBuffer = forge.asn1.toDer(asn1).getBytes();
