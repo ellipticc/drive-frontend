@@ -189,9 +189,9 @@ export async function signPdf(
         algorithmId: '2.16.840.1.101.3.4.2.1' // SHA-256
     });
 
-    // Set signature algorithm
+    // Set signature algorithm - must be sha256WithRSAEncryption
     signerInfo.signatureAlgorithm = new pkijs.AlgorithmIdentifier({
-        algorithmId: '1.2.840.113549.1.1.1' // RSA
+        algorithmId: '1.2.840.113549.1.1.11' // sha256WithRSAEncryption
     });
 
     // Add signed attributes
@@ -232,7 +232,11 @@ export async function signPdf(
     const cmsEncoded = cmsContentInfo.toSchema().toBER(false);
     const signatureHex = Buffer.from(cmsEncoded).toString('hex').toUpperCase();
 
-    console.log(`PKI.js signature length: ${signatureHex.length} chars (${cmsEncoded.byteLength} bytes)`);
+    console.log(`=== PKI.JS SIGNATURE DEBUG ===`);
+    console.log(`CMS byte length: ${cmsEncoded.byteLength}`);
+    console.log(`Signature hex length: ${signatureHex.length} chars`);
+    console.log(`First 100 chars: ${signatureHex.substring(0, 100)}`);
+    console.log(`Starts with 3082 (SEQUENCE): ${signatureHex.startsWith('3082')}`);
 
     if (signatureHex.length > placeholderLen) {
         throw new Error(`Signature too large: ${signatureHex.length} > ${placeholderLen}`);
