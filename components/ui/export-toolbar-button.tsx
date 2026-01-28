@@ -132,24 +132,51 @@ export function ExportToolbarButton(props: DropdownMenuProps) {
     if (!requirePro('PDF')) return;
     triggerSnapshot(); // Fire and forget
 
-    // Capture the editor exactly as it appears (WYSIWYG)
-    const canvas = await getCanvas();
-
-    // Convert to PDF
-    const PDFLib = await import('pdf-lib');
-    const pdfDoc = await PDFLib.PDFDocument.create();
-    const page = pdfDoc.addPage([canvas.width, canvas.height]);
-    const imageEmbed = await pdfDoc.embedPng(canvas.toDataURL('image/png'));
-    const { height, width } = imageEmbed.scale(1);
-    page.drawImage(imageEmbed, {
-      height,
-      width,
-      x: 0,
-      y: 0,
+    // Serialize the editor to HTML so it closely matches the visual output
+    const editorStatic = createSlateEditor({
+      plugins: BaseEditorKit,
+      value: editor.children,
     });
-    const pdfBase64 = await pdfDoc.saveAsBase64({ dataUri: true });
 
-    await downloadFile(pdfBase64, getExportFilename('pdf'));
+    let editorHtml = await serializeHtml(editorStatic, {
+      editorComponent: EditorStatic,
+      props: { style: { padding: '0 calc(50% - 350px)', paddingBottom: '' } },
+    });
+
+    // Convert relative image URLs to absolute (so pdfmake can fetch/embed them)
+    editorHtml = editorHtml.replace(/src="\//g, `src="${siteUrl}/`);
+
+    // Convert HTML to pdfmake structure
+    // @ts-ignore - html-to-pdfmake has no type definitions
+    const htmlToPdfmake = ((await import('html-to-pdfmake')) as any).default;
+    // @ts-ignore - pdfmake has no types here
+    const pdfMake = (await import('pdfmake/build/pdfmake')).default;
+    // @ts-ignore - vfs fonts
+    const pdfFonts = (await import('pdfmake/build/vfs_fonts')).default;
+    pdfMake.vfs = pdfFonts.pdfMake.vfs;
+
+    const content = htmlToPdfmake(editorHtml, { window });
+
+    const docDefinition = {
+      content,
+      pageSize: 'A4',
+      pageMargins: [40, 40, 40, 40],
+      defaultStyle: { font: 'Helvetica' },
+    };
+
+    // Generate blob and download
+    const blob = await new Promise<Blob>((resolve) => {
+      pdfMake.createPdf(docDefinition).getBlob((b: Blob) => resolve(b));
+    });
+
+    const blobUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = getExportFilename('pdf');
+    document.body.append(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(blobUrl);
   };
 
   const exportToImage = async () => {
