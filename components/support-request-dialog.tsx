@@ -32,11 +32,13 @@ import { useIsMobile } from "@/hooks/use-mobile"
 
 interface SupportRequestDialogProps {
   children?: React.ReactNode
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
-export function SupportRequestDialog({ children }: SupportRequestDialogProps) {
+export function SupportRequestDialog({ children, open: externalOpen, onOpenChange: externalOnOpenChange }: SupportRequestDialogProps) {
   const isMobile = useIsMobile();
-  const [open, setOpen] = React.useState(false)
+  const [internalOpen, setInternalOpen] = React.useState(false)
   const [isLoading, setIsLoading] = React.useState(false)
   const [formData, setFormData] = React.useState({
     subject: "",
@@ -44,6 +46,10 @@ export function SupportRequestDialog({ children }: SupportRequestDialogProps) {
     priority: "medium",
     category: ""
   })
+
+  // Use external state if provided, otherwise use internal state
+  const open = externalOpen !== undefined ? externalOpen : internalOpen
+  const setOpen = externalOnOpenChange || setInternalOpen
 
   // Reset form when dialog closes
   React.useEffect(() => {

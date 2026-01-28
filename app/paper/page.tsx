@@ -51,6 +51,27 @@ import { useTheme } from "next-themes";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 
+// Print-specific styles to show only editor content
+if (typeof document !== 'undefined') {
+    const style = document.createElement('style');
+    style.textContent = `
+        @media print {
+            header, [role="toolbar"], nav, aside, footer, button, .sticky-word-count {
+                display: none !important;
+            }
+            body {
+                background: white !important;
+                color: black !important;
+            }
+            [data-slate-editor] {
+                padding: 20px !important;
+                max-width: 100% !important;
+            }
+        }
+    `;
+    document.head.appendChild(style);
+}
+
 interface PaperHeaderProps {
     fileId: string;
     paperTitle: string;
@@ -70,6 +91,7 @@ interface PaperHeaderProps {
     onPrint: () => void;
     onDownload: (format: string) => void;
     onCopyAsMarkdown: () => void;
+    setSupportDialogOpen: (open: boolean) => void;
 }
 
 // Helper to count words from editor value
@@ -115,7 +137,8 @@ function PaperHeader({
     onMoveToTrash,
     onPrint,
     onDownload,
-    onCopyAsMarkdown
+    onCopyAsMarkdown,
+    setSupportDialogOpen
 }: PaperHeaderProps) {
     const { theme, setTheme } = useTheme();
     const router = useRouter();
@@ -321,12 +344,10 @@ function PaperHeader({
                             
                             <DropdownMenuSeparator />
                             
-                            <SupportRequestDialog>
-                              <DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => setSupportDialogOpen(true)}>
                                 <IconHelp className="w-4 h-4 mr-2" />
                                 Help
-                              </DropdownMenuItem>
-                            </SupportRequestDialog>
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => router.push('/')}>
                                 <IconHome className="w-4 h-4 mr-2" />
                                 Open Elliptic Drive
@@ -488,7 +509,8 @@ function PaperEditorView({
     onMoveToTrash,
     onPrint,
     onDownload,
-    onCopyAsMarkdown
+    onCopyAsMarkdown,
+    setSupportDialogOpen
 }: {
     initialValue: Value;
     onChange: (value: Value) => void;
@@ -509,6 +531,7 @@ function PaperEditorView({
     onPrint: () => void;
     onDownload: (format: string) => void;
     onCopyAsMarkdown: () => void;
+    setSupportDialogOpen: (open: boolean) => void;
 }) {
     const [showStickyWordCount, setShowStickyWordCount] = useState(false);
     const [editorValue, setEditorValue] = useState<Value>(initialValue);
@@ -567,6 +590,7 @@ function PaperEditorView({
                         onPrint={onPrint}
                         onDownload={onDownload}
                         onCopyAsMarkdown={onCopyAsMarkdown}
+                        setSupportDialogOpen={setSupportDialogOpen}
                     />
 
                     <FixedToolbar className="border-b shrink-0 !relative !top-0 overflow-x-auto overflow-y-hidden scrollbar-hide touch-pan-x">
@@ -655,6 +679,7 @@ function PaperPageContent() {
     const [trashModalOpen, setTrashModalOpen] = useState(false);
     const [moveToFolderModalOpen, setMoveToFolderModalOpen] = useState(false);
     const [copyModalOpen, setCopyModalOpen] = useState(false);
+    const [supportDialogOpen, setSupportDialogOpen] = useState(false);
     
     const saveTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
     const latestIconRef = useRef<string | null>(null);
@@ -973,46 +998,8 @@ function PaperPageContent() {
     }, [fileId]);
 
     const handlePrint = useCallback(() => {
-        try {
-            // Prefer printing only the editor content
-            const editorEl = document.querySelector('[data-slate-editor]') as HTMLElement | null;
-            if (!editorEl) {
-                window.print();
-                return;
-            }
-
-            const printWindow = window.open('', '_blank', 'noopener,noreferrer');
-            if (!printWindow) {
-                toast.error('Unable to open print window');
-                return;
-            }
-
-            // Collect stylesheet/link and style tags to preserve editor styles
-            const styles = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
-                .map((el) => el.outerHTML)
-                .join('\n');
-
-            const title = paperTitle || 'Document';
-
-            printWindow.document.open();
-            printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>${styles}<style>body{background:#fff;color:inherit;margin:40px} .print-container{max-width:900px;margin:0 auto} img{max-width:100%}</style></head><body><div class="print-container">${editorEl.innerHTML}</div></body></html>`);
-            printWindow.document.close();
-            printWindow.focus();
-
-            // Give browser a moment to render styles then open print dialog
-            setTimeout(() => {
-                try {
-                    printWindow.print();
-                } catch (e) {
-                    console.error('Print failed:', e);
-                    toast.error('Print failed');
-                }
-            }, 300);
-        } catch (error) {
-            console.error('Print handler failed:', error);
-            window.print();
-        }
-    }, [paperTitle]);
+        window.print();
+    }, []);
 
     const handleDownload = useCallback((format: string) => {
         // Trigger the export-requires-upgrade event for pro features
@@ -1179,6 +1166,7 @@ function PaperPageContent() {
                 onPrint={handlePrint}
                 onDownload={handleDownload}
                 onCopyAsMarkdown={handleCopyAsMarkdown}
+                setSupportDialogOpen={setSupportDialogOpen}
             />
 
             <VersionHistoryModal
@@ -1213,6 +1201,11 @@ function PaperPageContent() {
                 itemName={paperTitle}
                 itemType="file"
                 onItemCopied={handleItemCopied}
+            />
+
+            <SupportRequestDialog
+                open={supportDialogOpen}
+                onOpenChange={setSupportDialogOpen}
             />
         </>
     );
