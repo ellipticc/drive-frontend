@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useEffect, useState, useCallback, useRef, Suspense } from "react";
+import React, { useEffect, useState, useCallback, useRef, Suspense, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { masterKeyManager } from "@/lib/master-key";
-import { IconLoader2, IconArrowLeft, IconCloudCheck, IconDotsVertical } from "@tabler/icons-react";
+import { IconLoader2, IconArrowLeft, IconCloudCheck, IconDotsVertical, IconCopy, IconFileText, IconPrinter, IconDownload, IconHelp, IconHome, IconChevronRight } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
 import {
     AlertDialog,
@@ -20,6 +20,10 @@ import {
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
+    DropdownMenuSeparator,
+    DropdownMenuSub,
+    DropdownMenuSubContent,
+    DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { type Value } from "platejs";
@@ -36,10 +40,12 @@ import { FixedToolbar } from "@/components/ui/fixed-toolbar";
 import { FixedToolbarButtons } from "@/components/ui/fixed-toolbar-buttons";
 import { EmojiPopover, EmojiPicker } from "@/components/ui/emoji-toolbar-button";
 import { VersionHistoryModal } from "@/components/modals/version-history-modal";
-import { IconHistory } from "@tabler/icons-react";
+import { IconHistory, IconEdit, IconFilePlus, IconFolderSymlink, IconTrash, IconChartBar } from "@tabler/icons-react";
 import { PaperIdProvider } from "@/components/paper-id-context";
 import { IconMoon, IconSun } from "@tabler/icons-react";
 import { useTheme } from "next-themes";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 interface PaperHeaderProps {
     fileId: string;
@@ -52,6 +58,39 @@ interface PaperHeaderProps {
     isUnsaved: boolean;
     setHistoryOpen: (open: boolean) => void;
     onBack: () => void;
+    editorValue: Value | undefined;
+    onCreateNewPaper: () => void;
+    onMakeCopy: () => void;
+    onMoveToFolder: () => void;
+    onMoveToTrash: () => void;
+    onPrint: () => void;
+    onDownload: (format: string) => void;
+    onCopyAsMarkdown: () => void;
+}
+
+// Helper to count words from editor value
+function countWords(value: Value | undefined): { words: number; characters: number; charactersNoSpaces: number } {
+    if (!value || !Array.isArray(value)) return { words: 0, characters: 0, charactersNoSpaces: 0 };
+    
+    let text = '';
+    const extractText = (nodes: any[]): void => {
+        nodes.forEach(node => {
+            if (node.text) {
+                text += node.text;
+            }
+            if (node.children && Array.isArray(node.children)) {
+                extractText(node.children);
+            }
+        });
+    };
+    
+    extractText(value);
+    
+    const words = text.trim().split(/\s+/).filter(w => w.length > 0).length;
+    const characters = text.length;
+    const charactersNoSpaces = text.replace(/\s/g, '').length;
+    
+    return { words, characters, charactersNoSpaces };
 }
 
 function PaperHeader({
@@ -64,11 +103,33 @@ function PaperHeader({
     saving,
     isUnsaved,
     setHistoryOpen,
-    onBack
+    onBack,
+    editorValue,
+    onCreateNewPaper,
+    onMakeCopy,
+    onMoveToFolder,
+    onMoveToTrash,
+    onPrint,
+    onDownload,
+    onCopyAsMarkdown
 }: PaperHeaderProps) {
     const { theme, setTheme } = useTheme();
     const router = useRouter();
     const { emojiPickerState, isOpen, setIsOpen } = useEmojiDropdownMenuState();
+    const [isRenaming, setIsRenaming] = useState(false);
+    const [showWordCount, setShowWordCount] = useState(false);
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    // Calculate word count stats
+    const stats = useMemo(() => countWords(editorValue), [editorValue]);
+
+    // Focus input when renaming mode starts
+    useEffect(() => {
+        if (isRenaming && inputRef.current) {
+            inputRef.current.focus();
+            inputRef.current.select();
+        }
+    }, [isRenaming]);
 
     // Animated theme toggle functionality
     const toggleThemeWithAnimation = useCallback(() => {
@@ -144,7 +205,7 @@ function PaperHeader({
 
     return (
         <header className="flex h-14 md:h-16 items-center gap-2 md:gap-4 border-b px-3 md:px-6 shrink-0 bg-background z-50 md:rounded-tl-lg md:rounded-bl-lg">
-            <div className="flex items-center gap-2 md:gap-3 w-full max-w-2xl">
+            <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
                 <Button variant="ghost" size="icon" onClick={onBack} className="hover:bg-muted shrink-0 h-9 w-9 md:h-10 md:w-10">
                     <IconArrowLeft className="w-4 h-4 md:w-5 md:h-5" />
                 </Button>
@@ -172,22 +233,163 @@ function PaperHeader({
                     />
                 </EmojiPopover>
 
-                <Input
-                    value={paperTitle}
-                    onChange={(e) => setPaperTitle(e.target.value)}
-                    onBlur={(e) => handleTitleSave(e.target.value)}
-                    onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                            e.currentTarget.blur();
-                        }
-                    }}
-                    maxLength={255}
-                    className="text-sm md:text-base font-semibold bg-transparent border-transparent hover:border-border focus:border-input focus:bg-background transition-colors w-full h-8 px-1 shadow-none truncate"
-                    placeholder="Untitled Paper"
-                />
+                {/* Title Dropdown Menu */}
+                {!isRenaming ? (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <button className="text-sm md:text-base font-semibold hover:bg-muted px-2 py-1 rounded-md transition-colors truncate text-left max-w-md">
+                                {paperTitle || "Untitled Paper"}
+                            </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-64">
+                            <DropdownMenuItem onClick={() => setIsRenaming(true)}>
+                                <IconEdit className="w-4 h-4 mr-2" />
+                                Rename document
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={onCreateNewPaper}>
+                                <IconFilePlus className="w-4 h-4 mr-2" />
+                                New paper
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={onMakeCopy}>
+                                <IconCopy className="w-4 h-4 mr-2" />
+                                Make a copy
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={onMoveToFolder}>
+                                <IconFolderSymlink className="w-4 h-4 mr-2" />
+                                Move to folder
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setHistoryOpen(true)}>
+                                <IconHistory className="w-4 h-4 mr-2" />
+                                See version history
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setShowWordCount(!showWordCount)}>
+                                <IconChartBar className="w-4 h-4 mr-2" />
+                                Word count
+                            </DropdownMenuItem>
+                            
+                            <DropdownMenuSeparator />
+                            
+                            <DropdownMenuItem onClick={onMoveToTrash} className="text-destructive focus:text-destructive">
+                                <IconTrash className="w-4 h-4 mr-2" />
+                                Move to trash
+                            </DropdownMenuItem>
+                            
+                            <DropdownMenuSeparator />
+                            
+                            <DropdownMenuItem onClick={onPrint}>
+                                <IconPrinter className="w-4 h-4 mr-2" />
+                                Print
+                            </DropdownMenuItem>
+                            
+                            <DropdownMenuSub>
+                                <DropdownMenuSubTrigger>
+                                    <IconDownload className="w-4 h-4 mr-2" />
+                                    Download
+                                </DropdownMenuSubTrigger>
+                                <DropdownMenuSubContent>
+                                    <DropdownMenuItem onClick={() => onDownload('pdf')}>
+                                        <IconFileText className="w-4 h-4 mr-2" />
+                                        PDF
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => onDownload('docx')}>
+                                        <IconFileText className="w-4 h-4 mr-2" />
+                                        DOCX
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => onDownload('markdown')}>
+                                        <IconFileText className="w-4 h-4 mr-2" />
+                                        Markdown
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => onDownload('image')}>
+                                        <IconFileText className="w-4 h-4 mr-2" />
+                                        Image
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => onDownload('html')}>
+                                        <IconFileText className="w-4 h-4 mr-2" />
+                                        HTML
+                                    </DropdownMenuItem>
+                                </DropdownMenuSubContent>
+                            </DropdownMenuSub>
+                            
+                            <DropdownMenuItem onClick={onCopyAsMarkdown}>
+                                <IconCopy className="w-4 h-4 mr-2" />
+                                Copy as Markdown
+                            </DropdownMenuItem>
+                            
+                            <DropdownMenuSeparator />
+                            
+                            <DropdownMenuItem onClick={() => window.open('/help', '_blank')}>
+                                <IconHelp className="w-4 h-4 mr-2" />
+                                Help
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => router.push('/')}>
+                                <IconHome className="w-4 h-4 mr-2" />
+                                Open Elliptic Drive
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                ) : (
+                    <Input
+                        ref={inputRef}
+                        value={paperTitle}
+                        onChange={(e) => setPaperTitle(e.target.value)}
+                        onBlur={() => {
+                            setIsRenaming(false);
+                            handleTitleSave(paperTitle);
+                        }}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                                setIsRenaming(false);
+                                handleTitleSave(paperTitle);
+                            } else if (e.key === 'Escape') {
+                                setIsRenaming(false);
+                            }
+                        }}
+                        maxLength={255}
+                        className="text-sm md:text-base font-semibold h-8 max-w-md"
+                        placeholder="Untitled Paper"
+                    />
+                )}
             </div>
 
             <div className="ml-auto flex items-center gap-2 md:gap-4 shrink-0">
+                {/* Word Count Display (Top Right) */}
+                {showWordCount && (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <button className="text-xs md:text-sm text-muted-foreground hover:text-foreground hover:bg-muted px-2 py-1 rounded-md transition-colors">
+                                {stats.words.toLocaleString()} words
+                            </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56">
+                            <div className="px-2 py-3 space-y-2">
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">Words</span>
+                                    <span className="font-medium">{stats.words.toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">Characters</span>
+                                    <span className="font-medium">{stats.characters.toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">Characters (no spaces)</span>
+                                    <span className="font-medium">{stats.charactersNoSpaces.toLocaleString()}</span>
+                                </div>
+                            </div>
+                            <DropdownMenuSeparator />
+                            <div className="px-2 py-2">
+                                <div className="flex items-center justify-between">
+                                    <Label htmlFor="word-count-toggle" className="text-sm cursor-pointer">Show word count</Label>
+                                    <Switch
+                                        id="word-count-toggle"
+                                        checked={showWordCount}
+                                        onCheckedChange={setShowWordCount}
+                                    />
+                                </div>
+                            </div>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                )}
+
                 <div className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm text-muted-foreground min-w-[60px] md:min-w-[80px] justify-end">
                     {saving ? (
                         <>
@@ -265,7 +467,14 @@ function PaperEditorView({
     saving,
     isUnsaved,
     setHistoryOpen,
-    onBack
+    onBack,
+    onCreateNewPaper,
+    onMakeCopy,
+    onMoveToFolder,
+    onMoveToTrash,
+    onPrint,
+    onDownload,
+    onCopyAsMarkdown
 }: {
     initialValue: Value;
     onChange: (value: Value) => void;
@@ -279,7 +488,17 @@ function PaperEditorView({
     isUnsaved: boolean;
     setHistoryOpen: (open: boolean) => void;
     onBack: () => void;
+    onCreateNewPaper: () => void;
+    onMakeCopy: () => void;
+    onMoveToFolder: () => void;
+    onMoveToTrash: () => void;
+    onPrint: () => void;
+    onDownload: (format: string) => void;
+    onCopyAsMarkdown: () => void;
 }) {
+    const [showStickyWordCount, setShowStickyWordCount] = useState(false);
+    const [editorValue, setEditorValue] = useState<Value>(initialValue);
+    
     const editor = usePlateEditor({
         plugins: EditorKit,
         value: initialValue,
@@ -287,6 +506,14 @@ function PaperEditorView({
             components: {},
         },
     });
+
+    // Track editor changes for word count
+    const handleChange = useCallback((value: Value) => {
+        setEditorValue(value);
+        onChange(value);
+    }, [onChange]);
+
+    const stats = useMemo(() => countWords(editorValue), [editorValue]);
 
     // Add error boundary for editor operations
     React.useEffect(() => {
@@ -304,7 +531,7 @@ function PaperEditorView({
         <PaperIdProvider paperId={fileId}>
             <Plate
                 editor={editor}
-                onChange={({ value }) => onChange(value)}
+                onChange={({ value }) => handleChange(value)}
             >
                 <div className="flex flex-col h-screen bg-background w-full overflow-hidden">
                     <PaperHeader
@@ -318,6 +545,14 @@ function PaperEditorView({
                         isUnsaved={isUnsaved}
                         setHistoryOpen={setHistoryOpen}
                         onBack={onBack}
+                        editorValue={editorValue}
+                        onCreateNewPaper={onCreateNewPaper}
+                        onMakeCopy={onMakeCopy}
+                        onMoveToFolder={onMoveToFolder}
+                        onMoveToTrash={onMoveToTrash}
+                        onPrint={onPrint}
+                        onDownload={onDownload}
+                        onCopyAsMarkdown={onCopyAsMarkdown}
                     />
 
                     <FixedToolbar className="border-b shrink-0 !relative !top-0 overflow-x-auto overflow-y-hidden scrollbar-hide touch-pan-x">
@@ -334,6 +569,46 @@ function PaperEditorView({
                                 />
                             </div>
                         </EditorContainer>
+
+                        {/* Sticky Word Count (Bottom Right) */}
+                        {showStickyWordCount && (
+                            <div className="fixed bottom-6 right-6 z-40">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <button className="px-3 py-1.5 text-xs bg-muted/90 backdrop-blur-sm hover:bg-muted text-muted-foreground hover:text-foreground rounded-full shadow-lg transition-colors border">
+                                            {stats.words.toLocaleString()} words
+                                        </button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-56">
+                                        <div className="px-2 py-3 space-y-2">
+                                            <div className="flex justify-between text-sm">
+                                                <span className="text-muted-foreground">Words</span>
+                                                <span className="font-medium">{stats.words.toLocaleString()}</span>
+                                            </div>
+                                            <div className="flex justify-between text-sm">
+                                                <span className="text-muted-foreground">Characters</span>
+                                                <span className="font-medium">{stats.characters.toLocaleString()}</span>
+                                            </div>
+                                            <div className="flex justify-between text-sm">
+                                                <span className="text-muted-foreground">Characters (no spaces)</span>
+                                                <span className="font-medium">{stats.charactersNoSpaces.toLocaleString()}</span>
+                                            </div>
+                                        </div>
+                                        <DropdownMenuSeparator />
+                                        <div className="px-2 py-2">
+                                            <div className="flex items-center justify-between">
+                                                <Label htmlFor="sticky-word-count-toggle" className="text-sm cursor-pointer">Show word count</Label>
+                                                <Switch
+                                                    id="sticky-word-count-toggle"
+                                                    checked={showStickyWordCount}
+                                                    onCheckedChange={setShowStickyWordCount}
+                                                />
+                                            </div>
+                                        </div>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
+                        )}
                     </main>
                 </div>
             </Plate>
@@ -638,7 +913,67 @@ function PaperPageContent() {
         router.push('/');
     }, [fileId, router]);
 
+    // Action Handlers
+    const handleCreateNewPaper = useCallback(async () => {
+        try {
+            const now = new Date();
+            const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}.${String(now.getMinutes()).padStart(2, '0')}.${String(now.getSeconds()).padStart(2, '0')}`;
+            const newPaperId = await paperService.createPaper(`Untitled paper ${timestamp}`, undefined, null);
+            if (newPaperId) {
+                window.open(`/paper?fileId=${newPaperId}`, '_blank');
+                toast.success('New paper created');
+            }
+        } catch (error) {
+            console.error('Failed to create new paper:', error);
+            toast.error('Failed to create new paper');
+        }
+    }, []);
 
+    const handleMakeCopy = useCallback(async () => {
+        if (!fileId) return;
+        try {
+            toast('Making a copy...');
+            // This would need to be implemented in paperService
+            toast.info('Copy feature coming soon');
+        } catch (error) {
+            console.error('Failed to copy paper:', error);
+            toast.error('Failed to copy paper');
+        }
+    }, [fileId]);
+
+    const handleMoveToFolder = useCallback(() => {
+        toast.info('Move to folder feature coming soon');
+    }, []);
+
+    const handleMoveToTrash = useCallback(async () => {
+        if (!fileId) return;
+        if (!confirm('Are you sure you want to move this paper to trash?')) return;
+        
+        try {
+            toast('Moving to trash...');
+            // This would call the trash API
+            toast.info('Move to trash feature coming soon');
+        } catch (error) {
+            console.error('Failed to move to trash:', error);
+            toast.error('Failed to move to trash');
+        }
+    }, [fileId]);
+
+    const handlePrint = useCallback(() => {
+        window.print();
+    }, []);
+
+    const handleDownload = useCallback((format: string) => {
+        // Trigger the export-requires-upgrade event for pro features
+        const event = new CustomEvent('export-requires-upgrade', {
+            detail: { message: `Export to ${format.toUpperCase()} requires a Pro or Unlimited subscription.` }
+        });
+        window.dispatchEvent(event);
+    }, []);
+
+    const handleCopyAsMarkdown = useCallback(() => {
+        toast.info('Copy as Markdown feature coming soon');
+    }, []);
 
 
     if (loading) {
@@ -688,6 +1023,13 @@ function PaperPageContent() {
                 isUnsaved={isUnsaved}
                 setHistoryOpen={setHistoryOpen}
                 onBack={handleGoBack}
+                onCreateNewPaper={handleCreateNewPaper}
+                onMakeCopy={handleMakeCopy}
+                onMoveToFolder={handleMoveToFolder}
+                onMoveToTrash={handleMoveToTrash}
+                onPrint={handlePrint}
+                onDownload={handleDownload}
+                onCopyAsMarkdown={handleCopyAsMarkdown}
             />
 
             <VersionHistoryModal
