@@ -316,7 +316,7 @@ export default function InsightsPage() {
         className="hidden"
       />
 
-      <main className="flex-1 py-8">
+      <main className="flex-1 py-8 pt-[var(--header-height)]">
         <div className="w-full space-y-8">
           {/* Page Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-4 lg:px-6">

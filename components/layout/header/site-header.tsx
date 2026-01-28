@@ -152,8 +152,8 @@ export function SiteHeader({ onSearch, onFileUpload, onFolderUpload, searchValue
       data-sticky={effectiveSticky ? "true" : undefined}
       className={cn(
         "flex h-(--header-height) shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)",
-        "bg-background rounded-tl-lg rounded-bl-lg",
-        effectiveSticky ? "sticky top-0 z-50 w-full border-b" : "border-b"
+        "bg-background",
+        effectiveSticky ? "fixed top-0 left-0 right-0 z-50 w-full border-b rounded-tl-2xl" : "border-b rounded-tl-lg rounded-bl-lg"
       )}
     >
 

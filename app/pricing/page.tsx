@@ -634,7 +634,7 @@ const BillingPage = () => {
   return (
     <div className="flex flex-1 flex-col">
       {/* Integrated Header */}
-      <header data-sticky="true" className="flex h-(--header-height) shrink-0 items-center justify-between sticky top-0 z-50 border-b bg-background rounded-tl-lg rounded-bl-lg transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">
+      <header data-sticky="true" className="flex h-(--header-height) shrink-0 items-center justify-between fixed top-0 left-0 right-0 z-50 border-b bg-background rounded-tl-2xl transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">
         <div className="flex w-full items-center gap-1 px-4 lg:gap-2 lg:px-6">
           <TooltipProvider delayDuration={0}>
             <Tooltip>
@@ -670,7 +670,7 @@ const BillingPage = () => {
         </div>
       </header>
 
-      <div ref={scrollRef} className="flex-1 overflow-auto">
+      <div ref={scrollRef} className="flex-1 overflow-auto pt-[var(--header-height)]">
         <div className="flex flex-1 flex-col gap-8 p-4 lg:gap-12 lg:p-6 w-full">
           {/* Usage Section */}
           <Section>

@@ -45,7 +45,7 @@ function TrashContent() {
         onFolderUpload={handleFolderUpload}
         sticky
       />
-      <main className="flex-1">
+      <main className="flex-1 pt-[var(--header-height)]">
         <div className="@container/main flex flex-1 flex-col gap-2">
           <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
             <TrashTable searchQuery={searchQuery} />

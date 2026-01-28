@@ -472,7 +472,7 @@ function PhotosPageContent() {
                 sticky
             />
 
-            <main className="flex-1">
+            <main className="flex-1 pt-[var(--header-height)]">
                 <div className="flex flex-col bg-background relative md:rounded-2xl">
                     <div className="flex flex-col flex-1 relative">
                         <GalleryToolbar
