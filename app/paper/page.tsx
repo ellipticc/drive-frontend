@@ -40,6 +40,9 @@ import { FixedToolbar } from "@/components/ui/fixed-toolbar";
 import { FixedToolbarButtons } from "@/components/ui/fixed-toolbar-buttons";
 import { EmojiPopover, EmojiPicker } from "@/components/ui/emoji-toolbar-button";
 import { VersionHistoryModal } from "@/components/modals/version-history-modal";
+import { MoveToTrashModal } from "@/components/modals/move-to-trash-modal";
+import { MoveToFolderModal } from "@/components/modals/move-to-folder-modal";
+import { CopyModal } from "@/components/modals/copy-modal";
 import { IconHistory, IconEdit, IconFilePlus, IconFolderSymlink, IconTrash, IconChartBar } from "@tabler/icons-react";
 import { PaperIdProvider } from "@/components/paper-id-context";
 import { IconMoon, IconSun } from "@tabler/icons-react";
@@ -628,6 +631,12 @@ function PaperPageContent() {
     const [paperTitle, setPaperTitle] = useState<string>("Untitled Paper");
     const [icon, setIcon] = useState<string | null>(null);
     const [pageAlert, setPageAlert] = useState<{ message: string } | null>(null);
+    
+    // Modal states
+    const [trashModalOpen, setTrashModalOpen] = useState(false);
+    const [moveToFolderModalOpen, setMoveToFolderModalOpen] = useState(false);
+    const [copyModalOpen, setCopyModalOpen] = useState(false);
+    
     const saveTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
     const latestIconRef = useRef<string | null>(null);
 
@@ -929,34 +938,19 @@ function PaperPageContent() {
         }
     }, []);
 
-    const handleMakeCopy = useCallback(async () => {
+    const handleMakeCopy = useCallback(() => {
         if (!fileId) return;
-        try {
-            toast('Making a copy...');
-            // This would need to be implemented in paperService
-            toast.info('Copy feature coming soon');
-        } catch (error) {
-            console.error('Failed to copy paper:', error);
-            toast.error('Failed to copy paper');
-        }
+        setCopyModalOpen(true);
     }, [fileId]);
 
     const handleMoveToFolder = useCallback(() => {
-        toast.info('Move to folder feature coming soon');
-    }, []);
-
-    const handleMoveToTrash = useCallback(async () => {
         if (!fileId) return;
-        if (!confirm('Are you sure you want to move this paper to trash?')) return;
-        
-        try {
-            toast('Moving to trash...');
-            // This would call the trash API
-            toast.info('Move to trash feature coming soon');
-        } catch (error) {
-            console.error('Failed to move to trash:', error);
-            toast.error('Failed to move to trash');
-        }
+        setMoveToFolderModalOpen(true);
+    }, [fileId]);
+
+    const handleMoveToTrash = useCallback(() => {
+        if (!fileId) return;
+        setTrashModalOpen(true);
     }, [fileId]);
 
     const handlePrint = useCallback(() => {
@@ -972,7 +966,105 @@ function PaperPageContent() {
     }, []);
 
     const handleCopyAsMarkdown = useCallback(() => {
-        toast.info('Copy as Markdown feature coming soon');
+        if (!latestContentRef.current) {
+            toast.error('No content to copy');
+            return;
+        }
+
+        try {
+            // Convert editor content to markdown
+            let markdown = '';
+            
+            const convertToMarkdown = (nodes: any[]): string => {
+                let result = '';
+                
+                nodes.forEach(node => {
+                    if (node.text !== undefined) {
+                        // Text node
+                        let text = node.text;
+                        if (node.bold) text = `**${text}**`;
+                        if (node.italic) text = `*${text}*`;
+                        if (node.underline) text = `__${text}__`;
+                        if (node.strikethrough) text = `~~${text}~~`;
+                        if (node.code) text = `\`${text}\``;
+                        result += text;
+                    } else if (node.children && Array.isArray(node.children)) {
+                        // Block node
+                        const childContent = convertToMarkdown(node.children);
+                        
+                        switch (node.type) {
+                            case 'h1':
+                                result += `# ${childContent}\n\n`;
+                                break;
+                            case 'h2':
+                                result += `## ${childContent}\n\n`;
+                                break;
+                            case 'h3':
+                                result += `### ${childContent}\n\n`;
+                                break;
+                            case 'h4':
+                                result += `#### ${childContent}\n\n`;
+                                break;
+                            case 'h5':
+                                result += `##### ${childContent}\n\n`;
+                                break;
+                            case 'h6':
+                                result += `###### ${childContent}\n\n`;
+                                break;
+                            case 'blockquote':
+                                result += `> ${childContent}\n\n`;
+                                break;
+                            case 'code_block':
+                                result += `\`\`\`\n${childContent}\n\`\`\`\n\n`;
+                                break;
+                            case 'ul':
+                                result += childContent;
+                                break;
+                            case 'ol':
+                                result += childContent;
+                                break;
+                            case 'li':
+                                result += `- ${childContent}\n`;
+                                break;
+                            case 'p':
+                            default:
+                                result += `${childContent}\n\n`;
+                                break;
+                        }
+                    }
+                });
+                
+                return result;
+            };
+
+            markdown = convertToMarkdown(latestContentRef.current as any[]);
+            
+            // Copy to clipboard
+            navigator.clipboard.writeText(markdown).then(() => {
+                toast.success('Copied as Markdown to clipboard');
+            }).catch(() => {
+                toast.error('Failed to copy to clipboard');
+            });
+        } catch (error) {
+            console.error('Failed to convert to markdown:', error);
+            toast.error('Failed to copy as Markdown');
+        }
+    }, []);
+
+    const handleItemMoved = useCallback(() => {
+        // After moving to trash, go back to home
+        router.push('/');
+        toast.success('Paper moved to trash');
+    }, [router]);
+
+    const handleFolderMoved = useCallback(() => {
+        // Refresh or update UI after moving to folder
+        toast.success('Paper moved to folder');
+    }, []);
+
+    const handleItemCopied = useCallback(() => {
+        // Refresh or update UI after copying
+        toast.success('Paper copied successfully');
     }, []);
 
 
@@ -1037,6 +1129,33 @@ function PaperPageContent() {
                 onClose={() => setHistoryOpen(false)}
                 fileId={fileId}
                 onRestoreComplete={handleRestoreComplete}
+            />
+
+            <MoveToTrashModal
+                open={trashModalOpen}
+                onOpenChange={setTrashModalOpen}
+                itemId={fileId || ''}
+                itemName={paperTitle}
+                itemType="file"
+                onItemMoved={handleItemMoved}
+            />
+
+            <MoveToFolderModal
+                open={moveToFolderModalOpen}
+                onOpenChange={setMoveToFolderModalOpen}
+                itemId={fileId || ''}
+                itemName={paperTitle}
+                itemType="file"
+                onItemMoved={handleFolderMoved}
+            />
+
+            <CopyModal
+                open={copyModalOpen}
+                onOpenChange={setCopyModalOpen}
+                itemId={fileId || ''}
+                itemName={paperTitle}
+                itemType="file"
+                onItemCopied={handleItemCopied}
             />
         </>
     );
