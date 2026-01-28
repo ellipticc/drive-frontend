@@ -58,6 +58,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
       const isSessionStorage = !!sessionToken && !localToken;
       const storage = isSessionStorage ? sessionStorage : localStorage;
       masterKeyManager.setStorage(storage);
+      apiClient.setStorage(storage);
 
       hasCheckedAuthRef.current = true;
       requestAnimationFrame(() => {
@@ -68,12 +69,15 @@ export function AuthGuard({ children }: AuthGuardProps) {
 
     if (!token || !isTokenValid) {
       // No token or token expired
-      // Redirect immediately using window.location for instant navigation
       hasCheckedAuthRef.current = true;
-      const expiredFlag = !token;
-      requestAnimationFrame(() => setIsExpired(expiredFlag));
-      const redirectUrl = expiredFlag ? "/login?expired=true" : "/login";
-      window.location.href = redirectUrl;
+
+      if (token && !isTokenValid) {
+        // Session actually expired (token was there but is now invalid)
+        SessionManager.clearSessionAndRedirect();
+      } else {
+        // No token at all - just redirect to login
+        window.location.href = "/login";
+      }
       return;
     }
   }, [pathname, isPublic]); // Removed router from dependencies

@@ -244,7 +244,8 @@ export class SessionManager {
    */
   static getTimeUntilExpiry(): number | null {
     try {
-      const token = localStorage.getItem('auth_token');
+      if (typeof window === 'undefined') return null;
+      const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
       if (!token) return null;
 
       const payload = this.decodeJWT(token);

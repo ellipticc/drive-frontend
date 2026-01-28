@@ -56,8 +56,11 @@ export function LoginFormAuth({
         const sessionAccountSalt = sessionStorage.getItem('account_salt')
         const accountSalt = localAccountSalt || sessionAccountSalt
 
-        if (token && masterKey && accountSalt) {
-          console.log('All credentials found! Redirecting to dashboard...')
+        const { SessionManager } = await import("@/lib/session-manager")
+        const isTokenValid = SessionManager.isTokenValid()
+
+        if (token && masterKey && accountSalt && isTokenValid) {
+          console.log('All credentials found and valid! Redirecting to dashboard...')
           // Determine storage type based on where credentials were found
           const storage = (sessionToken && sessionMasterKey && sessionAccountSalt) ? sessionStorage : localStorage;
           apiClient.setStorage(storage);
