@@ -463,7 +463,7 @@ function PhotosPageContent() {
     }
 
     return (
-        <div className="flex min-h-screen w-full flex-col">
+        <div className="flex h-full w-full flex-col overflow-hidden">
             <SiteHeader
                 onSearch={handleSearch}
                 searchValue={searchQuery}
@@ -472,7 +472,7 @@ function PhotosPageContent() {
                 sticky
             />
 
-            <main className="flex-1 pt-[var(--header-height)]">
+            <main className="flex-1 overflow-y-auto">
                 <div className="flex flex-col bg-background relative md:rounded-2xl">
                     <div className="flex flex-col flex-1 relative">
                         <GalleryToolbar

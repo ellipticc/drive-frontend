@@ -14,7 +14,7 @@ export default function AttestationsPage() {
     }, [])
 
     return (
-        <div className="flex w-full flex-col">
+        <div className="flex h-full w-full flex-col overflow-hidden">
             <SiteHeader
                 onSearch={() => { }} // No search logic for this page yet
                 searchValue=""
@@ -22,7 +22,7 @@ export default function AttestationsPage() {
                 onFolderUpload={handleFolderUpload}
                 sticky
             />
-            <main className="flex-1 px-4 md:px-6 lg:px-8 pb-8 pt-[calc(var(--header-height)+2rem)]">
+            <main className="flex-1 overflow-y-auto px-4 md:px-6 lg:px-8 pb-8">
                 <AttestationsView />
             </main>
         </div>

@@ -35,14 +35,14 @@ function SharedPageContent() {
   }, [searchParams]);
 
   return (
-    <div className="flex w-full flex-col">
+    <div className="flex w-full h-full flex-col overflow-hidden">
       <SiteHeader
         onSearch={handleSearch}
         searchValue={searchQuery}
         onFileUpload={handleFileUpload}
         onFolderUpload={handleFolderUpload}
         sticky />
-      <main className="flex-1 pt-[var(--header-height)]">
+      <main className="flex-1 overflow-y-auto">
         <div className="@container/main flex flex-1 flex-col gap-2">
           <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
             <SharesTable mode="sent" searchQuery={searchQuery} />
