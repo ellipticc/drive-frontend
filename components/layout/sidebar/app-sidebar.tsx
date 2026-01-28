@@ -212,9 +212,41 @@ export const AppSidebar = React.memo(function AppSidebar({
     checkAuth()
   }, [contextUser])
 
+  // If user is loading, render a sidebar skeleton immediately so layout doesn't shift
+  if (!isAuthenticated && userLoading) {
+    return (
+      <Sidebar collapsible="icon" {...props}>
+        <SidebarHeader className="gap-2 p-2">
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild>
+                <div className="flex items-center gap-2">
+                  <IconCaretLeftRightFilled className="size-4 shrink-0 opacity-40" />
+                  <span className="text-base font-geist-mono select-none break-all leading-none opacity-40">ellipticc</span>
+                </div>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarHeader>
+        <SidebarContent>
+          <div className="px-3 py-3">
+            <div className="h-3 bg-muted rounded mb-2 w-3/4 animate-pulse" />
+            <div className="h-3 bg-muted rounded mb-2 w-1/2 animate-pulse" />
+            <div className="h-3 bg-muted rounded mb-2 w-2/3 animate-pulse" />
+          </div>
+        </SidebarContent>
+        <SidebarFooter>
+          <div className="px-3 py-3 mx-2 mb-2 text-xs text-muted-foreground w-auto space-y-3 bg-muted/30 rounded-lg border border-border/30">
+            <div className="h-3 bg-muted rounded w-1/2 animate-pulse" />
+          </div>
+        </SidebarFooter>
+      </Sidebar>
+    );
+  }
+
   // Don't render if not authenticated (will redirect)
   if (!isAuthenticated && !userLoading) {
-    return null
+    return null;
   }
 
   return (
