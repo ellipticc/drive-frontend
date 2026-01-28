@@ -41,16 +41,18 @@ export function AuthGuard({ children }: AuthGuardProps) {
       setIsAuthenticated(true);
       hasCheckedAuthRef.current = true;
       
-      // Remove loading overlay immediately for public routes
-      try {
-        const overlay = document.getElementById('initial-loading-overlay');
-        if (overlay) {
-          overlay.style.opacity = '0';
-          setTimeout(() => {
-            try { overlay.remove(); } catch (e) { }
-          }, 500);
-        }
-      } catch (e) { }
+      // Remove loading overlay immediately for public routes (client-side only)
+      if (typeof window !== 'undefined') {
+        try {
+          const overlay = document.getElementById('initial-loading-overlay');
+          if (overlay) {
+            overlay.style.opacity = '0';
+            setTimeout(() => {
+              try { overlay.remove(); } catch (e) { }
+            }, 500);
+          }
+        } catch (e) { }
+      }
       return;
     }
 
