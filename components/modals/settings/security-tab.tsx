@@ -1447,7 +1447,10 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                                 <TooltipProvider>
                                                     <Tooltip delayDuration={0}>
                                                         <TooltipTrigger asChild>
-                                                            <span className={`text-xs font-mono transition-all ${!isPaid ? 'blur-[3.5px] select-none cursor-help' : ''}`}>
+                                                            <span
+                                                                className={`text-xs font-mono transition-all ${!isPaid ? 'blur-[3.5px] select-none cursor-pointer' : ''}`}
+                                                                onClick={!isPaid ? (e) => { e.stopPropagation(); setUpgradeDialogData({ open: true, title: 'Pro Feature', description: tooltip }); } : undefined}
+                                                            >
                                                                 {isPaid ? (value || 'N/A') : '••••••••••••'}
                                                             </span>
                                                         </TooltipTrigger>
@@ -1510,7 +1513,7 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                                                                         <TooltipTrigger className={`flex items-center ${!isPaid ? 'blur-[3px] scale-95' : ''}`}>
                                                                                             {osIcon}
                                                                                         </TooltipTrigger>
-                                                                                        <TooltipContent side="top">
+                                                                                        <TooltipContent side="top" className="cursor-pointer" onClick={(e) => { e.stopPropagation(); setUpgradeDialogData({ open: true, title: 'Pro Feature', description: isPaid ? osName : 'Upgrade for device details' }); }}>
                                                                                             <p className="text-xs">{isPaid ? osName : "Upgrade for device details"}</p>
                                                                                         </TooltipContent>
                                                                                     </Tooltip>
@@ -1520,7 +1523,7 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                                                                         <TooltipTrigger className={`flex items-center ${!isPaid ? 'blur-[3px] scale-95' : ''}`}>
                                                                                             {browserIcon}
                                                                                         </TooltipTrigger>
-                                                                                        <TooltipContent side="top">
+                                                                                        <TooltipContent side="top" className="cursor-pointer" onClick={(e) => { e.stopPropagation(); setUpgradeDialogData({ open: true, title: 'Pro Feature', description: isPaid ? browserName : 'Upgrade for browser details' }); }}>
                                                                                             <p className="text-xs">{isPaid ? browserName : "Upgrade for browser details"}</p>
                                                                                         </TooltipContent>
                                                                                     </Tooltip>
@@ -1553,7 +1556,7 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                                             </tr>
                                                         </TooltipTrigger>
                                                         {isBlurred && (
-                                                            <TooltipContent>
+                                                            <TooltipContent className="cursor-pointer" onClick={(e) => { e.stopPropagation(); setUpgradeDialogData({ open: true, title: 'Upgrade required', description: 'Upgrade your plan to view full history.' }); }}>
                                                                 <p>Upgrade your plan to view full history</p>
                                                             </TooltipContent>
                                                         )}
@@ -1637,7 +1640,12 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                                                                                         ))
                                                                                                     ) : <span className="text-[10px] text-muted-foreground italic">No anomalies detected</span>
                                                                                                 ) : (
-                                                                                                    <span className="blur-sm text-[10px]">•••••••••••• ••••••••</span>
+                                                                                                    <span
+                                                                                                        className="blur-sm text-[10px] cursor-pointer"
+                                                                                                        onClick={(e) => { e.stopPropagation(); setUpgradeDialogData({ open: true, title: 'Pro Feature', description: 'Upgrade to Pro to view risk signals and security analytics.' }); }}
+                                                                                                    >
+                                                                                                        •••••••••••• ••••••••
+                                                                                                    </span>
                                                                                                 )}
                                                                                             </div>
                                                                                         </div>
@@ -1685,7 +1693,7 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                                                                             </Map>
                                                                                         </div>
                                                                                         {!isPaid && (
-                                                                                            <div className="absolute inset-0 flex items-center justify-center z-10">
+                                                                                            <div className="absolute inset-0 flex items-center justify-center z-10 cursor-pointer" onClick={() => setUpgradeDialogData({ open: true, title: 'Pro Feature', description: 'Upgrade to Pro to view exact location maps for every security event.' })}>
                                                                                                 <div className="bg-background/80 backdrop-blur-sm p-4 rounded-xl border shadow-lg max-w-[240px] text-center">
                                                                                                     <IconLock className="h-6 w-6 mx-auto text-muted-foreground mb-2" />
                                                                                                     <p className="font-semibold text-sm mb-1">Detailed Map View</p>
@@ -1702,7 +1710,7 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                                                             <div className="space-y-4">
                                                                                 <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                                                                                     Additional Metadata
-                                                                                    {!isPaid && <span className="bg-primary/10 text-primary text-[9px] px-1.5 py-0.5 rounded-full border border-primary/20">Pro Feature</span>}
+                                                                                    {!isPaid && <span className="bg-primary/10 text-primary text-[9px] px-1.5 py-0.5 rounded-full border border-primary/20 cursor-pointer" onClick={() => setUpgradeDialogData({ open: true, title: 'Pro Feature', description: 'Upgrade to Pro to view raw metadata for security events.' })}>Pro Feature</span>}
                                                                                 </h4>
                                                                                 <div className={`transition-all ${!isPaid ? 'blur-[5px] select-none pointer-events-none' : ''}`}>
                                                                                     <JsonHighlighter data={event.additionalData || {}} />
@@ -1950,7 +1958,7 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                         <TooltipTrigger asChild>
                                             <IconInfoCircle className="h-4 w-4 text-muted-foreground cursor-help" />
                                         </TooltipTrigger>
-                                        <TooltipContent>
+                                        <TooltipContent side="right">
                                             <p>Helps us optimize encryption speed (no identity or file data revealed)</p>
                                         </TooltipContent>
                                     </Tooltip>
@@ -1978,7 +1986,7 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                         <TooltipTrigger asChild>
                                             <IconInfoCircle className="h-4 w-4 text-muted-foreground cursor-help" />
                                         </TooltipTrigger>
-                                        <TooltipContent>
+                                        <TooltipContent side="right">
                                             <p>This setting controls Sentry Error Logging</p>
                                         </TooltipContent>
                                     </Tooltip>
