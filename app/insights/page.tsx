@@ -634,28 +634,28 @@ export default function InsightsPage() {
               </Card>
             </div>
 
-            {/* Analytics Data Table - Enhanced */}
+            {/* Analytics Data Table */}
             <div className="px-4 lg:px-6">
-              <Card className="shadow-2xl border-0 ring-1 ring-border/30 hover:ring-primary/20 transition-all duration-300 rounded-3xl overflow-hidden backdrop-blur-sm bg-gradient-to-br from-background via-background to-muted/5">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b border-border/50 bg-gradient-to-r from-transparent via-primary/5 to-transparent">
+              <Card className="shadow-md border-0 ring-1 ring-border/50">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
                   <div className="space-y-1">
-                    <CardTitle className="text-xl sm:text-2xl font-black flex items-center gap-2 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+                    <CardTitle className="text-lg sm:text-xl flex items-center gap-2">
                       Activity Log
                     </CardTitle>
                     <div className="flex items-center gap-1.5">
-                      <CardDescription className="text-xs sm:text-sm font-medium">Detailed breakdown of file activities and analytics</CardDescription>
+                      <CardDescription className="text-xs sm:text-sm">Detailed breakdown of file activities and analytics</CardDescription>
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <IconHelpCircle className="h-4 w-4 text-muted-foreground/50 cursor-help" />
+                            <IconHelpCircle className="h-3.5 w-3.5 text-muted-foreground/50 cursor-help hover:text-muted-foreground transition-colors" />
                           </TooltipTrigger>
                           <TooltipContent side="right" className="max-w-xs">
-                            <p className="text-xs font-medium">
+                            <p className="text-xs">
                               Showing events from the last
-                              <span className="font-black text-primary px-1">
+                              <span className="font-bold text-primary px-1">
                                 {analytics?.overview?.plan === 'unlimited' ? '∞' : (analytics?.overview?.plan === 'pro' ? '180' : (analytics?.overview?.plan === 'plus' ? '60' : '7'))} days
                               </span>
-                              based on your <span className="capitalize font-bold">{analytics?.overview?.plan || 'Free'}</span> plan.
+                              based on your <span className="capitalize">{analytics?.overview?.plan || 'Free'}</span> plan.
                             </p>
                           </TooltipContent>
                         </Tooltip>
@@ -669,7 +669,7 @@ export default function InsightsPage() {
                           variant={"outline"}
                           size="sm"
                           className={cn(
-                            "h-9 justify-start text-left font-semibold px-3",
+                            "h-8 justify-start text-left font-normal px-3",
                             !dateRange && "text-muted-foreground"
                           )}
                         >
@@ -704,7 +704,7 @@ export default function InsightsPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-9 w-9"
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
                         onClick={() => setDateRange(undefined)}
                       >
                         <IconX className="h-4 w-4" />
@@ -713,29 +713,29 @@ export default function InsightsPage() {
 
                     <Popover>
                       <PopoverTrigger asChild>
-                        <Button variant="outline" size="sm" className="h-9 w-40 justify-start text-xs px-3 font-semibold">
+                        <Button variant="outline" size="sm" className="h-8 w-36 justify-start text-xs px-3">
                           <span className="truncate text-xs">{activityEventType ? activityEventType.replace(/_/g, ' ') : 'All Events'}</span>
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-[220px] p-0" align="start">
-                        <div className="max-h-[350px] overflow-y-auto">
-                          <div className="flex flex-col p-1">
-                            <button onClick={() => setActivityEventType('')} className="px-3 py-2.5 text-xs text-left hover:bg-muted font-medium">All Events</button>
-                            <button onClick={() => setActivityEventType('FILE_UPLOAD')} className="px-3 py-2.5 text-xs text-left hover:bg-muted font-medium">File Upload</button>
-                            <button onClick={() => setActivityEventType('FILE_CREATE')} className="px-3 py-2.5 text-xs text-left hover:bg-muted font-medium">File Create</button>
-                            <button onClick={() => setActivityEventType('FILE_RENAME')} className="px-3 py-2.5 text-xs text-left hover:bg-muted font-medium">File Rename</button>
-                            <button onClick={() => setActivityEventType('FILE_MOVE')} className="px-3 py-2.5 text-xs text-left hover:bg-muted font-medium">File Move</button>
-                            <button onClick={() => setActivityEventType('FILE_DELETE')} className="px-3 py-2.5 text-xs text-left hover:bg-muted font-medium">File Delete</button>
-                            <button onClick={() => setActivityEventType('TRASH_MOVE')} className="px-3 py-2.5 text-xs text-left hover:bg-muted font-medium">Trash Move</button>
-                            <button onClick={() => setActivityEventType('TRASH_RESTORE')} className="px-3 py-2.5 text-xs text-left hover:bg-muted font-medium">Trash Restore</button>
-                            <button onClick={() => setActivityEventType('FOLDER_CREATE')} className="px-3 py-2.5 text-xs text-left hover:bg-muted font-medium">Folder Create</button>
-                            <button onClick={() => setActivityEventType('FOLDER_RENAME')} className="px-3 py-2.5 text-xs text-left hover:bg-muted font-medium">Folder Rename</button>
-                            <button onClick={() => setActivityEventType('FOLDER_MOVE')} className="px-3 py-2.5 text-xs text-left hover:bg-muted font-medium">Folder Move</button>
-                            <button onClick={() => setActivityEventType('FOLDER_DELETE')} className="px-3 py-2.5 text-xs text-left hover:bg-muted font-medium">Folder Delete</button>
-                            <button onClick={() => setActivityEventType('SHARE_CREATE')} className="px-3 py-2.5 text-xs text-left hover:bg-muted font-medium">Share Create</button>
-                            <button onClick={() => setActivityEventType('SHARE_REVOKE')} className="px-3 py-2.5 text-xs text-left hover:bg-muted font-medium">Share Revoke</button>
-                            <button onClick={() => setActivityEventType('LOGIN')} className="px-3 py-2.5 text-xs text-left hover:bg-muted font-medium">Login</button>
-                            <button onClick={() => setActivityEventType('LOGOUT')} className="px-3 py-2.5 text-xs text-left hover:bg-muted font-medium">Logout</button>
+                      <PopoverContent className="w-[200px] p-0" align="start">
+                        <div className="max-h-[300px] overflow-y-auto">
+                          <div className="flex flex-col">
+                            <button onClick={() => setActivityEventType('')} className="px-3 py-2 text-xs text-left hover:bg-muted transition-colors">All Events</button>
+                            <button onClick={() => setActivityEventType('FILE_UPLOAD')} className="px-3 py-2 text-xs text-left hover:bg-muted transition-colors">File Upload</button>
+                            <button onClick={() => setActivityEventType('FILE_CREATE')} className="px-3 py-2 text-xs text-left hover:bg-muted transition-colors">File Create</button>
+                            <button onClick={() => setActivityEventType('FILE_RENAME')} className="px-3 py-2 text-xs text-left hover:bg-muted transition-colors">File Rename</button>
+                            <button onClick={() => setActivityEventType('FILE_MOVE')} className="px-3 py-2 text-xs text-left hover:bg-muted transition-colors">File Move</button>
+                            <button onClick={() => setActivityEventType('FILE_DELETE')} className="px-3 py-2 text-xs text-left hover:bg-muted transition-colors">File Delete</button>
+                            <button onClick={() => setActivityEventType('TRASH_MOVE')} className="px-3 py-2 text-xs text-left hover:bg-muted transition-colors">Trash Move</button>
+                            <button onClick={() => setActivityEventType('TRASH_RESTORE')} className="px-3 py-2 text-xs text-left hover:bg-muted transition-colors">Trash Restore</button>
+                            <button onClick={() => setActivityEventType('FOLDER_CREATE')} className="px-3 py-2 text-xs text-left hover:bg-muted transition-colors">Folder Create</button>
+                            <button onClick={() => setActivityEventType('FOLDER_RENAME')} className="px-3 py-2 text-xs text-left hover:bg-muted transition-colors">Folder Rename</button>
+                            <button onClick={() => setActivityEventType('FOLDER_MOVE')} className="px-3 py-2 text-xs text-left hover:bg-muted transition-colors">Folder Move</button>
+                            <button onClick={() => setActivityEventType('FOLDER_DELETE')} className="px-3 py-2 text-xs text-left hover:bg-muted transition-colors">Folder Delete</button>
+                            <button onClick={() => setActivityEventType('SHARE_CREATE')} className="px-3 py-2 text-xs text-left hover:bg-muted transition-colors">Share Create</button>
+                            <button onClick={() => setActivityEventType('SHARE_REVOKE')} className="px-3 py-2 text-xs text-left hover:bg-muted transition-colors">Share Revoke</button>
+                            <button onClick={() => setActivityEventType('LOGIN')} className="px-3 py-2 text-xs text-left hover:bg-muted transition-colors">Login</button>
+                            <button onClick={() => setActivityEventType('LOGOUT')} className="px-3 py-2 text-xs text-left hover:bg-muted transition-colors">Logout</button>
                           </div>
                         </div>
                       </PopoverContent>
@@ -744,17 +744,12 @@ export default function InsightsPage() {
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-9 w-9" 
-                            onClick={handleRefresh}
-                          >
-                            <IconRefresh className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={handleRefresh}>
+                            <IconRefresh className={`h-4 w-4 transition-transform duration-500 ${isRefreshing ? 'animate-spin' : ''}`} />
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p className="font-medium">Refresh Log</p>
+                          <p>Refresh Log</p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
@@ -765,7 +760,7 @@ export default function InsightsPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-9 w-9"
+                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
                             onClick={() => {
                               if (isExporting) return;
                               handleExport();
@@ -780,7 +775,7 @@ export default function InsightsPage() {
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p className="font-medium">Export CSV</p>
+                          <p>Export CSV</p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
@@ -791,7 +786,7 @@ export default function InsightsPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-9 w-9 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
+                            className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
                             onClick={handleWipe}
                             disabled={activityLogs.length === 0}
                           >
@@ -799,13 +794,13 @@ export default function InsightsPage() {
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p className="font-medium">Wipe History</p>
+                          <p>Wipe History</p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
                   </div>
                 </CardHeader>
-                <CardContent className="p-6">
+                <CardContent>
                   <InsightsDataTable
                     data={activityLogs}
                     pagination={logsPagination}
