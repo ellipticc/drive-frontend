@@ -218,7 +218,6 @@ export function ExportToolbarButton(props: DropdownMenuProps) {
     triggerSnapshot();
 
     const blob = await exportToDocx(editor.children, {
-      editorPlugins: BaseEditorKit as any,
       fontFamily: 'Calibri',
       orientation: 'portrait',
     });
