@@ -2469,7 +2469,39 @@ export const Table01DividerLineSm = ({
                             <IconFileUpload className="mr-2 h-4 w-4" />
                             {t("files.uploadFile")}
                         </Button>
-                        <Button variant="outline" onClick={() => window.open('/paper/new?creating=1', '_blank')}>
+                        <Button variant="outline" onClick={async () => {
+                            const folderId = currentFolderId === 'root' ? null : currentFolderId;
+
+                            const now = new Date();
+                            const year = now.getFullYear();
+                            const month = String(now.getMonth() + 1).padStart(2, '0');
+                            const day = String(now.getDate()).padStart(2, '0');
+                            const hour = String(now.getHours()).padStart(2, '0');
+                            const minute = String(now.getMinutes()).padStart(2, '0');
+                            const second = String(now.getSeconds()).padStart(2, '0');
+                            const filename = `Untitled paper ${year}-${month}-${day} ${hour}.${minute}.${second}`;
+
+                            // Open new tab immediately for better UX
+                            const newWin = window.open('/paper/new?creating=1', '_blank');
+                            toast('Creating paper...');
+
+                            try {
+                                const newPaperId = await paperService.createPaper(filename, undefined, folderId);
+
+                                if (newPaperId) {
+                                    toast.success('Paper created');
+                                    if (newWin && !newWin.closed) {
+                                        newWin.location.href = `/paper?fileId=${newPaperId}`;
+                                    } else {
+                                        window.open(`/paper?fileId=${newPaperId}`, '_blank');
+                                    }
+                                }
+                            } catch (err) {
+                                console.error('Failed to create new paper:', err);
+                                toast.error('Failed to create new paper');
+                                if (newWin && !newWin.closed) newWin.close();
+                            }
+                        }}>
                             <IconStack className="mr-2 h-4 w-4" />
                             {t("files.newPaper") || "New Paper"}
                         </Button>
