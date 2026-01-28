@@ -143,35 +143,63 @@ export function ExportToolbarButton(props: DropdownMenuProps) {
           const src = img.getAttribute('src');
           if (!src) return;
 
-          // If it's already a data URL, skip
-          if (src.startsWith('data:')) return;
+          let dataUrl = src;
 
-          // Resolve relative URLs
-          const absoluteSrc = src.startsWith('/') ? `${window.location.origin}${src}` : src;
+          // If it's not a data URL, fetch it
+          if (!src.startsWith('data:')) {
+            const absoluteSrc = src.startsWith('/') ? `${window.location.origin}${src}` : src;
+            const response = await fetch(absoluteSrc);
+            const blob = await response.blob();
+            dataUrl = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+          }
 
-          // Fetch the image and convert to data URL
-          const response = await fetch(absoluteSrc);
-          const blob = await response.blob();
+          // Convert SVG/WebP to PNG for max compatibility with PDF/Word
+          const isSvg = dataUrl.includes('image/svg+xml') || src.toLowerCase().endsWith('.svg');
+          const isWebp = dataUrl.includes('image/webp') || src.toLowerCase().endsWith('.webp');
 
-          const dataUrl = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-          });
+          if (isSvg || isWebp) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const imgElement = new Image();
+
+            await new Promise((resolve, reject) => {
+              imgElement.onload = resolve;
+              imgElement.onerror = reject;
+              imgElement.src = dataUrl;
+            });
+
+            canvas.width = imgElement.naturalWidth || 800;
+            canvas.height = imgElement.naturalHeight || 600;
+
+            if (ctx) {
+              ctx.fillStyle = 'white';
+              ctx.fillRect(0, 0, canvas.width, canvas.height);
+              ctx.drawImage(imgElement, 0, 0, canvas.width, canvas.height);
+              dataUrl = canvas.toDataURL('image/png');
+            }
+          }
 
           img.setAttribute('src', dataUrl);
 
-          // Set explicit dimensions for document converters
-          const imgElement = new Image();
-          imgElement.src = dataUrl;
+          const finalImg = new Image();
+          finalImg.src = dataUrl;
           await new Promise((resolve) => {
-            imgElement.onload = resolve;
-            imgElement.onerror = resolve;
+            finalImg.onload = resolve;
+            finalImg.onerror = resolve;
           });
 
-          if (imgElement.width) img.setAttribute('width', imgElement.width.toString());
-          if (imgElement.height) img.setAttribute('height', imgElement.height.toString());
+          if (finalImg.width) {
+            const maxWidth = 500;
+            const width = Math.min(finalImg.width, maxWidth);
+            const height = Math.round((width / finalImg.width) * finalImg.height);
+            img.setAttribute('width', width.toString());
+            img.setAttribute('height', height.toString());
+          }
         } catch (e) {
           console.warn('Failed to process image for export:', e);
         }
@@ -237,7 +265,8 @@ export function ExportToolbarButton(props: DropdownMenuProps) {
     // Some versions of vfs_fonts export an object with pdfMake property, others export vfs directly
     let vfs = (pdfFonts && pdfFonts.pdfMake && pdfFonts.pdfMake.vfs) ||
       (pdfFonts && pdfFonts.vfs) ||
-      (pdfFontsModule && pdfFontsModule.pdfMake && pdfFontsModule.pdfMake.vfs);
+      (pdfFontsModule && pdfFontsModule.pdfMake && pdfFontsModule.pdfMake.vfs) ||
+      (pdfFontsModule && pdfFontsModule.vfs);
 
     if (!vfs && typeof window !== 'undefined') {
       vfs = (window as any).pdfMake?.vfs;
