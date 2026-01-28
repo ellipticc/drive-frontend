@@ -28,6 +28,7 @@ import {
 import { toast } from "sonner";
 import { type Value } from "platejs";
 import { paperService } from "@/lib/paper-service";
+import html2canvas from 'html2canvas';
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { HeaderUser } from "@/components/header-user";
@@ -289,10 +290,40 @@ function PaperHeader({
                                 <IconHistory className="w-4 h-4 mr-2" />
                                 See version history
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setShowWordCount(!showWordCount)}>
-                                <IconLetterCase className="w-4 h-4 mr-2" />
-                                Word count
-                            </DropdownMenuItem>
+                            
+                            <DropdownMenuSub>
+                                <DropdownMenuSubTrigger>
+                                    <IconLetterCase className="w-4 h-4 mr-2" />
+                                    Word count
+                                </DropdownMenuSubTrigger>
+                                <DropdownMenuSubContent>
+                                    <div className="px-2 py-3 space-y-2 w-52">
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-muted-foreground">Words</span>
+                                            <span className="font-medium">{stats.words.toLocaleString()}</span>
+                                        </div>
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-muted-foreground">Characters</span>
+                                            <span className="font-medium">{stats.characters.toLocaleString()}</span>
+                                        </div>
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-muted-foreground">Characters (no spaces)</span>
+                                            <span className="font-medium">{stats.charactersNoSpaces.toLocaleString()}</span>
+                                        </div>
+                                    </div>
+                                    <DropdownMenuSeparator />
+                                    <div className="px-2 py-2">
+                                        <div className="flex items-center justify-between">
+                                            <Label htmlFor="word-count-menu-toggle" className="text-sm cursor-pointer">Show word count</Label>
+                                            <Switch
+                                                id="word-count-menu-toggle"
+                                                checked={showWordCount}
+                                                onCheckedChange={setShowWordCount}
+                                            />
+                                        </div>
+                                    </div>
+                                </DropdownMenuSubContent>
+                            </DropdownMenuSub>
                             
                             <DropdownMenuSeparator />
                             
@@ -379,52 +410,6 @@ function PaperHeader({
             </div>
 
             <div className="ml-auto flex items-center gap-2 md:gap-4 shrink-0">
-                {/* Word Count Display (Top Right) */}
-                {showWordCount && (
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <button className="text-xs md:text-sm text-muted-foreground hover:text-foreground hover:bg-muted px-2 py-1 rounded-md transition-colors">
-                                {stats.words.toLocaleString()} words
-                            </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuSub>
-                                <DropdownMenuSubTrigger>
-                                    <IconChartBar className="w-4 h-4 mr-2" />
-                                    Word Count
-                                </DropdownMenuSubTrigger>
-                                <DropdownMenuSubContent>
-                                    <div className="px-2 py-3 space-y-2 w-52">
-                                        <div className="flex justify-between text-sm">
-                                            <span className="text-muted-foreground">Words</span>
-                                            <span className="font-medium">{stats.words.toLocaleString()}</span>
-                                        </div>
-                                        <div className="flex justify-between text-sm">
-                                            <span className="text-muted-foreground">Characters</span>
-                                            <span className="font-medium">{stats.characters.toLocaleString()}</span>
-                                        </div>
-                                        <div className="flex justify-between text-sm">
-                                            <span className="text-muted-foreground">Characters (no spaces)</span>
-                                            <span className="font-medium">{stats.charactersNoSpaces.toLocaleString()}</span>
-                                        </div>
-                                    </div>
-                                </DropdownMenuSubContent>
-                            </DropdownMenuSub>
-                            <DropdownMenuSeparator />
-                            <div className="px-2 py-2">
-                                <div className="flex items-center justify-between">
-                                    <Label htmlFor="word-count-toggle" className="text-sm cursor-pointer">Show word count</Label>
-                                    <Switch
-                                        id="word-count-toggle"
-                                        checked={showWordCount}
-                                        onCheckedChange={setShowWordCount}
-                                    />
-                                </div>
-                            </div>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                )}
-
                 <div className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm text-muted-foreground min-w-[60px] md:min-w-[80px] justify-end">
                     {saving ? (
                         <>
@@ -533,7 +518,6 @@ function PaperEditorView({
     onCopyAsMarkdown: () => void;
     setSupportDialogOpen: (open: boolean) => void;
 }) {
-    const [showStickyWordCount, setShowStickyWordCount] = useState(false);
     const [editorValue, setEditorValue] = useState<Value>(initialValue);
     
     const editor = usePlateEditor({
@@ -608,53 +592,32 @@ function PaperEditorView({
                             </div>
                         </EditorContainer>
 
-                        {/* Sticky Word Count (Bottom Right Extreme) */}
-                        {showStickyWordCount && (
-                            <div className="fixed bottom-4 right-4 z-40">
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <button className="px-3 py-1.5 text-xs bg-muted/90 backdrop-blur-sm hover:bg-muted text-muted-foreground hover:text-foreground rounded-full shadow-lg transition-colors border">
-                                            {stats.words.toLocaleString()} words
-                                        </button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="w-48">
-                                        <DropdownMenuSub>
-                                            <DropdownMenuSubTrigger>
-                                                <IconChartBar className="w-4 h-4 mr-2" />
-                                                Word Count
-                                            </DropdownMenuSubTrigger>
-                                            <DropdownMenuSubContent>
-                                                <div className="px-2 py-3 space-y-2 w-52">
-                                                    <div className="flex justify-between text-sm">
-                                                        <span className="text-muted-foreground">Words</span>
-                                                        <span className="font-medium">{stats.words.toLocaleString()}</span>
-                                                    </div>
-                                                    <div className="flex justify-between text-sm">
-                                                        <span className="text-muted-foreground">Characters</span>
-                                                        <span className="font-medium">{stats.characters.toLocaleString()}</span>
-                                                    </div>
-                                                    <div className="flex justify-between text-sm">
-                                                        <span className="text-muted-foreground">Characters (no spaces)</span>
-                                                        <span className="font-medium">{stats.charactersNoSpaces.toLocaleString()}</span>
-                                                    </div>
-                                                </div>
-                                            </DropdownMenuSubContent>
-                                        </DropdownMenuSub>
-                                        <DropdownMenuSeparator />
-                                        <div className="px-2 py-2">
-                                            <div className="flex items-center justify-between">
-                                                <Label htmlFor="sticky-word-count-toggle" className="text-sm cursor-pointer">Show word count</Label>
-                                                <Switch
-                                                    id="sticky-word-count-toggle"
-                                                    checked={showStickyWordCount}
-                                                    onCheckedChange={setShowStickyWordCount}
-                                                />
-                                            </div>
+                        {/* Floating Word Count (Bottom Right - Always Visible) */}
+                        <div className="fixed bottom-4 right-4 z-40">
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <button className="px-3 py-1.5 text-xs bg-muted/90 backdrop-blur-sm hover:bg-muted text-muted-foreground hover:text-foreground rounded-full shadow-lg transition-colors border">
+                                        {stats.words.toLocaleString()} words
+                                    </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-56">
+                                    <div className="px-2 py-3 space-y-2">
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-muted-foreground">Words</span>
+                                            <span className="font-medium">{stats.words.toLocaleString()}</span>
                                         </div>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            </div>
-                        )}
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-muted-foreground">Characters</span>
+                                            <span className="font-medium">{stats.characters.toLocaleString()}</span>
+                                        </div>
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-muted-foreground">Characters (no spaces)</span>
+                                            <span className="font-medium">{stats.charactersNoSpaces.toLocaleString()}</span>
+                                        </div>
+                                    </div>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
                     </main>
                 </div>
             </Plate>
@@ -1001,13 +964,88 @@ function PaperPageContent() {
         window.print();
     }, []);
 
-    const handleDownload = useCallback((format: string) => {
-        // Trigger the export-requires-upgrade event for pro features
-        const event = new CustomEvent('export-requires-upgrade', {
-            detail: { message: `Export to ${format.toUpperCase()} requires a Pro or Unlimited subscription.` }
-        });
-        window.dispatchEvent(event);
-    }, []);
+    const handleDownload = useCallback(async (format: string) => {
+        if (!latestContentRef.current) {
+            toast.error('No content to export');
+            return;
+        }
+
+        try {
+            const title = paperTitle || 'Document';
+            
+            switch (format) {
+                case 'image': {
+                    // Free for everyone - capture editor as image
+                    const editorEl = document.querySelector('[data-slate-editor]') as HTMLElement;
+                    if (!editorEl) {
+                        toast.error('Editor not found');
+                        return;
+                    }
+                    
+                    toast.info('Generating image...');
+                    const canvas = await html2canvas(editorEl, {
+                        background: '#ffffff',
+                        logging: false,
+                    });
+                    
+                    canvas.toBlob((blob: Blob | null) => {
+                        if (blob) {
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `${title}.png`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                            toast.success('Image downloaded');
+                        }
+                    }, 'image/png');
+                    break;
+                }
+                
+                case 'markdown': {
+                    // Pro feature
+                    const event = new CustomEvent('export-requires-upgrade', {
+                        detail: { message: `Export to Markdown requires a Pro or Unlimited subscription.` }
+                    });
+                    window.dispatchEvent(event);
+                    break;
+                }
+                
+                case 'html': {
+                    // Pro feature
+                    const event = new CustomEvent('export-requires-upgrade', {
+                        detail: { message: `Export to HTML requires a Pro or Unlimited subscription.` }
+                    });
+                    window.dispatchEvent(event);
+                    break;
+                }
+                
+                case 'pdf': {
+                    // Pro feature
+                    const event = new CustomEvent('export-requires-upgrade', {
+                        detail: { message: `Export to PDF requires a Pro or Unlimited subscription.` }
+                    });
+                    window.dispatchEvent(event);
+                    break;
+                }
+                
+                case 'docx': {
+                    // Pro feature
+                    const event = new CustomEvent('export-requires-upgrade', {
+                        detail: { message: `Export to DOCX requires a Pro or Unlimited subscription.` }
+                    });
+                    window.dispatchEvent(event);
+                    break;
+                }
+                
+                default:
+                    toast.error('Unknown export format');
+            }
+        } catch (error) {
+            console.error('Export failed:', error);
+            toast.error('Failed to export document');
+        }
+    }, [paperTitle]);
 
     const handleCopyAsMarkdown = useCallback(() => {
         if (!latestContentRef.current) {

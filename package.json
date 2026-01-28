@@ -114,6 +114,7 @@
     "hash-wasm": "^4.12.0",
     "html-docx-js": "^0.3.1",
     "html-to-pdfmake": "^2.5.32",
+    "html2canvas": "^1.4.1",
     "html2canvas-pro": "^1.6.4",
     "i18next": "^25.7.3",
     "i18next-browser-languagedetector": "^8.2.0",
@@ -182,6 +183,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.16",
     "@types/geojson": "^7946.0.16",
+    "@types/html2canvas": "^0.5.35",
     "@types/leaflet-draw": "^1.0.13",
     "@types/leaflet.markercluster": "^1.5.6",
     "@types/node": "^20",
