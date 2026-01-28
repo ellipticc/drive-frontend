@@ -93,7 +93,7 @@ export default function InsightsPage() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [showWipeDialog, setShowWipeDialog] = useState(false)
   const [activityEventType, setActivityEventType] = useState<string>('')
-  
+
   const [upgradeDialogData, setUpgradeDialogData] = useState<{ open: boolean; title: string; description: string } | null>(null)
 
   const { startUploadWithFiles, startUploadWithFolders } = useGlobalUpload()
@@ -237,7 +237,7 @@ export default function InsightsPage() {
     return (
       <div className="flex min-h-screen w-full flex-col">
         <SiteHeader onFileUpload={handleFileUpload} onFolderUpload={handleFolderUpload} sticky />
-        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
+        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 pt-[calc(var(--header-height)+1.5rem)]">
           <div className="w-full flex flex-col gap-6">
             <div className="h-16 w-full max-w-sm rounded-lg bg-muted/20 animate-pulse" />
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -254,7 +254,7 @@ export default function InsightsPage() {
     return (
       <div className="flex min-h-screen w-full flex-col">
         <SiteHeader onFileUpload={handleFileUpload} onFolderUpload={handleFolderUpload} sticky />
-        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
+        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 pt-[calc(var(--header-height)+1.5rem)]">
           <div className="w-full flex items-center justify-center h-full">
             <p className="text-muted-foreground">Failed to load analytics data</p>
           </div>
@@ -316,7 +316,7 @@ export default function InsightsPage() {
         className="hidden"
       />
 
-      <main className="flex-1 py-8 pt-[var(--header-height)]">
+      <main className="flex-1 pb-8 px-4 sm:px-6 lg:px-8 pt-[calc(var(--header-height)+2rem)]">
         <div className="w-full space-y-8">
           {/* Page Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-4 lg:px-6">
@@ -479,8 +479,8 @@ export default function InsightsPage() {
                         dataKey="value"
                       >
                         {typeChartData.map((_entry: any, index: number) => (
-                          <Cell 
-                            key={`cell-${index}`} 
+                          <Cell
+                            key={`cell-${index}`}
                             fill={PIE_COLORS[index % PIE_COLORS.length]}
                           />
                         ))}
@@ -525,8 +525,8 @@ export default function InsightsPage() {
                         className="text-xs"
                       />
                       <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar 
-                        dataKey="uploads" 
+                      <Bar
+                        dataKey="uploads"
                         fill="var(--color-uploads)"
                         radius={[4, 4, 0, 0]}
                       />
@@ -570,18 +570,18 @@ export default function InsightsPage() {
                         hide
                       />
                       <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar 
-                        yAxisId="left" 
-                        dataKey="storage" 
-                        fill="var(--color-files)" 
+                      <Bar
+                        yAxisId="left"
+                        dataKey="storage"
+                        fill="var(--color-files)"
                         radius={[4, 4, 0, 0]}
                         fillOpacity={0.6}
                       />
-                      <Line 
-                        yAxisId="right" 
-                        type="monotone" 
-                        dataKey="files" 
-                        stroke="var(--color-storage)" 
+                      <Line
+                        yAxisId="right"
+                        type="monotone"
+                        dataKey="files"
+                        stroke="var(--color-storage)"
                         strokeWidth={2}
                         dot={{ r: 3 }}
                       />
@@ -604,8 +604,8 @@ export default function InsightsPage() {
                 <CardContent>
                   <div className="space-y-3">
                     {decryptedTopFiles.map((file) => (
-                      <div 
-                        key={file.id} 
+                      <div
+                        key={file.id}
                         className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50"
                       >
                         <div className="flex items-center gap-3 overflow-hidden flex-1">

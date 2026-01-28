@@ -153,7 +153,12 @@ export function SiteHeader({ onSearch, onFileUpload, onFolderUpload, searchValue
       className={cn(
         "flex h-(--header-height) shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)",
         "bg-background",
-        effectiveSticky ? "fixed top-0 left-0 right-0 z-50 w-full border-b rounded-tl-2xl" : "border-b rounded-tl-lg rounded-bl-lg"
+        "fixed z-50 border-b bg-background transition-[left,right,top,border-radius] duration-200 ease-linear",
+        // Mobile: flush to edges
+        "top-0 left-0 right-0 w-full",
+        // Desktop: inset style (top-2, rounded-tl-2xl, offset left by sidebar width + margin)
+        "md:top-2 md:w-auto md:right-0 md:rounded-tl-2xl",
+        "md:left-[calc(var(--sidebar-width)+0.5rem)] group-has-data-[collapsible=icon]/sidebar-wrapper:md:left-[calc(var(--sidebar-width-icon)+0.5rem)]"
       )}
     >
 
