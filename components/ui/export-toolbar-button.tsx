@@ -128,6 +128,82 @@ export function ExportToolbarButton(props: DropdownMenuProps) {
     }
   };
 
+  const processMediaForExport = async (html: string) => {
+    if (typeof window === 'undefined') return html;
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const images = Array.from(doc.querySelectorAll('img'));
+    const videos = Array.from(doc.querySelectorAll('video'));
+    const audios = Array.from(doc.querySelectorAll('audio'));
+
+    // Process images: convert to Data URL for PDF/Word compatibility
+    await Promise.all(
+      images.map(async (img) => {
+        try {
+          const src = img.getAttribute('src');
+          if (!src) return;
+
+          // If it's already a data URL, skip
+          if (src.startsWith('data:')) return;
+
+          // Resolve relative URLs
+          const absoluteSrc = src.startsWith('/') ? `${window.location.origin}${src}` : src;
+
+          // Fetch the image and convert to data URL
+          const response = await fetch(absoluteSrc);
+          const blob = await response.blob();
+
+          const dataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+
+          img.setAttribute('src', dataUrl);
+
+          // Set explicit dimensions for document converters
+          const imgElement = new Image();
+          imgElement.src = dataUrl;
+          await new Promise((resolve) => {
+            imgElement.onload = resolve;
+            imgElement.onerror = resolve;
+          });
+
+          if (imgElement.width) img.setAttribute('width', imgElement.width.toString());
+          if (imgElement.height) img.setAttribute('height', imgElement.height.toString());
+        } catch (e) {
+          console.warn('Failed to process image for export:', e);
+        }
+      })
+    );
+
+    // Process videos/audios: Replace with a placeholder and direct link
+    const processMediaPlaceholder = (el: HTMLElement, type: 'Video' | 'Audio') => {
+      const src = el.getAttribute('src') || el.querySelector('source')?.getAttribute('src');
+      const placeholder = doc.createElement('div');
+      placeholder.setAttribute('style', 'padding: 12px; border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 8px; margin: 12px 0; font-family: sans-serif;');
+
+      const title = doc.createElement('div');
+      title.innerText = `${type} Content`;
+      title.setAttribute('style', 'font-weight: bold; margin-bottom: 4px; color: #1e293b;');
+
+      const link = doc.createElement('a');
+      link.setAttribute('href', src || '#');
+      link.innerText = src ? `View original ${type.toLowerCase()}` : `Link not available`;
+      link.setAttribute('style', 'color: #2563eb; text-decoration: underline; font-size: 14px;');
+
+      placeholder.appendChild(title);
+      placeholder.appendChild(link);
+      el.parentNode?.replaceChild(placeholder, el);
+    };
+
+    videos.forEach(v => processMediaPlaceholder(v, 'Video'));
+    audios.forEach(a => processMediaPlaceholder(a, 'Audio'));
+
+    return doc.body.innerHTML;
+  };
+
   const exportToPdf = async () => {
     if (!requirePro('PDF')) return;
     triggerSnapshot(); // Fire and forget
@@ -143,8 +219,8 @@ export function ExportToolbarButton(props: DropdownMenuProps) {
       props: { style: { padding: '0 calc(50% - 350px)', paddingBottom: '' } },
     });
 
-    // Convert relative image URLs to absolute (so pdfmake can fetch/embed them)
-    editorHtml = editorHtml.replace(/src="\//g, `src="${siteUrl}/`);
+    // Process images and media before passing to pdfmake
+    editorHtml = await processMediaForExport(editorHtml);
 
     // Convert HTML to pdfmake structure
     // @ts-ignore - html-to-pdfmake has no type definitions
@@ -158,15 +234,19 @@ export function ExportToolbarButton(props: DropdownMenuProps) {
     const pdfFonts = pdfFontsModule.default || pdfFontsModule;
 
     // Use the vfs from the module or global if necessary
-    const vfs =
-      (pdfFonts && pdfFonts.pdfMake && pdfFonts.pdfMake.vfs) ||
+    // Some versions of vfs_fonts export an object with pdfMake property, others export vfs directly
+    let vfs = (pdfFonts && pdfFonts.pdfMake && pdfFonts.pdfMake.vfs) ||
       (pdfFonts && pdfFonts.vfs) ||
-      (window as any).pdfMake?.vfs;
+      (pdfFontsModule && pdfFontsModule.pdfMake && pdfFontsModule.pdfMake.vfs);
+
+    if (!vfs && typeof window !== 'undefined') {
+      vfs = (window as any).pdfMake?.vfs;
+    }
 
     if (vfs) {
       pdfMake.vfs = vfs;
     } else {
-      console.warn('pdfMake vfs fonts not found in module, attempting to continue...');
+      console.warn('pdfMake vfs fonts not found, check build/vfs_fonts.js');
     }
 
     // Explicitly define fonts to avoid "Font not defined" errors
@@ -278,10 +358,13 @@ export function ExportToolbarButton(props: DropdownMenuProps) {
       value: editor.children,
     });
 
-    const editorHtml = await serializeHtml(editorStatic, {
+    let editorHtml = await serializeHtml(editorStatic, {
       editorComponent: EditorStatic,
       props: { style: { padding: '20px' } },
     });
+
+    // Process images and media (essential for Word to show images)
+    editorHtml = await processMediaForExport(editorHtml);
 
     // Create a complete HTML document
     const htmlContent = `
@@ -295,6 +378,12 @@ export function ExportToolbarButton(props: DropdownMenuProps) {
               font-size: 11pt;
               line-height: 1.5;
               color: #000000;
+            }
+            img {
+              max-width: 100%;
+              height: auto;
+              display: block;
+              margin: 10px 0;
             }
           </style>
         </head>
