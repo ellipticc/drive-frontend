@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/tooltip"
 import { useFormatter } from "@/hooks/use-formatter";
 import type { Referral } from "@/lib/api"
+import { toast } from "sonner"
 
 const formatStorageSize = (bytes: number) => {
     if (bytes === 0) return '0 B'
@@ -187,7 +188,11 @@ export function ReferralsTab({
                                                                         {referral.referred_user_id ? `${referral.referred_user_id.substring(0, 8)}...` : 'N/A'}
                                                                     </span>
                                                                 </TooltipTrigger>
-                                                                <TooltipContent side="top">
+                                                                <TooltipContent 
+                                                                    side="top"
+                                                                    className="cursor-pointer"
+                                                                    onClick={(e) => { e.stopPropagation(); if (referral.referred_user_id) { navigator.clipboard.writeText(referral.referred_user_id); toast.success('Copied referral id'); } }}
+                                                                >
                                                                     <p className="font-mono text-xs">{referral.referred_user_id || 'No ID available'}</p>
                                                                 </TooltipContent>
                                                             </Tooltip>

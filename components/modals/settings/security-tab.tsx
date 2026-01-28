@@ -889,7 +889,11 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                                                 {session.id.substring(0, 8)}...
                                                             </span>
                                                         </TooltipTrigger>
-                                                        <TooltipContent side="top">
+                                                        <TooltipContent 
+                                                            side="top"
+                                                            className="cursor-pointer"
+                                                            onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(session.id); toast.success('Copied session id'); }}
+                                                        >
                                                             <p className="font-mono text-xs">{session.id}</p>
                                                         </TooltipContent>
                                                     </Tooltip>
@@ -1036,7 +1040,11 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                                                 {device.id.substring(0, 8)}...
                                                             </span>
                                                         </TooltipTrigger>
-                                                        <TooltipContent side="top">
+                                                        <TooltipContent 
+                                                            side="top"
+                                                            className="cursor-pointer"
+                                                            onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(device.id); toast.success('Copied device id'); }}
+                                                        >
                                                             <p className="font-mono text-xs">{device.id}</p>
                                                         </TooltipContent>
                                                     </Tooltip>
@@ -1476,7 +1484,11 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                                                                         {event.id.substring(0, 8)}...
                                                                                     </span>
                                                                                 </TooltipTrigger>
-                                                                                <TooltipContent side="top">
+                                                                                <TooltipContent 
+                                                                                    side="top"
+                                                                                    className="cursor-pointer"
+                                                                                    onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(event.id); toast.success('Copied event id'); }}
+                                                                                >
                                                                                     <p className="font-mono text-xs">{event.id}</p>
                                                                                 </TooltipContent>
                                                                             </Tooltip>
