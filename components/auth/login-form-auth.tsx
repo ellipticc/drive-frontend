@@ -15,7 +15,7 @@ import { Switch } from "@/components/ui/switch"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import type { UserData } from '@/lib/api'
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { apiClient } from "@/lib/api"
 import { masterKeyManager } from "@/lib/master-key"
 import { keyManager } from "@/lib/key-manager"
@@ -39,9 +39,14 @@ export function LoginFormAuth({
   const [keepSignedIn, setKeepSignedIn] = useState(false)
 
 
+  const hasCheckedRef = useRef(false)
+
   // Check if user is already authenticated with cached credentials
   useEffect(() => {
+    if (hasCheckedRef.current) return;
+
     const checkAndRedirect = async () => {
+      hasCheckedRef.current = true;
       try {
         // Check if JWT token exists and is valid in either localStorage or sessionStorage
         const localToken = localStorage.getItem('auth_token')
@@ -56,11 +61,8 @@ export function LoginFormAuth({
         const sessionAccountSalt = sessionStorage.getItem('account_salt')
         const accountSalt = localAccountSalt || sessionAccountSalt
 
-        const { SessionManager } = await import("@/lib/session-manager")
-        const isTokenValid = SessionManager.isTokenValid()
-
-        if (token && masterKey && accountSalt && isTokenValid) {
-          console.log('All credentials found and valid! Redirecting to dashboard...')
+        if (token && masterKey && accountSalt) {
+          console.log('All credentials found! Redirecting to dashboard...')
           // Determine storage type based on where credentials were found
           const storage = (sessionToken && sessionMasterKey && sessionAccountSalt) ? sessionStorage : localStorage;
           apiClient.setStorage(storage);
@@ -88,7 +90,7 @@ export function LoginFormAuth({
     }
 
     checkAndRedirect()
-  }, [router])
+  }, []) // Removed router dependency to prevent re-runs
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
