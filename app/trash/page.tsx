@@ -1,13 +1,13 @@
 "use client"
 
-import { useState, useLayoutEffect } from "react"
+import { useState, useLayoutEffect, Suspense } from "react"
 import { SiteHeader } from "@/components/layout/header/site-header"
 import { TrashTable } from "@/components/tables/trash-table"
 import { useGlobalUpload } from "@/components/global-upload-context"
 import { useEffect } from "react"
 import { useSearchParams, usePathname, useRouter } from "next/navigation"
 
-export default function Trash() {
+function TrashContent() {
   const [searchQuery, setSearchQuery] = useState("")
   const { handleFileUpload, handleFolderUpload } = useGlobalUpload()
   const searchParams = useSearchParams()
@@ -53,5 +53,13 @@ export default function Trash() {
         </div>
       </main>
     </div>
+  )
+}
+
+export default function Trash() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-svh" />}>
+      <TrashContent />
+    </Suspense>
   )
 }

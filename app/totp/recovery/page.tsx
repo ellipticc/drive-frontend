@@ -1,6 +1,7 @@
 import { IconCaretLeftRightFilled } from "@tabler/icons-react"
 import type { Metadata } from "next"
 import Link from "next/link"
+import { Suspense } from "react"
 
 import { TOTPRecoveryForm } from "@/components/auth/totp-recovery-form"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -12,19 +13,21 @@ export const metadata: Metadata = {
 
 export default function TOTPRecoveryPage() {
   return (
-    <TOTPPageGuard>
-      <div className="bg-muted flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10">
-        <div className="absolute top-4 right-4">
-          <ThemeToggle />
+    <Suspense fallback={<div className="flex items-center justify-center min-h-svh" />}>
+      <TOTPPageGuard>
+        <div className="bg-muted flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10">
+          <div className="absolute top-4 right-4">
+            <ThemeToggle />
+          </div>
+          <div className="flex w-full max-w-sm flex-col gap-6">
+            <Link href="/login" className="flex items-center gap-2 self-center font-medium">
+              <IconCaretLeftRightFilled className="!size-5" />
+              <span className="text-base font-geist-mono select-none break-all">ellipticc</span>
+            </Link>
+            <TOTPRecoveryForm />
+          </div>
         </div>
-        <div className="flex w-full max-w-sm flex-col gap-6">
-          <Link href="/login" className="flex items-center gap-2 self-center font-medium">
-            <IconCaretLeftRightFilled className="!size-5" />
-            <span className="text-base font-geist-mono select-none break-all">ellipticc</span>
-          </Link>
-          <TOTPRecoveryForm />
-        </div>
-      </div>
-    </TOTPPageGuard>
+      </TOTPPageGuard>
+    </Suspense>
   )
 }

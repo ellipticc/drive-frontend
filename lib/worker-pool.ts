@@ -14,14 +14,19 @@ export interface WorkerTask<T = unknown> {
 export class WorkerPool {
     private workers: Worker[] = [];
     private freeWorkers: Worker[] = [];
-    private taskQueue: WorkerTask<unknown>[] = [];    private workerFactory: () => Worker;
+    private taskQueue: WorkerTask<unknown>[] = []; private workerFactory: () => Worker;
     private maxWorkers: number;
 
-    constructor(workerFactory: () => Worker, maxWorkers: number = Math.min((navigator.hardwareConcurrency || 4) * 2, 20)) {
+    constructor(workerFactory: () => Worker, maxWorkers?: number) {
         this.workerFactory = workerFactory;
-        this.maxWorkers = maxWorkers;
-        // Modern browsers handle 20+ workers easily. This matches network concurrency (12-16 parallel transfers)
-        // to prevent workers from becoming the bottleneck. Workers are idle when not transferring.
+
+        if (maxWorkers) {
+            this.maxWorkers = maxWorkers;
+        } else {
+            // Safe access to navigator for SSR
+            const concurrency = (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 4;
+            this.maxWorkers = Math.min(concurrency * 2, 20);
+        }
     }
 
     public execute<T>(message: unknown, transferables?: Transferable[]): Promise<T> {

@@ -1,6 +1,7 @@
 import { IconCaretLeftRightFilled } from "@tabler/icons-react"
 import type { Metadata } from "next"
 import Image from "next/image"
+import { Suspense } from "react"
 
 import { ThemeToggle } from "@/components/theme-toggle"
 import { SignupFormAuth } from "@/components/auth/signup-form-auth"
@@ -23,7 +24,9 @@ export default function SignupPage() {
         </div>
         <div className="flex flex-1 items-center justify-center">
           <div className="w-full max-w-xs">
-            <SignupFormAuth />
+            <Suspense fallback={<div />}>
+              <SignupFormAuth />
+            </Suspense>
           </div>
         </div>
       </div>

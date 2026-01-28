@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { IconCaretLeftRightFilled } from "@tabler/icons-react"
@@ -8,7 +8,7 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import { FieldDescription } from "@/components/ui/field"
 import { RecoveryPasswordResetForm } from "@/components/auth/recovery-password-reset-form"
 
-export default function RecoveryResetPage() {
+function RecoveryResetContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const email = searchParams.get('email') || ""
@@ -90,5 +90,13 @@ export default function RecoveryResetPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function RecoveryResetPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-svh" />}>
+      <RecoveryResetContent />
+    </Suspense>
   )
 }

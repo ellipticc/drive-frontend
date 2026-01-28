@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { IconLoader2 as Loader2 } from "@tabler/icons-react"
 
-export default function RegisterRedirect() {
+function RegisterRedirectContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -25,5 +25,13 @@ export default function RegisterRedirect() {
     <div className="flex items-center justify-center min-h-screen">
       <Loader2 className="h-8 w-8 animate-spin" />
     </div>
+  )
+}
+
+export default function RegisterRedirect() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+      <RegisterRedirectContent />
+    </Suspense>
   )
 }

@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 
-export default function PaperShareRedirect() {
+function PaperShareRedirectContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const shareId = searchParams.get('shareId');
@@ -16,4 +16,12 @@ export default function PaperShareRedirect() {
     }, [shareId, router]);
 
     return null;
+}
+
+export default function PaperShareRedirect() {
+    return (
+        <Suspense fallback={null}>
+            <PaperShareRedirectContent />
+        </Suspense>
+    );
 }

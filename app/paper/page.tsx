@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { masterKeyManager } from "@/lib/master-key";
 import { IconLoader2, IconArrowLeft, IconCloudCheck, IconDotsVertical } from "@tabler/icons-react";
@@ -341,7 +341,7 @@ function PaperEditorView({
     );
 }
 
-export default function PaperPage() {
+function PaperPageContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const fileId = searchParams.get('fileId');
@@ -697,5 +697,13 @@ export default function PaperPage() {
                 onRestoreComplete={handleRestoreComplete}
             />
         </>
+    );
+}
+
+export default function PaperPage() {
+    return (
+        <Suspense fallback={<div className="flex items-center justify-center min-h-svh" />}>
+            <PaperPageContent />
+        </Suspense>
     );
 }

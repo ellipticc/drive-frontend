@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react"
+import { useState, useRef, useEffect, useLayoutEffect, useCallback, Suspense } from "react"
 import { useSearchParams, usePathname, useRouter } from "next/navigation"
 import { SiteHeader } from "@/components/layout/header/site-header"
 import { Table01DividerLineSm } from "@/components/tables/files-table"
@@ -13,7 +13,7 @@ interface ExtendedFile extends File {
   webkitRelativePath: string;
 }
 
-export default function Home() {
+function HomeContent() {
   const { user } = useUser()
   const router = useRouter()
   const pathname = usePathname()
@@ -225,5 +225,13 @@ export default function Home() {
         onDrop={handleDrop}
       />
     </div>
+  )
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-svh" />}>
+      <HomeContent />
+    </Suspense>
   )
 }

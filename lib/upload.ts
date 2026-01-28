@@ -408,8 +408,9 @@ export async function uploadEncryptedFile(
 
     const activeTasks = new Set<Promise<void>>();
     // Increase concurrency based on hardware capabilities
-    const concurrency = Math.min(navigator.hardwareConcurrency * 2 || 12, 16);
-    console.log(`Starting parallel upload with concurrency=${concurrency} (hardwareConcurrency=${navigator.hardwareConcurrency || 'unknown'})`);
+    const hardwareConcurrency = (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 4;
+    const concurrency = Math.min(hardwareConcurrency * 2 || 12, 16);
+    console.log(`Starting parallel upload with concurrency=${concurrency} (hardwareConcurrency=${hardwareConcurrency})`);
     const uploadStartTime = performance.now();
 
     for (let i = 0; i < chunks.length; i++) {

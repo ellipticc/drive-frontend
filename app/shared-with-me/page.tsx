@@ -5,10 +5,10 @@ import { SharedFilesTable } from "@/components/tables/shared-files-table"
 import { Separator } from "@/components/ui/separator"
 import { SiteHeader } from "@/components/layout/header/site-header"
 import { useGlobalUpload } from "@/components/global-upload-context"
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { useSearchParams, usePathname, useRouter } from "next/navigation"
 
-export default function SharedWithMePage() {
+function SharedWithMePageContent() {
   const { t } = useLanguage()
   const [searchQuery, setSearchQuery] = useState("")
   const { handleFileUpload, handleFolderUpload } = useGlobalUpload()
@@ -50,5 +50,13 @@ export default function SharedWithMePage() {
         </div>
       </main>
     </div>
+  )
+}
+
+export default function SharedWithMePage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-svh" />}>
+      <SharedWithMePageContent />
+    </Suspense>
   )
 }

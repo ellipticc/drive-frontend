@@ -61,30 +61,40 @@ class PaperService {
     private sessionTimer: NodeJS.Timeout | null = null;
     private readonly SESSION_TIMEOUT = 60 * 60 * 1000; // 1 hour in milliseconds
 
-    private worker: Worker;
+    private worker: Worker | null = null;
     private workerCallbacks = new Map<string, { resolve: (data: any) => void; reject: (err: any) => void }>();
 
     constructor() {
-        // Initialize Web Worker
-        this.worker = new Worker(new URL('./workers/paper.worker.ts', import.meta.url), { type: 'module' });
+        // Worker is lazily initialized to support SSR
+    }
 
-        // Handle worker responses
-        this.worker.onmessage = (e) => {
-            const { id, success, data, error } = e.data;
-            const callback = this.workerCallbacks.get(id);
-            if (callback) {
-                if (success) {
-                    callback.resolve(data);
-                } else {
-                    callback.reject(new Error(error));
-                }
-                this.workerCallbacks.delete(id);
+    private getWorker(): Worker {
+        if (!this.worker) {
+            if (typeof window === 'undefined') {
+                throw new Error('PaperService Worker cannot be initialized on the server');
             }
-        };
 
-        this.worker.onerror = (err) => {
-            console.error('Paper Worker Error:', err);
-        };
+            this.worker = new Worker(new URL('./workers/paper.worker.ts', import.meta.url), { type: 'module' });
+
+            // Handle worker responses
+            this.worker.onmessage = (e) => {
+                const { id, success, data, error } = e.data;
+                const callback = this.workerCallbacks.get(id);
+                if (callback) {
+                    if (success) {
+                        callback.resolve(data);
+                    } else {
+                        callback.reject(new Error(error));
+                    }
+                    this.workerCallbacks.delete(id);
+                }
+            };
+
+            this.worker.onerror = (err) => {
+                console.error('Paper Worker Error:', err);
+            };
+        }
+        return this.worker;
     }
 
     /**
@@ -120,7 +130,7 @@ class PaperService {
                 transferables.push(payload.content.buffer);
             }
 
-            this.worker.postMessage({ type, payload, id }, transferables);
+            this.getWorker().postMessage({ type, payload, id }, transferables);
         });
     }
 

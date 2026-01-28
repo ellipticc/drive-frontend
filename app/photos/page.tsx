@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useCallback, useMemo } from "react"
+import React, { useState, useEffect, useCallback, useMemo, Suspense } from "react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import { IconPhoto, IconLoader2, IconDownload, IconTrash, IconFolderSymlink, IconCopy } from "@tabler/icons-react"
 import { apiClient } from "@/lib/api"
@@ -62,7 +62,7 @@ interface MediaItem extends RawPhotoItem {
     filename: string // Plaintext filename after decryption
 }
 
-export default function PhotosPage() {
+function PhotosPageContent() {
     const router = useRouter()
     const pathname = usePathname()
     const searchParams = useSearchParams()
@@ -648,5 +648,13 @@ export default function PhotosPage() {
                 </div>
             </main>
         </div>
+    )
+}
+
+export default function PhotosPage() {
+    return (
+        <Suspense fallback={<div className="flex items-center justify-center min-h-svh" />}>
+            <PhotosPageContent />
+        </Suspense>
     )
 }

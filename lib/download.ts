@@ -330,8 +330,9 @@ async function pipelineDownloadAndDecrypt(
   };
 
   // Optimize concurrency based on hardware capabilities
-  const concurrency = Math.min(navigator.hardwareConcurrency * 2 || 12, 16);
-  console.log(`Starting parallel download with concurrency=${concurrency} (hardwareConcurrency=${navigator.hardwareConcurrency || 'unknown'})`);
+  const hardwareConcurrency = (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 4;
+  const concurrency = Math.min(hardwareConcurrency * 2 || 12, 16);
+  console.log(`Starting parallel download with concurrency=${concurrency} (hardwareConcurrency=${hardwareConcurrency})`);
   const semaphore = new Semaphore(concurrency);
 
   const tasks = chunks.map(async (chunk) => {

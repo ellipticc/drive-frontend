@@ -24,15 +24,19 @@ import { apiClient } from "@/lib/api"
 
 export default function BackupPage() {
   const router = useRouter()
-  const mnemonic = localStorage.getItem('recovery_mnemonic') || ""
+  const [mnemonic, setMnemonic] = useState<string>("")
   const [showMnemonic, setShowMnemonic] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
 
   useEffect(() => {
+    // Access localStorage only on client-side
+    const recoveryMnemonic = localStorage.getItem('recovery_mnemonic') || ""
+    setMnemonic(recoveryMnemonic)
+
     document.title = "Backup Recovery Phrase - Ellipticc Drive"
 
     // Check if mnemonic was loaded from localStorage
-    if (!mnemonic) {
+    if (!recoveryMnemonic) {
       // Check if user is authenticated (has auth token)
       const authToken = localStorage.getItem('auth_token')
       if (!authToken) {
@@ -49,7 +53,7 @@ export default function BackupPage() {
     // Track detailed event: User viewed the backup page
     apiClient.trackBackupViewed().catch(err => console.error("Failed to track backup view", err))
 
-  }, [router, mnemonic])
+  }, [router])
 
 
   const downloadAsText = () => {

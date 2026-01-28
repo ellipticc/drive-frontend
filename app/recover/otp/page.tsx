@@ -2,14 +2,14 @@
 
 import Link from "next/link"
 import { IconCaretLeftRightFilled } from "@tabler/icons-react"
-import { useEffect } from "react"
+import { useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 
 import { FieldDescription } from "@/components/ui/field"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { RecoveryOTPVerificationForm } from "@/components/auth/recovery-otp-verification-form"
 
-export default function RecoveryOTPPage() {
+function RecoveryOTPContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const email = searchParams.get('email') || ""
@@ -78,5 +78,13 @@ export default function RecoveryOTPPage() {
         </FieldDescription>
       </div>
     </div>
+  )
+}
+
+export default function RecoveryOTPPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-svh" />}>
+      <RecoveryOTPContent />
+    </Suspense>
   )
 }
