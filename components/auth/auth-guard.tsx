@@ -38,10 +38,19 @@ export function AuthGuard({ children }: AuthGuardProps) {
 
     // Check if current path is public (including share links)
     if (isPublic) {
-      requestAnimationFrame(() => {
-        setIsAuthenticated(true);
-      });
+      setIsAuthenticated(true);
       hasCheckedAuthRef.current = true;
+      
+      // Remove loading overlay immediately for public routes
+      try {
+        const overlay = document.getElementById('initial-loading-overlay');
+        if (overlay) {
+          overlay.style.opacity = '0';
+          setTimeout(() => {
+            try { overlay.remove(); } catch (e) { }
+          }, 500);
+        }
+      } catch (e) { }
       return;
     }
 
@@ -61,9 +70,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
       apiClient.setStorage(storage);
 
       hasCheckedAuthRef.current = true;
-      requestAnimationFrame(() => {
-        setIsAuthenticated(true);
-      });
+      setIsAuthenticated(true);
       return;
     }
 
@@ -97,7 +104,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
   }, []);
 
   // For public routes, render immediately (no loading state)
-  if (isPublic && isHydrated) {
+  if (isPublic) {
     return children;
   }
 
