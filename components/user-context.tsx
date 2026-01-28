@@ -98,7 +98,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       try {
         const overlay = document.getElementById('initial-loading-overlay');
         if (overlay) overlay.remove();
-      } catch (e) {}
+      } catch (e) { }
       return;
     }
 
@@ -110,8 +110,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
       setHasFetched(true);
       try {
         const overlay = document.getElementById('initial-loading-overlay');
-        if (overlay) overlay.remove();
-      } catch (e) {}
+        if (overlay) {
+          overlay.style.opacity = '0';
+          setTimeout(() => {
+            try { overlay.remove(); } catch (e) { }
+          }, 500);
+        }
+      } catch (e) { }
       return;
     }
 
@@ -238,8 +243,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
       setLoading(false);
       try {
         const overlay = document.getElementById('initial-loading-overlay');
-        if (overlay) overlay.remove();
-      } catch (e) {}
+        if (overlay) {
+          overlay.style.opacity = '0';
+          setTimeout(() => {
+            try { overlay.remove(); } catch (e) { }
+          }, 500);
+        }
+      } catch (e) { }
     }
   }, [shouldSkipFetch]);
 

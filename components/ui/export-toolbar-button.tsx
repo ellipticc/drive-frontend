@@ -157,14 +157,28 @@ export function ExportToolbarButton(props: DropdownMenuProps) {
     const pdfFontsModule = await import('pdfmake/build/vfs_fonts');
     const pdfFonts = pdfFontsModule.default || pdfFontsModule;
 
-    // Robust assignment of vfs
-    if (pdfFonts && pdfFonts.pdfMake && pdfFonts.pdfMake.vfs) {
-      pdfMake.vfs = pdfFonts.pdfMake.vfs;
-    } else if (pdfFonts && pdfFonts.vfs) {
-      pdfMake.vfs = pdfFonts.vfs;
+    // Use the vfs from the module or global if necessary
+    const vfs =
+      (pdfFonts && pdfFonts.pdfMake && pdfFonts.pdfMake.vfs) ||
+      (pdfFonts && pdfFonts.vfs) ||
+      (window as any).pdfMake?.vfs;
+
+    if (vfs) {
+      pdfMake.vfs = vfs;
     } else {
-      console.error('Failed to load pdfMake vfs fonts');
+      console.warn('pdfMake vfs fonts not found in module, attempting to continue...');
     }
+
+    // Explicitly define fonts to avoid "Font not defined" errors
+    // Roboto is the default font bundled with pdfmake's vfs_fonts
+    pdfMake.fonts = {
+      Roboto: {
+        normal: 'Roboto-Regular.ttf',
+        bold: 'Roboto-Medium.ttf',
+        italics: 'Roboto-Italic.ttf',
+        bolditalics: 'Roboto-MediumItalic.ttf'
+      }
+    };
 
     const content = htmlToPdfmake(editorHtml, { window });
 
@@ -172,7 +186,7 @@ export function ExportToolbarButton(props: DropdownMenuProps) {
       content,
       pageSize: 'A4',
       pageMargins: [40, 40, 40, 40],
-      defaultStyle: { font: 'Helvetica' },
+      defaultStyle: { font: 'Roboto' },
     };
 
     // Generate blob and download

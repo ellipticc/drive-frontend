@@ -258,7 +258,20 @@ export default function RootLayout({
             `,
           }}
         />
-        <div id="initial-loading-overlay" style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--background)', zIndex: 9999 }}>
+        <div
+          id="initial-loading-overlay"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'var(--background)',
+            zIndex: 9999,
+            transition: 'opacity 0.5s ease-in-out',
+            opacity: 1
+          }}
+        >
           <div className="flex flex-col items-center gap-4">
             <Loader2 className="h-8 w-8 animate-spin" />
             <p className="text-sm text-muted-foreground mt-2">Loading…</p>
