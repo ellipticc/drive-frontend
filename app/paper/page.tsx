@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, useRef, Suspense, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { masterKeyManager } from "@/lib/master-key";
-import { IconLoader2, IconArrowLeft, IconCloudCheck, IconDotsVertical, IconCopy, IconFileText, IconPrinter, IconDownload, IconHelp, IconHome, IconChevronRight } from "@tabler/icons-react";
+import { IconLoader2, IconArrowLeft, IconCloudCheck, IconDotsVertical, IconCopy, IconFileText, IconPrinter, IconDownload, IconHelp, IconHome, IconStackFilled, IconLetterCase } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
 import {
     AlertDialog,
@@ -250,7 +250,7 @@ function PaperHeader({
                                 Rename document
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={onCreateNewPaper}>
-                                <IconFilePlus className="w-4 h-4 mr-2" />
+                                <IconStackFilled className="w-4 h-4 mr-2" />
                                 New paper
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={onMakeCopy}>
@@ -266,7 +266,7 @@ function PaperHeader({
                                 See version history
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => setShowWordCount(!showWordCount)}>
-                                <IconChartBar className="w-4 h-4 mr-2" />
+                                <IconLetterCase className="w-4 h-4 mr-2" />
                                 Word count
                             </DropdownMenuItem>
                             
@@ -363,21 +363,29 @@ function PaperHeader({
                                 {stats.words.toLocaleString()} words
                             </button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-56">
-                            <div className="px-2 py-3 space-y-2">
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-muted-foreground">Words</span>
-                                    <span className="font-medium">{stats.words.toLocaleString()}</span>
-                                </div>
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-muted-foreground">Characters</span>
-                                    <span className="font-medium">{stats.characters.toLocaleString()}</span>
-                                </div>
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-muted-foreground">Characters (no spaces)</span>
-                                    <span className="font-medium">{stats.charactersNoSpaces.toLocaleString()}</span>
-                                </div>
-                            </div>
+                        <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuSub>
+                                <DropdownMenuSubTrigger>
+                                    <IconChartBar className="w-4 h-4 mr-2" />
+                                    Word Count
+                                </DropdownMenuSubTrigger>
+                                <DropdownMenuSubContent>
+                                    <div className="px-2 py-3 space-y-2 w-52">
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-muted-foreground">Words</span>
+                                            <span className="font-medium">{stats.words.toLocaleString()}</span>
+                                        </div>
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-muted-foreground">Characters</span>
+                                            <span className="font-medium">{stats.characters.toLocaleString()}</span>
+                                        </div>
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-muted-foreground">Characters (no spaces)</span>
+                                            <span className="font-medium">{stats.charactersNoSpaces.toLocaleString()}</span>
+                                        </div>
+                                    </div>
+                                </DropdownMenuSubContent>
+                            </DropdownMenuSub>
                             <DropdownMenuSeparator />
                             <div className="px-2 py-2">
                                 <div className="flex items-center justify-between">
@@ -573,30 +581,38 @@ function PaperEditorView({
                             </div>
                         </EditorContainer>
 
-                        {/* Sticky Word Count (Bottom Right) */}
+                        {/* Sticky Word Count (Bottom Right Extreme) */}
                         {showStickyWordCount && (
-                            <div className="fixed bottom-6 right-6 z-40">
+                            <div className="fixed bottom-4 right-4 z-40">
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                         <button className="px-3 py-1.5 text-xs bg-muted/90 backdrop-blur-sm hover:bg-muted text-muted-foreground hover:text-foreground rounded-full shadow-lg transition-colors border">
                                             {stats.words.toLocaleString()} words
                                         </button>
                                     </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="w-56">
-                                        <div className="px-2 py-3 space-y-2">
-                                            <div className="flex justify-between text-sm">
-                                                <span className="text-muted-foreground">Words</span>
-                                                <span className="font-medium">{stats.words.toLocaleString()}</span>
-                                            </div>
-                                            <div className="flex justify-between text-sm">
-                                                <span className="text-muted-foreground">Characters</span>
-                                                <span className="font-medium">{stats.characters.toLocaleString()}</span>
-                                            </div>
-                                            <div className="flex justify-between text-sm">
-                                                <span className="text-muted-foreground">Characters (no spaces)</span>
-                                                <span className="font-medium">{stats.charactersNoSpaces.toLocaleString()}</span>
-                                            </div>
-                                        </div>
+                                    <DropdownMenuContent align="end" className="w-48">
+                                        <DropdownMenuSub>
+                                            <DropdownMenuSubTrigger>
+                                                <IconChartBar className="w-4 h-4 mr-2" />
+                                                Word Count
+                                            </DropdownMenuSubTrigger>
+                                            <DropdownMenuSubContent>
+                                                <div className="px-2 py-3 space-y-2 w-52">
+                                                    <div className="flex justify-between text-sm">
+                                                        <span className="text-muted-foreground">Words</span>
+                                                        <span className="font-medium">{stats.words.toLocaleString()}</span>
+                                                    </div>
+                                                    <div className="flex justify-between text-sm">
+                                                        <span className="text-muted-foreground">Characters</span>
+                                                        <span className="font-medium">{stats.characters.toLocaleString()}</span>
+                                                    </div>
+                                                    <div className="flex justify-between text-sm">
+                                                        <span className="text-muted-foreground">Characters (no spaces)</span>
+                                                        <span className="font-medium">{stats.charactersNoSpaces.toLocaleString()}</span>
+                                                    </div>
+                                                </div>
+                                            </DropdownMenuSubContent>
+                                        </DropdownMenuSub>
                                         <DropdownMenuSeparator />
                                         <div className="px-2 py-2">
                                             <div className="flex items-center justify-between">

@@ -72,21 +72,14 @@ export function MoveToTrashModal({ children, itemId = "", itemName = "item", ite
       )}
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-destructive/10">
-              <IconAlertTriangle className="h-5 w-5 text-destructive" />
-            </div>
-            <div>
-              <DialogTitle>Move to Trash</DialogTitle>
-              <DialogDescription className="mt-1">
-                This action cannot be undone.
-              </DialogDescription>
-            </div>
-          </div>
+          <DialogTitle>Move to Trash</DialogTitle>
+          <DialogDescription className="mt-1">
+            You can restore this {itemType} from the trash later.
+          </DialogDescription>
         </DialogHeader>
         <div className="py-4">
           <p className="text-sm text-muted-foreground">
-            Are you sure you want to move <strong>&quot;{truncateFilename(itemName)}&quot;</strong> to the trash?
+            Move <strong>&quot;{truncateFilename(itemName)}&quot;</strong> to the trash?
             {itemType === "folder" && " This will also move all files inside this folder."}
           </p>
         </div>
