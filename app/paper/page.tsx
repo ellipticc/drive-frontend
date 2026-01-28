@@ -43,6 +43,7 @@ import { VersionHistoryModal } from "@/components/modals/version-history-modal";
 import { MoveToTrashModal } from "@/components/modals/move-to-trash-modal";
 import { MoveToFolderModal } from "@/components/modals/move-to-folder-modal";
 import { CopyModal } from "@/components/modals/copy-modal";
+import { SupportRequestDialog } from "@/components/support-request-dialog";
 import { IconHistory, IconEdit, IconFilePlus, IconFolderSymlink, IconTrash, IconChartBar } from "@tabler/icons-react";
 import { PaperIdProvider } from "@/components/paper-id-context";
 import { IconMoon, IconSun } from "@tabler/icons-react";
@@ -320,10 +321,12 @@ function PaperHeader({
                             
                             <DropdownMenuSeparator />
                             
-                            <DropdownMenuItem onClick={() => window.open('/help', '_blank')}>
+                            <SupportRequestDialog>
+                              <DropdownMenuItem>
                                 <IconHelp className="w-4 h-4 mr-2" />
                                 Help
-                            </DropdownMenuItem>
+                              </DropdownMenuItem>
+                            </SupportRequestDialog>
                             <DropdownMenuItem onClick={() => router.push('/')}>
                                 <IconHome className="w-4 h-4 mr-2" />
                                 Open Elliptic Drive
@@ -970,8 +973,46 @@ function PaperPageContent() {
     }, [fileId]);
 
     const handlePrint = useCallback(() => {
-        window.print();
-    }, []);
+        try {
+            // Prefer printing only the editor content
+            const editorEl = document.querySelector('[data-slate-editor]') as HTMLElement | null;
+            if (!editorEl) {
+                window.print();
+                return;
+            }
+
+            const printWindow = window.open('', '_blank', 'noopener,noreferrer');
+            if (!printWindow) {
+                toast.error('Unable to open print window');
+                return;
+            }
+
+            // Collect stylesheet/link and style tags to preserve editor styles
+            const styles = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
+                .map((el) => el.outerHTML)
+                .join('\n');
+
+            const title = paperTitle || 'Document';
+
+            printWindow.document.open();
+            printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>${styles}<style>body{background:#fff;color:inherit;margin:40px} .print-container{max-width:900px;margin:0 auto} img{max-width:100%}</style></head><body><div class="print-container">${editorEl.innerHTML}</div></body></html>`);
+            printWindow.document.close();
+            printWindow.focus();
+
+            // Give browser a moment to render styles then open print dialog
+            setTimeout(() => {
+                try {
+                    printWindow.print();
+                } catch (e) {
+                    console.error('Print failed:', e);
+                    toast.error('Print failed');
+                }
+            }, 300);
+        } catch (error) {
+            console.error('Print handler failed:', error);
+            window.print();
+        }
+    }, [paperTitle]);
 
     const handleDownload = useCallback((format: string) => {
         // Trigger the export-requires-upgrade event for pro features
