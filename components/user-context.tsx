@@ -95,6 +95,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
     // Skip for public/auth routes
     if (shouldSkipFetch) {
       setLoading(false);
+      try {
+        const overlay = document.getElementById('initial-loading-overlay');
+        if (overlay) overlay.remove();
+      } catch (e) {}
       return;
     }
 
@@ -104,6 +108,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
       console.log('UserProvider: No token available, skipping profile fetch');
       setLoading(false);
       setHasFetched(true);
+      try {
+        const overlay = document.getElementById('initial-loading-overlay');
+        if (overlay) overlay.remove();
+      } catch (e) {}
       return;
     }
 
@@ -228,6 +236,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
       setHasFetched(true);
     } finally {
       setLoading(false);
+      try {
+        const overlay = document.getElementById('initial-loading-overlay');
+        if (overlay) overlay.remove();
+      } catch (e) {}
     }
   }, [shouldSkipFetch]);
 
@@ -246,8 +258,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
       const cachedUser = getUserDataFromCache();
       if (cachedUser) {
         setUser(cachedUser);
-        setLoading(false);
         setHasFetched(true);
+        // Keep `loading` true until `fetchFreshUserData` completes so we don't flash UI based on stale cache
         fetchFreshUserData(false);
         return;
       }
