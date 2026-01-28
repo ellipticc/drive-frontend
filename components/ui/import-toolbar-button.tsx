@@ -5,6 +5,7 @@ import * as React from 'react';
 import type { DropdownMenuProps } from '@radix-ui/react-dropdown-menu';
 
 import { MarkdownPlugin } from '@platejs/markdown';
+import { importDocx } from '@platejs/docx-io';
 import { ArrowUpToLineIcon } from 'lucide-react';
 import { useEditorRef } from 'platejs/react';
 import { getEditorDOMFromHtmlString } from 'platejs/static';
@@ -67,6 +68,26 @@ export function ImportToolbarButton(props: DropdownMenuProps) {
     },
   });
 
+  const { openFilePicker: openWordFilePicker } = useFilePicker({
+    accept: ['.docx'],
+    multiple: false,
+    onFilesSelected: async ({ plainFiles }) => {
+      try {
+        const arrayBuffer = await plainFiles[0].arrayBuffer();
+        const result = await importDocx(editor, arrayBuffer);
+        
+        // Insert nodes at the end of the document with proper type casting
+        editor.tf.insertNodes(result.nodes as any);
+        
+        if (result.warnings.length > 0) {
+          console.warn('Word import warnings:', result.warnings);
+        }
+      } catch (error) {
+        console.error('Failed to import Word document:', error);
+      }
+    },
+  });
+
   return (
     <DropdownMenu open={open} onOpenChange={setOpen} modal={false} {...props}>
       <DropdownMenuTrigger asChild>
@@ -91,6 +112,14 @@ export function ImportToolbarButton(props: DropdownMenuProps) {
             }}
           >
             Import from Markdown
+          </DropdownMenuItem>
+
+          <DropdownMenuItem
+            onSelect={() => {
+              openWordFilePicker();
+            }}
+          >
+            Import from Word
           </DropdownMenuItem>
         </DropdownMenuGroup>
       </DropdownMenuContent>

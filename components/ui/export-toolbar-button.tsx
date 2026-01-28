@@ -28,6 +28,7 @@ const siteUrl = 'https://platejs.org';
 
 import { useParams } from 'next/navigation';
 import { apiClient } from '@/lib/api';
+import { exportToDocx, downloadDocx } from '@platejs/docx-io';
 
 export function ExportToolbarButton(props: DropdownMenuProps) {
   const { fileId } = useParams();
@@ -212,6 +213,19 @@ export function ExportToolbarButton(props: DropdownMenuProps) {
     await downloadFile(url, getExportFilename('md'));
   };
 
+  const exportToWord = async () => {
+    if (!requirePro('Word')) return;
+    triggerSnapshot();
+
+    const blob = await exportToDocx(editor.children, {
+      editorPlugins: BaseEditorKit as any,
+      fontFamily: 'Calibri',
+      orientation: 'portrait',
+    });
+    
+    downloadDocx(blob, getExportFilename('docx'));
+  };
+
   return (
     <DropdownMenu open={open} onOpenChange={setOpen} modal={false} {...props}>
       <DropdownMenuTrigger asChild>
@@ -227,6 +241,9 @@ export function ExportToolbarButton(props: DropdownMenuProps) {
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={exportToPdf}>
             Export as PDF
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={exportToWord}>
+            Export as Word
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={exportToImage}>
             Export as Image
