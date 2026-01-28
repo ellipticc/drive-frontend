@@ -160,7 +160,7 @@ export default function InsightsPage() {
   const handleExport = async () => {
     const plan = analytics?.overview?.plan || 'free';
     if (plan !== 'pro' && plan !== 'unlimited') {
-      setUpgradeDialogData({ open: true, title: 'Export is a premium feature', description: 'Exporting activity logs is available on Pro & Unlimited plans.' });
+      setUpgradeDialogData({ open: true, title: 'Upgrade required', description: 'Exporting activity logs is available on Pro & Unlimited plans.' });
       return;
     }
 

@@ -27,7 +27,10 @@ import {
   IconShieldLock,
   IconFilePlus,
   IconFileText,
+  IconCopy,
 } from "@tabler/icons-react"
+
+import { toast } from 'sonner'
 import { format } from "date-fns"
 
 import { Button } from "@/components/ui/button"
@@ -165,7 +168,18 @@ export const columns: ColumnDef<ActivityLog>[] = [
                 </span>
               </TooltipTrigger>
               <TooltipContent side="top">
-                <p className="font-mono text-xs">{id}</p>
+                <div className="flex items-center gap-2">
+                  <p className="font-mono text-xs break-all">{id}</p>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 p-0"
+                    onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(id); toast.success('Copied event id'); }}
+                    aria-label="Copy event id"
+                  >
+                    <IconCopy className="h-4 w-4" />
+                  </Button>
+                </div>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -265,9 +279,26 @@ export const columns: ColumnDef<ActivityLog>[] = [
     accessorKey: "created_at",
     header: "Date & Time",
     cell: ({ row }) => {
+      const iso = new Date(row.getValue("created_at")).toISOString();
       return (
         <div className="text-xs text-muted-foreground whitespace-nowrap text-right">
-          {format(new Date(row.getValue("created_at")), "dd/MM/yyyy HH:mm:ss")}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  className="flex items-center gap-2 ml-auto"
+                  onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(iso); toast.success('Copied timestamp'); }}
+                  aria-label="Copy timestamp"
+                >
+                  <span>{format(new Date(row.getValue("created_at")), "dd/MM/yyyy HH:mm:ss")}</span>
+                  <IconCopy className="h-3 w-3 text-muted-foreground/60" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <p className="text-xs">{iso}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       )
     },
@@ -388,14 +419,15 @@ export function InsightsDataTable<TData, TValue>({
                         )
                       })}
                       {isBlurred && (
-                        <td className="absolute inset-0 flex items-center justify-center z-10">
+                        <td className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
                           <button
-                            className="bg-background/80 backdrop-blur-sm px-3 py-1 rounded-full border shadow-sm flex items-center gap-2 pointer-events-auto cursor-pointer"
+                            className="bg-background/90 px-3 py-1 rounded-full border shadow-sm flex items-center gap-2 pointer-events-auto cursor-pointer"
                             onClick={(e) => { e.stopPropagation(); setUpgradeDialogData({ open: true, title: 'Upgrade required', description: 'Upgrade to view older history' }); }}
+                            aria-label="Upgrade required — Upgrade to view older history"
                           >
                             <IconLock className="h-3 w-3 text-muted-foreground" />
                             <span className="text-[10px] font-medium text-muted-foreground max-w-[150px] truncate text-center">
-                              upgrade to view older history
+                              Upgrade required
                             </span>
                           </button>
                         </td>
