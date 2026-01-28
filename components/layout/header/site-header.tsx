@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import { CreateFolderModal } from "@/components/modals/create-folder-modal"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { useUser } from "@/components/user-context"
 import { useGoogleDrive } from "@/hooks/use-google-drive"
 import { useGlobalUpload } from "@/components/global-upload-context"
@@ -44,6 +44,7 @@ export function SiteHeader({ onSearch, onFileUpload, onFolderUpload, searchValue
   const debouncedSearch = useDebounce(localSearchValue, 150)
   const { deviceQuota } = useUser()
   const router = useRouter()
+  const pathname = usePathname()
   const { openPicker } = useGoogleDrive()
   const { notifyFileAdded } = useGlobalUpload()
   const { currentFolderId } = useCurrentFolder()
@@ -172,14 +173,18 @@ export function SiteHeader({ onSearch, onFileUpload, onFolderUpload, searchValue
           className="mx-2 data-[orientation=vertical]:h-4"
         />
         <div className="relative flex-1 max-w-md">
-          <IconSearch className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search files and folders..."
-            className="pl-9 pr-4"
-            value={localSearchValue}
-            onChange={(e) => setLocalSearchValue(e.target.value)}
-          />
+          {!['/insights', '/attestations'].some(path => pathname?.startsWith(path)) && (
+            <>
+              <IconSearch className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search files and folders..."
+                className="pl-9 pr-4"
+                value={localSearchValue}
+                onChange={(e) => setLocalSearchValue(e.target.value)}
+              />
+            </>
+          )}
         </div>
         <div className="ml-auto flex items-center gap-2">
           {showUpgrade && (

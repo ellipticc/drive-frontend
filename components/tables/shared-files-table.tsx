@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react"
+import { useState, useEffect, useCallback, useMemo, useRef, useDeferredValue } from "react"
 import {
     IconDots,
     IconDownload,
@@ -59,9 +59,10 @@ import {
 
 interface SharedFilesTableProps {
     status?: string // Optional filter
+    searchQuery?: string
 }
 
-export function SharedFilesTable({ status }: SharedFilesTableProps) {
+export function SharedFilesTable({ status, searchQuery }: SharedFilesTableProps) {
     const { t } = useLanguage()
     const [items, setItems] = useState<SharedItem[]>([])
     const [isLoading, setIsLoading] = useState(true)
@@ -426,11 +427,25 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
         setDetailsModalOpen(true)
     }
 
-    // Filter items based on status
+    // Filter items based on status and search query
+    const deferredQuery = useDeferredValue(searchQuery);
     const filteredItems = useMemo(() => {
-        if (!status) return items;
-        return items.filter(item => item.status === status);
-    }, [items, status]);
+        let result = items;
+        if (status) {
+            result = result.filter(item => item.status === status);
+        }
+
+        if (deferredQuery && deferredQuery.trim() !== '') {
+            const query = deferredQuery.toLowerCase().trim();
+            result = result.filter(item => {
+                const name = decryptedNames[item.id] || item.item.name || '';
+                const ownerName = item.owner.name || '';
+                return name.toLowerCase().includes(query) || ownerName.toLowerCase().includes(query);
+            });
+        }
+
+        return result;
+    }, [items, status, deferredQuery, decryptedNames]);
 
     const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({
         column: "name",
@@ -443,7 +458,7 @@ export function SharedFilesTable({ status }: SharedFilesTableProps) {
             // ALWAYS separate folders from files first (folders on top)
             const aIsFolder = a.item.type === 'folder';
             const bIsFolder = b.item.type === 'folder';
-            
+
             if (aIsFolder && !bIsFolder) return -1;
             if (!aIsFolder && bIsFolder) return 1;
 
