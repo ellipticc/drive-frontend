@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { BaseEditorKit } from '@/components/editor-base-kit';
 import { useUser } from '@/components/user-context';
+import { useTheme } from 'next-themes';
 
 import { EditorStatic } from './editor-static';
 import { ToolbarButton } from './toolbar';
@@ -33,6 +34,7 @@ export function ExportToolbarButton(props: DropdownMenuProps) {
   const editor = useEditorRef();
   const [open, setOpen] = React.useState(false);
   const { user } = useUser();
+  const { resolvedTheme } = useTheme();
 
   const isProOrUnlimited = React.useMemo(() => {
     const planName = (user?.subscription?.plan?.name || '').toLowerCase();
@@ -55,22 +57,34 @@ export function ExportToolbarButton(props: DropdownMenuProps) {
     const style = document.createElement('style');
     document.head.append(style);
 
-    const canvas = await html2canvas(editor.api.toDOMNode(editor)!, {
-      onclone: (document: Document) => {
-        const editorElement = document.querySelector(
+    // Check if we're in dark mode - apply light theme ONLY to cloned document
+    const isDark = resolvedTheme === 'dark';
+    const editorElement = editor.api.toDOMNode(editor)!;
+
+    const canvas = await html2canvas(editorElement, {
+      backgroundColor: '#ffffff', // Force white background for PDF
+      onclone: (clonedDocument: Document) => {
+        // Remove dark class from cloned document only (user never sees this)
+        if (isDark) {
+          clonedDocument.documentElement.classList.remove('dark');
+        }
+
+        const editorElement = clonedDocument.querySelector(
           '[contenteditable="true"]'
         );
         if (editorElement) {
+          // Apply light theme styles to cloned elements for readable PDF export
           Array.from(editorElement.querySelectorAll('*')).forEach((element) => {
             const existingStyle = element.getAttribute('style') || '';
             element.setAttribute(
               'style',
-              `${existingStyle}; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important`
+              `${existingStyle}; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important; color: #000000 !important`
             );
           });
         }
       },
     });
+
     style.remove();
 
     return canvas;
