@@ -7,7 +7,7 @@ import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent, ChartLe
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, XAxis, YAxis, Pie, PieChart, Cell, ResponsiveContainer, Line, LineChart, ComposedChart } from "recharts"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { apiClient } from "@/lib/api"
-import { IconLoader2, IconHelpCircle, IconTrendingUp, IconFiles, IconHistory, IconRuler, IconDatabase, IconTrash, IconChartBar, IconFile, IconPhoto, IconVideo, IconMusic, IconFileText, IconRefresh, IconDownload, IconInfoCircle, IconCalendar as CalendarIcon, IconX, IconChevronLeft, IconChevronRight, IconArrowUp, IconArrowDown, IconSparkles } from "@tabler/icons-react"
+import { IconLoader2, IconHelpCircle, IconTrendingUp, IconFiles, IconHistory, IconRuler, IconDatabase, IconTrash, IconChartBar, IconFile, IconPhoto, IconVideo, IconMusic, IconFileText, IconRefresh, IconDownload, IconInfoCircle, IconCalendar as CalendarIcon, IconX, IconChevronLeft, IconChevronRight } from "@tabler/icons-react"
 import { format } from "date-fns"
 import { masterKeyManager } from "@/lib/master-key"
 import { decryptFilename } from "@/lib/crypto"
@@ -316,159 +316,111 @@ export default function InsightsPage() {
         className="hidden"
       />
 
-      <main className="flex-1 py-8 bg-gradient-to-b from-background via-background to-muted/20">
+      <main className="flex-1 py-8">
         <div className="w-full space-y-8">
-          {/* Page Header with Gradient */}
-          <div className="relative px-4 lg:px-6">
-            <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-primary/10 to-transparent rounded-3xl blur-3xl -z-10" />
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-6">
-              <div className="space-y-2">
-                <h1 className="text-4xl sm:text-5xl font-black tracking-tight flex items-center gap-3 bg-gradient-to-r from-foreground via-foreground to-foreground/70 bg-clip-text text-transparent">
-                  <IconSparkles className="h-10 w-10 text-primary animate-pulse" />
-                  <span>Insights Dashboard</span>
-                </h1>
-                <p className="text-muted-foreground text-base sm:text-lg font-medium">
-                  Monitor your storage, activity, and security at a glance
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Select value={timeRange} onValueChange={setTimeRange}>
-                  <SelectTrigger className="w-[140px] sm:w-[180px] h-11 rounded-2xl border-0 ring-1 ring-border/50 bg-background/80 backdrop-blur-sm shadow-lg hover:ring-primary/50 hover:shadow-primary/20 transition-all font-semibold">
-                    <SelectValue placeholder="Select range" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-2xl">
-                    <SelectItem value="7d" className="rounded-xl font-medium">Last 7 days</SelectItem>
-                    <SelectItem value="30d" className="rounded-xl font-medium">Last 30 days</SelectItem>
-                    <SelectItem value="90d" className="rounded-xl font-medium">Last 3 months</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+          {/* Page Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-4 lg:px-6">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">Insights Dashboard</h1>
+              <p className="text-muted-foreground mt-1">
+                Monitor your storage, activity, and performance
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Select value={timeRange} onValueChange={setTimeRange}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="Select range" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="7d">Last 7 days</SelectItem>
+                  <SelectItem value="30d">Last 30 days</SelectItem>
+                  <SelectItem value="90d">Last 3 months</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
           <div className="flex flex-col gap-8">
-            {/* Stats Overview - Enhanced Design */}
-            <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 px-4 lg:px-6">
-              <Card className="group relative shadow-xl border-0 ring-1 ring-border/30 hover:ring-primary/40 hover:shadow-2xl hover:shadow-primary/10 transition-all duration-300 overflow-hidden rounded-3xl bg-gradient-to-br from-background via-background to-muted/10">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-primary/20 to-transparent rounded-full blur-3xl -z-0 group-hover:scale-150 transition-transform duration-500" />
-                <CardHeader className="pb-3 relative z-10">
-                  <div className="flex items-center justify-between">
-                    <CardDescription className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Used Storage</CardDescription>
-                    <IconDatabase className="h-5 w-5 text-primary/60 group-hover:text-primary transition-colors" />
-                  </div>
-                  <CardTitle className="text-3xl sm:text-4xl font-black bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-                    {overview.totalStorageReadable}
-                  </CardTitle>
+            {/* Stats Overview */}
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 px-4 lg:px-6">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardDescription className="text-xs font-medium uppercase">Used Storage</CardDescription>
+                  <CardTitle className="text-2xl font-bold">{overview.totalStorageReadable}</CardTitle>
                 </CardHeader>
-                <CardContent className="relative z-10">
-                  <div className="space-y-3">
-                    <div className="h-2.5 w-full bg-muted/50 rounded-full overflow-hidden backdrop-blur-sm">
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-gradient-to-r from-primary via-primary to-primary/80 transition-all duration-1000 ease-out rounded-full shadow-lg shadow-primary/50"
+                        className="h-full bg-primary"
                         style={{ width: `${overview.percentUsed}%` }}
                       />
                     </div>
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-muted-foreground font-semibold">{overview.percentUsed}% of {overview.quotaReadable}</span>
-                      <div className="flex items-center gap-1 text-primary">
-                        <IconTrendingUp className="h-3.5 w-3.5 animate-pulse" />
-                        <span className="font-bold">Active</span>
-                      </div>
-                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {overview.percentUsed}% of {overview.quotaReadable}
+                    </p>
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="group relative shadow-xl border-0 ring-1 ring-border/30 hover:ring-chart-2/40 hover:shadow-2xl hover:shadow-[hsl(var(--chart-2))]/10 transition-all duration-300 overflow-hidden rounded-3xl bg-gradient-to-br from-background via-background to-muted/10">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[hsl(var(--chart-2))]/20 to-transparent rounded-full blur-3xl -z-0 group-hover:scale-150 transition-transform duration-500" />
-                <CardHeader className="pb-3 relative z-10">
-                  <div className="flex items-center justify-between">
-                    <CardDescription className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Total Files</CardDescription>
-                    <IconFiles className="h-5 w-5 text-[hsl(var(--chart-2))]/60 group-hover:text-[hsl(var(--chart-2))] transition-colors" />
-                  </div>
-                  <CardTitle className="text-3xl sm:text-4xl font-black bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-                    {overview.totalFiles.toLocaleString()}
-                  </CardTitle>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardDescription className="text-xs font-medium uppercase">Total Files</CardDescription>
+                  <CardTitle className="text-2xl font-bold">{overview.totalFiles.toLocaleString()}</CardTitle>
                 </CardHeader>
-                <CardContent className="relative z-10">
-                  <p className="text-xs text-muted-foreground flex items-center gap-2 font-semibold">
-                    <IconHistory className="h-4 w-4 text-[hsl(var(--chart-2))]/70" />
-                    <span>{overview.totalVersions} versions saved</span>
+                <CardContent>
+                  <p className="text-xs text-muted-foreground">
+                    {overview.totalVersions} versions saved
                   </p>
                 </CardContent>
               </Card>
 
-              <Card className="group relative shadow-xl border-0 ring-1 ring-border/30 hover:ring-chart-3/40 hover:shadow-2xl hover:shadow-[hsl(var(--chart-3))]/10 transition-all duration-300 overflow-hidden rounded-3xl bg-gradient-to-br from-background via-background to-muted/10">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[hsl(var(--chart-3))]/20 to-transparent rounded-full blur-3xl -z-0 group-hover:scale-150 transition-transform duration-500" />
-                <CardHeader className="pb-3 relative z-10">
-                  <div className="flex items-center justify-between">
-                    <CardDescription className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Trash Items</CardDescription>
-                    <IconTrash className="h-5 w-5 text-[hsl(var(--chart-3))]/60 group-hover:text-[hsl(var(--chart-3))] transition-colors" />
-                  </div>
-                  <CardTitle className="text-3xl sm:text-4xl font-black bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-                    {overview.deletedFiles.toLocaleString()}
-                  </CardTitle>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardDescription className="text-xs font-medium uppercase">Trash Items</CardDescription>
+                  <CardTitle className="text-2xl font-bold">{overview.deletedFiles.toLocaleString()}</CardTitle>
                 </CardHeader>
-                <CardContent className="relative z-10">
-                  <p className="text-xs text-muted-foreground font-semibold">
-                    Occupying <span className="text-[hsl(var(--chart-3))] font-bold">{formatFileSize(overview.deletedSize)}</span>
+                <CardContent>
+                  <p className="text-xs text-muted-foreground">
+                    {formatFileSize(overview.deletedSize)} in trash
                   </p>
                 </CardContent>
               </Card>
 
-              <Card className="group relative shadow-xl border-0 ring-1 ring-border/30 hover:ring-chart-4/40 hover:shadow-2xl hover:shadow-[hsl(var(--chart-4))]/10 transition-all duration-300 overflow-hidden rounded-3xl bg-gradient-to-br from-background via-background to-muted/10">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[hsl(var(--chart-4))]/20 to-transparent rounded-full blur-3xl -z-0 group-hover:scale-150 transition-transform duration-500" />
-                <CardHeader className="pb-3 relative z-10">
-                  <div className="flex items-center justify-between">
-                    <CardDescription className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Storage Plan</CardDescription>
-                    <IconRuler className="h-5 w-5 text-[hsl(var(--chart-4))]/60 group-hover:text-[hsl(var(--chart-4))] transition-colors" />
-                  </div>
-                  <CardTitle className="text-3xl sm:text-4xl font-black capitalize bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-                    {overview.plan}
-                  </CardTitle>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardDescription className="text-xs font-medium uppercase">Storage Plan</CardDescription>
+                  <CardTitle className="text-2xl font-bold capitalize">{overview.plan}</CardTitle>
                 </CardHeader>
-                <CardContent className="relative z-10">
-                  <p className="text-xs text-muted-foreground flex items-center gap-2 font-semibold">
-                    <span className="inline-flex items-center px-2 py-1 rounded-full bg-[hsl(var(--chart-4))]/10 text-[hsl(var(--chart-4))] font-bold text-[10px]">
-                      {overview.quotaReadable}
-                    </span>
-                    <span>total quota</span>
+                <CardContent>
+                  <p className="text-xs text-muted-foreground">
+                    {overview.quotaReadable} total quota
                   </p>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Charts Section - Beautiful Interactive Charts */}
-            <div className="grid gap-6 grid-cols-1 lg:grid-cols-3 px-4 lg:px-6">
-              {/* Storage Usage Over Time - Interactive Area Chart */}
+            {/* Charts Section */}
+            <div className="grid gap-4 grid-cols-1 lg:grid-cols-3 px-4 lg:px-6">
+              {/* Storage Usage Over Time */}
               <div className="lg:col-span-2">
-                <Card className="h-full shadow-2xl border-0 ring-1 ring-border/30 hover:ring-primary/20 transition-all duration-300 rounded-3xl overflow-hidden backdrop-blur-sm bg-gradient-to-br from-background via-background to-muted/5">
-                  <CardHeader className="border-b border-border/50 bg-gradient-to-r from-transparent via-primary/5 to-transparent">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <CardTitle className="text-xl sm:text-2xl font-black bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-                          Storage Growth
-                        </CardTitle>
-                        <CardDescription className="text-xs sm:text-sm font-medium">
-                          Showing total storage for the last {timeRangeLabel}
-                        </CardDescription>
-                      </div>
-                    </div>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Storage Growth</CardTitle>
+                    <CardDescription>
+                      Storage usage over the last {timeRangeLabel}
+                    </CardDescription>
                   </CardHeader>
-                  <CardContent className="pt-6 px-2 sm:px-6">
-                    <ChartContainer config={chartConfig} className="aspect-auto h-[320px] w-full">
+                  <CardContent>
+                    <ChartContainer config={chartConfig} className="h-[300px] w-full">
                       <AreaChart data={storageChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                         <defs>
                           <linearGradient id="colorStorage" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="var(--color-storage)" stopOpacity={0.8} />
-                            <stop offset="95%" stopColor="var(--color-storage)" stopOpacity={0.1} />
-                          </linearGradient>
-                          <linearGradient id="colorFiles" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="var(--color-files)" stopOpacity={0.8} />
-                            <stop offset="95%" stopColor="var(--color-files)" stopOpacity={0.1} />
+                            <stop offset="5%" stopColor="var(--color-storage)" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="var(--color-storage)" stopOpacity={0} />
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} className="opacity-30" stroke="hsl(var(--border))" />
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-muted" />
                         <XAxis
                           dataKey="date"
                           tickLine={false}
@@ -476,171 +428,131 @@ export default function InsightsPage() {
                           tickMargin={10}
                           minTickGap={32}
                           tickFormatter={(val) => format(new Date(val), "MMM d")}
-                          className="text-xs font-medium"
-                          stroke="hsl(var(--muted-foreground))"
+                          className="text-xs"
                         />
                         <YAxis
                           tickLine={false}
                           axisLine={false}
                           tickMargin={10}
                           tickFormatter={(val) => `${val} MB`}
-                          className="text-xs font-medium"
-                          stroke="hsl(var(--muted-foreground))"
+                          className="text-xs"
                         />
                         <ChartTooltip
-                          cursor={{ strokeDasharray: "3 3", stroke: "hsl(var(--primary))", strokeWidth: 1.5 }}
                           content={
                             <ChartTooltipContent
-                              indicator="dot"
-                              labelFormatter={(value) => {
-                                return format(new Date(value), "MMM dd, yyyy")
-                              }}
+                              labelFormatter={(value) => format(new Date(value), "MMM dd, yyyy")}
                             />
                           }
                         />
                         <Area
-                          type="natural"
+                          type="monotone"
                           dataKey="storage"
                           stroke="var(--color-storage)"
-                          strokeWidth={3}
+                          strokeWidth={2}
                           fillOpacity={1}
                           fill="url(#colorStorage)"
-                          stackId="a"
                         />
-                        <ChartLegend content={<ChartLegendContent />} />
                       </AreaChart>
                     </ChartContainer>
                   </CardContent>
                 </Card>
               </div>
 
-              {/* File Type Breakdown - Donut Chart */}
-              <Card className="shadow-2xl border-0 ring-1 ring-border/30 hover:ring-primary/20 transition-all duration-300 rounded-3xl overflow-hidden backdrop-blur-sm bg-gradient-to-br from-background via-background to-muted/5">
-                <CardHeader className="border-b border-border/50 bg-gradient-to-r from-transparent via-primary/5 to-transparent">
-                  <CardTitle className="text-xl sm:text-2xl font-black bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-                    Content Type
-                  </CardTitle>
-                  <CardDescription className="text-xs sm:text-sm font-medium">
+              {/* File Type Breakdown */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Content Type</CardTitle>
+                  <CardDescription>
                     Distribution by file type
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="h-[320px] flex items-center justify-center p-0">
+                <CardContent className="h-[300px] flex items-center justify-center">
                   <ChartContainer config={chartConfig} className="h-full w-full">
                     <PieChart>
                       <Pie
                         data={typeChartData}
                         cx="50%"
                         cy="50%"
-                        innerRadius={70}
-                        outerRadius={100}
-                        paddingAngle={3}
+                        innerRadius={60}
+                        outerRadius={90}
+                        paddingAngle={2}
                         dataKey="value"
                       >
                         {typeChartData.map((_entry: any, index: number) => (
                           <Cell 
                             key={`cell-${index}`} 
-                            fill={PIE_COLORS[index % PIE_COLORS.length]} 
-                            className="hover:opacity-80 transition-opacity cursor-pointer stroke-background stroke-2"
+                            fill={PIE_COLORS[index % PIE_COLORS.length]}
                           />
                         ))}
                       </Pie>
                       <ChartTooltip
                         content={
-                          <ChartTooltipContent
-                            indicator="dot"
-                            labelFormatter={(label) => label}
-                          />
+                          <ChartTooltipContent />
                         }
                       />
-                      <ChartLegend 
-                        content={<ChartLegendContent />} 
-                        className="flex-wrap gap-2 text-sm"
-                      />
+                      <ChartLegend content={<ChartLegendContent />} />
                     </PieChart>
                   </ChartContainer>
                 </CardContent>
               </Card>
             </div>
 
-            <div className="grid gap-6 grid-cols-1 lg:grid-cols-2 px-4 lg:px-6">
-              {/* Recent Activity Bar Chart */}
-              <Card className="shadow-2xl border-0 ring-1 ring-border/30 hover:ring-primary/20 transition-all duration-300 rounded-3xl overflow-hidden backdrop-blur-sm bg-gradient-to-br from-background via-background to-muted/5">
-                <CardHeader className="border-b border-border/50 bg-gradient-to-r from-transparent via-primary/5 to-transparent">
-                  <CardTitle className="text-xl sm:text-2xl font-black bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-                    Creation Activity
-                  </CardTitle>
-                  <CardDescription className="text-xs sm:text-sm font-medium">
-                    New files and folders in the last {timeRangeLabel}
+            <div className="grid gap-4 grid-cols-1 lg:grid-cols-2 px-4 lg:px-6">
+              {/* Recent Activity */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Upload Activity</CardTitle>
+                  <CardDescription>
+                    New files uploaded in the last {timeRangeLabel}
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="pt-6 h-[320px]">
-                  <ChartContainer config={chartConfig} className="h-full w-full">
+                <CardContent>
+                  <ChartContainer config={chartConfig} className="h-[300px] w-full">
                     <BarChart data={activityChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="var(--color-uploads)" stopOpacity={1} />
-                          <stop offset="100%" stopColor="var(--color-uploads)" stopOpacity={0.6} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} className="opacity-30" stroke="hsl(var(--border))" />
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-muted" />
                       <XAxis
                         dataKey="date"
                         tickLine={false}
                         axisLine={false}
                         tickMargin={10}
                         tickFormatter={(val) => format(new Date(val), "MMM d")}
-                        className="text-xs font-medium"
-                        stroke="hsl(var(--muted-foreground))"
+                        className="text-xs"
                       />
                       <YAxis
                         tickLine={false}
                         axisLine={false}
                         tickMargin={10}
-                        className="text-xs font-medium"
-                        stroke="hsl(var(--muted-foreground))"
+                        className="text-xs"
                       />
-                      <ChartTooltip 
-                        content={<ChartTooltipContent indicator="line" />}
-                        cursor={{ fill: "hsl(var(--muted))", opacity: 0.2, radius: 4 }}
-                      />
+                      <ChartTooltip content={<ChartTooltipContent />} />
                       <Bar 
                         dataKey="uploads" 
-                        fill="url(#barGradient)"
-                        radius={[8, 8, 0, 0]}
-                        className="hover:opacity-80 transition-opacity"
+                        fill="var(--color-uploads)"
+                        radius={[4, 4, 0, 0]}
                       />
                     </BarChart>
                   </ChartContainer>
                 </CardContent>
               </Card>
 
-              {/* Monthly Growth Composed Chart */}
-              <Card className="h-full shadow-2xl border-0 ring-1 ring-border/30 hover:ring-primary/20 transition-all duration-300 rounded-3xl overflow-hidden backdrop-blur-sm bg-gradient-to-br from-background via-background to-muted/5">
-                <CardHeader className="border-b border-border/50 bg-gradient-to-r from-transparent via-primary/5 to-transparent">
-                  <CardTitle className="text-xl sm:text-2xl font-black bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-                    Monthly Ingestion
-                  </CardTitle>
-                  <CardDescription className="text-xs sm:text-sm font-medium">
-                    Storage added over the last 12 months
+              {/* Monthly Growth */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Monthly Growth</CardTitle>
+                  <CardDescription>
+                    Storage and file count over the last 12 months
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="pt-6 h-[320px]">
-                  <ChartContainer config={chartConfig} className="h-full w-full">
+                <CardContent>
+                  <ChartContainer config={chartConfig} className="h-[300px] w-full">
                     <ComposedChart data={growthChartData} margin={{ top: 10, right: 5, left: -20, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="barGradientStorage" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="var(--color-files)" stopOpacity={0.8} />
-                          <stop offset="100%" stopColor="var(--color-files)" stopOpacity={0.3} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} className="opacity-30" stroke="hsl(var(--border))" />
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-muted" />
                       <XAxis
                         dataKey="month"
                         tickLine={false}
                         axisLine={false}
                         tickMargin={10}
-                        className="text-xs font-medium"
-                        stroke="hsl(var(--muted-foreground))"
+                        className="text-xs"
                       />
                       <YAxis
                         yAxisId="left"
@@ -648,8 +560,7 @@ export default function InsightsPage() {
                         axisLine={false}
                         tickMargin={10}
                         tickFormatter={(val) => `${val} MB`}
-                        className="text-xs font-medium"
-                        stroke="hsl(var(--muted-foreground))"
+                        className="text-xs"
                       />
                       <YAxis
                         yAxisId="right"
@@ -658,25 +569,21 @@ export default function InsightsPage() {
                         axisLine={false}
                         hide
                       />
-                      <ChartTooltip 
-                        content={<ChartTooltipContent indicator="line" />}
-                        cursor={{ strokeDasharray: "3 3", stroke: "hsl(var(--primary))", strokeWidth: 1.5 }}
-                      />
+                      <ChartTooltip content={<ChartTooltipContent />} />
                       <Bar 
                         yAxisId="left" 
                         dataKey="storage" 
-                        fill="url(#barGradientStorage)" 
-                        radius={[6, 6, 0, 0]}
-                        className="hover:opacity-80 transition-opacity"
+                        fill="var(--color-files)" 
+                        radius={[4, 4, 0, 0]}
+                        fillOpacity={0.6}
                       />
                       <Line 
                         yAxisId="right" 
                         type="monotone" 
                         dataKey="files" 
                         stroke="var(--color-storage)" 
-                        strokeWidth={3} 
-                        dot={{ r: 4, fill: "var(--color-storage)", strokeWidth: 2, stroke: "hsl(var(--background))" }}
-                        activeDot={{ r: 6, strokeWidth: 2 }}
+                        strokeWidth={2}
+                        dot={{ r: 3 }}
                       />
                       <ChartLegend content={<ChartLegendContent />} />
                     </ComposedChart>
@@ -685,58 +592,42 @@ export default function InsightsPage() {
               </Card>
             </div>
 
-            {/* Largest Files Table - Enhanced */}
+            {/* Largest Files */}
             <div className="px-4 lg:px-6">
-              <Card className="shadow-2xl border-0 ring-1 ring-border/30 hover:ring-primary/20 transition-all duration-300 rounded-3xl overflow-hidden backdrop-blur-sm bg-gradient-to-br from-background via-background to-muted/5">
-                <CardHeader className="border-b border-border/50 bg-gradient-to-r from-transparent via-primary/5 to-transparent">
-                  <CardTitle className="text-xl sm:text-2xl font-black bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-                    Largest Files
-                  </CardTitle>
-                  <CardDescription className="text-xs sm:text-sm font-medium">
-                    Top 5 files taking up the most space
+              <Card>
+                <CardHeader>
+                  <CardTitle>Largest Files</CardTitle>
+                  <CardDescription>
+                    Top 5 files by storage size
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="p-4">
-                  <div className="space-y-2">
-                    {decryptedTopFiles.map((file, index) => (
+                <CardContent>
+                  <div className="space-y-3">
+                    {decryptedTopFiles.map((file) => (
                       <div 
                         key={file.id} 
-                        className="group flex items-center justify-between p-4 rounded-2xl hover:bg-gradient-to-r hover:from-primary/5 hover:via-primary/10 hover:to-transparent transition-all duration-300 border border-transparent hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5"
+                        className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50"
                       >
-                        <div className="flex items-center gap-4 overflow-hidden flex-1">
-                          <div className="relative">
-                            <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-transparent rounded-xl blur-md group-hover:blur-lg transition-all" />
-                            <div className="relative p-3 rounded-xl bg-gradient-to-br from-muted/50 to-muted/30 backdrop-blur-sm ring-1 ring-border/50 group-hover:ring-primary/50 transition-all">
-                              {getFileIcon(file.mimeType)}
-                            </div>
+                        <div className="flex items-center gap-3 overflow-hidden flex-1">
+                          <div className="p-2 rounded-md bg-muted">
+                            {getFileIcon(file.mimeType)}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 text-primary text-xs font-bold ring-1 ring-primary/30">
-                                {index + 1}
-                              </span>
-                              <p className="font-bold truncate text-sm sm:text-base group-hover:text-primary transition-colors">
-                                {file.name}
-                              </p>
-                            </div>
-                            <p className="text-xs text-muted-foreground font-medium">
+                            <p className="font-medium truncate text-sm">
+                              {file.name}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
                               {format(new Date(file.createdAt), 'MMM d, yyyy')}
                             </p>
                           </div>
                         </div>
                         <div className="text-right whitespace-nowrap pl-4">
-                          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 ring-1 ring-primary/20 group-hover:ring-primary/40 transition-all">
-                            <IconDatabase className="h-4 w-4 text-primary" />
-                            <p className="font-black text-sm sm:text-base text-primary">{file.sizeReadable}</p>
-                          </div>
+                          <p className="font-semibold text-sm">{file.sizeReadable}</p>
                         </div>
                       </div>
                     ))}
                     {decryptedTopFiles.length === 0 && (
-                      <div className="text-center py-12">
-                        <IconFiles className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
-                        <p className="text-muted-foreground font-medium">No files found</p>
-                      </div>
+                      <p className="text-center text-muted-foreground py-8 text-sm">No files found</p>
                     )}
                   </div>
                 </CardContent>
