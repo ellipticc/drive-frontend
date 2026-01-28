@@ -125,6 +125,8 @@
     "lowlight": "^3.3.0",
     "lucide-react": "^0.562.0",
     "mammoth": "^1.11.0",
+    "marked": "^17.0.1",
+    "md-to-pdf": "^5.2.5",
     "motion": "^12.29.0",
     "next": "^16.0.8",
     "next-themes": "^0.4.6",

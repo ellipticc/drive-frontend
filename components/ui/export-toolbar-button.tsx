@@ -9,6 +9,7 @@ import { ArrowDownToLineIcon } from 'lucide-react';
 import { createSlateEditor } from 'platejs';
 import { useEditorRef } from 'platejs/react';
 import { serializeHtml } from 'platejs/static';
+import { marked } from 'marked';
 
 import {
   DropdownMenu,
@@ -131,12 +132,143 @@ export function ExportToolbarButton(props: DropdownMenuProps) {
     if (!requirePro('PDF')) return;
     triggerSnapshot(); // Fire and forget
 
-    const canvas = await getCanvas();
+    // Serialize to markdown
+    const md = editor.getApi(MarkdownPlugin).markdown.serialize();
+    
+    // Convert markdown to HTML
+    const contentHtml = await marked(md);
+    
+    // Create a styled HTML document
+    const styledHtml = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+              font-size: 16px;
+              line-height: 1.6;
+              color: #000;
+              background: #fff;
+              padding: 40px;
+              max-width: 800px;
+              margin: 0 auto;
+            }
+            h1, h2, h3, h4, h5, h6 {
+              margin-top: 24px;
+              margin-bottom: 16px;
+              font-weight: 600;
+              line-height: 1.25;
+            }
+            h1 { font-size: 2em; border-bottom: 1px solid #eaecef; padding-bottom: 8px; }
+            h2 { font-size: 1.5em; border-bottom: 1px solid #eaecef; padding-bottom: 6px; }
+            h3 { font-size: 1.25em; }
+            p { margin-bottom: 16px; }
+            code {
+              background-color: #f6f8fa;
+              padding: 2px 6px;
+              border-radius: 3px;
+              font-family: 'Courier New', 'Consolas', monospace;
+              font-size: 0.9em;
+            }
+            pre {
+              background-color: #f6f8fa;
+              padding: 16px;
+              border-radius: 6px;
+              overflow-x: auto;
+              margin-bottom: 16px;
+            }
+            pre code {
+              background-color: transparent;
+              padding: 0;
+            }
+            blockquote {
+              border-left: 4px solid #dfe2e5;
+              padding-left: 16px;
+              color: #6a737d;
+              margin: 16px 0;
+            }
+            ul, ol {
+              margin-bottom: 16px;
+              padding-left: 32px;
+            }
+            li {
+              margin-bottom: 8px;
+            }
+            table {
+              border-collapse: collapse;
+              width: 100%;
+              margin: 16px 0;
+            }
+            th, td {
+              border: 1px solid #dfe2e5;
+              padding: 8px 12px;
+              text-align: left;
+            }
+            th {
+              background-color: #f6f8fa;
+              font-weight: 600;
+            }
+            img {
+              max-width: 100%;
+              height: auto;
+              margin: 16px 0;
+            }
+            a {
+              color: #0366d6;
+              text-decoration: none;
+            }
+            a:hover {
+              text-decoration: underline;
+            }
+            hr {
+              border: none;
+              border-top: 2px solid #eaecef;
+              margin: 24px 0;
+            }
+          </style>
+        </head>
+        <body>${contentHtml}</body>
+      </html>
+    `;
 
+    // Create hidden iframe to render the HTML
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'absolute';
+    iframe.style.left = '-9999px';
+    iframe.style.width = '800px';
+    iframe.style.height = '1000px';
+    document.body.appendChild(iframe);
+
+    // Write HTML to iframe
+    iframe.contentDocument?.open();
+    iframe.contentDocument?.write(styledHtml);
+    iframe.contentDocument?.close();
+
+    // Wait for content to render
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Capture as canvas
+    const html2canvas = (await import('html2canvas-pro')).default;
+    const canvas = await html2canvas(iframe.contentDocument!.body, {
+      backgroundColor: '#ffffff',
+      scale: 2,
+    });
+
+    // Remove iframe
+    document.body.removeChild(iframe);
+
+    // Convert to PDF
     const PDFLib = await import('pdf-lib');
     const pdfDoc = await PDFLib.PDFDocument.create();
     const page = pdfDoc.addPage([canvas.width, canvas.height]);
-    const imageEmbed = await pdfDoc.embedPng(canvas.toDataURL('PNG'));
+    const imageEmbed = await pdfDoc.embedPng(canvas.toDataURL('image/png'));
     const { height, width } = imageEmbed.scale(1);
     page.drawImage(imageEmbed, {
       height,
