@@ -150,10 +150,21 @@ export function ExportToolbarButton(props: DropdownMenuProps) {
     // @ts-ignore - html-to-pdfmake has no type definitions
     const htmlToPdfmake = ((await import('html-to-pdfmake')) as any).default;
     // @ts-ignore - pdfmake has no types here
-    const pdfMake = (await import('pdfmake/build/pdfmake')).default;
+    const pdfMakeModule = await import('pdfmake/build/pdfmake');
+    const pdfMake = pdfMakeModule.default || pdfMakeModule;
+
     // @ts-ignore - vfs fonts
-    const pdfFonts = (await import('pdfmake/build/vfs_fonts')).default;
-    pdfMake.vfs = pdfFonts.pdfMake.vfs;
+    const pdfFontsModule = await import('pdfmake/build/vfs_fonts');
+    const pdfFonts = pdfFontsModule.default || pdfFontsModule;
+
+    // Robust assignment of vfs
+    if (pdfFonts && pdfFonts.pdfMake && pdfFonts.pdfMake.vfs) {
+      pdfMake.vfs = pdfFonts.pdfMake.vfs;
+    } else if (pdfFonts && pdfFonts.vfs) {
+      pdfMake.vfs = pdfFonts.vfs;
+    } else {
+      console.error('Failed to load pdfMake vfs fonts');
+    }
 
     const content = htmlToPdfmake(editorHtml, { window });
 
@@ -279,7 +290,7 @@ export function ExportToolbarButton(props: DropdownMenuProps) {
 
     // Convert HTML to DOCX
     const docxBlob = htmlDocx.asBlob(htmlContent);
-    
+
     // Download the file
     const blobUrl = window.URL.createObjectURL(docxBlob);
     const link = document.createElement('a');

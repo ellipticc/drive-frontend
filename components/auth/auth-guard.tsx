@@ -40,10 +40,6 @@ export function AuthGuard({ children }: AuthGuardProps) {
     if (isPublic) {
       requestAnimationFrame(() => {
         setIsAuthenticated(true);
-        try {
-          const overlay = document.getElementById('initial-loading-overlay');
-          if (overlay) overlay.remove();
-        } catch (e) {}
       });
       hasCheckedAuthRef.current = true;
       return;
@@ -66,10 +62,6 @@ export function AuthGuard({ children }: AuthGuardProps) {
       hasCheckedAuthRef.current = true;
       requestAnimationFrame(() => {
         setIsAuthenticated(true);
-        try {
-          const overlay = document.getElementById('initial-loading-overlay');
-          if (overlay) overlay.remove();
-        } catch (e) {}
       });
       return;
     }
@@ -90,10 +82,6 @@ export function AuthGuard({ children }: AuthGuardProps) {
   useEffect(() => {
     requestAnimationFrame(() => {
       setIsHydrated(true);
-      try {
-        const overlay = document.getElementById('initial-loading-overlay');
-        if (overlay) overlay.remove();
-      } catch (e) {}
     });
   }, []);
 
