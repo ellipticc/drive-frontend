@@ -38,7 +38,13 @@ export function AuthGuard({ children }: AuthGuardProps) {
 
     // Check if current path is public (including share links)
     if (isPublic) {
-      requestAnimationFrame(() => setIsAuthenticated(true));
+      requestAnimationFrame(() => {
+        setIsAuthenticated(true);
+        try {
+          const overlay = document.getElementById('initial-loading-overlay');
+          if (overlay) overlay.remove();
+        } catch (e) {}
+      });
       hasCheckedAuthRef.current = true;
       return;
     }
@@ -58,7 +64,13 @@ export function AuthGuard({ children }: AuthGuardProps) {
       masterKeyManager.setStorage(storage);
 
       hasCheckedAuthRef.current = true;
-      requestAnimationFrame(() => setIsAuthenticated(true));
+      requestAnimationFrame(() => {
+        setIsAuthenticated(true);
+        try {
+          const overlay = document.getElementById('initial-loading-overlay');
+          if (overlay) overlay.remove();
+        } catch (e) {}
+      });
       return;
     }
 
@@ -76,8 +88,13 @@ export function AuthGuard({ children }: AuthGuardProps) {
 
   // Mark as hydrated after mount to avoid calling setState synchronously inside layout effect
   useEffect(() => {
-    // Defer hydration flag to next frame to avoid synchronous setState inside effect
-    requestAnimationFrame(() => setIsHydrated(true));
+    requestAnimationFrame(() => {
+      setIsHydrated(true);
+      try {
+        const overlay = document.getElementById('initial-loading-overlay');
+        if (overlay) overlay.remove();
+      } catch (e) {}
+    });
   }, []);
 
   // Cleanup on unmount

@@ -14,6 +14,7 @@ import { NotificationProvider } from "@/components/notifications/notification-pr
 import { LanguageProvider } from "@/lib/i18n/language-context";
 import { ThemeConfiguration } from "@/components/theme-configuration";
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
+import { IconLoader2 as Loader2 } from "@tabler/icons-react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { OnboardingTourProvider } from "@/components/onboarding/onboarding-tour-provider";
 import "./globals.css";
@@ -257,6 +258,12 @@ export default function RootLayout({
             `,
           }}
         />
+        <div id="initial-loading-overlay" style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--background)', zIndex: 9999 }}>
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="h-8 w-8 animate-spin" />
+            <p className="text-sm text-muted-foreground mt-2">Loading…</p>
+          </div>
+        </div>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
