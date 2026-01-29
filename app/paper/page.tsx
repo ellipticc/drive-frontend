@@ -752,6 +752,23 @@ function PaperPageContent() {
         };
     }, [fileId]);
 
+    // Prevent page-level scrolling while editor is mounted so only the main container scrolls
+    useEffect(() => {
+        if (typeof document === 'undefined') return;
+        const prevHtmlOverflow = document.documentElement.style.overflow;
+        const prevBodyOverflow = document.body.style.overflow;
+
+        // Hide scroll on html/body while paper editor is active
+        document.documentElement.style.overflow = 'hidden';
+        document.body.style.overflow = 'hidden';
+
+        return () => {
+            // Restore previous overflow values
+            document.documentElement.style.overflow = prevHtmlOverflow;
+            document.body.style.overflow = prevBodyOverflow;
+        };
+    }, []);
+
     // Initial Load
     useEffect(() => {
         if (!fileId) {
