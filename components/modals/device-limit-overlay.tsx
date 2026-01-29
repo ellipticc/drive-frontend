@@ -13,7 +13,7 @@ export function DeviceLimitOverlay() {
     const [settingsOpen] = useSettingsOpen();
 
     return (
-        <div className="min-h-screen bg-background flex flex-col relative">
+        <div className="fixed inset-0 z-50 bg-background flex flex-col">
             {/* Theme Toggle - Top Right */}
             <div className="absolute top-6 right-6">
                 <ThemeToggle />

@@ -35,7 +35,18 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   const isLockedOnBilling = deviceLimitReached && pathname === '/pricing';
   
   if (deviceLimitReached && !isLockedOnBilling) {
+    // Prevent body scroll when overlay is shown
+    if (typeof document !== 'undefined') {
+      document.documentElement.style.overflow = 'hidden';
+      document.body.style.overflow = 'hidden';
+    }
     return <DeviceLimitOverlay />;
+  }
+  
+  // Re-enable scroll when not showing overlay
+  if (typeof document !== 'undefined') {
+    document.documentElement.style.overflow = '';
+    document.body.style.overflow = '';
   }
 
   // For authenticated routes, render with sidebar

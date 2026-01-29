@@ -320,10 +320,6 @@ export function SecurityTab(props: SecurityTabProps) {
 
     // Helper function to determine device status and color
     const getDeviceStatus = (device: any) => {
-        const now = new Date();
-        const lastActive = new Date(device.last_active);
-        const minutesSinceActive = (now.getTime() - lastActive.getTime()) / (1000 * 60);
-        
         // If device has explicit status from backend
         if (device.status) {
             if (device.status === 'provisional') {
@@ -334,13 +330,32 @@ export function SecurityTab(props: SecurityTabProps) {
             }
         }
         
+        // Check if device is revoked
+        if (device.is_revoked) {
+            return { label: 'Revoked', color: 'text-red-500', dotColor: 'bg-red-500', description: 'Device revoked' };
+        }
+        
+        // Parse last_active timestamp safely
+        let lastActive: Date;
+        try {
+            lastActive = new Date(device.last_active);
+            if (isNaN(lastActive.getTime())) {
+                return { label: 'Unknown', color: 'text-gray-500', dotColor: 'bg-gray-500', description: 'Status unknown' };
+            }
+        } catch (e) {
+            return { label: 'Unknown', color: 'text-gray-500', dotColor: 'bg-gray-500', description: 'Status unknown' };
+        }
+        
+        const now = new Date();
+        const minutesSinceActive = (now.getTime() - lastActive.getTime()) / (1000 * 60);
+        
         // Active status based on recency
         if (minutesSinceActive < 5) {
             return { label: 'Active', color: 'text-green-500', dotColor: 'bg-green-500', description: 'Active now' };
         } else if (minutesSinceActive < 60) {
-            return { label: 'Recent', color: 'text-green-500', dotColor: 'bg-green-500', description: 'Active within 1 hour' };
+            return { label: 'Recent', color: 'text-emerald-500', dotColor: 'bg-emerald-500', description: 'Active within 1 hour' };
         } else if (minutesSinceActive < 1440) { // 24 hours
-            return { label: 'Today', color: 'text-emerald-500', dotColor: 'bg-emerald-500', description: 'Active today' };
+            return { label: 'Today', color: 'text-yellow-600', dotColor: 'bg-yellow-600', description: 'Active today' };
         } else {
             return { label: 'Inactive', color: 'text-gray-400', dotColor: 'bg-gray-400', description: 'Not recently used' };
         }
@@ -349,22 +364,35 @@ export function SecurityTab(props: SecurityTabProps) {
     // Smart device counter - counts devices active within last 30 minutes as "connected"
     const getConnectedDevicesCount = (devices: any[]) => {
         const now = new Date();
-        const uniqueActiveDevices = new Set<string>();
+        let connectedCount = 0;
         
         devices.forEach(device => {
+            // Skip revoked and provisional devices
             if (device.is_revoked || device.status === 'revoked') return;
             if (device.status === 'provisional') return; // Don't count provisional
             
-            const lastActive = new Date(device.last_active);
+            // Parse last_active safely
+            let lastActive: Date;
+            try {
+                lastActive = new Date(device.last_active);
+                if (isNaN(lastActive.getTime())) {
+                    console.warn(`Invalid timestamp for device ${device.id}:`, device.last_active);
+                    return;
+                }
+            } catch (e) {
+                console.warn(`Error parsing timestamp for device ${device.id}:`, device.last_active);
+                return;
+            }
+            
             const minutesSinceActive = (now.getTime() - lastActive.getTime()) / (1000 * 60);
             
-            // Consider a device "connected" if active within last 30 minutes
-            if (minutesSinceActive < 30) {
-                uniqueActiveDevices.add(device.id);
+            // Consider a device "connected" if active within last 30 minutes and valid time
+            if (minutesSinceActive >= 0 && minutesSinceActive < 30) {
+                connectedCount++;
             }
         });
         
-        return uniqueActiveDevices.size;
+        return connectedCount;
     };
 
     const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
@@ -1119,10 +1147,10 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                         <table className="w-full text-sm">
                             <thead className="bg-muted/50 border-b">
                                 <tr>
-                                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Status</th>
                                     <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Device ID</th>
                                     <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Device Name</th>
                                     <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Location / IP</th>
+                                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Status</th>
                                     <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Last Active</th>
                                     <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Action</th>
                                 </tr>
