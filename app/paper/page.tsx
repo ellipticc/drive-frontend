@@ -527,6 +527,18 @@ function PaperEditorView({
 }) {
     const [editorValue, setEditorValue] = useState<Value>(initialValue);
     const [wordCountExpanded, setWordCountExpanded] = useState(false);
+    const [displayMode, setDisplayMode] = useState<'words' | 'characters'>(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('wordCountDisplayMode');
+            return (saved as 'words' | 'characters') || 'words';
+        }
+        return 'words';
+    });
+    
+    // Save display mode to localStorage
+    useEffect(() => {
+        localStorage.setItem('wordCountDisplayMode', displayMode);
+    }, [displayMode]);
     
     const editor = usePlateEditor({
         plugins: EditorKit,
@@ -605,33 +617,48 @@ function PaperEditorView({
                         {/* Floating Word Count (Bottom Left - Conditionally Visible) */}
                         {showWordCount && (
                             <div className="fixed bottom-4 left-4 z-40">
-                                <div className="bg-background/95 backdrop-blur-sm border rounded-lg shadow-lg">
-                                    <button
-                                        onClick={() => setWordCountExpanded(!wordCountExpanded)}
-                                        className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors w-min"
-                                    >
-                                        <div className="flex flex-col text-right">
-                                            <span className="font-medium text-xs leading-tight">Words</span>
-                                            <span className="text-xs font-semibold">{stats.words.toLocaleString()}</span>
-                                        </div>
-                                        {wordCountExpanded ? (
-                                            <IconChevronUp className="w-3 h-3 shrink-0" />
-                                        ) : (
-                                            <IconChevronDown className="w-3 h-3 shrink-0" />
-                                        )}
-                                    </button>
+                                <div className={`bg-background/95 backdrop-blur-sm border rounded-lg shadow-lg flex flex-col ${wordCountExpanded ? 'flex-col-reverse' : ''}`}>
+                                    {/* Expanded Content - Shows above when open */}
                                     {wordCountExpanded && (
-                                        <div className="border-t px-3 py-2 space-y-2 min-w-max">
-                                            <div className="flex justify-between text-xs px-2 py-1">
-                                                <span className="text-muted-foreground">Words</span>
-                                                <span className="font-medium ml-4">{stats.words.toLocaleString()}</span>
-                                            </div>
-                                            <div className="flex justify-between text-xs px-2 py-1">
-                                                <span className="text-muted-foreground">Characters</span>
-                                                <span className="font-medium ml-4">{stats.characters.toLocaleString()}</span>
-                                            </div>
+                                        <div className="border-b px-4 py-3 space-y-3 min-w-max">
+                                            <button
+                                                onClick={() => setDisplayMode('words')}
+                                                className={`flex items-center justify-between text-sm w-full px-2 py-2 rounded transition-colors ${
+                                                    displayMode === 'words' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                                                }`}
+                                            >
+                                                <span className="font-medium">Words</span>
+                                                <span className="font-semibold text-sm">{stats.words.toLocaleString()}</span>
+                                            </button>
+                                            <button
+                                                onClick={() => setDisplayMode('characters')}
+                                                className={`flex items-center justify-between text-sm w-full px-2 py-2 rounded transition-colors ${
+                                                    displayMode === 'characters' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                                                }`}
+                                            >
+                                                <span className="font-medium">Characters</span>
+                                                <span className="font-semibold text-sm">{stats.characters.toLocaleString()}</span>
+                                            </button>
                                         </div>
                                     )}
+
+                                    {/* Main Button - Collapse/Expand */}
+                                    <button
+                                        onClick={() => setWordCountExpanded(!wordCountExpanded)}
+                                        className="flex items-center justify-between px-4 py-3 text-muted-foreground hover:text-foreground transition-colors"
+                                    >
+                                        <div className="flex items-end gap-6">
+                                            <div className="flex flex-col">
+                                                <span className="font-medium text-xs text-muted-foreground">{displayMode === 'words' ? 'Words' : 'Characters'}</span>
+                                                <span className="text-2xl font-bold text-foreground mt-1">{displayMode === 'words' ? stats.words.toLocaleString() : stats.characters.toLocaleString()}</span>
+                                            </div>
+                                        </div>
+                                        {wordCountExpanded ? (
+                                            <IconChevronDown className="w-4 h-4 shrink-0 ml-2" />
+                                        ) : (
+                                            <IconChevronUp className="w-4 h-4 shrink-0 ml-2" />
+                                        )}
+                                    </button>
                                 </div>
                             </div>
                         )}
