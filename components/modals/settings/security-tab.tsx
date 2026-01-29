@@ -335,19 +335,34 @@ export function SecurityTab(props: SecurityTabProps) {
             return { label: 'Revoked', color: 'text-red-500', dotColor: 'bg-red-500', description: 'Device revoked' };
         }
         
-        // Parse last_active timestamp safely
-        let lastActive: Date;
+        // Parse last_active timestamp safely - handle Unix timestamps and ISO strings
+        let lastActiveTime: number | null = null;
+        const now = new Date().getTime();
+        
         try {
-            lastActive = new Date(device.last_active);
-            if (isNaN(lastActive.getTime())) {
+            const timestamp = device.last_active;
+            
+            // Check if it's a Unix timestamp (number or string of digits)
+            if (typeof timestamp === 'number' || (typeof timestamp === 'string' && /^\d+$/.test(timestamp))) {
+                const numValue = typeof timestamp === 'number' ? timestamp : parseInt(timestamp, 10);
+                // Assume milliseconds if > 10 billion, seconds if smaller
+                lastActiveTime = numValue > 10000000000 ? numValue : numValue * 1000;
+            } else if (typeof timestamp === 'string') {
+                // Try parsing as ISO string
+                const date = new Date(timestamp);
+                if (!isNaN(date.getTime())) {
+                    lastActiveTime = date.getTime();
+                }
+            }
+            
+            if (lastActiveTime === null) {
                 return { label: 'Unknown', color: 'text-gray-500', dotColor: 'bg-gray-500', description: 'Status unknown' };
             }
         } catch (e) {
             return { label: 'Unknown', color: 'text-gray-500', dotColor: 'bg-gray-500', description: 'Status unknown' };
         }
         
-        const now = new Date();
-        const minutesSinceActive = (now.getTime() - lastActive.getTime()) / (1000 * 60);
+        const minutesSinceActive = (now - lastActiveTime) / (1000 * 60);
         
         // Active status based on recency
         if (minutesSinceActive < 5) {
@@ -364,6 +379,7 @@ export function SecurityTab(props: SecurityTabProps) {
     // Smart device counter - counts devices active within last 30 minutes as "connected"
     const getConnectedDevicesCount = (devices: any[]) => {
         const now = new Date();
+        const nowUnix = now.getTime();
         let connectedCount = 0;
         
         devices.forEach(device => {
@@ -371,24 +387,41 @@ export function SecurityTab(props: SecurityTabProps) {
             if (device.is_revoked || device.status === 'revoked') return;
             if (device.status === 'provisional') return; // Don't count provisional
             
-            // Parse last_active safely
-            let lastActive: Date;
+            // Parse last_active safely - handle Unix timestamps and ISO strings
+            let lastActiveTime: number | null = null;
+            
             try {
-                lastActive = new Date(device.last_active);
-                if (isNaN(lastActive.getTime())) {
-                    console.warn(`Invalid timestamp for device ${device.id}:`, device.last_active);
+                const timestamp = device.last_active;
+                
+                // Check if it's a Unix timestamp (number or string of digits)
+                if (typeof timestamp === 'number' || (typeof timestamp === 'string' && /^\d+$/.test(timestamp))) {
+                    const numValue = typeof timestamp === 'number' ? timestamp : parseInt(timestamp, 10);
+                    // Assume milliseconds if > 10 billion, seconds if smaller
+                    lastActiveTime = numValue > 10000000000 ? numValue : numValue * 1000;
+                } else if (typeof timestamp === 'string') {
+                    // Try parsing as ISO string
+                    const date = new Date(timestamp);
+                    if (!isNaN(date.getTime())) {
+                        lastActiveTime = date.getTime();
+                    }
+                }
+                
+                if (lastActiveTime === null) {
+                    console.warn(`Could not parse timestamp for device ${device.id}:`, timestamp);
                     return;
                 }
             } catch (e) {
-                console.warn(`Error parsing timestamp for device ${device.id}:`, device.last_active);
+                console.warn(`Error parsing timestamp for device ${device.id}:`, device.last_active, e);
                 return;
             }
             
-            const minutesSinceActive = (now.getTime() - lastActive.getTime()) / (1000 * 60);
+            const minutesSinceActive = (nowUnix - lastActiveTime) / (1000 * 60);
             
-            // Consider a device "connected" if active within last 30 minutes and valid time
+            // Consider a device "connected" if active within last 30 minutes
+            // minutesSinceActive should be positive (event happened in past)
             if (minutesSinceActive >= 0 && minutesSinceActive < 30) {
                 connectedCount++;
+                console.debug(`Device ${device.id} is connected (${minutesSinceActive.toFixed(2)} min ago)`);
             }
         });
         
@@ -1173,23 +1206,7 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                         const deviceStatus = getDeviceStatus(device as Device);
                                         return (
                                         <tr key={device.id} className={`hover:bg-muted/30 transition-colors ${device.is_revoked ? 'opacity-50' : ''}`}>
-                                            <td className="px-4 py-3">
-                                                <TooltipProvider>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <div className="flex items-center gap-2 cursor-help">
-                                                                <div className={`w-2 h-2 rounded-full ${deviceStatus.dotColor} animate-pulse`} />
-                                                                <span className={`text-xs font-medium ${deviceStatus.color}`}>
-                                                                    {deviceStatus.label}
-                                                                </span>
-                                                            </div>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent side="top">
-                                                            <p className="text-xs">{deviceStatus.description}</p>
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                </TooltipProvider>
-                                            </td>
+                                            {/* Device ID */}
                                             <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
                                                 <TooltipProvider>
                                                     <Tooltip>
@@ -1208,6 +1225,7 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                                     </Tooltip>
                                                 </TooltipProvider>
                                             </td>
+                                            {/* Device Name */}
                                             <td className="px-4 py-3">
                                                 <TooltipProvider>
                                                     <Tooltip delayDuration={300}>
@@ -1294,6 +1312,7 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                                     </Tooltip>
                                                 </TooltipProvider>
                                             </td>
+                                            {/* Location / IP */}
                                             <td className="px-4 py-3">
                                                 <div className="flex flex-col">
                                                     <span className="text-xs">{device.location || 'Unknown'}</span>
@@ -1302,9 +1321,29 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                                     </span>
                                                 </div>
                                             </td>
+                                            {/* Status */}
+                                            <td className="px-4 py-3">
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <div className="flex items-center gap-2 cursor-help">
+                                                                <div className={`w-2 h-2 rounded-full ${deviceStatus.dotColor} animate-pulse`} />
+                                                                <span className={`text-xs font-medium ${deviceStatus.color}`}>
+                                                                    {deviceStatus.label}
+                                                                </span>
+                                                            </div>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent side="top">
+                                                            <p className="text-xs">{deviceStatus.description}</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                            </td>
+                                            {/* Last Active */}
                                             <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">
                                                 {formatDate(device.last_active)}
                                             </td>
+                                            {/* Actions */}
                                             <td className="px-4 py-3 text-right">
                                                 <div className="flex items-center justify-end gap-2">
                                                     {!!device.is_current && (
