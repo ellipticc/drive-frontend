@@ -12,7 +12,8 @@ import {
   IconMoon,
   IconDeviceDesktop,
   IconDeviceMobile,
-  IconBrightnessFilled
+  IconBrightnessFilled,
+  IconSparkles
 } from "@tabler/icons-react"
 
 import {
@@ -49,6 +50,7 @@ import { NotificationsModal } from "@/components/modals/notifications-modal"
 import { useNotifications } from "@/hooks/use-notifications"
 import { useLanguage } from "@/lib/i18n/language-context"
 import { toast } from 'sonner'
+import { useSettingsOpen } from "@/hooks/use-settings-open"
 
 // Notification dot component for indicating unread notifications
 function NotificationDot() {
@@ -103,7 +105,7 @@ export function NavUser({
   const { t } = useLanguage()
   const { setTheme, theme } = useTheme()
   const { updateUser, refetch, deviceLimitReached } = useUser()
-  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useSettingsOpen()
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const { hasUnread } = useNotifications()
   const displayName = getDisplayName(user)
@@ -186,10 +188,15 @@ export function NavUser({
                       className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground relative"
                     >
                       <div className="relative">
-                        <Avatar className="h-8 w-8 rounded-lg">
-                          <AvatarImage src={user.avatar || getDiceBearAvatar(user.id)} alt={displayName} />
-                          <AvatarFallback className="rounded-lg">{getInitials(displayName)}</AvatarFallback>
-                        </Avatar>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Avatar className="h-8 w-8 rounded-lg" onClick={(e) => { e.stopPropagation(); window.location.hash = '#settings/General?open=avatar' }} role="button" tabIndex={0}>
+                              <AvatarImage src={user.avatar || getDiceBearAvatar(user.id)} alt={displayName} />
+                              <AvatarFallback className="rounded-lg">{getInitials(displayName)}</AvatarFallback>
+                            </Avatar>
+                          </TooltipTrigger>
+                          <TooltipContent side="right">Change avatar</TooltipContent>
+                        </Tooltip>
                         {hasUnread && <NotificationDot />}
                         {user.is_checkmarked && user.show_checkmark !== false && (
                           <IconRosetteDiscountCheckFilled className="absolute -bottom-1 -right-1 z-20 text-background size-5 fill-sky-500" />
@@ -214,10 +221,15 @@ export function NavUser({
                   className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground relative"
                 >
                   <div className="relative">
-                    <Avatar className="h-8 w-8 rounded-lg">
-                      <AvatarImage src={user.avatar || getDiceBearAvatar(user.id)} alt={displayName} />
-                      <AvatarFallback className="rounded-lg">{getInitials(displayName)}</AvatarFallback>
-                    </Avatar>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Avatar className="h-8 w-8 rounded-lg" onClick={(e) => { e.stopPropagation(); window.location.hash = '#settings/General?open=avatar' }} role="button" tabIndex={0}>
+                          <AvatarImage src={user.avatar || getDiceBearAvatar(user.id)} alt={displayName} />
+                          <AvatarFallback className="rounded-lg">{getInitials(displayName)}</AvatarFallback>
+                        </Avatar>
+                      </TooltipTrigger>
+                      <TooltipContent side="right">Change avatar</TooltipContent>
+                    </Tooltip>
                     {hasUnread && <NotificationDot />}
                     {user.is_checkmarked && user.show_checkmark !== false && (
                       <IconRosetteDiscountCheckFilled className="absolute -bottom-1 -right-1 z-20 text-background size-5 fill-sky-500" />
@@ -243,10 +255,15 @@ export function NavUser({
               <DropdownMenuLabel className="p-0 font-normal pointer-events-auto">
                 <div className="flex items-center gap-2 px-1 py-1.5 text-start text-sm">
                   <div className="relative">
-                    <Avatar className="h-8 w-8 rounded-lg">
-                      <AvatarImage src={user.avatar || getDiceBearAvatar(user.id)} alt={displayName} />
-                      <AvatarFallback className="rounded-lg">{getInitials(displayName)}</AvatarFallback>
-                    </Avatar>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Avatar className="h-8 w-8 rounded-lg" onClick={(e) => { e.stopPropagation(); window.location.hash = '#settings/General?open=avatar' }} role="button" tabIndex={0}>
+                          <AvatarImage src={user.avatar || getDiceBearAvatar(user.id)} alt={displayName} />
+                          <AvatarFallback className="rounded-lg">{getInitials(displayName)}</AvatarFallback>
+                        </Avatar>
+                      </TooltipTrigger>
+                      <TooltipContent>Change avatar</TooltipContent>
+                    </Tooltip>
                     {user.is_checkmarked && user.show_checkmark !== false && (
                       <IconRosetteDiscountCheckFilled className="absolute -bottom-1 -right-1 z-20 text-background size-5 fill-sky-500" />
                     )}
@@ -280,6 +297,14 @@ export function NavUser({
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
+                <DropdownMenuItem onClick={() => {
+                  // Upgrade Workspace
+                  window.location.href = '/pricing'
+                }}>
+                  <IconSparkles className="mr-2 h-4 w-4" />
+                  Upgrade Workspace
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => {
                   const tab = deviceLimitReached ? 'Security?scroll=device-manager' : 'General';
                   window.location.hash = `#settings/${tab}`;
@@ -342,7 +367,7 @@ export function NavUser({
           </DropdownMenu>
         </SidebarMenuItem>
       </SidebarMenu>
-      <SettingsModal open={settingsOpen} onOpenChange={handleSettingsOpenChange} />
+      <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
       <NotificationsModal open={notificationsOpen} onOpenChange={setNotificationsOpen} />
     </>
   )

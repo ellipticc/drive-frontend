@@ -173,6 +173,8 @@ export function SettingsModal({
     }
   }
 
+  const [openToAvatar, setOpenToAvatar] = useState(false)
+
   // Handle hash changes to open modal and navigate to correct tab
   const handleHashChange = useCallback(() => {
     const hash = window.location.hash
@@ -183,9 +185,18 @@ export function SettingsModal({
         finalSetOpen(true)
       }
 
+      // Parse query param (e.g., #settings/General?open=avatar)
+      const [pathPart, queryPart] = hash.split('?')
+      const query = new URLSearchParams(queryPart)
+      if (query.get('open') === 'avatar') {
+        setOpenToAvatar(true)
+      } else {
+        setOpenToAvatar(false)
+      }
+
       // Navigate to the correct tab
-      if (hash.includes('/')) {
-        const tabFromHash = hash.replace('#settings/', '').split('?')[0].toLowerCase()
+      if (pathPart.includes('/')) {
+        const tabFromHash = pathPart.replace('#settings/', '').split('?')[0].toLowerCase()
         // Find the matching tab ID
         const matchingTab = data.nav.find(tab =>
           tab.name.toLowerCase() === tabFromHash || tab.id === tabFromHash
@@ -204,6 +215,7 @@ export function SettingsModal({
       // Close modal when hash is cleared
       const finalSetOpen = externalOnOpenChange || setInternalOpen
       finalSetOpen(false)
+      setOpenToAvatar(false)
     }
   }, [open, externalOnOpenChange])
 
@@ -215,6 +227,24 @@ export function SettingsModal({
     window.addEventListener('hashchange', handleHashChange)
     return () => window.removeEventListener('hashchange', handleHashChange)
   }, [handleHashChange])
+
+  // If modal opened with ?open=avatar, trigger the hidden file input once the dialog is mounted
+  useEffect(() => {
+    if (open && openToAvatar) {
+      // Wait a tick so the file input is mounted
+      const id = window.setTimeout(() => {
+        try {
+          fileInputRef.current?.click()
+        } catch (e) {
+          // ignore
+        }
+        // Clear the flag so we don't re-trigger on subsequent opens
+        setOpenToAvatar(false)
+      }, 50)
+      return () => window.clearTimeout(id)
+    }
+    return
+  }, [open, openToAvatar])
 
   // State management
   const [displayName, setDisplayName] = useState("")
