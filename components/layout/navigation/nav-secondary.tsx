@@ -16,6 +16,8 @@ import { Kbd } from "@/components/ui/kbd"
 import { useUser } from "@/components/user-context"
 import { useSidebar } from "@/components/ui/sidebar"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
+import { IconLifebuoy, IconBooks, IconBrandDiscord, IconBrandGithub, IconSparkles } from "@tabler/icons-react"
 
 export function NavSecondary({
   items,
@@ -31,6 +33,8 @@ export function NavSecondary({
   const { deviceLimitReached } = useUser();
   const { state } = useSidebar();
   const [feedbackOpen, setFeedbackOpen] = React.useState(false)
+  const [helpOpen, setHelpOpen] = React.useState(false)
+  const [supportOpen, setSupportOpen] = React.useState(false)
 
   return (
     <SidebarGroup {...props}>
@@ -41,24 +45,59 @@ export function NavSecondary({
             return (
             <SidebarMenuItem key={item.title}>
               {item.id === "help" ? (
-                <SupportRequestDialog>
-                  {state === 'collapsed' ? (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <SidebarMenuButton>
-                          <item.icon />
-                          <span>{item.title}</span>
-                        </SidebarMenuButton>
-                      </TooltipTrigger>
-                      <TooltipContent side="right">{item.title}</TooltipContent>
-                    </Tooltip>
-                  ) : (
-                    <SidebarMenuButton>
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </SidebarMenuButton>
-                  )}
-                </SupportRequestDialog>
+                <DropdownMenu open={helpOpen} onOpenChange={(open) => {
+                  setHelpOpen(open);
+                  // when the menu opens, ensure support dialog is closed
+                  if (!open) setSupportOpen(false);
+                }}>
+                  <DropdownMenuTrigger asChild>
+                    {state === 'collapsed' ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <SidebarMenuButton isActive={helpOpen}>
+                            <item.icon />
+                            <span>{item.title}</span>
+                          </SidebarMenuButton>
+                        </TooltipTrigger>
+                        <TooltipContent side="right">{item.title}</TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      <SidebarMenuButton isActive={helpOpen}>
+                        <item.icon />
+                        <span>{item.title}</span>
+                      </SidebarMenuButton>
+                    )}
+                  </DropdownMenuTrigger>
+
+                  <DropdownMenuContent>
+                    <DropdownMenuLabel className="font-medium">{item.title}</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setSupportOpen(true)}>
+                      <IconLifebuoy className="mr-2 h-4 w-4" />
+                      Support
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <a href="https://docs.ellipticc.com" target="_blank" rel="noreferrer">
+                        <IconBooks className="mr-2 h-4 w-4" />
+                        Docs
+                      </a>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <a href="https://discord.gg/THSnb9mHuB" target="_blank" rel="noreferrer">
+                        <IconBrandDiscord className="mr-2 h-4 w-4" />
+                        Community
+                      </a>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <a href="https://github.com/ellipticc/drive-frontend" target="_blank" rel="noreferrer">
+                        <IconBrandGithub className="mr-2 h-4 w-4" />
+                        GitHub
+                      </a>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+
+                  <SupportRequestDialog open={supportOpen} onOpenChange={(open) => setSupportOpen(open)} />
+                </DropdownMenu>
               ) : item.id === "settings" ? (
                 state === 'collapsed' ? (
                   <Tooltip>

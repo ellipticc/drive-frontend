@@ -6,7 +6,7 @@ import {
   IconDatabase,
   IconHelp,
   IconCaretLeftRightFilled,
-  IconSettings,
+  IconAdjustmentsHorizontal,
   IconTrash,
   IconLink,
   IconDatabaseImport,
@@ -115,7 +115,7 @@ export const AppSidebar = React.memo(function AppSidebar({
       {
         title: t("sidebar.settings"),
         url: "#",
-        icon: IconSettings,
+        icon: IconAdjustmentsHorizontal,
         id: "settings",
       },
       {

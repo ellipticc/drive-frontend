@@ -5,11 +5,13 @@ import {
     IconCreditCard,
     IconLogout,
     IconSettings,
+    IconSparkles,
     IconSun,
     IconMoon,
     IconDeviceDesktop,
     IconDeviceMobile,
     IconBrightnessFilled,
+    IconStack2Filled,
     IconRosetteDiscountCheckFilled
 } from "@tabler/icons-react"
 
@@ -153,7 +155,15 @@ export function HeaderUser() {
                         <DropdownMenuItem onClick={() => {
                             window.location.href = '/'
                         }}>
+                            <IconStack2Filled className="mr-2 h-4 w-4" />
                             Go to Dashboard
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => {
+                            // Upgrade Workspace
+                            window.location.href = '/pricing'
+                        }}>
+                            <IconSparkles className="mr-2 h-4 w-4" />
+                            Upgrade Workspace
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={() => {
