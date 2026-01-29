@@ -45,11 +45,7 @@ export function NavSecondary({
             return (
               <SidebarMenuItem key={item.title}>
                 {item.id === "help" ? (
-                  <DropdownMenu open={helpOpen} onOpenChange={(open) => {
-                    setHelpOpen(open);
-                    // when the menu opens, ensure support dialog is closed
-                    if (!open) setSupportOpen(false);
-                  }}>
+                  <DropdownMenu open={helpOpen} onOpenChange={setHelpOpen}>
                     <DropdownMenuTrigger asChild>
                       {state === 'collapsed' ? (
                         <Tooltip>
@@ -71,7 +67,7 @@ export function NavSecondary({
 
                     <DropdownMenuContent
                       side={isMobile ? "bottom" : "right"}
-                      align="start"
+                      align="end"
                       className="w-56"
                     >
                       <DropdownMenuLabel className="font-medium">{item.title}</DropdownMenuLabel>
