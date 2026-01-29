@@ -33,8 +33,6 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-
-    DialogTrigger,
 } from "@/components/ui/dialog"
 import {
     AlertDialogTrigger,
@@ -66,7 +64,8 @@ import {
     IconEyeOff,
     IconFingerprint,
     IconCalendar as CalendarIcon,
-    IconX
+    IconX,
+    IconGift
 } from "@tabler/icons-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
@@ -336,9 +335,19 @@ export function SecurityTab(props: SecurityTabProps) {
     } = props;
 
     const { formatDate } = useFormatter();
+    const [upgradeDialogData, setUpgradeDialogData] = useState<{ open: boolean; title: string; description: string }>({
+        open: false,
+        title: "",
+        description: ""
+    });
 
     // Helper function to determine device status and color
     const getDeviceStatus = (device: any) => {
+        // Always return "Active" for current device
+        if (device.is_current || device.isCurrent) {
+            return { label: 'Active', color: 'text-green-500', dotColor: 'bg-green-500', description: 'Current device' };
+        }
+
         // If device has explicit status from backend
         if (device.status) {
             if (device.status === 'provisional') {
@@ -384,7 +393,8 @@ export function SecurityTab(props: SecurityTabProps) {
         const minutesSinceActive = (now - lastActiveTime) / (1000 * 60);
 
         // Active status based on recency
-        if (minutesSinceActive < 5) {
+        // Match "Connected" logic: < 30 mins is Active
+        if (minutesSinceActive < 30) {
             return { label: 'Active', color: 'text-green-500', dotColor: 'bg-green-500', description: 'Active now' };
         } else if (minutesSinceActive < 60) {
             return { label: 'Recent', color: 'text-emerald-500', dotColor: 'bg-emerald-500', description: 'Active within 1 hour' };
@@ -525,9 +535,6 @@ export function SecurityTab(props: SecurityTabProps) {
     const [showWipeDialog, setShowWipeDialog] = useState(false);
     // New state for Revoke All Devices AlertDialog
     const [showRevokeAllDevicesDialog, setShowRevokeAllDevicesDialog] = useState(false);
-
-    // Upgrade dialog state for Pro features / archived events
-    const [upgradeDialogData, setUpgradeDialogData] = useState<{ open: boolean; title: string; description: string } | null>(null);
 
     // Master Key Reveal/Export state
     const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -1012,7 +1019,7 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                             <div className="flex items-center gap-2">
                                 <Popover>
                                     <PopoverTrigger asChild>
-                                        <Button variant="outline" size="sm" className="h-8 gap-2 border-dashed">
+                                        <Button variant="outline" size="sm" className="h-8 gap-2 border-dashed rounded-md">
                                             <CalendarIcon className="h-4 w-4" />
                                             {sessionsDateRange?.from ? (
                                                 sessionsDateRange.to ? (
@@ -1052,7 +1059,7 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
 
                             {/* Browser/Device Type Filter */}
                             <Select value={sessionsTypeFilter || "all"} onValueChange={(value) => setSessionsTypeFilter(value === "all" ? "" : value)}>
-                                <SelectTrigger className="h-8 w-[130px] border-dashed">
+                                <SelectTrigger className="h-8 w-[130px] border-dashed rounded-md">
                                     <SelectValue placeholder="All browsers" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -1081,44 +1088,6 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                     </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>Refresh sessions</TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
-
-                        {/* Download Button */}
-                        <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={async () => {
-                                            try {
-                                                const response = await apiClient.downloadSessions('csv');
-                                                if (response.success && response.data?.csv) {
-                                                    const blob = new Blob([response.data.csv], { type: 'text/csv;charset=utf-8;' });
-                                                    const url = URL.createObjectURL(blob);
-                                                    const a = document.createElement('a');
-                                                    a.href = url;
-                                                    a.download = response.data.filename || `sessions-${new Date().toISOString().split('T')[0]}.csv`;
-                                                    document.body.appendChild(a);
-                                                    a.click();
-                                                    document.body.removeChild(a);
-                                                    URL.revokeObjectURL(url);
-                                                    toast.success('Sessions downloaded');
-                                                } else {
-                                                    toast.error(response.error || 'Failed to download sessions');
-                                                }
-                                            } catch (error) {
-                                                console.error('Download failed:', error);
-                                                toast.error('Failed to download sessions');
-                                            }
-                                        }}
-                                        className="h-8 w-8 p-0"
-                                    >
-                                        <IconDownload className="h-4 w-4" />
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Download sessions</TooltipContent>
                             </Tooltip>
                         </TooltipProvider>
 
@@ -1159,6 +1128,54 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                 </AlertDialogFooter>
                             </AlertDialogContent>
                         </AlertDialog>
+
+                        {/* Download Button */}
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={async () => {
+                                            // Paywall check
+                                            if (userPlan === 'Free' || (devicePlan && devicePlan.name === 'Free')) {
+                                                setUpgradeDialogData({
+                                                    open: true,
+                                                    title: "Export Session History",
+                                                    description: "Exporting session history is available on Pro and Unlimited plans. Upgrade to access detailed security logs and exports."
+                                                });
+                                                return;
+                                            }
+
+                                            try {
+                                                const response = await apiClient.downloadSessions('csv');
+                                                if (response.success && response.data?.csv) {
+                                                    const blob = new Blob([response.data.csv], { type: 'text/csv;charset=utf-8;' });
+                                                    const url = URL.createObjectURL(blob);
+                                                    const a = document.createElement('a');
+                                                    a.href = url;
+                                                    a.download = response.data.filename || `sessions-${new Date().toISOString().split('T')[0]}.csv`;
+                                                    document.body.appendChild(a);
+                                                    a.click();
+                                                    document.body.removeChild(a);
+                                                    URL.revokeObjectURL(url);
+                                                    toast.success('Sessions downloaded');
+                                                } else {
+                                                    toast.error(response.error || 'Failed to download sessions');
+                                                }
+                                            } catch (error) {
+                                                console.error('Download failed:', error);
+                                                toast.error('Failed to download sessions');
+                                            }
+                                        }}
+                                        className="h-8 w-8 p-0"
+                                    >
+                                        <IconDownload className="h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Download sessions</TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
                     </div>
                 </div>
 
@@ -1363,7 +1380,7 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
 
                             {/* Device Type Filter */}
                             <Select value={devicesTypeFilter || "all"} onValueChange={(value) => setDevicesTypeFilter(value === "all" ? "" : value)}>
-                                <SelectTrigger className="h-8 w-[130px] border-dashed">
+                                <SelectTrigger className="h-8 w-[130px] border-dashed rounded-md">
                                     <SelectValue placeholder="All device types" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -1392,44 +1409,6 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                     </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>Refresh devices</TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
-
-                        {/* Download Button */}
-                        <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={async () => {
-                                            try {
-                                                const response = await apiClient.downloadDevices('csv');
-                                                if (response.success && response.data?.csv) {
-                                                    const blob = new Blob([response.data.csv], { type: 'text/csv;charset=utf-8;' });
-                                                    const url = URL.createObjectURL(blob);
-                                                    const a = document.createElement('a');
-                                                    a.href = url;
-                                                    a.download = response.data.filename || `devices-${new Date().toISOString().split('T')[0]}.csv`;
-                                                    document.body.appendChild(a);
-                                                    a.click();
-                                                    document.body.removeChild(a);
-                                                    URL.revokeObjectURL(url);
-                                                    toast.success('Devices downloaded');
-                                                } else {
-                                                    toast.error(response.error || 'Failed to download devices');
-                                                }
-                                            } catch (error) {
-                                                console.error('Download failed:', error);
-                                                toast.error('Failed to download devices');
-                                            }
-                                        }}
-                                        className="h-8 w-8 p-0"
-                                    >
-                                        <IconDownload className="h-4 w-4" />
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Download devices</TooltipContent>
                             </Tooltip>
                         </TooltipProvider>
 
@@ -1473,6 +1452,54 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                 </AlertDialogFooter>
                             </AlertDialogContent>
                         </AlertDialog>
+
+                        {/* Download Button */}
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={async () => {
+                                            // Paywall check
+                                            if (userPlan === 'Free' || (devicePlan && devicePlan.name === 'Free')) {
+                                                setUpgradeDialogData({
+                                                    open: true,
+                                                    title: "Export Device List",
+                                                    description: "Exporting device list is available on Pro and Unlimited plans. Upgrade to access detailed security logs and exports."
+                                                });
+                                                return;
+                                            }
+
+                                            try {
+                                                const response = await apiClient.downloadDevices('csv');
+                                                if (response.success && response.data?.csv) {
+                                                    const blob = new Blob([response.data.csv], { type: 'text/csv;charset=utf-8;' });
+                                                    const url = URL.createObjectURL(blob);
+                                                    const a = document.createElement('a');
+                                                    a.href = url;
+                                                    a.download = response.data.filename || `devices-${new Date().toISOString().split('T')[0]}.csv`;
+                                                    document.body.appendChild(a);
+                                                    a.click();
+                                                    document.body.removeChild(a);
+                                                    URL.revokeObjectURL(url);
+                                                    toast.success('Devices downloaded');
+                                                } else {
+                                                    toast.error(response.error || 'Failed to download devices');
+                                                }
+                                            } catch (error) {
+                                                console.error('Download failed:', error);
+                                                toast.error('Failed to download devices');
+                                            }
+                                        }}
+                                        className="h-8 w-8 p-0"
+                                    >
+                                        <IconDownload className="h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Download devices</TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
                     </div>
                 </div>
 
@@ -2314,22 +2341,6 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                 </DialogContent>
             </Dialog>
 
-            {/* Upgrade Alert Dialog */}
-            <AlertDialog open={!!upgradeDialogData?.open} onOpenChange={(open: boolean) => !open && setUpgradeDialogData(null)}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>{upgradeDialogData?.title}</AlertDialogTitle>
-                        <AlertDialogDescription className="pt-2 text-sm">
-                            {upgradeDialogData?.description}
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter className="pt-2">
-                        <AlertDialogCancel>Maybe later</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => { setUpgradeDialogData(null); window.location.href = '/pricing'; }} className="bg-primary">Upgrade</AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-
             {/* Master Key & Cryptographic Identity Section */}
             <div className="border-t pt-6 space-y-4">
                 <div className="flex items-center gap-3">
@@ -2873,6 +2884,45 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
 
                 </DialogContent>
             </Dialog>
-        </div>
-    )
+
+            {/* Upgrade Dialog */}
+            <AlertDialog open={upgradeDialogData.open} onOpenChange={(open) => setUpgradeDialogData(prev => ({ ...prev, open }))}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <div className="flex items-center gap-2 mb-2">
+                            <div className="p-2 rounded-full bg-primary/10 text-primary">
+                                <IconGift className="h-5 w-5" />
+                            </div>
+                            <AlertDialogTitle>{upgradeDialogData.title}</AlertDialogTitle>
+                        </div>
+                        <AlertDialogDescription className="text-base text-foreground">
+                            {upgradeDialogData.description}
+                        </AlertDialogDescription>
+                        <div className="mt-4 p-4 rounded-lg bg-muted/50 border text-sm text-muted-foreground">
+                            <p>Upgrading to Pro unlocks:</p>
+                            <ul className="mt-2 space-y-1 list-disc list-inside">
+                                <li>Unlimited device history</li>
+                                <li>Detailed security events & exports</li>
+                                <li>Advanced session controls</li>
+                                <li>Priority support</li>
+                            </ul>
+                        </div>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setUpgradeDialogData(prev => ({ ...prev, open: false }))}>Maybe Later</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => {
+                                setUpgradeDialogData(prev => ({ ...prev, open: false }));
+                                // redirect to pricing page
+                                window.location.href = '/pricing';
+                            }}
+                            className="bg-primary text-primary-foreground hover:bg-primary/90"
+                        >
+                            View Plans
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </div >
+    );
 }
