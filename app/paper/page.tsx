@@ -150,6 +150,8 @@ function PaperHeader({
     const { emojiPickerState, isOpen, setIsOpen } = useEmojiDropdownMenuState();
     const [isRenaming, setIsRenaming] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
+    // Track whether the title (main) dropdown is open so we can visually mute the title when active
+    const [titleMenuOpen, setTitleMenuOpen] = useState(false);
 
     // Calculate word count stats
     const stats = useMemo(() => countWords(editorValue), [editorValue]);
@@ -266,9 +268,9 @@ function PaperHeader({
 
                 {/* Title Dropdown Menu */}
                 {!isRenaming ? (
-                    <DropdownMenu>
+                    <DropdownMenu open={titleMenuOpen} onOpenChange={setTitleMenuOpen}>
                         <DropdownMenuTrigger asChild>
-                            <button className="text-sm md:text-base font-semibold hover:bg-muted px-2 py-1 rounded-md transition-colors truncate text-left max-w-md">
+                            <button className={`text-sm md:text-base font-semibold px-2 py-1 rounded-md transition-colors truncate text-left max-w-md ${titleMenuOpen ? 'bg-muted text-foreground' : 'hover:bg-muted'}`}>
                                 {paperTitle || "Untitled Paper"}
                             </button>
                         </DropdownMenuTrigger>
@@ -617,46 +619,46 @@ function PaperEditorView({
                         {/* Floating Word Count (Bottom Left - Conditionally Visible) */}
                         {showWordCount && (
                             <div className="fixed bottom-4 left-4 z-40">
-                                <div className={`bg-background/95 backdrop-blur-sm border rounded-lg shadow-lg flex flex-col ${wordCountExpanded ? 'flex-col-reverse' : ''}`}>
-                                    {/* Expanded Content - Shows above when open */}
+                                <div className={`bg-background/95 backdrop-blur-sm border rounded-lg shadow-lg overflow-hidden ${wordCountExpanded ? 'flex flex-col-reverse' : ''}`}>
+                                    {/* Dropdown Menu - Opens Above */}
                                     {wordCountExpanded && (
-                                        <div className="border-b px-4 py-3 space-y-3 min-w-max">
+                                        <div className="border-b px-3 py-2 space-y-1">
                                             <button
                                                 onClick={() => setDisplayMode('words')}
-                                                className={`flex items-center justify-between text-sm w-full px-2 py-2 rounded transition-colors ${
-                                                    displayMode === 'words' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                                                className={`flex items-center gap-2 px-2 py-1 text-xs w-full rounded transition-colors ${
+                                                    displayMode === 'words' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/50'
                                                 }`}
                                             >
                                                 <span className="font-medium">Words</span>
-                                                <span className="font-semibold text-sm">{stats.words.toLocaleString()}</span>
+                                                <span className="font-medium">{stats.words.toLocaleString()}</span>
                                             </button>
                                             <button
                                                 onClick={() => setDisplayMode('characters')}
-                                                className={`flex items-center justify-between text-sm w-full px-2 py-2 rounded transition-colors ${
-                                                    displayMode === 'characters' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                                                className={`flex items-center gap-2 px-2 py-1 text-xs w-full rounded transition-colors ${
+                                                    displayMode === 'characters' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/50'
                                                 }`}
                                             >
                                                 <span className="font-medium">Characters</span>
-                                                <span className="font-semibold text-sm">{stats.characters.toLocaleString()}</span>
+                                                <span className="font-medium">{stats.characters.toLocaleString()}</span>
                                             </button>
                                         </div>
                                     )}
 
-                                    {/* Main Button - Collapse/Expand */}
+                                    {/* Main Button */}
                                     <button
                                         onClick={() => setWordCountExpanded(!wordCountExpanded)}
-                                        className="flex items-center justify-between px-4 py-3 text-muted-foreground hover:text-foreground transition-colors"
+                                        className={`flex items-center justify-between px-3 py-2 text-xs transition-colors ${
+                                            wordCountExpanded ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'
+                                        }`}
                                     >
-                                        <div className="flex items-end gap-6">
-                                            <div className="flex flex-col">
-                                                <span className="font-medium text-xs text-muted-foreground">{displayMode === 'words' ? 'Words' : 'Characters'}</span>
-                                                <span className="text-2xl font-bold text-foreground mt-1">{displayMode === 'words' ? stats.words.toLocaleString() : stats.characters.toLocaleString()}</span>
-                                            </div>
+                                        <div className="flex items-center gap-4">
+                                            <span className="font-medium">{displayMode === 'words' ? 'Words' : 'Characters'}</span>
+                                            <span className="font-semibold">{displayMode === 'words' ? stats.words.toLocaleString() : stats.characters.toLocaleString()}</span>
                                         </div>
                                         {wordCountExpanded ? (
-                                            <IconChevronDown className="w-4 h-4 shrink-0 ml-2" />
+                                            <IconChevronUp className="w-3 h-3 shrink-0 ml-2" />
                                         ) : (
-                                            <IconChevronUp className="w-4 h-4 shrink-0 ml-2" />
+                                            <IconChevronDown className="w-3 h-3 shrink-0 ml-2" />
                                         )}
                                     </button>
                                 </div>
