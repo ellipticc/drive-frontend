@@ -329,6 +329,8 @@ export function SettingsModal({
   const [sessionsPage, setSessionsPage] = useState(1)
   const [sessionsTotalPages, setSessionsTotalPages] = useState(1)
   const [sessionsTotal, setSessionsTotal] = useState(0)
+  const [sessionsDateRange, setSessionsDateRange] = useState<DateRange | undefined>()
+  const [sessionsTypeFilter, setSessionsTypeFilter] = useState<string>('')
 
   // Device management state
   interface Device {
@@ -359,6 +361,8 @@ export function SettingsModal({
   } | null>(null)
   const [editingDeviceId, setEditingDeviceId] = useState<string | null>(null)
   const [editNameValue, setEditNameValue] = useState("")
+  const [devicesDateRange, setDevicesDateRange] = useState<DateRange | undefined>()
+  const [devicesTypeFilter, setDevicesTypeFilter] = useState<string>('')
 
   // Security events state
   const [securityEvents, setSecurityEvents] = useState<SecurityEvent[]>([])
@@ -602,7 +606,7 @@ export function SettingsModal({
       loadUserSessions(1)
       loadUserDevices(1)
     }
-  }, [showRevoked, open, activeTab])
+  }, [showRevoked, open, activeTab, devicesDateRange, devicesTypeFilter, sessionsDateRange, sessionsTypeFilter])
 
   // Reset loaded state when modal closes
   useEffect(() => {
@@ -881,7 +885,9 @@ export function SettingsModal({
   const loadUserSessions = async (page = sessionsPage) => {
     setIsLoadingSessions(true)
     try {
-      const response = await apiClient.getSessions(page, 5, !showRevoked)
+      const startDate = sessionsDateRange?.from ? format(sessionsDateRange.from, "yyyy-MM-dd") : undefined
+      const endDate = sessionsDateRange?.to ? format(sessionsDateRange.to, "yyyy-MM-dd") : undefined
+      const response = await apiClient.getSessions(page, 5, !showRevoked, startDate, endDate, sessionsTypeFilter || undefined)
       if (response.success && response.data) {
         setUserSessions(response.data.sessions || [])
         setCurrentSessionId(response.data.currentSessionId || null)
@@ -943,7 +949,9 @@ export function SettingsModal({
   const loadUserDevices = async (page = devicesPage) => {
     setIsLoadingDevices(true)
     try {
-      const response = await apiClient.getDevices(page, 5, !showRevoked)
+      const startDate = devicesDateRange?.from ? format(devicesDateRange.from, "yyyy-MM-dd") : undefined
+      const endDate = devicesDateRange?.to ? format(devicesDateRange.to, "yyyy-MM-dd") : undefined
+      const response = await apiClient.getDevices(page, 5, !showRevoked, startDate, endDate, devicesTypeFilter || undefined)
       if (response.success && response.data) {
         setUserDevices(response.data.devices || [])
         setDevicesTotalPages(response.data.pagination?.totalPages || 1)
@@ -2066,6 +2074,16 @@ export function SettingsModal({
                   // Revoked Toggle
                   showRevoked={showRevoked}
                   setShowRevoked={setShowRevoked}
+
+                  // Device & Session Filters
+                  devicesDateRange={devicesDateRange}
+                  setDevicesDateRange={setDevicesDateRange}
+                  devicesTypeFilter={devicesTypeFilter}
+                  setDevicesTypeFilter={setDevicesTypeFilter}
+                  sessionsDateRange={sessionsDateRange}
+                  setSessionsDateRange={setSessionsDateRange}
+                  sessionsTypeFilter={sessionsTypeFilter}
+                  setSessionsTypeFilter={setSessionsTypeFilter}
                 />
                   )}
                 </>

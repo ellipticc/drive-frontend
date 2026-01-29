@@ -1327,7 +1327,7 @@ class ApiClient {
     });
   }
 
-  async getSessions(page = 1, limit = 5, onlyActive = true): Promise<ApiResponse<{
+  async getSessions(page = 1, limit = 5, onlyActive = true, startDate?: string, endDate?: string, deviceType?: string): Promise<ApiResponse<{
     currentSessionId: string;
     sessions: Array<{
       id: string;
@@ -1346,7 +1346,11 @@ class ApiClient {
       totalPages: number;
     };
   }>> {
-    return this.request(`/auth/sessions?page=${page}&limit=${limit}&onlyActive=${onlyActive}`);
+    let query = `page=${page}&limit=${limit}&onlyActive=${onlyActive}`;
+    if (startDate) query += `&startDate=${startDate}`;
+    if (endDate) query += `&endDate=${endDate}`;
+    if (deviceType) query += `&deviceType=${deviceType}`;
+    return this.request(`/auth/sessions?${query}`);
   }
 
   async revokeSession(sessionId: string): Promise<ApiResponse> {
@@ -3283,7 +3287,7 @@ class ApiClient {
   }
 
   // Device Management
-  async getDevices(page = 1, limit = 5, onlyActive = true): Promise<ApiResponse<{
+  async getDevices(page = 1, limit = 5, onlyActive = true, startDate?: string, endDate?: string, deviceType?: string): Promise<ApiResponse<{
     devices: Array<{
       id: string;
       device_name: string;
@@ -3309,7 +3313,11 @@ class ApiClient {
       currentDevices: number;
     };
   }>> {
-    return this.request(`/auth/device?page=${page}&limit=${limit}&onlyActive=${onlyActive}`);
+    let query = `page=${page}&limit=${limit}&onlyActive=${onlyActive}`;
+    if (startDate) query += `&startDate=${startDate}`;
+    if (endDate) query += `&endDate=${endDate}`;
+    if (deviceType) query += `&deviceType=${deviceType}`;
+    return this.request(`/auth/device?${query}`);
   }
 
   async revokeDevice(deviceId: string): Promise<ApiResponse<{
@@ -3328,6 +3336,24 @@ class ApiClient {
     return this.request(`/auth/device/${deviceId}/name`, {
       method: 'PATCH',
       body: JSON.stringify({ name })
+    });
+  }
+
+  async downloadDevices(format: string = 'csv'): Promise<ApiResponse<{
+    csv?: string;
+    filename?: string;
+  }>> {
+    return this.request(`/auth/device/download?format=${format}`, {
+      method: 'GET',
+    });
+  }
+
+  async downloadSessions(format: string = 'csv'): Promise<ApiResponse<{
+    csv?: string;
+    filename?: string;
+  }>> {
+    return this.request(`/auth/sessions/download?format=${format}`, {
+      method: 'GET',
     });
   }
 

@@ -62,7 +62,7 @@ import {
     IconEyeOff,
     IconFingerprint,
     IconCalendar as CalendarIcon,
-    IconX as IconClose
+    IconX
 } from "@tabler/icons-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
@@ -230,6 +230,10 @@ interface SecurityTabProps {
     showRevokeAllDialog: boolean;
     setShowRevokeAllDialog: (val: boolean) => void;
     handleRevokeAllSessions: () => void;
+    sessionsDateRange: DateRange | undefined;
+    setSessionsDateRange: (val: DateRange | undefined) => void;
+    sessionsTypeFilter: string;
+    setSessionsTypeFilter: (val: string) => void;
 
     // Devices
     userDevices: Device[];
@@ -245,6 +249,10 @@ interface SecurityTabProps {
     setEditNameValue: (val: string) => void;
     handleUpdateDeviceName: (id: string, name: string) => void;
     devicePlan: DevicePlan | null;
+    devicesDateRange: DateRange | undefined;
+    setDevicesDateRange: (val: DateRange | undefined) => void;
+    devicesTypeFilter: string;
+    setDevicesTypeFilter: (val: string) => void;
 
     // Activity
     securityEvents: SecurityEvent[];
@@ -313,7 +321,11 @@ export function SecurityTab(props: SecurityTabProps) {
         usageDiagnosticsEnabled, crashReportsEnabled, handleUpdatePrivacySettings,
         userPlan,
         securityEventsDateRange, setSecurityEventsDateRange,
-        securityEventType, setSecurityEventType
+        securityEventType, setSecurityEventType,
+        devicesDateRange, setDevicesDateRange,
+        devicesTypeFilter, setDevicesTypeFilter,
+        sessionsDateRange, setSessionsDateRange,
+        sessionsTypeFilter, setSessionsTypeFilter
     } = props;
 
     const { formatDate } = useFormatter();
@@ -974,7 +986,7 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
 
             {/* Session Manager Section */}
             <div className="border-t pt-6 space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
                         <IconShieldLock className="h-5 w-5 text-muted-foreground" />
                         <div>
@@ -982,17 +994,81 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                             <p className="text-sm text-muted-foreground">Manage your active login sessions across devices</p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                        {/* Refresh Button */}
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => loadUserSessions(1)}
+                                        disabled={isLoadingSessions}
+                                        className="h-8 w-8 p-0"
+                                    >
+                                        <IconRotate className="h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Refresh sessions</TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+
+                        {/* Download Button */}
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={async () => {
+                                            try {
+                                                const response = await apiClient.downloadSessions('csv');
+                                                if (response.success && response.data?.csv) {
+                                                    const blob = new Blob([response.data.csv], { type: 'text/csv;charset=utf-8;' });
+                                                    const url = URL.createObjectURL(blob);
+                                                    const a = document.createElement('a');
+                                                    a.href = url;
+                                                    a.download = response.data.filename || `sessions-${new Date().toISOString().split('T')[0]}.csv`;
+                                                    document.body.appendChild(a);
+                                                    a.click();
+                                                    document.body.removeChild(a);
+                                                    URL.revokeObjectURL(url);
+                                                    toast.success('Sessions downloaded');
+                                                } else {
+                                                    toast.error(response.error || 'Failed to download sessions');
+                                                }
+                                            } catch (error) {
+                                                console.error('Download failed:', error);
+                                                toast.error('Failed to download sessions');
+                                            }
+                                        }}
+                                        className="h-8 w-8 p-0"
+                                    >
+                                        <IconDownload className="h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Download sessions</TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+
+                        {/* Revoke All Button */}
                         <Dialog open={showRevokeAllDialog} onOpenChange={setShowRevokeAllDialog}>
                             <DialogTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={isLoadingSessions || userSessions.filter(s => !s.isCurrent && !s.is_revoked).length === 0}
-                                    className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
-                                >
-                                    Revoke All
-                                </Button>
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                disabled={isLoadingSessions || userSessions.filter(s => !s.isCurrent && !s.is_revoked).length === 0}
+                                                className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
+                                            >
+                                                <IconX className="h-4 w-4" />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Revoke all sessions</TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
                             </DialogTrigger>
                             <DialogContent>
                                 <DialogHeader>
@@ -1015,6 +1091,66 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                             </DialogContent>
                         </Dialog>
                     </div>
+                </div>
+
+                {/* Session Filters */}
+                <div className="flex items-center gap-3 mb-4">
+                    {/* Date Range Picker */}
+                    <div className="flex items-center gap-2">
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button variant="outline" size="sm" className="h-8 gap-2">
+                                    <CalendarIcon className="h-4 w-4" />
+                                    {sessionsDateRange?.from ? (
+                                        sessionsDateRange.to ? (
+                                            <>
+                                                {format(sessionsDateRange.from, "MMM d")} - {format(sessionsDateRange.to, "MMM d, y")}
+                                            </>
+                                        ) : (
+                                            format(sessionsDateRange.from, "MMM d, y")
+                                        )
+                                    ) : (
+                                        <span>Date range</span>
+                                    )}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                    initialFocus
+                                    mode="range"
+                                    defaultMonth={sessionsDateRange?.from}
+                                    selected={sessionsDateRange}
+                                    onSelect={setSessionsDateRange}
+                                    numberOfMonths={2}
+                                />
+                            </PopoverContent>
+                        </Popover>
+                        {sessionsDateRange?.from && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                onClick={() => setSessionsDateRange(undefined)}
+                            >
+                                <IconX className="h-4 w-4" />
+                            </Button>
+                        )}
+                    </div>
+
+                    {/* Browser/Device Type Filter */}
+                    <Select value={sessionsTypeFilter || ""} onValueChange={(value) => setSessionsTypeFilter(value)}>
+                        <SelectTrigger className="h-8 w-[180px]">
+                            <SelectValue placeholder="All browsers" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="">All browsers</SelectItem>
+                            <SelectItem value="Chrome">Chrome</SelectItem>
+                            <SelectItem value="Firefox">Firefox</SelectItem>
+                            <SelectItem value="Safari">Safari</SelectItem>
+                            <SelectItem value="Edge">Edge</SelectItem>
+                            <SelectItem value="Opera">Opera</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
 
                 <div className="border rounded-lg overflow-hidden bg-card">
@@ -1149,7 +1285,7 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
 
             {/* Device Manager Section */}
             <div id="device-manager-section" className="border-t pt-6 space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
                         <IconUserCog className="h-5 w-5 text-muted-foreground" />
                         <div>
@@ -1171,8 +1307,148 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                             <p className="text-sm text-muted-foreground">Manage authorized devices and cryptographic identities</p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                        {/* Refresh Button */}
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => loadUserDevices(1)}
+                                        disabled={isLoadingDevices}
+                                        className="h-8 w-8 p-0"
+                                    >
+                                        <IconRotate className="h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Refresh devices</TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+
+                        {/* Download Button */}
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={async () => {
+                                            try {
+                                                const response = await apiClient.downloadDevices('csv');
+                                                if (response.success && response.data?.csv) {
+                                                    const blob = new Blob([response.data.csv], { type: 'text/csv;charset=utf-8;' });
+                                                    const url = URL.createObjectURL(blob);
+                                                    const a = document.createElement('a');
+                                                    a.href = url;
+                                                    a.download = response.data.filename || `devices-${new Date().toISOString().split('T')[0]}.csv`;
+                                                    document.body.appendChild(a);
+                                                    a.click();
+                                                    document.body.removeChild(a);
+                                                    URL.revokeObjectURL(url);
+                                                    toast.success('Devices downloaded');
+                                                } else {
+                                                    toast.error(response.error || 'Failed to download devices');
+                                                }
+                                            } catch (error) {
+                                                console.error('Download failed:', error);
+                                                toast.error('Failed to download devices');
+                                            }
+                                        }}
+                                        className="h-8 w-8 p-0"
+                                    >
+                                        <IconDownload className="h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Download devices</TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+
+                        {/* Revoke All Button */}
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        disabled={isLoadingDevices || userDevices.filter(d => !d.is_current && !d.is_revoked).length === 0}
+                                        onClick={() => {
+                                            const revokeAll = userDevices.filter(d => !d.is_current && !d.is_revoked);
+                                            if (revokeAll.length > 0) {
+                                                if (confirm(`Revoke ${revokeAll.length} device(s)?`)) {
+                                                    revokeAll.forEach(d => handleRevokeDevice(d.id));
+                                                }
+                                            }
+                                        }}
+                                        className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
+                                    >
+                                        <IconX className="h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Revoke all devices</TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
                     </div>
+                </div>
+
+                {/* Device Filters */}
+                <div className="flex items-center gap-3 mb-4">
+                    {/* Date Range Picker */}
+                    <div className="flex items-center gap-2">
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button variant="outline" size="sm" className="h-8 gap-2">
+                                    <CalendarIcon className="h-4 w-4" />
+                                    {devicesDateRange?.from ? (
+                                        devicesDateRange.to ? (
+                                            <>
+                                                {format(devicesDateRange.from, "MMM d")} - {format(devicesDateRange.to, "MMM d, y")}
+                                            </>
+                                        ) : (
+                                            format(devicesDateRange.from, "MMM d, y")
+                                        )
+                                    ) : (
+                                        <span>Date range</span>
+                                    )}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                    initialFocus
+                                    mode="range"
+                                    defaultMonth={devicesDateRange?.from}
+                                    selected={devicesDateRange}
+                                    onSelect={setDevicesDateRange}
+                                    numberOfMonths={2}
+                                />
+                            </PopoverContent>
+                        </Popover>
+                        {devicesDateRange?.from && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                onClick={() => setDevicesDateRange(undefined)}
+                            >
+                                <IconX className="h-4 w-4" />
+                            </Button>
+                        )}
+                    </div>
+
+                    {/* Device Type Filter */}
+                    <Select value={devicesTypeFilter || ""} onValueChange={(value) => setDevicesTypeFilter(value)}>
+                        <SelectTrigger className="h-8 w-[180px]">
+                            <SelectValue placeholder="All device types" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="">All device types</SelectItem>
+                            <SelectItem value="Windows">Windows</SelectItem>
+                            <SelectItem value="macOS">macOS</SelectItem>
+                            <SelectItem value="iOS">iOS</SelectItem>
+                            <SelectItem value="Android">Android</SelectItem>
+                            <SelectItem value="Linux">Linux</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
 
                 <div className="border rounded-lg overflow-hidden bg-card">
@@ -1485,7 +1761,7 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                 className="h-8 w-8 text-muted-foreground hover:text-foreground"
                                 onClick={() => setSecurityEventsDateRange?.(undefined)}
                             >
-                                <IconClose className="h-4 w-4" />
+                                <IconX className="h-4 w-4" />
                             </Button>
                         )}
 
