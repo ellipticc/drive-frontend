@@ -96,7 +96,74 @@ interface Session {
     created_at: string;
     isCurrent: boolean;
 }
+
+interface Device {
+    id: string;
+    device_name: string;
+    device_type: string;
+    browser: string;
+    os: string;
+    ip_address: string;
+    location: string;
+    last_active: string;
+    created_at: string;
+    is_revoked: boolean;
+    is_current?: boolean;
+    status?: 'active' | 'provisional' | 'revoked';
+    activated_at?: string | null;
+}
+
 import { toast } from "sonner"
+
+// Helper function to determine device status and color
+const getDeviceStatus = (device: Device) => {
+    const now = new Date();
+    const lastActive = new Date(device.last_active);
+    const minutesSinceActive = (now.getTime() - lastActive.getTime()) / (1000 * 60);
+    
+    // If device has explicit status from backend
+    if (device.status) {
+        if (device.status === 'provisional') {
+            return { label: 'Pending', color: 'text-yellow-500', dotColor: 'bg-yellow-500', description: 'Awaiting first use' };
+        }
+        if (device.status === 'revoked' || device.is_revoked) {
+            return { label: 'Revoked', color: 'text-red-500', dotColor: 'bg-red-500', description: 'Device revoked' };
+        }
+    }
+    
+    // Active status based on recency
+    if (minutesSinceActive < 5) {
+        return { label: 'Active', color: 'text-green-500', dotColor: 'bg-green-500', description: 'Active now' };
+    } else if (minutesSinceActive < 60) {
+        return { label: 'Recent', color: 'text-green-500', dotColor: 'bg-green-500', description: 'Active within 1 hour' };
+    } else if (minutesSinceActive < 1440) { // 24 hours
+        return { label: 'Today', color: 'text-emerald-500', dotColor: 'bg-emerald-500', description: 'Active today' };
+    } else {
+        return { label: 'Inactive', color: 'text-gray-400', dotColor: 'bg-gray-400', description: 'Not recently used' };
+    }
+};
+
+// Smart device counter - counts devices active within last 30 minutes as "connected"
+const getConnectedDevicesCount = (devices: any[]) => {
+    const now = new Date();
+    const uniqueActiveDevices = new Set<string>();
+    
+    devices.forEach(device => {
+        if (device.is_revoked || device.status === 'revoked') return;
+        if (device.status === 'provisional') return; // Don't count provisional
+        
+        const lastActive = new Date(device.last_active);
+        const minutesSinceActive = (now.getTime() - lastActive.getTime()) / (1000 * 60);
+        
+        // Consider a device "connected" if active within last 30 minutes
+        if (minutesSinceActive < 30) {
+            uniqueActiveDevices.add(device.id);
+        }
+    });
+    
+    return uniqueActiveDevices.size;
+};
+
 // @ts-expect-error JSONHighlighter has no type definitions
 import JSONHighlighter from 'react-json-syntax-highlighter'
 import dynamic from 'next/dynamic'
@@ -109,19 +176,6 @@ import {
     MapTileLayer,
     MapZoomControl,
 } from "@/components/ui/map"
-
-interface Device {
-    id: string;
-    device_name?: string;
-    is_revoked?: boolean;
-    last_active?: string;
-    ip_address?: string;
-    user_agent?: string;
-    os?: string;
-    browser?: string;
-    location?: string;
-    is_current?: boolean;
-}
 
 interface DevicePlan {
     name: string;
@@ -263,6 +317,55 @@ export function SecurityTab(props: SecurityTabProps) {
     } = props;
 
     const { formatDate } = useFormatter();
+
+    // Helper function to determine device status and color
+    const getDeviceStatus = (device: any) => {
+        const now = new Date();
+        const lastActive = new Date(device.last_active);
+        const minutesSinceActive = (now.getTime() - lastActive.getTime()) / (1000 * 60);
+        
+        // If device has explicit status from backend
+        if (device.status) {
+            if (device.status === 'provisional') {
+                return { label: 'Pending', color: 'text-yellow-500', dotColor: 'bg-yellow-500', description: 'Awaiting first use' };
+            }
+            if (device.status === 'revoked' || device.is_revoked) {
+                return { label: 'Revoked', color: 'text-red-500', dotColor: 'bg-red-500', description: 'Device revoked' };
+            }
+        }
+        
+        // Active status based on recency
+        if (minutesSinceActive < 5) {
+            return { label: 'Active', color: 'text-green-500', dotColor: 'bg-green-500', description: 'Active now' };
+        } else if (minutesSinceActive < 60) {
+            return { label: 'Recent', color: 'text-green-500', dotColor: 'bg-green-500', description: 'Active within 1 hour' };
+        } else if (minutesSinceActive < 1440) { // 24 hours
+            return { label: 'Today', color: 'text-emerald-500', dotColor: 'bg-emerald-500', description: 'Active today' };
+        } else {
+            return { label: 'Inactive', color: 'text-gray-400', dotColor: 'bg-gray-400', description: 'Not recently used' };
+        }
+    };
+
+    // Smart device counter - counts devices active within last 30 minutes as "connected"
+    const getConnectedDevicesCount = (devices: any[]) => {
+        const now = new Date();
+        const uniqueActiveDevices = new Set<string>();
+        
+        devices.forEach(device => {
+            if (device.is_revoked || device.status === 'revoked') return;
+            if (device.status === 'provisional') return; // Don't count provisional
+            
+            const lastActive = new Date(device.last_active);
+            const minutesSinceActive = (now.getTime() - lastActive.getTime()) / (1000 * 60);
+            
+            // Consider a device "connected" if active within last 30 minutes
+            if (minutesSinceActive < 30) {
+                uniqueActiveDevices.add(device.id);
+            }
+        });
+        
+        return uniqueActiveDevices.size;
+    };
 
     const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
     const [loadingDetails, setLoadingDetails] = useState<string | null>(null);
@@ -992,9 +1095,16 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                             <div className="flex items-center gap-2">
                                 <p className="font-medium">Device Manager</p>
                                 {devicePlan && (
-                                    <span className="text-[10px] bg-primary/10 text-primary border border-primary/20 px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider">
-                                        {devicePlan.currentDevices}/{devicePlan.name === 'Unlimited' ? 'Unlimited' : devicePlan.maxDevices} {devicePlan.name !== 'Unlimited' ? devicePlan.name : ''} Slots
-                                    </span>
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-[10px] bg-primary/10 text-primary border border-primary/20 px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                                            {devicePlan.currentDevices}/{devicePlan.name === 'Unlimited' ? 'Unlimited' : devicePlan.maxDevices} {devicePlan.name !== 'Unlimited' ? devicePlan.name : ''} Slots
+                                        </span>
+                                        {userDevices.length > 0 && (
+                                            <span className="text-[10px] bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20 px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                                                {getConnectedDevicesCount(userDevices)} Connected
+                                            </span>
+                                        )}
+                                    </div>
                                 )}
                             </div>
                             <p className="text-sm text-muted-foreground">Manage authorized devices and cryptographic identities</p>
@@ -1009,6 +1119,7 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                         <table className="w-full text-sm">
                             <thead className="bg-muted/50 border-b">
                                 <tr>
+                                    <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Status</th>
                                     <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Device ID</th>
                                     <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Device Name</th>
                                     <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Location / IP</th>
@@ -1019,19 +1130,38 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                             <tbody className="divide-y">
                                 {isLoadingDevices ? (
                                     <tr>
-                                        <td colSpan={5} className="px-4 py-8 text-center">
+                                        <td colSpan={6} className="px-4 py-8 text-center">
                                             <IconLoader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" />
                                         </td>
                                     </tr>
                                 ) : userDevices.length === 0 ? (
                                     <tr>
-                                        <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                                        <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
                                             No authorized devices found
                                         </td>
                                     </tr>
                                 ) : (
-                                    userDevices.map((device) => (
+                                    userDevices.map((device) => {
+                                        const deviceStatus = getDeviceStatus(device as Device);
+                                        return (
                                         <tr key={device.id} className={`hover:bg-muted/30 transition-colors ${device.is_revoked ? 'opacity-50' : ''}`}>
+                                            <td className="px-4 py-3">
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <div className="flex items-center gap-2 cursor-help">
+                                                                <div className={`w-2 h-2 rounded-full ${deviceStatus.dotColor} animate-pulse`} />
+                                                                <span className={`text-xs font-medium ${deviceStatus.color}`}>
+                                                                    {deviceStatus.label}
+                                                                </span>
+                                                            </div>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent side="top">
+                                                            <p className="text-xs">{deviceStatus.description}</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                            </td>
                                             <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
                                                 <TooltipProvider>
                                                     <Tooltip>
@@ -1172,7 +1302,8 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                                 </div>
                                             </td>
                                         </tr>
-                                    ))
+                                        );
+                                    })
                                 )}
                             </tbody>
                         </table>

@@ -333,15 +333,18 @@ export function SettingsModal({
   // Device management state
   interface Device {
     id: string;
-    device_name?: string;
-    is_revoked?: boolean;
-    last_active?: string;
-    ip_address?: string;
-    user_agent?: string;
-    os?: string;
-    browser?: string;
-    location?: string;
+    device_name: string;
+    device_type: string;
+    browser: string;
+    os: string;
+    ip_address: string;
+    location: string;
+    last_active: string;
+    created_at: string;
+    is_revoked: boolean;
     is_current?: boolean;
+    status?: 'active' | 'provisional' | 'revoked';
+    activated_at?: string | null;
   }
 
   const [userDevices, setUserDevices] = useState<Device[]>([])
