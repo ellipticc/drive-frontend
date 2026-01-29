@@ -1138,12 +1138,12 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                     </div>
 
                     {/* Browser/Device Type Filter */}
-                    <Select value={sessionsTypeFilter || ""} onValueChange={(value) => setSessionsTypeFilter(value)}>
+                    <Select value={sessionsTypeFilter || "all"} onValueChange={(value) => setSessionsTypeFilter(value === "all" ? "" : value)}>
                         <SelectTrigger className="h-8 w-[180px]">
                             <SelectValue placeholder="All browsers" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="">All browsers</SelectItem>
+                            <SelectItem value="all">All browsers</SelectItem>
                             <SelectItem value="Chrome">Chrome</SelectItem>
                             <SelectItem value="Firefox">Firefox</SelectItem>
                             <SelectItem value="Safari">Safari</SelectItem>
@@ -1436,12 +1436,12 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                     </div>
 
                     {/* Device Type Filter */}
-                    <Select value={devicesTypeFilter || ""} onValueChange={(value) => setDevicesTypeFilter(value)}>
+                    <Select value={devicesTypeFilter || "all"} onValueChange={(value) => setDevicesTypeFilter(value === "all" ? "" : value)}>
                         <SelectTrigger className="h-8 w-[180px]">
                             <SelectValue placeholder="All device types" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="">All device types</SelectItem>
+                            <SelectItem value="all">All device types</SelectItem>
                             <SelectItem value="Windows">Windows</SelectItem>
                             <SelectItem value="macOS">macOS</SelectItem>
                             <SelectItem value="iOS">iOS</SelectItem>
