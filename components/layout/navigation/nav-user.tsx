@@ -109,6 +109,7 @@ export function NavUser({
   const { updateUser, refetch, deviceLimitReached } = useUser()
   const [settingsOpen, setSettingsOpen] = useSettingsOpen()
   const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [dropdownOpen, setDropdownOpen] = useState(false)
   const { hasUnread } = useNotifications()
   const displayName = getDisplayName(user)
 
@@ -180,7 +181,7 @@ export function NavUser({
     <>
       <SidebarMenu>
         <SidebarMenuItem>
-          <DropdownMenu onOpenChange={(isOpen) => !isOpen && onClose?.()}>
+          <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
             {state === 'collapsed' ? (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -192,7 +193,7 @@ export function NavUser({
                       <div className="relative">
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Avatar className="h-8 w-8 rounded-lg cursor-pointer" onClick={(e) => { e.stopPropagation(); window.location.hash = '#settings/General?open=avatar'; onClose?.(); }} role="button" tabIndex={0}>
+                            <Avatar className="h-8 w-8 rounded-lg cursor-pointer" onClick={(e) => { e.stopPropagation(); setDropdownOpen(false); window.location.hash = '#settings/General?open=avatar'; }} role="button" tabIndex={0}>
                               <AvatarImage src={user.avatar || getDiceBearAvatar(user.id)} alt={displayName} />
                               <AvatarFallback className="rounded-lg">{getInitials(displayName)}</AvatarFallback>
                             </Avatar>
@@ -225,7 +226,7 @@ export function NavUser({
                   <div className="relative">
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Avatar className="h-8 w-8 rounded-lg cursor-pointer" onClick={(e) => { e.stopPropagation(); window.location.hash = '#settings/General?open=avatar'; onClose?.(); }} role="button" tabIndex={0}>
+                        <Avatar className="h-8 w-8 rounded-lg cursor-pointer" onClick={(e) => { e.stopPropagation(); setDropdownOpen(false); window.location.hash = '#settings/General?open=avatar'; }} role="button" tabIndex={0}>
                           <AvatarImage src={user.avatar || getDiceBearAvatar(user.id)} alt={displayName} />
                           <AvatarFallback className="rounded-lg">{getInitials(displayName)}</AvatarFallback>
                         </Avatar>
@@ -259,7 +260,7 @@ export function NavUser({
                   <div className="relative">
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Avatar className="h-8 w-8 rounded-lg cursor-pointer" onClick={(e) => { e.stopPropagation(); window.location.hash = '#settings/General?open=avatar'; onClose?.(); }} role="button" tabIndex={0}>
+                        <Avatar className="h-8 w-8 rounded-lg cursor-pointer" onClick={(e) => { e.stopPropagation(); setDropdownOpen(false); window.location.hash = '#settings/General?open=avatar'; }} role="button" tabIndex={0}>
                           <AvatarImage src={user.avatar || getDiceBearAvatar(user.id)} alt={displayName} />
                           <AvatarFallback className="rounded-lg">{getInitials(displayName)}</AvatarFallback>
                         </Avatar>

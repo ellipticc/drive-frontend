@@ -137,8 +137,8 @@ export function NavSecondary({
                   )
                 ) : item.id === "feedback" ? (
                   state === 'collapsed' ? (
-                    <FeedbackPopover open={feedbackOpen} onOpenChange={setFeedbackOpen}>
-                      <Tooltip>
+                    <Tooltip>
+                      <FeedbackPopover open={feedbackOpen} onOpenChange={setFeedbackOpen}>
                         <TooltipTrigger asChild>
                           <SidebarMenuButton isActive={feedbackOpen}>
                             <item.icon />
@@ -148,9 +148,9 @@ export function NavSecondary({
                             </div>
                           </SidebarMenuButton>
                         </TooltipTrigger>
-                        <TooltipContent side="right">{collapsedTooltipLabel}</TooltipContent>
-                      </Tooltip>
-                    </FeedbackPopover>
+                      </FeedbackPopover>
+                      <TooltipContent side="right">{collapsedTooltipLabel}</TooltipContent>
+                    </Tooltip>
                   ) : (
                     <FeedbackPopover open={feedbackOpen} onOpenChange={setFeedbackOpen}>
                       <SidebarMenuButton isActive={feedbackOpen}>
