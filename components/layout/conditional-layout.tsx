@@ -30,9 +30,15 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
     return <>{children}</>;
   }
 
-  // For authenticated routes, render with sidebar
+  // If device limit reached, only show overlay (don't render dashboard at all)
+  // Allow /pricing page to render normally when device limit reached
   const isLockedOnBilling = deviceLimitReached && pathname === '/pricing';
+  
+  if (deviceLimitReached && !isLockedOnBilling) {
+    return <DeviceLimitOverlay />;
+  }
 
+  // For authenticated routes, render with sidebar
   return (
     <SidebarProvider
       style={
@@ -42,11 +48,10 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
         } as React.CSSProperties
       }
     >
-      {!isLockedOnBilling && <AppSidebar variant="inset" side={dir === 'rtl' ? 'right' : 'left'} />}
+      <AppSidebar variant="inset" side={dir === 'rtl' ? 'right' : 'left'} />
       <SidebarInset>
         {children}
       </SidebarInset>
-      {!isLockedOnBilling && <DeviceLimitOverlay />}
     </SidebarProvider>
   );
 }
