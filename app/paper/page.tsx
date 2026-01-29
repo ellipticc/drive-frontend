@@ -527,7 +527,6 @@ function PaperEditorView({
 }) {
     const [editorValue, setEditorValue] = useState<Value>(initialValue);
     const [wordCountExpanded, setWordCountExpanded] = useState(false);
-    const [wordCountDisplayMode, setWordCountDisplayMode] = useState<'words' | 'characters'>('words');
     
     const editor = usePlateEditor({
         plugins: EditorKit,
@@ -592,7 +591,7 @@ function PaperEditorView({
                         <FixedToolbarButtons />
                     </FixedToolbar>
 
-                    <main className="flex-1 overflow-y-auto relative">
+                    <main className="flex-1 overflow-y-auto relative" style={{scrollbarGutter: 'stable'}}>
                         <EditorContainer className="h-full w-full flex md:justify-center">
                             <div className="w-full md:max-w-[950px] px-4 sm:px-6 md:px-12 pt-3 md:pt-4 pb-48">
                                 <Editor
@@ -609,38 +608,27 @@ function PaperEditorView({
                                 <div className="bg-background/95 backdrop-blur-sm border rounded-lg shadow-lg">
                                     <button
                                         onClick={() => setWordCountExpanded(!wordCountExpanded)}
-                                        className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                                        className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors w-min"
                                     >
-                                        <span className="font-medium">
-                                            {wordCountDisplayMode === 'words'
-                                                ? `${stats.words.toLocaleString()} words`
-                                                : `${stats.characters.toLocaleString()} characters`}
-                                        </span>
+                                        <div className="flex flex-col text-right">
+                                            <span className="font-medium text-xs leading-tight">Words</span>
+                                            <span className="text-xs font-semibold">{stats.words.toLocaleString()}</span>
+                                        </div>
                                         {wordCountExpanded ? (
-                                            <IconChevronDown className="w-3 h-3" />
+                                            <IconChevronUp className="w-3 h-3 shrink-0" />
                                         ) : (
-                                            <IconChevronUp className="w-3 h-3" />
+                                            <IconChevronDown className="w-3 h-3 shrink-0" />
                                         )}
                                     </button>
                                     {wordCountExpanded && (
-                                        <div className="border-t px-3 py-2 space-y-2">
-                                            <button
-                                                onClick={() => setWordCountDisplayMode('words')}
-                                                className={`flex justify-between text-xs w-full hover:bg-muted px-2 py-1 rounded transition-colors ${wordCountDisplayMode === 'words' ? 'bg-muted' : ''}`}
-                                            >
-                                                <span className="text-muted-foreground">Words</span>
-                                                <span className="font-medium">{stats.words.toLocaleString()}</span>
-                                            </button>
-                                            <button
-                                                onClick={() => setWordCountDisplayMode('characters')}
-                                                className={`flex justify-between text-xs w-full hover:bg-muted px-2 py-1 rounded transition-colors ${wordCountDisplayMode === 'characters' ? 'bg-muted' : ''}`}
-                                            >
-                                                <span className="text-muted-foreground">Characters</span>
-                                                <span className="font-medium">{stats.characters.toLocaleString()}</span>
-                                            </button>
+                                        <div className="border-t px-3 py-2 space-y-2 min-w-max">
                                             <div className="flex justify-between text-xs px-2 py-1">
-                                                <span className="text-muted-foreground">Characters (no spaces)</span>
-                                                <span className="font-medium">{stats.charactersNoSpaces.toLocaleString()}</span>
+                                                <span className="text-muted-foreground">Words</span>
+                                                <span className="font-medium ml-4">{stats.words.toLocaleString()}</span>
+                                            </div>
+                                            <div className="flex justify-between text-xs px-2 py-1">
+                                                <span className="text-muted-foreground">Characters</span>
+                                                <span className="font-medium ml-4">{stats.characters.toLocaleString()}</span>
                                             </div>
                                         </div>
                                     )}
