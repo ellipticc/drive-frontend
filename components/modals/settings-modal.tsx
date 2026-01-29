@@ -600,13 +600,30 @@ export function SettingsModal({
     }
   }, [activeTab, open, loadTabData])
 
+  // Reload sessions when filters change
+  useEffect(() => {
+    if (open && activeTab === 'security') {
+      loadUserSessions(1)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionsDateRange, sessionsTypeFilter])
+
+  // Reload devices when filters change
+  useEffect(() => {
+    if (open && activeTab === 'security') {
+      loadUserDevices(1)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [devicesDateRange, devicesTypeFilter])
+
   // Reload sessions/devices when showRevoked changes
   useEffect(() => {
     if (open && activeTab === 'security') {
       loadUserSessions(1)
       loadUserDevices(1)
     }
-  }, [showRevoked, open, activeTab, devicesDateRange, devicesTypeFilter, sessionsDateRange, sessionsTypeFilter])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showRevoked])
 
   // Reset loaded state when modal closes
   useEffect(() => {
@@ -991,6 +1008,60 @@ export function SettingsModal({
     } catch (error) {
       console.error('Failed to revoke device:', error)
       toast.error("Failed to revoke device")
+    }
+  }
+
+  // Revoke all devices (except current)
+  const handleRevokeAllDevices = async () => {
+    try {
+      // Filter out current device and already revoked devices
+      const devicesToRevoke = userDevices.filter(d => !d.is_current && !d.is_revoked && d.status !== 'revoked');
+
+      if (devicesToRevoke.length === 0) {
+        toast.info("No authorized devices to revoke");
+        return;
+      }
+
+      let successCount = 0;
+      let failCount = 0;
+
+      // Execute revocations in parallel
+      await Promise.all(devicesToRevoke.map(async (device) => {
+        try {
+          const response = await apiClient.revokeDevice(device.id);
+          if (response.success) {
+            successCount++;
+          } else {
+            failCount++;
+          }
+        } catch (e) {
+          console.error(`Failed to revoke device ${device.id}`, e);
+          failCount++;
+        }
+      }));
+
+      if (successCount > 0) {
+        toast.success(`Successfully revoked ${successCount} device${successCount !== 1 ? 's' : ''}`);
+        loadUserDevices();
+
+        if (deviceLimitReached) {
+          toast.info("Access Restored? Please refresh the page to regain full access.", {
+            duration: 10000,
+            action: {
+              label: "Refresh Now",
+              onClick: () => window.location.reload()
+            }
+          })
+        }
+      }
+
+      if (failCount > 0) {
+        toast.error(`Failed to revoke ${failCount} device${failCount !== 1 ? 's' : ''}`);
+      }
+
+    } catch (error) {
+      console.error('Failed to revoke all devices:', error)
+      toast.error("Failed to process device revocations")
     }
   }
 
@@ -2031,60 +2102,63 @@ export function SettingsModal({
                       isLoadingDevices={isLoadingDevices}
                       devicesTotal={devicesTotal}
                       devicesPage={devicesPage}
-                  devicesTotalPages={devicesTotalPages}
-                  loadUserDevices={loadUserDevices}
-                  handleRevokeDevice={handleRevokeDevice}
-                  editingDeviceId={editingDeviceId}
-                  setEditingDeviceId={setEditingDeviceId}
-                  editNameValue={editNameValue}
-                  setEditNameValue={setEditNameValue}
-                  handleUpdateDeviceName={handleUpdateDeviceName}
-                  devicePlan={devicePlan}
+                      devicesTotalPages={devicesTotalPages}
+                      loadUserDevices={loadUserDevices}
 
-                  // Activity
-                  securityEvents={securityEvents}
-                  isLoadingSecurityEvents={isLoadingSecurityEvents}
-                  detailedEventsEnabled={detailedEventsEnabled}
-                  activityMonitorEnabled={activityMonitorEnabled}
-                  handleUpdateSecurityPreferences={handleUpdateSecurityPreferences}
-                  usageDiagnosticsEnabled={usageDiagnosticsEnabled}
-                  crashReportsEnabled={crashReportsEnabled}
-                  handleUpdatePrivacySettings={handleUpdatePrivacySettings}
-                  showDisableMonitorDialog={showDisableMonitorDialog}
-                  setShowDisableMonitorDialog={setShowDisableMonitorDialog}
-                  handleWipeSecurityEvents={handleWipeSecurityEvents}
-                  handleDownloadSecurityEvents={handleDownloadSecurityEvents}
-                  loadSecurityEvents={loadSecurityEvents}
-                  securityEventsTotal={securityEventsTotal}
-                  securityEventsPage={securityEventsPage}
-                  securityEventsHasMore={securityEventsHasMore}
-                  setSecurityEvents={setSecurityEvents}
-                  setSecurityEventsTotal={setSecurityEventsTotal}
-                  setSecurityEventsHasMore={setSecurityEventsHasMore}
-                  securityEventsDateRange={securityEventsDateRange}
-                  setSecurityEventsDateRange={setSecurityEventsDateRange}
-                  securityEventType={securityEventType}
-                  setSecurityEventType={setSecurityEventType}
+                      handleRevokeDevice={handleRevokeDevice}
+                      handleRevokeAllDevices={handleRevokeAllDevices}
+                      editingDeviceId={editingDeviceId}
 
-                  // Account
-                  handleLogout={handleLogout}
-                  isLoggingOut={isLoggingOut}
-                  setShowDeleteModal={setShowDeleteModal}
+                      setEditingDeviceId={setEditingDeviceId}
+                      editNameValue={editNameValue}
+                      setEditNameValue={setEditNameValue}
+                      handleUpdateDeviceName={handleUpdateDeviceName}
+                      devicePlan={devicePlan}
 
-                  // Revoked Toggle
-                  showRevoked={showRevoked}
-                  setShowRevoked={setShowRevoked}
+                      // Activity
+                      securityEvents={securityEvents}
+                      isLoadingSecurityEvents={isLoadingSecurityEvents}
+                      detailedEventsEnabled={detailedEventsEnabled}
+                      activityMonitorEnabled={activityMonitorEnabled}
+                      handleUpdateSecurityPreferences={handleUpdateSecurityPreferences}
+                      usageDiagnosticsEnabled={usageDiagnosticsEnabled}
+                      crashReportsEnabled={crashReportsEnabled}
+                      handleUpdatePrivacySettings={handleUpdatePrivacySettings}
+                      showDisableMonitorDialog={showDisableMonitorDialog}
+                      setShowDisableMonitorDialog={setShowDisableMonitorDialog}
+                      handleWipeSecurityEvents={handleWipeSecurityEvents}
+                      handleDownloadSecurityEvents={handleDownloadSecurityEvents}
+                      loadSecurityEvents={loadSecurityEvents}
+                      securityEventsTotal={securityEventsTotal}
+                      securityEventsPage={securityEventsPage}
+                      securityEventsHasMore={securityEventsHasMore}
+                      setSecurityEvents={setSecurityEvents}
+                      setSecurityEventsTotal={setSecurityEventsTotal}
+                      setSecurityEventsHasMore={setSecurityEventsHasMore}
+                      securityEventsDateRange={securityEventsDateRange}
+                      setSecurityEventsDateRange={setSecurityEventsDateRange}
+                      securityEventType={securityEventType}
+                      setSecurityEventType={setSecurityEventType}
 
-                  // Device & Session Filters
-                  devicesDateRange={devicesDateRange}
-                  setDevicesDateRange={setDevicesDateRange}
-                  devicesTypeFilter={devicesTypeFilter}
-                  setDevicesTypeFilter={setDevicesTypeFilter}
-                  sessionsDateRange={sessionsDateRange}
-                  setSessionsDateRange={setSessionsDateRange}
-                  sessionsTypeFilter={sessionsTypeFilter}
-                  setSessionsTypeFilter={setSessionsTypeFilter}
-                />
+                      // Account
+                      handleLogout={handleLogout}
+                      isLoggingOut={isLoggingOut}
+                      setShowDeleteModal={setShowDeleteModal}
+
+                      // Revoked Toggle
+                      showRevoked={showRevoked}
+                      setShowRevoked={setShowRevoked}
+
+                      // Device & Session Filters
+                      devicesDateRange={devicesDateRange}
+                      setDevicesDateRange={setDevicesDateRange}
+                      devicesTypeFilter={devicesTypeFilter}
+                      setDevicesTypeFilter={setDevicesTypeFilter}
+                      sessionsDateRange={sessionsDateRange}
+                      setSessionsDateRange={setSessionsDateRange}
+                      sessionsTypeFilter={sessionsTypeFilter}
+                      setSessionsTypeFilter={setSessionsTypeFilter}
+                    />
                   )}
                 </>
               )}

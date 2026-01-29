@@ -33,8 +33,12 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
+
     DialogTrigger,
 } from "@/components/ui/dialog"
+import {
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import {
     IconMail,
     IconLock,
@@ -120,7 +124,7 @@ const getDeviceStatus = (device: Device) => {
     const now = new Date();
     const lastActive = new Date(device.last_active);
     const minutesSinceActive = (now.getTime() - lastActive.getTime()) / (1000 * 60);
-    
+
     // If device has explicit status from backend
     if (device.status) {
         if (device.status === 'provisional') {
@@ -130,7 +134,7 @@ const getDeviceStatus = (device: Device) => {
             return { label: 'Revoked', color: 'text-red-500', dotColor: 'bg-red-500', description: 'Device revoked' };
         }
     }
-    
+
     // Active status based on recency
     if (minutesSinceActive < 5) {
         return { label: 'Active', color: 'text-green-500', dotColor: 'bg-green-500', description: 'Active now' };
@@ -147,20 +151,20 @@ const getDeviceStatus = (device: Device) => {
 const getConnectedDevicesCount = (devices: any[]) => {
     const now = new Date();
     const uniqueActiveDevices = new Set<string>();
-    
+
     devices.forEach(device => {
         if (device.is_revoked || device.status === 'revoked') return;
         if (device.status === 'provisional') return; // Don't count provisional
-        
+
         const lastActive = new Date(device.last_active);
         const minutesSinceActive = (now.getTime() - lastActive.getTime()) / (1000 * 60);
-        
+
         // Consider a device "connected" if active within last 30 minutes
         if (minutesSinceActive < 30) {
             uniqueActiveDevices.add(device.id);
         }
     });
-    
+
     return uniqueActiveDevices.size;
 };
 
@@ -248,6 +252,8 @@ interface SecurityTabProps {
     editNameValue: string;
     setEditNameValue: (val: string) => void;
     handleUpdateDeviceName: (id: string, name: string) => void;
+    // New prop for revoking all devices
+    handleRevokeAllDevices: () => void;
     devicePlan: DevicePlan | null;
     devicesDateRange: DateRange | undefined;
     setDevicesDateRange: (val: DateRange | undefined) => void;
@@ -325,7 +331,8 @@ export function SecurityTab(props: SecurityTabProps) {
         devicesDateRange, setDevicesDateRange,
         devicesTypeFilter, setDevicesTypeFilter,
         sessionsDateRange, setSessionsDateRange,
-        sessionsTypeFilter, setSessionsTypeFilter
+        sessionsTypeFilter, setSessionsTypeFilter,
+        handleRevokeAllDevices
     } = props;
 
     const { formatDate } = useFormatter();
@@ -341,19 +348,19 @@ export function SecurityTab(props: SecurityTabProps) {
                 return { label: 'Revoked', color: 'text-red-500', dotColor: 'bg-red-500', description: 'Device revoked' };
             }
         }
-        
+
         // Check if device is revoked
         if (device.is_revoked) {
             return { label: 'Revoked', color: 'text-red-500', dotColor: 'bg-red-500', description: 'Device revoked' };
         }
-        
+
         // Parse last_active timestamp safely - handle Unix timestamps and ISO strings
         let lastActiveTime: number | null = null;
         const now = new Date().getTime();
-        
+
         try {
             const timestamp = device.last_active;
-            
+
             // Check if it's a Unix timestamp (number or string of digits)
             if (typeof timestamp === 'number' || (typeof timestamp === 'string' && /^\d+$/.test(timestamp))) {
                 const numValue = typeof timestamp === 'number' ? timestamp : parseInt(timestamp, 10);
@@ -366,16 +373,16 @@ export function SecurityTab(props: SecurityTabProps) {
                     lastActiveTime = date.getTime();
                 }
             }
-            
+
             if (lastActiveTime === null) {
                 return { label: 'Unknown', color: 'text-gray-500', dotColor: 'bg-gray-500', description: 'Status unknown' };
             }
         } catch (e) {
             return { label: 'Unknown', color: 'text-gray-500', dotColor: 'bg-gray-500', description: 'Status unknown' };
         }
-        
+
         const minutesSinceActive = (now - lastActiveTime) / (1000 * 60);
-        
+
         // Active status based on recency
         if (minutesSinceActive < 5) {
             return { label: 'Active', color: 'text-green-500', dotColor: 'bg-green-500', description: 'Active now' };
@@ -388,23 +395,28 @@ export function SecurityTab(props: SecurityTabProps) {
         }
     };
 
-    // Smart device counter - counts devices active within last 30 minutes as "connected"
     const getConnectedDevicesCount = (devices: any[]) => {
         const now = new Date();
         const nowUnix = now.getTime();
         let connectedCount = 0;
-        
+
         devices.forEach(device => {
+            // Always count current device as connected
+            if (device.is_current || device.isCurrent) {
+                connectedCount++;
+                return;
+            }
+
             // Skip revoked and provisional devices
             if (device.is_revoked || device.status === 'revoked') return;
             if (device.status === 'provisional') return; // Don't count provisional
-            
+
             // Parse last_active safely - handle Unix timestamps and ISO strings
             let lastActiveTime: number | null = null;
-            
+
             try {
                 const timestamp = device.last_active;
-                
+
                 // Check if it's a Unix timestamp (number or string of digits)
                 if (typeof timestamp === 'number' || (typeof timestamp === 'string' && /^\d+$/.test(timestamp))) {
                     const numValue = typeof timestamp === 'number' ? timestamp : parseInt(timestamp, 10);
@@ -417,26 +429,23 @@ export function SecurityTab(props: SecurityTabProps) {
                         lastActiveTime = date.getTime();
                     }
                 }
-                
+
                 if (lastActiveTime === null) {
-                    console.warn(`Could not parse timestamp for device ${device.id}:`, timestamp);
                     return;
                 }
             } catch (e) {
-                console.warn(`Error parsing timestamp for device ${device.id}:`, device.last_active, e);
                 return;
             }
-            
+
             const minutesSinceActive = (nowUnix - lastActiveTime) / (1000 * 60);
-            
+
             // Consider a device "connected" if active within last 30 minutes
-            // minutesSinceActive should be positive (event happened in past)
-            if (minutesSinceActive >= 0 && minutesSinceActive < 30) {
+            // Allow for small clock skew (future timestamps up to 5 mins)
+            if (minutesSinceActive > -5 && minutesSinceActive < 30) {
                 connectedCount++;
-                console.debug(`Device ${device.id} is connected (${minutesSinceActive.toFixed(2)} min ago)`);
             }
         });
-        
+
         return connectedCount;
     };
 
@@ -514,6 +523,8 @@ export function SecurityTab(props: SecurityTabProps) {
     const [copiedCodes, setCopiedCodes] = useState(false);
     const [copiedSecret, setCopiedSecret] = useState(false);
     const [showWipeDialog, setShowWipeDialog] = useState(false);
+    // New state for Revoke All Devices AlertDialog
+    const [showRevokeAllDevicesDialog, setShowRevokeAllDevicesDialog] = useState(false);
 
     // Upgrade dialog state for Pro features / archived events
     const [upgradeDialogData, setUpgradeDialogData] = useState<{ open: boolean; title: string; description: string } | null>(null);
@@ -995,6 +1006,66 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
+                        {/* Filters moved to header */}
+                        <div className="flex items-center gap-2 mr-2">
+                            {/* Date Range Picker */}
+                            <div className="flex items-center gap-2">
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" size="sm" className="h-8 gap-2 border-dashed">
+                                            <CalendarIcon className="h-4 w-4" />
+                                            {sessionsDateRange?.from ? (
+                                                sessionsDateRange.to ? (
+                                                    <>
+                                                        {format(sessionsDateRange.from, "MMM d")} - {format(sessionsDateRange.to, "MMM d, y")}
+                                                    </>
+                                                ) : (
+                                                    format(sessionsDateRange.from, "MMM d, y")
+                                                )
+                                            ) : (
+                                                <span>Date range</span>
+                                            )}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                        <Calendar
+                                            initialFocus
+                                            mode="range"
+                                            defaultMonth={sessionsDateRange?.from}
+                                            selected={sessionsDateRange}
+                                            onSelect={setSessionsDateRange}
+                                            numberOfMonths={2}
+                                        />
+                                    </PopoverContent>
+                                </Popover>
+                                {sessionsDateRange?.from && (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 w-8 p-0"
+                                        onClick={() => setSessionsDateRange(undefined)}
+                                    >
+                                        <IconX className="h-4 w-4" />
+                                    </Button>
+                                )}
+                            </div>
+
+                            {/* Browser/Device Type Filter */}
+                            <Select value={sessionsTypeFilter || "all"} onValueChange={(value) => setSessionsTypeFilter(value === "all" ? "" : value)}>
+                                <SelectTrigger className="h-8 w-[130px] border-dashed">
+                                    <SelectValue placeholder="All browsers" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All browsers</SelectItem>
+                                    <SelectItem value="Chrome">Chrome</SelectItem>
+                                    <SelectItem value="Firefox">Firefox</SelectItem>
+                                    <SelectItem value="Safari">Safari</SelectItem>
+                                    <SelectItem value="Edge">Edge</SelectItem>
+                                    <SelectItem value="Opera">Opera</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
                         {/* Refresh Button */}
                         <TooltipProvider>
                             <Tooltip>
@@ -1051,12 +1122,12 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                             </Tooltip>
                         </TooltipProvider>
 
-                        {/* Revoke All Button */}
-                        <Dialog open={showRevokeAllDialog} onOpenChange={setShowRevokeAllDialog}>
-                            <DialogTrigger asChild>
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
+                        {/* Revoke All Button via AlertDialog */}
+                        <AlertDialog open={showRevokeAllDialog} onOpenChange={setShowRevokeAllDialog}>
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <AlertDialogTrigger asChild>
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
@@ -1065,92 +1136,30 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                             >
                                                 <IconX className="h-4 w-4" />
                                             </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent>Revoke all sessions</TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                            </DialogTrigger>
-                            <DialogContent>
-                                <DialogHeader>
-                                    <DialogTitle>Revoke all other sessions?</DialogTitle>
-                                    <DialogDescription>
+                                        </AlertDialogTrigger>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Revoke all sessions</TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Revoke all other sessions?</AlertDialogTitle>
+                                    <AlertDialogDescription>
                                         This will log you out of all other devices and browsers. You will remain logged in to your current session.
-                                    </DialogDescription>
-                                </DialogHeader>
-                                <DialogFooter className="mt-4">
-                                    <Button variant="outline" onClick={() => setShowRevokeAllDialog(false)}>
-                                        Cancel
-                                    </Button>
-                                    <Button
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
                                         onClick={handleRevokeAllSessions}
                                         className="bg-red-500 hover:bg-red-600 text-white"
                                     >
                                         Revoke All
-                                    </Button>
-                                </DialogFooter>
-                            </DialogContent>
-                        </Dialog>
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
                     </div>
-                </div>
-
-                {/* Session Filters */}
-                <div className="flex items-center gap-3 mb-4">
-                    {/* Date Range Picker */}
-                    <div className="flex items-center gap-2">
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button variant="outline" size="sm" className="h-8 gap-2">
-                                    <CalendarIcon className="h-4 w-4" />
-                                    {sessionsDateRange?.from ? (
-                                        sessionsDateRange.to ? (
-                                            <>
-                                                {format(sessionsDateRange.from, "MMM d")} - {format(sessionsDateRange.to, "MMM d, y")}
-                                            </>
-                                        ) : (
-                                            format(sessionsDateRange.from, "MMM d, y")
-                                        )
-                                    ) : (
-                                        <span>Date range</span>
-                                    )}
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar
-                                    initialFocus
-                                    mode="range"
-                                    defaultMonth={sessionsDateRange?.from}
-                                    selected={sessionsDateRange}
-                                    onSelect={setSessionsDateRange}
-                                    numberOfMonths={2}
-                                />
-                            </PopoverContent>
-                        </Popover>
-                        {sessionsDateRange?.from && (
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0"
-                                onClick={() => setSessionsDateRange(undefined)}
-                            >
-                                <IconX className="h-4 w-4" />
-                            </Button>
-                        )}
-                    </div>
-
-                    {/* Browser/Device Type Filter */}
-                    <Select value={sessionsTypeFilter || "all"} onValueChange={(value) => setSessionsTypeFilter(value === "all" ? "" : value)}>
-                        <SelectTrigger className="h-8 w-[180px]">
-                            <SelectValue placeholder="All browsers" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All browsers</SelectItem>
-                            <SelectItem value="Chrome">Chrome</SelectItem>
-                            <SelectItem value="Firefox">Firefox</SelectItem>
-                            <SelectItem value="Safari">Safari</SelectItem>
-                            <SelectItem value="Edge">Edge</SelectItem>
-                            <SelectItem value="Opera">Opera</SelectItem>
-                        </SelectContent>
-                    </Select>
                 </div>
 
                 <div className="border rounded-lg overflow-hidden bg-card">
@@ -1189,7 +1198,7 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                                                 {session.id.substring(0, 8)}...
                                                             </span>
                                                         </TooltipTrigger>
-                                                        <TooltipContent 
+                                                        <TooltipContent
                                                             side="top"
                                                             className="cursor-pointer"
                                                             onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(session.id); toast.success('Copied session id'); }}
@@ -1308,6 +1317,66 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
+                        {/* Filters moved to header */}
+                        <div className="flex items-center gap-2 mr-2">
+                            {/* Date Range Picker */}
+                            <div className="flex items-center gap-2">
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" size="sm" className="h-8 gap-2 border-dashed">
+                                            <CalendarIcon className="h-4 w-4" />
+                                            {devicesDateRange?.from ? (
+                                                devicesDateRange.to ? (
+                                                    <>
+                                                        {format(devicesDateRange.from, "MMM d")} - {format(devicesDateRange.to, "MMM d, y")}
+                                                    </>
+                                                ) : (
+                                                    format(devicesDateRange.from, "MMM d, y")
+                                                )
+                                            ) : (
+                                                <span>Date range</span>
+                                            )}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                        <Calendar
+                                            initialFocus
+                                            mode="range"
+                                            defaultMonth={devicesDateRange?.from}
+                                            selected={devicesDateRange}
+                                            onSelect={setDevicesDateRange}
+                                            numberOfMonths={2}
+                                        />
+                                    </PopoverContent>
+                                </Popover>
+                                {devicesDateRange?.from && (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 w-8 p-0"
+                                        onClick={() => setDevicesDateRange(undefined)}
+                                    >
+                                        <IconX className="h-4 w-4" />
+                                    </Button>
+                                )}
+                            </div>
+
+                            {/* Device Type Filter */}
+                            <Select value={devicesTypeFilter || "all"} onValueChange={(value) => setDevicesTypeFilter(value === "all" ? "" : value)}>
+                                <SelectTrigger className="h-8 w-[130px] border-dashed">
+                                    <SelectValue placeholder="All device types" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All device types</SelectItem>
+                                    <SelectItem value="Windows">Windows</SelectItem>
+                                    <SelectItem value="macOS">macOS</SelectItem>
+                                    <SelectItem value="iOS">iOS</SelectItem>
+                                    <SelectItem value="Android">Android</SelectItem>
+                                    <SelectItem value="Linux">Linux</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
                         {/* Refresh Button */}
                         <TooltipProvider>
                             <Tooltip>
@@ -1364,91 +1433,47 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                             </Tooltip>
                         </TooltipProvider>
 
-                        {/* Revoke All Button */}
-                        <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        disabled={isLoadingDevices || userDevices.filter(d => !d.is_current && !d.is_revoked).length === 0}
+                        {/* Revoke All Button via AlertDialog */}
+                        <AlertDialog open={showRevokeAllDevicesDialog} onOpenChange={setShowRevokeAllDevicesDialog}>
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <AlertDialogTrigger asChild>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                disabled={isLoadingDevices || userDevices.filter(d => !d.is_current && !d.is_revoked).length === 0}
+                                                className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
+                                            >
+                                                <IconX className="h-4 w-4" />
+                                            </Button>
+                                        </AlertDialogTrigger>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Revoke all devices</TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Revoke all other devices?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        This will log you out of all other devices. You will remain logged in to your current device.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
                                         onClick={() => {
-                                            const revokeAll = userDevices.filter(d => !d.is_current && !d.is_revoked);
-                                            if (revokeAll.length > 0) {
-                                                if (confirm(`Revoke ${revokeAll.length} device(s)?`)) {
-                                                    revokeAll.forEach(d => handleRevokeDevice(d.id));
-                                                }
-                                            }
+                                            handleRevokeAllDevices();
+                                            setShowRevokeAllDevicesDialog(false);
                                         }}
-                                        className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
+                                        className="bg-red-500 hover:bg-red-600 text-white"
                                     >
-                                        <IconX className="h-4 w-4" />
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Revoke all devices</TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
+                                        Revoke All
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
                     </div>
-                </div>
-
-                {/* Device Filters */}
-                <div className="flex items-center gap-3 mb-4">
-                    {/* Date Range Picker */}
-                    <div className="flex items-center gap-2">
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button variant="outline" size="sm" className="h-8 gap-2">
-                                    <CalendarIcon className="h-4 w-4" />
-                                    {devicesDateRange?.from ? (
-                                        devicesDateRange.to ? (
-                                            <>
-                                                {format(devicesDateRange.from, "MMM d")} - {format(devicesDateRange.to, "MMM d, y")}
-                                            </>
-                                        ) : (
-                                            format(devicesDateRange.from, "MMM d, y")
-                                        )
-                                    ) : (
-                                        <span>Date range</span>
-                                    )}
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar
-                                    initialFocus
-                                    mode="range"
-                                    defaultMonth={devicesDateRange?.from}
-                                    selected={devicesDateRange}
-                                    onSelect={setDevicesDateRange}
-                                    numberOfMonths={2}
-                                />
-                            </PopoverContent>
-                        </Popover>
-                        {devicesDateRange?.from && (
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0"
-                                onClick={() => setDevicesDateRange(undefined)}
-                            >
-                                <IconX className="h-4 w-4" />
-                            </Button>
-                        )}
-                    </div>
-
-                    {/* Device Type Filter */}
-                    <Select value={devicesTypeFilter || "all"} onValueChange={(value) => setDevicesTypeFilter(value === "all" ? "" : value)}>
-                        <SelectTrigger className="h-8 w-[180px]">
-                            <SelectValue placeholder="All device types" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All device types</SelectItem>
-                            <SelectItem value="Windows">Windows</SelectItem>
-                            <SelectItem value="macOS">macOS</SelectItem>
-                            <SelectItem value="iOS">iOS</SelectItem>
-                            <SelectItem value="Android">Android</SelectItem>
-                            <SelectItem value="Linux">Linux</SelectItem>
-                        </SelectContent>
-                    </Select>
                 </div>
 
                 <div className="border rounded-lg overflow-hidden bg-card">
@@ -1481,170 +1506,170 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                     userDevices.map((device) => {
                                         const deviceStatus = getDeviceStatus(device as Device);
                                         return (
-                                        <tr key={device.id} className={`hover:bg-muted/30 transition-colors ${device.is_revoked ? 'opacity-50' : ''}`}>
-                                            {/* Device ID */}
-                                            <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
-                                                <TooltipProvider>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <span className="cursor-help underline decoration-dotted decoration-muted-foreground/30">
-                                                                {device.id.substring(0, 8)}...
-                                                            </span>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent 
-                                                            side="top"
-                                                            className="cursor-pointer"
-                                                            onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(device.id); toast.success('Copied device id'); }}
-                                                        >
-                                                            <p className="font-mono text-xs">{device.id}</p>
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                </TooltipProvider>
-                                            </td>
-                                            {/* Device Name */}
-                                            <td className="px-4 py-3">
-                                                <TooltipProvider>
-                                                    <Tooltip delayDuration={300}>
-                                                        <TooltipTrigger asChild>
-                                                            <div
-                                                                className="flex flex-col cursor-pointer group"
-                                                                onDoubleClick={() => {
-                                                                    const isPro = devicePlan?.name === 'Pro' || devicePlan?.name === 'Unlimited';
-                                                                    if (isPro) {
-                                                                        setEditingDeviceId(device.id);
-                                                                        setEditNameValue(device.device_name || 'Unknown Device');
-                                                                    } else {
-                                                                        setUpgradeDialogData({
-                                                                            open: true,
-                                                                            title: 'Pro Feature',
-                                                                            description: 'Upgrade to a Pro plan to customize your device names.'
-                                                                        });
-                                                                    }
-                                                                }}
+                                            <tr key={device.id} className={`hover:bg-muted/30 transition-colors ${device.is_revoked ? 'opacity-50' : ''}`}>
+                                                {/* Device ID */}
+                                                <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                                                    <TooltipProvider>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <span className="cursor-help underline decoration-dotted decoration-muted-foreground/30">
+                                                                    {device.id.substring(0, 8)}...
+                                                                </span>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent
+                                                                side="top"
+                                                                className="cursor-pointer"
+                                                                onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(device.id); toast.success('Copied device id'); }}
                                                             >
-                                                                {editingDeviceId === device.id ? (
-                                                                    <Input
-                                                                        value={editNameValue}
-                                                                        onChange={(e) => setEditNameValue(e.target.value.slice(0, 30))}
-                                                                        onBlur={() => {
-                                                                            const dev = userDevices.find((d) => d.id === editingDeviceId);
-                                                                            if (dev && editNameValue.trim() !== (dev.device_name || '')) {
-                                                                                handleUpdateDeviceName(dev.id, editNameValue);
-                                                                            } else {
-                                                                                setEditingDeviceId(null);
-                                                                            }
-                                                                        }}
-                                                                        onKeyDown={(e) => {
-                                                                            if (e.key === 'Enter') {
+                                                                <p className="font-mono text-xs">{device.id}</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
+                                                </td>
+                                                {/* Device Name */}
+                                                <td className="px-4 py-3">
+                                                    <TooltipProvider>
+                                                        <Tooltip delayDuration={300}>
+                                                            <TooltipTrigger asChild>
+                                                                <div
+                                                                    className="flex flex-col cursor-pointer group"
+                                                                    onDoubleClick={() => {
+                                                                        const isPro = devicePlan?.name === 'Pro' || devicePlan?.name === 'Unlimited';
+                                                                        if (isPro) {
+                                                                            setEditingDeviceId(device.id);
+                                                                            setEditNameValue(device.device_name || 'Unknown Device');
+                                                                        } else {
+                                                                            setUpgradeDialogData({
+                                                                                open: true,
+                                                                                title: 'Pro Feature',
+                                                                                description: 'Upgrade to a Pro plan to customize your device names.'
+                                                                            });
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    {editingDeviceId === device.id ? (
+                                                                        <Input
+                                                                            value={editNameValue}
+                                                                            onChange={(e) => setEditNameValue(e.target.value.slice(0, 30))}
+                                                                            onBlur={() => {
                                                                                 const dev = userDevices.find((d) => d.id === editingDeviceId);
                                                                                 if (dev && editNameValue.trim() !== (dev.device_name || '')) {
                                                                                     handleUpdateDeviceName(dev.id, editNameValue);
                                                                                 } else {
                                                                                     setEditingDeviceId(null);
                                                                                 }
-                                                                            }
-                                                                            if (e.key === 'Escape') setEditingDeviceId(null);
-                                                                        }}
-                                                                        className="h-7 text-xs py-0 px-2 w-full max-w-[150px]"
-                                                                        autoFocus
-                                                                    />
+                                                                            }}
+                                                                            onKeyDown={(e) => {
+                                                                                if (e.key === 'Enter') {
+                                                                                    const dev = userDevices.find((d) => d.id === editingDeviceId);
+                                                                                    if (dev && editNameValue.trim() !== (dev.device_name || '')) {
+                                                                                        handleUpdateDeviceName(dev.id, editNameValue);
+                                                                                    } else {
+                                                                                        setEditingDeviceId(null);
+                                                                                    }
+                                                                                }
+                                                                                if (e.key === 'Escape') setEditingDeviceId(null);
+                                                                            }}
+                                                                            className="h-7 text-xs py-0 px-2 w-full max-w-[150px]"
+                                                                            autoFocus
+                                                                        />
+                                                                    ) : (
+                                                                        <span className="font-medium group-hover:text-primary transition-colors truncate max-w-[180px]" title={device.device_name}>
+                                                                            {device.device_name && device.device_name.length > 25
+                                                                                ? `${device.device_name.substring(0, 25)}...`
+                                                                                : (device.device_name || 'Unknown Device')}
+                                                                        </span>
+                                                                    )}
+                                                                    <div className="flex items-center gap-1.5 mt-0.5">
+                                                                        <TooltipProvider>
+                                                                            <Tooltip>
+                                                                                <TooltipTrigger className="flex items-center cursor-help">
+                                                                                    {getOSIcon(device.os)}
+                                                                                </TooltipTrigger>
+                                                                                <TooltipContent side="top"><p className="text-xs">{device.os || 'Unknown OS'}</p></TooltipContent>
+                                                                            </Tooltip>
+                                                                        </TooltipProvider>
+                                                                        <TooltipProvider>
+                                                                            <Tooltip>
+                                                                                <TooltipTrigger className="flex items-center cursor-help">
+                                                                                    {getBrowserIcon(device.browser)}
+                                                                                </TooltipTrigger>
+                                                                                <TooltipContent side="top"><p className="text-xs">{device.browser || 'Unknown Browser'}</p></TooltipContent>
+                                                                            </Tooltip>
+                                                                        </TooltipProvider>
+                                                                    </div>
+                                                                </div>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent side="top" className="max-w-[200px] text-center">
+                                                                {(devicePlan?.name === 'Pro' || devicePlan?.name === 'Unlimited') ? (
+                                                                    <p className="text-xs">Double-click to rename device</p>
                                                                 ) : (
-                                                                    <span className="font-medium group-hover:text-primary transition-colors truncate max-w-[180px]" title={device.device_name}>
-                                                                        {device.device_name && device.device_name.length > 25
-                                                                            ? `${device.device_name.substring(0, 25)}...`
-                                                                            : (device.device_name || 'Unknown Device')}
-                                                                    </span>
+                                                                    <div className="space-y-1">
+                                                                        <p className="text-xs font-bold">Pro Feature</p>
+                                                                        <p className="text-[10px]">Upgrade to a Pro plan to customize your device names.</p>
+                                                                    </div>
                                                                 )}
-                                                                <div className="flex items-center gap-1.5 mt-0.5">
-                                                                    <TooltipProvider>
-                                                                        <Tooltip>
-                                                                            <TooltipTrigger className="flex items-center cursor-help">
-                                                                                {getOSIcon(device.os)}
-                                                                            </TooltipTrigger>
-                                                                            <TooltipContent side="top"><p className="text-xs">{device.os || 'Unknown OS'}</p></TooltipContent>
-                                                                        </Tooltip>
-                                                                    </TooltipProvider>
-                                                                    <TooltipProvider>
-                                                                        <Tooltip>
-                                                                            <TooltipTrigger className="flex items-center cursor-help">
-                                                                                {getBrowserIcon(device.browser)}
-                                                                            </TooltipTrigger>
-                                                                            <TooltipContent side="top"><p className="text-xs">{device.browser || 'Unknown Browser'}</p></TooltipContent>
-                                                                        </Tooltip>
-                                                                    </TooltipProvider>
-                                                                </div>
-                                                            </div>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent side="top" className="max-w-[200px] text-center">
-                                                            {(devicePlan?.name === 'Pro' || devicePlan?.name === 'Unlimited') ? (
-                                                                <p className="text-xs">Double-click to rename device</p>
-                                                            ) : (
-                                                                <div className="space-y-1">
-                                                                    <p className="text-xs font-bold">Pro Feature</p>
-                                                                    <p className="text-[10px]">Upgrade to a Pro plan to customize your device names.</p>
-                                                                </div>
-                                                            )}
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                </TooltipProvider>
-                                            </td>
-                                            {/* Location / IP */}
-                                            <td className="px-4 py-3">
-                                                <div className="flex flex-col">
-                                                    <span className="text-xs">{device.location || 'Unknown'}</span>
-                                                    <span className="text-[10px] font-mono text-muted-foreground">
-                                                        {detailedEventsEnabled ? device.ip_address : '••••••••••••'}
-                                                    </span>
-                                                </div>
-                                            </td>
-                                            {/* Status */}
-                                            <td className="px-4 py-3">
-                                                <TooltipProvider>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <div className="flex items-center gap-2 cursor-help">
-                                                                <div className={`w-2 h-2 rounded-full ${deviceStatus.dotColor} animate-pulse`} />
-                                                                <span className={`text-xs font-medium ${deviceStatus.color}`}>
-                                                                    {deviceStatus.label}
-                                                                </span>
-                                                            </div>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent side="top">
-                                                            <p className="text-xs">{deviceStatus.description}</p>
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                </TooltipProvider>
-                                            </td>
-                                            {/* Last Active */}
-                                            <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">
-                                                {formatDate(device.last_active)}
-                                            </td>
-                                            {/* Actions */}
-                                            <td className="px-4 py-3 text-right">
-                                                <div className="flex items-center justify-end gap-2">
-                                                    {!!device.is_current && (
-                                                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase py-1 px-2 bg-emerald-100/50 dark:bg-emerald-950/30 rounded">
-                                                            Current
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
+                                                </td>
+                                                {/* Location / IP */}
+                                                <td className="px-4 py-3">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-xs">{device.location || 'Unknown'}</span>
+                                                        <span className="text-[10px] font-mono text-muted-foreground">
+                                                            {detailedEventsEnabled ? device.ip_address : '••••••••••••'}
                                                         </span>
-                                                    )}
-                                                    {!!device.is_revoked && (
-                                                        <span className="text-[10px] text-red-500 font-bold uppercase py-1 px-2 bg-red-100/50 dark:bg-red-950/30 rounded">
-                                                            Revoked
-                                                        </span>
-                                                    )}
-                                                    {(!device.is_current && !device.is_revoked) && (
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={() => handleRevokeDevice(device.id)}
-                                                            className="h-8 px-2 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
-                                                        >
-                                                            Revoke
-                                                        </Button>
-                                                    )}
-                                                </div>
-                                            </td>
-                                        </tr>
+                                                    </div>
+                                                </td>
+                                                {/* Status */}
+                                                <td className="px-4 py-3">
+                                                    <TooltipProvider>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <div className="flex items-center gap-2 cursor-help">
+                                                                    <div className={`w-2 h-2 rounded-full ${deviceStatus.dotColor} animate-pulse`} />
+                                                                    <span className={`text-xs font-medium ${deviceStatus.color}`}>
+                                                                        {deviceStatus.label}
+                                                                    </span>
+                                                                </div>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent side="top">
+                                                                <p className="text-xs">{deviceStatus.description}</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
+                                                </td>
+                                                {/* Last Active */}
+                                                <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">
+                                                    {formatDate(device.last_active)}
+                                                </td>
+                                                {/* Actions */}
+                                                <td className="px-4 py-3 text-right">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        {!!device.is_current && (
+                                                            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase py-1 px-2 bg-emerald-100/50 dark:bg-emerald-950/30 rounded">
+                                                                Current
+                                                            </span>
+                                                        )}
+                                                        {!!device.is_revoked && (
+                                                            <span className="text-[10px] text-red-500 font-bold uppercase py-1 px-2 bg-red-100/50 dark:bg-red-950/30 rounded">
+                                                                Revoked
+                                                            </span>
+                                                        )}
+                                                        {(!device.is_current && !device.is_revoked) && (
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={() => handleRevokeDevice(device.id)}
+                                                                className="h-8 px-2 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
+                                                            >
+                                                                Revoke
+                                                            </Button>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                            </tr>
                                         );
                                     })
                                 )}
@@ -1961,7 +1986,7 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                                                                         {event.id.substring(0, 8)}...
                                                                                     </span>
                                                                                 </TooltipTrigger>
-                                                                                <TooltipContent 
+                                                                                <TooltipContent
                                                                                     side="top"
                                                                                     className="cursor-pointer"
                                                                                     onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(event.id); toast.success('Copied event id'); }}
