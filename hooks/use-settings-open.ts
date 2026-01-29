@@ -7,7 +7,11 @@ export function useSettingsOpen() {
   })
 
   useEffect(() => {
-    const handler = () => setOpenLocal(typeof window !== "undefined" && window.location.hash.startsWith("#settings"))
+    const handler = () => {
+      setOpenLocal(typeof window !== "undefined" && window.location.hash.startsWith("#settings"))
+    }
+    // Call handler immediately to sync with current hash
+    handler()
     window.addEventListener("hashchange", handler)
     return () => window.removeEventListener("hashchange", handler)
   }, [])

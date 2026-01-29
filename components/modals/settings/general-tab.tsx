@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import {
     Tooltip,
     TooltipContent,
@@ -98,22 +99,27 @@ export function GeneralTab({
                 <div className="flex items-start gap-6">
                     {/* Avatar */}
                     <div className="relative group">
-                        <Avatar
-                            className="h-20 w-20 cursor-pointer hover:opacity-75 transition-opacity flex-shrink-0"
-                            onClick={handleAvatarClick}
-                        >
-                            <AvatarImage
-                                src={user?.avatar || getDiceBearAvatar(user?.id || "user")}
-                                alt="Profile"
-                                onError={(e) => {
-                                    // Prevent favicon.ico fallback request
-                                    (e.target as HTMLImageElement).src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
-                                }}
-                            />
-                            <AvatarFallback className="text-base">
-                                {getInitials(displayName || "User")}
-                            </AvatarFallback>
-                        </Avatar>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Avatar
+                                    className="h-20 w-20 cursor-pointer hover:opacity-75 transition-opacity flex-shrink-0"
+                                    onClick={handleAvatarClick}
+                                >
+                                    <AvatarImage
+                                        src={user?.avatar || getDiceBearAvatar(user?.id || "user")}
+                                        alt="Profile"
+                                        onError={(e) => {
+                                            // Prevent favicon.ico fallback request
+                                            (e.target as HTMLImageElement).src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+                                        }}
+                                    />
+                                    <AvatarFallback className="text-base">
+                                        {getInitials(displayName || "User")}
+                                    </AvatarFallback>
+                                </Avatar>
+                            </TooltipTrigger>
+                            <TooltipContent>Click to upload new avatar</TooltipContent>
+                        </Tooltip>
                         {isLoadingAvatar && (
                             <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full">
                                 <IconLoader2 className="h-5 w-5 animate-spin text-white" />

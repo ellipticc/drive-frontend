@@ -48,24 +48,26 @@ export function NavSecondary({
               <SidebarMenuItem key={item.title}>
                 {item.id === "help" ? (
                   <DropdownMenu open={helpOpen} onOpenChange={setHelpOpen}>
-                    <DropdownMenuTrigger asChild>
-                      {state === 'collapsed' ? (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
+                    {state === 'collapsed' ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <DropdownMenuTrigger asChild>
                             <SidebarMenuButton isActive={helpOpen}>
                               <item.icon />
                               <span>{item.title}</span>
                             </SidebarMenuButton>
-                          </TooltipTrigger>
-                          <TooltipContent side="right">{item.title}</TooltipContent>
-                        </Tooltip>
-                      ) : (
+                          </DropdownMenuTrigger>
+                        </TooltipTrigger>
+                        <TooltipContent side="right">{item.title}</TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      <DropdownMenuTrigger asChild>
                         <SidebarMenuButton isActive={helpOpen}>
                           <item.icon />
                           <span>{item.title}</span>
                         </SidebarMenuButton>
-                      )}
-                    </DropdownMenuTrigger>
+                      </DropdownMenuTrigger>
+                    )}
 
                     <DropdownMenuContent
                       side={isMobile ? "bottom" : "right"}
