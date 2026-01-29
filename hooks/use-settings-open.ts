@@ -11,10 +11,20 @@ export function useSettingsOpen() {
       const isOpen = typeof window !== "undefined" && window.location.hash.startsWith("#settings")
       setOpenLocal(isOpen)
     }
+    
     // Call handler immediately to sync with current hash
     handler()
+    
     window.addEventListener("hashchange", handler)
-    return () => window.removeEventListener("hashchange", handler)
+    
+    // Also listen for a custom event for manual state updates
+    const customHandler = () => handler()
+    window.addEventListener("settings-state-changed", customHandler)
+    
+    return () => {
+      window.removeEventListener("hashchange", handler)
+      window.removeEventListener("settings-state-changed", customHandler)
+    }
   }, [])
 
   const setOpen = useCallback((newOpen: boolean) => {
@@ -33,8 +43,10 @@ export function useSettingsOpen() {
       // Close settings (clear settings hash)
       if (window.location.hash.startsWith("#settings")) {
         window.history.replaceState(null, "", window.location.pathname)
-        // Manually update state since replaceState doesn't trigger hashchange
+        // Manually trigger state update
         setOpenLocal(false)
+        // Dispatch custom event to sync across all instances
+        window.dispatchEvent(new Event("settings-state-changed"))
       }
     }
   }, [])
