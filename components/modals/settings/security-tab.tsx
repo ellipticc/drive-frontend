@@ -58,14 +58,14 @@ import {
     IconUserShield as ShieldUser,
     IconChartAreaLine,
     IconKey,
-    IconRotate,
     IconAlertCircle,
     IconEye,
     IconEyeOff,
     IconFingerprint,
     IconCalendar as CalendarIcon,
     IconX,
-    IconGift
+    IconGift,
+    IconCheck
 } from "@tabler/icons-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
@@ -476,21 +476,41 @@ export function SecurityTab(props: SecurityTabProps) {
 
     const SecurityEventTypeSelector = React.memo(function SecurityEventTypeSelector() {
         const [open, setOpen] = useState(false);
+        const selectedLabel = securityEventType ? SECURITY_EVENT_TYPES.find(et => et.id === securityEventType)?.label : 'All Events';
+
         return (
             <Popover open={open} onOpenChange={setOpen}>
                 <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-8 w-36 justify-start text-xs px-3">
-                        <span className="truncate text-xs">{securityEventType ? (SECURITY_EVENT_TYPES.find(et => et.id === securityEventType)?.label || 'Selected') : 'All Events'}</span>
+                    <Button variant="outline" size="sm" className="h-8 gap-2 px-3 min-w-[140px] justify-between">
+                        <span className="truncate text-xs">{selectedLabel}</span>
+                        <IconChevronDown className="h-3 w-3 opacity-50" />
                     </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-[200px] p-0" align="start">
-                    <div className="max-h-[300px] overflow-y-auto">
-                        <div className="flex flex-col">
-                            <button onClick={() => { setSecurityEventType?.(''); setOpen(false); }} className="px-3 py-2 text-xs text-left hover:bg-muted transition-colors">All Events</button>
-                            {SECURITY_EVENT_TYPES.map(et => (
-                                <button key={et.id} onClick={() => { setSecurityEventType?.(et.id); setOpen(false); }} className="px-3 py-2 text-xs text-left hover:bg-muted transition-colors">{et.label}</button>
-                            ))}
+                    <div className="p-1">
+                        <div
+                            className={cn(
+                                "flex items-center gap-2 px-2 py-1.5 text-xs rounded-sm cursor-pointer hover:bg-accent hover:text-accent-foreground",
+                                !securityEventType && "bg-accent/50"
+                            )}
+                            onClick={() => { setSecurityEventType?.(''); setOpen(false); }}
+                        >
+                            {!securityEventType ? <IconCheck className="h-3 w-3" /> : <div className="w-3" />}
+                            <span>All Events</span>
                         </div>
+                        {SECURITY_EVENT_TYPES.map(et => (
+                            <div
+                                key={et.id}
+                                className={cn(
+                                    "flex items-center gap-2 px-2 py-1.5 text-xs rounded-sm cursor-pointer hover:bg-accent hover:text-accent-foreground",
+                                    securityEventType === et.id && "bg-accent/50"
+                                )}
+                                onClick={() => { setSecurityEventType?.(et.id); setOpen(false); }}
+                            >
+                                {securityEventType === et.id ? <IconCheck className="h-3 w-3" /> : <div className="w-3" />}
+                                <span>{et.label}</span>
+                            </div>
+                        ))}
                     </div>
                 </PopoverContent>
             </Popover>
@@ -1015,11 +1035,44 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                     <div className="flex items-center gap-2">
                         {/* Filters moved to header */}
                         <div className="flex items-center gap-2 mr-2">
-                            {/* Date Range Picker */}
+                            {/* Browser/Device Type Filter (Moved First) */}
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" size="sm" className="h-8 w-[140px] justify-between rounded-md px-3 font-normal">
+                                        <span className="truncate">
+                                            {sessionsTypeFilter && sessionsTypeFilter !== "all" ? sessionsTypeFilter : "All browsers"}
+                                        </span>
+                                        <IconChevronDown className="h-4 w-4 opacity-50" />
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[140px] p-0" align="start">
+                                    <div className="p-1">
+                                        {["All browsers", "Chrome", "Firefox", "Safari", "Edge", "Opera"].map((type) => {
+                                            const value = type === "All browsers" ? "all" : type;
+                                            const isSelected = (sessionsTypeFilter || "all") === value || (value === "all" && !sessionsTypeFilter);
+                                            return (
+                                                <div
+                                                    key={value}
+                                                    className={cn(
+                                                        "relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
+                                                        isSelected && "bg-accent"
+                                                    )}
+                                                    onClick={() => setSessionsTypeFilter(value === "all" ? "" : value)}
+                                                >
+                                                    {isSelected && <IconCheck className="mr-2 h-4 w-4" />}
+                                                    <span className={cn(isSelected ? "" : "pl-6")}>{type}</span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
+
+                            {/* Date Range Picker (Moved Second) */}
                             <div className="flex items-center gap-2">
                                 <Popover>
                                     <PopoverTrigger asChild>
-                                        <Button variant="outline" size="sm" className="h-8 gap-2 border-dashed rounded-md">
+                                        <Button variant="outline" size="sm" className="h-8 gap-2 rounded-md">
                                             <CalendarIcon className="h-4 w-4" />
                                             {sessionsDateRange?.from ? (
                                                 sessionsDateRange.to ? (
@@ -1056,21 +1109,6 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                     </Button>
                                 )}
                             </div>
-
-                            {/* Browser/Device Type Filter */}
-                            <Select value={sessionsTypeFilter || "all"} onValueChange={(value) => setSessionsTypeFilter(value === "all" ? "" : value)}>
-                                <SelectTrigger className="h-8 w-[130px] border-dashed rounded-md">
-                                    <SelectValue placeholder="All browsers" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All browsers</SelectItem>
-                                    <SelectItem value="Chrome">Chrome</SelectItem>
-                                    <SelectItem value="Firefox">Firefox</SelectItem>
-                                    <SelectItem value="Safari">Safari</SelectItem>
-                                    <SelectItem value="Edge">Edge</SelectItem>
-                                    <SelectItem value="Opera">Opera</SelectItem>
-                                </SelectContent>
-                            </Select>
                         </div>
 
                         {/* Refresh Button */}
@@ -1084,7 +1122,7 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                         disabled={isLoadingSessions}
                                         className="h-8 w-8 p-0"
                                     >
-                                        <IconRotate className="h-4 w-4" />
+                                        <IconRefresh className="h-4 w-4" />
                                     </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>Refresh sessions</TooltipContent>
@@ -1336,11 +1374,44 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                     <div className="flex items-center gap-2">
                         {/* Filters moved to header */}
                         <div className="flex items-center gap-2 mr-2">
-                            {/* Date Range Picker */}
+                            {/* Device Type Filter (Moved First) */}
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" size="sm" className="h-8 w-[140px] justify-between rounded-md px-3 font-normal">
+                                        <span className="truncate">
+                                            {devicesTypeFilter && devicesTypeFilter !== "all" ? devicesTypeFilter : "All device types"}
+                                        </span>
+                                        <IconChevronDown className="h-4 w-4 opacity-50" />
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[140px] p-0" align="start">
+                                    <div className="p-1">
+                                        {["All device types", "Windows", "macOS", "iOS", "Android", "Linux"].map((type) => {
+                                            const value = type === "All device types" ? "all" : type;
+                                            const isSelected = (devicesTypeFilter || "all") === value || (value === "all" && !devicesTypeFilter);
+                                            return (
+                                                <div
+                                                    key={value}
+                                                    className={cn(
+                                                        "relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
+                                                        isSelected && "bg-accent"
+                                                    )}
+                                                    onClick={() => setDevicesTypeFilter(value === "all" ? "" : value)}
+                                                >
+                                                    {isSelected && <IconCheck className="mr-2 h-4 w-4" />}
+                                                    <span className={cn(isSelected ? "" : "pl-6")}>{type}</span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
+
+                            {/* Date Range Picker (Moved Second) */}
                             <div className="flex items-center gap-2">
                                 <Popover>
                                     <PopoverTrigger asChild>
-                                        <Button variant="outline" size="sm" className="h-8 gap-2 border-dashed">
+                                        <Button variant="outline" size="sm" className="h-8 gap-2 rounded-md">
                                             <CalendarIcon className="h-4 w-4" />
                                             {devicesDateRange?.from ? (
                                                 devicesDateRange.to ? (
@@ -1377,21 +1448,6 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                     </Button>
                                 )}
                             </div>
-
-                            {/* Device Type Filter */}
-                            <Select value={devicesTypeFilter || "all"} onValueChange={(value) => setDevicesTypeFilter(value === "all" ? "" : value)}>
-                                <SelectTrigger className="h-8 w-[130px] border-dashed rounded-md">
-                                    <SelectValue placeholder="All device types" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All device types</SelectItem>
-                                    <SelectItem value="Windows">Windows</SelectItem>
-                                    <SelectItem value="macOS">macOS</SelectItem>
-                                    <SelectItem value="iOS">iOS</SelectItem>
-                                    <SelectItem value="Android">Android</SelectItem>
-                                    <SelectItem value="Linux">Linux</SelectItem>
-                                </SelectContent>
-                            </Select>
                         </div>
 
                         {/* Refresh Button */}
@@ -1405,7 +1461,7 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                         disabled={isLoadingDevices}
                                         className="h-8 w-8 p-0"
                                     >
-                                        <IconRotate className="h-4 w-4" />
+                                        <IconRefresh className="h-4 w-4" />
                                     </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>Refresh devices</TooltipContent>
@@ -2373,7 +2429,7 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                         <CardHeader className="pb-2">
                             <div className="flex items-center justify-between">
                                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                                    <IconRotate className="h-4 w-4 text-primary" />
+                                    <IconRefresh className="h-4 w-4 text-primary" />
                                     Identity Rotation
                                 </CardTitle>
                                 <Badge variant="secondary" className="text-[9px]">BETA</Badge>

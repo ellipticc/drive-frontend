@@ -896,21 +896,26 @@ export function SettingsModal({
     }
   };
 
-
-
-  // Load active sessions
-  const loadUserSessions = async (page = sessionsPage) => {
+  // Load user sessions
+  const loadUserSessions = async (page = 1) => {
     setIsLoadingSessions(true)
     try {
-      const startDate = sessionsDateRange?.from ? format(sessionsDateRange.from, "yyyy-MM-dd") : undefined
-      const endDate = sessionsDateRange?.to ? format(sessionsDateRange.to, "yyyy-MM-dd") : undefined
-      const response = await apiClient.getSessions(page, 5, !showRevoked, startDate, endDate, sessionsTypeFilter || undefined)
+      const response = await apiClient.getSessions(
+        page,
+        5,
+        !showRevoked,
+        sessionsDateRange?.from?.toISOString(),
+        sessionsDateRange?.to?.toISOString(),
+        sessionsTypeFilter === 'all' ? undefined : sessionsTypeFilter
+      )
       if (response.success && response.data) {
-        setUserSessions(response.data.sessions || [])
-        setCurrentSessionId(response.data.currentSessionId || null)
-        setSessionsTotalPages(response.data.pagination?.totalPages || 1)
-        setSessionsTotal(response.data.pagination?.total || 0)
+        setUserSessions(response.data.sessions)
+        setSessionsTotalPages(response.data.pagination.totalPages)
+        setSessionsTotal(response.data.pagination.total)
         setSessionsPage(page)
+        if (response.data.currentSessionId) {
+          setCurrentSessionId(response.data.currentSessionId)
+        }
       } else {
         setUserSessions([])
       }
@@ -922,59 +927,29 @@ export function SettingsModal({
     }
   }
 
-  // Revoke a specific session
-  const handleRevokeSession = async (sessionId: string) => {
-    try {
-      const response = await apiClient.revokeSession(sessionId)
-      if (response.success) {
-        toast.success("Session revoked")
-        loadUserSessions()
-      } else {
-        toast.error(response.error || "Failed to revoke session")
-      }
-    } catch (error) {
-      console.error('Failed to revoke session:', error)
-      toast.error("Failed to revoke session")
-    }
-  }
-
-  // Revoke all other sessions
-  const handleRevokeAllSessions = async () => {
-    try {
-      const response = await apiClient.revokeAllSessions()
-      if (response.success) {
-        toast.success("All other sessions revoked")
-        loadUserSessions()
-        if (deviceLimitReached) {
-          toast.info("Sessions Revoked. Please refresh the page to regain full access.", {
-            duration: 10000,
-            action: {
-              label: "Refresh Now",
-              onClick: () => window.location.reload()
-            }
-          })
-        }
-      } else {
-        toast.error(response.error || "Failed to revoke sessions")
-      }
-    } finally {
-      setShowRevokeAllDialog(false)
-    }
-  }
-
-  // Load authorized devices
-  const loadUserDevices = async (page = devicesPage) => {
+  // Load user devices
+  const loadUserDevices = async (page = 1) => {
     setIsLoadingDevices(true)
     try {
-      const startDate = devicesDateRange?.from ? format(devicesDateRange.from, "yyyy-MM-dd") : undefined
-      const endDate = devicesDateRange?.to ? format(devicesDateRange.to, "yyyy-MM-dd") : undefined
-      const response = await apiClient.getDevices(page, 5, !showRevoked, startDate, endDate, devicesTypeFilter || undefined)
+      const response = await apiClient.getDevices(
+        page,
+        5,
+        !showRevoked,
+        devicesDateRange?.from?.toISOString(),
+        devicesDateRange?.to?.toISOString(),
+        devicesTypeFilter === 'all' ? undefined : devicesTypeFilter
+      )
       if (response.success && response.data) {
-        setUserDevices(response.data.devices || [])
-        setDevicesTotalPages(response.data.pagination?.totalPages || 1)
-        setDevicesTotal(response.data.pagination?.total || 0)
+        setUserDevices(response.data.devices.map(d => ({
+          ...d,
+          is_current: d.is_current // Handle potential variation
+        })))
+        setDevicesTotalPages(response.data.pagination.totalPages)
+        setDevicesTotal(response.data.pagination.total)
         setDevicesPage(page)
-        setDevicePlan(response.data.plan || null)
+        if (response.data.plan) {
+          setDevicePlan(response.data.plan)
+        }
       } else {
         setUserDevices([])
       }
@@ -1062,6 +1037,65 @@ export function SettingsModal({
     } catch (error) {
       console.error('Failed to revoke all devices:', error)
       toast.error("Failed to process device revocations")
+    }
+  }
+
+  // Revoke a specific session
+  const handleRevokeSession = async (sessionId: string) => {
+    try {
+      const response = await apiClient.revokeSession(sessionId)
+      if (response.success) {
+        toast.success("Session revoked")
+        loadUserSessions()
+      } else {
+        toast.error(response.error || "Failed to revoke session")
+      }
+    } catch (error) {
+      console.error('Failed to revoke session:', error)
+      toast.error("Failed to revoke session")
+    }
+  }
+
+  // Revoke all sessions (except current)
+  const handleRevokeAllSessions = async () => {
+    try {
+      // Filter out current session
+      const sessionsToRevoke = userSessions.filter(s => !s.isCurrent && !s.is_revoked);
+
+      if (sessionsToRevoke.length === 0) {
+        toast.info("No active sessions to revoke");
+        return;
+      }
+
+      let successCount = 0;
+      let failCount = 0;
+
+      await Promise.all(sessionsToRevoke.map(async (session) => {
+        try {
+          const response = await apiClient.revokeSession(session.id);
+          if (response.success) {
+            successCount++;
+          } else {
+            failCount++;
+          }
+        } catch (e) {
+          console.error(`Failed to revoke session ${session.id}`, e);
+          failCount++;
+        }
+      }));
+
+      if (successCount > 0) {
+        toast.success(`Successfully revoked ${successCount} session${successCount !== 1 ? 's' : ''}`);
+        loadUserSessions();
+      }
+
+      if (failCount > 0) {
+        toast.error(`Failed to revoke ${failCount} session${failCount !== 1 ? 's' : ''}`);
+      }
+
+    } catch (error) {
+      console.error('Failed to revoke all sessions:', error)
+      toast.error("Failed to process session revocations")
     }
   }
 

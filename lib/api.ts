@@ -1347,9 +1347,9 @@ class ApiClient {
     };
   }>> {
     let query = `page=${page}&limit=${limit}&onlyActive=${onlyActive}`;
-    if (startDate) query += `&startDate=${startDate}`;
-    if (endDate) query += `&endDate=${endDate}`;
-    if (deviceType) query += `&deviceType=${deviceType}`;
+    if (startDate) query += `&from=${startDate}`;
+    if (endDate) query += `&to=${endDate}`;
+    if (deviceType) query += `&os=${deviceType}`;
     return this.request(`/auth/sessions?${query}`);
   }
 
@@ -3314,9 +3314,9 @@ class ApiClient {
     };
   }>> {
     let query = `page=${page}&limit=${limit}&onlyActive=${onlyActive}`;
-    if (startDate) query += `&startDate=${startDate}`;
-    if (endDate) query += `&endDate=${endDate}`;
-    if (deviceType) query += `&deviceType=${deviceType}`;
+    if (startDate) query += `&from=${startDate}`;
+    if (endDate) query += `&to=${endDate}`;
+    if (deviceType) query += `&os=${deviceType}`;
     return this.request(`/auth/device?${query}`);
   }
 
