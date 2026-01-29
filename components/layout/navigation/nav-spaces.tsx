@@ -222,7 +222,7 @@ const SpaceItemMemoized = React.memo(function SpaceItemMemoized({
                 </button>
               </DropdownMenuTrigger>
             </TooltipTrigger>
-            <TooltipContent side="left">Move or remove</TooltipContent>
+            <TooltipContent side="right">Move or remove</TooltipContent>
           </Tooltip>
           <DropdownMenuContent side="right" align="start" className="w-48">
             <DropdownMenuSub>
