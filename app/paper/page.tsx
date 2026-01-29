@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, useRef, Suspense, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { masterKeyManager } from "@/lib/master-key";
-import { IconLoader2, IconArrowLeft, IconCloudCheck, IconDotsVertical, IconCopy, IconFileText, IconPrinter, IconDownload, IconHelp, IconHome, IconStackFilled, IconLetterCase } from "@tabler/icons-react";
+import { IconLoader2, IconArrowLeft, IconCloudCheck, IconDotsVertical, IconCopy, IconFileText, IconPrinter, IconDownload, IconHelp, IconHome, IconStackFilled, IconLetterCase, IconChevronUp, IconChevronDown } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
 import {
     AlertDialog,
@@ -93,6 +93,8 @@ interface PaperHeaderProps {
     onDownload: (format: string) => void;
     onCopyAsMarkdown: () => void;
     setSupportDialogOpen: (open: boolean) => void;
+    showWordCount: boolean;
+    setShowWordCount: (show: boolean) => void;
 }
 
 // Helper to count words from editor value
@@ -139,13 +141,14 @@ function PaperHeader({
     onPrint,
     onDownload,
     onCopyAsMarkdown,
-    setSupportDialogOpen
+    setSupportDialogOpen,
+    showWordCount,
+    setShowWordCount
 }: PaperHeaderProps) {
     const { theme, setTheme } = useTheme();
     const router = useRouter();
     const { emojiPickerState, isOpen, setIsOpen } = useEmojiDropdownMenuState();
     const [isRenaming, setIsRenaming] = useState(false);
-    const [showWordCount, setShowWordCount] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
 
     // Calculate word count stats
@@ -232,7 +235,7 @@ function PaperHeader({
     const displayIcon = icon || (paperTitle ? paperTitle.charAt(0).toUpperCase() : "U");
 
     return (
-        <header className="flex h-14 md:h-16 items-center gap-2 md:gap-4 border-b px-3 md:px-6 shrink-0 bg-background z-50 md:rounded-tl-lg md:rounded-bl-lg">
+        <header className="flex h-14 md:h-16 items-center gap-2 md:gap-4 border-b px-3 md:px-6 shrink-0 bg-background z-50">
             <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
                 <Button variant="ghost" size="icon" onClick={onBack} className="hover:bg-muted shrink-0 h-9 w-9 md:h-10 md:w-10">
                     <IconArrowLeft className="w-4 h-4 md:w-5 md:h-5" />
@@ -495,7 +498,9 @@ function PaperEditorView({
     onPrint,
     onDownload,
     onCopyAsMarkdown,
-    setSupportDialogOpen
+    setSupportDialogOpen,
+    showWordCount,
+    setShowWordCount
 }: {
     initialValue: Value;
     onChange: (value: Value) => void;
@@ -517,8 +522,12 @@ function PaperEditorView({
     onDownload: (format: string) => void;
     onCopyAsMarkdown: () => void;
     setSupportDialogOpen: (open: boolean) => void;
+    showWordCount: boolean;
+    setShowWordCount: (show: boolean) => void;
 }) {
     const [editorValue, setEditorValue] = useState<Value>(initialValue);
+    const [wordCountExpanded, setWordCountExpanded] = useState(false);
+    const [wordCountDisplayMode, setWordCountDisplayMode] = useState<'words' | 'characters'>('words');
     
     const editor = usePlateEditor({
         plugins: EditorKit,
@@ -575,14 +584,16 @@ function PaperEditorView({
                         onDownload={onDownload}
                         onCopyAsMarkdown={onCopyAsMarkdown}
                         setSupportDialogOpen={setSupportDialogOpen}
+                        showWordCount={showWordCount}
+                        setShowWordCount={setShowWordCount}
                     />
 
                     <FixedToolbar className="border-b shrink-0 !relative !top-0 overflow-x-auto overflow-y-hidden scrollbar-hide touch-pan-x">
                         <FixedToolbarButtons />
                     </FixedToolbar>
 
-                    <main className="flex-1 overflow-hidden relative">
-                        <EditorContainer className="h-full w-full overflow-y-auto flex md:justify-center">
+                    <main className="flex-1 overflow-y-auto relative">
+                        <EditorContainer className="h-full w-full flex md:justify-center">
                             <div className="w-full md:max-w-[950px] px-4 sm:px-6 md:px-12 pt-3 md:pt-4 pb-48">
                                 <Editor
                                     className="min-h-full w-full border-none shadow-none focus-visible:ring-0 transition-all text-base md:text-base"
@@ -592,32 +603,50 @@ function PaperEditorView({
                             </div>
                         </EditorContainer>
 
-                        {/* Floating Word Count (Bottom Right - Always Visible) */}
-                        <div className="fixed bottom-4 right-4 z-40">
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <button className="px-3 py-1.5 text-xs bg-muted/90 backdrop-blur-sm hover:bg-muted text-muted-foreground hover:text-foreground rounded-full shadow-lg transition-colors border">
-                                        {stats.words.toLocaleString()} words
+                        {/* Floating Word Count (Bottom Left - Conditionally Visible) */}
+                        {showWordCount && (
+                            <div className="fixed bottom-4 left-4 z-40">
+                                <div className="bg-background/95 backdrop-blur-sm border rounded-lg shadow-lg">
+                                    <button
+                                        onClick={() => setWordCountExpanded(!wordCountExpanded)}
+                                        className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                                    >
+                                        <span className="font-medium">
+                                            {wordCountDisplayMode === 'words'
+                                                ? `${stats.words.toLocaleString()} words`
+                                                : `${stats.characters.toLocaleString()} characters`}
+                                        </span>
+                                        {wordCountExpanded ? (
+                                            <IconChevronDown className="w-3 h-3" />
+                                        ) : (
+                                            <IconChevronUp className="w-3 h-3" />
+                                        )}
                                     </button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-56">
-                                    <div className="px-2 py-3 space-y-2">
-                                        <div className="flex justify-between text-sm">
-                                            <span className="text-muted-foreground">Words</span>
-                                            <span className="font-medium">{stats.words.toLocaleString()}</span>
+                                    {wordCountExpanded && (
+                                        <div className="border-t px-3 py-2 space-y-2">
+                                            <button
+                                                onClick={() => setWordCountDisplayMode('words')}
+                                                className={`flex justify-between text-xs w-full hover:bg-muted px-2 py-1 rounded transition-colors ${wordCountDisplayMode === 'words' ? 'bg-muted' : ''}`}
+                                            >
+                                                <span className="text-muted-foreground">Words</span>
+                                                <span className="font-medium">{stats.words.toLocaleString()}</span>
+                                            </button>
+                                            <button
+                                                onClick={() => setWordCountDisplayMode('characters')}
+                                                className={`flex justify-between text-xs w-full hover:bg-muted px-2 py-1 rounded transition-colors ${wordCountDisplayMode === 'characters' ? 'bg-muted' : ''}`}
+                                            >
+                                                <span className="text-muted-foreground">Characters</span>
+                                                <span className="font-medium">{stats.characters.toLocaleString()}</span>
+                                            </button>
+                                            <div className="flex justify-between text-xs px-2 py-1">
+                                                <span className="text-muted-foreground">Characters (no spaces)</span>
+                                                <span className="font-medium">{stats.charactersNoSpaces.toLocaleString()}</span>
+                                            </div>
                                         </div>
-                                        <div className="flex justify-between text-sm">
-                                            <span className="text-muted-foreground">Characters</span>
-                                            <span className="font-medium">{stats.characters.toLocaleString()}</span>
-                                        </div>
-                                        <div className="flex justify-between text-sm">
-                                            <span className="text-muted-foreground">Characters (no spaces)</span>
-                                            <span className="font-medium">{stats.charactersNoSpaces.toLocaleString()}</span>
-                                        </div>
-                                    </div>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </main>
                 </div>
             </Plate>
@@ -637,6 +666,7 @@ function PaperPageContent() {
     const [paperTitle, setPaperTitle] = useState<string>("Untitled Paper");
     const [icon, setIcon] = useState<string | null>(null);
     const [pageAlert, setPageAlert] = useState<{ message: string } | null>(null);
+    const [showWordCount, setShowWordCount] = useState(false);
     
     // Modal states
     const [trashModalOpen, setTrashModalOpen] = useState(false);
@@ -934,10 +964,16 @@ function PaperPageContent() {
         try {
             const now = new Date();
             const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}.${String(now.getMinutes()).padStart(2, '0')}.${String(now.getSeconds()).padStart(2, '0')}`;
+            
+            // Open new tab immediately with loading state
+            const newTab = window.open('about:blank', '_blank');
+            
             const newPaperId = await paperService.createPaper(`Untitled paper ${timestamp}`, undefined, null);
-            if (newPaperId) {
-                window.open(`/paper?fileId=${newPaperId}`, '_blank');
-                toast.success('New paper created');
+            if (newPaperId && newTab) {
+                newTab.location.href = `/paper?fileId=${newPaperId}`;
+            } else if (newTab) {
+                newTab.close();
+                toast.error('Failed to create new paper');
             }
         } catch (error) {
             console.error('Failed to create new paper:', error);
@@ -975,30 +1011,9 @@ function PaperPageContent() {
             
             switch (format) {
                 case 'image': {
-                    // Free for everyone - capture editor as image
-                    const editorEl = document.querySelector('[data-slate-editor]') as HTMLElement;
-                    if (!editorEl) {
-                        toast.error('Editor not found');
-                        return;
-                    }
-                    
-                    toast.info('Generating image...');
-                    const canvas = await html2canvas(editorEl, {
-                        background: '#ffffff',
-                        logging: false,
-                    });
-                    
-                    canvas.toBlob((blob: Blob | null) => {
-                        if (blob) {
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement('a');
-                            a.href = url;
-                            a.download = `${title}.png`;
-                            a.click();
-                            URL.revokeObjectURL(url);
-                            toast.success('Image downloaded');
-                        }
-                    }, 'image/png');
+                    // Free for everyone - use print preview approach
+                    toast.info('Opening print dialog for image export. Use "Save as PDF" or print to image.');
+                    window.print();
                     break;
                 }
                 
@@ -1145,8 +1160,7 @@ function PaperPageContent() {
     }, []);
 
     const handleItemCopied = useCallback(() => {
-        // Refresh or update UI after copying
-        toast.success('Paper copied successfully');
+        // CopyModal already shows "1 item copied successfully", no need for duplicate
     }, []);
 
 
@@ -1205,6 +1219,8 @@ function PaperPageContent() {
                 onDownload={handleDownload}
                 onCopyAsMarkdown={handleCopyAsMarkdown}
                 setSupportDialogOpen={setSupportDialogOpen}
+                showWordCount={showWordCount}
+                setShowWordCount={setShowWordCount}
             />
 
             <VersionHistoryModal
