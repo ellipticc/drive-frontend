@@ -10,7 +10,7 @@ import {
     IconEdit,
     IconChevronRight,
     IconDotsVertical,
-    IconArrowsMove,
+    IconArrowsSplit2,
     IconGripVertical,
     IconPlus as IconAdd,
     IconPlanet,
@@ -214,15 +214,20 @@ const SpaceItemMemoized = React.memo(function SpaceItemMemoized({
 
       <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover/subitem:opacity-100 flex items-center">
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button className="p-1 hover:bg-accent rounded-sm transition-colors text-muted-foreground">
-              <IconDotsVertical size={12} />
-            </button>
-          </DropdownMenuTrigger>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <button className="p-1 hover:bg-accent rounded-sm transition-colors text-muted-foreground">
+                  <IconDotsVertical size={12} />
+                </button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="left">Move or remove</TooltipContent>
+          </Tooltip>
           <DropdownMenuContent side="right" align="start" className="w-48">
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
-                <IconArrowsMove className="mr-2 h-4 w-4" />
+                <IconArrowsSplit2 className="mr-2 h-4 w-4" />
                 <span>{t("sidebar.moveToSpace")}</span>
               </DropdownMenuSubTrigger>
               <DropdownMenuPortal>
