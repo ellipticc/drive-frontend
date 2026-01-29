@@ -35,6 +35,16 @@ export function NavSecondary({
   const [feedbackOpen, setFeedbackOpen] = React.useState(false)
   const [helpOpen, setHelpOpen] = React.useState(false)
   const [supportOpen, setSupportOpen] = React.useState(false)
+  const [settingsOpen, setSettingsOpen] = React.useState<boolean>(() => {
+    if (typeof window === 'undefined') return false
+    return window.location.hash.startsWith('#settings')
+  })
+
+  React.useEffect(() => {
+    const handler = () => setSettingsOpen(typeof window !== 'undefined' && window.location.hash.startsWith('#settings'))
+    window.addEventListener('hashchange', handler)
+    return () => window.removeEventListener('hashchange', handler)
+  }, [])
 
   return (
     <SidebarGroup {...props}>
@@ -67,7 +77,7 @@ export function NavSecondary({
 
                     <DropdownMenuContent
                       side={isMobile ? "bottom" : "right"}
-                      align="end"
+                      align="start"
                       className="w-56"
                     >
                       <DropdownMenuLabel className="font-medium">{item.title}</DropdownMenuLabel>
@@ -110,6 +120,7 @@ export function NavSecondary({
                             window.location.hash = `#settings/${tab}`;
                           }}
                           id="tour-settings"
+                          isActive={settingsOpen}
                         >
                           <item.icon />
                           <span>{item.title}</span>
@@ -124,6 +135,7 @@ export function NavSecondary({
                         window.location.hash = `#settings/${tab}`;
                       }}
                       id="tour-settings"
+                      isActive={settingsOpen}
                     >
                       <item.icon />
                       <span>{item.title}</span>
