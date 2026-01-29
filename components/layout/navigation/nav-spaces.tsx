@@ -320,13 +320,18 @@ const SortableSpaceItem = React.memo(function SortableSpaceItem({
                         {/* DRAG HANDLE ALIGNMENT - Ultra-compact for maximum left alignment */}
                         <div className="w-4 flex-shrink-0 flex items-center justify-center">
                             {!isSpaced && (
-                                <div
-                                    {...attributes}
-                                    {...listeners}
-                                    className="opacity-0 group-hover/item:opacity-40 hover:opacity-100 cursor-grab active:cursor-grabbing p-1 transition-opacity"
-                                >
-                                    <IconGripVertical size={14} />
-                                </div>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <div
+                                            {...attributes}
+                                            {...listeners}
+                                            className="opacity-0 group-hover/item:opacity-40 hover:opacity-100 cursor-grab active:cursor-grabbing p-1 transition-opacity"
+                                        >
+                                            <IconGripVertical size={14} />
+                                        </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="right">Drag to reorder</TooltipContent>
+                                </Tooltip>
                             )}
                         </div>
 
@@ -347,17 +352,22 @@ const SortableSpaceItem = React.memo(function SortableSpaceItem({
                         <div className="flex items-center gap-0.5 opacity-0 group-hover/item:opacity-100 ml-1 shrink-0 pr-1">
                             {/* + BUTTON DROPDOWN */}
                             <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <button
-                                        className="hover:bg-accent rounded-sm h-6 w-6 flex items-center justify-center cursor-pointer transition-colors"
-                                        onClick={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                        }}
-                                    >
-                                        <IconPlus size={14} />
-                                    </button>
-                                </DropdownMenuTrigger>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <DropdownMenuTrigger asChild>
+                                            <button
+                                                className="hover:bg-accent rounded-sm h-6 w-6 flex items-center justify-center cursor-pointer transition-colors"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                }}
+                                            >
+                                                <IconPlus size={14} />
+                                            </button>
+                                        </DropdownMenuTrigger>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="right">Space actions</TooltipContent>
+                                </Tooltip>
                                 <DropdownMenuContent align="end" className="w-44">
                                     <DropdownMenuItem onClick={onNewSpace}>
                                         <IconPlanet className="mr-2 h-4 w-4" />
@@ -372,14 +382,19 @@ const SortableSpaceItem = React.memo(function SortableSpaceItem({
 
                             {!isSpaced && (
                                 <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <button
-                                            className="hover:bg-accent data-[state=open]:bg-accent rounded-sm h-6 w-6 flex items-center justify-center cursor-pointer"
-                                            onClick={(e) => e.stopPropagation()}
-                                        >
-                                            <IconDotsVertical size={14} />
-                                        </button>
-                                    </DropdownMenuTrigger>
+                                    <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <DropdownMenuTrigger asChild>
+                                            <button
+                                                className="hover:bg-accent data-[state=open]:bg-accent rounded-sm h-6 w-6 flex items-center justify-center cursor-pointer"
+                                                onClick={(e) => e.stopPropagation()}
+                                            >
+                                                <IconDotsVertical size={14} />
+                                            </button>
+                                        </DropdownMenuTrigger>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="right">More actions</TooltipContent>
+                                </Tooltip>
                                     <DropdownMenuContent
                                         className="w-40 rounded-lg"
                                         side={isMobile ? "bottom" : "right"}
@@ -714,22 +729,17 @@ export function NavSpaces() {
             <SidebarGroup className="group-data-[collapsible=icon]:hidden">
                 <SidebarGroupLabel className="flex items-center justify-between">
                     <span>{t("sidebar.quickSpaces")}</span>
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild id="tour-create-space">
-                            <button className="hover:bg-accent p-1 rounded-sm transition-colors">
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <button id="tour-create-space" className="hover:bg-accent p-1 rounded-sm transition-colors" onClick={() => {
+                                setEditSpace(null);
+                                setIsCreateOpen(true);
+                            }}>
                                 <IconPlus size={14} />
                             </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-40">
-                            <DropdownMenuItem onClick={() => {
-                                setEditSpace(null)
-                                setIsCreateOpen(true)
-                            }}>
-                                <IconPlanet className="mr-2 h-4 w-4" />
-                                <span>{t("sidebar.newSpace")}</span>
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                        </TooltipTrigger>
+                        <TooltipContent side="right">{t("sidebar.newSpace")}</TooltipContent>
+                    </Tooltip>
                 </SidebarGroupLabel>
                 <SidebarMenu>
                     {/* Spaced (Starred) Fixed Space */}
