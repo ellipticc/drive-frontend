@@ -39,6 +39,7 @@ import { apiClient } from "@/lib/api"
 import { masterKeyManager } from "@/lib/master-key"
 import { getDiceBearAvatar } from "@/lib/avatar"
 import { SettingsModal } from "@/components/modals/settings-modal"
+import { useSettingsOpen } from "@/hooks/use-settings-open"
 import { useLanguage } from "@/lib/i18n/language-context"
 
 // Generate initials from name (e.g., "John Doe" -> "JD", "John" -> "J")
@@ -85,16 +86,9 @@ export function HeaderUser() {
         connectedDevicesCount: 0
     }
 
-    const [settingsOpen, setSettingsOpen] = useState(false)
+    const [settingsOpen, setSettingsOpen] = useSettingsOpen()
 
     const displayName = getDisplayName(safeUser)
-
-    const handleSettingsOpenChange = (open: boolean) => {
-        setSettingsOpen(open)
-        if (!open) {
-            window.location.hash = ''
-        }
-    }
 
     const handleThemeChange = async (newTheme: string) => {
         setTheme(newTheme)
@@ -222,7 +216,7 @@ export function HeaderUser() {
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
-            <SettingsModal open={settingsOpen} onOpenChange={handleSettingsOpenChange} />
+            <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
         </>
     )
 }

@@ -18,6 +18,7 @@ import { useSidebar } from "@/components/ui/sidebar"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
 import { IconLifebuoy, IconBooks, IconBrandDiscord, IconBrandGithub, IconSparkles } from "@tabler/icons-react"
+import { useSettingsOpen } from "@/hooks/use-settings-open"
 
 export function NavSecondary({
   items,
@@ -35,16 +36,7 @@ export function NavSecondary({
   const [feedbackOpen, setFeedbackOpen] = React.useState(false)
   const [helpOpen, setHelpOpen] = React.useState(false)
   const [supportOpen, setSupportOpen] = React.useState(false)
-  const [settingsOpen, setSettingsOpen] = React.useState<boolean>(() => {
-    if (typeof window === 'undefined') return false
-    return window.location.hash.startsWith('#settings')
-  })
-
-  React.useEffect(() => {
-    const handler = () => setSettingsOpen(typeof window !== 'undefined' && window.location.hash.startsWith('#settings'))
-    window.addEventListener('hashchange', handler)
-    return () => window.removeEventListener('hashchange', handler)
-  }, [])
+  const [settingsOpen, setSettingsOpen] = useSettingsOpen()
 
   return (
     <SidebarGroup {...props}>
