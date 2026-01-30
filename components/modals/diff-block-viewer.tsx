@@ -3,7 +3,6 @@
 import { useMemo } from 'react'
 import { Plate, usePlateEditor, PlateController } from 'platejs/react'
 import * as Diff from 'diff'
-import { cn } from '@/lib/utils'
 import { Editor } from '@/components/ui/editor'
 import { EditorKit } from '@/components/editor-kit'
 
@@ -12,15 +11,7 @@ export interface DiffBlockViewerProps {
     newContent: any[]
 }
 
-const INLINE_DIFFABLE_TYPES = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'code_line']
-
-function isInlineDiffable(type?: string) {
-    // Default to 'p' if type is missing, which is diffable
-    if (!type) return true;
-    return INLINE_DIFFABLE_TYPES.includes(type);
-}
-
-// Helper to extract text from a block (recursive)
+// Helper to extract text from a block recursively
 function getBlockText(block: any): string {
     if (!block) return ''
     if (typeof block.text === 'string') return block.text
@@ -30,77 +21,85 @@ function getBlockText(block: any): string {
     return ''
 }
 
-// 1. Logic to Merge Content for Diff View
+// Generate diff content with simpler structure
 function generateDiffContent(oldBlocks: any[], newBlocks: any[]) {
-    // Diff at block level (by ID)
-    const blockDiffs = Diff.diffArrays(oldBlocks, newBlocks, {
-        comparator: (a, b) => {
-            // Fallback ID if missing 
-            const idA = a.id || JSON.stringify(a)
-            const idB = b.id || JSON.stringify(b)
-            return idA === idB
-        }
-    })
-
     const mergedContent: any[] = []
 
+    // Diff at block level by ID
+    const blockDiffs = Diff.diffArrays(oldBlocks, newBlocks, {
+        comparator: (a, b) => a?.id === b?.id
+    })
+
     blockDiffs.forEach((chunk) => {
-        // Safety check
-        if (!chunk.value) return;
+        if (!chunk.value) return
 
         if (chunk.added) {
-            // Added blocks: Mark each block in the chunk as added
+            // Mark added blocks with green background
             chunk.value.forEach(block => {
-                if (!block) return;
+                if (!block) return
                 mergedContent.push({
                     ...block,
-                    diffType: 'added',
+                    id: `added-${block.id || Date.now()}`,
+                    className: 'bg-emerald-100 dark:bg-emerald-950/30 border-l-4 border-emerald-500 pl-3'
                 })
             })
         } else if (chunk.removed) {
-            // Removed blocks: Mark each block in the chunk as removed
+            // Mark removed blocks with red background
             chunk.value.forEach(block => {
-                if (!block) return;
+                if (!block) return
                 mergedContent.push({
                     ...block,
-                    diffType: 'removed'
+                    id: `removed-${block.id || Date.now()}`,
+                    className: 'bg-red-100 dark:bg-red-950/30 border-l-4 border-red-500 pl-3 opacity-70 line-through'
                 })
             })
         } else {
-            // Unchanged chunks (ID matched). Check for text modifications.
+            // Unchanged blocks - check for inline text changes
             chunk.value.forEach(newBlock => {
-                if (!newBlock) return;
+                if (!newBlock) return
 
-                const oldBlock = oldBlocks.find(b => b.id === newBlock.id)
-
-                // If deep equal, just push (optimization)
-                if (oldBlock && JSON.stringify(oldBlock) === JSON.stringify(newBlock)) {
+                const oldBlock = oldBlocks.find(b => b?.id === newBlock.id)
+                if (!oldBlock) {
                     mergedContent.push(newBlock)
-                    return;
+                    return
                 }
 
-                // Inline Diff Check: Only run on safe text blocks
-                const canInlineDiff = isInlineDiffable(newBlock.type);
                 const oldText = getBlockText(oldBlock)
                 const newText = getBlockText(newBlock)
 
-                if (canInlineDiff && oldText !== newText) {
-                    // It's a valid modification. Construct new children with inline diffs.
+                // If text is different, show inline diff with simple colored text
+                if (oldText !== newText) {
                     const charDiffs = Diff.diffChars(oldText, newText)
+                    const hasChanges = charDiffs.some(p => p.added || p.removed)
 
-                    // Convert diff chunks into Plate Text Nodes (Leafs)
-                    const newChildren = charDiffs.map(part => {
-                        return {
-                            text: part.value,
-                            diffType: part.added ? 'added' : part.removed ? 'removed' : undefined,
-                            // Note: we don't set 'strikethrough' mark to avoid confusing plugins; we handle style in renderLeaf
-                        }
-                    })
+                    if (hasChanges) {
+                        // Create simple text children with color markers
+                        const children = charDiffs.map((part, idx) => {
+                            if (part.added) {
+                                return {
+                                    text: part.value,
+                                    bold: true,
+                                    color: 'rgb(22, 163, 74)' // green-600
+                                }
+                            }
+                            if (part.removed) {
+                                return {
+                                    text: part.value,
+                                    strikethrough: true,
+                                    color: 'rgb(220, 38, 38)' // red-600
+                                }
+                            }
+                            return { text: part.value }
+                        })
 
-                    mergedContent.push({
-                        ...newBlock,
-                        children: newChildren
-                    })
+                        mergedContent.push({
+                            ...newBlock,
+                            id: `modified-${newBlock.id || Date.now()}`,
+                            children: children.filter(c => c.text) // Remove empty text nodes
+                        })
+                    } else {
+                        mergedContent.push(newBlock)
+                    }
                 } else {
                     mergedContent.push(newBlock)
                 }
@@ -108,95 +107,48 @@ function generateDiffContent(oldBlocks: any[], newBlocks: any[]) {
         }
     })
 
-    // ID REGENERATION
-    return mergedContent.map((block, index) => {
-        if (!block || typeof block !== 'object') return { type: 'p', children: [{ text: '' }], id: `diff-safe-${index}` };
-
-        return {
-            ...block,
-            id: `diff-${Date.now()}-${index}`,
-            // Ensure children exist to prevent invalid node errors
-            children: Array.isArray(block.children) ? block.children : [{ text: '' }]
-        }
-    })
+    return mergedContent
 }
 
-// 2. Custom Plugin to Render Diff Styles
-const DiffPlugin = {
-    key: 'diff',
-    inject: {
-        props: {
-            className: ({ element }: { element: any }) => {
-                if (element.diffType === 'added') return 'bg-emerald-500/20 dark:bg-emerald-500/10 block-diff-added';
-                if (element.diffType === 'removed') return 'bg-red-500/20 dark:bg-red-500/10 block-diff-removed select-none opacity-70';
-                return '';
-            },
-        },
-    },
-};
-
-
 export function DiffBlockViewer({ oldContent, newContent }: DiffBlockViewerProps) {
-
-    // Memoize the merged content so we don't re-calculate on every render
+    // Generate diff content
     const diffContent = useMemo(() => {
         const safeOld = Array.isArray(oldContent) ? oldContent : []
         const safeNew = Array.isArray(newContent) ? newContent : []
 
-        // DEEP CLONE to prevent mutating the original objects in history
+        // Deep clone to prevent mutation
         const clonedOld = JSON.parse(JSON.stringify(safeOld))
         const clonedNew = JSON.parse(JSON.stringify(safeNew))
 
-        return generateDiffContent(clonedOld, clonedNew)
+        const result = generateDiffContent(clonedOld, clonedNew)
+        
+        // Ensure valid structure
+        return result.map((block, idx) => ({
+            ...block,
+            id: block.id || `block-${idx}`,
+            children: Array.isArray(block.children) && block.children.length > 0 
+                ? block.children 
+                : [{ text: '' }]
+        }))
     }, [oldContent, newContent])
 
-    // Force unique editor instance when content changes
-    const editorId = useMemo(() => `diff-editor-${Date.now()}-${Math.random()}`, [diffContent])
+    // Create unique editor key
+    const editorKey = useMemo(() => Date.now(), [diffContent])
 
-    // Setup Plate Editor with EditorKit (like preview component)
+    // Setup simple editor without custom plugins
     const editor = usePlateEditor({
-        id: editorId,
-        plugins: [
-            ...EditorKit,
-            DiffPlugin as any
-        ],
+        id: `diff-${editorKey}`,
+        plugins: EditorKit,
         value: diffContent
     })
 
-    // Custom renderLeaf to handle inline diffs (added/removed text)
-    const renderLeaf = (props: any) => {
-        const { attributes, children, leaf } = props;
-
-        if (leaf.diffType === 'added') {
-            return (
-                <span {...attributes} className={cn("bg-emerald-200 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200 rounded-sm px-0.5", leaf.className)}>
-                    {children}
-                </span>
-            );
-        }
-        if (leaf.diffType === 'removed') {
-            return (
-                <span {...attributes} className={cn("bg-red-200 dark:bg-red-900/50 text-red-800 dark:text-red-200 line-through decoration-red-500 rounded-sm px-0.5 opacity-80", leaf.className)}>
-                    {children}
-                </span>
-            );
-        }
-
-        return (
-            <span {...attributes} className={cn(leaf.className)}>
-                {children}
-            </span>
-        )
-    }
-
     return (
         <PlateController>
-            <Plate editor={editor} key={editorId}>
+            <Plate editor={editor} key={editorKey}>
                 <div className="w-full flex justify-center bg-background min-h-full">
                     <div className="w-full max-w-[850px] px-8 md:px-16 py-12">
                         <Editor
                             readOnly
-                            renderLeaf={renderLeaf}
                             className="border-none shadow-none focus-visible:ring-0"
                         />
                     </div>
