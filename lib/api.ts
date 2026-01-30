@@ -666,7 +666,7 @@ class ApiClient {
 
     const pathname = window.location.pathname;
     const authPages = ['/login', '/signup', '/otp', '/recover', '/recover/otp', '/recover/reset', '/backup', '/totp'];
-    return !authPages.some(page => pathname.includes(page)) && !pathname.startsWith('/s/');
+    return !authPages.some(page => pathname.includes(page)) && !pathname.startsWith('/s/') && pathname !== '/s';
   }
 
   private isTokenExpired(token: string): boolean {

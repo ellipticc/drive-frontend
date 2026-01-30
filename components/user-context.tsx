@@ -79,7 +79,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   // Routes that should skip user profile fetching
-  const skipFetchRoutes = ['/login', '/signup', '/otp', '/recover', '/backup', '/totp', '/totp/recovery'];
+  const skipFetchRoutes = ['/login', '/signup', '/otp', '/recover', '/backup', '/totp', '/totp/recovery', '/s'];
   const shouldSkipFetch = skipFetchRoutes.includes(pathname) || pathname.startsWith('/s/');
 
   const updateUser = useCallback((data: Partial<UserData>) => {

@@ -20,7 +20,7 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   const normalizedPathname = pathname === '/' ? '/' : pathname.replace(/\/$/, '');
 
   // Define public routes that don't need sidebar
-  const publicRoutes = ['/login', '/signup', '/register', '/otp', '/recover', '/recover/otp', '/recover/reset', '/backup', '/backup/verify', '/totp', '/totp/recovery', '/terms-of-service', '/privacy-policy'];
+  const publicRoutes = ['/login', '/signup', '/register', '/otp', '/recover', '/recover/otp', '/recover/reset', '/backup', '/backup/verify', '/totp', '/totp/recovery', '/terms-of-service', '/privacy-policy', '/s'];
 
   // Check if current path is public or paper (standalone)
   const isPublic = publicRoutes.includes(normalizedPathname) || pathname.startsWith('/s/') || pathname.startsWith('/paper');
