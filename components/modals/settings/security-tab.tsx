@@ -311,6 +311,10 @@ const JsonHighlighter = ({ data }: { data: unknown }) => {
 
 
 export function SecurityTab(props: SecurityTabProps) {
+    // Filter Popover State
+    const [devicesTypeOpen, setDevicesTypeOpen] = useState(false);
+    const [sessionsTypeOpen, setSessionsTypeOpen] = useState(false);
+
     const {
         user, setShowEmailModal, setShowPasswordModal,
         totpEnabled, isLoadingTOTP, setShowTOTPDisable, handleTOTPSetup, handleTOTPDisable,
@@ -1036,16 +1040,16 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                         {/* Filters moved to header */}
                         <div className="flex items-center gap-2 mr-2">
                             {/* Browser/Device Type Filter (Moved First) */}
-                            <Popover>
+                            <Popover open={sessionsTypeOpen} onOpenChange={setSessionsTypeOpen}>
                                 <PopoverTrigger asChild>
-                                    <Button variant="outline" size="sm" className="h-8 w-[140px] justify-between rounded-md px-3 font-normal">
+                                    <Button variant="outline" size="sm" className="h-8 w-[160px] justify-between rounded-md px-3 font-normal">
                                         <span className="truncate">
                                             {sessionsTypeFilter && sessionsTypeFilter !== "all" ? sessionsTypeFilter : "All browsers"}
                                         </span>
                                         <IconChevronDown className="h-4 w-4 opacity-50" />
                                     </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-[140px] p-0" align="start">
+                                <PopoverContent className="w-[160px] p-0" align="start">
                                     <div className="p-1">
                                         {["All browsers", "Chrome", "Firefox", "Safari", "Edge", "Opera"].map((type) => {
                                             const value = type === "All browsers" ? "all" : type;
@@ -1057,7 +1061,10 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                                         "relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
                                                         isSelected && "bg-accent"
                                                     )}
-                                                    onClick={() => setSessionsTypeFilter(value === "all" ? "" : value)}
+                                                    onClick={() => {
+                                                        setSessionsTypeFilter(value === "all" ? "" : value);
+                                                        setSessionsTypeOpen(false);
+                                                    }}
                                                 >
                                                     {isSelected && <IconCheck className="mr-2 h-4 w-4" />}
                                                     <span className={cn(isSelected ? "" : "pl-6")}>{type}</span>
@@ -1375,16 +1382,16 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                         {/* Filters moved to header */}
                         <div className="flex items-center gap-2 mr-2">
                             {/* Device Type Filter (Moved First) */}
-                            <Popover>
+                            <Popover open={devicesTypeOpen} onOpenChange={setDevicesTypeOpen}>
                                 <PopoverTrigger asChild>
-                                    <Button variant="outline" size="sm" className="h-8 w-[140px] justify-between rounded-md px-3 font-normal">
+                                    <Button variant="outline" size="sm" className="h-8 w-[160px] justify-between rounded-md px-3 font-normal">
                                         <span className="truncate">
                                             {devicesTypeFilter && devicesTypeFilter !== "all" ? devicesTypeFilter : "All device types"}
                                         </span>
                                         <IconChevronDown className="h-4 w-4 opacity-50" />
                                     </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-[140px] p-0" align="start">
+                                <PopoverContent className="w-[160px] p-0" align="start">
                                     <div className="p-1">
                                         {["All device types", "Windows", "macOS", "iOS", "Android", "Linux"].map((type) => {
                                             const value = type === "All device types" ? "all" : type;
@@ -1396,7 +1403,10 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                                         "relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
                                                         isSelected && "bg-accent"
                                                     )}
-                                                    onClick={() => setDevicesTypeFilter(value === "all" ? "" : value)}
+                                                    onClick={() => {
+                                                        setDevicesTypeFilter(value === "all" ? "" : value);
+                                                        setDevicesTypeOpen(false);
+                                                    }}
                                                 >
                                                     {isSelected && <IconCheck className="mr-2 h-4 w-4" />}
                                                     <span className={cn(isSelected ? "" : "pl-6")}>{type}</span>
