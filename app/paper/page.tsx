@@ -237,7 +237,7 @@ function PaperHeader({
     const displayIcon = icon || (paperTitle ? paperTitle.charAt(0).toUpperCase() : "U");
 
     return (
-        <header className="flex h-14 md:h-16 items-center gap-2 md:gap-4 border-b px-3 md:px-6 shrink-0 bg-background z-50">
+        <header className="flex h-14 md:h-16 min-h-[3.5rem] md:min-h-[4rem] items-center gap-2 md:gap-4 border-b px-3 md:px-6 shrink-0 bg-background z-50">
             <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
                 <Button variant="ghost" size="icon" onClick={onBack} className="hover:bg-muted shrink-0 h-9 w-9 md:h-10 md:w-10">
                     <IconArrowLeft className="w-4 h-4 md:w-5 md:h-5" />
@@ -601,11 +601,11 @@ function PaperEditorView({
                         setShowWordCount={setShowWordCount}
                     />
 
-                    <FixedToolbar className="border-b shrink-0 !relative !top-0 overflow-x-auto overflow-y-hidden scrollbar-hide touch-pan-x">
+                    <FixedToolbar className="border-b shrink-0 min-h-[44px] !relative !top-0 overflow-x-auto overflow-y-hidden scrollbar-hide touch-pan-x">
                         <FixedToolbarButtons />
                     </FixedToolbar>
 
-                    <main className="flex-1 overflow-y-auto relative" style={{scrollbarGutter: 'stable'}}>
+                    <main className="flex-1 overflow-y-auto relative min-h-0" style={{scrollbarGutter: 'stable'}}>
                         <EditorContainer className="h-full w-full flex md:justify-center">
                             <div className="w-full md:max-w-[950px] px-4 sm:px-6 md:px-12 pt-3 md:pt-4 pb-48">
                                 <Editor
@@ -928,6 +928,14 @@ function PaperPageContent() {
 
     // Auto-save debounce
     const onChange = (newValue: Value) => {
+        // Compare stringified content to detect actual changes (not just selection/focus)
+        const newContentString = JSON.stringify({ content: newValue, icon });
+        
+        // Only proceed if content actually changed
+        if (newContentString === lastSavedContentRef.current) {
+            return; // No actual content change, just selection/focus
+        }
+        
         latestContentRef.current = newValue;
         lastChangeTimeRef.current = Date.now();
         setIsUnsaved(true);

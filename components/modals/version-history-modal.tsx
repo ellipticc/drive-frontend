@@ -3,12 +3,15 @@
 import React, { useEffect, useState } from 'react'
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { apiClient } from "@/lib/api"
 import { toast } from "sonner"
-import { IconHistory, IconRestore, IconTrash, IconLoader2, IconEye, IconX, IconCopyPlus, IconGitBranch, IconPencil } from "@tabler/icons-react"
+import { IconHistory, IconRestore, IconTrash, IconLoader2, IconEye, IconX, IconCopyPlus, IconGitBranch, IconPencil, IconGitCompare } from "@tabler/icons-react"
 import { format } from "date-fns"
 import { useFormatter } from "@/hooks/use-formatter"
+import { getDiceBearAvatar } from "@/lib/avatar"
 import { PaperPreview } from "@/components/previews/paper-preview"
+import { DiffViewer } from "@/components/modals/diff-viewer"
 import { masterKeyManager } from "@/lib/master-key"
 import { paperService } from "@/lib/paper-service"
 import { decryptFilename, encryptFilename } from "@/lib/crypto"
@@ -51,6 +54,11 @@ interface Version {
     decryptedName?: string // Decrypted on client
     insertions?: number
     deletions?: number
+    createdBy?: {
+        name: string
+        email: string
+        avatar: string
+    }
 }
 
 interface VersionHistoryModalProps {
@@ -77,6 +85,9 @@ export function VersionHistoryModal({
     const [previewVersionId, setPreviewVersionId] = useState<string | null>(null)
     const [previewContent, setPreviewContent] = useState<any>(null)
     const [previewLoading, setPreviewLoading] = useState(false)
+    const [showDiff, setShowDiff] = useState(false)
+    const [previousContent, setPreviousContent] = useState<any>(null)
+    const [diffLoading, setDiffLoading] = useState(false)
 
     // Rename dialog
     const [renameDialogOpen, setRenameDialogOpen] = useState(false)
@@ -315,10 +326,24 @@ export function VersionHistoryModal({
         setPreviewVersionId(version.id)
         setPreviewLoading(true)
         setPreviewContent(null)
+        setPreviousContent(null)
 
         try {
+            // Load current version
             const paperData = await paperService.getPaperVersion(fileId, version.id)
             setPreviewContent(paperData.content)
+            
+            // Load previous version for diff (if not the oldest version)
+            const versionIndex = versions.findIndex(v => v.id === version.id)
+            if (versionIndex < versions.length - 1) {
+                try {
+                    const previousVersion = versions[versionIndex + 1]
+                    const previousData = await paperService.getPaperVersion(fileId, previousVersion.id)
+                    setPreviousContent(previousData.content)
+                } catch (err) {
+                    console.warn('Failed to load previous version for diff:', err)
+                }
+            }
         } catch (e) {
             console.error(e)
             toast.error("Failed to load preview")
@@ -376,15 +401,40 @@ export function VersionHistoryModal({
                                 </div>
 
                                 <div className="flex items-center gap-3">
+                                    {/* Diff Toggle */}
+                                    {previewVersionId && previousContent && (
+                                        <div className="flex items-center border rounded-lg overflow-hidden bg-background">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => setShowDiff(false)}
+                                                className={`rounded-none h-7 px-3 text-xs ${!showDiff ? 'bg-muted' : ''}`}
+                                            >
+                                                <IconEye className="w-3.5 h-3.5 mr-1.5" />
+                                                Preview
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => setShowDiff(true)}
+                                                className={`rounded-none h-7 px-3 text-xs ${showDiff ? 'bg-muted' : ''}`}
+                                            >
+                                                <IconGitCompare className="w-3.5 h-3.5 mr-1.5" />
+                                                Diff
+                                            </Button>
+                                        </div>
+                                    )}
                                     {previewVersionId && (
                                         <>
                                             <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium pr-3 border-r">
                                                 <span>{formatDateTime(versions.find(v => v.id === previewVersionId)?.createdAt)}</span>
                                             </div>
-                                            <div className="flex items-center gap-1 text-xs text-muted-foreground px-2 py-1 rounded bg-muted/40 font-semibold">
-                                                <IconEye className="w-3.5 h-3.5" />
-                                                View only
-                                            </div>
+                                            {!showDiff && (
+                                                <div className="flex items-center gap-1 text-xs text-muted-foreground px-2 py-1 rounded bg-muted/40 font-semibold">
+                                                    <IconEye className="w-3.5 h-3.5" />
+                                                    View only
+                                                </div>
+                                            )}
                                         </>
                                     )}
                                 </div>
@@ -395,6 +445,14 @@ export function VersionHistoryModal({
                                 {previewLoading ? (
                                     <div className="flex items-center justify-center h-full">
                                         <IconLoader2 className="w-8 h-8 animate-spin text-primary" />
+                                    </div>
+                                ) : showDiff && previousContent && previewContent ? (
+                                    <div className="w-full max-w-6xl">
+                                        <DiffViewer 
+                                            oldContent={previousContent} 
+                                            newContent={previewContent}
+                                            mode="unified"
+                                        />
                                     </div>
                                 ) : previewContent ? (
                                     <div className="bg-background shadow-[0_30px_60px_-12px_rgba(0,0,0,0.15)] rounded-lg border w-full max-w-4xl min-h-full overflow-auto relative">
@@ -494,17 +552,65 @@ export function VersionHistoryModal({
                                                                     )}
                                                                 </div>
 
-                                                                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground pointer-events-none">
-                                                                    <span>{formatSize(version.totalSize)}</span>
+                                                                <div className="flex items-center gap-2 text-[10px] text-muted-foreground pointer-events-none">
+                                                                    {/* User Avatar and Name */}
+                                                                    {version.createdBy && (
+                                                                        <TooltipProvider delayDuration={100}>
+                                                                            <Tooltip>
+                                                                                <TooltipTrigger asChild>
+                                                                                    <div className="flex items-center gap-1.5 pointer-events-auto cursor-help">
+                                                                                        <Avatar className="w-4 h-4">
+                                                                                            <AvatarImage 
+                                                                                                src={version.createdBy.avatar || getDiceBearAvatar(version.createdBy.email || 'user', 16)} 
+                                                                                                alt={version.createdBy.name || version.createdBy.email}
+                                                                                            />
+                                                                                            <AvatarFallback className="text-[8px]">
+                                                                                                {(version.createdBy.name || version.createdBy.email || 'U').charAt(0).toUpperCase()}
+                                                                                            </AvatarFallback>
+                                                                                        </Avatar>
+                                                                                        <span className="text-[10px] font-medium">
+                                                                                            {version.createdBy.name || version.createdBy.email?.split('@')[0] || 'Unknown'}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                </TooltipTrigger>
+                                                                                <TooltipContent side="top" className="text-xs">
+                                                                                    <p>{version.createdBy.email || 'No email available'}</p>
+                                                                                </TooltipContent>
+                                                                            </Tooltip>
+                                                                        </TooltipProvider>
+                                                                    )}
                                                                     <span>•</span>
                                                                     <span>{version.isManual ? "Manual" : "Auto"}</span>
                                                                     {(version.insertions !== undefined && version.deletions !== undefined) && (version.insertions > 0 || version.deletions > 0) && (
                                                                         <>
                                                                             <span>•</span>
-                                                                            <span className="flex items-center gap-1 font-mono text-[9px]">
-                                                                                <span className="text-emerald-500">+{version.insertions}</span>
-                                                                                <span className="text-destructive">-{version.deletions}</span>
-                                                                            </span>
+                                                                            <TooltipProvider delayDuration={100}>
+                                                                                <Tooltip>
+                                                                                    <TooltipTrigger asChild>
+                                                                                        <span className="flex items-center gap-1 font-mono text-[9px] pointer-events-auto cursor-help px-1 py-0.5 rounded bg-muted/50 hover:bg-muted transition-colors">
+                                                                                            {version.insertions > 0 && (
+                                                                                                <span className="text-emerald-600 dark:text-emerald-400 font-semibold">+{version.insertions}</span>
+                                                                                            )}
+                                                                                            {version.deletions > 0 && (
+                                                                                                <span className="text-red-600 dark:text-red-400 font-semibold">-{version.deletions}</span>
+                                                                                            )}
+                                                                                        </span>
+                                                                                    </TooltipTrigger>
+                                                                                    <TooltipContent side="top" className="text-xs max-w-xs">
+                                                                                        <div className="space-y-1">
+                                                                                            {version.insertions > 0 && (
+                                                                                                <p><span className="text-emerald-500">+{version.insertions}</span> characters added</p>
+                                                                                            )}
+                                                                                            {version.deletions > 0 && (
+                                                                                                <p><span className="text-red-500">-{version.deletions}</span> characters removed</p>
+                                                                                            )}
+                                                                                            <p className="text-muted-foreground text-[10px] mt-1">
+                                                                                                Changes since previous version
+                                                                                            </p>
+                                                                                        </div>
+                                                                                    </TooltipContent>
+                                                                                </Tooltip>
+                                                                            </TooltipProvider>
                                                                         </>
                                                                     )}
                                                                 </div>
