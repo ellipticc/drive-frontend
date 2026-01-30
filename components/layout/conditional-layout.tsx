@@ -33,7 +33,7 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   // If device limit reached, only show overlay (don't render dashboard at all)
   // Allow /pricing page to render normally when device limit reached
   const isLockedOnBilling = deviceLimitReached && pathname === '/pricing';
-  
+
   if (deviceLimitReached && !isLockedOnBilling) {
     // Prevent body scroll when overlay is shown
     if (typeof document !== 'undefined') {
@@ -42,7 +42,7 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
     }
     return <DeviceLimitOverlay />;
   }
-  
+
   // Re-enable scroll when not showing overlay
   if (typeof document !== 'undefined') {
     document.documentElement.style.overflow = '';
@@ -59,7 +59,7 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
         } as React.CSSProperties
       }
     >
-      <AppSidebar variant="inset" side={dir === 'rtl' ? 'right' : 'left'} />
+      <AppSidebar variant="floating" side={dir === 'rtl' ? 'right' : 'left'} />
       <SidebarInset>
         {children}
       </SidebarInset>
