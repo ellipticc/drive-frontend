@@ -6,9 +6,20 @@ import { cn } from '@/lib/utils'
 import { Plate, PlateContent, usePlateEditor } from 'platejs/react'
 import { EditorKit } from '@/components/editor-kit'
 
-interface DiffBlockViewerProps {
+export interface DiffBlockViewerProps {
     oldContent: any[]
     newContent: any[]
+}
+
+// INLINE DIFF GUARD:
+// Complex blocks like Lists (ul, ol) and Tables crash if we replace their structural children (li, tr)
+// with plain text diff iterators. We strictly only allow inline diffing for simple text blocks.
+const INLINE_DIFFABLE_TYPES = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'code_line']
+
+function isInlineDiffable(type?: string) {
+    // Default to 'p' if type is missing, which is diffable
+    if (!type) return true;
+    return INLINE_DIFFABLE_TYPES.includes(type);
 }
 
 // Helper to extract text from a block (recursive)
@@ -36,9 +47,13 @@ function generateDiffContent(oldBlocks: any[], newBlocks: any[]) {
     const mergedContent: any[] = []
 
     blockDiffs.forEach((chunk) => {
+        // Safety check
+        if (!chunk.value) return;
+
         if (chunk.added) {
             // Added blocks: Mark each block in the chunk as added
             chunk.value.forEach(block => {
+                if (!block) return;
                 mergedContent.push({
                     ...block,
                     diffType: 'added',
@@ -47,6 +62,7 @@ function generateDiffContent(oldBlocks: any[], newBlocks: any[]) {
         } else if (chunk.removed) {
             // Removed blocks: Mark each block in the chunk as removed
             chunk.value.forEach(block => {
+                if (!block) return;
                 mergedContent.push({
                     ...block,
                     diffType: 'removed'
@@ -55,20 +71,23 @@ function generateDiffContent(oldBlocks: any[], newBlocks: any[]) {
         } else {
             // Unchanged chunks (ID matched). Check for text modifications.
             chunk.value.forEach(newBlock => {
+                if (!newBlock) return;
+
                 const oldBlock = oldBlocks.find(b => b.id === newBlock.id)
-                // If deep equal, just push
-                if (JSON.stringify(oldBlock) === JSON.stringify(newBlock)) {
+
+                // If deep equal, just push (optimization)
+                if (oldBlock && JSON.stringify(oldBlock) === JSON.stringify(newBlock)) {
                     mergedContent.push(newBlock)
                     return;
                 }
 
-                // If text changed, perform inline diff only if it's a simple text block (p, h1, etc)
+                // Inline Diff Check: Only run on safe text blocks
+                const canInlineDiff = isInlineDiffable(newBlock.type);
                 const oldText = getBlockText(oldBlock)
                 const newText = getBlockText(newBlock)
 
-                if (oldText !== newText) {
-                    // It's a modification. We need to construct new children with inline diffs.
-                    // We calculate diffChars on the plain text content.
+                if (canInlineDiff && oldText !== newText) {
+                    // It's a valid modification. Construct new children with inline diffs.
                     const charDiffs = Diff.diffChars(oldText, newText)
 
                     // Convert diff chunks into Plate Text Nodes (Leafs)
@@ -76,7 +95,7 @@ function generateDiffContent(oldBlocks: any[], newBlocks: any[]) {
                         return {
                             text: part.value,
                             diffType: part.added ? 'added' : part.removed ? 'removed' : undefined,
-                            strikethrough: part.removed, // Use standard marks if supported, but our renderer handles it
+                            // Note: we don't set 'strikethrough' mark to avoid confusing plugins; we handle style in renderLeaf
                         }
                     })
 
@@ -85,14 +104,27 @@ function generateDiffContent(oldBlocks: any[], newBlocks: any[]) {
                         children: newChildren
                     })
                 } else {
-                    // Content matches text-wise (maybe props changed?), just push new
+                    // Content matches text-wise OR it's a complex block (Table/List) where we can't safe-diff inline.
+                    // Just push the new state. User will see the updated list/table without red deletions, which is safe.
                     mergedContent.push(newBlock)
                 }
             })
         }
     })
 
-    return mergedContent
+    // CRITICAL: ID REGENERATION
+    // Slate/Plate requires unique IDs. Since we might have resurrected deleted blocks or duplicated structures,
+    // we MUST regenerate IDs for the view-only editor to prevent collision crashes.
+    return mergedContent.map((block, index) => {
+        if (!block || typeof block !== 'object') return { type: 'p', children: [{ text: '' }], id: `diff-safe-${index}` };
+
+        return {
+            ...block,
+            id: `diff-${Date.now()}-${index}`,
+            // Ensure children exist to prevent invalid node errors
+            children: Array.isArray(block.children) ? block.children : [{ text: '' }]
+        }
+    })
 }
 
 // 2. Custom Plugin to Render Diff Styles
@@ -117,7 +149,9 @@ export function DiffBlockViewer({ oldContent, newContent }: DiffBlockViewerProps
         const safeOld = Array.isArray(oldContent) ? oldContent : []
         const safeNew = Array.isArray(newContent) ? newContent : []
 
-        // Fix SlateJS crash NotFoundError by deep cloning the content
+        // DEEP CLONE to prevent mutating the original objects in history
+        // and to ensure new references for the editor. 
+        // This is ONE part of preventing Slate from crashing.
         const clonedOld = JSON.parse(JSON.stringify(safeOld))
         const clonedNew = JSON.parse(JSON.stringify(safeNew))
 
@@ -166,6 +200,7 @@ export function DiffBlockViewer({ oldContent, newContent }: DiffBlockViewerProps
 
     return (
         <div className="w-full bg-background rounded-lg border min-h-[500px]">
+            {/* Key forces complete unmount/remount when content changes, preventing Slate state mismatch errors (NotFoundError) */}
             <Plate editor={editor} key={editorId}>
                 <div className="p-8 md:p-12 max-w-[850px] mx-auto min-h-full">
                     <PlateContent
