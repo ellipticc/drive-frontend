@@ -3357,6 +3357,43 @@ class ApiClient {
     });
   }
 
+  // Shared file endpoints
+  async getSharedFile(shareId: string): Promise<ApiResponse<{
+    id: string;
+    name: string;
+    mime_type: string;
+    size: number;
+    encrypted_cek: string;
+    encrypted_name: string;
+    has_password: boolean;
+  }>> {
+    return this.request(`/shares/${shareId}`, {
+      method: 'GET',
+    });
+  }
+
+  async downloadSharedFile(
+    shareId: string,
+    keyOrPassword: string,
+    isPassword: boolean = false
+  ): Promise<ApiResponse<ArrayBuffer>> {
+    const body: Record<string, string> = {};
+    
+    if (isPassword) {
+      body.password = keyOrPassword;
+    } else {
+      body.cek = keyOrPassword;
+    }
+
+    return this.request(`/shares/${shareId}/download`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+  }
+
   private async hashFingerprint(data: string): Promise<string> {
     const msgBuffer = new TextEncoder().encode(data);
     const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
