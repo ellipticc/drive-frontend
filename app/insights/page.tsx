@@ -35,7 +35,7 @@ import { DateRange } from "react-day-picker"
 const chartConfig = {
   storage: {
     label: "Storage",
-    color: "hsl(var(--chart-1))",
+    color: "hsl(var(--primary))",
   },
   files: {
     label: "Files",
@@ -43,7 +43,7 @@ const chartConfig = {
   },
   uploads: {
     label: "Uploads",
-    color: "hsl(var(--chart-3))",
+    color: "hsl(var(--primary))",
   },
   size: {
     label: "Size",
@@ -51,7 +51,7 @@ const chartConfig = {
   },
   desktop: {
     label: "Desktop",
-    color: "hsl(var(--chart-1))",
+    color: "hsl(var(--primary))",
   },
   mobile: {
     label: "Mobile",
@@ -60,7 +60,7 @@ const chartConfig = {
 } satisfies ChartConfig
 
 const PIE_COLORS = [
-  "hsl(var(--chart-1))",
+  "hsl(var(--primary))",
   "hsl(var(--chart-2))",
   "hsl(var(--chart-3))",
   "hsl(var(--chart-4))",
@@ -316,33 +316,30 @@ export default function InsightsPage() {
         className="hidden"
       />
 
-      <main className="flex-1 overflow-y-auto pb-8 px-4 py-8 sm:px-6 lg:px-8">
-        <div className="w-full space-y-8">
+      <main className="flex-1 overflow-y-auto pb-8">
+        <div className="w-full max-w-[1600px] mx-auto space-y-6 px-4 py-6 sm:px-6 lg:px-8">
           {/* Page Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-4 lg:px-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Insights Dashboard</h1>
               <p className="text-muted-foreground mt-1">
                 Monitor your storage, activity, and performance
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              <Select value={timeRange} onValueChange={setTimeRange}>
-                <SelectTrigger className="w-[160px]">
-                  <SelectValue placeholder="Select range" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="7d">Last 7 days</SelectItem>
-                  <SelectItem value="30d">Last 30 days</SelectItem>
-                  <SelectItem value="90d">Last 3 months</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <Select value={timeRange} onValueChange={setTimeRange}>
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="Select range" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="7d">Last 7 days</SelectItem>
+                <SelectItem value="30d">Last 30 days</SelectItem>
+                <SelectItem value="90d">Last 3 months</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
-          <div className="flex flex-col gap-8">
-            {/* Stats Overview */}
-            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 px-4 lg:px-6">
+          {/* Stats Overview */}
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
               <Card>
                 <CardHeader className="pb-2">
                   <CardDescription className="text-xs font-medium uppercase">Used Storage</CardDescription>
@@ -376,9 +373,12 @@ export default function InsightsPage() {
               </Card>
 
               <Card>
-                <CardHeader className="pb-2">
-                  <CardDescription className="text-xs font-medium uppercase">Trash Items</CardDescription>
-                  <CardTitle className="text-2xl font-bold">{overview.deletedFiles.toLocaleString()}</CardTitle>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardDescription className="text-xs font-medium uppercase tracking-wider">Trash Items</CardDescription>
+                    <IconTrash className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <CardTitle className="text-3xl font-bold">{overview.deletedFiles.toLocaleString()}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-xs text-muted-foreground">
@@ -388,9 +388,12 @@ export default function InsightsPage() {
               </Card>
 
               <Card>
-                <CardHeader className="pb-2">
-                  <CardDescription className="text-xs font-medium uppercase">Storage Plan</CardDescription>
-                  <CardTitle className="text-2xl font-bold capitalize">{overview.plan}</CardTitle>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardDescription className="text-xs font-medium uppercase tracking-wider">Storage Plan</CardDescription>
+                    <IconChartBar className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <CardTitle className="text-3xl font-bold capitalize">{overview.plan}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-xs text-muted-foreground">
@@ -400,24 +403,28 @@ export default function InsightsPage() {
               </Card>
             </div>
 
-            {/* Charts Section */}
-            <div className="grid gap-4 grid-cols-1 lg:grid-cols-3 px-4 lg:px-6">
-              {/* Storage Usage Over Time */}
-              <div className="lg:col-span-2">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Storage Growth</CardTitle>
-                    <CardDescription>
-                      Storage usage over the last {timeRangeLabel}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ChartContainer config={chartConfig} className="h-[300px] w-full">
+          {/* Main Charts */}
+          <div className="grid gap-4 grid-cols-1 lg:grid-cols-3">
+            {/* Storage Growth */}
+            <div className="lg:col-span-2">
+              <Card className="h-full">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>Storage Growth</CardTitle>
+                      <CardDescription className="mt-1">
+                        Storage usage over the last {timeRangeLabel}
+                      </CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-2">
+                  <ChartContainer config={chartConfig} className="h-[280px] w-full">
                       <AreaChart data={storageChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                         <defs>
                           <linearGradient id="colorStorage" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="var(--color-storage)" stopOpacity={0.3} />
-                            <stop offset="95%" stopColor="var(--color-storage)" stopOpacity={0} />
+                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
                           </linearGradient>
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-muted" />
@@ -459,25 +466,25 @@ export default function InsightsPage() {
               </div>
 
               {/* File Type Breakdown */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Content Type</CardTitle>
-                  <CardDescription>
-                    Distribution by file type
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="h-[300px] flex items-center justify-center">
-                  <ChartContainer config={chartConfig} className="h-full w-full">
-                    <PieChart>
-                      <Pie
-                        data={typeChartData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={90}
-                        paddingAngle={2}
-                        dataKey="value"
-                      >
+            <Card className="h-full">
+              <CardHeader>
+                <CardTitle>Content Type</CardTitle>
+                <CardDescription className="mt-1">
+                  Distribution by file type
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="h-[280px] flex items-center justify-center pt-2">
+                <ChartContainer config={chartConfig} className="h-full w-full">
+                  <PieChart>
+                    <Pie
+                      data={typeChartData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={55}
+                      outerRadius={85}
+                      paddingAngle={2}
+                      dataKey="value"
+                    >
                         {typeChartData.map((_entry: any, index: number) => (
                           <Cell
                             key={`cell-${index}`}
@@ -497,17 +504,18 @@ export default function InsightsPage() {
               </Card>
             </div>
 
-            <div className="grid gap-4 grid-cols-1 lg:grid-cols-2 px-4 lg:px-6">
-              {/* Recent Activity */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Upload Activity</CardTitle>
-                  <CardDescription>
-                    New files uploaded in the last {timeRangeLabel}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ChartContainer config={chartConfig} className="h-[300px] w-full">
+          {/* Activity Charts */}
+          <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
+            {/* Upload Activity */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Upload Activity</CardTitle>
+                <CardDescription className="mt-1">
+                  New files uploaded in the last {timeRangeLabel}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-2">
+                <ChartContainer config={chartConfig} className="h-[280px] w-full">
                     <BarChart data={activityChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-muted" />
                       <XAxis
@@ -535,16 +543,16 @@ export default function InsightsPage() {
                 </CardContent>
               </Card>
 
-              {/* Monthly Growth */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Monthly Growth</CardTitle>
-                  <CardDescription>
-                    Storage and file count over the last 12 months
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ChartContainer config={chartConfig} className="h-[300px] w-full">
+            {/* Monthly Growth */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Monthly Growth</CardTitle>
+                <CardDescription className="mt-1">
+                  Storage and file count over the last 12 months
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-2">
+                <ChartContainer config={chartConfig} className="h-[280px] w-full">
                     <ComposedChart data={growthChartData} margin={{ top: 10, right: 5, left: -20, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-muted" />
                       <XAxis
@@ -588,55 +596,52 @@ export default function InsightsPage() {
                       <ChartLegend content={<ChartLegendContent />} />
                     </ComposedChart>
                   </ChartContainer>
-                </CardContent>
-              </Card>
-            </div>
+              </CardContent>
+            </Card>
+          </div>
 
-            {/* Largest Files */}
-            <div className="px-4 lg:px-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Largest Files</CardTitle>
-                  <CardDescription>
-                    Top 5 files by storage size
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {decryptedTopFiles.map((file) => (
-                      <div
-                        key={file.id}
-                        className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50"
-                      >
-                        <div className="flex items-center gap-3 overflow-hidden flex-1">
-                          <div className="p-2 rounded-md bg-muted">
-                            {getFileIcon(file.mimeType)}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="font-medium truncate text-sm">
-                              {file.name}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {format(new Date(file.createdAt), 'MMM d, yyyy')}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="text-right whitespace-nowrap pl-4">
-                          <p className="font-semibold text-sm">{file.sizeReadable}</p>
-                        </div>
+          {/* Largest Files */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Largest Files</CardTitle>
+              <CardDescription className="mt-1">
+                Top 5 files by storage size
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {decryptedTopFiles.map((file) => (
+                  <div
+                    key={file.id}
+                    className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50"
+                  >
+                    <div className="flex items-center gap-3 overflow-hidden flex-1">
+                      <div className="p-2 rounded-md bg-muted">
+                        {getFileIcon(file.mimeType)}
                       </div>
-                    ))}
-                    {decryptedTopFiles.length === 0 && (
-                      <p className="text-center text-muted-foreground py-8 text-sm">No files found</p>
-                    )}
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium truncate text-sm">
+                          {file.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {format(new Date(file.createdAt), 'MMM d, yyyy')}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right whitespace-nowrap pl-4">
+                      <p className="font-semibold text-sm">{file.sizeReadable}</p>
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
-            </div>
+                ))}
+                {decryptedTopFiles.length === 0 && (
+                  <p className="text-center text-muted-foreground py-8 text-sm">No files found</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
-            {/* Analytics Data Table */}
-            <div className="px-4 lg:px-6">
-              <Card className="shadow-md border-0 ring-1 ring-border/50">
+          {/* Analytics Data Table */}
+          <Card className="shadow-md border-0 ring-1 ring-border/50">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
                   <div className="space-y-1">
                     <CardTitle className="text-lg sm:text-xl flex items-center gap-2">
@@ -811,9 +816,7 @@ export default function InsightsPage() {
                 </CardContent>
               </Card>
             </div>
-          </div>
-        </div>
-      </main>
+          </main>
 
       {/* Wipe Confirmation Dialog */}
       <AlertDialog open={showWipeDialog} onOpenChange={setShowWipeDialog}>
