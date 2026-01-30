@@ -11,7 +11,7 @@ import { format } from "date-fns"
 import { useFormatter } from "@/hooks/use-formatter"
 import { getDiceBearAvatar } from "@/lib/avatar"
 import { PaperPreview } from "@/components/previews/paper-preview"
-import { DiffViewer } from "@/components/modals/diff-viewer"
+import { DiffBlockViewer } from "@/components/modals/diff-block-viewer"
 import { masterKeyManager } from "@/lib/master-key"
 import { paperService } from "@/lib/paper-service"
 import { decryptFilename, encryptFilename } from "@/lib/crypto"
@@ -323,6 +323,11 @@ export function VersionHistoryModal({
     }, [versions, previewVersionId]);
 
     const handlePreview = async (version: Version) => {
+        // Don't reload if already viewing this version
+        if (previewVersionId === version.id) {
+            return
+        }
+
         setPreviewVersionId(version.id)
         setPreviewLoading(true)
         setPreviewContent(null)
@@ -429,12 +434,10 @@ export function VersionHistoryModal({
                                             <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium pr-3 border-r">
                                                 <span>{formatDateTime(versions.find(v => v.id === previewVersionId)?.createdAt)}</span>
                                             </div>
-                                            {!showDiff && (
-                                                <div className="flex items-center gap-1 text-xs text-muted-foreground px-2 py-1 rounded bg-muted/40 font-semibold">
-                                                    <IconEye className="w-3.5 h-3.5" />
-                                                    View only
-                                                </div>
-                                            )}
+                                            <div className="flex items-center gap-1 text-xs text-muted-foreground px-2 py-1 rounded bg-muted/40 font-semibold">
+                                                <IconEye className="w-3.5 h-3.5" />
+                                                View only
+                                            </div>
                                         </>
                                     )}
                                 </div>
@@ -448,10 +451,9 @@ export function VersionHistoryModal({
                                     </div>
                                 ) : showDiff && previousContent && previewContent ? (
                                     <div className="w-full max-w-6xl">
-                                        <DiffViewer 
+                                        <DiffBlockViewer 
                                             oldContent={previousContent} 
                                             newContent={previewContent}
-                                            mode="unified"
                                         />
                                     </div>
                                 ) : previewContent ? (
@@ -584,33 +586,14 @@ export function VersionHistoryModal({
                                                                     {(version.insertions !== undefined && version.deletions !== undefined) && (version.insertions > 0 || version.deletions > 0) && (
                                                                         <>
                                                                             <span>•</span>
-                                                                            <TooltipProvider delayDuration={100}>
-                                                                                <Tooltip>
-                                                                                    <TooltipTrigger asChild>
-                                                                                        <span className="flex items-center gap-1 font-mono text-[9px] pointer-events-auto cursor-help px-1 py-0.5 rounded bg-muted/50 hover:bg-muted transition-colors">
-                                                                                            {version.insertions > 0 && (
-                                                                                                <span className="text-emerald-600 dark:text-emerald-400 font-semibold">+{version.insertions}</span>
-                                                                                            )}
-                                                                                            {version.deletions > 0 && (
-                                                                                                <span className="text-red-600 dark:text-red-400 font-semibold">-{version.deletions}</span>
-                                                                                            )}
-                                                                                        </span>
-                                                                                    </TooltipTrigger>
-                                                                                    <TooltipContent side="top" className="text-xs max-w-xs">
-                                                                                        <div className="space-y-1">
-                                                                                            {version.insertions > 0 && (
-                                                                                                <p><span className="text-emerald-500">+{version.insertions}</span> characters added</p>
-                                                                                            )}
-                                                                                            {version.deletions > 0 && (
-                                                                                                <p><span className="text-red-500">-{version.deletions}</span> characters removed</p>
-                                                                                            )}
-                                                                                            <p className="text-muted-foreground text-[10px] mt-1">
-                                                                                                Changes since previous version
-                                                                                            </p>
-                                                                                        </div>
-                                                                                    </TooltipContent>
-                                                                                </Tooltip>
-                                                                            </TooltipProvider>
+                                                                            <span className="flex items-center gap-1 font-mono text-[9px] px-1 py-0.5 rounded bg-muted/50">
+                                                                                {version.insertions > 0 && (
+                                                                                    <span className="text-emerald-600 dark:text-emerald-400 font-semibold">+{version.insertions}</span>
+                                                                                )}
+                                                                                {version.deletions > 0 && (
+                                                                                    <span className="text-red-600 dark:text-red-400 font-semibold">-{version.deletions}</span>
+                                                                                )}
+                                                                            </span>
                                                                         </>
                                                                     )}
                                                                 </div>
