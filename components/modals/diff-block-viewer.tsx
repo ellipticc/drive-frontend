@@ -1,52 +1,16 @@
 "use client"
 
-import React, { useMemo } from 'react'
+import { useMemo } from 'react'
+import { Plate, usePlateEditor, PlateController } from 'platejs/react'
 import * as Diff from 'diff'
 import { cn } from '@/lib/utils'
-import { Plate, PlateContent, usePlateEditor } from 'platejs/react'
-
-// Import individual kits to construct a READ-ONLY plugin set
-import { BasicBlocksKit } from '@/components/basic-blocks-kit';
-import { BasicMarksKit } from '@/components/basic-marks-kit';
-import { CodeBlockKit } from '@/components/code-block-kit';
-import { TableKit } from '@/components/table-kit';
-import { ToggleKit } from '@/components/toggle-kit';
-import { MediaKit } from '@/components/media-kit';
-import { CalloutKit } from '@/components/callout-kit';
-import { ColumnKit } from '@/components/column-kit';
-import { MathKit } from '@/components/math-kit';
-import { DateKit } from '@/components/date-kit';
-import { LinkKit } from '@/components/link-kit';
-import { MentionKit } from '@/components/mention-kit';
-import { FontKit } from '@/components/font-kit';
-import { ListKit } from '@/components/list-kit';
-import { AlignKit } from '@/components/align-kit';
-import { LineHeightKit } from '@/components/line-height-kit';
+import { Editor } from '@/components/ui/editor'
+import { EditorKit } from '@/components/editor-kit'
 
 export interface DiffBlockViewerProps {
     oldContent: any[]
     newContent: any[]
 }
-
-// Minimal Plugin Set
-const DiffViewerPlugins = [
-    ...BasicBlocksKit,
-    ...BasicMarksKit,
-    ...CodeBlockKit,
-    ...TableKit,
-    ...ToggleKit,
-    ...MediaKit,
-    ...CalloutKit,
-    ...ColumnKit,
-    ...MathKit,
-    ...DateKit,
-    ...LinkKit,
-    ...MentionKit,
-    ...FontKit,
-    ...ListKit,
-    ...AlignKit,
-    ...LineHeightKit,
-];
 
 const INLINE_DIFFABLE_TYPES = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'code_line']
 
@@ -189,11 +153,11 @@ export function DiffBlockViewer({ oldContent, newContent }: DiffBlockViewerProps
     // Force unique editor instance when content changes
     const editorId = useMemo(() => `diff-editor-${Date.now()}-${Math.random()}`, [diffContent])
 
-    // Setup Plate Editor with MINIMAL plugins
+    // Setup Plate Editor with EditorKit (like preview component)
     const editor = usePlateEditor({
         id: editorId,
         plugins: [
-            ...DiffViewerPlugins, // Replaced EditorKit with safe subset
+            ...EditorKit,
             DiffPlugin as any
         ],
         value: diffContent
@@ -226,17 +190,18 @@ export function DiffBlockViewer({ oldContent, newContent }: DiffBlockViewerProps
     }
 
     return (
-        <div className="w-full bg-background rounded-lg border min-h-[500px]">
-            {/* Key forces complete unmount/remount when content changes */}
+        <PlateController>
             <Plate editor={editor} key={editorId}>
-                <div className="p-8 md:p-12 max-w-[850px] mx-auto min-h-full">
-                    <PlateContent
-                        readOnly
-                        renderLeaf={renderLeaf}
-                        className="outline-none min-h-full"
-                    />
+                <div className="w-full flex justify-center bg-background min-h-full">
+                    <div className="w-full max-w-[850px] px-8 md:px-16 py-12">
+                        <Editor
+                            readOnly
+                            renderLeaf={renderLeaf}
+                            className="border-none shadow-none focus-visible:ring-0"
+                        />
+                    </div>
                 </div>
             </Plate>
-        </div>
+        </PlateController>
     )
 }
