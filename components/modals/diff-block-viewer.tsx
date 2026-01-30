@@ -116,11 +116,21 @@ export function DiffBlockViewer({ oldContent, newContent }: DiffBlockViewerProps
     const diffContent = useMemo(() => {
         const safeOld = Array.isArray(oldContent) ? oldContent : []
         const safeNew = Array.isArray(newContent) ? newContent : []
-        return generateDiffContent(safeOld, safeNew)
+
+        // Fix SlateJS crash NotFoundError by deep cloning the content
+        const clonedOld = JSON.parse(JSON.stringify(safeOld))
+        const clonedNew = JSON.parse(JSON.stringify(safeNew))
+
+        return generateDiffContent(clonedOld, clonedNew)
     }, [oldContent, newContent])
+
+    // Force unique editor instance when content changes
+    // We use a simple timestamp + random number as key to force remount
+    const editorId = useMemo(() => `diff-editor-${Date.now()}-${Math.random()}`, [diffContent])
 
     // Setup Plate Editor
     const editor = usePlateEditor({
+        id: editorId,
         plugins: [
             ...EditorKit,
             DiffPlugin as any
@@ -156,7 +166,7 @@ export function DiffBlockViewer({ oldContent, newContent }: DiffBlockViewerProps
 
     return (
         <div className="w-full bg-background rounded-lg border min-h-[500px]">
-            <Plate editor={editor}>
+            <Plate editor={editor} key={editorId}>
                 <div className="p-8 md:p-12 max-w-[850px] mx-auto min-h-full">
                     <PlateContent
                         readOnly
