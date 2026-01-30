@@ -629,6 +629,9 @@ class PaperService {
                             deletions += part.count || 0;
                         }
                     });
+                    console.log(`[PaperService] Diff calculated: +${insertions} -${deletions}`);
+                } else {
+                    console.warn('[PaperService] One-time warning: lastSavedContent was empty during save (First save of session or fresh load).');
                 }
                 this.lastSavedContent = currentContentStr;
             } catch (e) {
@@ -972,6 +975,9 @@ class PaperService {
         } catch (err) {
             console.error('[PaperService] Failed to apply offline changes', err);
         }
+
+        // Initialize lastSavedContent for diff tracking
+        this.lastSavedContent = JSON.stringify(content);
 
         return {
             id: paper.id,
