@@ -4,16 +4,50 @@ import React, { useMemo } from 'react'
 import * as Diff from 'diff'
 import { cn } from '@/lib/utils'
 import { Plate, PlateContent, usePlateEditor } from 'platejs/react'
-import { EditorKit } from '@/components/editor-kit'
+
+// Import individual kits to construct a READ-ONLY plugin set
+import { BasicBlocksKit } from '@/components/basic-blocks-kit';
+import { BasicMarksKit } from '@/components/basic-marks-kit';
+import { CodeBlockKit } from '@/components/code-block-kit';
+import { TableKit } from '@/components/table-kit';
+import { ToggleKit } from '@/components/toggle-kit';
+import { MediaKit } from '@/components/media-kit';
+import { CalloutKit } from '@/components/callout-kit';
+import { ColumnKit } from '@/components/column-kit';
+import { MathKit } from '@/components/math-kit';
+import { DateKit } from '@/components/date-kit';
+import { LinkKit } from '@/components/link-kit';
+import { MentionKit } from '@/components/mention-kit';
+import { FontKit } from '@/components/font-kit';
+import { ListKit } from '@/components/list-kit';
+import { AlignKit } from '@/components/align-kit';
+import { LineHeightKit } from '@/components/line-height-kit';
 
 export interface DiffBlockViewerProps {
     oldContent: any[]
     newContent: any[]
 }
 
-// INLINE DIFF GUARD:
-// Complex blocks like Lists (ul, ol) and Tables crash if we replace their structural children (li, tr)
-// with plain text diff iterators. We strictly only allow inline diffing for simple text blocks.
+// Minimal Plugin Set
+const DiffViewerPlugins = [
+    ...BasicBlocksKit,
+    ...BasicMarksKit,
+    ...CodeBlockKit,
+    ...TableKit,
+    ...ToggleKit,
+    ...MediaKit,
+    ...CalloutKit,
+    ...ColumnKit,
+    ...MathKit,
+    ...DateKit,
+    ...LinkKit,
+    ...MentionKit,
+    ...FontKit,
+    ...ListKit,
+    ...AlignKit,
+    ...LineHeightKit,
+];
+
 const INLINE_DIFFABLE_TYPES = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'code_line']
 
 function isInlineDiffable(type?: string) {
@@ -104,17 +138,13 @@ function generateDiffContent(oldBlocks: any[], newBlocks: any[]) {
                         children: newChildren
                     })
                 } else {
-                    // Content matches text-wise OR it's a complex block (Table/List) where we can't safe-diff inline.
-                    // Just push the new state. User will see the updated list/table without red deletions, which is safe.
                     mergedContent.push(newBlock)
                 }
             })
         }
     })
 
-    // CRITICAL: ID REGENERATION
-    // Slate/Plate requires unique IDs. Since we might have resurrected deleted blocks or duplicated structures,
-    // we MUST regenerate IDs for the view-only editor to prevent collision crashes.
+    // ID REGENERATION
     return mergedContent.map((block, index) => {
         if (!block || typeof block !== 'object') return { type: 'p', children: [{ text: '' }], id: `diff-safe-${index}` };
 
@@ -150,8 +180,6 @@ export function DiffBlockViewer({ oldContent, newContent }: DiffBlockViewerProps
         const safeNew = Array.isArray(newContent) ? newContent : []
 
         // DEEP CLONE to prevent mutating the original objects in history
-        // and to ensure new references for the editor. 
-        // This is ONE part of preventing Slate from crashing.
         const clonedOld = JSON.parse(JSON.stringify(safeOld))
         const clonedNew = JSON.parse(JSON.stringify(safeNew))
 
@@ -159,14 +187,13 @@ export function DiffBlockViewer({ oldContent, newContent }: DiffBlockViewerProps
     }, [oldContent, newContent])
 
     // Force unique editor instance when content changes
-    // We use a simple timestamp + random number as key to force remount
     const editorId = useMemo(() => `diff-editor-${Date.now()}-${Math.random()}`, [diffContent])
 
-    // Setup Plate Editor
+    // Setup Plate Editor with MINIMAL plugins
     const editor = usePlateEditor({
         id: editorId,
         plugins: [
-            ...EditorKit,
+            ...DiffViewerPlugins, // Replaced EditorKit with safe subset
             DiffPlugin as any
         ],
         value: diffContent
@@ -200,7 +227,7 @@ export function DiffBlockViewer({ oldContent, newContent }: DiffBlockViewerProps
 
     return (
         <div className="w-full bg-background rounded-lg border min-h-[500px]">
-            {/* Key forces complete unmount/remount when content changes, preventing Slate state mismatch errors (NotFoundError) */}
+            {/* Key forces complete unmount/remount when content changes */}
             <Plate editor={editor} key={editorId}>
                 <div className="p-8 md:p-12 max-w-[850px] mx-auto min-h-full">
                     <PlateContent
