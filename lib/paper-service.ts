@@ -40,6 +40,15 @@ function encryptData(data: Uint8Array, key: Uint8Array): { encryptedData: string
     };
 }
 
+function extractPaperText(blocks: any[]): string {
+    if (!Array.isArray(blocks)) return '';
+    return blocks.map(block => {
+        if (block.text) return block.text;
+        if (block.children) return extractPaperText(block.children);
+        return '';
+    }).join('\n');
+}
+
 interface ManifestEntry {
     id: string; // Block ID
     chunkId: string; // ID of the chunk storing this block's content
@@ -61,7 +70,7 @@ class PaperService {
     private sessionId: string | null = null;
     private sessionTimer: NodeJS.Timeout | null = null;
     private readonly SESSION_TIMEOUT = 60 * 60 * 1000; // 1 hour in milliseconds
-    private lastSavedContent: string = '';
+    private lastSavedText: string = '';
 
     private worker: Worker | null = null;
     private workerCallbacks = new Map<string, { resolve: (data: any) => void; reject: (err: any) => void }>();
@@ -618,9 +627,10 @@ class PaperService {
             let insertions = 0;
             let deletions = 0;
             try {
-                const currentContentStr = JSON.stringify(content);
-                if (this.lastSavedContent) {
-                    const changes = Diff.diffLines(this.lastSavedContent, currentContentStr);
+                const currentText = extractPaperText(content as any[]);
+                if (this.lastSavedText) {
+                    // diffChars provides character precision
+                    const changes = Diff.diffChars(this.lastSavedText, currentText);
                     changes.forEach(part => {
                         if (part.added) {
                             insertions += part.count || 0;
@@ -630,10 +640,8 @@ class PaperService {
                         }
                     });
                     console.log(`[PaperService] Diff calculated: +${insertions} -${deletions}`);
-                } else {
-                    console.warn('[PaperService] One-time warning: lastSavedContent was empty during save (First save of session or fresh load).');
                 }
-                this.lastSavedContent = currentContentStr;
+                this.lastSavedText = currentText;
             } catch (e) {
                 console.warn('[PaperService] Failed to calculate diff stats', e);
             }
@@ -976,8 +984,8 @@ class PaperService {
             console.error('[PaperService] Failed to apply offline changes', err);
         }
 
-        // Initialize lastSavedContent for diff tracking
-        this.lastSavedContent = JSON.stringify(content);
+        // Initialize lastSavedText for diff tracking
+        this.lastSavedText = extractPaperText(content);
 
         return {
             id: paper.id,
