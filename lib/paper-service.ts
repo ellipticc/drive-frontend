@@ -626,8 +626,9 @@ class PaperService {
             // Calculate diff stats
             let insertions = 0;
             let deletions = 0;
+            let currentText = '';
             try {
-                const currentText = extractPaperText(contentBlocks);
+                currentText = extractPaperText(contentBlocks);
                 if (this.lastSavedText) {
                     // diffChars provides character precision
                     const changes = Diff.diffChars(this.lastSavedText, currentText);
@@ -641,7 +642,6 @@ class PaperService {
                     });
                     console.log(`[PaperService] Diff calculated: +${insertions} -${deletions}`);
                 }
-                this.lastSavedText = currentText;
             } catch (e) {
                 console.warn('[PaperService] Failed to calculate diff stats', e);
             }
@@ -661,10 +661,13 @@ class PaperService {
                 if (!response.success) {
                     throw new Error(response.error || 'Failed to save paper');
                 }
+                // Only update lastSavedText after successful save
+                this.lastSavedText = currentText;
             } catch (err) {
                 console.warn('[PaperService] API Save failed. Queueing manifest update...', err);
                 // Queue the manifest update (which commits the new state)
                 await syncManager.enqueueFailedUpload(paperId, 'save_manifest', commitPayload, title);
+                // Don't update lastSavedText if save failed
             }
 
             // Update Cache ONLY after "success" (or queued success)
