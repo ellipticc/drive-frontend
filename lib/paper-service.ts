@@ -40,7 +40,7 @@ function encryptData(data: Uint8Array, key: Uint8Array): { encryptedData: string
     };
 }
 
-function extractPaperText(blocks: any[]): string {
+export function extractPaperText(blocks: any[]): string {
     if (!Array.isArray(blocks)) return '';
     return blocks.map(block => {
         if (block.text) return block.text;

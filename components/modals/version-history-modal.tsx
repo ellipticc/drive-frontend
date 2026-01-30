@@ -337,7 +337,7 @@ export function VersionHistoryModal({
             // Load current version
             const paperData = await paperService.getPaperVersion(fileId, version.id)
             setPreviewContent(paperData.content)
-            
+
             // Load previous version for diff (if not the oldest version)
             const versionIndex = versions.findIndex(v => v.id === version.id)
             if (versionIndex < versions.length - 1) {
@@ -348,6 +348,9 @@ export function VersionHistoryModal({
                 } catch (err) {
                     console.warn('Failed to load previous version for diff:', err)
                 }
+            } else {
+                // Oldest version: compare against empty content
+                setPreviousContent([])
             }
         } catch (e) {
             console.error(e)
@@ -451,8 +454,8 @@ export function VersionHistoryModal({
                                     </div>
                                 ) : showDiff && previousContent && previewContent ? (
                                     <div className="w-full max-w-6xl">
-                                        <DiffBlockViewer 
-                                            oldContent={previousContent} 
+                                        <DiffBlockViewer
+                                            oldContent={previousContent}
                                             newContent={previewContent}
                                         />
                                     </div>
@@ -562,8 +565,8 @@ export function VersionHistoryModal({
                                                                                 <TooltipTrigger asChild>
                                                                                     <div className="flex items-center gap-1.5 pointer-events-auto cursor-help">
                                                                                         <Avatar className="w-4 h-4">
-                                                                                            <AvatarImage 
-                                                                                                src={version.createdBy.avatar || getDiceBearAvatar(version.createdBy.email || 'user', 16)} 
+                                                                                            <AvatarImage
+                                                                                                src={version.createdBy.avatar || getDiceBearAvatar(version.createdBy.email || 'user', 16)}
                                                                                                 alt={version.createdBy.name || version.createdBy.email}
                                                                                             />
                                                                                             <AvatarFallback className="text-[8px]">
