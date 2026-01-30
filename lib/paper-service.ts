@@ -9,6 +9,7 @@ import { xchacha20poly1305 } from '@noble/ciphers/chacha.js';
 import { keyManager } from './key-manager';
 import { syncManager } from './sync-manager';
 import { LexoRank } from './lexorank';
+import * as Diff from 'diff';
 
 import {
     encryptPaperContent,
@@ -60,6 +61,7 @@ class PaperService {
     private sessionId: string | null = null;
     private sessionTimer: NodeJS.Timeout | null = null;
     private readonly SESSION_TIMEOUT = 60 * 60 * 1000; // 1 hour in milliseconds
+    private lastSavedContent: string = '';
 
     private worker: Worker | null = null;
     private workerCallbacks = new Map<string, { resolve: (data: any) => void; reject: (err: any) => void }>();
@@ -612,12 +614,35 @@ class PaperService {
                 return { ...base, content: c.content };
             });
 
+            // Calculate diff stats
+            let insertions = 0;
+            let deletions = 0;
+            try {
+                const currentContentStr = JSON.stringify(content);
+                if (this.lastSavedContent) {
+                    const changes = Diff.diffLines(this.lastSavedContent, currentContentStr);
+                    changes.forEach(part => {
+                        if (part.added) {
+                            insertions += part.count || 0;
+                        }
+                        if (part.removed) {
+                            deletions += part.count || 0;
+                        }
+                    });
+                }
+                this.lastSavedContent = currentContentStr;
+            } catch (e) {
+                console.warn('[PaperService] Failed to calculate diff stats', e);
+            }
+
             const commitPayload = {
                 ...updateData,
                 manifest: manifestPayload,
                 chunksToUpload: finalChunksPayload, // Note: backend won't save these if empty or uploaded=true
                 chunksToDelete: blocksToDelete,
-                sessionId: this.ensureSessionId() // Add session ID for activity deduplication
+                sessionId: this.ensureSessionId(), // Add session ID for activity deduplication
+                insertions,
+                deletions
             };
 
             try {

@@ -49,6 +49,8 @@ interface Version {
     customName?: string
     customNameSalt?: string
     decryptedName?: string // Decrypted on client
+    insertions?: number
+    deletions?: number
 }
 
 interface VersionHistoryModalProps {
@@ -496,33 +498,57 @@ export function VersionHistoryModal({
                                                                     <span>{formatSize(version.totalSize)}</span>
                                                                     <span>•</span>
                                                                     <span>{version.isManual ? "Manual" : "Auto"}</span>
+                                                                    {(version.insertions !== undefined && version.deletions !== undefined) && (version.insertions > 0 || version.deletions > 0) && (
+                                                                        <>
+                                                                            <span>•</span>
+                                                                            <span className="flex items-center gap-1 font-mono text-[9px]">
+                                                                                <span className="text-emerald-500">+{version.insertions}</span>
+                                                                                <span className="text-destructive">-{version.deletions}</span>
+                                                                            </span>
+                                                                        </>
+                                                                    )}
                                                                 </div>
 
                                                                 {/* Hover Actions */}
                                                                 {idx !== 0 && (
                                                                     <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                                                                        <Button
-                                                                            variant="ghost"
-                                                                            size="icon"
-                                                                            className="h-6 w-6 text-muted-foreground hover:bg-muted hover:text-foreground"
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                openRenameDialog(version.id);
-                                                                            }}
-                                                                        >
-                                                                            <IconPencil className="w-3.5 h-3.5" />
-                                                                        </Button>
-                                                                        <Button
-                                                                            variant="ghost"
-                                                                            size="icon"
-                                                                            className="h-6 w-6 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                setConfirmDeleteId(version.id);
-                                                                            }}
-                                                                        >
-                                                                            <IconTrash className="w-3.5 h-3.5" />
-                                                                        </Button>
+                                                                        <TooltipProvider delayDuration={0}>
+                                                                            <Tooltip>
+                                                                                <TooltipTrigger asChild>
+                                                                                    <Button
+                                                                                        variant="ghost"
+                                                                                        size="icon"
+                                                                                        className="h-6 w-6 text-muted-foreground hover:bg-muted hover:text-foreground"
+                                                                                        onClick={(e) => {
+                                                                                            e.stopPropagation();
+                                                                                            openRenameDialog(version.id);
+                                                                                        }}
+                                                                                    >
+                                                                                        <IconPencil className="w-3.5 h-3.5" />
+                                                                                    </Button>
+                                                                                </TooltipTrigger>
+                                                                                <TooltipContent>Rename version</TooltipContent>
+                                                                            </Tooltip>
+                                                                        </TooltipProvider>
+
+                                                                        <TooltipProvider delayDuration={0}>
+                                                                            <Tooltip>
+                                                                                <TooltipTrigger asChild>
+                                                                                    <Button
+                                                                                        variant="ghost"
+                                                                                        size="icon"
+                                                                                        className="h-6 w-6 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                                                                        onClick={(e) => {
+                                                                                            e.stopPropagation();
+                                                                                            setConfirmDeleteId(version.id);
+                                                                                        }}
+                                                                                    >
+                                                                                        <IconTrash className="w-3.5 h-3.5" />
+                                                                                    </Button>
+                                                                                </TooltipTrigger>
+                                                                                <TooltipContent>Delete version</TooltipContent>
+                                                                            </Tooltip>
+                                                                        </TooltipProvider>
                                                                     </div>
                                                                 )}
                                                             </button>

@@ -1866,18 +1866,7 @@ class ApiClient {
     return this.request(`/papers/${id}`);
   }
 
-  async savePaperBlocks(paperId: string, data: {
-    encryptedTitle?: string;
-    titleSalt?: string;
-    manifest?: string;
-    chunksToUpload?: Array<{ chunkId: string; content: string; size: number }>;
-    chunksToDelete?: string[];
-  }): Promise<ApiResponse> {
-    return this.request(`/papers/${paperId}/blocks`, {
-      method: 'POST',
-      body: JSON.stringify(data)
-    });
-  }
+
 
   async getPaperUploadUrls(paperId: string, blocks: Array<{ blockId: string; size: number; checksum?: string }>): Promise<ApiResponse<{ urls: Record<string, string> }>> {
     return this.request(`/papers/${paperId}/s3`, {
@@ -2726,11 +2715,30 @@ class ApiClient {
     return this.request(`/papers/${fileId}/versions`);
   }
 
+  async savePaperBlocks(fileId: string, data: {
+    manifest: any;
+    chunksToUpload: any[];
+    chunksToDelete: string[];
+    encryptedTitle?: string;
+    titleSalt?: string;
+    sessionId?: string;
+    insertions?: number;
+    deletions?: number;
+  }): Promise<ApiResponse<{
+    success: boolean;
+    message: string;
+  }>> {
+    return this.request(`/papers/${fileId}/blocks`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
   async getPaperVersion(fileId: string, versionId: string): Promise<ApiResponse<Paper>> {
     return this.request(`/papers/${fileId}/versions/${versionId}/preview`);
   }
 
-  async savePaperVersion(fileId: string, isManual = true, triggerType = 'manual'): Promise<ApiResponse<{
+  async savePaperVersion(fileId: string, isManual = true, triggerType = 'manual', insertions?: number, deletions?: number): Promise<ApiResponse<{
     success: boolean;
     message: string;
     versionId: string;
@@ -2740,7 +2748,7 @@ class ApiClient {
   }>> {
     return this.request(`/papers/${fileId}/versions`, {
       method: 'POST',
-      body: JSON.stringify({ isManual, triggerType })
+      body: JSON.stringify({ isManual, triggerType, insertions, deletions })
     });
   }
 
@@ -3378,7 +3386,7 @@ class ApiClient {
     isPassword: boolean = false
   ): Promise<ApiResponse<ArrayBuffer>> {
     const body: Record<string, string> = {};
-    
+
     if (isPassword) {
       body.password = keyOrPassword;
     } else {
