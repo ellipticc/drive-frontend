@@ -1322,7 +1322,7 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                         </table>
                     </div>
                 </div>
-                {sessionsTotal > 5 && (
+                {sessionsTotal > 0 && (
                     <div className="flex items-center justify-between mt-4">
                         <p className="text-xs text-muted-foreground">
                             Showing {userSessions.length} of {sessionsTotal} sessions
@@ -1770,7 +1770,7 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                         </table>
                     </div>
                 </div>
-                {devicesTotal > 5 && (
+                {devicesTotal > 0 && (
                     <div className="flex items-center justify-between mt-4">
                         <p className="text-xs text-muted-foreground">
                             Showing {userDevices.length} of {devicesTotal} devices
@@ -2323,7 +2323,7 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                         </table>
                     </div>
                 </div>
-                {securityEventsTotal > 10 && (
+                {securityEventsTotal > 0 && (
                     <div className="flex items-center justify-between mt-4">
                         <p className="text-xs text-muted-foreground">
                             Showing {securityEvents.length} of {securityEventsTotal} events
