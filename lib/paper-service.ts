@@ -356,9 +356,35 @@ class PaperService {
     /**
      * Trigger a version snapshot explicitly
      */
-    async snapshot(paperId: string, triggerType: 'manual' | 'share' | 'export' | 'close'): Promise<void> {
+    async snapshot(paperId: string, triggerType: 'manual' | 'share' | 'export' | 'close', content?: any): Promise<void> {
         try {
-            await apiClient.savePaperVersion(paperId, false, triggerType);
+            let insertions: number | undefined;
+            let deletions: number | undefined;
+
+            // Calculate diff if content is provided
+            if (content) {
+                try {
+                    const currentText = extractPaperText(Array.isArray(content) ? content : content.content || []);
+                    if (this.lastSavedText) {
+                        insertions = 0;
+                        deletions = 0;
+                        const changes = Diff.diffChars(this.lastSavedText, currentText);
+                        changes.forEach(part => {
+                            if (part.added) {
+                                insertions! += part.count || 0;
+                            }
+                            if (part.removed) {
+                                deletions! += part.count || 0;
+                            }
+                        });
+                        console.log(`[PaperService] Snapshot diff calculated: +${insertions} -${deletions}`);
+                    }
+                } catch (e) {
+                    console.warn('[PaperService] Failed to calculate snapshot diff stats', e);
+                }
+            }
+
+            await apiClient.savePaperVersion(paperId, false, triggerType, insertions, deletions);
         } catch (e) {
             console.error('[PaperService] Snapshot failed', e);
         }

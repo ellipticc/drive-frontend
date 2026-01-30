@@ -733,18 +733,18 @@ function PaperPageContent() {
                 if (currentDataStr !== lastSavedContentRef.current) {
                     // If we have local changes, save them immediately before snapshotting
                     paperService.savePaper(fileId, currentData)
-                        .then(() => paperService.snapshot(fileId, 'close'))
+                        .then(() => paperService.snapshot(fileId, 'close', currentData))
                         .catch(e => {
                             console.error("Final unmount save failed", e);
                             // Still try to snapshot what we have
-                            paperService.snapshot(fileId, 'close');
+                            paperService.snapshot(fileId, 'close', currentData);
                         });
                 } else {
                     // No new changes, just snapshot
-                    paperService.snapshot(fileId, 'close').catch(e => console.error("Close snapshot failed", e));
+                    paperService.snapshot(fileId, 'close', currentData).catch(e => console.error("Close snapshot failed", e));
                 }
             } else {
-                paperService.snapshot(fileId, 'close').catch(e => console.error("Close snapshot failed", e));
+                paperService.snapshot(fileId, 'close', latestContentRef.current ? { content: latestContentRef.current, icon: latestIconRef.current } : undefined).catch(e => console.error("Close snapshot failed", e));
             }
         };
     }, [fileId]);
