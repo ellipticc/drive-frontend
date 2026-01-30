@@ -40,13 +40,19 @@ function encryptData(data: Uint8Array, key: Uint8Array): { encryptedData: string
     };
 }
 
+// Helper to extract text from a node tree (leaf nodes)
+function extractNodeText(node: any): string {
+    if (!node) return '';
+    if (typeof node.text === 'string') return node.text;
+    if (Array.isArray(node.children)) {
+        return node.children.map(extractNodeText).join('');
+    }
+    return '';
+}
+
 export function extractPaperText(blocks: any[]): string {
     if (!Array.isArray(blocks)) return '';
-    return blocks.map(block => {
-        if (block.text) return block.text;
-        if (block.children) return extractPaperText(block.children);
-        return '';
-    }).join('\n');
+    return blocks.map(block => extractNodeText(block)).join('\n');
 }
 
 interface ManifestEntry {

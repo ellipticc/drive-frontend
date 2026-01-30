@@ -100,7 +100,7 @@ interface PaperHeaderProps {
 // Helper to count words from editor value
 function countWords(value: Value | undefined): { words: number; characters: number; charactersNoSpaces: number } {
     if (!value || !Array.isArray(value)) return { words: 0, characters: 0, charactersNoSpaces: 0 };
-    
+
     let text = '';
     const extractText = (nodes: any[]): void => {
         nodes.forEach(node => {
@@ -112,13 +112,13 @@ function countWords(value: Value | undefined): { words: number; characters: numb
             }
         });
     };
-    
+
     extractText(value);
-    
+
     const words = text.trim().split(/\s+/).filter(w => w.length > 0).length;
     const characters = text.length;
     const charactersNoSpaces = text.replace(/\s/g, '').length;
-    
+
     return { words, characters, charactersNoSpaces };
 }
 
@@ -220,7 +220,7 @@ function PaperHeader({
 
         // Switch theme
         const newTheme = theme === "light" ? "dark" : "light";
-        
+
         const switchTheme = () => {
             setTheme(newTheme);
         };
@@ -295,7 +295,7 @@ function PaperHeader({
                                 <IconHistory className="w-4 h-4 mr-2" />
                                 See version history
                             </DropdownMenuItem>
-                            
+
                             <DropdownMenuSub>
                                 <DropdownMenuSubTrigger>
                                     <IconLetterCase className="w-4 h-4 mr-2" />
@@ -329,21 +329,21 @@ function PaperHeader({
                                     </div>
                                 </DropdownMenuSubContent>
                             </DropdownMenuSub>
-                            
+
                             <DropdownMenuSeparator />
-                            
+
                             <DropdownMenuItem onClick={onMoveToTrash} className="text-destructive focus:text-destructive">
                                 <IconTrash className="w-4 h-4 mr-2" />
                                 Move to trash
                             </DropdownMenuItem>
-                            
+
                             <DropdownMenuSeparator />
-                            
+
                             <DropdownMenuItem onClick={onPrint}>
                                 <IconPrinter className="w-4 h-4 mr-2" />
                                 Print
                             </DropdownMenuItem>
-                            
+
                             <DropdownMenuSub>
                                 <DropdownMenuSubTrigger>
                                     <IconDownload className="w-4 h-4 mr-2" />
@@ -372,14 +372,14 @@ function PaperHeader({
                                     </DropdownMenuItem>
                                 </DropdownMenuSubContent>
                             </DropdownMenuSub>
-                            
+
                             <DropdownMenuItem onClick={onCopyAsMarkdown}>
                                 <IconCopy className="w-4 h-4 mr-2" />
                                 Copy as Markdown
                             </DropdownMenuItem>
-                            
+
                             <DropdownMenuSeparator />
-                            
+
                             <DropdownMenuItem onSelect={() => setSupportDialogOpen(true)}>
                                 <IconHelp className="w-4 h-4 mr-2" />
                                 Help
@@ -430,7 +430,7 @@ function PaperHeader({
                         </>
                     )}
                 </div>
-                
+
                 {/* Mobile Menu Dropdown */}
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild className="md:hidden">
@@ -536,12 +536,12 @@ function PaperEditorView({
         }
         return 'words';
     });
-    
+
     // Save display mode to localStorage
     useEffect(() => {
         localStorage.setItem('wordCountDisplayMode', displayMode);
     }, [displayMode]);
-    
+
     const editor = usePlateEditor({
         plugins: EditorKit,
         value: initialValue,
@@ -605,8 +605,8 @@ function PaperEditorView({
                         <FixedToolbarButtons />
                     </FixedToolbar>
 
-                    <main className="flex-1 overflow-y-auto relative min-h-0" style={{scrollbarGutter: 'stable'}}>
-                        <EditorContainer className="h-full w-full flex md:justify-center">
+                    <main className="flex-1 overflow-y-auto relative min-h-0" style={{ scrollbarGutter: 'stable' }}>
+                        <EditorContainer className="min-h-full h-auto w-full flex md:justify-center overflow-visible">
                             <div className="w-full md:max-w-[950px] px-4 sm:px-6 md:px-12 pt-3 md:pt-4 pb-48">
                                 <Editor
                                     className="min-h-full w-full border-none shadow-none focus-visible:ring-0 transition-all text-base md:text-base"
@@ -625,18 +625,16 @@ function PaperEditorView({
                                         <div className="border-b px-3 py-2 space-y-1">
                                             <button
                                                 onClick={() => setDisplayMode('words')}
-                                                className={`flex items-center gap-2 px-2 py-1 text-xs w-full rounded transition-colors ${
-                                                    displayMode === 'words' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/50'
-                                                }`}
+                                                className={`flex items-center gap-2 px-2 py-1 text-xs w-full rounded transition-colors ${displayMode === 'words' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/50'
+                                                    }`}
                                             >
                                                 <span className="font-medium">Words</span>
                                                 <span className="font-medium">{stats.words.toLocaleString()}</span>
                                             </button>
                                             <button
                                                 onClick={() => setDisplayMode('characters')}
-                                                className={`flex items-center gap-2 px-2 py-1 text-xs w-full rounded transition-colors ${
-                                                    displayMode === 'characters' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/50'
-                                                }`}
+                                                className={`flex items-center gap-2 px-2 py-1 text-xs w-full rounded transition-colors ${displayMode === 'characters' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/50'
+                                                    }`}
                                             >
                                                 <span className="font-medium">Characters</span>
                                                 <span className="font-medium">{stats.characters.toLocaleString()}</span>
@@ -647,9 +645,8 @@ function PaperEditorView({
                                     {/* Main Button */}
                                     <button
                                         onClick={() => setWordCountExpanded(!wordCountExpanded)}
-                                        className={`flex items-center justify-between px-3 py-2 text-xs transition-colors ${
-                                            wordCountExpanded ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'
-                                        }`}
+                                        className={`flex items-center justify-between px-3 py-2 text-xs transition-colors ${wordCountExpanded ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'
+                                            }`}
                                     >
                                         <div className="flex items-center gap-4">
                                             <span className="font-medium">{displayMode === 'words' ? 'Words' : 'Characters'}</span>
@@ -684,13 +681,13 @@ function PaperPageContent() {
     const [icon, setIcon] = useState<string | null>(null);
     const [pageAlert, setPageAlert] = useState<{ message: string } | null>(null);
     const [showWordCount, setShowWordCount] = useState(false);
-    
+
     // Modal states
     const [trashModalOpen, setTrashModalOpen] = useState(false);
     const [moveToFolderModalOpen, setMoveToFolderModalOpen] = useState(false);
     const [copyModalOpen, setCopyModalOpen] = useState(false);
     const [supportDialogOpen, setSupportDialogOpen] = useState(false);
-    
+
     const saveTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
     const latestIconRef = useRef<string | null>(null);
 
@@ -930,12 +927,12 @@ function PaperPageContent() {
     const onChange = (newValue: Value) => {
         // Compare stringified content to detect actual changes (not just selection/focus)
         const newContentString = JSON.stringify({ content: newValue, icon });
-        
+
         // Only proceed if content actually changed
         if (newContentString === lastSavedContentRef.current) {
             return; // No actual content change, just selection/focus
         }
-        
+
         latestContentRef.current = newValue;
         lastChangeTimeRef.current = Date.now();
         setIsUnsaved(true);
@@ -1006,10 +1003,10 @@ function PaperPageContent() {
         try {
             const now = new Date();
             const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}.${String(now.getMinutes()).padStart(2, '0')}.${String(now.getSeconds()).padStart(2, '0')}`;
-            
+
             // Open new tab immediately with loading state
             const newTab = window.open('about:blank', '_blank');
-            
+
             const newPaperId = await paperService.createPaper(`Untitled paper ${timestamp}`, undefined, null);
             if (newPaperId && newTab) {
                 newTab.location.href = `/paper?fileId=${newPaperId}`;
@@ -1050,7 +1047,7 @@ function PaperPageContent() {
 
         try {
             const title = paperTitle || 'Document';
-            
+
             switch (format) {
                 case 'image': {
                     // Free for everyone - use print preview approach
@@ -1058,7 +1055,7 @@ function PaperPageContent() {
                     window.print();
                     break;
                 }
-                
+
                 case 'markdown': {
                     // Pro feature
                     const event = new CustomEvent('export-requires-upgrade', {
@@ -1067,7 +1064,7 @@ function PaperPageContent() {
                     window.dispatchEvent(event);
                     break;
                 }
-                
+
                 case 'html': {
                     // Pro feature
                     const event = new CustomEvent('export-requires-upgrade', {
@@ -1076,7 +1073,7 @@ function PaperPageContent() {
                     window.dispatchEvent(event);
                     break;
                 }
-                
+
                 case 'pdf': {
                     // Pro feature
                     const event = new CustomEvent('export-requires-upgrade', {
@@ -1085,7 +1082,7 @@ function PaperPageContent() {
                     window.dispatchEvent(event);
                     break;
                 }
-                
+
                 case 'docx': {
                     // Pro feature
                     const event = new CustomEvent('export-requires-upgrade', {
@@ -1094,7 +1091,7 @@ function PaperPageContent() {
                     window.dispatchEvent(event);
                     break;
                 }
-                
+
                 default:
                     toast.error('Unknown export format');
             }
@@ -1113,10 +1110,10 @@ function PaperPageContent() {
         try {
             // Convert editor content to markdown
             let markdown = '';
-            
+
             const convertToMarkdown = (nodes: any[]): string => {
                 let result = '';
-                
+
                 nodes.forEach(node => {
                     if (node.text !== undefined) {
                         // Text node
@@ -1130,7 +1127,7 @@ function PaperPageContent() {
                     } else if (node.children && Array.isArray(node.children)) {
                         // Block node
                         const childContent = convertToMarkdown(node.children);
-                        
+
                         switch (node.type) {
                             case 'h1':
                                 result += `# ${childContent}\n\n`;
@@ -1172,12 +1169,12 @@ function PaperPageContent() {
                         }
                     }
                 });
-                
+
                 return result;
             };
 
             markdown = convertToMarkdown(latestContentRef.current as any[]);
-            
+
             // Copy to clipboard
             navigator.clipboard.writeText(markdown).then(() => {
                 toast.success('Copied as Markdown to clipboard');
