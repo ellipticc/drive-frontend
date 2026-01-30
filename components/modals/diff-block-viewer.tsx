@@ -3,13 +3,15 @@
 import React, { useMemo } from 'react'
 import * as Diff from 'diff'
 import { cn } from '@/lib/utils'
+import { Plate, PlateContent, usePlateEditor } from 'platejs/react'
+import { EditorKit } from '@/components/editor-kit'
 
 interface DiffBlockViewerProps {
     oldContent: any[]
     newContent: any[]
 }
 
-// Helper to extract text from a block for internal diffing
+// Helper to extract text from a block (recursive)
 function getBlockText(block: any): string {
     if (!block) return ''
     if (typeof block.text === 'string') return block.text
@@ -19,140 +21,150 @@ function getBlockText(block: any): string {
     return ''
 }
 
-// Block Renderer Component
-function BlockRenderer({ block, diffStatus, changes }: { block: any, diffStatus: 'added' | 'removed' | 'modified' | 'unchanged', changes?: Diff.Change[] }) {
-    // Determine the HTML tag to use
-    let Tag: React.ElementType = 'p';
+// 1. Logic to Merge Content for Diff View
+function generateDiffContent(oldBlocks: any[], newBlocks: any[]) {
+    // Diff at block level (by ID)
+    const blockDiffs = Diff.diffArrays(oldBlocks, newBlocks, {
+        comparator: (a, b) => {
+            // Fallback ID if missing 
+            const idA = a.id || JSON.stringify(a)
+            const idB = b.id || JSON.stringify(b)
+            return idA === idB
+        }
+    })
 
-    switch (block.type) {
-        case 'h1': Tag = 'h1'; break;
-        case 'h2': Tag = 'h2'; break;
-        case 'h3': Tag = 'h3'; break;
-        case 'blockquote': Tag = 'blockquote'; break;
-        case 'ul': Tag = 'ul'; break;
-        case 'ol': Tag = 'ol'; break;
-        case 'li': Tag = 'li'; break;
-        default: Tag = 'p';
-    }
+    const mergedContent: any[] = []
 
-    const baseStyles = cn(
-        "mb-2 break-words whitespace-pre-wrap leading-relaxed",
-        block.type === 'h1' && "text-3xl font-bold mb-4 mt-2",
-        block.type === 'h2' && "text-2xl font-bold mb-3 mt-2",
-        block.type === 'h3' && "text-xl font-bold mb-3 mt-1",
-        block.type === 'blockquote' && "border-l-4 border-gray-300 pl-4 italic text-muted-foreground",
-        block.type === 'ul' && "list-disc pl-6",
-        block.type === 'ol' && "list-decimal pl-6",
-        block.type === 'li' && "mb-1"
-    )
+    blockDiffs.forEach((chunk) => {
+        if (chunk.added) {
+            // Added blocks: Mark each block in the chunk as added
+            chunk.value.forEach(block => {
+                mergedContent.push({
+                    ...block,
+                    diffType: 'added',
+                })
+            })
+        } else if (chunk.removed) {
+            // Removed blocks: Mark each block in the chunk as removed
+            chunk.value.forEach(block => {
+                mergedContent.push({
+                    ...block,
+                    diffType: 'removed'
+                })
+            })
+        } else {
+            // Unchanged chunks (ID matched). Check for text modifications.
+            chunk.value.forEach(newBlock => {
+                const oldBlock = oldBlocks.find(b => b.id === newBlock.id)
+                // If deep equal, just push
+                if (JSON.stringify(oldBlock) === JSON.stringify(newBlock)) {
+                    mergedContent.push(newBlock)
+                    return;
+                }
 
-    const wrapperStyles = cn(
-        "rounded-md px-2 -mx-2 py-1 transition-colors",
-        diffStatus === 'added' && "bg-emerald-500/20 text-emerald-900 dark:text-emerald-100",
-        diffStatus === 'removed' && "bg-red-500/20 text-red-900 dark:text-red-100 decoration-red-900/50 dark:decoration-red-100/50"
-    )
+                // If text changed, perform inline diff only if it's a simple text block (p, h1, etc)
+                const oldText = getBlockText(oldBlock)
+                const newText = getBlockText(newBlock)
 
-    // Helper to render text with diff highlights
-    const renderTextContent = () => {
-        if (changes) {
-            return changes.map((part, index) => {
-                const style = cn(
-                    part.added && "bg-emerald-500/20 text-emerald-900 dark:text-emerald-100 rounded px-0.5",
-                    part.removed && "bg-red-500/20 text-red-900 dark:text-red-100 line-through decoration-red-900/50 dark:decoration-red-100/50 rounded px-0.5 opacity-80"
-                )
-                return <span key={index} className={style}>{part.value}</span>
+                if (oldText !== newText) {
+                    // It's a modification. We need to construct new children with inline diffs.
+                    // We calculate diffChars on the plain text content.
+                    const charDiffs = Diff.diffChars(oldText, newText)
+
+                    // Convert diff chunks into Plate Text Nodes (Leafs)
+                    const newChildren = charDiffs.map(part => {
+                        return {
+                            text: part.value,
+                            diffType: part.added ? 'added' : part.removed ? 'removed' : undefined,
+                            strikethrough: part.removed, // Use standard marks if supported, but our renderer handles it
+                        }
+                    })
+
+                    mergedContent.push({
+                        ...newBlock,
+                        children: newChildren
+                    })
+                } else {
+                    // Content matches text-wise (maybe props changed?), just push new
+                    mergedContent.push(newBlock)
+                }
             })
         }
-        // Fallback for Added/Removed blocks which don't have char-diffs, just show full text
-        const text = getBlockText(block)
-        return <span className={diffStatus === 'removed' ? 'line-through opacity-80' : ''}>{text}</span>
-    }
+    })
 
-    // Handle Lists specifically (render children as LIs if possible, otherwise just text)
-    if (block.type === 'ul' || block.type === 'ol') {
-        const ListTag = Tag; // Explicitly reuse Tag which is ul/ol
+    return mergedContent
+}
+
+// 2. Custom Plugin to Render Diff Styles
+const DiffPlugin = {
+    key: 'diff',
+    inject: {
+        props: {
+            className: ({ element }: { element: any }) => {
+                if (element.diffType === 'added') return 'bg-emerald-500/20 dark:bg-emerald-500/10 block-diff-added';
+                if (element.diffType === 'removed') return 'bg-red-500/20 dark:bg-red-500/10 block-diff-removed select-none opacity-70';
+                return '';
+            },
+        },
+    },
+};
+
+
+export function DiffBlockViewer({ oldContent, newContent }: DiffBlockViewerProps) {
+
+    // Memoize the merged content so we don't re-calculate on every render
+    const diffContent = useMemo(() => {
+        const safeOld = Array.isArray(oldContent) ? oldContent : []
+        const safeNew = Array.isArray(newContent) ? newContent : []
+        return generateDiffContent(safeOld, safeNew)
+    }, [oldContent, newContent])
+
+    // Setup Plate Editor
+    const editor = usePlateEditor({
+        plugins: [
+            ...EditorKit,
+            DiffPlugin as any
+        ],
+        value: diffContent
+    })
+
+    // Custom renderLeaf to handle inline diffs (added/removed text)
+    const renderLeaf = (props: any) => {
+        const { attributes, children, leaf } = props;
+
+        if (leaf.diffType === 'added') {
+            return (
+                <span {...attributes} className={cn("bg-emerald-200 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200 rounded-sm px-0.5", leaf.className)}>
+                    {children}
+                </span>
+            );
+        }
+        if (leaf.diffType === 'removed') {
+            return (
+                <span {...attributes} className={cn("bg-red-200 dark:bg-red-900/50 text-red-800 dark:text-red-200 line-through decoration-red-500 rounded-sm px-0.5 opacity-80", leaf.className)}>
+                    {children}
+                </span>
+            );
+        }
+
         return (
-            <div className={wrapperStyles}>
-                <ListTag className={baseStyles}>
-                    {block.children?.map((child: any, i: number) => (
-                        <li key={i}>{getBlockText(child)}</li>
-                    ))}
-                </ListTag>
-            </div>
+            <span {...attributes} className={cn(leaf.className)}>
+                {children}
+            </span>
         )
     }
 
     return (
-        <div className={wrapperStyles}>
-            <Tag className={baseStyles}>
-                {renderTextContent()}
-            </Tag>
-        </div>
-    )
-}
-
-export function DiffBlockViewer({ oldContent, newContent }: DiffBlockViewerProps) {
-    // 1. Block-Level Diffing (by ID)
-    const blockDiffs = useMemo(() => {
-        // Ensure arrays
-        const oldBlocks = Array.isArray(oldContent) ? oldContent : []
-        const newBlocks = Array.isArray(newContent) ? newContent : []
-
-        // Use diffArrays with ID comparator
-        // Note: paper blocks usually have an 'id' field.
-        return Diff.diffArrays(oldBlocks, newBlocks, {
-            comparator: (a, b) => {
-                if (!a.id && !b.id) return JSON.stringify(a) === JSON.stringify(b); // Fallback if no IDs
-                return a.id === b.id
-            }
-        })
-    }, [oldContent, newContent])
-
-    if (!blockDiffs || blockDiffs.length === 0) {
-        return <div className="text-center text-muted-foreground p-8">No changes detected</div>
-    }
-
-    return (
-        <div className="w-full bg-background rounded-lg border p-8 font-serif text-foreground min-h-[500px]">
-            {blockDiffs.map((diffChunk, chunkIndex) => {
-                // diffChunk.value = Array of blocks
-
-                if (diffChunk.added) {
-                    // Entire chunk added (Green)
-                    return diffChunk.value.map((block, i) => (
-                        <BlockRenderer key={`added-${chunkIndex}-${i}`} block={block} diffStatus="added" />
-                    ))
-                }
-
-                if (diffChunk.removed) {
-                    // Entire chunk removed (Red)
-                    return diffChunk.value.map((block, i) => (
-                        <BlockRenderer key={`removed-${chunkIndex}-${i}`} block={block} diffStatus="removed" />
-                    ))
-                }
-
-                // Unchanged Chunk (ID match) - Check for text modifications
-                return diffChunk.value.map((newBlock, i) => {
-                    // Find original block to compare text
-                    const oldBlock = Array.isArray(oldContent) ? oldContent.find(b => b.id === newBlock.id) : null
-
-                    if (!oldBlock) {
-                        return <BlockRenderer key={`err-${chunkIndex}-${i}`} block={newBlock} diffStatus="added" />
-                    }
-
-                    const oldText = getBlockText(oldBlock)
-                    const newText = getBlockText(newBlock)
-
-                    if (oldText !== newText) {
-                        // Text Modified: Calculate char diff
-                        const charChanges = Diff.diffChars(oldText, newText)
-                        return <BlockRenderer key={`mod-${chunkIndex}-${i}`} block={newBlock} diffStatus="modified" changes={charChanges} />
-                    }
-
-                    // Identical
-                    return <BlockRenderer key={`id-${chunkIndex}-${i}`} block={newBlock} diffStatus="unchanged" />
-                })
-            })}
+        <div className="w-full bg-background rounded-lg border min-h-[500px]">
+            <Plate editor={editor}>
+                <div className="p-8 md:p-12 max-w-[850px] mx-auto min-h-full">
+                    <PlateContent
+                        readOnly
+                        renderLeaf={renderLeaf}
+                        className="outline-none min-h-full"
+                    />
+                </div>
+            </Plate>
         </div>
     )
 }
