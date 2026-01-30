@@ -627,7 +627,7 @@ class PaperService {
             let insertions = 0;
             let deletions = 0;
             try {
-                const currentText = extractPaperText(content as any[]);
+                const currentText = extractPaperText(contentBlocks);
                 if (this.lastSavedText) {
                     // diffChars provides character precision
                     const changes = Diff.diffChars(this.lastSavedText, currentText);
