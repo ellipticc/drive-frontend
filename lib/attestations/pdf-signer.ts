@@ -63,7 +63,7 @@ export async function signPdf(
     const signatureDict = pdfDoc.context.obj({
         Type: 'Sig',
         Filter: 'Adobe.PPKLite',
-        SubFilter: 'adbe.pkcs7.detached',
+        SubFilter: 'adbe.pkcs7.sha1', // Try generic PKCS#7 handler instead of strict detached
         ByteRange: byteRangePlaceholder,
         Contents: PDFHexString.of('0'.repeat(SIGNATURE_LENGTH)),
         Name: PDFString.of(commonName),
