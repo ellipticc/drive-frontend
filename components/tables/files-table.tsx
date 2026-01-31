@@ -8,6 +8,7 @@ import type { SortDescriptor, Selection } from "react-aria-components";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Button } from "@/components/ui/button";
 import { IconFolderPlus, IconFolderDown, IconFileUpload, IconShare3, IconListDetails, IconDownload, IconFolder, IconEdit, IconInfoCircle, IconTrash, IconChevronRight, IconLink, IconEye, IconLayoutColumns, IconCopy, IconStar, IconStarFilled, IconLoader2, IconGrid3x3, IconLock, IconX, IconStack } from "@tabler/icons-react";
+
 import dynamic from "next/dynamic";
 
 const CreateFolderModal = dynamic(() => import("@/components/modals/create-folder-modal").then(mod => mod.CreateFolderModal));
@@ -250,7 +251,8 @@ export const Table01DividerLineSm = ({
     onFolderUpload,
     dragDropFiles,
     onDragDropProcessed,
-    onUploadHandlersReady
+    onUploadHandlersReady,
+    filterMode = 'default'
 }: {
     searchQuery?: string
     onFileUpload?: () => void
@@ -260,6 +262,7 @@ export const Table01DividerLineSm = ({
     onFileInputRef?: (ref: HTMLInputElement | null) => void
     onFolderInputRef?: (ref: HTMLInputElement | null) => void
     onUploadHandlersReady?: (handlers: { handleFileUpload: () => void; handleFolderUpload: () => void }) => void
+    filterMode?: 'default' | 'starred' | 'recents'
 }) => {
     const { t } = useLanguage();
     const { user, deviceQuota } = useUser();
@@ -377,6 +380,14 @@ export const Table01DividerLineSm = ({
         const params = new URLSearchParams(window.location.search);
         return params.get('folderId') || 'root';
     });
+
+    // Reset folder ID when filterMode changes to avoid sticking to a folder in a filtered view
+    useEffect(() => {
+        if (filterMode === 'starred' || filterMode === 'recents') {
+            setCurrentFolderId('root');
+        }
+    }, [filterMode]);
+
     const [folderPath, setFolderPath] = useState<Array<{ id: string, name: string }>>([{ id: 'root', name: t('sidebar.myFiles') }]);
     const [isInitialLoad, setIsInitialLoad] = useState(true);
     const isNavigatingRef = useRef(false);
@@ -1136,10 +1147,10 @@ export const Table01DividerLineSm = ({
     const fetchIdRef = useRef<number>(0);
 
     const refreshFiles = useCallback(async (folderId: string = currentFolderId, force: boolean = false) => {
-        const fetchKey = `${folderId}-${page}`;
+        const fetchKey = `${folderId}-${page}-${filterMode}`;
 
-        // Prevent fetching for reserved routes or headers
-        if (['shared', 'trash', 'photos', 'recent', 'settings', 'admin', 'help', 'feedback'].includes(folderId)) {
+        // Prevent fetching for reserved routes or headers (unless in specific filter modes)
+        if (['shared', 'trash', 'photos', 'recent', 'settings', 'admin', 'help', 'feedback'].includes(folderId) && filterMode === 'default') {
             setIsLoading(false);
             setIsFetching(false);
             return;
@@ -1178,7 +1189,88 @@ export const Table01DividerLineSm = ({
             let allFiles: FileContentItem[] = [];
             let allFolders: FolderContentItem[] = [];
 
-            if (isGlobalSearch) {
+            if (filterMode === 'starred') {
+                // STARRED ITEMS MODE
+                const response = await apiClient.getStarredItems();
+                if (response.success && response.data) {
+                    // Map SpaceItem to FileContentItem / FolderContentItem
+                    const starredItems = response.data;
+
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    allFiles = starredItems.filter(item => !!item.file_id).map((item: any) => ({
+                        id: item.file_id!,
+                        filename: item.decryptedName || item.filename, // Should be roughly compatible
+                        encryptedFilename: item.encrypted_filename,
+                        filenameSalt: item.filename_salt,
+                        type: 'file',
+                        size: item.size || 0,
+                        mimeType: item.mimetype || 'application/octet-stream',
+                        folderId: item.file_folder_id || null, // Map to parent
+                        createdAt: item.created_at,
+                        updatedAt: item.created_at,
+                        is_starred: true,
+                        is_shared: false
+                    } as FileContentItem));
+
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    allFolders = starredItems.filter(item => !!item.folder_id && !item.file_id).map((item: any) => ({
+                        id: item.folder_id!,
+                        name: item.decryptedName || item.encrypted_name,
+                        encryptedName: item.encrypted_name,
+                        nameSalt: item.name_salt,
+                        type: 'folder',
+                        parentId: item.file_folder_id || null,
+                        path: '',
+                        createdAt: item.created_at,
+                        updatedAt: item.created_at,
+                        is_starred: true,
+                        is_shared: false
+                    } as FolderContentItem));
+
+                    setTotalPages(1);
+                    setTotalItems(allFiles.length + allFolders.length);
+                } else {
+                    throw new Error(response.error || "Failed to load starred items");
+                }
+            } else if (filterMode === 'recents') {
+                // RECENTS MODE
+                // Fetch latest files via global search API logic
+                const response = await apiClient.getFiles({ limit: 100 }); // Fetch top 100 most recent
+                if (response.success && response.data) {
+                    // Filter for files updated in the last 10 days
+                    const tenDaysAgo = new Date();
+                    tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
+
+                    // We need to fetch keys if we want to decrypt, but for now assuming we use available keys or fetch them
+                    // Note: getFiles returns FileItem[], we need to map to FileContentItem
+                    // ESLint/TS might complain about types, so we cast to specific structure or any if needed
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    const mappedFiles = response.data.files.map((f: FileItem) => ({
+                        ...f,
+                        // Ensure required string properties have fallbacks
+                        encryptedFilename: f.encryptedFilename || "",
+                        filenameSalt: f.filenameSalt || "",
+                        name: f.name || f.filename || "Untitled",
+                        folderId: f.folderId || null,
+                        type: 'file' as const,
+                        is_starred: false, // We'd need to check this separately or if API provides it
+                        tags: []
+                    })) as any;
+
+                    // Client side sort by updatedAt descending just in case
+                    mappedFiles.sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+                    const recentFiles = mappedFiles.filter((f: any) => new Date(f.updatedAt) >= tenDaysAgo);
+
+                    allFiles = recentFiles;
+                    allFolders = []; // No folders in recents usually
+
+                    setFiles([...allFiles] as any);
+                    success = true;
+                } else {
+                    throw new Error(response.error || "Failed to load recent files");
+                }
+            } else if (isGlobalSearch) {
                 // GLOBAL SEARCH MODE: Pagination Loop
 
                 // Show feedback if this might take a moment
@@ -1387,7 +1479,7 @@ export const Table01DividerLineSm = ({
             // Logic for redirect if folder not found (only in folder mode usually)
             if (errorMessage.includes('404') || errorMessage.includes('not found')) {
                 // Only redirect if we were trying to look at a specific folder, not searching
-                if (!debouncedQuery) {
+                if (!debouncedQuery && filterMode === 'default') {
                     setError(`Folder not found. Redirecting...`);
                     setTimeout(() => {
                         if (currentFetchId === fetchIdRef.current) {
@@ -1411,17 +1503,17 @@ export const Table01DividerLineSm = ({
                 setIsFetching(false);
             }
         }
-    }, [currentFolderId, page, limit, apiClient, router, debouncedQuery]);
+    }, [currentFolderId, page, limit, apiClient, router, debouncedQuery, filterMode]);
 
     // Load files when folder or page changes, or when search query changes
     useEffect(() => {
         // Prevent root fetch if we are not on the root page
-        if (currentFolderId === 'root' && pathname !== '/') {
+        if (currentFolderId === 'root' && pathname !== '/' && filterMode === 'default') {
             // console.log(`Skipping root fetch because pathname is ${pathname}`);
             return;
         }
         refreshFiles();
-    }, [currentFolderId, page, refreshFiles, pathname, debouncedQuery]);
+    }, [refreshFiles]);
 
     // Register for file replaced events to refresh the file list
     useOnFileReplaced(useCallback(() => {
@@ -2407,82 +2499,20 @@ export const Table01DividerLineSm = ({
     }, [selectedItemForPreview, getPreviewableFiles]);
 
     const emptyState = (
-        <div className="flex flex-col items-center justify-center py-20 px-4">
-            <Empty>
-                <EmptyMedia variant="icon">
-                    {deferredQuery ? (
-                        <IconX className="h-12 w-12 text-muted-foreground/40" />
-                    ) : (
-                        <IconFolder className="h-12 w-12 text-muted-foreground/40" />
-                    )}
-                </EmptyMedia>
-                <EmptyHeader>
-                    <EmptyTitle>
-                        {deferredQuery
-                            ? t("files.noSearchResultsTitle") || "No results found"
-                            : currentFolderId === 'root'
-                                ? t("files.noRootFilesTitle") || "Your drive is empty"
-                                : t("files.noFilesTitle") || "This folder is empty"}
-                    </EmptyTitle>
-                    <EmptyDescription>
-                        {deferredQuery
-                            ? t("files.noSearchResultsDescription") || "Try a different search term or check your spelling."
-                            : t("files.noFilesDescription") || "Upload your first file or create a folder to get started."}
-                    </EmptyDescription>
-                </EmptyHeader>
-                {!deferredQuery && (
-                    <EmptyContent className="flex gap-2">
-                        <Button onClick={handleFileUpload}>
-                            <IconFileUpload className="mr-2 h-4 w-4" />
-                            {t("files.uploadFile")}
-                        </Button>
-                        <Button variant="outline" onClick={async () => {
-                            const folderId = currentFolderId === 'root' ? null : currentFolderId;
-
-                            const now = new Date();
-                            const year = now.getFullYear();
-                            const month = String(now.getMonth() + 1).padStart(2, '0');
-                            const day = String(now.getDate()).padStart(2, '0');
-                            const hour = String(now.getHours()).padStart(2, '0');
-                            const minute = String(now.getMinutes()).padStart(2, '0');
-                            const second = String(now.getSeconds()).padStart(2, '0');
-                            const filename = `Untitled paper ${year}-${month}-${day} ${hour}.${minute}.${second}`;
-
-                            // Open new tab immediately for better UX
-                            const newWin = window.open('/paper/new?creating=1', '_blank');
-                            toast('Creating paper...');
-
-                            try {
-                                const newPaperId = await paperService.createPaper(filename, undefined, folderId);
-
-                                if (newPaperId) {
-                                    toast.success('Paper created');
-                                    if (newWin && !newWin.closed) {
-                                        newWin.location.href = `/paper?fileId=${newPaperId}`;
-                                    } else {
-                                        window.open(`/paper?fileId=${newPaperId}`, '_blank');
-                                    }
-                                }
-                            } catch (err) {
-                                console.error('Failed to create new paper:', err);
-                                toast.error('Failed to create new paper');
-                                if (newWin && !newWin.closed) newWin.close();
-                            }
-                        }}>
-                            <IconStack className="mr-2 h-4 w-4" />
-                            {t("files.newPaper") || "New Paper"}
-                        </Button>
-                        <Button variant="outline" onClick={() => {
-                            const createFolderButton = document.querySelector('[data-create-folder-trigger]') as HTMLElement;
-                            if (createFolderButton) createFolderButton.click();
-                        }}>
-                            <IconFolderPlus className="mr-2 h-4 w-4" />
-                            {t("files.newFolder")}
-                        </Button>
-                    </EmptyContent>
-                )}
-            </Empty>
-        </div>
+        <EmptyState
+            title={
+                filterMode === 'starred' ? "No starred files" :
+                    filterMode === 'recents' ? "No recent files" :
+                        isInitialLoad ? "Loading..." :
+                            searchQuery ? "No results found" :
+                                "No files found"
+            }
+            description={
+                filterMode === 'starred' ? "Mark files as starred to see them here" :
+                    filterMode === 'recents' ? "Files you've edited recently will appear here" :
+                        "Get started by uploading a file."
+            }
+        />
     );
 
     const handleCopyConflict = (items: Array<{ id: string; name: string; type: "file" | "folder"; conflictingItemId?: string }>, destinationFolderId: string | null) => {
@@ -4408,4 +4438,16 @@ export const Table01DividerLineSm = ({
             </ActionBar>
         </div>
     );
+
 };
+
+function EmptyState({ title, description, icon }: { title: string, description: string, icon?: React.ReactNode }) {
+    return (
+        <Empty>
+            <EmptyHeader>
+                <EmptyTitle>{title}</EmptyTitle>
+                <EmptyDescription>{description}</EmptyDescription>
+            </EmptyHeader>
+        </Empty>
+    );
+}
