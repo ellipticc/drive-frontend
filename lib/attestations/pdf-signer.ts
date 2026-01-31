@@ -85,7 +85,16 @@ export async function signPdf(
         AP: pdfDoc.context.obj({ N: pdfDoc.context.register(pdfDoc.context.stream('')) })
     });
     const widgetRef = pdfDoc.context.register(widgetDict);
-    firstPage.node.set(PDFName.of('Annots'), pdfDoc.context.obj([widgetRef]));
+
+    // safe append to Annots
+    let annots = firstPage.node.lookup(PDFName.of('Annots'));
+    if (!annots) {
+        annots = pdfDoc.context.obj([]);
+        firstPage.node.set(PDFName.of('Annots'), annots);
+    }
+    if (annots instanceof PDFArray) {
+        annots.push(widgetRef);
+    }
 
     let acroForm = pdfDoc.catalog.lookup(PDFName.of('AcroForm'));
     if (!acroForm) {
