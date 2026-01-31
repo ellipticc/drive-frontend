@@ -401,6 +401,7 @@ export function SignupFormAuth({
             </div>
             <Field className="grid grid-cols-2 gap-4">
               <Field>
+                <FieldLabel htmlFor="password">Password</FieldLabel>
                 <PasswordInput
                   id="password"
                   name="password"
@@ -415,7 +416,7 @@ export function SignupFormAuth({
               </Field>
               <Field>
                 <FieldLabel htmlFor="confirmPassword">
-                  Confirm
+                  Confirm Password
                 </FieldLabel>
                 <PasswordInput
                   id="confirmPassword"
@@ -430,26 +431,28 @@ export function SignupFormAuth({
                 />
               </Field>
             </Field>
-            <div className="mt-3 p-3 bg-muted/50 rounded-lg">
-              <div className="text-xs font-medium text-foreground mb-2">Password strength:</div>
-              <ul className="grid grid-cols-2 gap-2 text-xs">
-                <li className={`flex items-center gap-2 ${passwordChecks.length ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
-                  {passwordChecks.length ? <IconCheck className="h-3.5 w-3.5" /> : <IconX className="h-3.5 w-3.5" />} 8+ characters
-                </li>
-                <li className={`flex items-center gap-2 ${passwordChecks.upper ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
-                  {passwordChecks.upper ? <IconCheck className="h-3.5 w-3.5" /> : <IconX className="h-3.5 w-3.5" />} Uppercase
-                </li>
-                <li className={`flex items-center gap-2 ${passwordChecks.lower ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
-                  {passwordChecks.lower ? <IconCheck className="h-3.5 w-3.5" /> : <IconX className="h-3.5 w-3.5" />} Lowercase
-                </li>
-                <li className={`flex items-center gap-2 ${passwordChecks.number ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
-                  {passwordChecks.number ? <IconCheck className="h-3.5 w-3.5" /> : <IconX className="h-3.5 w-3.5" />} Number
-                </li>
-                <li className={`flex items-center gap-2 ${passwordChecks.special ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
-                  {passwordChecks.special ? <IconCheck className="h-3.5 w-3.5" /> : <IconX className="h-3.5 w-3.5" />} Special char
-                </li>
-              </ul>
-            </div>
+            {formData.password.length > 0 && (
+              <div className="mt-3 p-3 bg-muted/50 rounded-lg">
+                <div className="text-xs font-medium text-foreground mb-2">Password strength:</div>
+                <ul className="grid grid-cols-2 gap-2 text-xs">
+                  <li className={`flex items-center gap-2 ${passwordChecks.length ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
+                    {passwordChecks.length ? <IconCheck className="h-3.5 w-3.5" /> : <IconX className="h-3.5 w-3.5" />} 8+ characters
+                  </li>
+                  <li className={`flex items-center gap-2 ${passwordChecks.upper ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
+                    {passwordChecks.upper ? <IconCheck className="h-3.5 w-3.5" /> : <IconX className="h-3.5 w-3.5" />} Uppercase
+                  </li>
+                  <li className={`flex items-center gap-2 ${passwordChecks.lower ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
+                    {passwordChecks.lower ? <IconCheck className="h-3.5 w-3.5" /> : <IconX className="h-3.5 w-3.5" />} Lowercase
+                  </li>
+                  <li className={`flex items-center gap-2 ${passwordChecks.number ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
+                    {passwordChecks.number ? <IconCheck className="h-3.5 w-3.5" /> : <IconX className="h-3.5 w-3.5" />} Number
+                  </li>
+                  <li className={`flex items-center gap-2 ${passwordChecks.special ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
+                    {passwordChecks.special ? <IconCheck className="h-3.5 w-3.5" /> : <IconX className="h-3.5 w-3.5" />} Special char
+                  </li>
+                </ul>
+              </div>
+            )}
           </Field>
           {error && (
             <FieldDescription className="text-red-500 text-center">
