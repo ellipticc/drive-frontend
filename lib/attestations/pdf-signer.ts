@@ -214,7 +214,12 @@ export async function signPdf(
     });
 
     // Sign the attributes
-    const signedAttrsEncoded = signerInfo.signedAttrs!.encodedValue;
+    const signedAttrsSchema = signerInfo.signedAttrs!.toSchema();
+    const signedAttrsEncoded = signedAttrsSchema.toBER(false);
+
+    console.log(`=== SIGNED ATTRIBUTES DEBUG ===`);
+    console.log(`Signed Attributes encoded length: ${signedAttrsEncoded.byteLength}`);
+
     const sign = crypto.createSign('RSA-SHA256');
     sign.update(Buffer.from(signedAttrsEncoded));
     const signature = sign.sign(privateKeyPem);
