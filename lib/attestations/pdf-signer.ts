@@ -63,7 +63,7 @@ export async function signPdf(
     const signatureDict = pdfDoc.context.obj({
         Type: 'Sig',
         Filter: 'Adobe.PPKLite',
-        SubFilter: 'adbe.pkcs7.sha1', // Legacy filter for maximum compatibility
+        SubFilter: 'adbe.pkcs7.detached',
         ByteRange: byteRangePlaceholder,
         Contents: PDFHexString.of('0'.repeat(SIGNATURE_LENGTH)),
         Name: PDFString.of(commonName),
@@ -263,12 +263,6 @@ export async function signPdf(
                 type: '1.2.840.113549.1.9.4', // messageDigest
                 values: [
                     new asn1js.OctetString({ valueHex: hash })
-                ]
-            }),
-            new pkijs.Attribute({
-                type: '1.2.840.113549.1.9.5', // signingTime
-                values: [
-                    new asn1js.UTCTime({ valueDate: new Date() })
                 ]
             })
         ]
