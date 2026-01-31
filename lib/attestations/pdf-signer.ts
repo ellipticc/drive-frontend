@@ -63,7 +63,7 @@ export async function signPdf(
     const signatureDict = pdfDoc.context.obj({
         Type: 'Sig',
         Filter: 'Adobe.PPKLite',
-        SubFilter: 'adbe.pkcs7.sha1', // Try generic PKCS#7 handler instead of strict detached
+        SubFilter: 'adbe.pkcs7.detached',
         ByteRange: byteRangePlaceholder,
         Contents: PDFHexString.of('0'.repeat(SIGNATURE_LENGTH)),
         Name: PDFString.of(commonName),
@@ -82,6 +82,7 @@ export async function signPdf(
         T: PDFString.of(signatureFieldName),
         F: 4,
         P: firstPage.ref,
+        AP: pdfDoc.context.obj({ N: pdfDoc.context.register(pdfDoc.context.stream('')) })
     });
     const widgetRef = pdfDoc.context.register(widgetDict);
     firstPage.node.set(PDFName.of('Annots'), pdfDoc.context.obj([widgetRef]));
