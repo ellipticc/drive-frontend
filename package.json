@@ -28,6 +28,7 @@
     "@noble/hashes": "^2.0.1",
     "@noble/post-quantum": "^0.4.1",
     "@number-flow/react": "^0.5.10",
+    "@peculiar/webcrypto": "^1.5.0",
     "@peculiar/x509": "^1.14.3",
     "@platejs/ai": "^52.1.0",
     "@platejs/autoformat": "^52.0.11",
