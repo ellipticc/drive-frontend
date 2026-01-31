@@ -259,7 +259,7 @@ export async function signPdf(
     });
 
     const cmsEncoded = cmsContentInfo.toSchema().toBER(false);
-    const signatureHex = Buffer.from(cmsEncoded).toString('hex').toUpperCase();
+    const signatureHex = Buffer.from(cmsEncoded).toString('hex').toLowerCase();
 
     console.log(`=== PKI.JS SIGNATURE DEBUG ===`);
     console.log(`CMS byte length: ${cmsEncoded.byteLength}`);
