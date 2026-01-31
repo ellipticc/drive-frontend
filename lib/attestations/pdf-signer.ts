@@ -213,14 +213,21 @@ export async function signPdf(
         ]
     });
 
-    // Sign the attributes
+    // Set PKI.js to use Node.js crypto engine
+    const { Crypto } = require("@peculiar/webcrypto");
+    const webCrypto = new Crypto();
+    const { setEngine, CryptoEngine } = pkijs;
+    setEngine("newEngine", new CryptoEngine({ name: "", crypto: webCrypto, subtle: webCrypto.subtle }));
+
+    // Encode signed attributes
     const signedAttrsSchema = signerInfo.signedAttrs!.toSchema();
     const signedAttrsEncoded = signedAttrsSchema.toBER(false);
 
     console.log(`=== SIGNED ATTRIBUTES DEBUG ===`);
     console.log(`Signed Attributes encoded length: ${signedAttrsEncoded.byteLength}`);
 
-    const sign = crypto.createSign('RSA-SHA256');
+    // Use Node.js native crypto for signing
+    const sign = require('crypto').createSign('RSA-SHA256');
     sign.update(Buffer.from(signedAttrsEncoded));
     const signature = sign.sign(privateKeyPem);
 
