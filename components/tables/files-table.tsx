@@ -1442,11 +1442,11 @@ export const Table01DividerLineSm = ({
 
             // Decrypt files
             const decryptedFiles = await Promise.all(allFiles.map(async (file: FileContentItem) => {
-                // Use plaintext name if available, only decrypt if necessary
-                let displayName = file.filename || '';
+                // Prioritize decryption if encrypted fields are available, regardless of filename field
+                let displayName = '';
 
-                // Only decrypt if plaintext name is not available
-                if (!displayName && file.encryptedFilename && file.filenameSalt && masterKey) {
+                // Try to decrypt if encrypted fields are available
+                if (file.encryptedFilename && file.filenameSalt && masterKey) {
                     try {
                         displayName = await decryptFilename(file.encryptedFilename, file.filenameSalt, masterKey);
                     } catch {
@@ -1454,9 +1454,9 @@ export const Table01DividerLineSm = ({
                     }
                 }
 
-                // Final fallback
+                // Fall back to filename field if decryption didn't work
                 if (!displayName) {
-                    displayName = file.encryptedFilename || '(Unnamed)';
+                    displayName = file.filename || file.encryptedFilename || '(Unnamed)';
                 }
 
                 return {
