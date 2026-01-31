@@ -1,6 +1,7 @@
 "use client"
 
-import { IconChevronRight, IconLoader2, type Icon, IconClockHour9, IconStar } from "@tabler/icons-react"
+import * as React from "react"
+import { IconChevronRight, IconLoader2, type Icon, IconClockHour9, IconStar, IconChevronDown, IconChevronUp } from "@tabler/icons-react"
 import { useState, useEffect, useCallback } from "react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import { useLanguage } from "@/lib/i18n/language-context"
@@ -49,6 +50,14 @@ export function NavMain({
   const [isLoadingFolders, setIsLoadingFolders] = useState(false)
   const [hasLoadedRoot, setHasLoadedRoot] = useState(false)
   const [isMyFilesLeaf, setIsMyFilesLeaf] = useState(false)
+
+  // State for additional items expansion (after Photos)
+  const [areAdditionalItemsExpanded, setAreAdditionalItemsExpanded] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("sidebar-additional-expanded") !== "false" // Default to collapsed (false)
+    }
+    return false
+  })
 
   const fetchRootFolders = useCallback(async () => {
     if (hasLoadedRoot) return
@@ -103,6 +112,17 @@ export function NavMain({
     sessionStorage.setItem("my-files-expanded", String(next))
   }
 
+  const toggleAdditionalItems = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    // Prevent toggling if sidebar is collapsed
+    if (state === "collapsed") return;
+
+    const next = !areAdditionalItemsExpanded
+    setAreAdditionalItemsExpanded(next)
+    localStorage.setItem("sidebar-additional-expanded", String(next))
+  }
+
   const handleNavigate = (url: string) => {
     // Use router.push for soft navigation to keep global upload context alive
     // This prevents full page reload and preserves upload modal state
@@ -113,95 +133,152 @@ export function NavMain({
     <SidebarGroup>
       <SidebarGroupContent className="flex flex-col gap-2">
         <SidebarMenu>
-          {items.map((item) => (
-            item.id === 'my-files' ? (
-              <SidebarMenuItem key={item.title} className="space-y-1">
-                <SidebarMenuButton
-                  tooltip={item.title}
-                  isActive={pathname === item.url || (item.url === '/' && pathname === '/')}
-                  onClick={(e) => {
-                    if (item.url === '/') {
-                      // Force simple navigation to root
-                      // If we are at root pathname but have a folderId, we still want to navigate to clear it
-                      const hasFolderId = searchParams.get('folderId');
-                      if (pathname === '/' && !hasFolderId) return; // Already at real root
-                      handleNavigate('/');
-                    } else {
-                      handleNavigate(item.url);
-                    }
-                  }}
-                  className="cursor-pointer relative pr-8"
-                >
-                  {item.icon && <item.icon className="shrink-0" />}
-                  <span>{item.title}</span>
-                  {item.badge && (
-                    <span className="ml-auto inline-flex items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-medium text-white min-w-[1.25rem]">
-                      {item.badge}
-                    </span>
-                  )}
-                  {!isMyFilesLeaf && state !== 'collapsed' && (
-                    <div
-                      onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        toggleMyFiles(e)
-                      }}
-                      className="absolute right-1 top-1/2 -translate-y-1/2 p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded-sm transition-colors text-muted-foreground/40 hover:text-muted-foreground z-20"
-                    >
-                      <IconChevronRight
-                        className={cn("size-3.5 transition-transform duration-200", isMyFilesExpanded && "rotate-90")}
-                      />
-                    </div>
-                  )}
-                </SidebarMenuButton>
+          {items.map((item, index) => {
+            // Find the photos item index
+            const photosIndex = items.findIndex(item => item.id === 'photos');
+            const isAfterPhotos = photosIndex !== -1 && index > photosIndex;
 
-                {/* Always render submenu container for Folders */}
-                {isMyFilesExpanded && (
-                  <SidebarMenuSub className="ml-3.5 border-l border-border/50">
-                    {/* Dynamic Folders - Collapsible */}
-                    <>
-                      {isLoadingFolders ? (
-                        <div className="flex items-center gap-2 px-2 py-1 text-[10px] text-muted-foreground italic">
-                          <IconLoader2 className="size-3 animate-spin" />
-                          {t("sidebar.loading")}
-                        </div>
-                      ) : rootSubfolders.length > 0 ? (
-                        rootSubfolders.map((folder) => (
-                          <NavFolder
-                            key={folder.id}
-                            folder={{ id: folder.id, name: folder.name || "Untitled", parentId: folder.parentId }}
-                          />
-                        ))
-                      ) : hasLoadedRoot ? (
-                        <div className="px-2 py-1 text-[10px] text-muted-foreground/60 italic">
-                          {t("sidebar.empty")}
-                        </div>
-                      ) : null}
-                    </>
-                  </SidebarMenuSub>
-                )}
-              </SidebarMenuItem>
-            ) : item.id === 'trash' ? (
-              <SidebarMenuItem key={item.title}>
-                <SidebarMenuButton
-                  tooltip={item.title}
-                  isActive={pathname === item.url}
-                  onClick={() => handleNavigate(item.url)}
-                  className="cursor-pointer"
-                  id="tour-trash"
-                >
-                  {item.icon && <item.icon />}
-                  <span>{item.title}</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ) : item.id === "settings" ? (
-              <SidebarMenuItem key={item.title}>
-                <SidebarMenuButton onClick={() => window.location.hash = '#settings/General'} id="tour-settings">
-                  {item.icon && <item.icon />}
-                  <span>{item.title}</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ) : (
+            // Hide items after photos if additional items are collapsed
+            if (isAfterPhotos && !areAdditionalItemsExpanded) {
+              return null;
+            }
+
+            // Add the More/Less button right after photos
+            if (item.id === 'photos') {
+              return (
+                <>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      tooltip={item.title}
+                      isActive={pathname === item.url}
+                      onClick={() => handleNavigate(item.url)}
+                      className="cursor-pointer"
+                    >
+                      {item.icon && <item.icon />}
+                      <span>{item.title}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  {/* More/Less button */}
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      onClick={toggleAdditionalItems}
+                      className="cursor-pointer text-muted-foreground hover:text-foreground transition-colors"
+                      tooltip={areAdditionalItemsExpanded ? "Show less" : "Show more"}
+                    >
+                      {areAdditionalItemsExpanded ? (
+                        <IconChevronUp className="shrink-0 size-4" />
+                      ) : (
+                        <IconChevronDown className="shrink-0 size-4" />
+                      )}
+                      <span className="text-sm">
+                        {areAdditionalItemsExpanded ? "Less" : "More"}
+                      </span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </>
+              );
+            }
+            if (item.id === 'my-files') {
+              return (
+                <SidebarMenuItem key={item.title} className="space-y-1">
+                  <SidebarMenuButton
+                    tooltip={item.title}
+                    isActive={pathname === item.url || (item.url === '/' && pathname === '/')}
+                    onClick={(e) => {
+                      if (item.url === '/') {
+                        // Force simple navigation to root
+                        // If we are at root pathname but have a folderId, we still want to navigate to clear it
+                        const hasFolderId = searchParams.get('folderId');
+                        if (pathname === '/' && !hasFolderId) return; // Already at real root
+                        handleNavigate('/');
+                      } else {
+                        handleNavigate(item.url);
+                      }
+                    }}
+                    className="cursor-pointer relative pr-8"
+                  >
+                    {item.icon && <item.icon className="shrink-0" />}
+                    <span>{item.title}</span>
+                    {item.badge && (
+                      <span className="ml-auto inline-flex items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-medium text-white min-w-[1.25rem]">
+                        {item.badge}
+                      </span>
+                    )}
+                    {!isMyFilesLeaf && state !== 'collapsed' && (
+                      <div
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          toggleMyFiles(e)
+                        }}
+                        className="absolute right-1 top-1/2 -translate-y-1/2 p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded-sm transition-colors text-muted-foreground/40 hover:text-muted-foreground z-20"
+                      >
+                        <IconChevronRight
+                          className={cn("size-3.5 transition-transform duration-200", isMyFilesExpanded && "rotate-90")}
+                        />
+                      </div>
+                    )}
+                  </SidebarMenuButton>
+
+                  {/* Always render submenu container for Folders */}
+                  {isMyFilesExpanded && (
+                    <SidebarMenuSub className="ml-3.5 border-l border-border/50">
+                      {/* Dynamic Folders - Collapsible */}
+                      <>
+                        {isLoadingFolders ? (
+                          <div className="flex items-center gap-2 px-2 py-1 text-[10px] text-muted-foreground italic">
+                            <IconLoader2 className="size-3 animate-spin" />
+                            {t("sidebar.loading")}
+                          </div>
+                        ) : rootSubfolders.length > 0 ? (
+                          rootSubfolders.map((folder) => (
+                            <NavFolder
+                              key={folder.id}
+                              folder={{ id: folder.id, name: folder.name || "Untitled", parentId: folder.parentId }}
+                            />
+                          ))
+                        ) : hasLoadedRoot ? (
+                          <div className="px-2 py-1 text-[10px] text-muted-foreground/60 italic">
+                            {t("sidebar.empty")}
+                          </div>
+                        ) : null}
+                      </>
+                    </SidebarMenuSub>
+                  )}
+                </SidebarMenuItem>
+              );
+            }
+
+            if (item.id === 'trash') {
+              return (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton
+                    tooltip={item.title}
+                    isActive={pathname === item.url}
+                    onClick={() => handleNavigate(item.url)}
+                    className="cursor-pointer"
+                    id="tour-trash"
+                  >
+                    {item.icon && <item.icon />}
+                    <span>{item.title}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              );
+            }
+
+            if (item.id === "settings") {
+              return (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton onClick={() => window.location.hash = '#settings/General'} id="tour-settings">
+                    {item.icon && <item.icon />}
+                    <span>{item.title}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              );
+            }
+
+            // Default item rendering
+            return (
               <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton
                   tooltip={item.title}
@@ -225,8 +302,8 @@ export function NavMain({
                   )}
                 </SidebarMenuButton>
               </SidebarMenuItem>
-            )
-          ))}
+            );
+          })}
         </SidebarMenu>
       </SidebarGroupContent>
     </SidebarGroup >
