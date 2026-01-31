@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { IconChevronRight, IconLoader2, type Icon, IconClockHour9, IconStar, IconChevronDown, IconChevronUp } from "@tabler/icons-react"
+import { IconChevronRight, IconLoader2, type Icon, IconClockHour9, IconStar, IconChevronDown, IconChevronUp, IconStarFilled, IconStack2Filled, IconTrashFilled, IconClockHour9Filled, IconPhotoFilled, IconChartAreaLineFilled, IconPinFilled, IconUserFilled, IconShieldFilled } from "@tabler/icons-react"
 import { useState, useEffect, useCallback } from "react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import { useLanguage } from "@/lib/i18n/language-context"
@@ -58,6 +58,9 @@ export function NavMain({
     }
     return false
   })
+
+  // State for More/Less button click effect
+  const [isMoreLessClicked, setIsMoreLessClicked] = useState(false)
 
   const fetchRootFolders = useCallback(async () => {
     if (hasLoadedRoot) return
@@ -121,6 +124,45 @@ export function NavMain({
     const next = !areAdditionalItemsExpanded
     setAreAdditionalItemsExpanded(next)
     localStorage.setItem("sidebar-additional-expanded", String(next))
+
+    // Add muted click effect
+    setIsMoreLessClicked(true)
+  }
+
+  // Handle click effect timeout
+  useEffect(() => {
+    if (isMoreLessClicked) {
+      const timer = setTimeout(() => setIsMoreLessClicked(false), 150)
+      return () => clearTimeout(timer)
+    }
+  }, [isMoreLessClicked])
+
+  // Helper function to get filled icon for active states
+  const getIcon = (item: { icon?: Icon; id?: string }, isActive: boolean) => {
+    if (!item.icon || !isActive) return item.icon
+
+    switch (item.id) {
+      case 'my-files':
+        return IconStack2Filled
+      case 'recents':
+        return IconClockHour9Filled
+      case 'starred':
+        return IconStarFilled
+      case 'photos':
+        return IconPhotoFilled
+      case 'insights':
+        return IconChartAreaLineFilled
+      case 'shared':
+        return IconPinFilled
+      case 'shared-with-me':
+        return IconUserFilled
+      case 'attestations':
+        return IconShieldFilled
+      case 'trash':
+        return IconTrashFilled
+      default:
+        return item.icon
+    }
   }
 
   const handleNavigate = (url: string) => {
@@ -154,7 +196,11 @@ export function NavMain({
                       onClick={() => handleNavigate(item.url)}
                       className="cursor-pointer"
                     >
-                      {item.icon && <item.icon />}
+                      {(() => {
+                        const isActive = pathname === item.url
+                        const IconComponent = getIcon(item, isActive)
+                        return IconComponent && <IconComponent />
+                      })()}
                       <span>{item.title}</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -162,7 +208,10 @@ export function NavMain({
                   <SidebarMenuItem>
                     <SidebarMenuButton
                       onClick={toggleAdditionalItems}
-                      className="cursor-pointer text-muted-foreground hover:text-foreground transition-colors"
+                      className={cn(
+                        "cursor-pointer text-muted-foreground hover:text-foreground transition-colors",
+                        isMoreLessClicked && "scale-95 opacity-70"
+                      )}
                       tooltip={areAdditionalItemsExpanded ? "Show less" : "Show more"}
                     >
                       {areAdditionalItemsExpanded ? (
@@ -197,7 +246,11 @@ export function NavMain({
                     }}
                     className="cursor-pointer relative pr-8"
                   >
-                    {item.icon && <item.icon className="shrink-0" />}
+                    {(() => {
+                      const isActive = pathname === item.url || (item.url === '/' && pathname === '/')
+                      const IconComponent = getIcon(item, isActive)
+                      return IconComponent && <IconComponent className="shrink-0" />
+                    })()}
                     <span>{item.title}</span>
                     {item.badge && (
                       <span className="ml-auto inline-flex items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-medium text-white min-w-[1.25rem]">
@@ -259,7 +312,11 @@ export function NavMain({
                     className="cursor-pointer"
                     id="tour-trash"
                   >
-                    {item.icon && <item.icon />}
+                    {(() => {
+                      const isActive = pathname === item.url
+                      const IconComponent = getIcon(item, isActive)
+                      return IconComponent && <IconComponent />
+                    })()}
                     <span>{item.title}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -286,7 +343,11 @@ export function NavMain({
                   onClick={() => handleNavigate(item.url)}
                   className="cursor-pointer"
                 >
-                  {item.icon && <item.icon />}
+                  {(() => {
+                    const isActive = pathname === item.url
+                    const IconComponent = getIcon(item, isActive)
+                    return IconComponent && <IconComponent />
+                  })()}
                   <span>{item.title}</span>
                   {item.badge && item.badge > 0 && (
                     <Tooltip>
