@@ -231,10 +231,21 @@ export async function signPdf(
 
     console.log(`=== SIGNED ATTRIBUTES DEBUG ===`);
     console.log(`Signed Attributes encoded length: ${signedAttrsEncoded.byteLength}`);
+    const signedAttrsBuffer = new Uint8Array(signedAttrsEncoded);
+    console.log(`Signed Attributes first byte: 0x${signedAttrsBuffer[0].toString(16)}`);
+
+    // CRITICAL:
+    // If signedAttrs is encoded with the context-specific tag [0] (0xA0), we must change it to SET OF (0x31) for hashing/signing.
+    // Adobe calculates the signature over the SET OF structure.
+    if (signedAttrsBuffer[0] === 0xA0) {
+        console.log("Fixing Signed Attributes tag from 0xA0 to 0x31 for signing...");
+        signedAttrsBuffer[0] = 0x31;
+    }
 
     // Use Node.js native crypto for signing
     const sign = require('crypto').createSign('RSA-SHA256');
-    sign.update(Buffer.from(signedAttrsEncoded));
+    // We sign the buffer with the corrected tag
+    sign.update(signedAttrsBuffer);
     const signature = sign.sign(privateKeyPem);
 
     signerInfo.signature = new asn1js.OctetString({ valueHex: signature });
