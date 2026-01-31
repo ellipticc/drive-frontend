@@ -243,9 +243,10 @@ export async function signPdf(
         algorithmId: '2.16.840.1.101.3.4.2.1' // SHA-256
     });
 
-    // Set signature algorithm - must be sha256WithRSAEncryption
+    // Set signature algorithm - use generic RSA, let parameters/digest specify hash
     signerInfo.signatureAlgorithm = new pkijs.AlgorithmIdentifier({
-        algorithmId: '1.2.840.113549.1.1.11' // sha256WithRSAEncryption
+        algorithmId: '1.2.840.113549.1.1.1', // rsaEncryption
+        algorithmParams: new asn1js.Null() // Explicit NULL parameters often required
     });
 
     // Add signed attributes
@@ -325,8 +326,9 @@ export async function signPdf(
         throw new Error(`Signature too large: ${signatureHex.length} > ${placeholderLen}`);
     }
 
-    // Pad with spaces instead of zeros
-    const paddedSignature = signatureHex.padEnd(placeholderLen, ' ');
+    // Pad with zeros to ensure null-byte termination/padding
+    // '0' string in hex -> 0x00 byte value when parsed as hex pair
+    const paddedSignature = signatureHex.padEnd(placeholderLen, '0');
     pdfBuffer.set(encoder.encode(paddedSignature), contentsHexStart);
 
     console.log('PDF signed successfully with PKI.js');
