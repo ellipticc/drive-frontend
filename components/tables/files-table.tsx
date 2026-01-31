@@ -1263,10 +1263,13 @@ export const Table01DividerLineSm = ({
                     const mappedFiles = await Promise.all((filesData || []).map(async (f: FileItem) => {
                         let name = f.name || f.filename || t('common.untitled');
 
+                        const encryptedName = f.encryptedFilename || (f as any).encrypted_filename;
+                        const nameSalt = f.filenameSalt || (f as any).filename_salt || (f as any).name_salt;
+
                         // Try decrypting if encrypted
-                        if (f.encryptedFilename && f.filenameSalt && masterKey) {
+                        if (encryptedName && nameSalt && masterKey) {
                             try {
-                                name = await decryptFilename(f.encryptedFilename, f.filenameSalt, masterKey);
+                                name = await decryptFilename(encryptedName, nameSalt, masterKey);
                             } catch (e) {
                                 console.error("Failed to decrypt recent file name", e);
                             }

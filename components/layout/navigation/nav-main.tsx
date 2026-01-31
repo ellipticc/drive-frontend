@@ -156,9 +156,9 @@ export function NavMain({
                 </SidebarMenuButton>
 
                 {/* Always render submenu container for Folders */}
-                <SidebarMenuSub className="ml-3.5 border-l border-border/50">
-                  {/* Dynamic Folders - Collapsible */}
-                  {isMyFilesExpanded && (
+                {isMyFilesExpanded && (
+                  <SidebarMenuSub className="ml-3.5 border-l border-border/50">
+                    {/* Dynamic Folders - Collapsible */}
                     <>
                       {isLoadingFolders ? (
                         <div className="flex items-center gap-2 px-2 py-1 text-[10px] text-muted-foreground italic">
@@ -178,8 +178,8 @@ export function NavMain({
                         </div>
                       ) : null}
                     </>
-                  )}
-                </SidebarMenuSub>
+                  </SidebarMenuSub>
+                )}
               </SidebarMenuItem>
             ) : item.id === 'trash' ? (
               <SidebarMenuItem key={item.title}>
