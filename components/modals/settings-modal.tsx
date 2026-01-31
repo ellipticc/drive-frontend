@@ -256,7 +256,6 @@ export function SettingsModal({
   const [croppingFile, setCroppingFile] = useState<File | null>(null)
   const [appearanceTheme, setAppearanceTheme] = useState("default")
   const [themeSync, setThemeSync] = useState(true)
-  const [showSuggestions, setShowSuggestions] = useState(true)
   const [dateFormat, setDateFormat] = useState("MM/DD/YYYY")
   const [autoTimezone, setAutoTimezone] = useState(true)
   const [timezone, setTimezone] = useState("UTC")
@@ -457,9 +456,6 @@ export function SettingsModal({
       }
       if (user.theme_sync !== undefined) {
         setThemeSync(user.theme_sync);
-      }
-      if (user.show_suggestions !== undefined) {
-        setShowSuggestions(user.show_suggestions);
       }
       if (user.date_format) {
         setDateFormat(user.date_format);
@@ -1978,11 +1974,6 @@ export function SettingsModal({
                       }}
                       theme={theme}
                       setTheme={setTheme}
-                      showSuggestions={showSuggestions}
-                      setShowSuggestions={async (val: boolean) => {
-                        setShowSuggestions(val);
-                        await handleUpdatePreferences({ show_suggestions: val ? 1 : 0 });
-                      }}
                       autoPaperVersioning={autoPaperVersioning}
                       setAutoPaperVersioning={async (val: boolean) => {
                         setAutoPaperVersioning(val);

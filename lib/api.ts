@@ -34,7 +34,6 @@ export interface UserData {
   crypto_version?: string;
   api_version?: string;
   connectedDevicesCount?: number;
-  show_suggestions?: boolean;
   date_format?: string;
   time_format?: string;
   auto_timezone?: boolean;
@@ -205,7 +204,6 @@ export interface UserPreferences {
   time_format?: string;
   auto_timezone?: boolean;
   timezone?: string;
-  show_suggestions?: boolean;
   show_checkmark?: boolean;
   auto_paper_versioning?: boolean;
   auto_event_insights?: boolean;
@@ -306,19 +304,6 @@ export interface FileItem {
   lockedUntil?: string | null;
   retentionMode?: string | null;
   tags?: Tag[];
-}
-
-export interface RecentItem {
-  id: string; // The file or folder ID
-  recentId: string; // The ID from recent_items table
-  type: 'file' | 'folder';
-  name: string; // Display name (decrypted or placeholder)
-  encryptedName?: string;
-  nameSalt?: string;
-  mimeType?: string; // For files
-  size?: number; // For files
-  parentId?: string | null;
-  accessedAt: string;
 }
 
 export interface FolderContentItem {
@@ -1171,7 +1156,6 @@ class ApiClient {
     language?: string;
     appearance_theme?: string;
     theme_sync?: boolean;
-    show_suggestions?: boolean;
     date_format?: string;
     time_format?: string;
     auto_timezone?: boolean;
@@ -1438,23 +1422,6 @@ class ApiClient {
   // Get current user info
   async getMe(): Promise<ApiResponse<UserData>> {
     return this.request('/auth/me');
-  }
-
-  // Recent items endpoints
-  async addRecentItem(data: { id: string; type: 'file' | 'folder' }): Promise<ApiResponse> {
-    return this.request('/recent', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  // Fetch recent items (optional folder scoping)
-  async getRecentItems(limit = 15, folderId?: string | null): Promise<ApiResponse<RecentItem[]>> {
-    const queryParams = new URLSearchParams();
-    queryParams.append('limit', limit.toString());
-    if (folderId) queryParams.append('folderId', folderId);
-    const endpoint = `/recent${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    return this.request(endpoint);
   }
 
   // Folders endpoints

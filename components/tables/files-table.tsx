@@ -47,8 +47,6 @@ import { encryptShareFilename } from '@/lib/share-crypto';
 import { masterKeyManager } from "@/lib/master-key";
 import { paperService } from "@/lib/paper-service";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useRecentFiles, RecentItem } from "@/hooks/use-recent-files";
-import { SuggestedFiles } from "@/components/files/suggested-files";
 import { TruncatedNameTooltip } from "@/components/tables/truncated-name-tooltip";
 import { cx } from "@/utils/cx";
 import { cn } from "@/lib/utils";
@@ -403,8 +401,6 @@ export const Table01DividerLineSm = ({
 
     // View mode state
     const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
-    // Folder-specific recents. Only fetch for current folder if not root.
-    const { recentItems, isVisible: isRecentVisible, toggleVisibility: toggleRecentVisibility, addRecent } = useRecentFiles(currentFolderId === 'root' ? null : currentFolderId);
 
     // Save view mode to localStorage when it changes
     const handleViewModeChange = useCallback((newViewMode: 'table' | 'grid') => {
@@ -814,26 +810,8 @@ export const Table01DividerLineSm = ({
     useEffect(() => {
         const previewId = searchParams?.get('preview');
         if (previewId) {
-            // First check the current folder's filesMap
-            let file = filesMap.get(previewId);
-
-            // If not in current folder, check recentItems (for suggestions from other folders)
-            if (!file && recentItems) {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const recent = recentItems.find((r: any) => r.id === previewId && r.type === 'file');
-                if (recent) {
-                    file = {
-                        id: recent.id,
-                        name: recent.name,
-                        type: 'file',
-                        mimeType: recent.mimeType,
-                        // Add dummy/missing properties for FileItem compatibility if needed
-                        createdAt: new Date().toISOString(),
-                        updatedAt: new Date().toISOString(),
-                        size: recent.size || '0'
-                    } as FileItem;
-                }
-            }
+            // Check the current folder's filesMap
+            const file = filesMap.get(previewId);
 
             if (file && file.type === 'file') {
                 setSelectedItemForPreview({ id: file.id, name: file.name, mimeType: file.mimeType });
@@ -852,23 +830,17 @@ export const Table01DividerLineSm = ({
             setPreviewModalOpen(false);
             setSelectedItemForPreview(null);
         }
-    }, [searchParams, filesMap, files, isLoading, pathname, router, recentItems]);
+    }, [searchParams, filesMap, files, isLoading, pathname, router]);
 
     // Update handlePreviewClick to use URL
     const handlePreviewClick = useCallback((itemId: string, itemName: string, mimeType?: string) => {
         // Clear selection immediately so ActionBar hides quickly
         setSelectedItems(new Set());
 
-        addRecent({
-            id: itemId,
-            name: itemName,
-            type: 'file',
-            mimeType: mimeType
-        }, 1500); // 1.5s delay to prevent accidental/quick access tracking
         const params = new URLSearchParams(searchParams.toString());
         params.set('preview', itemId);
         router.push(`${pathname}?${params.toString()}`, { scroll: false });
-    }, [pathname, router, searchParams, addRecent]);
+    }, [pathname, router, searchParams]);
 
     // Hash copy animation state
     const [copiedHashId, setCopiedHashId] = useState<string | null>(null);
@@ -3344,42 +3316,11 @@ export const Table01DividerLineSm = ({
         return () => document.removeEventListener('keydown', handleKeyDown);
     }, [selectedItems, filesMap]);
 
-    const handleSuggestedNavigate = useCallback((item: RecentItem) => {
-        if (item.type === 'folder') {
-            // Jump to folder
-            // We set ID and basic path [Root, Target]
-            setCurrentFolderId(item.id);
-            const basicPath = [{ id: 'root', name: 'My Files' }, { id: item.id, name: item.name }];
-            setFolderPath(basicPath);
-            updateUrl(basicPath);
-            addRecent({ ...item });
-        } else {
-            handlePreviewClick(item.id, item.name, item.mimeType);
-        }
-    }, [addRecent, handlePreviewClick, router]);
-
     return (
         <div className={cn(
             "flex flex-col h-full bg-background mt-1",
             currentFolderId !== 'root' && "rounded-xl shadow-xs ring-1 ring-border overflow-hidden bg-card"
         )}>
-            {/* Suggested Files Section - Show only in subfolders, not in global (root) */}
-            {currentFolderId !== 'root' && user?.show_suggestions !== false && (
-                <SuggestedFiles
-                    items={recentItems}
-                    isVisible={isRecentVisible}
-                    onToggleVisibility={toggleRecentVisibility}
-                    onNavigate={handleSuggestedNavigate}
-                    onPreview={handlePreviewClick}
-                    onShare={handleShareClick}
-                    onStar={handleStarClick}
-                    onMoveToFolder={handleMoveToFolderClick}
-                    onCopy={handleCopyClick}
-                    onRename={handleRenameClick}
-                    onDetails={handleDetailsClick}
-                    onMoveToTrash={handleMoveToTrashClick}
-                />
-            )}
 
             {isMobile && (
                 <div className="flex flex-col border-b border-border bg-card shadow-sm z-20">

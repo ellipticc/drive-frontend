@@ -1,5 +1,4 @@
 import {
-    IconSparkles,
     IconHistory,
     IconBrain,
     IconChecks,
@@ -31,8 +30,6 @@ interface PreferencesTabProps {
     setTheme: (theme: string) => void;
 
     // Feature Preferences
-    showSuggestions: boolean;
-    setShowSuggestions: (val: boolean) => void;
     autoPaperVersioning: boolean;
     setAutoPaperVersioning: (val: boolean) => void;
     autoEventInsights: boolean;
@@ -48,8 +45,6 @@ export function PreferencesTab({
     setThemeSync,
     theme,
     setTheme,
-    showSuggestions,
-    setShowSuggestions,
     autoPaperVersioning,
     setAutoPaperVersioning,
     autoEventInsights,
@@ -206,24 +201,6 @@ export function PreferencesTab({
                 <h3 className="text-lg font-semibold">Smart Features</h3>
 
                 <div className="space-y-4">
-                    {/* Suggestions */}
-                    <div className="flex items-center justify-between p-4 bg-muted/20 rounded-lg border border-dashed transition-all hover:bg-muted/30">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-background rounded-full border shadow-sm">
-                                <IconSparkles className="w-4 h-4 text-amber-500" />
-                            </div>
-                            <div className="space-y-0.5">
-                                <Label className="text-sm font-semibold">{t('settings.suggestions.label') || 'Suggested for you'}</Label>
-                                <p className="text-xs text-muted-foreground">{t('settings.suggestions.desc') || 'Show recommended files and activities based on your usage'}</p>
-                            </div>
-                        </div>
-                        <Switch
-                            id="show-suggestions"
-                            checked={showSuggestions}
-                            onCheckedChange={setShowSuggestions}
-                        />
-                    </div>
-
                     {/* Paper Versioning */}
                     <div className="flex items-center justify-between p-4 bg-muted/20 rounded-lg border border-dashed transition-all hover:bg-muted/30">
                         <div className="flex items-center gap-3">

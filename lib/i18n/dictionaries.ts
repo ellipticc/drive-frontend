@@ -46,10 +46,6 @@ export const dictionaries = {
                 "24h": "24-hour",
                 desc: "Choose how time is displayed throughout the application.",
             },
-            suggestions: {
-                label: "Suggested for you",
-                desc: "Show recommended files based on your activity",
-            },
             dateFormat: {
                 label: "Date Format",
                 desc: "Select your preferred date display format",
@@ -139,8 +135,6 @@ export const dictionaries = {
             details: "Details",
             share: "Share",
             suggested: "Suggested for you",
-            hideSuggestions: "Hide suggestions",
-            showSuggestions: "Show suggestions",
             scrollLeft: "Scroll left",
             scrollRight: "Scroll right",
             manageShare: "Manage share",
@@ -207,10 +201,6 @@ export const dictionaries = {
                 "12h": "12 heures (AM/PM)",
                 "24h": "24 heures",
                 desc: "Choisissez comment l'heure est affichée dans l'application.",
-            },
-            suggestions: {
-                label: "Suggéré pour vous",
-                desc: "Afficher les fichiers recommandés en fonction de votre activité",
             },
             dateFormat: {
                 label: "Format de date",
@@ -300,8 +290,7 @@ export const dictionaries = {
             details: "Détails",
             share: "Partager",
             suggested: "Suggéré pour vous",
-            hideSuggestions: "Masquer les suggestions",
-            showSuggestions: "Afficher les suggestions",
+
             scrollLeft: "Défiler vers la gauche",
             scrollRight: "Défiler vers la droite",
             manageShare: "Gérer le partage",
@@ -366,10 +355,6 @@ export const dictionaries = {
                 "12h": "12 horas (AM/PM)",
                 "24h": "24 horas",
                 desc: "Elija cómo se muestra la hora en toda la aplicación.",
-            },
-            suggestions: {
-                label: "Sugerido para ti",
-                desc: "Mostrar archivos recomendados según tu actividad",
             },
             dateFormat: {
                 label: "Formato de fecha",
@@ -459,8 +444,6 @@ export const dictionaries = {
             details: "Detalles",
             share: "Compartir",
             suggested: "Sugerido para ti",
-            hideSuggestions: "Ocultar sugerencias",
-            showSuggestions: "Mostrar sugerencias",
             scrollLeft: "Desplazar a la izquierda",
             scrollRight: "Desplazar a la derecha",
             manageShare: "Gestionar uso compartido",
@@ -525,10 +508,6 @@ export const dictionaries = {
                 "12h": "12-Stunden (AM/PM)",
                 "24h": "24-Stunden",
                 desc: "Wählen Sie, wie die Uhrzeit in der Anwendung angezeigt werden soll.",
-            },
-            suggestions: {
-                label: "Für Sie vorgeschlagen",
-                desc: "Empfohlene Dateien basierend auf Ihrer Aktivität anzeigen",
             },
             dateFormat: {
                 label: "Datumsformat",
@@ -617,8 +596,6 @@ export const dictionaries = {
             details: "Details",
             share: "Teilen",
             suggested: "Für Sie vorgeschlagen",
-            hideSuggestions: "Vorschläge ausblenden",
-            showSuggestions: "Vorschläge anzeigen",
             scrollLeft: "Nach links scrollen",
             scrollRight: "Nach rechts scrollen",
             manageShare: "Freigabe verwalten",
