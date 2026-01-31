@@ -689,6 +689,7 @@ function PaperPageContent() {
     const [supportDialogOpen, setSupportDialogOpen] = useState(false);
 
     const saveTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+    const savingRef = useRef<boolean>(false);
     const latestIconRef = useRef<string | null>(null);
 
     useEffect(() => {
@@ -885,6 +886,7 @@ function PaperPageContent() {
 
         const saveStartTime = Date.now();
         setSaving(true);
+        savingRef.current = true;
         try {
             if (!masterKeyManager.hasMasterKey()) return;
             // We save the wrapped object
@@ -895,11 +897,25 @@ function PaperPageContent() {
                 setIsUnsaved(false);
                 lastSavedContentRef.current = contentString;
             }
+
+            // Check if there are newer changes that need saving
+            const latestContent = latestContentRef.current;
+            const latestIcon = latestIconRef.current;
+            if (latestContent) {
+                const latestData = { content: latestContent, icon: latestIcon };
+                const latestString = JSON.stringify(latestData);
+                if (latestString !== lastSavedContentRef.current) {
+                    // There are newer changes, save them immediately
+                    setTimeout(() => handleSave(latestContent, latestIcon || undefined), 0);
+                    return;
+                }
+            }
         } catch (e) {
             console.error(e);
             toast.error("Failed to save content");
         } finally {
             setSaving(false);
+            savingRef.current = false;
         }
     }, [fileId, icon]);
 
@@ -937,8 +953,16 @@ function PaperPageContent() {
         lastChangeTimeRef.current = Date.now();
         setIsUnsaved(true);
 
+        // If a save is already in progress, don't start another timeout
+        // The current save will check for newer changes when it completes
+        if (savingRef.current) {
+            return;
+        }
+
         if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = setTimeout(() => {
+            // Don't save if already saving
+            if (savingRef.current) return;
             handleSave(newValue);
         }, 800);
     };
@@ -949,7 +973,13 @@ function PaperPageContent() {
         setIcon(newIcon);
         // Trigger save immediately for icon change
         if (latestContentRef.current) {
-            handleSave(latestContentRef.current, newIcon);
+            // If a save is in progress, just update the latest icon for the next save
+            if (savingRef.current) {
+                latestIconRef.current = newIcon;
+                setIsUnsaved(true);
+            } else {
+                handleSave(latestContentRef.current, newIcon);
+            }
         }
     };
 
