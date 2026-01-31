@@ -59,9 +59,6 @@ export function NavMain({
     return false
   })
 
-  // State for More/Less button click effect
-  const [isMoreLessClicked, setIsMoreLessClicked] = useState(false)
-
   const fetchRootFolders = useCallback(async () => {
     if (hasLoadedRoot) return
     setIsLoadingFolders(true)
@@ -124,18 +121,7 @@ export function NavMain({
     const next = !areAdditionalItemsExpanded
     setAreAdditionalItemsExpanded(next)
     localStorage.setItem("sidebar-additional-expanded", String(next))
-
-    // Add muted click effect
-    setIsMoreLessClicked(true)
   }
-
-  // Handle click effect timeout
-  useEffect(() => {
-    if (isMoreLessClicked) {
-      const timer = setTimeout(() => setIsMoreLessClicked(false), 150)
-      return () => clearTimeout(timer)
-    }
-  }, [isMoreLessClicked])
 
   // Helper function to get filled icon for active states
   const getIcon = (item: { icon?: Icon; id?: string }, isActive: boolean) => {
@@ -203,10 +189,7 @@ export function NavMain({
                   <SidebarMenuItem>
                     <SidebarMenuButton
                       onClick={toggleAdditionalItems}
-                      className={cn(
-                        "cursor-pointer text-muted-foreground hover:text-foreground transition-colors",
-                        isMoreLessClicked && "scale-95 opacity-70"
-                      )}
+                      className="cursor-pointer text-muted-foreground hover:text-foreground transition-colors"
                       tooltip={areAdditionalItemsExpanded ? "Show less" : "Show more"}
                     >
                       {areAdditionalItemsExpanded ? (
