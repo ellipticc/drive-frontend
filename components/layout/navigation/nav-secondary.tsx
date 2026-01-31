@@ -17,7 +17,7 @@ import { useUser } from "@/components/user-context"
 import { useSidebar } from "@/components/ui/sidebar"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
-import { IconLifebuoy, IconBooks, IconBrandDiscord, IconBrandGithub, IconSparkles } from "@tabler/icons-react"
+import { IconLifebuoy, IconBooks, IconBrandDiscord, IconBrandGithub, IconSparkles, IconAdjustmentsFilled, IconHelpCircleFilled, IconBubbleTextFilled } from "@tabler/icons-react"
 import { useSettingsOpen } from "@/hooks/use-settings-open"
 
 export function NavSecondary({
@@ -38,6 +38,22 @@ export function NavSecondary({
   const [supportOpen, setSupportOpen] = React.useState(false)
   const [settingsOpen, setSettingsOpen] = useSettingsOpen()
 
+  // Helper function to get filled icon for active states
+  const getIcon = (item: { icon: Icon; id?: string }, isActive: boolean) => {
+    if (!isActive) return item.icon
+
+    switch (item.id) {
+      case 'settings':
+        return IconAdjustmentsFilled
+      case 'help':
+        return IconHelpCircleFilled
+      case 'feedback':
+        return IconBubbleTextFilled
+      default:
+        return item.icon
+    }
+  }
+
   return (
     <SidebarGroup {...props}>
       <SidebarGroupContent>
@@ -53,7 +69,10 @@ export function NavSecondary({
                         <TooltipTrigger asChild>
                           <DropdownMenuTrigger asChild>
                             <SidebarMenuButton isActive={helpOpen}>
-                              <item.icon />
+                            {(() => {
+                              const IconComponent = getIcon(item, helpOpen)
+                              return <IconComponent />
+                            })()}
                               <span>{item.title}</span>
                             </SidebarMenuButton>
                           </DropdownMenuTrigger>
@@ -63,7 +82,10 @@ export function NavSecondary({
                     ) : (
                       <DropdownMenuTrigger asChild>
                         <SidebarMenuButton isActive={helpOpen}>
-                          <item.icon />
+                          {(() => {
+                            const IconComponent = getIcon(item, helpOpen)
+                            return <IconComponent />
+                          })()}
                           <span>{item.title}</span>
                         </SidebarMenuButton>
                       </DropdownMenuTrigger>
@@ -116,7 +138,10 @@ export function NavSecondary({
                           id="tour-settings"
                           isActive={settingsOpen}
                         >
-                          <item.icon />
+                          {(() => {
+                            const IconComponent = getIcon(item, settingsOpen)
+                            return <IconComponent />
+                          })()}
                           <span>{item.title}</span>
                         </SidebarMenuButton>
                       </TooltipTrigger>
@@ -131,7 +156,10 @@ export function NavSecondary({
                       id="tour-settings"
                       isActive={settingsOpen}
                     >
-                      <item.icon />
+                      {(() => {
+                        const IconComponent = getIcon(item, settingsOpen)
+                        return <IconComponent />
+                      })()}
                       <span>{item.title}</span>
                     </SidebarMenuButton>
                   )
@@ -141,7 +169,10 @@ export function NavSecondary({
                       <FeedbackPopover open={feedbackOpen} onOpenChange={setFeedbackOpen}>
                         <TooltipTrigger asChild>
                           <SidebarMenuButton isActive={feedbackOpen}>
-                            <item.icon />
+                            {(() => {
+                              const IconComponent = getIcon(item, feedbackOpen)
+                              return <IconComponent />
+                            })()}
                             <span>{item.title}</span>
                             <div className="ms-auto">
                               <Kbd>F</Kbd>
@@ -154,7 +185,10 @@ export function NavSecondary({
                   ) : (
                     <FeedbackPopover open={feedbackOpen} onOpenChange={setFeedbackOpen}>
                       <SidebarMenuButton isActive={feedbackOpen}>
-                        <item.icon />
+                        {(() => {
+                          const IconComponent = getIcon(item, feedbackOpen)
+                          return <IconComponent />
+                        })()}
                         <span>{item.title}</span>
                         <div className="ms-auto">
                           <Kbd>F</Kbd>

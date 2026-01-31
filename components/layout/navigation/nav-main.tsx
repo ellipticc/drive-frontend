@@ -351,7 +351,10 @@ export function NavMain({
               return (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton onClick={() => window.location.hash = '#settings/General'} id="tour-settings">
-                    {item.icon && <item.icon />}
+                    {(() => {
+                      const IconComponent = getIcon(item, false) // Settings doesn't have active state in nav-main
+                      return IconComponent && <IconComponent />
+                    })()}
                     <span>{item.title}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
