@@ -575,6 +575,9 @@ export function SecurityTab(props: SecurityTabProps) {
     const [confirmPassword, setConfirmPassword] = useState("");
     const [isChangingPassword, setIsChangingPassword] = useState(false);
 
+    // Shared visibility for new+confirm password fields (show both at once)
+    const [showNewPasswords, setShowNewPasswords] = useState(false);
+
     // Check plan access (Pro & Unlimited)
     const isPaid = (userPlan || 'Free').includes('Pro') || (userPlan || 'Free').includes('Unlimited');
     const hasExportAccess = isPaid;
@@ -2663,6 +2666,8 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                     value={newPassword}
                                     onChange={(e) => setNewPassword(e.target.value)}
                                     placeholder="Enter new password (min 8 chars)"
+                                    show={showNewPasswords}
+                                    onToggle={() => setShowNewPasswords((s) => !s)}
                                 />
                             </div>
                             <div className="space-y-2">
@@ -2674,6 +2679,8 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                     value={confirmPassword}
                                     onChange={(e) => setConfirmPassword(e.target.value)}
                                     placeholder="Confirm new password"
+                                    show={showNewPasswords}
+                                    onToggle={() => setShowNewPasswords((s) => !s)}
                                 />
                             </div>
                         </div>

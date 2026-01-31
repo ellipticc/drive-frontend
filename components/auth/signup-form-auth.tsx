@@ -19,6 +19,7 @@ import { IconLoader2 as Loader2 } from "@tabler/icons-react"
 
 
 import { initializeDeviceKeys } from "@/lib/device-keys"
+import { IconCheck, IconX } from "@tabler/icons-react"
 
 export function SignupFormAuth({
   className,
@@ -35,6 +36,21 @@ export function SignupFormAuth({
     password: "",
     confirmPassword: ""
   })
+
+  // Shared visibility for password & confirm password on signup
+  const [showPasswords, setShowPasswords] = useState(false)
+
+  const validatePasswordRealtime = (pwd: string) => {
+    return {
+      length: pwd.length >= 8,
+      upper: /[A-Z]/.test(pwd),
+      lower: /[a-z]/.test(pwd),
+      number: /[0-9]/.test(pwd),
+      special: /[^A-Za-z0-9]/.test(pwd),
+    }
+  }
+
+  const passwordChecks = validatePasswordRealtime(formData.password)
 
 
   // Check if user is already authenticated with cached credentials
@@ -101,8 +117,10 @@ export function SignupFormAuth({
         return
       }
 
-      if (formData.password.length < 8) {
-        setError("Password must be at least 8 characters long")
+      const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/
+
+      if (!passwordPattern.test(formData.password)) {
+        setError("Password must be at least 8 characters and include an uppercase letter, lowercase letter, a number, and a special character")
         return
       }
 
