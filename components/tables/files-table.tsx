@@ -1192,65 +1192,78 @@ export const Table01DividerLineSm = ({
             if (filterMode === 'starred') {
                 // STARRED ITEMS MODE
                 const response = await apiClient.getStarredItems();
-                if (response.success && response.data) {
-                    // Map SpaceItem to FileContentItem / FolderContentItem
-                    const starredItems = response.data;
+                // Parse result safely
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const items = (response.success && response.data) ? (response.data || []) : [];
 
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    allFiles = starredItems.filter(item => !!item.file_id).map((item: any) => ({
-                        id: item.file_id!,
-                        filename: item.decryptedName || item.filename, // Should be roughly compatible
-                        encryptedFilename: item.encrypted_filename,
-                        filenameSalt: item.filename_salt,
-                        type: 'file',
-                        size: item.size || 0,
-                        mimeType: item.mimetype || 'application/octet-stream',
-                        folderId: item.file_folder_id || null, // Map to parent
-                        createdAt: item.created_at,
-                        updatedAt: item.created_at,
-                        is_starred: true,
-                        is_shared: false
-                    } as FileContentItem));
+                const masterKey = masterKeyManager.hasMasterKey() ? masterKeyManager.getMasterKey() : null;
 
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    allFolders = starredItems.filter(item => !!item.folder_id && !item.file_id).map((item: any) => ({
-                        id: item.folder_id!,
-                        name: item.decryptedName || item.encrypted_name,
-                        encryptedName: item.encrypted_name,
-                        nameSalt: item.name_salt,
-                        type: 'folder',
-                        parentId: item.file_folder_id || null,
-                        path: '',
-                        createdAt: item.created_at,
-                        updatedAt: item.created_at,
-                        is_starred: true,
-                        is_shared: false
-                    } as FolderContentItem));
+                // Decrypt folder names for starred items if needed
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const decryptedItems = await Promise.all(items.map(async (item: any) => {
+                    let name = item.filename || item.name || t('common.untitled');
+                    if (item.encrypted_name && item.name_salt && masterKey) {
+                        try {
+                            name = await decryptFilename(item.encrypted_name, item.name_salt, masterKey);
+                        } catch (e) {
+                            console.error("Failed to decrypt starred folder name", e);
+                        }
+                    }
+                    return { ...item, name, decryptedName: name };
+                }));
 
-                    setTotalPages(1);
-                    setTotalItems(allFiles.length + allFolders.length);
-                } else {
-                    throw new Error(response.error || "Failed to load starred items");
-                }
+                allFiles = decryptedItems.filter((i: any) => i.file_id).map((i: any) => ({
+                    id: i.file_id,
+                    name: i.decryptedName || i.filename || t('common.untitled'),
+                    // Map other properties...
+                    encryptedFilename: i.encrypted_filename,
+                    filenameSalt: i.filename_salt,
+                    type: 'file',
+                    size: i.size || 0,
+                    mimeType: i.mimetype || 'application/octet-stream',
+                    folderId: i.file_folder_id || null, // Map to parent
+                    createdAt: i.created_at,
+                    updatedAt: i.created_at, // Use created_at as fallback
+                    is_starred: true,
+                    is_shared: false
+                })) as any;
+
+                allFolders = decryptedItems.filter((i: any) => !i.file_id).map((i: any) => ({
+                    id: i.folder_id || i.id,
+                    name: i.decryptedName || t('common.untitledFolder'),
+                    encryptedName: i.encrypted_name,
+                    nameSalt: i.name_salt,
+                    type: 'folder',
+                    parentId: i.file_folder_id || null,
+                    path: '',
+                    createdAt: i.created_at,
+                    updatedAt: i.created_at,
+                    is_starred: true,
+                    is_shared: false
+                })) as any;
+
+                setTotalPages(1);
+                setTotalItems(allFiles.length + allFolders.length);
             } else if (filterMode === 'recents') {
                 // RECENTS MODE
                 // Fetch latest files via global search API logic
                 const response = await apiClient.getFiles({ limit: 100 }); // Fetch top 100 most recent
-                if (response.success && response.data) {
+
+                // Safe check for response.data and response.data.files
+                const filesData = response.success && response.data ? (Array.isArray(response.data) ? response.data : response.data.files) : [];
+
+                if (response.success) {
                     // Filter for files updated in the last 10 days
                     const tenDaysAgo = new Date();
                     tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
 
-                    // We need to fetch keys if we want to decrypt, but for now assuming we use available keys or fetch them
-                    // Note: getFiles returns FileItem[], we need to map to FileContentItem
-                    // ESLint/TS might complain about types, so we cast to specific structure or any if needed
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    const mappedFiles = response.data.files.map((f: FileItem) => ({
+                    const mappedFiles = (filesData || []).map((f: FileItem) => ({
                         ...f,
                         // Ensure required string properties have fallbacks
                         encryptedFilename: f.encryptedFilename || "",
                         filenameSalt: f.filenameSalt || "",
-                        name: f.name || f.filename || "Untitled",
+                        name: f.name || f.filename || t('common.untitled'),
                         folderId: f.folderId || null,
                         type: 'file' as const,
                         is_starred: false, // We'd need to check this separately or if API provides it
