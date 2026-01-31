@@ -15,7 +15,7 @@ import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useState, useEffect } from "react"
 import { apiClient } from "@/lib/api"
-import { IconLoader2 as Loader2, IconDice as Dice } from "@tabler/icons-react"
+import { IconLoader2 as Loader2 } from "@tabler/icons-react"
 
 
 import { initializeDeviceKeys } from "@/lib/device-keys"
@@ -48,33 +48,6 @@ export function SignupFormAuth({
       number: /[0-9]/.test(pwd),
       special: /[^A-Za-z0-9]/.test(pwd),
     }
-  }
-
-  const generateRandomPassword = (): string => {
-    const upperCase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-    const lowerCase = 'abcdefghijklmnopqrstuvwxyz'
-    const numbers = '0123456789'
-    const specialChars = '!@#$%^&*()_+-=[]{}|;:,.<>?'
-    const allChars = upperCase + lowerCase + numbers + specialChars
-
-    const length = 16
-    let password = ''
-
-    password += upperCase[Math.floor(Math.random() * upperCase.length)]
-    password += lowerCase[Math.floor(Math.random() * lowerCase.length)]
-    password += numbers[Math.floor(Math.random() * numbers.length)]
-    password += specialChars[Math.floor(Math.random() * specialChars.length)]
-
-    for (let i = password.length; i < length; i++) {
-      password += allChars[Math.floor(Math.random() * allChars.length)]
-    }
-
-    return password.split('').sort(() => Math.random() - 0.5).join('')
-  }
-
-  const handleGeneratePassword = () => {
-    const newPassword = generateRandomPassword()
-    setFormData(prev => ({ ...prev, password: newPassword, confirmPassword: newPassword }))
   }
 
   const passwordChecks = validatePasswordRealtime(formData.password)
@@ -387,18 +360,7 @@ export function SignupFormAuth({
             />
           </Field>
           <Field>
-            <div className="flex items-center justify-between mb-2">
-              <FieldLabel htmlFor="password">Password</FieldLabel>
-              <button
-                type="button"
-                onClick={handleGeneratePassword}
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-                title="Generate random 16-character password"
-              >
-                <Dice className="h-4 w-4" />
-                Generate
-              </button>
-            </div>
+
             <Field className="grid grid-cols-2 gap-4">
               <Field>
                 <FieldLabel htmlFor="password">Password</FieldLabel>
