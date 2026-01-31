@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { PasswordInput } from "@/components/ui/password-input"
-import { IconAlertCircle as AlertCircle, IconLoader2 as Loader2 } from "@tabler/icons-react"
+import { IconAlertCircle as AlertCircle, IconLoader2 as Loader2, IconDice as Dice } from "@tabler/icons-react"
 import { apiClient } from "@/lib/api"
 import { toast } from "sonner"
 import { OPAQUERegistration } from "@/lib/opaque"
@@ -30,6 +30,34 @@ export function RecoveryPasswordResetForm({
     newPassword: "",
     confirmPassword: ""
   })
+  const [showPasswords, setShowPasswords] = useState(false)
+
+  const generateRandomPassword = (): string => {
+    const upperCase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+    const lowerCase = 'abcdefghijklmnopqrstuvwxyz'
+    const numbers = '0123456789'
+    const specialChars = '!@#$%^&*()_+-=[]{}|;:,.<>?'
+    const allChars = upperCase + lowerCase + numbers + specialChars
+
+    const length = 16
+    let password = ''
+
+    password += upperCase[Math.floor(Math.random() * upperCase.length)]
+    password += lowerCase[Math.floor(Math.random() * lowerCase.length)]
+    password += numbers[Math.floor(Math.random() * numbers.length)]
+    password += specialChars[Math.floor(Math.random() * specialChars.length)]
+
+    for (let i = password.length; i < length; i++) {
+      password += allChars[Math.floor(Math.random() * allChars.length)]
+    }
+
+    return password.split('').sort(() => Math.random() - 0.5).join('')
+  }
+
+  const handleGeneratePassword = () => {
+    const newPassword = generateRandomPassword()
+    setFormData(prev => ({ ...prev, newPassword, confirmPassword: newPassword }))
+  }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -197,34 +225,45 @@ export function RecoveryPasswordResetForm({
     <form onSubmit={handleSubmit} className="space-y-4">
       <FieldGroup>
         <Field>
-          <FieldLabel htmlFor="newPassword">New Password</FieldLabel>
-          <PasswordInput
-            id="newPassword"
-            name="newPassword"
-            placeholder="••••••••"
-            required
-            autoComplete="new-password"
-            value={formData.newPassword}
-            onChange={handleInputChange}
-            disabled={isLoading}
-          />
-        </Field>
-
-        <Field>
-          <FieldLabel htmlFor="confirmPassword">Confirm Password</FieldLabel>
-          <PasswordInput
-            id="confirmPassword"
-            name="confirmPassword"
-            placeholder="••••••••"
-            required
-            autoComplete="new-password"
-            value={formData.confirmPassword}
-            onChange={handleInputChange}
-            disabled={isLoading}
-          />
-          <FieldDescription>
-            Must be at least 8 characters
-          </FieldDescription>
+          <div className="flex items-center justify-between mb-2">
+            <FieldLabel htmlFor="newPassword">New Password</FieldLabel>
+            <button
+              type="button"
+              onClick={handleGeneratePassword}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+              title="Generate random 16-character password"
+              disabled={isLoading}
+            >
+              <Dice className="h-4 w-4" />
+              Generate
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <PasswordInput
+              id="newPassword"
+              name="newPassword"
+              placeholder="••••••••"
+              required
+              autoComplete="new-password"
+              value={formData.newPassword}
+              onChange={handleInputChange}
+              disabled={isLoading}
+              show={showPasswords}
+              onToggle={() => setShowPasswords((s) => !s)}
+            />
+            <PasswordInput
+              id="confirmPassword"
+              name="confirmPassword"
+              placeholder="••••••••"
+              required
+              autoComplete="new-password"
+              value={formData.confirmPassword}
+              onChange={handleInputChange}
+              disabled={isLoading}
+              show={showPasswords}
+              onToggle={() => setShowPasswords((s) => !s)}
+            />
+          </div>
         </Field>
 
         {error && (

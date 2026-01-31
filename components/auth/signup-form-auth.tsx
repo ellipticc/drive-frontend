@@ -15,7 +15,7 @@ import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useState, useEffect } from "react"
 import { apiClient } from "@/lib/api"
-import { IconLoader2 as Loader2 } from "@tabler/icons-react"
+import { IconLoader2 as Loader2, IconDice as Dice } from "@tabler/icons-react"
 
 
 import { initializeDeviceKeys } from "@/lib/device-keys"
@@ -48,6 +48,33 @@ export function SignupFormAuth({
       number: /[0-9]/.test(pwd),
       special: /[^A-Za-z0-9]/.test(pwd),
     }
+  }
+
+  const generateRandomPassword = (): string => {
+    const upperCase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+    const lowerCase = 'abcdefghijklmnopqrstuvwxyz'
+    const numbers = '0123456789'
+    const specialChars = '!@#$%^&*()_+-=[]{}|;:,.<>?'
+    const allChars = upperCase + lowerCase + numbers + specialChars
+
+    const length = 16
+    let password = ''
+
+    password += upperCase[Math.floor(Math.random() * upperCase.length)]
+    password += lowerCase[Math.floor(Math.random() * lowerCase.length)]
+    password += numbers[Math.floor(Math.random() * numbers.length)]
+    password += specialChars[Math.floor(Math.random() * specialChars.length)]
+
+    for (let i = password.length; i < length; i++) {
+      password += allChars[Math.floor(Math.random() * allChars.length)]
+    }
+
+    return password.split('').sort(() => Math.random() - 0.5).join('')
+  }
+
+  const handleGeneratePassword = () => {
+    const newPassword = generateRandomPassword()
+    setFormData(prev => ({ ...prev, password: newPassword, confirmPassword: newPassword }))
   }
 
   const passwordChecks = validatePasswordRealtime(formData.password)
@@ -360,9 +387,20 @@ export function SignupFormAuth({
             />
           </Field>
           <Field>
+            <div className="flex items-center justify-between mb-2">
+              <FieldLabel htmlFor="password">Password</FieldLabel>
+              <button
+                type="button"
+                onClick={handleGeneratePassword}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                title="Generate random 16-character password"
+              >
+                <Dice className="h-4 w-4" />
+                Generate
+              </button>
+            </div>
             <Field className="grid grid-cols-2 gap-4">
               <Field>
-                <FieldLabel htmlFor="password">Password</FieldLabel>
                 <PasswordInput
                   id="password"
                   name="password"
@@ -371,11 +409,13 @@ export function SignupFormAuth({
                   autoComplete="new-password"
                   value={formData.password}
                   onChange={handleInputChange}
+                  show={showPasswords}
+                  onToggle={() => setShowPasswords((s) => !s)}
                 />
               </Field>
               <Field>
                 <FieldLabel htmlFor="confirmPassword">
-                  Confirm Password
+                  Confirm
                 </FieldLabel>
                 <PasswordInput
                   id="confirmPassword"
@@ -385,12 +425,31 @@ export function SignupFormAuth({
                   autoComplete="new-password"
                   value={formData.confirmPassword}
                   onChange={handleInputChange}
+                  show={showPasswords}
+                  onToggle={() => setShowPasswords((s) => !s)}
                 />
               </Field>
             </Field>
-            <FieldDescription>
-              Must be at least 8 characters long.
-            </FieldDescription>
+            <div className="mt-3 p-3 bg-muted/50 rounded-lg">
+              <div className="text-xs font-medium text-foreground mb-2">Password strength:</div>
+              <ul className="grid grid-cols-2 gap-2 text-xs">
+                <li className={`flex items-center gap-2 ${passwordChecks.length ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
+                  {passwordChecks.length ? <IconCheck className="h-3.5 w-3.5" /> : <IconX className="h-3.5 w-3.5" />} 8+ characters
+                </li>
+                <li className={`flex items-center gap-2 ${passwordChecks.upper ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
+                  {passwordChecks.upper ? <IconCheck className="h-3.5 w-3.5" /> : <IconX className="h-3.5 w-3.5" />} Uppercase
+                </li>
+                <li className={`flex items-center gap-2 ${passwordChecks.lower ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
+                  {passwordChecks.lower ? <IconCheck className="h-3.5 w-3.5" /> : <IconX className="h-3.5 w-3.5" />} Lowercase
+                </li>
+                <li className={`flex items-center gap-2 ${passwordChecks.number ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
+                  {passwordChecks.number ? <IconCheck className="h-3.5 w-3.5" /> : <IconX className="h-3.5 w-3.5" />} Number
+                </li>
+                <li className={`flex items-center gap-2 ${passwordChecks.special ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
+                  {passwordChecks.special ? <IconCheck className="h-3.5 w-3.5" /> : <IconX className="h-3.5 w-3.5" />} Special char
+                </li>
+              </ul>
+            </div>
           </Field>
           {error && (
             <FieldDescription className="text-red-500 text-center">
