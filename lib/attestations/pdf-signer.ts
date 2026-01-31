@@ -209,6 +209,12 @@ export async function signPdf(
                 values: [
                     new asn1js.OctetString({ valueHex: hash })
                 ]
+            }),
+            new pkijs.Attribute({
+                type: '1.2.840.113549.1.9.5', // signingTime
+                values: [
+                    new asn1js.UTCTime({ valueDate: new Date() })
+                ]
             })
         ]
     });
