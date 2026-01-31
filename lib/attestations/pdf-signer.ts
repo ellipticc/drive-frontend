@@ -193,10 +193,15 @@ export async function signPdf(
     if (byteRangeEnd === -1) throw new Error('ByteRange ] not found');
 
     // 4. Calculate ByteRange
+    // RFC 32000-1: The ByteRange array shall cover the entire file, excluding the < and > delimiters
+    // and the hexadecimal string.
+    // contentsHexStart is index of first hex char. So contentsHexStart - 1 is index of '<'.
     const range1Start = 0;
-    const range1Length = contentsHexStart;
-    const range2Start = contentsEnd;
-    const range2Length = pdfBuffer.length - contentsEnd;
+    const range1Length = contentsHexStart - 1; // Exclude '<'
+
+    // contentsEnd is index of '>'. So contentsEnd + 1 is start of next range.
+    const range2Start = contentsEnd + 1;       // Exclude '>'
+    const range2Length = pdfBuffer.length - range2Start;
 
     const byteRangeStr = `${range1Start} ${range1Length} ${range2Start} ${range2Length}`;
     const byteRangeWriteStart = byteRangeStart + byteRangeTag.length;
