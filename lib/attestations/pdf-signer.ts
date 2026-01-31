@@ -81,8 +81,7 @@ export async function signPdf(
         V: signatureRef,
         T: PDFString.of(signatureFieldName),
         F: 4,
-        P: firstPage.ref,
-        AP: pdfDoc.context.obj({ N: pdfDoc.context.register(pdfDoc.context.stream('')) })
+        P: firstPage.ref
     });
     const widgetRef = pdfDoc.context.register(widgetDict);
 
@@ -98,12 +97,15 @@ export async function signPdf(
 
     let acroForm = pdfDoc.catalog.lookup(PDFName.of('AcroForm'));
     if (!acroForm) {
-        acroForm = pdfDoc.context.obj({ Fields: [], SigFlags: 3 });
-        pdfDoc.catalog.set(PDFName.of('AcroForm'), acroForm);
+        // Create indirect object for AcroForm
+        const acroFormObj = pdfDoc.context.obj({ Fields: [], SigFlags: 3 });
+        const acroFormRef = pdfDoc.context.register(acroFormObj);
+        pdfDoc.catalog.set(PDFName.of('AcroForm'), acroFormRef);
+        acroForm = acroFormObj;
     }
+    // If it exists but is not Dict (e.g. Ref), resolve it
     if (!(acroForm instanceof PDFDict)) {
-        acroForm = pdfDoc.context.obj({ Fields: [], SigFlags: 3 });
-        pdfDoc.catalog.set(PDFName.of('AcroForm'), acroForm);
+
     }
 
     const safeAcroForm = acroForm as PDFDict;
