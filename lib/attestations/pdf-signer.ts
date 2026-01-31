@@ -116,26 +116,34 @@ export async function signPdf(
 
     // 3. Find offsets
     const encoder = new TextEncoder();
-    const contentsTag = encoder.encode('/Contents <');
-    const byteRangeTag = encoder.encode('/ByteRange [');
+    const contentsKeyTag = encoder.encode('/Contents');
 
-    const byteRangeStart = findSequence(pdfBuffer, pdfBuffer.length, byteRangeTag);
-    if (byteRangeStart === -1) throw new Error('ByteRange not found');
+    // Find /Contents
+    const contentsKeyStart = findSequence(pdfBuffer, pdfBuffer.length, contentsKeyTag);
+    if (contentsKeyStart === -1) throw new Error('/Contents key not found');
 
-    const closeBracket = encoder.encode(']');
-    const byteRangeEnd = findSequence(pdfBuffer, pdfBuffer.length, closeBracket, byteRangeStart);
-    if (byteRangeEnd === -1) throw new Error('ByteRange ] not found');
+    // Find < after /Contents
+    const openAngle = encoder.encode('<');
+    const contentsStart = findSequence(pdfBuffer, pdfBuffer.length, openAngle, contentsKeyStart);
+    if (contentsStart === -1) throw new Error('< start of Contents not found');
 
-    const contentsStart = findSequence(pdfBuffer, pdfBuffer.length, contentsTag);
-    if (contentsStart === -1) throw new Error('Contents not found');
-
-    const contentsHexStart = contentsStart + contentsTag.length;
+    // contentsHexStart is right after <
+    const contentsHexStart = contentsStart + 1;
 
     const closeAngle = encoder.encode('>');
     const contentsEnd = findSequence(pdfBuffer, pdfBuffer.length, closeAngle, contentsHexStart);
     if (contentsEnd === -1) throw new Error('Contents > not found');
 
     const placeholderLen = contentsEnd - contentsHexStart;
+
+    // Verify ByteRange tag location
+    const byteRangeTag = encoder.encode('/ByteRange [');
+    const byteRangeStart = findSequence(pdfBuffer, pdfBuffer.length, byteRangeTag);
+    if (byteRangeStart === -1) throw new Error('ByteRange not found');
+
+    const closeBracket = encoder.encode(']');
+    const byteRangeEnd = findSequence(pdfBuffer, pdfBuffer.length, closeBracket, byteRangeStart);
+    if (byteRangeEnd === -1) throw new Error('ByteRange ] not found');
 
     // 4. Calculate ByteRange
     const range1Start = 0;
