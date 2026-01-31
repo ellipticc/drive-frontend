@@ -1257,17 +1257,33 @@ export const Table01DividerLineSm = ({
                     const tenDaysAgo = new Date();
                     tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
 
+                    const masterKey = masterKeyManager.hasMasterKey() ? masterKeyManager.getMasterKey() : null;
+
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    const mappedFiles = (filesData || []).map((f: FileItem) => ({
-                        ...f,
-                        // Ensure required string properties have fallbacks
-                        encryptedFilename: f.encryptedFilename || "",
-                        filenameSalt: f.filenameSalt || "",
-                        name: f.name || f.filename || t('common.untitled'),
-                        folderId: f.folderId || null,
-                        type: 'file' as const,
-                        is_starred: false, // We'd need to check this separately or if API provides it
-                        tags: []
+                    const mappedFiles = await Promise.all((filesData || []).map(async (f: FileItem) => {
+                        let name = f.name || f.filename || t('common.untitled');
+
+                        // Try decrypting if encrypted
+                        if (f.encryptedFilename && f.filenameSalt && masterKey) {
+                            try {
+                                name = await decryptFilename(f.encryptedFilename, f.filenameSalt, masterKey);
+                            } catch (e) {
+                                console.error("Failed to decrypt recent file name", e);
+                            }
+                        }
+
+                        return {
+                            ...f,
+                            // Ensure required string properties have fallbacks
+                            encryptedFilename: f.encryptedFilename || "",
+                            filenameSalt: f.filenameSalt || "",
+                            name: name,
+                            decryptedName: name,
+                            folderId: f.folderId || null,
+                            type: 'file' as const,
+                            is_starred: false, // We'd need to check this separately or if API provides it
+                            tags: []
+                        };
                     })) as any;
 
                     // Client side sort by updatedAt descending just in case

@@ -155,32 +155,8 @@ export function NavMain({
                   )}
                 </SidebarMenuButton>
 
-                {/* Always render submenu container for Recents/Starred/Folders */}
+                {/* Always render submenu container for Folders */}
                 <SidebarMenuSub className="ml-3.5 border-l border-border/50">
-                  {/* Static Submenus: Recents and Starred - Always visible */}
-                  <div className="mb-2 space-y-1">
-                    <SidebarMenuButton
-                      asChild
-                      isActive={pathname === '/recents'}
-                      className="h-8 text-sm"
-                    >
-                      <a href="/recents" onClick={(e) => { e.preventDefault(); handleNavigate('/recents'); }}>
-                        <IconClockHour9 className="size-4" />
-                        <span>{t("sidebar.recents") || "Recents"}</span>
-                      </a>
-                    </SidebarMenuButton>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={pathname === '/starred'}
-                      className="h-8 text-sm"
-                    >
-                      <a href="/starred" onClick={(e) => { e.preventDefault(); handleNavigate('/starred'); }}>
-                        <IconStar className="size-4" />
-                        <span>{t("sidebar.starred") || "Starred"}</span>
-                      </a>
-                    </SidebarMenuButton>
-                  </div>
-
                   {/* Dynamic Folders - Collapsible */}
                   {isMyFilesExpanded && (
                     <>

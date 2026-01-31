@@ -16,6 +16,8 @@ import {
   IconChartAreaLine,
   IconUsers,
   IconSignature,
+  IconClockHour9,
+  IconStar,
 } from "@tabler/icons-react"
 
 import { NavMain } from "@/components/layout/navigation/nav-main"
@@ -72,6 +74,18 @@ export const AppSidebar = React.memo(function AppSidebar({
         url: "/",
         icon: IconStack2,
         id: "my-files",
+      },
+      {
+        title: t("sidebar.recents") || "Recents",
+        url: "/recents",
+        icon: IconClockHour9,
+        id: "recents",
+      },
+      {
+        title: t("sidebar.starred") || "Starred",
+        url: "/starred",
+        icon: IconStar,
+        id: "starred",
       },
       {
         title: t("sidebar.photos"),
