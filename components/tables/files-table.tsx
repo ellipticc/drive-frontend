@@ -1476,11 +1476,6 @@ export const Table01DividerLineSm = ({
     const navigateToFolder = async (folderId: string, folderName: string) => {
         if (folderId === currentFolderId) return;
 
-        addRecent({
-            id: folderId,
-            name: folderName,
-            type: 'folder'
-        });
         const newPath = [...folderPath, { id: folderId, name: folderName }];
 
         // Immediate updates without transition
