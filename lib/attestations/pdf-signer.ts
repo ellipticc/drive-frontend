@@ -322,9 +322,8 @@ export async function signPdf(
         throw new Error(`Signature too large: ${signatureHex.length} > ${placeholderLen}`);
     }
 
-    // Pad with zeros to ensure null-byte termination/padding
-    // '0' string in hex -> 0x00 byte value when parsed as hex pair
-    const paddedSignature = signatureHex.padEnd(placeholderLen, '0');
+    // Pad with spaces.
+    const paddedSignature = signatureHex.padEnd(placeholderLen, ' ');
     pdfBuffer.set(encoder.encode(paddedSignature), contentsHexStart);
 
     console.log('PDF signed successfully with PKI.js');
