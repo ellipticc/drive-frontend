@@ -117,24 +117,60 @@ export async function signPdf(
     // 3. Find offsets
     const encoder = new TextEncoder();
     const contentsKeyTag = encoder.encode('/Contents');
-
-    // Find /Contents
-    const contentsKeyStart = findSequence(pdfBuffer, pdfBuffer.length, contentsKeyTag);
-    if (contentsKeyStart === -1) throw new Error('/Contents key not found');
-
-    // Find < after /Contents
     const openAngle = encoder.encode('<');
-    const contentsStart = findSequence(pdfBuffer, pdfBuffer.length, openAngle, contentsKeyStart);
-    if (contentsStart === -1) throw new Error('< start of Contents not found');
-
-    // contentsHexStart is right after <
-    const contentsHexStart = contentsStart + 1;
-
     const closeAngle = encoder.encode('>');
-    const contentsEnd = findSequence(pdfBuffer, pdfBuffer.length, closeAngle, contentsHexStart);
-    if (contentsEnd === -1) throw new Error('Contents > not found');
 
-    const placeholderLen = contentsEnd - contentsHexStart;
+    let searchFrom = 0;
+    let contentsHexStart = -1;
+    let contentsEnd = -1;
+    let foundPlaceholderLen = 0;
+
+    // Loop to find the correct /Contents (the one with the huge placeholder)
+    while (searchFrom < pdfBuffer.length) {
+        // Find /Contents
+        const contentsKeyStart = findSequence(pdfBuffer, pdfBuffer.length, contentsKeyTag, searchFrom);
+        if (contentsKeyStart === -1) break;
+
+        // Find < after /Contents
+        const contentsStart = findSequence(pdfBuffer, pdfBuffer.length, openAngle, contentsKeyStart);
+        if (contentsStart === -1) {
+            searchFrom = contentsKeyStart + contentsKeyTag.length;
+            continue;
+        }
+
+        // Check distance. If < is too far from /Contents, it's not the value.
+        // PDF dict key-values are usually close.
+        if (contentsStart - contentsKeyStart > 100) {
+            searchFrom = contentsKeyStart + contentsKeyTag.length;
+            continue;
+        }
+
+        // contentsHexStart is right after <
+        const currentHexStart = contentsStart + 1;
+
+        // Find >
+        const currentContentsEnd = findSequence(pdfBuffer, pdfBuffer.length, closeAngle, currentHexStart);
+        if (currentContentsEnd === -1) {
+            searchFrom = contentsKeyStart + contentsKeyTag.length;
+            continue;
+        }
+
+        const len = currentContentsEnd - currentHexStart;
+        // We expect a huge placeholder
+        if (len > 10000) {
+            contentsHexStart = currentHexStart;
+            contentsEnd = currentContentsEnd;
+            foundPlaceholderLen = len;
+            console.log(`Found Signature Placeholder at offset ${contentsHexStart} with length ${len}`);
+            break;
+        }
+
+        searchFrom = contentsKeyStart + contentsKeyTag.length;
+    }
+
+    if (contentsHexStart === -1) throw new Error('Could not find suitable /Contents placeholder');
+
+    const placeholderLen = foundPlaceholderLen;
 
     // Verify ByteRange tag location
     const byteRangeTag = encoder.encode('/ByteRange [');
