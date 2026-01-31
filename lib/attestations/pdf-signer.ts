@@ -310,7 +310,7 @@ export async function signPdf(
     // Encode to DER
     const cmsContentInfo = new pkijs.ContentInfo({
         contentType: '1.2.840.113549.1.7.2', // signedData
-        content: cmsSigned.toSchema(true)
+        content: cmsSigned.toSchema()
     });
 
     const cmsEncoded = cmsContentInfo.toSchema().toBER(false);
