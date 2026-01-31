@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { IconChevronRight, IconLoader2, type Icon, IconClockHour9, IconStar, IconChevronDown, IconChevronUp, IconStarFilled, IconStack2Filled, IconTrashFilled, IconClockHour9Filled, IconPhotoFilled, IconChartAreaLineFilled, IconPinFilled, IconUserFilled, IconShieldFilled } from "@tabler/icons-react"
+import { IconChevronRight, IconLoader2, type Icon, IconChevronDown, IconChevronUp, IconStarFilled, IconStack2Filled, IconTrashFilled, IconClockHour9Filled, IconPhotoFilled, IconChartAreaLineFilled, IconAdjustmentsFilled, IconHelpCircleFilled, IconBubbleTextFilled } from "@tabler/icons-react"
 import { useState, useEffect, useCallback } from "react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import { useLanguage } from "@/lib/i18n/language-context"
@@ -152,14 +152,14 @@ export function NavMain({
         return IconPhotoFilled
       case 'insights':
         return IconChartAreaLineFilled
-      case 'shared':
-        return IconPinFilled
-      case 'shared-with-me':
-        return IconUserFilled
-      case 'attestations':
-        return IconShieldFilled
       case 'trash':
         return IconTrashFilled
+      case 'settings':
+        return IconAdjustmentsFilled
+      case 'help':
+        return IconHelpCircleFilled
+      case 'feedback':
+        return IconBubbleTextFilled
       default:
         return item.icon
     }
@@ -180,15 +180,10 @@ export function NavMain({
             const photosIndex = items.findIndex(item => item.id === 'photos');
             const isAfterPhotos = photosIndex !== -1 && index > photosIndex;
 
-            // Hide items after photos if additional items are collapsed
-            if (isAfterPhotos && !areAdditionalItemsExpanded) {
-              return null;
-            }
-
             // Add the More/Less button right after photos
             if (item.id === 'photos') {
               return (
-                <>
+                <React.Fragment key={item.title}>
                   <SidebarMenuItem>
                     <SidebarMenuButton
                       tooltip={item.title}
@@ -224,7 +219,53 @@ export function NavMain({
                       </span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                </>
+                </React.Fragment>
+              );
+            }
+
+            // For items after photos, use smooth transitions instead of conditional rendering
+            if (isAfterPhotos) {
+              return (
+                <SidebarMenuItem
+                  key={item.title}
+                  className={cn(
+                    "transition-all duration-300 ease-in-out overflow-hidden",
+                    areAdditionalItemsExpanded
+                      ? "max-h-12 opacity-100"
+                      : "max-h-0 opacity-0 pointer-events-none"
+                  )}
+                  style={{
+                    transitionProperty: 'max-height, opacity',
+                    transitionDuration: '300ms',
+                    transitionTimingFunction: 'ease-in-out'
+                  }}
+                >
+                  <SidebarMenuButton
+                    tooltip={item.title}
+                    isActive={pathname === item.url}
+                    onClick={() => handleNavigate(item.url)}
+                    className="cursor-pointer"
+                  >
+                    {(() => {
+                      const isActive = pathname === item.url
+                      const IconComponent = getIcon(item, isActive)
+                      return IconComponent && <IconComponent />
+                    })()}
+                    <span>{item.title}</span>
+                    {item.badge && item.badge > 0 && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-[4px] bg-primary px-0.5 text-[11px] font-semibold text-primary-foreground">
+                            {item.badge}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="right">
+                          {item.badge} pending invitation{item.badge !== 1 ? 's' : ''}
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               );
             }
             if (item.id === 'my-files') {

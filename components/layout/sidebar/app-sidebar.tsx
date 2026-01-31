@@ -4,9 +4,9 @@ import * as React from "react"
 import { useRouter } from "next/navigation"
 import {
   IconDatabase,
-  IconHelp,
+  IconHelpCircle,
   IconCaretLeftRightFilled,
-  IconAdjustmentsHorizontal,
+  IconAdjustments,
   IconTrash,
   IconLink,
   IconDatabaseImport,
@@ -129,13 +129,13 @@ export const AppSidebar = React.memo(function AppSidebar({
       {
         title: t("sidebar.settings"),
         url: "#",
-        icon: IconAdjustmentsHorizontal,
+        icon: IconAdjustments,
         id: "settings",
       },
       {
         title: t("sidebar.getHelp"),
         url: "#",
-        icon: IconHelp,
+        icon: IconHelpCircle,
         id: "help",
       },
       {
