@@ -98,17 +98,17 @@ export async function signPdf(
 
     let acroForm = pdfDoc.catalog.lookup(PDFName.of('AcroForm'));
     if (!acroForm) {
-        acroForm = pdfDoc.context.obj({ Fields: [], SigFlags: 1 });
+        acroForm = pdfDoc.context.obj({ Fields: [], SigFlags: 3 });
         pdfDoc.catalog.set(PDFName.of('AcroForm'), acroForm);
     }
     if (!(acroForm instanceof PDFDict)) {
-        acroForm = pdfDoc.context.obj({ Fields: [], SigFlags: 1 });
+        acroForm = pdfDoc.context.obj({ Fields: [], SigFlags: 3 });
         pdfDoc.catalog.set(PDFName.of('AcroForm'), acroForm);
     }
 
     const safeAcroForm = acroForm as PDFDict;
     if (!safeAcroForm.has(PDFName.of('SigFlags'))) {
-        safeAcroForm.set(PDFName.of('SigFlags'), pdfDoc.context.obj(1));
+        safeAcroForm.set(PDFName.of('SigFlags'), pdfDoc.context.obj(3));
     }
 
     let fields = safeAcroForm.lookup(PDFName.of('Fields'));
