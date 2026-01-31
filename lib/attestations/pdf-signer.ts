@@ -230,7 +230,7 @@ export async function signPdf(
     });
 
     const cmsEncoded = cmsContentInfo.toSchema().toBER(false);
-    const signatureHex = Buffer.from(cmsEncoded).toString('hex'); // lowercase hex required by Adobe
+    const signatureHex = Buffer.from(cmsEncoded).toString('hex').toUpperCase();
 
     console.log(`=== PKI.JS SIGNATURE DEBUG ===`);
     console.log(`CMS byte length: ${cmsEncoded.byteLength}`);
@@ -242,7 +242,8 @@ export async function signPdf(
         throw new Error(`Signature too large: ${signatureHex.length} > ${placeholderLen}`);
     }
 
-    const paddedSignature = signatureHex.padEnd(placeholderLen, '0');
+    // Pad with spaces instead of zeros
+    const paddedSignature = signatureHex.padEnd(placeholderLen, ' ');
     pdfBuffer.set(encoder.encode(paddedSignature), contentsHexStart);
 
     console.log('PDF signed successfully with PKI.js');
