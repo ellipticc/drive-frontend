@@ -266,6 +266,12 @@ export async function signPdf(
                 values: [
                     new asn1js.OctetString({ valueHex: hash })
                 ]
+            }),
+            new pkijs.Attribute({
+                type: '1.2.840.113549.1.9.5', // signingTime
+                values: [
+                    new asn1js.UTCTime({ valueDate: new Date() })
+                ]
             })
         ]
     });
@@ -300,6 +306,63 @@ export async function signPdf(
     const signature = sign.sign(privateKeyPem);
 
     signerInfo.signature = new asn1js.OctetString({ valueHex: signature });
+
+    // --- TIMESTAMPING LOGIC ---
+    try {
+        console.log('Requesting Timestamp from https://timestamp.ellipticc.com...');
+
+        // 1. Hash the signature value (RFC 3161 / RFC 5652 signature-time-stamp)
+        // The value to be timestamped is the value of the signature field.
+        const signatureHash = crypto.createHash('sha256').update(signature).digest('hex');
+
+        // 2. Call trusted TSA
+        const tsResponse = await fetch('https://timestamp.ellipticc.com/api/v1/rfc3161/attest', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                hash: signatureHash,
+                hashAlgorithm: 'sha256'
+            })
+        });
+
+        if (!tsResponse.ok) {
+            throw new Error(`TSA request failed: ${tsResponse.status} ${tsResponse.statusText}`);
+        }
+
+        const tsData = await tsResponse.json();
+        if (!tsData.success || !tsData.timestampToken) {
+            throw new Error(`TSA error: ${tsData.message || 'Missing token'}`);
+        }
+
+        console.log('Timestamp token received successfully.');
+
+        // 3. Decode Base64 Token
+        const tsTokenBuffer = Buffer.from(tsData.timestampToken, 'base64');
+        const tsTokenArrayBuffer = tsTokenBuffer.buffer.slice(tsTokenBuffer.byteOffset, tsTokenBuffer.byteOffset + tsTokenBuffer.byteLength);
+
+        // 4. Parse Token as ContentInfo
+        const asn1Schema = asn1js.fromBER(tsTokenArrayBuffer);
+        if (asn1Schema.offset === -1) throw new Error('Failed to parse timestamp token ASN.1');
+
+        // The token is a ContentInfo structure
+        const tsContentInfo = new pkijs.ContentInfo({ schema: asn1Schema.result });
+
+        // 5. Add to Unsigned Attributes (id-aa-timeStampToken: 1.2.840.113549.1.9.16.2.14)
+        signerInfo.unsignedAttrs = new pkijs.SignedAndUnsignedAttributes({
+            type: 1, // Unsigned
+            attributes: [
+                new pkijs.Attribute({
+                    type: '1.2.840.113549.1.9.16.2.14',
+                    values: [
+                        tsContentInfo.toSchema()
+                    ]
+                })
+            ]
+        });
+
+    } catch (err: any) {
+        throw new Error('Timestamping failed: ' + err.message);
+    }
 
     cmsSigned.signerInfos.push(signerInfo);
 
