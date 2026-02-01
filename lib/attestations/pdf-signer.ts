@@ -73,14 +73,6 @@ export async function signPdf(
     });
     const signatureRef = pdfDoc.context.register(signatureDict);
 
-    // Create a minimal visual appearance (AP) for the signature
-    const apStream = pdfDoc.context.stream('q 0.9 g 0 0 200 50 re f Q', {
-        Type: 'XObject',
-        Subtype: 'Form',
-        BBox: [0, 0, 200, 50]
-    });
-    const apRef = pdfDoc.context.register(apStream);
-
     const widgetDict = pdfDoc.context.obj({
         Type: 'Annot',
         Subtype: 'Widget',
@@ -89,8 +81,7 @@ export async function signPdf(
         V: signatureRef,
         T: PDFString.of(signatureFieldName),
         F: 4,
-        P: firstPage.ref,
-        AP: { N: apRef }
+        P: firstPage.ref
     });
     const widgetRef = pdfDoc.context.register(widgetDict);
 
