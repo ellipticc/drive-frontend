@@ -121,13 +121,6 @@ export function NavMain({
     e.preventDefault()
     e.stopPropagation()
 
-    // If sidebar is collapsed, expand it first
-    if (state === "collapsed") {
-      toggleSidebar()
-      // Don't toggle the expansion state yet, just expand the sidebar
-      return;
-    }
-
     const next = !areAdditionalItemsExpanded
     setAreAdditionalItemsExpanded(next)
     localStorage.setItem("sidebar-additional-expanded", String(next))
@@ -199,7 +192,10 @@ export function NavMain({
                   <SidebarMenuItem>
                     <SidebarMenuButton
                       onClick={toggleAdditionalItems}
-                      className="cursor-pointer text-muted-foreground hover:text-foreground transition-colors"
+                      className={cn(
+                        "cursor-pointer text-muted-foreground hover:text-foreground transition-colors",
+                        state === "collapsed" && "justify-center"
+                      )}
                       tooltip={areAdditionalItemsExpanded ? "Show less" : "Show more"}
                     >
                       {areAdditionalItemsExpanded ? (
@@ -207,7 +203,10 @@ export function NavMain({
                       ) : (
                         <IconChevronDown className="shrink-0 size-4" />
                       )}
-                      <span className="text-sm">
+                      <span className={cn(
+                        "text-sm",
+                        state === "collapsed" && "sr-only"
+                      )}>
                         {areAdditionalItemsExpanded ? "Less" : "More"}
                       </span>
                     </SidebarMenuButton>
