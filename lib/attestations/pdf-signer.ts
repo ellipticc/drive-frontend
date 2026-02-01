@@ -90,7 +90,7 @@ export async function signPdf(
         T: PDFString.of(signatureFieldName),
         F: 4,
         P: firstPage.ref,
-        AP: pdfDoc.context.obj({ N: apRef })
+        AP: { N: apRef }
     });
     const widgetRef = pdfDoc.context.register(widgetDict);
 
