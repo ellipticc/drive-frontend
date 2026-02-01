@@ -11,7 +11,7 @@ export async function signPdf(
     pdfBytes: Uint8Array,
     key: AttestationKey,
     masterKey: Uint8Array
-): Promise<{ pdfBytes: Uint8Array }> {
+): Promise<{ pdfBytes: Uint8Array; timestampData?: any; timestampVerification?: any }> {
     // 1. Decrypt private key
     const privateKeyPem = await decryptPrivateKeyInternal(key.encryptedPrivateKey, key.privateKeyNonce, masterKey);
 
