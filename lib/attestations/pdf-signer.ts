@@ -1,6 +1,7 @@
 ﻿import { PDFDocument } from 'pdf-lib';
 import sign from '@signpdf/signpdf';
 import { pdflibAddPlaceholder } from '@signpdf/placeholder-pdf-lib';
+import { SUBFILTER_ADOBE_PKCS7_DETACHED } from '@signpdf/utils';
 import { decryptPrivateKeyInternal } from './crypto';
 import type { AttestationKey } from './types';
 import forge from 'node-forge';
@@ -19,19 +20,18 @@ export async function signPdf(
     const pdfDoc = await PDFDocument.load(pdfBytes);
 
     const forgeCert = forge.pki.certificateFromPem(key.certPem);
-    const commonName = forgeCert.subject.getField('CN')?.value || 'Ellipticc User';
+    const commonNameObj = forgeCert.subject.getField('CN');
+    const commonName = commonNameObj && typeof commonNameObj.value === 'string'
+        ? commonNameObj.value
+        : 'Ellipticc User';
 
-    // Cast to any to bypass strict property checks on library types
     await pdflibAddPlaceholder({
         pdfDoc,
         pdfSignature: {
             reason: 'Attested by Ellipticc User',
             name: commonName,
-            location: 'Ellipticc Inc.',
-            contactInfo: 'info@ellipticc.com',
-            date: new Date(),
             signatureLength: SIGNATURE_LENGTH,
-            subFilter: 'adbe.pkcs7.detached',
+            subFilter: SUBFILTER_ADOBE_PKCS7_DETACHED,
         },
     } as any);
 
@@ -50,7 +50,7 @@ export async function signPdf(
                 key: forgePrivateKey,
                 certificate: forgeCert,
                 digestAlgorithm: forge.pki.oids.sha256,
-                // signatureAlgorithm: forge.pki.oids.rsaEncryption, // Optional/Implicit for RSA
+                // signatureAlgorithm: forge.pki.oids.rsaEncryption, // Implicit
                 authenticatedAttributes: [
                     { type: forge.pki.oids.contentType, value: forge.pki.oids.data },
                     { type: forge.pki.oids.messageDigest },
