@@ -188,35 +188,35 @@ export async function signPdf(
     const placeholderLen = foundPlaceholderLen;
 
     // Verify ByteRange tag location
-    const byteRangeTag = encoder.encode('/ByteRange [');
-    const byteRangeStart = findSequence(pdfBuffer, pdfBuffer.length, byteRangeTag);
-    if (byteRangeStart === -1) throw new Error('ByteRange not found');
+    const byteRangeTag = encoder.encode('/ByteRange'); // Search for /ByteRange without space first
+    let byteRangeStart = findSequence(pdfBuffer, pdfBuffer.length, byteRangeTag, 0); // Start search from beginning
+    if (byteRangeStart === -1) throw new Error('ByteRange placeholder not found');
 
-    const closeBracket = encoder.encode(']');
-    const byteRangeEnd = findSequence(pdfBuffer, pdfBuffer.length, closeBracket, byteRangeStart);
-    if (byteRangeEnd === -1) throw new Error('ByteRange ] not found');
+    // Find the opening '[' of the array
+    const bracketStart = findSequence(pdfBuffer, pdfBuffer.length, encoder.encode('['), byteRangeStart);
+    if (bracketStart === -1) throw new Error('ByteRange start bracket [ not found');
+
+    const byteRangeEnd = findSequence(pdfBuffer, pdfBuffer.length, encoder.encode(']'), bracketStart);
+    if (byteRangeEnd === -1) throw new Error('ByteRange end bracket ] not found');
+
+    // We write AFTER the '['
+    const byteRangeWriteStart = bracketStart + 1;
+    const availableSpace = byteRangeEnd - byteRangeWriteStart;
 
     // 4. Calculate ByteRange
-    // RFC 32000-1: The ByteRange array shall cover the entire file, excluding the < and > delimiters
-    // and the hexadecimal string.
-    // contentsHexStart is index of first hex char. So contentsHexStart - 1 is index of '<'.
-    // 4. Calculate ByteRange
-    // Reverting to INCLUDE < and > in the signed range.
-    // The "hole" should strictly be the hex string content itself.
+    // Reverting to INCLUDE < and > in the signed range based on failures with exclusion.
+    // The "hole" is the hex string content.
 
     const range1Start = 0;
-    const range1Length = contentsHexStart; // Include '<' (it's at contentsHexStart-1)
+    const range1Length = contentsHexStart; // Include '<' 
 
-    // contentsEnd is index of '>'.
-    const range2Start = contentsEnd;       // Include '>' (start reading FROM '>')
+    const range2Start = contentsEnd;       // Include '>'
     const range2Length = pdfBuffer.length - contentsEnd;
 
     const byteRangeStr = `${range1Start} ${range1Length} ${range2Start} ${range2Length}`;
-    const byteRangeWriteStart = byteRangeStart + byteRangeTag.length;
-    const availableSpace = byteRangeEnd - byteRangeWriteStart;
 
     if (byteRangeStr.length > availableSpace) {
-        throw new Error(`ByteRange too long`);
+        throw new Error(`Signature too large: ${byteRangeStr.length} > ${availableSpace}`);
     }
 
     const paddedByteRange = byteRangeStr.padEnd(availableSpace, ' ');
