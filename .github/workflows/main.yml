@@ -24,11 +24,19 @@ jobs:
       - name: Build and Export
         run: npm run build
         env:
-          # Add any build-time environment variables here if needed
+          # Add build-time environment variables here
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
           NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
           NEXT_PUBLIC_GOOGLE_API_KEY: ${{ secrets.NEXT_PUBLIC_GOOGLE_API_KEY }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          # Inject the exact commit SHA used for this build so the frontend can report its version
+          NEXT_PUBLIC_APP_VERSION: ${{ github.sha }}
+
+      - name: Record frontend version into exported assets
+        run: |
+          mkdir -p out
+          echo "${{ github.sha }}" > out/FRONTEND_VERSION
+          echo "NEXT_PUBLIC_APP_VERSION=${{ github.sha }}" > out/RELEASE_INFO
 
       - name: Sync static files to VPS
         uses: appleboy/scp-action@v0.1.7
@@ -47,20 +55,20 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            echo "🔧 Restarting Nginx..."
+            echo "Restarting Nginx..."
             sudo systemctl restart nginx && nginx -s reload
-            echo "✅ Nginx restarted!"
+            echo "Nginx restarted!"
 
       - name: Notify Discord on Success
         if: success()
         run: |
           curl -H "Content-Type: application/json" \
-               -d '{"content": "🚀 **Static Frontend Deployment Successful!**\n**Project:** Ellipticc Drive\n**Branch:** `${{ github.ref_name }}`\n**Status:** Static files are live on VPS! Serving via Nginx."}' \
+               -d '{"content": "**Static Frontend Deployment Successful!**\n**Project:** Ellipticc Drive\n**Branch:** `${{ github.ref_name }}`\n**Status:** Static files are live on VPS! Serving via Nginx."}' \
                ${{ secrets.DISCORD_WEBHOOK_URL }}
 
       - name: Notify Discord on Failure
         if: failure()
         run: |
           curl -H "Content-Type: application/json" \
-               -d '{"content": "⚠️ **Frontend Deployment Failed!**\n**Project:** Ellipticc Drive\n**Check Logs:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"}' \
+               -d '{"content": "**Frontend Deployment Failed!**\n**Project:** Ellipticc Drive\n**Check Logs:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"}' \
                ${{ secrets.DISCORD_WEBHOOK_URL }}
