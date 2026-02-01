@@ -1,9 +1,4 @@
 ﻿import { PDFDocument, PDFName, PDFString, PDFArray, PDFDict, PDFHexString } from 'pdf-lib';
-import * as asn1js from 'asn1js';
-import * as pkijs from 'pkijs';
-import { fromBER } from 'asn1js';
-import { Certificate } from 'pkijs';
-import * as crypto from 'crypto';
 import { decryptPrivateKeyInternal } from './crypto';
 import type { AttestationKey } from './types';
 
@@ -41,15 +36,14 @@ export async function signPdf(
     // 1. Decrypt private key
     const privateKeyPem = await decryptPrivateKeyInternal(key.encryptedPrivateKey, key.privateKeyNonce, masterKey);
 
-    // Parse certificate
-    const certDer = pemToDer(key.certPem);
-    const certAsn1 = fromBER(certDer);
-    const certificate = new Certificate({ schema: certAsn1.result });
+    // Import node-forge for certificate parsing
+    const forge = require('node-forge');
 
-    // Extract signer info
-    const commonName = certificate.subject.typesAndValues.find(
-        (attr: any) => attr.type === '2.5.4.3'
-    )?.value.valueBlock.value || 'Ellipticc User';
+    // Parse certificate using node-forge (simpler than PKI.js)
+    const forgeCert = forge.pki.certificateFromPem(key.certPem);
+
+    // Extract signer info from certificate
+    const commonName = forgeCert.subject.getField('CN')?.value || 'Ellipticc User';
 
     // 2. Load PDF & Add Placeholder
     const pdfDoc = await PDFDocument.load(pdfBytes);
@@ -214,174 +208,70 @@ export async function signPdf(
     const paddedByteRange = byteRangeStr.padEnd(availableSpace, ' ');
     pdfBuffer.set(encoder.encode(paddedByteRange), byteRangeWriteStart);
 
-    // 5. Create detached CMS signature using PKI.js
+    // 5. Create detached CMS signature using node-forge (industry standard)
     const part1 = pdfBuffer.subarray(range1Start, range1Start + range1Length);
     const part2 = pdfBuffer.subarray(range2Start, range2Start + range2Length);
     const dataToSign = new Uint8Array(part1.length + part2.length);
     dataToSign.set(part1);
     dataToSign.set(part2, part1.length);
 
-    // Create CMS Signed Data
-    const cmsSigned = new pkijs.SignedData({
-        version: 1,
-        encapContentInfo: new pkijs.EncapsulatedContentInfo({
-            eContentType: '1.2.840.113549.1.7.1' // data
-            // eContent is ABSENT for detached signatures
-        }),
-        signerInfos: [],
-        certificates: [certificate]
-    });
+    console.log('=== SIGNATURE GENERATION (node-forge) ===');
+    console.log(`Data to sign length: ${dataToSign.length} bytes`);
 
-    // Hash the data
-    const hashAlgorithm = 'SHA-256';
-    const hash = crypto.createHash('sha256').update(dataToSign).digest();
+    // Convert private key PEM to forge format
+    const forgePrivateKey = forge.pki.privateKeyFromPem(privateKeyPem);
 
-    // Create signer info
-    const signerInfo = new pkijs.SignerInfo({
-        version: 1,
-        sid: new pkijs.IssuerAndSerialNumber({
-            issuer: certificate.issuer,
-            serialNumber: certificate.serialNumber
-        })
-    });
+    // Create PKCS#7 signed data
+    const p7 = forge.pkcs7.createSignedData();
 
-    // Set hash algorithm
-    signerInfo.digestAlgorithm = new pkijs.AlgorithmIdentifier({
-        algorithmId: '2.16.840.1.101.3.4.2.1' // SHA-256
-    });
+    // Set content (for detached signature, we set it but it won't be included in output)
+    p7.content = forge.util.createBuffer(dataToSign);
 
-    // Set signature algorithm - use generic RSA, let parameters/digest specify hash
-    signerInfo.signatureAlgorithm = new pkijs.AlgorithmIdentifier({
-        algorithmId: '1.2.840.113549.1.1.1', // rsaEncryption
-        algorithmParams: new asn1js.Null() // Explicit NULL parameters often required
-    });
+    // Add certificate to the signature
+    p7.addCertificate(forgeCert);
 
-    // Add signed attributes
-    signerInfo.signedAttrs = new pkijs.SignedAndUnsignedAttributes({
-        type: 0,
-        attributes: [
-            new pkijs.Attribute({
-                type: '1.2.840.113549.1.9.3', // contentType
-                values: [
-                    new asn1js.ObjectIdentifier({ value: '1.2.840.113549.1.7.1' })
-                ]
-            }),
-            new pkijs.Attribute({
-                type: '1.2.840.113549.1.9.4', // messageDigest
-                values: [
-                    new asn1js.OctetString({ valueHex: hash })
-                ]
-            }),
-            new pkijs.Attribute({
-                type: '1.2.840.113549.1.9.5', // signingTime
-                values: [
-                    new asn1js.UTCTime({ valueDate: new Date() })
-                ]
-            })
+    // Add signer with authenticated attributes
+    p7.addSigner({
+        key: forgePrivateKey,
+        certificate: forgeCert,
+        digestAlgorithm: forge.pki.oids.sha256,
+        authenticatedAttributes: [
+            {
+                type: forge.pki.oids.contentType,
+                value: forge.pki.oids.data
+            },
+            {
+                type: forge.pki.oids.messageDigest
+                // messageDigest value will be auto-calculated by node-forge
+            },
+            {
+                type: forge.pki.oids.signingTime,
+                value: new Date()
+            }
         ]
     });
 
-    // Set PKI.js to use Node.js crypto engine
-    const { Crypto } = require("@peculiar/webcrypto");
-    const webCrypto = new Crypto();
-    const { setEngine, CryptoEngine } = pkijs;
-    setEngine("newEngine", new CryptoEngine({ name: "", crypto: webCrypto, subtle: webCrypto.subtle }));
+    console.log('Generating PKCS#7 signature with node-forge...');
 
-    // Encode signed attributes
-    const signedAttrsSchema = signerInfo.signedAttrs!.toSchema();
-    const signedAttrsEncoded = signedAttrsSchema.toBER(false);
+    // Sign with detached mode (content not included in signature)
+    p7.sign({ detached: true });
 
-    console.log(`=== SIGNED ATTRIBUTES DEBUG ===`);
-    console.log(`Signed Attributes encoded length: ${signedAttrsEncoded.byteLength}`);
-    const signedAttrsBuffer = new Uint8Array(signedAttrsEncoded);
-    console.log(`Signed Attributes first byte: 0x${signedAttrsBuffer[0].toString(16)}`);
+    console.log('PKCS#7 signature generated successfully');
 
-    // CRITICAL:
-    // If signedAttrs is encoded with the context-specific tag [0] (0xA0), we must change it to SET OF (0x31) for hashing/signing.
-    // Adobe calculates the signature over the SET OF structure.
-    if (signedAttrsBuffer[0] === 0xA0) {
-        console.log("Fixing Signed Attributes tag from 0xA0 to 0x31 for signing...");
-        signedAttrsBuffer[0] = 0x31;
+    // Convert to DER format
+    const p7Asn1 = p7.toAsn1();
+    const derBuffer = forge.asn1.toDer(p7Asn1);
+    const derBytes = derBuffer.getBytes();
+
+    // Convert to hex string for PDF
+    let signatureHex = '';
+    for (let i = 0; i < derBytes.length; i++) {
+        const byte = derBytes.charCodeAt(i);
+        signatureHex += ('0' + byte.toString(16)).slice(-2);
     }
 
-    // Use Node.js native crypto for signing
-    const sign = require('crypto').createSign('RSA-SHA256');
-    // We sign the buffer with the corrected tag
-    sign.update(signedAttrsBuffer);
-    const signature = sign.sign(privateKeyPem);
-
-    signerInfo.signature = new asn1js.OctetString({ valueHex: signature });
-
-    // --- TIMESTAMPING LOGIC ---
-    try {
-        console.log('Requesting Timestamp from https://timestamp.ellipticc.com...');
-
-        // 1. Hash the signature value (RFC 3161 / RFC 5652 signature-time-stamp)
-        // The value to be timestamped is the value of the signature field.
-        const signatureHash = crypto.createHash('sha256').update(signature).digest('hex');
-
-        // 2. Call trusted TSA
-        const tsResponse = await fetch('https://timestamp.ellipticc.com/api/v1/rfc3161/attest', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                hash: signatureHash,
-                hashAlgorithm: 'sha256'
-            })
-        });
-
-        if (!tsResponse.ok) {
-            throw new Error(`TSA request failed: ${tsResponse.status} ${tsResponse.statusText}`);
-        }
-
-        const tsData = await tsResponse.json();
-        if (!tsData.success || !tsData.timestampToken) {
-            throw new Error(`TSA error: ${tsData.message || 'Missing token'}`);
-        }
-
-        console.log('Timestamp token received successfully.');
-
-        // 3. Decode Base64 Token
-        const tsTokenBuffer = Buffer.from(tsData.timestampToken, 'base64');
-        const tsTokenArrayBuffer = tsTokenBuffer.buffer.slice(tsTokenBuffer.byteOffset, tsTokenBuffer.byteOffset + tsTokenBuffer.byteLength);
-
-        // 4. Parse Token as ContentInfo
-        const asn1Schema = asn1js.fromBER(tsTokenArrayBuffer);
-        if (asn1Schema.offset === -1) throw new Error('Failed to parse timestamp token ASN.1');
-
-        // The token is a ContentInfo structure
-        const tsContentInfo = new pkijs.ContentInfo({ schema: asn1Schema.result });
-
-        // 5. Add to Unsigned Attributes (id-aa-timeStampToken: 1.2.840.113549.1.9.16.2.14)
-        signerInfo.unsignedAttrs = new pkijs.SignedAndUnsignedAttributes({
-            type: 1, // Unsigned
-            attributes: [
-                new pkijs.Attribute({
-                    type: '1.2.840.113549.1.9.16.2.14',
-                    values: [
-                        tsContentInfo.toSchema()
-                    ]
-                })
-            ]
-        });
-
-    } catch (err: any) {
-        throw new Error('Timestamping failed: ' + err.message);
-    }
-
-    cmsSigned.signerInfos.push(signerInfo);
-
-    // Encode to DER
-    const cmsContentInfo = new pkijs.ContentInfo({
-        contentType: '1.2.840.113549.1.7.2', // signedData
-        content: cmsSigned.toSchema()
-    });
-
-    const cmsEncoded = cmsContentInfo.toSchema().toBER(false);
-    const signatureHex = Buffer.from(cmsEncoded).toString('hex').toLowerCase();
-
-    console.log(`=== PKI.JS SIGNATURE DEBUG ===`);
-    console.log(`CMS byte length: ${cmsEncoded.byteLength}`);
+    console.log(`=== SIGNATURE DEBUG ===`);
+    console.log(`DER byte length: ${derBytes.length}`);
     console.log(`Signature hex length: ${signatureHex.length} chars`);
     console.log(`First 100 chars: ${signatureHex.substring(0, 100)}`);
     console.log(`Starts with 3082 (SEQUENCE): ${signatureHex.startsWith('3082')}`);
