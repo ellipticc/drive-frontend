@@ -1223,7 +1223,7 @@ export const Table01DividerLineSm = ({
                     mimeType: i.mimetype || 'application/octet-stream',
                     folderId: i.file_folder_id || null, // Map to parent
                     createdAt: i.created_at,
-                    updatedAt: i.created_at, // Use created_at as fallback
+                    updatedAt: i.updated_at,
                     is_starred: true,
                     is_shared: false
                 })) as any;
@@ -1237,7 +1237,7 @@ export const Table01DividerLineSm = ({
                     parentId: i.file_folder_id || null,
                     path: '',
                     createdAt: i.created_at,
-                    updatedAt: i.created_at,
+                    updatedAt: i.updated_at,
                     is_starred: true,
                     is_shared: false
                 })) as any;
@@ -1246,19 +1246,21 @@ export const Table01DividerLineSm = ({
                 setTotalItems(allFiles.length + allFolders.length);
             } else if (filterMode === 'recents') {
                 // RECENTS MODE
-                // Fetch latest files via folder contents API
+                // Fetch latest files and folders via folder contents API
                 const response = await apiClient.getFolderContents("root", { page: 1, limit: 50 });
 
-                // Safe check for response.data and response.data.files
+                // Safe check for response.data
                 const filesData = response.success && response.data ? response.data.files || [] : [];
+                const foldersData = response.success && response.data ? response.data.folders || [] : [];
 
                 if (response.success) {
-                    // Filter for files updated in the last 10 days
+                    // Filter for items updated in the last 10 days
                     const tenDaysAgo = new Date();
                     tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
 
                     const masterKey = masterKeyManager.hasMasterKey() ? masterKeyManager.getMasterKey() : null;
 
+                    // Process files
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     const mappedFiles = await Promise.all((filesData || []).map(async (f: any) => {
                         let name = f.name || f.filename || t('common.untitled');
@@ -1289,15 +1291,51 @@ export const Table01DividerLineSm = ({
                         };
                     })) as any;
 
-                    // Client side sort by updatedAt descending just in case
-                    mappedFiles.sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+                    // Process folders
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    const mappedFolders = await Promise.all((foldersData || []).map(async (f: any) => {
+                        let name = f.name || t('common.untitledFolder');
 
-                    const recentFiles = mappedFiles.filter((f: any) => new Date(f.updatedAt) >= tenDaysAgo);
+                        const encryptedName = f.encryptedName || (f as any).encrypted_name;
+                        const nameSalt = f.nameSalt || (f as any).name_salt;
 
-                    allFiles = recentFiles;
-                    allFolders = []; // No folders in recents usually
+                        // Try decrypting if encrypted
+                        if (encryptedName && nameSalt && masterKey) {
+                            try {
+                                name = await decryptFilename(encryptedName, nameSalt, masterKey);
+                            } catch (e) {
+                                console.error("Failed to decrypt recent folder name", e);
+                            }
+                        }
 
-                    setFiles([...allFiles] as any);
+                        return {
+                            ...f,
+                            // Ensure required string properties have fallbacks
+                            encryptedName: f.encryptedName || "",
+                            nameSalt: f.nameSalt || "",
+                            name: name,
+                            decryptedName: name,
+                            parentId: f.parentId || null,
+                            type: 'folder' as const,
+                            is_starred: f.is_starred || false,
+                            tags: []
+                        };
+                    })) as any;
+
+                    // Combine files and folders
+                    const allRecentItems = [...mappedFiles, ...mappedFolders];
+
+                    // Client side sort by updatedAt descending
+                    allRecentItems.sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+                    // Filter for items updated in the last 10 days
+                    const recentItems = allRecentItems.filter((item: any) => new Date(item.updatedAt) >= tenDaysAgo);
+
+                    // Separate back into files and folders
+                    allFiles = recentItems.filter((item: any) => item.type === 'file');
+                    allFolders = recentItems.filter((item: any) => item.type === 'folder');
+
+                    setFiles([...allFiles, ...allFolders] as any);
                     success = true;
                 } else {
                     throw new Error(response.error || "Failed to load recent files");
