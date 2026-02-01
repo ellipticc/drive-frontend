@@ -264,7 +264,7 @@ export const AppSidebar = React.memo(function AppSidebar({
   }
 
   return (
-    <Sidebar collapsible="icon" {...props}>
+    <Sidebar collapsible="icon" className="bg-sidebar/80 dark:bg-sidebar" {...props}>
       <SidebarHeader className="gap-2 p-2">
         <SidebarMenu>
           <SidebarMenuItem>
