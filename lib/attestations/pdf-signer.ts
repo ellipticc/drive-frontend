@@ -203,6 +203,10 @@ export async function signPdf(
     const byteRangeWriteStart = bracketStart + 1;
     const availableSpace = byteRangeEnd - byteRangeWriteStart;
 
+    console.log('--- DEBUG PDF STRUCTURE BEFORE MODIFICATION ---');
+    console.log('ByteRange Area:', Buffer.from(pdfBuffer.subarray(byteRangeStart, byteRangeStart + 50)).toString());
+    console.log('Contents Area:', Buffer.from(pdfBuffer.subarray(contentsHexStart, contentsHexStart + 50)).toString());
+
     // 4. Calculate ByteRange
     // RFC 32000-1: The ByteRange array shall cover the entire file, excluding the < and > delimiters
     // and the hexadecimal string.
@@ -222,6 +226,9 @@ export async function signPdf(
 
     const paddedByteRange = byteRangeStr.padEnd(availableSpace, ' ');
     pdfBuffer.set(encoder.encode(paddedByteRange), byteRangeWriteStart);
+
+    console.log('--- DEBUG PDF STRUCTURE AFTER BYTERANGE MODIFICATION ---');
+    console.log('ByteRange Area:', Buffer.from(pdfBuffer.subarray(byteRangeStart, byteRangeStart + 50)).toString());
 
     // 5. Create detached CMS signature using node-forge (industry standard)
     const part1 = pdfBuffer.subarray(range1Start, range1Start + range1Length);
