@@ -1246,11 +1246,11 @@ export const Table01DividerLineSm = ({
                 setTotalItems(allFiles.length + allFolders.length);
             } else if (filterMode === 'recents') {
                 // RECENTS MODE
-                // Fetch latest files via global search API logic
-                const response = await apiClient.getFiles({ limit: 100 }); // Fetch top 100 most recent
+                // Fetch latest files via folder contents API
+                const response = await apiClient.getFolderContents("root", { page: 1, limit: 50 });
 
                 // Safe check for response.data and response.data.files
-                const filesData = response.success && response.data ? (Array.isArray(response.data) ? response.data : response.data.files) : [];
+                const filesData = response.success && response.data ? response.data.files || [] : [];
 
                 if (response.success) {
                     // Filter for files updated in the last 10 days
@@ -1260,7 +1260,7 @@ export const Table01DividerLineSm = ({
                     const masterKey = masterKeyManager.hasMasterKey() ? masterKeyManager.getMasterKey() : null;
 
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    const mappedFiles = await Promise.all((filesData || []).map(async (f: FileItem) => {
+                    const mappedFiles = await Promise.all((filesData || []).map(async (f: any) => {
                         let name = f.name || f.filename || t('common.untitled');
 
                         const encryptedName = f.encryptedFilename || (f as any).encrypted_filename;
@@ -3473,7 +3473,7 @@ export const Table01DividerLineSm = ({
                                                 </Table.Head>
                                                 <Table.Head id="starred" align="center" className={`hidden md:table-cell w-16 ${visibleColumns.has('starred') ? '' : '[&>*]:invisible pointer-events-none cursor-default'}`} />
                                                 <Table.Head id="modified" allowsSorting={true} align="right" className={`hidden md:table-cell w-40 ${visibleColumns.has('modified') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
-                                                    <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>{t("files.modified")}</span>
+                                                    <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>{filterMode === 'starred' ? 'Date Starred' : t("files.modified")}</span>
                                                 </Table.Head>
                                                 <Table.Head id="size" allowsSorting={true} align="right" className={`hidden md:table-cell w-28 ${visibleColumns.has('size') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
                                                     <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>{t("files.size")}</span>
@@ -3605,7 +3605,7 @@ export const Table01DividerLineSm = ({
                                                             </Table.Cell>
                                                             <Table.Cell className={`hidden md:table-cell text-right w-40 ${visibleColumns.has('modified') ? '' : '[&>*]:invisible'} px-4`}>
                                                                 <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
-                                                                    {formatDate(item.updatedAt || item.createdAt)}
+                                                                    {filterMode === 'starred' ? formatDate(item.createdAt) : formatDate(item.updatedAt || item.createdAt)}
                                                                 </span>
                                                             </Table.Cell>
                                                             <Table.Cell className={`hidden md:table-cell text-right w-28 ${visibleColumns.has('size') ? '' : '[&>*]:invisible'} px-4`}>
