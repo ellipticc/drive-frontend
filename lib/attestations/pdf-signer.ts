@@ -71,7 +71,8 @@ export async function signPdf(
     const apStream = pdfDoc.context.stream('q 0.9 g 0 0 200 50 re f Q', {
         Type: 'XObject',
         Subtype: 'Form',
-        BBox: [0, 0, 200, 50]
+        BBox: [0, 0, 200, 50],
+        Resources: pdfDoc.context.obj({})
     });
     const apRef = pdfDoc.context.register(apStream);
 
