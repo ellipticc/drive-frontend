@@ -1284,7 +1284,7 @@ export const Table01DividerLineSm = ({
                             decryptedName: name,
                             folderId: f.folderId || null,
                             type: 'file' as const,
-                            is_starred: false, // We'd need to check this separately or if API provides it
+                            is_starred: f.is_starred || false,
                             tags: []
                         };
                     })) as any;
@@ -3473,7 +3473,7 @@ export const Table01DividerLineSm = ({
                                                 </Table.Head>
                                                 <Table.Head id="starred" align="center" className={`hidden md:table-cell w-16 ${visibleColumns.has('starred') ? '' : '[&>*]:invisible pointer-events-none cursor-default'}`} />
                                                 <Table.Head id="modified" allowsSorting={true} align="right" className={`hidden md:table-cell w-40 ${visibleColumns.has('modified') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
-                                                    <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>{filterMode === 'starred' ? 'Date Starred' : t("files.modified")}</span>
+                                                    <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>{t("files.modified")}</span>
                                                 </Table.Head>
                                                 <Table.Head id="size" allowsSorting={true} align="right" className={`hidden md:table-cell w-28 ${visibleColumns.has('size') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
                                                     <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>{t("files.size")}</span>
@@ -3605,7 +3605,7 @@ export const Table01DividerLineSm = ({
                                                             </Table.Cell>
                                                             <Table.Cell className={`hidden md:table-cell text-right w-40 ${visibleColumns.has('modified') ? '' : '[&>*]:invisible'} px-4`}>
                                                                 <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
-                                                                    {filterMode === 'starred' ? formatDate(item.createdAt) : formatDate(item.updatedAt || item.createdAt)}
+                                                                    {formatDate(item.updatedAt || item.createdAt)}
                                                                 </span>
                                                             </Table.Cell>
                                                             <Table.Cell className={`hidden md:table-cell text-right w-28 ${visibleColumns.has('size') ? '' : '[&>*]:invisible'} px-4`}>
