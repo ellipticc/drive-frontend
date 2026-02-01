@@ -257,9 +257,8 @@ export async function signPdf(
         key: forgePrivateKey,
         certificate: forgeCert,
         digestAlgorithm: forge.pki.oids.sha256,
-        // Explicitly set signature algorithm (RSA with SHA-256)
-        // This ensures Adobe recognizes the signature method
-        signatureAlgorithm: forge.pki.oids.sha256,
+        // Explicitly set signature algorithm to rsaEncryption (1.2.840.113549.1.1.1)
+        signatureAlgorithm: forge.pki.oids.rsaEncryption,
         authenticatedAttributes: [
             {
                 type: forge.pki.oids.contentType,
