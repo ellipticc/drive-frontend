@@ -291,7 +291,7 @@ const TableRow = forwardRef(<T extends object>(
             className={(state) =>
                 cx(
                     "relative outline-ring transition-colors hover:bg-muted/50 focus-visible:outline-2 focus-visible:-outline-offset-2 group border-b border-border/60 last:border-b-0",
-                    size === "sm" ? "h-10" : "h-12", // Even more compact height
+                    size === "sm" ? "h-8" : "h-12", // Even more compact height
                     highlightSelectedRow && state.isSelected && "!bg-blue-100 dark:!bg-blue-900/30",
 
                     // Removed pseudo-element borders in favor of standard border-b on the row for consistent full-width lines
@@ -328,7 +328,7 @@ const TableCell = ({ className, children, ...props }: TableCellProps) => {
             className={(state) =>
                 cx(
                     "relative text-sm text-muted-foreground outline-ring focus-visible:z-1 focus-visible:outline-2 focus-visible:-outline-offset-2",
-                    size === "sm" && "px-2 py-2 md:px-4",
+                    size === "sm" && "px-2 py-1 md:px-4",
                     size === "md" && "px-4 py-3 md:px-6",
 
                     selectionBehavior === "toggle" && "nth-2:ps-3",
