@@ -1,11 +1,13 @@
 "use client";
 
+import React, { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { AppSidebar } from "@/components/layout/sidebar/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { useUser } from "@/components/user-context";
 import { DeviceLimitOverlay } from "@/components/modals/device-limit-overlay";
 import { useLanguage } from "@/lib/i18n/language-context";
+import { toast } from 'sonner';
 
 interface ConditionalLayoutProps {
   children: React.ReactNode;
@@ -48,6 +50,41 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
     document.documentElement.style.overflow = '';
     document.body.style.overflow = '';
   }
+
+  // Listen for frontend version check events and prompt/reload as needed
+  const versionNotifiedRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const handler = (ev: any) => {
+      const detail = ev?.detail || {};
+      const serverVersion = detail.serverVersion;
+      const cacheAction = detail.cacheAction;
+      if (!cacheAction || cacheAction === 'noop') return;
+
+      if (cacheAction === 'clear-and-reload') {
+        toast('A new version is available — reloading now');
+        setTimeout(() => {
+          // Force a reload
+          window.location.reload();
+        }, 700);
+        return;
+      }
+
+      if (cacheAction === 'notify') {
+        if (versionNotifiedRef.current === serverVersion) return;
+        versionNotifiedRef.current = serverVersion;
+        toast('A new version of the app is available. Reload to update.', {
+          action: {
+            label: 'Reload',
+            onClick: () => window.location.reload(),
+          }
+        });
+      }
+    };
+
+    window.addEventListener('ecc:version-check', handler);
+    return () => window.removeEventListener('ecc:version-check', handler);
+  }, []);
 
   // For authenticated routes, render with sidebar
   return (

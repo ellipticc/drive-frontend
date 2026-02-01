@@ -720,11 +720,33 @@ class ApiClient {
       ...authHeaders,
     };
 
+    // Add frontend build version header so backend can detect stale clients
+    try {
+      if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_APP_VERSION) {
+        (config.headers as Record<string, string>)['X-Ecc-App-Version'] = process.env.NEXT_PUBLIC_APP_VERSION;
+      }
+    } catch (e) {
+      // ignore in non-browser environments
+    }
+
     try {
       // Queue the fetch request based on priority to prevent UI blocking
       const response = await getRequestQueue().enqueue(() => fetch(requestUrl, config), priority);
 
-
+      // Read server-supplied version headers and broadcast an event for UI to react
+      try {
+        const serverVersion = response.headers.get('x-ecc-server-frontend-version');
+        const cacheAction = response.headers.get('x-ecc-cache-action');
+        if (typeof window !== 'undefined' && cacheAction && cacheAction !== 'noop') {
+          try {
+            window.dispatchEvent(new CustomEvent('ecc:version-check', { detail: { serverVersion, cacheAction } }));
+          } catch (e) {
+            console.warn('ecc:version-check dispatch failed', e);
+          }
+        }
+      } catch (e) {
+        // Ignore header read errors
+      }
 
       const data = await response.json();
 
