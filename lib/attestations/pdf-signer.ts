@@ -204,14 +204,15 @@ export async function signPdf(
     const availableSpace = byteRangeEnd - byteRangeWriteStart;
 
     // 4. Calculate ByteRange
-    // Reverting to INCLUDE < and > in the signed range based on failures with exclusion.
-    // The "hole" is the hex string content.
+    // RFC 32000-1: The ByteRange array shall cover the entire file, excluding the < and > delimiters
+    // and the hexadecimal string.
 
     const range1Start = 0;
-    const range1Length = contentsHexStart; // Include '<' 
+    const range1Length = contentsHexStart - 1; // Exclude '<'
 
-    const range2Start = contentsEnd;       // Include '>'
-    const range2Length = pdfBuffer.length - contentsEnd;
+    // contentsEnd is index of '>'.
+    const range2Start = contentsEnd + 1;       // Exclude '>'
+    const range2Length = pdfBuffer.length - range2Start;
 
     const byteRangeStr = `${range1Start} ${range1Length} ${range2Start} ${range2Length}`;
 
