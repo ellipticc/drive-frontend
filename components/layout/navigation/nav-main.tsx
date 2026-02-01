@@ -51,14 +51,8 @@ export function NavMain({
   const [hasLoadedRoot, setHasLoadedRoot] = useState(false)
   const [isMyFilesLeaf, setIsMyFilesLeaf] = useState(false)
 
-  // State for additional items expansion (after Photos)
-  const [areAdditionalItemsExpanded, setAreAdditionalItemsExpanded] = useState(() => {
-    if (typeof window !== "undefined") {
-      // Default to collapsed unless explicitly set to "true" in localStorage
-      return localStorage.getItem("sidebar-additional-expanded") === "true"
-    }
-    return false
-  })
+  // State for additional items expansion (after Photos) — default collapsed
+  const [areAdditionalItemsExpanded, setAreAdditionalItemsExpanded] = useState(false)  // always start collapsed
 
   const fetchRootFolders = useCallback(async () => {
     if (hasLoadedRoot) return
@@ -124,7 +118,6 @@ export function NavMain({
 
     const next = !areAdditionalItemsExpanded
     setAreAdditionalItemsExpanded(next)
-    localStorage.setItem("sidebar-additional-expanded", String(next))
   }
 
   // Helper function to get filled icon for active states
