@@ -70,7 +70,7 @@
   --font-cal-sans: var(--font-geist-sans);
   --font-commit-mono: var(--font-geist-mono);
 
-  --background: oklch(1 0 0);
+  --background: oklch(0.9653 0.0054 117.92);
   --foreground: oklch(0.147 0.004 49.25);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.147 0.004 49.25);
@@ -95,11 +95,11 @@
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
   --radius: 0.45rem;
-  --sidebar: oklch(0.9726 0.0026 106.45);
+  --sidebar: oklch(0.9242 0.0109 118.03);
   --sidebar-foreground: oklch(0.147 0.004 49.25);
   --sidebar-primary: oklch(0.216 0.006 56.043);
   --sidebar-primary-foreground: oklch(0.985 0.001 106.423);
-  --sidebar-accent: oklch(0.95 0.0026 106.45);
+  --sidebar-accent: oklch(0.9242 0.0109 118.03);
   --sidebar-accent-foreground: oklch(0.216 0.006 56.043);
   --sidebar-border: oklch(0.923 0.003 48.717);
   --sidebar-ring: oklch(0.709 0.01 56.259);
@@ -974,12 +974,40 @@
   }
 
   .tiny-scrollbar::-webkit-scrollbar-thumb {
-    background-color: rgba(100, 100, 100, 0.35);
-    border-radius: 999px;
+    background-color: rgba(0,0,0,0.2);
+    border-radius: 9999px;
   }
 
   .tiny-scrollbar {
     scrollbar-width: thin;
     scrollbar-color: rgba(100, 100, 100, 0.35) transparent;
+  }
+
+  /* Global thin scrollbar: ensure thin scrollbars across the app, override component-specific wide settings */
+  :root *::-webkit-scrollbar {
+    width: 8px !important;
+    height: 8px !important;
+  }
+
+  :root *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  :root *::-webkit-scrollbar-thumb {
+    background-color: var(--muted-foreground);
+    opacity: 0.22;
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
+  :root *::-webkit-scrollbar-thumb:hover {
+    opacity: 0.44;
+  }
+
+  /* Firefox */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--muted-foreground) transparent;
   }
 }
