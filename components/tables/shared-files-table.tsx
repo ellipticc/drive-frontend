@@ -673,7 +673,7 @@ export function SharedFilesTable({ status, searchQuery }: SharedFilesTableProps)
                 />
 
                 <div className="w-full relative">
-                    <Table
+                    <Table size="sm"
                         aria-label="Shared With Me"
                         selectionMode="multiple"
                         selectionBehavior="replace"

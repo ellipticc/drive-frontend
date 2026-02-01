@@ -655,7 +655,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                     </div>
                 ) : (
                     <div className="w-full relative">
-                        <Table
+                        <Table size="sm"
                             aria-label="Trash"
                             selectionMode="multiple"
                             selectionBehavior="replace"

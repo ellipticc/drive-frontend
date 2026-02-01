@@ -3491,7 +3491,7 @@ export const Table01DividerLineSm = ({
                                 onDragEnd={handleDragEnd}
                             >
                                 <div className="w-full relative">
-                                    <Table aria-label="Files" selectionMode="multiple" selectionBehavior="replace" sortDescriptor={sortDescriptor} onSortChange={setSortDescriptor} selectedKeys={selectedItems} onSelectionChange={handleTableSelectionChange}
+                                    <Table size="sm" aria-label="Files" selectionMode="multiple" selectionBehavior="replace" sortDescriptor={sortDescriptor} onSortChange={setSortDescriptor} selectedKeys={selectedItems} onSelectionChange={handleTableSelectionChange}
                                         onContextMenu={(e: React.MouseEvent) => handleContextMenu(e)}
                                     >
                                         {filteredItems.length > 0 && (

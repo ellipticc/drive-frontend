@@ -796,7 +796,7 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                 />
                 {viewMode === 'table' ? (
                     <div className="w-full relative">
-                        <Table aria-label="Shares" selectionMode="multiple" selectionBehavior="replace" sortDescriptor={sortDescriptor} onSortChange={setSortDescriptor} selectedKeys={selectedItems} onSelectionChange={(keys) => {
+                        <Table size="sm" aria-label="Shares" selectionMode="multiple" selectionBehavior="replace" sortDescriptor={sortDescriptor} onSortChange={setSortDescriptor} selectedKeys={selectedItems} onSelectionChange={(keys) => {
                             if (keys === 'all') {
                                 if (selectedItems.size > 0 && selectedItems.size < filteredItems.length) {
                                     setSelectedItems(new Set());
