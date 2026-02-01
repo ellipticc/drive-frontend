@@ -3432,7 +3432,7 @@ export const Table01DividerLineSm = ({
                 </div>
             )}
 
-            <TableCard.Root size="sm" className={cx(isMobile ? "rounded-none border-x-0 ring-0 shadow-none border-t-0" : "rounded-xl border shadow-sm")}>
+            <TableCard.Root size="sm" className={cx(isMobile ? "rounded-none ring-0 shadow-none" : "rounded-xl")}>
                 {!isMobile && (
                     <TableCard.Header
                         title={renderBreadcrumbs()}

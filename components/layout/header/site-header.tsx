@@ -180,7 +180,7 @@ export function SiteHeader({ onSearch, onFileUpload, onFolderUpload, searchValue
               <Input
                 type="search"
                 placeholder="Search files and folders..."
-                className="pl-9 pr-4"
+                className="pl-9 pr-4 bg-card"
                 value={localSearchValue}
                 onChange={(e) => setLocalSearchValue(e.target.value)}
               />
