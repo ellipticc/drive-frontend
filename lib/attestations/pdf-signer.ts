@@ -235,6 +235,9 @@ export async function signPdf(
         key: forgePrivateKey,
         certificate: forgeCert,
         digestAlgorithm: forge.pki.oids.sha256,
+        // Explicitly set signature algorithm (RSA with SHA-256)
+        // This ensures Adobe recognizes the signature method
+        signatureAlgorithm: forge.pki.oids.sha256,
         authenticatedAttributes: [
             {
                 type: forge.pki.oids.contentType,
@@ -254,12 +257,20 @@ export async function signPdf(
     console.log('Generating PKCS#7 signature with node-forge...');
 
     // Sign with detached mode (content not included in signature)
+    // Use SHA-256 for both digest and signature
     p7.sign({ detached: true });
 
     console.log('PKCS#7 signature generated successfully');
 
     // Convert to DER format
+    // Note: p7.toAsn1() returns the full ContentInfo structure
+    // which wraps the SignedData with OID 1.2.840.113549.1.7.2
     const p7Asn1 = p7.toAsn1();
+
+    // Debug: Check the structure
+    console.log('ASN.1 structure type:', p7Asn1.type);
+    console.log('ASN.1 structure tagClass:', p7Asn1.tagClass);
+
     const derBuffer = forge.asn1.toDer(p7Asn1);
     const derBytes = derBuffer.getBytes();
 
