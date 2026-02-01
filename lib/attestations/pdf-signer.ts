@@ -90,7 +90,7 @@ export async function signPdf(
 
     // 3. Sign with node-forge
     const signer = {
-        sign: (content: Buffer) => {
+        sign: async (content: Buffer) => {
             const forgePrivateKey = forge.pki.privateKeyFromPem(privateKeyPem);
             const p7 = forge.pkcs7.createSignedData();
 
@@ -122,8 +122,6 @@ export async function signPdf(
         }
     };
 
-    // Handle sign import structure (Default export vs named)
-    // If sign is an object containing sign function:
     const signFn = (sign as any).sign || sign;
     const signedPdfBuffer = await signFn(Buffer.from(pdfWithPlaceholder), signer);
 
