@@ -59,7 +59,7 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
         } as React.CSSProperties
       }
     >
-      <AppSidebar variant="floating" side={dir === 'rtl' ? 'right' : 'left'} />
+      <AppSidebar variant="inset" side={dir === 'rtl' ? 'right' : 'left'} />
       <SidebarInset>
         {children}
       </SidebarInset>
