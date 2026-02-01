@@ -91,7 +91,12 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
     try {
       const v = process.env.NEXT_PUBLIC_APP_VERSION || 'unknown';
       const short = typeof v === 'string' && v.length > 7 ? v.slice(0, 7) : v;
+      // Show a styled message and a clickable GitHub commit URL in the console for easy debugging
+      const repo = 'https://github.com/ellipticc/drive-frontend';
+      const commitUrl = typeof v === 'string' && v !== 'unknown' ? `${repo}/commit/${v}` : repo;
+
       console.log('%cEllipticc Drive — Frontend Version: %c%s', 'font-weight:bold;color:#0b7285', 'color:#1f2937', short);
+      console.log('%cCommit: %c%s', 'color:#6b7280', 'color:#2563eb;text-decoration:underline', commitUrl);
     } catch (e) {
       // ignore in non-browser envs
     }
