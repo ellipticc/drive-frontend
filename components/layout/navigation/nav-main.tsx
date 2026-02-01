@@ -54,7 +54,8 @@ export function NavMain({
   // State for additional items expansion (after Photos)
   const [areAdditionalItemsExpanded, setAreAdditionalItemsExpanded] = useState(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("sidebar-additional-expanded") !== "false" // Default to collapsed (false)
+      // Default to collapsed unless explicitly set to "true" in localStorage
+      return localStorage.getItem("sidebar-additional-expanded") === "true"
     }
     return false
   })
