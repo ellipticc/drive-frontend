@@ -38,10 +38,14 @@ import {
   IconSettings,
   IconUserCog,
   IconLockSquareRounded,
+  IconLockSquareRoundedFilled,
   IconGift,
+  IconGiftFilled,
   IconBell,
+  IconBellFilled,
   IconLanguage,
   IconCoin,
+  IconCoinFilled,
   IconLoader2,
   IconX,
   IconAlertCircle,
@@ -49,6 +53,7 @@ import {
   IconCode,
   IconCalendar as CalendarIcon,
   IconPalette,
+  IconPaletteFilled,
 } from "@tabler/icons-react"
 import { format } from "date-fns"
 import { DateRange } from "react-day-picker"
@@ -149,6 +154,25 @@ export function SettingsModal({
     { name: t("settings.developer") || "Developer", icon: IconCode, id: "developer" },
     { name: t("settings.referrals"), icon: IconGift, id: "referrals" },
   ]
+
+  // Helper to return filled icon variants for active/focused state (mirrors app sidebar logic)
+  const getIcon = (item: { name: string; icon?: any; id?: string }, isActive: boolean) => {
+    if (!item.icon || !isActive) return item.icon
+    switch (item.id) {
+      case 'preferences':
+        return IconPaletteFilled
+      case 'security':
+        return IconLockSquareRoundedFilled
+      case 'billing':
+        return IconCoinFilled
+      case 'notifications':
+        return IconBellFilled
+      case 'referrals':
+        return IconGiftFilled
+      default:
+        return item.icon
+    }
+  }
 
   // Use external state if provided, otherwise internal state
   const open = externalOpen !== undefined ? externalOpen : internalOpen
@@ -1864,7 +1888,11 @@ export function SettingsModal({
                             disabled={isDisabled}
                             className={isDisabled ? "opacity-50 cursor-not-allowed" : ""}
                           >
-                            <item.icon />
+                            {(() => {
+                              const isActive = activeTab === item.id
+                              const IconComponent = getIcon(item, isActive)
+                              return IconComponent && <IconComponent className="h-4 w-4" />
+                            })()}
                             <span>{item.name}</span>
                           </SidebarMenuButton>
                         </SidebarMenuItem>
@@ -1889,7 +1917,11 @@ export function SettingsModal({
                         : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                         }`}
                     >
-                      <item.icon className="h-4 w-4" />
+                      {(() => {
+                        const isActive = activeTab === item.id
+                        const IconComponent = getIcon(item, isActive)
+                        return IconComponent && <IconComponent className="h-4 w-4" />
+                      })()}
                       <span>{item.name}</span>
                     </button>
                   ))}
