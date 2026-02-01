@@ -86,6 +86,17 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
     return () => window.removeEventListener('ecc:version-check', handler);
   }, []);
 
+  // Log build version in console for users that open DevTools (prints short hash)
+  useEffect(() => {
+    try {
+      const v = process.env.NEXT_PUBLIC_APP_VERSION || 'unknown';
+      const short = typeof v === 'string' && v.length > 7 ? v.slice(0, 7) : v;
+      console.log('%cEllipticc Drive — Frontend Version: %c%s', 'font-weight:bold;color:#0b7285', 'color:#1f2937', short);
+    } catch (e) {
+      // ignore in non-browser envs
+    }
+  }, []);
+
   // For authenticated routes, render with sidebar
   return (
     <SidebarProvider

@@ -32,11 +32,6 @@ jobs:
           # Inject the exact commit SHA used for this build so the frontend can report its version
           NEXT_PUBLIC_APP_VERSION: ${{ github.sha }}
 
-      - name: Record frontend version into exported assets
-        run: |
-          mkdir -p out
-          echo "${{ github.sha }}" > out/FRONTEND_VERSION
-          echo "NEXT_PUBLIC_APP_VERSION=${{ github.sha }}" > out/RELEASE_INFO
 
       - name: Sync static files to VPS
         uses: appleboy/scp-action@v0.1.7
