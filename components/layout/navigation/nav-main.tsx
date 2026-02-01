@@ -36,7 +36,7 @@ export function NavMain({
   const { t } = useLanguage()
   const router = useRouter()
   const pathname = usePathname()
-  const { state } = useSidebar()
+  const { state, toggleSidebar } = useSidebar()
   const searchParams = useSearchParams()
 
   // States for "My files" expansion
@@ -104,8 +104,13 @@ export function NavMain({
   const toggleMyFiles = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    // Prevent expansion if sidebar is collapsed
-    if (state === "collapsed") return;
+
+    // If sidebar is collapsed, expand it first
+    if (state === "collapsed") {
+      toggleSidebar()
+      // Don't toggle the expansion state yet, just expand the sidebar
+      return;
+    }
 
     const next = !isMyFilesExpanded
     setIsMyFilesExpanded(next)
@@ -115,8 +120,13 @@ export function NavMain({
   const toggleAdditionalItems = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    // Prevent toggling if sidebar is collapsed
-    if (state === "collapsed") return;
+
+    // If sidebar is collapsed, expand it first
+    if (state === "collapsed") {
+      toggleSidebar()
+      // Don't toggle the expansion state yet, just expand the sidebar
+      return;
+    }
 
     const next = !areAdditionalItemsExpanded
     setAreAdditionalItemsExpanded(next)
