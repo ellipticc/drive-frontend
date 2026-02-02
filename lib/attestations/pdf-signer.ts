@@ -1,11 +1,52 @@
 ﻿import { PDFDocument, PDFName, PDFString, PDFArray, PDFDict, PDFHexString } from 'pdf-lib';
-import sign from '@signpdf/signpdf';
-import { SUBFILTER_ADOBE_PKCS7_DETACHED } from '@signpdf/utils';
+import signpdf from '@signpdf/signpdf';
+import { SUBFILTER_ADOBE_PKCS7_DETACHED, Signer } from '@signpdf/utils';
 import { decryptPrivateKeyInternal } from './crypto';
 import type { AttestationKey } from './types';
 import forge from 'node-forge';
 
 const SIGNATURE_LENGTH = 16000;
+
+class CustomSigner extends Signer {
+    private privateKeyPem: string;
+    private certPem: string;
+
+    constructor(privateKeyPem: string, certPem: string) {
+        super();
+        this.privateKeyPem = privateKeyPem;
+        this.certPem = certPem;
+    }
+
+    async sign(pdfBuffer: Buffer): Promise<Buffer> {
+        const forgeCert = forge.pki.certificateFromPem(this.certPem);
+        const forgePrivateKey = forge.pki.privateKeyFromPem(this.privateKeyPem);
+        const p7 = forge.pkcs7.createSignedData();
+
+        p7.content = forge.util.createBuffer(pdfBuffer.toString('binary'));
+        p7.addCertificate(forgeCert);
+
+        p7.addSigner({
+            key: forgePrivateKey,
+            certificate: forgeCert,
+            digestAlgorithm: forge.pki.oids.sha256,
+            authenticatedAttributes: [
+                { type: forge.pki.oids.contentType, value: forge.pki.oids.data },
+                { type: forge.pki.oids.messageDigest },
+                {
+                    type: forge.pki.oids.signingTime,
+                    value: forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.UTCTIME, false, (forge.util as any).dateToUtcTime(new Date())) as any
+                }
+            ]
+        });
+
+        p7.sign({ detached: true });
+
+        const p7Asn1 = p7.toAsn1();
+        const derBuffer = forge.asn1.toDer(p7Asn1);
+
+        return Buffer.from(derBuffer.getBytes(), 'binary');
+    }
+}
 
 export async function signPdf(
     pdfBytes: Uint8Array,
@@ -36,7 +77,6 @@ export async function signPdf(
         Reason: PDFString.of('Attested by Ellipticc User'),
         Name: PDFString.of(commonName),
         M: PDFString.fromDate(new Date()),
-        // Optional: Location and ContactInfo suppressed to avoid complexity
     });
     const signatureRef = pdfDoc.context.register(signatureDict);
 
@@ -88,42 +128,21 @@ export async function signPdf(
 
     const pdfWithPlaceholder = await pdfDoc.save({ useObjectStreams: false });
 
-    // 3. Sign with node-forge
-    const signer = {
-        sign: async (content: Buffer) => {
-            const forgePrivateKey = forge.pki.privateKeyFromPem(privateKeyPem);
-            const p7 = forge.pkcs7.createSignedData();
+    // 3. Sign with Custom Signer
+    const signer = new CustomSigner(privateKeyPem, key.certPem);
 
-            p7.content = forge.util.createBuffer(content.toString('binary'));
-            p7.addCertificate(forgeCert);
+    // Handle import structure: import signpdf is the instance
+    const signInstance = (signpdf as any).default || signpdf;
 
-            p7.addSigner({
-                key: forgePrivateKey,
-                certificate: forgeCert,
-                digestAlgorithm: forge.pki.oids.sha256,
-                // signatureAlgorithm: forge.pki.oids.rsaEncryption, // Implicit
-                authenticatedAttributes: [
-                    { type: forge.pki.oids.contentType, value: forge.pki.oids.data },
-                    { type: forge.pki.oids.messageDigest },
-                    {
-                        type: forge.pki.oids.signingTime,
-                        // Check if dateToUtcTime exists at runtime despite type definition
-                        value: forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.UTCTIME, false, (forge.util as any).dateToUtcTime(new Date())) as any
-                    }
-                ]
-            });
-
-            p7.sign({ detached: true });
-
-            const p7Asn1 = p7.toAsn1();
-            const derBuffer = forge.asn1.toDer(p7Asn1);
-
-            return Buffer.from(derBuffer.getBytes(), 'binary');
-        }
-    };
-
-    const signFn = (sign as any).sign || sign;
-    const signedPdfBuffer = await signFn(Buffer.from(pdfWithPlaceholder), signer);
+    // Ensure we are calling the sign method
+    let signedPdfBuffer: Buffer;
+    if (typeof signInstance.sign === 'function') {
+        signedPdfBuffer = await signInstance.sign(Buffer.from(pdfWithPlaceholder), signer);
+    } else {
+        // Fallback or error reporting
+        console.error('SignPdf import structure', signpdf);
+        throw new Error('Could not find sign function in @signpdf/signpdf export');
+    }
 
     return { pdfBytes: signedPdfBuffer };
 }
