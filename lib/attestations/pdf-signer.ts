@@ -1,6 +1,6 @@
 ﻿import { PDFDocument, PDFName, PDFString, PDFArray, PDFDict, PDFHexString } from 'pdf-lib';
 import signpdf from '@signpdf/signpdf';
-import { SUBFILTER_ADOBE_PKCS7_DETACHED, Signer } from '@signpdf/utils';
+import { SUBFILTER_ADOBE_PKCS7_DETACHED, Signer, DEFAULT_BYTE_RANGE_PLACEHOLDER } from '@signpdf/utils';
 import { decryptPrivateKeyInternal } from './crypto';
 import type { AttestationKey } from './types';
 import forge from 'node-forge';
@@ -72,7 +72,12 @@ export async function signPdf(
         Type: 'Sig',
         Filter: 'Adobe.PPKLite',
         SubFilter: SUBFILTER_ADOBE_PKCS7_DETACHED,
-        ByteRange: [0, 999999999, 999999999, 999999999],
+        ByteRange: [
+            0,
+            PDFName.of(DEFAULT_BYTE_RANGE_PLACEHOLDER),
+            PDFName.of(DEFAULT_BYTE_RANGE_PLACEHOLDER),
+            PDFName.of(DEFAULT_BYTE_RANGE_PLACEHOLDER),
+        ],
         Contents: PDFHexString.of('0'.repeat(SIGNATURE_LENGTH)),
         Reason: PDFString.of('Attested by Ellipticc User'),
         Name: PDFString.of(commonName),
@@ -134,13 +139,10 @@ export async function signPdf(
     // Handle import structure: import signpdf is the instance
     const signInstance = (signpdf as any).default || signpdf;
 
-    // Ensure we are calling the sign method
     let signedPdfBuffer: Buffer;
     if (typeof signInstance.sign === 'function') {
         signedPdfBuffer = await signInstance.sign(Buffer.from(pdfWithPlaceholder), signer);
     } else {
-        // Fallback or error reporting
-        console.error('SignPdf import structure', signpdf);
         throw new Error('Could not find sign function in @signpdf/signpdf export');
     }
 
