@@ -1,8 +1,7 @@
-
 "use client"
 
 import * as React from "react"
-import { IconFile, IconUpload, IconCheck } from "@tabler/icons-react"
+import { IconFile, IconUpload, IconCheck, IconAlertCircle, IconDeviceFloppy } from "@tabler/icons-react"
 import { useFilePicker } from "use-file-picker"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -21,20 +20,31 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
+import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+    Alert,
+    AlertDescription,
+    AlertTitle,
+} from "@/components/ui/alert"
 
-import { AttestationStorage } from "@/lib/attestations/storage"
 import { signPdf } from "@/lib/attestations/pdf-signer"
 import { masterKeyManager } from "@/lib/master-key"
-import type { AttestationKey } from "@/lib/attestations/types"
+import { decryptString } from "@/lib/attestations/crypto"
+import { apiClient as api } from "@/lib/api"
+import { uploadEncryptedFile } from "@/lib/upload"
 
 export function PdfSignerView() {
-    const [keys, setKeys] = React.useState<AttestationKey[]>([])
+    const [keys, setKeys] = React.useState<any[]>([])
     const [selectedKeyId, setSelectedKeyId] = React.useState<string>("")
     const [processing, setProcessing] = React.useState(false)
     const [signedPdf, setSignedPdf] = React.useState<Uint8Array | null>(null)
     const [fileName, setFileName] = React.useState<string>("")
     const [timestampResult, setTimestampResult] = React.useState<any | null>(null)
+    const [loadingKeys, setLoadingKeys] = React.useState(false)
+    const [proofReason, setProofReason] = React.useState("")
+    const [proofLocation, setProofLocation] = React.useState("")
+    const [isUploading, setIsUploading] = React.useState(false)
 
     const { openFilePicker, filesContent, loading, clear } = useFilePicker({
         readAs: 'ArrayBuffer',
@@ -43,12 +53,40 @@ export function PdfSignerView() {
     });
 
     React.useEffect(() => {
-        const loadedKeys = AttestationStorage.getKeys();
-        setKeys(loadedKeys);
-        if (loadedKeys.length > 0) {
-            setSelectedKeyId(loadedKeys[0].id);
-        }
+        loadKeys();
     }, []);
+
+    const loadKeys = async () => {
+        setLoadingKeys(true);
+        try {
+            const masterKey = masterKeyManager.getMasterKey();
+            if (!masterKey) return;
+
+            const response = await api.getAttestationKeys();
+            if (response.success && response.data) {
+                const decryptedKeys = await Promise.all(response.data.map(async (k: any) => {
+                    try {
+                        const decryptedName = await decryptString(k.name, masterKey);
+                        return { ...k, name: decryptedName };
+                    } catch (e) {
+                        return { ...k, name: "Decryption Failed" };
+                    }
+                }));
+
+                const activeKeys = decryptedKeys.filter(k => !k.revokedAt);
+                setKeys(activeKeys);
+
+                if (activeKeys.length > 0) {
+                    setSelectedKeyId(activeKeys[0].id);
+                }
+            }
+        } catch (error) {
+            console.error(error);
+            toast.error("Failed to load signing identities");
+        } finally {
+            setLoadingKeys(false);
+        }
+    }
 
     // Effect to handle file selection
     React.useEffect(() => {
@@ -79,6 +117,7 @@ export function PdfSignerView() {
 
             const result = await signPdf(pdfBytes, key, masterKey);
             setSignedPdf(result.pdfBytes);
+
             if (result.timestampData) {
                 setTimestampResult({
                     data: result.timestampData,
@@ -87,7 +126,7 @@ export function PdfSignerView() {
                 if (result.timestampVerification?.verified) {
                     toast.success("Document signed and timestamped successfully!");
                 } else {
-                    toast.success("Document signed, but timestamp verification pending/failed.");
+                    toast.warning("Document signed, but timestamp verification pending/failed.");
                 }
             } else {
                 toast.success("Document signed successfully (no timestamp).");
@@ -97,6 +136,53 @@ export function PdfSignerView() {
             toast.error("Signing failed: " + (error instanceof Error ? error.message : String(error)));
         } finally {
             setProcessing(false);
+        }
+    }
+
+    const handleSaveAttestation = async () => {
+        if (!signedPdf || !fileName || !selectedKeyId) return;
+
+        setIsUploading(true);
+        const toastId = toast.loading("Saving attestation document...");
+
+        try {
+            const signedFile = new File([signedPdf as any], fileName, { type: 'application/pdf' });
+
+            // Upload as hidden file with attestation metadata
+            await uploadEncryptedFile(
+                signedFile,
+                null, // root folder (doesn't matter as it's hidden)
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                'skip', // conflict resolution
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                true, // isHidden
+                {
+                    keyId: selectedKeyId,
+                    reason: proofReason,
+                    location: proofLocation
+                }
+            );
+
+            toast.success("Document saved to Attestations", { id: toastId });
+
+            // Reset state
+            setSignedPdf(null);
+            setTimestampResult(null);
+            clear();
+            setProofReason("");
+            setProofLocation("");
+        } catch (error) {
+            console.error("Save failed:", error);
+            toast.error("Failed to save attestation document", { id: toastId });
+        } finally {
+            setIsUploading(false);
         }
     }
 
@@ -125,14 +211,14 @@ export function PdfSignerView() {
                 <div className="space-y-2">
                     <Label>1. Select Document</Label>
                     <div
-                        onClick={() => openFilePicker()}
-                        className="border-2 border-dashed rounded-lg p-8 text-center hover:bg-muted/50 transition-colors cursor-pointer"
+                        onClick={() => !signedPdf && openFilePicker()}
+                        className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${signedPdf ? 'bg-muted/30 cursor-default border-solid' : 'hover:bg-muted/50 cursor-pointer'}`}
                     >
                         {filesContent && filesContent.length > 0 ? (
                             <div className="flex flex-col items-center gap-2">
                                 <IconFile className="size-8 text-primary" />
                                 <span className="font-medium">{filesContent[0].name}</span>
-                                <span className="text-xs text-muted-foreground">Click to change file</span>
+                                {!signedPdf && <span className="text-xs text-muted-foreground">Click to change file</span>}
                             </div>
                         ) : (
                             <div className="flex flex-col items-center gap-2 text-muted-foreground">
@@ -145,9 +231,9 @@ export function PdfSignerView() {
 
                 <div className="space-y-2">
                     <Label>2. Select Signing Identity</Label>
-                    <Select value={selectedKeyId} onValueChange={setSelectedKeyId}>
+                    <Select value={selectedKeyId} onValueChange={setSelectedKeyId} disabled={loadingKeys || keys.length === 0 || !!signedPdf}>
                         <SelectTrigger>
-                            <SelectValue placeholder="Select an identity" />
+                            <SelectValue placeholder={loadingKeys ? "Loading identities..." : "Select an identity"} />
                         </SelectTrigger>
                         <SelectContent>
                             {keys.map((key) => (
@@ -157,19 +243,57 @@ export function PdfSignerView() {
                             ))}
                         </SelectContent>
                     </Select>
-                    {keys.length === 0 && (
-                        <p className="text-xs text-destructive">
-                            You need to create an identity in the "Manage Keys" tab first.
-                        </p>
+
+                    {!loadingKeys && keys.length === 0 && (
+                        <Alert variant="destructive" className="mt-2">
+                            <IconAlertCircle className="h-4 w-4" />
+                            <AlertTitle>No Active Identities</AlertTitle>
+                            <AlertDescription>
+                                You need to create a valid identity in "Manage Keys" to sign documents.
+                            </AlertDescription>
+                        </Alert>
                     )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label>Reason (Optional)</Label>
+                        <Input
+                            placeholder="e.g. I approve this document"
+                            value={proofReason}
+                            onChange={(e) => setProofReason(e.target.value)}
+                            disabled={!!signedPdf}
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Location (Optional)</Label>
+                        <Input
+                            placeholder="e.g. Zurich, Switzerland"
+                            value={proofLocation}
+                            onChange={(e) => setProofLocation(e.target.value)}
+                            disabled={!!signedPdf}
+                        />
+                    </div>
                 </div>
             </CardContent>
             <CardFooter className="flex justify-between">
-                <Button variant="outline" onClick={() => clear()}>Clear</Button>
+                <Button variant="outline" onClick={() => {
+                    clear();
+                    setSignedPdf(null);
+                    setTimestampResult(null);
+                    setProofReason("");
+                    setProofLocation("");
+                }} disabled={isUploading}>Clear</Button>
+
                 {signedPdf ? (
-                    <Button onClick={handleDownload} className="gap-2">
-                        <IconCheck className="size-4" /> Download Signed PDF
-                    </Button>
+                    <div className="flex gap-2">
+                        <Button variant="secondary" onClick={handleDownload} disabled={isUploading}>
+                            Download PDF
+                        </Button>
+                        <Button onClick={handleSaveAttestation} disabled={isUploading} className="gap-2">
+                            {isUploading ? "Saving..." : <><IconDeviceFloppy className="size-4" /> Save Attestation</>}
+                        </Button>
+                    </div>
                 ) : (
                     <Button
                         onClick={handleSign}
@@ -184,13 +308,19 @@ export function PdfSignerView() {
             {
                 timestampResult && timestampResult.verification && (
                     <div className="border-t p-6 bg-muted/20">
-                        <h3 className="font-semibold mb-4 flex items-center gap-2">
-                            <IconCheck className="size-5 text-green-600" />
-                            RFC 3161 Timestamp Applied
-                        </h3>
-                        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                        <div className="flex items-center gap-2 mb-4">
+                            <div className="bg-green-500/10 p-2 rounded-full">
+                                <IconCheck className="size-5 text-green-600" />
+                            </div>
                             <div>
-                                <dt className="text-muted-foreground">Time</dt>
+                                <h3 className="font-semibold text-sm">RFC 3161 Timestamp Applied</h3>
+                                <p className="text-xs text-muted-foreground">The signature includes a trusted timestamp.</p>
+                            </div>
+                        </div>
+
+                        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm bg-background p-4 rounded-lg border">
+                            <div>
+                                <dt className="text-muted-foreground text-xs">Time</dt>
                                 <dd className="font-medium">
                                     {timestampResult.verification.genTime
                                         ? new Date(timestampResult.verification.genTime).toLocaleString()
@@ -198,43 +328,26 @@ export function PdfSignerView() {
                                 </dd>
                             </div>
                             <div>
-                                <dt className="text-muted-foreground">TSA Signer</dt>
-                                <dd className="font-medium">
+                                <dt className="text-muted-foreground text-xs">TSA Signer</dt>
+                                <dd className="font-medium truncate" title={timestampResult.verification.tsaSigner?.subject?.commonName || timestampResult.verification.tsaSigner?.commonName}>
                                     {timestampResult.verification.tsaSigner?.subject?.commonName || timestampResult.verification.tsaSigner?.commonName || "Unknown"}
                                 </dd>
                             </div>
                             <div>
-                                <dt className="text-muted-foreground">Organization</dt>
-                                <dd className="font-medium">
-                                    {timestampResult.verification.tsaSigner?.subject?.organizationName || timestampResult.verification.tsaSigner?.organization || "Unknown"}
-                                </dd>
-                            </div>
-                            <div>
-                                <dt className="text-muted-foreground">Chain Validated</dt>
-                                <dd className="font-medium flex items-center gap-1">
+                                <dt className="text-muted-foreground text-xs">Authority</dt>
+                                <dd className="font-medium mb-1">
                                     {timestampResult.verification.tsaCertChainValidated ? (
-                                        <span className="text-green-600 flex items-center gap-1">
-                                            <IconCheck className="size-3" /> Yes
+                                        <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
+                                            Trusted
                                         </span>
                                     ) : (
-                                        <span className="text-amber-600">No / Unchecked</span>
+                                        <span className="inline-flex items-center rounded-full bg-yellow-50 px-2 py-0.5 text-xs font-medium text-yellow-800 ring-1 ring-inset ring-yellow-600/20">
+                                            Untrusted Chain
+                                        </span>
                                     )}
                                 </dd>
                             </div>
-                            {timestampResult.verification.tsaOcspStatus && (
-                                <div>
-                                    <dt className="text-muted-foreground">OCSP Status</dt>
-                                    <dd className="font-medium">
-                                        {timestampResult.verification.tsaOcspStatus}
-                                    </dd>
-                                </div>
-                            )}
-                            <div>
-                                <dt className="text-muted-foreground">Policy OID</dt>
-                                <dd className="font-mono text-xs break-all">
-                                    {timestampResult.verification.policy || timestampResult.data.tsaPolicy || "N/A"}
-                                </dd>
-                            </div>
+
                         </dl>
                     </div>
                 )

@@ -2560,6 +2560,7 @@ class ApiClient {
     existingFileIdToDelete?: string; // File ID to delete when replacing
     isKeepBothAttempt?: boolean; // Flag to indicate this is a keepBoth retry scenario
     clientFileId?: string;
+    isHidden?: boolean;
   }): Promise<ApiResponse<{
     sessionId: string;
     fileId: string;
@@ -2600,6 +2601,12 @@ class ApiClient {
     width?: number;
     height?: number;
     duration?: number;
+    attestationDetails?: {
+      keyId: string;
+      reason?: string;
+      location?: string;
+      docHash?: string;
+    };
   }, fileId?: string): Promise<ApiResponse<{
     fileId: string;
     message: string;
@@ -4106,6 +4113,13 @@ class ApiClient {
     });
   }
 
+  async revokeAttestationKey(id: string, reason?: string): Promise<ApiResponse<{ success: boolean; message: string }>> {
+    return this.request(`/attestations/keys/${id}/revoke`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+  }
+
   async deleteAttestationKey(id: string): Promise<ApiResponse<{ success: boolean }>> {
     return this.request(`/attestations/keys/${id}`, {
       method: 'DELETE',
@@ -4120,6 +4134,30 @@ class ApiClient {
   }>> {
     return this.request(`/attestations/logs?page=${page}&limit=${limit}`);
   }
+
+  async getSignedDocuments(): Promise<ApiResponse<{ documents: AttestationDocument[] }>> {
+    return this.request('/attestations/documents');
+  }
+}
+
+export interface AttestationDocument {
+  id: string;
+  createdAt: string;
+  reason: string;
+  location: string;
+  file: {
+    id: string;
+    filename: string;
+    originalFilename: string;
+    filenameSalt: string;
+    size: number;
+    mimeType: string;
+  };
+  key: {
+    name: string;
+    type: string;
+    publicKey: string;
+  };
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);

@@ -2,11 +2,19 @@
 
 import * as React from "react"
 import {
-    IconPlus,
+    IconShieldLock,
     IconTrash,
     IconDownload,
     IconKey,
     IconLoader2,
+    IconDotsVertical,
+    IconSearch,
+    IconAlertCircle,
+    IconLock,
+    IconLockOpen,
+    IconPlus,
+    IconAlertTriangle,
+    IconBan
 } from "@tabler/icons-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -14,6 +22,7 @@ import {
     Card,
     CardContent,
     CardDescription,
+    CardFooter,
     CardHeader,
     CardTitle,
 } from "@/components/ui/card"
@@ -36,11 +45,36 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+    DropdownMenuSeparator,
+    DropdownMenuLabel
+} from "@/components/ui/dropdown-menu"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 import { generateAttestationKeypair, encryptPrivateKey, encryptString, decryptString } from "@/lib/attestations/crypto"
 import { masterKeyManager } from "@/lib/master-key"
 import { useUser } from "@/components/user-context"
 import { apiClient as api } from "@/lib/api"
+import { cn } from "@/lib/utils"
 
 interface AttestationKey {
     id: string
@@ -48,6 +82,7 @@ interface AttestationKey {
     publicKey: string // PEM
     encryptedPrivateKey: string // PEM (encrypted)
     createdAt: string
+    revokedAt?: string | null
 }
 
 export function KeyManager() {
@@ -55,13 +90,23 @@ export function KeyManager() {
     const [loading, setLoading] = React.useState(false)
     const [isCreateOpen, setIsCreateOpen] = React.useState(false)
     const [newKeyName, setNewKeyName] = React.useState("")
+    const [searchQuery, setSearchQuery] = React.useState("")
     const { user } = useUser()
+
+    // Key to revoke
+    const [keyToRevoke, setKeyToRevoke] = React.useState<AttestationKey | null>(null)
+    const [isRevokeDialogOpen, setIsRevokeDialogOpen] = React.useState(false)
+
+    // Key to delete
+    const [keyToDelete, setKeyToDelete] = React.useState<AttestationKey | null>(null)
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false)
 
     React.useEffect(() => {
         loadKeys()
     }, [])
 
     const loadKeys = async () => {
+        setLoading(true);
         try {
             const masterKey = masterKeyManager.getMasterKey();
             if (!masterKey) return; // Wait for master key or user login
@@ -71,9 +116,9 @@ export function KeyManager() {
             if (response.success && response.data) {
                 const keysData = response.data;
                 // Decrypt names
-                const decryptedKeys = await Promise.all(keysData.map(async (k: AttestationKey) => {
+                const decryptedKeys = await Promise.all(keysData.map(async (k: any) => {
                     try {
-                        const decryptedName = await decryptString(k.name, masterKey); // k.name is encrypted from backend
+                        const decryptedName = await decryptString(k.name, masterKey);
                         return { ...k, name: decryptedName };
                     } catch (e) {
                         console.error("Failed to decrypt key name", e);
@@ -84,6 +129,9 @@ export function KeyManager() {
             }
         } catch (error) {
             console.error("Failed to load keys", error);
+            toast.error("Failed to load keys");
+        } finally {
+            setLoading(false);
         }
     }
 
@@ -135,19 +183,41 @@ export function KeyManager() {
         }
     }
 
-    const handleDeleteKey = async (id: string) => {
-        if (confirm("Are you sure you want to delete this key? Access to signed documents may be affected.")) {
-            try {
-                await api.deleteAttestationKey(id);
+    const handleRevokeKey = async () => {
+        if (!keyToRevoke) return;
+        try {
+            const response = await api.revokeAttestationKey(keyToRevoke.id, "User requested revocation");
+            if (response.success) {
+                toast.success("Key revoked successfully");
                 loadKeys();
-                toast.success("Key deleted");
-            } catch (error) {
-                toast.error("Failed to delete key");
+                setIsRevokeDialogOpen(false);
+                setKeyToRevoke(null);
+            } else {
+                toast.error(response.error || "Failed to revoke key");
             }
+        } catch (error) {
+            toast.error("Failed to revoke key");
         }
     }
 
-    const downloadFile = (filename: string, content: string) => {
+    const handleDeleteKey = async () => {
+        if (!keyToDelete) return;
+        try {
+            const response = await api.deleteAttestationKey(keyToDelete.id);
+            if (response.success) {
+                toast.success("Key deleted permanently");
+                loadKeys();
+                setIsDeleteDialogOpen(false);
+                setKeyToDelete(null);
+            } else {
+                toast.error(response.error || "Failed to delete key");
+            }
+        } catch (error) {
+            toast.error("Failed to delete key");
+        }
+    }
+
+    const downloadFile = (filename: string, content: string, type: string) => {
         const blob = new Blob([content], { type: "text/plain" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -157,119 +227,247 @@ export function KeyManager() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+        toast.success(`Downloaded ${type}`);
     }
+
+    const downloadPrivate = async (key: AttestationKey) => {
+        try {
+            const masterKey = masterKeyManager.getMasterKey();
+            if (!masterKey) throw new Error("No master key");
+
+            downloadFile(`${key.name.replace(/\s+/g, '_')}_private.pem`, key.encryptedPrivateKey, "Encrypted Private Key");
+            toast.info("Exported Encrypted Private Key (requires master key to decrypt)");
+        } catch (e) {
+            toast.error("Failed to export private key");
+        }
+    }
+
+    const filteredKeys = keys.filter(k =>
+        k.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        k.id.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
                     <h3 className="text-lg font-medium">Signing Identities</h3>
                     <p className="text-sm text-muted-foreground">
                         Manage your digital identities used for signing documents.
                     </p>
                 </div>
-                <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-                    <DialogTrigger asChild>
-                        <Button>
-                            <IconPlus className="mr-2 size-4" />
-                            Create Identity
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Create New Identity</DialogTitle>
-                            <DialogDescription>
-                                Generate a new cryptographic keypair and self-signed certificate for signing documents.
-                            </DialogDescription>
-                        </DialogHeader>
-                        <div className="grid gap-4 py-4">
-                            <div className="grid gap-2">
-                                <Label htmlFor="name">Identity Name</Label>
-                                <Input
-                                    id="name"
-                                    placeholder="e.g. Work Identity, Personal Key"
-                                    value={newKeyName}
-                                    maxLength={100}
-                                    onChange={(e) => setNewKeyName(e.target.value)}
-                                    title="name"
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter' && newKeyName) {
-                                            handleCreateKey();
-                                        }
-                                    }}
-                                />
-                                <div className="text-xs text-muted-foreground text-right">{newKeyName.length}/100</div>
-                            </div>
-                        </div>
-                        <DialogFooter>
-                            <Button onClick={handleCreateKey} disabled={loading || !newKeyName}>
-                                {loading && <IconLoader2 className="mr-2 size-4 animate-spin" />}
-                                {loading ? "Generating..." : "Create Identity"}
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <div className="relative flex-1 sm:w-64">
+                        <IconSearch className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Search keys..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-9 h-9"
+                        />
+                    </div>
+                    <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+                        <DialogTrigger asChild>
+                            <Button size="sm" className="h-9">
+                                <IconPlus className="mr-2 size-4" />
+                                Create Identity
                             </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Create New Identity</DialogTitle>
+                                <DialogDescription>
+                                    Generate a new cryptographic keypair and self-signed certificate.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="grid gap-4 py-4">
+                                <div className="grid gap-2">
+                                    <Label htmlFor="name">Identity Name</Label>
+                                    <Input
+                                        id="name"
+                                        placeholder="e.g. Work Identity, Personal Key"
+                                        value={newKeyName}
+                                        maxLength={100}
+                                        onChange={(e) => setNewKeyName(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && newKeyName) {
+                                                handleCreateKey();
+                                            }
+                                        }}
+                                    />
+                                    <div className="text-xs text-muted-foreground text-right">{newKeyName.length}/100</div>
+                                </div>
+                            </div>
+                            <DialogFooter>
+                                <Button onClick={handleCreateKey} disabled={loading || !newKeyName}>
+                                    {loading && <IconLoader2 className="mr-2 size-4 animate-spin" />}
+                                    {loading ? "Generating..." : "Create Identity"}
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                </div>
             </div>
 
-            <Card>
-                <CardContent className="p-0">
-                    <Table>
-                        <TableHeader>
+            <div className="rounded-md border">
+                <Table>
+                    <TableHeader>
+                        <TableRow className="bg-muted/50 hover:bg-muted/50">
+                            <TableHead className="w-[300px]">Identity Name</TableHead>
+                            <TableHead>Key ID</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Created</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {filteredKeys.length === 0 ? (
                             <TableRow>
-                                <TableHead>Name</TableHead>
-                                <TableHead>Created</TableHead>
-                                <TableHead>Certificate ID</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
+                                <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                                    {loading ? (
+                                        <div className="flex items-center justify-center gap-2">
+                                            <IconLoader2 className="size-4 animate-spin" />
+                                            Loading keys...
+                                        </div>
+                                    ) : (
+                                        "No identities found"
+                                    )}
+                                </TableCell>
                             </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {keys.length === 0 ? (
-                                <TableRow>
-                                    <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                                        No identities found. Create one to start signing documents.
-                                    </TableCell>
-                                </TableRow>
-                            ) : (
-                                keys.map((key) => (
-                                    <TableRow key={key.id}>
+                        ) : (
+                            filteredKeys.map((key) => {
+                                const isRevoked = !!key.revokedAt;
+                                return (
+                                    <TableRow key={key.id} className={isRevoked ? "bg-muted/30" : ""}>
                                         <TableCell className="font-medium">
-                                            <div className="flex items-center gap-2">
-                                                <IconKey className="size-4 text-muted-foreground" />
-                                                {key.name}
+                                            <div className="flex items-center gap-3">
+                                                <div className={cn("p-2 rounded-full bg-muted", isRevoked && "opacity-50")}>
+                                                    <IconKey className="size-4 text-foreground" />
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className={cn(isRevoked && "text-muted-foreground line-through")}>{key.name}</span>
+                                                    {isRevoked && <span className="text-xs text-destructive font-medium">Revoked</span>}
+                                                </div>
                                             </div>
                                         </TableCell>
-                                        <TableCell>{new Date(key.createdAt).toLocaleDateString()}</TableCell>
-                                        <TableCell className="font-mono text-xs text-muted-foreground">
-                                            {key.id.slice(0, 8)}...
+                                        <TableCell>
+                                            <div className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded w-fit">
+                                                <span>{key.id.slice(0, 8)}...{key.id.slice(-4)}</span>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            {isRevoked ? (
+                                                <div className="inline-flex items-center rounded-full border border-destructive/50 px-2.5 py-0.5 text-xs font-semibold text-destructive transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
+                                                    Revoked
+                                                </div>
+                                            ) : (
+                                                <div className="inline-flex items-center rounded-full border border-transparent bg-emerald-500/15 px-2.5 py-0.5 text-xs font-semibold text-emerald-600 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 dark:bg-emerald-500/25 dark:text-emerald-400">
+                                                    Active
+                                                </div>
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="text-muted-foreground text-sm">
+                                            {new Date(key.createdAt).toLocaleDateString()}
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            <div className="flex justify-end gap-2">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    title="Download Certificate"
-                                                    onClick={() => downloadFile(`${key.name.replace(/\s+/g, '_')}.crt`, key.publicKey)}
-                                                >
-                                                    <IconDownload className="size-4" />
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    title="Delete"
-                                                    className="text-destructive hover:text-destructive"
-                                                    onClick={() => handleDeleteKey(key.id)}
-                                                >
-                                                    <IconTrash className="size-4" />
-                                                </Button>
-                                            </div>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                        <IconDotsVertical className="size-4" />
+                                                        <span className="sr-only">Open menu</span>
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end" className="w-[160px]">
+                                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                                    <DropdownMenuItem onClick={() => downloadFile(`${key.name.replace(/\s+/g, '_')}.crt`, key.publicKey, "Public Certificate")}>
+                                                        <IconDownload className="mr-2 size-4" /> Export Public
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => downloadPrivate(key)}>
+                                                        <IconLock className="mr-2 size-4" /> Export Private
+                                                    </DropdownMenuItem>
+
+                                                    {!isRevoked && (
+                                                        <>
+                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuItem
+                                                                className="text-amber-600 focus:text-amber-600 focus:bg-amber-50 dark:focus:bg-amber-950/20"
+                                                                onClick={() => {
+                                                                    setKeyToRevoke(key);
+                                                                    setIsRevokeDialogOpen(true);
+                                                                }}
+                                                            >
+                                                                <IconBan className="mr-2 size-4" /> Revoke
+                                                            </DropdownMenuItem>
+                                                        </>
+                                                    )}
+
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem
+                                                        className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                                                        onClick={() => {
+                                                            setKeyToDelete(key);
+                                                            setIsDeleteDialogOpen(true);
+                                                        }}
+                                                    >
+                                                        <IconTrash className="mr-2 size-4" /> Delete
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
                                         </TableCell>
                                     </TableRow>
-                                ))
-                            )}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
+                                )
+                            })
+                        )}
+                    </TableBody>
+                </Table>
+            </div>
+
+            {/* Revoke Dialog */}
+            <AlertDialog open={isRevokeDialogOpen} onOpenChange={setIsRevokeDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Revoke Identity?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will mark the identity <strong>{keyToRevoke?.name}</strong> as revoked.
+                            You will no longer be able to use it for signing, but existing signatures can still be verified against the timestamp date.
+                            This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleRevokeKey}
+                            className="bg-amber-600 hover:bg-amber-700 focus:ring-amber-600"
+                        >
+                            Revoke Identity
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Delete Dialog */}
+            <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Identity Permanently?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to delete <strong>{keyToDelete?.name}</strong>?
+                            <br /><br />
+                            <span className="font-bold text-destructive">Warning:</span> Signatures made with this key will become unverifiable if you lose the public key.
+                            This action is permanent and cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDeleteKey}
+                            className="bg-destructive hover:bg-destructive/90"
+                        >
+                            Delete Permanently
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     )
 }

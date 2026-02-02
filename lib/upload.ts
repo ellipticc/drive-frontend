@@ -295,7 +295,15 @@ export async function uploadEncryptedFile(
     sessionId: string;
     completedChunks: ChunkInfo[];
   },
-  onChunkComplete?: (chunk: ChunkInfo) => void
+  onChunkComplete?: (chunk: ChunkInfo) => void,
+  // New optional parameters for Attestations
+  isHidden?: boolean,
+  attestationDetails?: {
+    keyId: string;
+    reason?: string;
+    location?: string;
+    docHash?: string;
+  }
 ): Promise<UploadResult> {
   // Generate fileId or reuse from resume state
   const fileId = resumeState?.fileId || uuidv7();
@@ -374,7 +382,7 @@ export async function uploadEncryptedFile(
     // Check for abort before initializing
     if (abortSignal?.aborted) throw new Error('Upload cancelled');
 
-    const session = await initializeUploadSession(file, folderId, dummyChunks, shaHash, keys, conflictResolution, conflictFileName, existingFileIdToDelete, isKeepBothAttempt, fileId, resumeState?.sessionId);
+    const session = await initializeUploadSession(file, folderId, dummyChunks, shaHash, keys, conflictResolution, conflictFileName, existingFileIdToDelete, isKeepBothAttempt, fileId, resumeState?.sessionId, isHidden);
 
     // Stage 4: Stream Process & Upload (Pipeline)
     // Reads, Encrypts, Hashes, and Uploads chunks in parallel without buffering entire file
@@ -761,7 +769,8 @@ export async function uploadEncryptedFile(
       thumbnailData,
       width,
       height,
-      duration
+      duration,
+      attestationDetails
     );
 
     onProgress?.({ stage: 'finalizing', overallProgress: 100 });
@@ -826,6 +835,7 @@ async function initializeUploadSession(
   isKeepBothAttempt?: boolean,
   clientFileId?: string,
   existingSessionId?: string,
+  isHidden?: boolean
 ): Promise<UploadSession> {
 
   // Map worker-computed hashes (BLAKE3) to the list
@@ -1002,7 +1012,8 @@ async function initializeUploadSession(
     forceReplace: conflictResolution === 'replace',  // Add force replace flag
     existingFileIdToDelete: existingFileIdToDelete,  // Pass the file ID to delete
     isKeepBothAttempt: isKeepBothAttempt === true,  // Flag for keepBoth retry
-    clientFileId: clientFileId  // Pass client-generated fileId for idempotency
+    clientFileId: clientFileId,  // Pass client-generated fileId for idempotency
+    isHidden: isHidden // Pass isHidden flag
   });
 
   if (!response.success) {
@@ -1114,7 +1125,13 @@ async function finalizeUpload(
   thumbnailData?: string,
   width?: number,
   height?: number,
-  duration?: number
+  duration?: number,
+  attestationDetails?: {
+    keyId: string;
+    reason?: string;
+    location?: string;
+    docHash?: string;
+  }
 ): Promise<UploadResult> {
   // Regenerate manifest data for finalization (must match initializeUploadSession exactly)
   // Use the timestamp from initializeUploadSession to ensure consistent manifest hash
@@ -1157,7 +1174,8 @@ async function finalizeUpload(
     thumbnailData,
     width,
     height,
-    duration
+    duration,
+    attestationDetails
   }, fileId);
 
   if (!response.success || !response.data) {
