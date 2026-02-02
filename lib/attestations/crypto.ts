@@ -33,8 +33,23 @@ export async function encryptString(text: string, masterKey: Uint8Array): Promis
 
 // Decrypt any string
 export async function decryptString(encryptedAndNonce: string, masterKey: Uint8Array): Promise<string> {
-    const [nonce, ciphertext] = encryptedAndNonce.split(':');
-    if (!nonce || !ciphertext) throw new Error('Invalid encrypted format');
+    if (!encryptedAndNonce || typeof encryptedAndNonce !== 'string') {
+        throw new Error('Invalid input for decryption');
+    }
+
+    // Check if it matches the expected format (nonce:ciphertext)
+    // If not, it might be legacy plaintext or corrupted
+    if (!encryptedAndNonce.includes(':')) {
+        // Fallback: return as-is or throw specific error depending on requirements
+        // For filenames/names that might not be encrypted yet, returning as-is is safer for display
+        return encryptedAndNonce;
+    }
+
+    const parts = encryptedAndNonce.split(':');
+    if (parts.length < 2) throw new Error('Invalid encrypted format');
+
+    const [nonce, ciphertext] = parts;
+    if (!nonce || !ciphertext) throw new Error('Invalid encrypted format: missing nonce or ciphertext');
 
     // We need to use the imported decryptData which expects ciphertext string (hex) and returns Uint8Array
     const decryptedBytes = decryptData(ciphertext, masterKey, nonce);

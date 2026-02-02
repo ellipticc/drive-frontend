@@ -63,14 +63,8 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from "@/components/ui/tooltip"
 
-import { generateAttestationKeypair, encryptPrivateKey, encryptString, decryptString } from "@/lib/attestations/crypto"
+import { generateAttestationKeypair, encryptPrivateKey, encryptString, decryptString, decryptPrivateKeyAsString } from "@/lib/attestations/crypto"
 import { masterKeyManager } from "@/lib/master-key"
 import { useUser } from "@/components/user-context"
 import { apiClient as api } from "@/lib/api"
@@ -235,8 +229,18 @@ export function KeyManager() {
             const masterKey = masterKeyManager.getMasterKey();
             if (!masterKey) throw new Error("No master key");
 
-            downloadFile(`${key.name.replace(/\s+/g, '_')}_private.pem`, key.encryptedPrivateKey, "Encrypted Private Key");
-            toast.info("Exported Encrypted Private Key (requires master key to decrypt)");
+            let privateKeyContent = key.encryptedPrivateKey;
+            try {
+                // Decrypt the private key using the master key
+                // The encryptedPrivateKey is stored as "nonce:ciphertext"
+                privateKeyContent = await decryptPrivateKeyAsString(key.encryptedPrivateKey, masterKey);
+            } catch (decryptError) {
+                console.error("Failed to decrypt private key for export:", decryptError);
+                toast.error("Failed to decrypt private key. Exporting encrypted version instead.");
+            }
+
+            downloadFile(`${key.name.replace(/\s+/g, '_')}_private.pem`, privateKeyContent, "Private Key (Unencrypted)");
+            toast.info("Exported Private Key (DECRYPTED - handle with care!)");
         } catch (e) {
             toast.error("Failed to export private key");
         }
