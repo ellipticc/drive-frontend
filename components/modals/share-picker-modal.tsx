@@ -18,6 +18,7 @@ import type { FolderContentItem, FileContentItem } from "@/lib/api"
 import { decryptFilename } from "@/lib/crypto"
 import { masterKeyManager } from "@/lib/master-key"
 import { truncateFilename } from "@/lib/utils"
+import { FileThumbnail } from "@/components/files/file-thumbnail"
 
 interface SharePickerModalProps {
   open: boolean
@@ -50,6 +51,15 @@ interface FileItem {
   mimeType?: string;
   size?: number;
   is_shared?: boolean;
+  encryption?: {
+    iv: string;
+    salt: string;
+    wrappedCek: string;
+    fileNoncePrefix: string;
+    cekNonce: string;
+    kyberCiphertext: string;
+    nonceWrapKyber: string;
+  };
 }
 
 export function SharePickerModal({ open, onOpenChange, onFileSelected }: SharePickerModalProps) {
@@ -309,10 +319,24 @@ export function SharePickerModal({ open, onOpenChange, onFileSelected }: SharePi
     })
   }
 
-  const getFileIcon = (mimeType?: string) => {
+  const getFileIcon = (mimeType?: string, fileId?: string, fileName?: string) => {
     if (mimeType === 'application/x-paper') return <IconStack2 className="h-4 w-4 text-blue-500" />
-    if (mimeType?.startsWith('image/')) return <IconPhoto className="h-4 w-4 text-green-500" />
-    if (mimeType?.startsWith('video/')) return <IconVideo className="h-4 w-4 text-purple-500" />
+    if (mimeType?.startsWith('image/') || mimeType?.startsWith('video/')) {
+      if (fileId && fileName) {
+        return (
+          <FileThumbnail
+            fileId={fileId}
+            mimeType={mimeType}
+            name={fileName}
+            className="h-4 w-4 inline-block align-middle"
+            iconClassName="h-4 w-4"
+          />
+        );
+      }
+      // Fallback to icons if no fileId/name
+      if (mimeType?.startsWith('image/')) return <IconPhoto className="h-4 w-4 text-green-500" />
+      if (mimeType?.startsWith('video/')) return <IconVideo className="h-4 w-4 text-purple-500" />
+    }
     if (mimeType?.startsWith('audio/')) return <IconMusic className="h-4 w-4 text-orange-500" />
     if (mimeType?.includes('pdf')) return <IconFileText className="h-4 w-4 text-red-500" />
     if (mimeType?.includes('zip') || mimeType?.includes('rar')) return <IconArchive className="h-4 w-4 text-yellow-500" />
@@ -389,7 +413,7 @@ export function SharePickerModal({ open, onOpenChange, onFileSelected }: SharePi
                     style={{ paddingLeft: `${8 + (indentLevel + 1) * 20}px` }}
                   >
                     <div className="w-5" />
-                    {getFileIcon(file.mimeType)}
+                    {getFileIcon(file.mimeType, file.id, file.name)}
                     <div className="flex-1 min-w-0">
                       <div className="font-medium text-sm truncate">{truncateFilename(file.name)}</div>
                     </div>
@@ -476,7 +500,7 @@ export function SharePickerModal({ open, onOpenChange, onFileSelected }: SharePi
                       }`}
                     >
                       <div className="w-5" />
-                      {getFileIcon(file.mimeType)}
+                      {getFileIcon(file.mimeType, file.id, file.name)}
                       <div className="flex-1 min-w-0">
                         <div className="font-medium text-sm truncate">{file.name}</div>
                       </div>

@@ -2427,25 +2427,6 @@ export const Table01DividerLineSm = ({
 
 
     // Get file icon based on mime type or type
-    const getFileIcon = (mimeType: string, type: string, name: string, className = "h-4 w-4", id?: string) => {
-        if (type === 'folder') return <IconFolder className={`${className} text-blue-500 inline-block align-middle`} />;
-
-        // If we have an ID, we can try to show a thumbnail
-        if (id) {
-            return (
-                <FileThumbnail
-                    fileId={id}
-                    mimeType={mimeType}
-                    name={name}
-                    className="h-4 w-4 inline-block align-middle"
-                    iconClassName={className}
-                />
-            );
-        }
-
-        return <FileIcon mimeType={mimeType} filename={name} className={className} />;
-    };
-
     const sortedItems = useMemo(() => {
         return [...files].sort((a, b) => {
             // ALWAYS separate folders from files first (folders on top)
