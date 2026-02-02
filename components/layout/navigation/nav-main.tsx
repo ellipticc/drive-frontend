@@ -401,33 +401,37 @@ export function NavMain({
             if (item.id === 'attestations') {
               return (
                 <SidebarMenuItem key={item.title} className="space-y-1">
-                  <SidebarMenuButton
-                    tooltip={item.title}
-                    isActive={pathname.startsWith(item.url)}
-                    onClick={() => handleNavigate(item.url)}
-                    className="cursor-pointer relative pr-8"
-                  >
-                    {(() => {
-                      const isActive = pathname.startsWith(item.url)
-                      const IconComponent = getIcon(item, isActive)
-                      return IconComponent && <IconComponent className="shrink-0" />
-                    })()}
-                    <span>{item.title}</span>
-
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        toggleAttestations(e)
-                      }}
-                      className="absolute right-1 top-1/2 -translate-y-1/2 p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded-sm transition-colors text-muted-foreground/40 hover:text-muted-foreground z-50 flex items-center justify-center cursor-pointer"
+                  <div className="relative">
+                    <SidebarMenuButton
+                      tooltip={item.title}
+                      isActive={pathname.startsWith(item.url)}
+                      onClick={() => handleNavigate(item.url)}
+                      className="cursor-pointer pr-8"
                     >
-                      <IconChevronRight
-                        className={cn("size-3.5 shrink-0 transition-transform duration-200", isAttestationsExpanded && "rotate-90")}
-                      />
-                    </button>
-                  </SidebarMenuButton>
+                      {(() => {
+                        const isActive = pathname.startsWith(item.url)
+                        const IconComponent = getIcon(item, isActive)
+                        return IconComponent && <IconComponent className="shrink-0" />
+                      })()}
+                      <span>{item.title}</span>
+                    </SidebarMenuButton>
+
+                    {item.items && item.items.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          toggleAttestations(e)
+                        }}
+                        className="absolute right-1 top-1/2 -translate-y-1/2 p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded-sm transition-colors text-muted-foreground/40 hover:text-muted-foreground z-50 flex items-center justify-center cursor-pointer"
+                      >
+                        <IconChevronRight
+                          className={cn("size-3.5 shrink-0 transition-transform duration-200", isAttestationsExpanded && "rotate-90")}
+                        />
+                      </button>
+                    )}
+                  </div>
 
                   {isAttestationsExpanded && item.items && (
                     <SidebarMenuSub className="ml-3.5 border-l border-border/50">
