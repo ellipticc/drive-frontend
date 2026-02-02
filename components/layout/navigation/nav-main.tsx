@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { IconChevronRight, IconLoader2, type Icon, IconChevronDown, IconChevronUp, IconStarFilled, IconStack2Filled, IconTrashFilled, IconClockHour9Filled, IconPhotoFilled, IconChartAreaLineFilled, IconAdjustmentsFilled, IconHelpCircleFilled, IconBubbleTextFilled } from "@tabler/icons-react"
+import { IconChevronRight, IconLoader2, type Icon, IconChevronDown, IconChevronUp, IconStarFilled, IconStack2Filled, IconTrashFilled, IconClockHour9Filled, IconPhotoFilled, IconChartAreaLineFilled, IconAdjustmentsFilled, IconHelpCircleFilled, IconBubbleTextFilled, IconWritingSignFilled } from "@tabler/icons-react"
 import { useState, useEffect, useCallback } from "react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import { useLanguage } from "@/lib/i18n/language-context"
@@ -31,6 +31,11 @@ export function NavMain({
     icon?: Icon
     id?: string
     badge?: number // Optional badge count
+    items?: { // Nested items
+      title: string;
+      url: string;
+      icon?: Icon;
+    }[]
   }[]
 }) {
   const { t } = useLanguage()
@@ -46,10 +51,29 @@ export function NavMain({
     }
     return false
   })
+
+  const [isAttestationsExpanded, setIsAttestationsExpanded] = useState(() => {
+    if (typeof window !== "undefined") {
+      return sessionStorage.getItem("attestations-expanded") === "true";
+    }
+    return false;
+  });
+
+  const [currentHash, setCurrentHash] = useState('')
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setCurrentHash(window.location.hash)
+      const handleHashChange = () => setCurrentHash(window.location.hash)
+      window.addEventListener('hashchange', handleHashChange)
+      return () => window.removeEventListener('hashchange', handleHashChange)
+    }
+  }, [])
+
   const [rootSubfolders, setRootSubfolders] = useState<FolderContentItem[]>([])
   const [isLoadingFolders, setIsLoadingFolders] = useState(false)
   const [hasLoadedRoot, setHasLoadedRoot] = useState(false)
   const [isMyFilesLeaf, setIsMyFilesLeaf] = useState(false)
+  const [isAttestationsLeaf, setIsAttestationsLeaf] = useState(false) // Not really used but keeps pattern
 
   // State for additional items expansion (after Photos) — default collapsed
   const [areAdditionalItemsExpanded, setAreAdditionalItemsExpanded] = useState(false)  // always start collapsed
@@ -120,6 +144,48 @@ export function NavMain({
     setAreAdditionalItemsExpanded(next)
   }
 
+  const toggleAttestations = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    // If sidebar is collapsed, expand it first
+    if (state === "collapsed") {
+      toggleSidebar()
+      // Don't toggle the expansion state yet, just expand the sidebar
+      return;
+    }
+
+    const next = !isAttestationsExpanded
+    setIsAttestationsExpanded(next)
+    sessionStorage.setItem("attestations-expanded", String(next))
+  }
+
+  // Helper function for sub-item icons (active state filled)
+  // This helps us avoid passing 'filled' icons in the data structure
+  const getSubItemIcon = (url: string, originalIcon: Icon | undefined) => {
+    if (!originalIcon) return null;
+    const hash = url.split('#')[1];
+    if (!hash) return originalIcon;
+
+    // Check if this item is active
+    const isActive = currentHash === '#' + hash;
+    if (!isActive) return originalIcon;
+
+    switch (hash) {
+      case 'Sign':
+        return IconWritingSignFilled || originalIcon;
+      case 'Documents':
+        return IconStack2Filled || originalIcon;
+      case 'Keys':
+        // IconDatabaseFilled not available
+        return originalIcon;
+      case 'Logs':
+        return IconChartAreaLineFilled || originalIcon;
+      default:
+        return originalIcon;
+    }
+  }
+
   // Helper function to get filled icon for active states
   const getIcon = (item: { icon?: Icon; id?: string }, isActive: boolean) => {
     if (!item.icon || !isActive) return item.icon
@@ -143,6 +209,9 @@ export function NavMain({
         return IconHelpCircleFilled
       case 'feedback':
         return IconBubbleTextFilled
+      case 'attestations':
+        // No specific filled icon for attestations yet, could use same
+        return item.icon
       default:
         return item.icon
     }
@@ -323,6 +392,62 @@ export function NavMain({
                           </div>
                         ) : null}
                       </>
+                    </SidebarMenuSub>
+                  )}
+                </SidebarMenuItem>
+              );
+            }
+
+            if (item.id === 'attestations') {
+              return (
+                <SidebarMenuItem key={item.title} className="space-y-1">
+                  <SidebarMenuButton
+                    tooltip={item.title}
+                    isActive={pathname.startsWith(item.url)}
+                    onClick={() => handleNavigate(item.url)}
+                    className="cursor-pointer relative pr-8"
+                  >
+                    {(() => {
+                      const isActive = pathname.startsWith(item.url)
+                      const IconComponent = getIcon(item, isActive)
+                      return IconComponent && <IconComponent className="shrink-0" />
+                    })()}
+                    <span>{item.title}</span>
+
+                    {state !== 'collapsed' && (
+                      <div
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          toggleAttestations(e)
+                        }}
+                        className="absolute right-1 top-1/2 -translate-y-1/2 p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded-sm transition-colors text-muted-foreground/40 hover:text-muted-foreground z-20"
+                      >
+                        <IconChevronRight
+                          className={cn("size-3.5 transition-transform duration-200", isAttestationsExpanded && "rotate-90")}
+                        />
+                      </div>
+                    )}
+                  </SidebarMenuButton>
+
+                  {isAttestationsExpanded && item.items && (
+                    <SidebarMenuSub className="ml-3.5 border-l border-border/50">
+                      {item.items.map((subItem) => (
+                        <SidebarMenuButton
+                          key={subItem.title}
+                          asChild
+                          isActive={currentHash === '#' + subItem.url.split('#')[1]}
+                          className="text-sidebar-foreground/70 ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:bg-sidebar-accent active:text-sidebar-accent-foreground [&>svg]:size-4 [&>svg]:text-sidebar-accent-foreground h-8 min-w-8 mb-1"
+                        >
+                          <a href={subItem.url}>
+                            {(() => {
+                              const SubIcon = getSubItemIcon(subItem.url, subItem.icon)
+                              return SubIcon && <SubIcon />
+                            })()}
+                            <span>{subItem.title}</span>
+                          </a>
+                        </SidebarMenuButton>
+                      ))}
                     </SidebarMenuSub>
                   )}
                 </SidebarMenuItem>

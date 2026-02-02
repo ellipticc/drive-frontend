@@ -15,11 +15,35 @@ import { DocumentHistory } from "./document-history"
 import { PreviewDownloadManager } from "../shared/preview-download-manager"
 
 export function AttestationsView() {
+    const [activeTab, setActiveTab] = React.useState("sign")
+
+    React.useEffect(() => {
+        const handleHashChange = () => {
+            const hash = window.location.hash.replace('#', '')
+            if (hash === 'Sign') setActiveTab('sign')
+            else if (hash === 'Documents') setActiveTab('documents')
+            else if (hash === 'Keys') setActiveTab('keys')
+            else if (hash === 'Logs') setActiveTab('logs')
+        }
+
+        handleHashChange() // Initial check
+        window.addEventListener('hashchange', handleHashChange)
+        return () => window.removeEventListener('hashchange', handleHashChange)
+    }, [])
+
+    const onTabChange = (value: string) => {
+        setActiveTab(value)
+        if (value === 'sign') window.location.hash = 'Sign'
+        else if (value === 'documents') window.location.hash = 'Documents'
+        else if (value === 'keys') window.location.hash = 'Keys'
+        else if (value === 'logs') window.location.hash = 'Logs'
+    }
+
     return (
         <PreviewDownloadManager>
             {(downloadFile) => (
                 <div className="flex flex-col h-full space-y-6 pt-6 px-6">
-                    <Tabs defaultValue="sign" className="space-y-4">
+                    <Tabs value={activeTab} onValueChange={onTabChange} className="space-y-4">
                         <TabsList className="bg-muted/50 border">
                             <TabsTrigger value="sign">Sign Document</TabsTrigger>
                             <TabsTrigger value="documents">Documents</TabsTrigger>

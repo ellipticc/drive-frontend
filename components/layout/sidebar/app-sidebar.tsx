@@ -18,6 +18,7 @@ import {
   IconSignature,
   IconClockHour9,
   IconStar,
+  IconWritingSign,
 } from "@tabler/icons-react"
 
 import { NavMain } from "@/components/layout/navigation/nav-main"
@@ -117,6 +118,28 @@ export const AppSidebar = React.memo(function AppSidebar({
         url: "/attestations",
         icon: IconSignature,
         id: "attestations",
+        items: [
+          {
+            title: "Sign Document",
+            url: "/attestations#Sign",
+            icon: IconWritingSign,
+          },
+          {
+            title: "Documents",
+            url: "/attestations#Documents",
+            icon: IconStack2,
+          },
+          {
+            title: "Manage Keys",
+            url: "/attestations#Keys",
+            icon: IconDatabase,
+          },
+          {
+            title: "Audit Logs",
+            url: "/attestations#Logs",
+            icon: IconChartAreaLine,
+          },
+        ]
       },
       {
         title: t("sidebar.trash"),
