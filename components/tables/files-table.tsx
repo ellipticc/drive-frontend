@@ -2478,16 +2478,6 @@ export const Table01DividerLineSm = ({
                 return cmp;
             }
 
-            if (sortDescriptor.column === 'checksum') {
-                const firstHash = a.shaHash || '';
-                const secondHash = b.shaHash || '';
-                let cmp = firstHash.localeCompare(secondHash);
-                if (sortDescriptor.direction === "descending") {
-                    cmp *= -1;
-                }
-                return cmp;
-            }
-
             return 0;
         });
     }, [files, sortDescriptor]);
@@ -2925,19 +2915,6 @@ export const Table01DividerLineSm = ({
                             }}
                         >
                             Size
-                        </DropdownMenuCheckboxItem>
-                        <DropdownMenuCheckboxItem
-                            checked={visibleColumns.has('checksum')}
-                            onCheckedChange={(checked) => {
-                                setVisibleColumns(prev => {
-                                    const next = new Set(prev);
-                                    if (checked) next.add('checksum');
-                                    else next.delete('checksum');
-                                    return next;
-                                });
-                            }}
-                        >
-                            Checksum
                         </DropdownMenuCheckboxItem>
                         <DropdownMenuCheckboxItem
                             checked={visibleColumns.has('shared')}
@@ -3516,9 +3493,6 @@ export const Table01DividerLineSm = ({
                                                 <Table.Head id="size" allowsSorting={true} align="right" className={`hidden md:table-cell w-28 ${visibleColumns.has('size') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
                                                     <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>{t("files.size")}</span>
                                                 </Table.Head>
-                                                <Table.Head id="checksum" allowsSorting={true} align="right" className={`hidden md:table-cell w-32 ${visibleColumns.has('checksum') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
-                                                    <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>{t("files.checksum")}</span>
-                                                </Table.Head>
                                                 <Table.Head id="shared" align="center" className={`hidden md:table-cell w-16 ${visibleColumns.has('shared') ? '' : '[&>*]:invisible pointer-events-none cursor-default'}`} />
                                                 <Table.Head id="actions" align="right" className="w-12 px-2" />
                                             </Table.Header>
@@ -3650,40 +3624,6 @@ export const Table01DividerLineSm = ({
                                                                 <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
                                                                     {item.type === 'folder' ? '--' : formatFileSize(item.size || 0)}
                                                                 </span>
-                                                            </Table.Cell>
-                                                            <Table.Cell className={`hidden md:table-cell text-right w-32 ${visibleColumns.has('checksum') ? '' : '[&>*]:invisible'} px-4`}>
-                                                                {item.type === 'folder' ? (
-                                                                    <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">N/A</span>
-                                                                ) : item.shaHash ? (
-                                                                    <Tooltip>
-                                                                        <TooltipTrigger asChild>
-                                                                            <button
-                                                                                className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer font-mono whitespace-nowrap"
-                                                                                onClick={(e) => {
-                                                                                    e.stopPropagation();
-                                                                                    navigator.clipboard.writeText(item.shaHash!);
-                                                                                    setCopiedHashId(item.id);
-                                                                                    setTimeout(() => setCopiedHashId(null), 300);
-                                                                                }}
-                                                                            >
-                                                                                {item.shaHash.substring(0, 5)}...{item.shaHash.substring(item.shaHash.length - 5)}
-                                                                            </button>
-                                                                        </TooltipTrigger>
-                                                                        <TooltipContent
-                                                                            className="max-w-none whitespace-nowrap font-[var(--font-jetbrains-mono)] font-semibold tracking-wider"
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                navigator.clipboard.writeText(item.shaHash!);
-                                                                                setCopiedHashId(item.id);
-                                                                                setTimeout(() => setCopiedHashId(null), 500);
-                                                                            }}
-                                                                        >
-                                                                            <p className={`text-xs cursor-pointer transition-all duration-300 ${copiedHashId === item.id ? 'animate-pulse bg-primary/20 text-primary scale-105' : ''}`}>{item.shaHash}</p>
-                                                                        </TooltipContent>
-                                                                    </Tooltip>
-                                                                ) : (
-                                                                    <span className="text-xs text-muted-foreground font-mono break-all">N/A</span>
-                                                                )}
                                                             </Table.Cell>
                                                             <Table.Cell className={`hidden md:table-cell px-1 w-16 text-center ${visibleColumns.has('shared') ? '' : '[&>*]:invisible'}`}>
                                                                 {item.is_shared && (
