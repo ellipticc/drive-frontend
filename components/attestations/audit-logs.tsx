@@ -28,7 +28,7 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip"
 
-import { apiClient } from "@/lib/api-service"
+import { apiClient as api } from "@/lib/api"
 import { format } from "date-fns"
 
 interface AuditLog {
@@ -40,6 +40,13 @@ interface AuditLog {
     created_at: string
     ip_address: string
     user_agent: string
+}
+
+interface LogResponse {
+    logs: AuditLog[]
+    total: number
+    page: number
+    totalPages: number
 }
 
 export function AuditLogs() {
@@ -56,10 +63,14 @@ export function AuditLogs() {
     const fetchLogs = async () => {
         setLoading(true)
         try {
-            const data = await apiClient.get<any>(`/attestations/logs?page=${page}&limit=${limit}`)
-            setLogs(data.logs)
-            setTotalPages(data.totalPages)
-            setPage(data.page)
+            const response = await api.getAttestationLogs(page, limit)
+            if (response.success && response.data) {
+                setLogs(response.data.logs)
+                setTotalPages(response.data.totalPages)
+                setPage(Number(response.data.page))
+            } else {
+                toast.error(response.error || "Failed to load audit logs");
+            }
         } catch (error) {
             console.error(error)
             toast.error("Failed to load audit logs")

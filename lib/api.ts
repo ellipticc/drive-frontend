@@ -4091,6 +4091,35 @@ class ApiClient {
       };
     }
   }
+  async getAttestationKeys(): Promise<ApiResponse<any[]>> {
+    return this.request('/attestations/keys');
+  }
+
+  async createAttestationKey(data: {
+    encryptedName: string;
+    publicKey: string;
+    encryptedPrivateKey: string;
+  }): Promise<ApiResponse<any>> {
+    return this.request('/attestations/keys', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteAttestationKey(id: string): Promise<ApiResponse<{ success: boolean }>> {
+    return this.request(`/attestations/keys/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getAttestationLogs(page = 1, limit = 10): Promise<ApiResponse<{
+    logs: any[];
+    total: number;
+    page: number;
+    totalPages: number;
+  }>> {
+    return this.request(`/attestations/logs?page=${page}&limit=${limit}`);
+  }
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);

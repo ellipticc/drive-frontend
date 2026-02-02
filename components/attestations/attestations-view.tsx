@@ -14,7 +14,7 @@ import { PdfSignerView } from "./pdf-signer-view"
 
 export function AttestationsView() {
     return (
-        <div className="flex flex-col h-full space-y-6">
+        <div className="flex flex-col h-full space-y-6 pt-6 px-6">
             <Tabs defaultValue="sign" className="space-y-4">
                 <TabsList className="bg-muted/50 border">
                     <TabsTrigger value="sign">Sign Document</TabsTrigger>

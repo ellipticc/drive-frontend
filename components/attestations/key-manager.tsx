@@ -7,7 +7,6 @@ import {
     IconDownload,
     IconKey,
     IconLoader2,
-    IconExternalLink
 } from "@tabler/icons-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -41,7 +40,7 @@ import {
 import { generateAttestationKeypair, encryptPrivateKey, encryptString, decryptString } from "@/lib/attestations/crypto"
 import { masterKeyManager } from "@/lib/master-key"
 import { useUser } from "@/components/user-context"
-import { apiClient } from "@/lib/api-service"
+import { apiClient as api } from "@/lib/api"
 
 interface AttestationKey {
     id: string
@@ -67,20 +66,22 @@ export function KeyManager() {
             const masterKey = masterKeyManager.getMasterKey();
             if (!masterKey) return; // Wait for master key or user login
 
-            const keysData = await apiClient.get<AttestationKey[]>("/attestations/keys");
+            const response = await api.getAttestationKeys();
 
-            // Decrypt names
-            const decryptedKeys = await Promise.all(keysData.map(async (k) => {
-                try {
-                    const decryptedName = await decryptString(k.name, masterKey); // k.name is encrypted from backend
-                    return { ...k, name: decryptedName };
-                } catch (e) {
-                    console.error("Failed to decrypt key name", e);
-                    return { ...k, name: "Decryption Failed" };
-                }
-            }));
-
-            setKeys(decryptedKeys);
+            if (response.success && response.data) {
+                const keysData = response.data;
+                // Decrypt names
+                const decryptedKeys = await Promise.all(keysData.map(async (k: AttestationKey) => {
+                    try {
+                        const decryptedName = await decryptString(k.name, masterKey); // k.name is encrypted from backend
+                        return { ...k, name: decryptedName };
+                    } catch (e) {
+                        console.error("Failed to decrypt key name", e);
+                        return { ...k, name: "Decryption Failed" };
+                    }
+                }));
+                setKeys(decryptedKeys);
+            }
         } catch (error) {
             console.error("Failed to load keys", error);
         }
@@ -108,21 +109,24 @@ export function KeyManager() {
             );
 
             // 2. Encrypt private key & name with master key
-            // Using logic from crypto.ts (requires helpers)
             const encryptedPrivateKey = await encryptPrivateKey(privateKeyPem, masterKey);
             const encryptedName = await encryptString(newKeyName, masterKey);
 
             // 3. Send to backend
-            await apiClient.post("/attestations/keys", {
+            const response = await api.createAttestationKey({
                 encryptedName,
                 publicKey: certPem,
                 encryptedPrivateKey
             });
 
-            loadKeys();
-            setIsCreateOpen(false);
-            setNewKeyName("");
-            toast.success("Identity key generated successfully");
+            if (response.success) {
+                loadKeys();
+                setIsCreateOpen(false);
+                setNewKeyName("");
+                toast.success("Identity key generated successfully");
+            } else {
+                toast.error(response.error || "Failed to create identity");
+            }
         } catch (error) {
             console.error(error);
             toast.error("Failed to generate key: " + (error instanceof Error ? error.message : String(error)));
@@ -134,7 +138,7 @@ export function KeyManager() {
     const handleDeleteKey = async (id: string) => {
         if (confirm("Are you sure you want to delete this key? Access to signed documents may be affected.")) {
             try {
-                await apiClient.delete(`/attestations/keys/${id}`);
+                await api.deleteAttestationKey(id);
                 loadKeys();
                 toast.success("Key deleted");
             } catch (error) {
@@ -187,6 +191,7 @@ export function KeyManager() {
                                     value={newKeyName}
                                     maxLength={100}
                                     onChange={(e) => setNewKeyName(e.target.value)}
+                                    title="name"
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter' && newKeyName) {
                                             handleCreateKey();
