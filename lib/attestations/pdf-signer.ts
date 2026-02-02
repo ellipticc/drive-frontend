@@ -18,6 +18,7 @@ class CustomSigner extends Signer {
     }
 
     async sign(pdfBuffer: Buffer): Promise<Buffer> {
+        console.log('CustomSigner: Starting signing process...');
         const forgeCert = forge.pki.certificateFromPem(this.certPem);
         const forgePrivateKey = forge.pki.privateKeyFromPem(this.privateKeyPem);
         const p7 = forge.pkcs7.createSignedData();
@@ -36,28 +37,44 @@ class CustomSigner extends Signer {
         });
 
         p7.sign({ detached: true });
+        console.log('CustomSigner: PKCS#7 signature generated.');
 
-        // --- TSA INTEGRATION START ---
-        // Cast to any to access internal signers property
-        const rawSignature = (p7 as any).signers[0].signature;
-        const timestampTokenHex = await fetchTimestamp(rawSignature);
+        try {
+            // Cast to any to access internal signers property
+            const signerInfo = (p7 as any).signers[0];
+            const rawSignature = signerInfo.signature;
+            console.log('CustomSigner: Fetching timestamp for signature...');
 
-        if (timestampTokenHex) {
-            const tstDerRequest = forge.util.decode64(timestampTokenHex);
-            const tstAsn1 = forge.asn1.fromDer(tstDerRequest);
+            const timestampTokenBase64 = await fetchTimestamp(rawSignature);
 
-            (p7 as any).signers[0].unauthenticatedAttributes = [
-                {
-                    type: '1.2.840.113549.1.9.16.2.14', // id-aa-timeStampToken
-                    value: [tstAsn1] // SET OF TimeStampToken
-                }
-            ];
+            if (timestampTokenBase64) {
+                console.log('CustomSigner: Timestamp token received. Integrating...');
+                // Decode base64 to binary string
+                const tstDerRequest = forge.util.decode64(timestampTokenBase64);
+                // Create buffer from binary string (safer for fromDer)
+                const tstBuffer = forge.util.createBuffer(tstDerRequest);
+
+                const tstAsn1 = forge.asn1.fromDer(tstBuffer);
+
+                // Add unauthenticated attribute
+                signerInfo.unauthenticatedAttributes = [
+                    {
+                        type: '1.2.840.113549.1.9.16.2.14', // id-aa-timeStampToken
+                        value: [tstAsn1] // SET OF TimeStampToken
+                    }
+                ];
+                console.log('CustomSigner: Timestamp embedded successfully.');
+            } else {
+                console.warn('CustomSigner: No timestamp token received. Signing without timestamp.');
+            }
+        } catch (tsaError) {
+            console.error('CustomSigner: Error during TSA integration:', tsaError);
         }
-        // --- TSA INTEGRATION END ---
 
         const p7Asn1 = p7.toAsn1();
         const derBuffer = forge.asn1.toDer(p7Asn1);
 
+        console.log('CustomSigner: Signing process completed.');
         return Buffer.from(derBuffer.getBytes(), 'binary');
     }
 }
@@ -67,6 +84,7 @@ async function fetchTimestamp(signature: string): Promise<string | null> {
         const hash = forge.md.sha256.create();
         hash.update(signature);
         const signatureHash = hash.digest().toHex();
+        console.log('fetchTimestamp: Signature hash calculated:', signatureHash);
 
         const response = await fetch('https://timestamp.ellipticc.com/api/v1/rfc3161/attest', {
             method: 'POST',
@@ -78,15 +96,18 @@ async function fetchTimestamp(signature: string): Promise<string | null> {
         });
 
         if (!response.ok) {
-            console.warn('TSA request failed:', response.statusText);
+            console.warn(`fetchTimestamp: Server responded with ${response.status} ${response.statusText}`);
+            const text = await response.text();
+            console.warn('fetchTimestamp: Response body:', text);
             return null;
         }
 
         const data = await response.json();
+        console.log('fetchTimestamp: Received token of length:', data.timestampToken ? data.timestampToken.length : 'undefined');
         return data.timestampToken;
     } catch (e) {
-        console.error('Failed to fetch timestamp:', e);
-        return null; // Fail gracefully
+        console.error('fetchTimestamp: Network or parsing error:', e);
+        return null;
     }
 }
 
