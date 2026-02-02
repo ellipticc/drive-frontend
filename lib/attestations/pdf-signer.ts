@@ -117,10 +117,7 @@ export async function signPdf(
     masterKey: Uint8Array
 ): Promise<{ pdfBytes: Uint8Array; timestampData?: any; timestampVerification?: any }> {
     // Verify key integrity
-    // Note: The frontend might pass 'publicKeyPem' instead of 'certPem'
-    const rawCertPem = key.certPem || key.publicKeyPem;
-
-    if (!key || !rawCertPem || !key.encryptedPrivateKey) {
+    if (!key || !key.certPem || !key.encryptedPrivateKey) {
         console.error('Invalid key provided to signPdf:', key);
         throw new Error('Selected identity is missing certificate or private key data.');
     }
@@ -134,10 +131,10 @@ export async function signPdf(
     const pages = pdfDoc.getPages();
     const firstPage = pages[0];
 
-    const certPem = cleanPem(rawCertPem, 'CERTIFICATE');
+    const certPem = cleanPem(key.certPem, 'CERTIFICATE');
     // Verify PEM before forge to avoid obscure errors
     if (!certPem.includes('-----BEGIN CERTIFICATE-----')) {
-        console.error('Invalid Certificate PEM after cleaning:', certPem, 'Original:', rawCertPem);
+        console.error('Invalid Certificate PEM after cleaning:', certPem, 'Original:', key.certPem);
         throw new Error('Invalid Certificate format causing empty or malformed PEM.');
     }
 
