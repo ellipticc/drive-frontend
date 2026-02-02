@@ -10,10 +10,35 @@ import { v4 as uuidv4 } from 'uuid';
 const cryptoEngine = new pkijs.CryptoEngine({ name: '', crypto: window.crypto, subtle: window.crypto.subtle });
 setEngine("newEngine", cryptoEngine);
 
-// Helper to convert Uint8Array to Base64
-function uint8ArrayToBase64(array: Uint8Array): string {
-    const binary = String.fromCharCode(...array);
-    return btoa(binary);
+// Export utilities for external use
+export { encryptData, decryptData };
+
+// Encrypt private key specifically for storage (wrapper around encryptData)
+export async function encryptPrivateKey(privateKeyPem: string, masterKey: Uint8Array): Promise<string> {
+    return encryptString(privateKeyPem, masterKey);
+}
+
+// Decrypt private key (wrapper)
+export async function decryptPrivateKeyAsString(encryptedAndNonce: string, masterKey: Uint8Array): Promise<string> {
+    return decryptString(encryptedAndNonce, masterKey);
+}
+
+// Encrypt any string
+export async function encryptString(text: string, masterKey: Uint8Array): Promise<string> {
+    const bytes = new TextEncoder().encode(text);
+    const { encryptedData, nonce } = encryptData(bytes, masterKey);
+    // Combine nonce and ciphertext for storage simplicity: nonce:ciphertext
+    return `${nonce}:${encryptedData}`;
+}
+
+// Decrypt any string
+export async function decryptString(encryptedAndNonce: string, masterKey: Uint8Array): Promise<string> {
+    const [nonce, ciphertext] = encryptedAndNonce.split(':');
+    if (!nonce || !ciphertext) throw new Error('Invalid encrypted format');
+
+    // We need to use the imported decryptData which expects ciphertext string (hex) and returns Uint8Array
+    const decryptedBytes = decryptData(ciphertext, masterKey, nonce);
+    return new TextDecoder().decode(decryptedBytes);
 }
 
 // Helper to convert ArrayBuffer to PEM
@@ -30,9 +55,8 @@ function arrayBufferToPem(buffer: ArrayBuffer, type: 'PUBLIC KEY' | 'PRIVATE KEY
 export async function generateAttestationKeypair(
     name: string,
     userId: string,
-    appName: string = 'Ellipticc Inc.',
-    masterKey: Uint8Array
-): Promise<AttestationKey> {
+    appName: string = 'Ellipticc Inc.'
+): Promise<{ privateKeyPem: string, publicKeyPem: string, certPem: string }> {
     // 1. Generate RSA-2048 Keypair using WebCrypto (RSASSA-PKCS1-v1_5)
     // We need to allow multiple usages for pkijs (sign/verify)
     const algorithm = {
@@ -55,10 +79,6 @@ export async function generateAttestationKeypair(
     const publicKeyPem = arrayBufferToPem(publicKeyDer, 'PUBLIC KEY');
     const privateKeyPem = arrayBufferToPem(privateKeyDer, 'PRIVATE KEY');
 
-    // 3. Encrypt Private Key
-    const privateKeyBytes = new TextEncoder().encode(privateKeyPem);
-    const { encryptedData, nonce } = encryptData(privateKeyBytes, masterKey);
-
     // 4. Create Self-Signed Certificate using PKIjs
     const certificate = new pkijs.Certificate();
 
@@ -71,15 +91,11 @@ export async function generateAttestationKeypair(
     // Common Name (Subject)
     certificate.subject.typesAndValues.push(new pkijs.AttributeTypeAndValue({
         type: "2.5.4.3", // Common Name
-        value: new asn1js.PrintableString({ value: `${appName} User ${userId.slice(0, 8)}` })
+        value: new asn1js.PrintableString({ value: `${name}` })
     }));
     certificate.subject.typesAndValues.push(new pkijs.AttributeTypeAndValue({
         type: "2.5.4.10", // Organization
         value: new asn1js.PrintableString({ value: appName })
-    }));
-    certificate.subject.typesAndValues.push(new pkijs.AttributeTypeAndValue({
-        type: "2.5.4.11", // Organizational Unit
-        value: new asn1js.PrintableString({ value: "Attestations" })
     }));
     certificate.subject.typesAndValues.push(new pkijs.AttributeTypeAndValue({
         type: "0.9.2342.19200300.100.1.1", // UID
@@ -147,14 +163,9 @@ export async function generateAttestationKeypair(
     const certPem = arrayBufferToPem(certDer, 'CERTIFICATE');
 
     return {
-        id: uuidv4(),
-        name,
+        privateKeyPem,
         publicKeyPem,
-        encryptedPrivateKey: encryptedData,
-        privateKeyNonce: nonce,
         certPem,
-        createdAt: Date.now(),
-        isRevoked: false,
     };
 }
 

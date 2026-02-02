@@ -173,20 +173,24 @@ export function SiteHeader({ onSearch, onFileUpload, onFolderUpload, searchValue
           orientation="vertical"
           className="mx-2 data-[orientation=vertical]:h-4"
         />
-        <div className="relative flex-1 max-w-md">
-          {!['/insights', '/attestations'].some(path => pathname?.startsWith(path)) && (
-            <>
-              <IconSearch className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Search files and folders..."
-                className="pl-9 pr-4 bg-card"
-                value={localSearchValue}
-                onChange={(e) => setLocalSearchValue(e.target.value)}
-              />
-            </>
-          )}
-        </div>
+        {pathname?.startsWith('/attestations') ? (
+          <h2 className="text-lg font-semibold tracking-tight">Attestations</h2>
+        ) : (
+          <div className="relative flex-1 max-w-md">
+            {!['/insights'].some(path => pathname?.startsWith(path)) && (
+              <>
+                <IconSearch className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Search files and folders..."
+                  className="pl-9 pr-4 bg-card"
+                  value={localSearchValue}
+                  onChange={(e) => setLocalSearchValue(e.target.value)}
+                />
+              </>
+            )}
+          </div>
+        )}
         <div className="ml-auto flex items-center gap-2">
           {showUpgrade && (
             <Button
