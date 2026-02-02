@@ -414,20 +414,19 @@ export function NavMain({
                     })()}
                     <span>{item.title}</span>
 
-                    {state !== 'collapsed' && (
-                      <div
-                        onClick={(e) => {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          toggleAttestations(e)
-                        }}
-                        className="absolute right-1 top-1/2 -translate-y-1/2 p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded-sm transition-colors text-muted-foreground/40 hover:text-muted-foreground z-20"
-                      >
-                        <IconChevronRight
-                          className={cn("size-3.5 transition-transform duration-200", isAttestationsExpanded && "rotate-90")}
-                        />
-                      </div>
-                    )}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        toggleAttestations(e)
+                      }}
+                      className="absolute right-1 top-1/2 -translate-y-1/2 p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded-sm transition-colors text-muted-foreground/40 hover:text-muted-foreground z-50 flex items-center justify-center cursor-pointer"
+                    >
+                      <IconChevronRight
+                        className={cn("size-3.5 shrink-0 transition-transform duration-200", isAttestationsExpanded && "rotate-90")}
+                      />
+                    </button>
                   </SidebarMenuButton>
 
                   {isAttestationsExpanded && item.items && (
