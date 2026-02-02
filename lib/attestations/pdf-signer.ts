@@ -1,7 +1,7 @@
 ﻿import { PDFDocument, PDFName, PDFString, PDFArray, PDFDict, PDFHexString } from 'pdf-lib';
 import signpdf from '@signpdf/signpdf';
 import { SUBFILTER_ADOBE_PKCS7_DETACHED, Signer, DEFAULT_BYTE_RANGE_PLACEHOLDER } from '@signpdf/utils';
-import { decryptPrivateKeyInternal } from './crypto';
+import { decryptPrivateKeyAsString } from './crypto';
 import type { AttestationKey } from './types';
 import forge from 'node-forge';
 
@@ -117,7 +117,8 @@ export async function signPdf(
     masterKey: Uint8Array
 ): Promise<{ pdfBytes: Uint8Array; timestampData?: any; timestampVerification?: any }> {
     // 1. Decrypt private key
-    const privateKeyPem = await decryptPrivateKeyInternal(key.encryptedPrivateKey, key.privateKeyNonce, masterKey);
+    // The nonce is embedded in the encryptedPrivateKey string (nonce:ciphertext)
+    const privateKeyPem = await decryptPrivateKeyAsString(key.encryptedPrivateKey, masterKey);
 
     // 2. Load PDF & Add Placeholder (Manual implementation to bypass library issues)
     const pdfDoc = await PDFDocument.load(pdfBytes);
