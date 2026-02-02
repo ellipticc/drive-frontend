@@ -117,15 +117,30 @@ export async function signPdf(
     masterKey: Uint8Array
 ): Promise<{ pdfBytes: Uint8Array; timestampData?: any; timestampVerification?: any }> {
     // 1. Decrypt private key
-    // The nonce is embedded in the encryptedPrivateKey string (nonce:ciphertext)
-    const privateKeyPem = await decryptPrivateKeyAsString(key.encryptedPrivateKey, masterKey);
+    const privateKeyPemRaw = await decryptPrivateKeyAsString(key.encryptedPrivateKey, masterKey);
+    const privateKeyPem = cleanPem(privateKeyPemRaw, 'PRIVATE KEY');
 
-    // 2. Load PDF & Add Placeholder (Manual implementation to bypass library issues)
+    // 2. Load PDF & Add Placeholder
     const pdfDoc = await PDFDocument.load(pdfBytes);
     const pages = pdfDoc.getPages();
     const firstPage = pages[0];
 
-    const forgeCert = forge.pki.certificateFromPem(key.certPem);
+    const certPem = cleanPem(key.certPem, 'CERTIFICATE');
+    // Verify PEM before forge to avoid obscure errors
+    if (!certPem.includes('-----BEGIN CERTIFICATE-----')) {
+        console.error('Invalid Certificate PEM after cleaning:', certPem);
+        throw new Error('Invalid Certificate format');
+    }
+
+    let forgeCert;
+    try {
+        forgeCert = forge.pki.certificateFromPem(certPem);
+    } catch (e) {
+        console.error('Forge certificate parsing failed:', e);
+        console.log('Problematic PEM:', certPem);
+        throw new Error(`Failed to parse certificate: ${(e as Error).message}`);
+    }
+
     const commonNameObj = forgeCert.subject.getField('CN');
     const commonName = commonNameObj && typeof commonNameObj.value === 'string'
         ? commonNameObj.value
@@ -198,7 +213,7 @@ export async function signPdf(
     const pdfWithPlaceholder = await pdfDoc.save({ useObjectStreams: false });
 
     // 3. Sign with Custom Signer
-    const signer = new CustomSigner(privateKeyPem, key.certPem);
+    const signer = new CustomSigner(privateKeyPem, certPem);
 
     // Handle import structure: import signpdf is the instance
     const signInstance = (signpdf as any).default || signpdf;
@@ -211,4 +226,22 @@ export async function signPdf(
     }
 
     return { pdfBytes: signedPdfBuffer };
+}
+
+function cleanPem(pem: string, type: 'CERTIFICATE' | 'PRIVATE KEY'): string {
+    if (!pem) return '';
+    try {
+        // Remove existing headers/footers and whitespace
+        let raw = pem
+            .replace(/-----BEGIN [^-]+-----/g, '')
+            .replace(/-----END [^-]+-----/g, '')
+            .replace(/\s+/g, '');
+
+        // Chunk to 64 chars
+        const chunks = raw.match(/.{1,64}/g) || [];
+        return `-----BEGIN ${type}-----\n${chunks.join('\n')}\n-----END ${type}-----`;
+    } catch (e) {
+        console.error('Error cleaning PEM:', e);
+        return pem; // Fallback
+    }
 }
