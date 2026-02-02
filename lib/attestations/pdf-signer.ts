@@ -4,7 +4,6 @@ import { SUBFILTER_ADOBE_PKCS7_DETACHED, Signer, DEFAULT_BYTE_RANGE_PLACEHOLDER 
 import { decryptPrivateKeyInternal } from './crypto';
 import type { AttestationKey } from './types';
 import forge from 'node-forge';
-import { UTCTime } from 'asn1js';
 
 const SIGNATURE_LENGTH = 16000;
 
@@ -26,8 +25,6 @@ class CustomSigner extends Signer {
         p7.content = forge.util.createBuffer(pdfBuffer.toString('binary'));
         p7.addCertificate(forgeCert);
 
-        const utcTime = new UTCTime({ valueDate: new Date() });
-
         p7.addSigner({
             key: forgePrivateKey,
             certificate: forgeCert,
@@ -35,10 +32,6 @@ class CustomSigner extends Signer {
             authenticatedAttributes: [
                 { type: forge.pki.oids.contentType, value: forge.pki.oids.data },
                 { type: forge.pki.oids.messageDigest },
-                {
-                    type: forge.pki.oids.signingTime,
-                    value: forge.asn1.create(forge.asn1.Class.UNIVERSAL, forge.asn1.Type.UTCTIME, false, utcTime.getValue()) as any
-                }
             ]
         });
 
