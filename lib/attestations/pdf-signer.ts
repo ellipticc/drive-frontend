@@ -37,10 +37,56 @@ class CustomSigner extends Signer {
 
         p7.sign({ detached: true });
 
+        // --- TSA INTEGRATION START ---
+        // Cast to any to access internal signers property
+        const rawSignature = (p7 as any).signers[0].signature;
+        const timestampTokenHex = await fetchTimestamp(rawSignature);
+
+        if (timestampTokenHex) {
+            const tstDerRequest = forge.util.decode64(timestampTokenHex);
+            const tstAsn1 = forge.asn1.fromDer(tstDerRequest);
+
+            (p7 as any).signers[0].unauthenticatedAttributes = [
+                {
+                    type: '1.2.840.113549.1.9.16.2.14', // id-aa-timeStampToken
+                    value: [tstAsn1] // SET OF TimeStampToken
+                }
+            ];
+        }
+        // --- TSA INTEGRATION END ---
+
         const p7Asn1 = p7.toAsn1();
         const derBuffer = forge.asn1.toDer(p7Asn1);
 
         return Buffer.from(derBuffer.getBytes(), 'binary');
+    }
+}
+
+async function fetchTimestamp(signature: string): Promise<string | null> {
+    try {
+        const hash = forge.md.sha256.create();
+        hash.update(signature);
+        const signatureHash = hash.digest().toHex();
+
+        const response = await fetch('https://timestamp.ellipticc.com/api/v1/rfc3161/attest', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                hash: signatureHash,
+                hashAlgorithm: 'sha256'
+            })
+        });
+
+        if (!response.ok) {
+            console.warn('TSA request failed:', response.statusText);
+            return null;
+        }
+
+        const data = await response.json();
+        return data.timestampToken;
+    } catch (e) {
+        console.error('Failed to fetch timestamp:', e);
+        return null; // Fail gracefully
     }
 }
 
