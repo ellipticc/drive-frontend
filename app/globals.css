@@ -974,7 +974,7 @@
   }
 
   .tiny-scrollbar::-webkit-scrollbar-thumb {
-    background-color: rgba(0,0,0,0.2);
+    background-color: rgba(0, 0, 0, 0.2);
     border-radius: 9999px;
   }
 
@@ -1030,11 +1030,109 @@
     0% {
       box-shadow: 0 0 0 0 var(--accent);
     }
+
     50% {
       box-shadow: 0 0 0 6px var(--accent) / 0.4;
     }
+
     100% {
       box-shadow: 0 0 0 0 var(--accent) / 0;
     }
   }
+}
+
+/* Drag & Drop Styles - Precise Pixel Perfect */
+.space-dnd-over {
+  position: relative;
+  z-index: 50;
+  border-radius: var(--radius);
+}
+
+.space-dnd-over::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius);
+  pointer-events: none;
+  /* "Pointed border indicators" - Solid border with animation */
+  border: 2px solid var(--primary);
+  background-color: transparent;
+  animation: dnd-pulse 1.5s infinite;
+}
+
+/* Success flash */
+.space-dnd-success {
+  animation: dnd-success 0.5s ease-out forwards;
+}
+
+@keyframes dnd-pulse {
+  0% {
+    box-shadow: 0 0 0 0px var(--primary);
+  }
+
+  50% {
+    box-shadow: 0 0 0 2px var(--primary);
+  }
+
+  100% {
+    box-shadow: 0 0 0 4px transparent;
+  }
+}
+
+@keyframes dnd-success {
+  0% {
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+  }
+
+  100% {
+    background-color: transparent;
+    color: inherit;
+  }
+}
+
+/* Global Drop Zone Boundary */
+.global-drag-active {
+  position: relative;
+}
+
+.global-drag-active::before {
+  content: "";
+  position: fixed;
+  inset: 16px;
+  z-index: 9999;
+  pointer-events: none;
+  border: 2px dashed var(--primary);
+  border-radius: var(--radius-lg);
+  opacity: 0.4;
+  animation: border-dance 4s linear infinite;
+  background: transparent;
+}
+
+@keyframes border-dance {
+  0% {
+    opacity: 0.3;
+  }
+
+  50% {
+    opacity: 0.6;
+  }
+
+  100% {
+    opacity: 0.3;
+  }
+}
+
+/* Cursor override during drag */
+body.is-dragging-files * {
+  cursor: grabbing !important;
+}
+
+/* Drop Helper - Floating Message */
+.drop-helper-custom {
+  position: fixed;
+  pointer-events: none;
+  z-index: 10000;
+  transform: translate(-50%, -100%);
+  margin-top: -12px;
 }

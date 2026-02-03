@@ -340,6 +340,8 @@ export function NavMain({
                       }
                     }}
                     className="cursor-pointer relative pr-8"
+                    data-space-id="root"
+                    data-space-name={t("sidebar.myFiles")}
                   >
                     {(() => {
                       const isActive = pathname === item.url || (item.url === '/' && pathname === '/')
@@ -465,6 +467,8 @@ export function NavMain({
                     onClick={() => handleNavigate(item.url)}
                     className="cursor-pointer"
                     id="tour-trash"
+                    data-space-id="trash"
+                    data-space-name={t("sidebar.trash")}
                   >
                     {(() => {
                       const isActive = pathname === item.url

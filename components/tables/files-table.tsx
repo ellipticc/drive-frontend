@@ -88,24 +88,29 @@ import {
 /**
  * DropHelper: Contextual drop message that appears only when hovering valid targets
  */
-const DropHelper = ({ folderName, isVisible }: { folderName: string | null; isVisible: boolean }) => {
-    const { t } = useLanguage();
+const DropHelper = ({ folderName, isVisible, cursorX, cursorY }: { folderName: string | null; isVisible: boolean; cursorX: number; cursorY: number }) => {
     return (
         <AnimatePresence>
             {isVisible && folderName && (
                 <motion.div
-                    initial={{ opacity: 0, y: 10, x: "-50%" }}
-                    animate={{ opacity: 1, y: 0, x: "-50%" }}
-                    exit={{ opacity: 0, y: 10, x: "-50%" }}
-                    transition={{ duration: 0.15, ease: "easeOut" }}
-                    className="fixed bottom-8 left-1/2 z-[100] flex items-center gap-2.5 px-4 py-2.5 bg-primary text-primary-foreground rounded-lg shadow-lg border border-primary/30 backdrop-blur-sm"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 0.1 }}
+                    style={{
+                        position: 'fixed',
+                        left: cursorX,
+                        top: cursorY,
+                        transform: 'translate(-50%, 20px)', // Offset below cursor
+                        pointerEvents: 'none',
+                        zIndex: 10000
+                    }}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-primary text-primary-foreground rounded-md shadow-xl border border-primary/20 backdrop-blur-md"
                 >
-                    <IconUpload className="w-4 h-4 shrink-0" />
-                    <span className="text-xs font-medium whitespace-nowrap">
-                        <span>Drop to move to </span>
-                        <span className="font-semibold">"</span>
-                        <span className="font-semibold">{folderName}</span>
-                        <span className="font-semibold">"</span>
+                    <IconUpload className="w-3.5 h-3.5 shrink-0" />
+                    <span className="text-xs font-medium whitespace-nowrap flex items-center gap-1">
+                        <span>Drop to move to</span>
+                        <span className="font-bold underline decoration-primary-foreground/30 underline-offset-2">"{folderName}"</span>
                     </span>
                 </motion.div>
             )}
@@ -183,8 +188,11 @@ const DraggableDroppableRow = React.memo(React.forwardRef<HTMLTableRowElement, {
             className={cx(
                 props.className,
                 // Use outline-offset to ensure lines are INSIDE the row boundary, preventing any layout shift
-                isOver && "relative z-20 outline outline-2 outline-primary -outline-offset-2 bg-primary/[0.03]",
-                isDragging && "opacity-100"
+                // Use outline-offset to ensure lines are INSIDE the row boundary, preventing any layout shift
+                // matched to sidebar "pointed border" style (transparent bg, strong border)
+                isOver && "relative z-20 outline outline-2 outline-primary -outline-offset-2",
+                // Remove background color for "pointed border" feel, or keep very subtle if needed. User asked for "No full rectangle background".
+                isDragging && "opacity-50"
             )}
             onContextMenu={(e) => onContextMenu(e, item)}
         >
@@ -431,6 +439,43 @@ export const Table01DividerLineSm = ({
     const [hoveredSpace, setHoveredSpace] = useState<{ id: string; name: string; el?: Element } | null>(null);
     const hoveredSpaceElRef = useRef<Element | null>(null);
 
+    // Cursor tracking for DropHelper
+    const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
+
+    // Global drag state effects
+    useEffect(() => {
+        if (isDragging) {
+            document.body.classList.add('is-dragging-files');
+            const appMain = document.querySelector('main') || document.body;
+            appMain.classList.add('global-drag-active');
+        } else {
+            document.body.classList.remove('is-dragging-files');
+            const appMain = document.querySelector('main') || document.body;
+            appMain.classList.remove('global-drag-active');
+        }
+        return () => {
+            document.body.classList.remove('is-dragging-files');
+            const appMain = document.querySelector('main') || document.body;
+            appMain.classList.remove('global-drag-active');
+        };
+    }, [isDragging]);
+
+    const handleDragMove = (event: React.DragEvent | any) => {
+        const { delta, active } = event;
+        const sensorEvent = event.sensorEvent;
+        if (sensorEvent) {
+            let x = 0, y = 0;
+            if (sensorEvent instanceof MouseEvent || sensorEvent instanceof PointerEvent) {
+                x = sensorEvent.clientX;
+                y = sensorEvent.clientY;
+            } else if (sensorEvent instanceof TouchEvent && sensorEvent.touches.length > 0) {
+                x = sensorEvent.touches[0].clientX;
+                y = sensorEvent.touches[0].clientY;
+            }
+            setCursorPos({ x, y });
+        }
+    };
+
     const sensors = useSensors(
         useSensor(PointerSensor, {
             activationConstraint: {
@@ -447,7 +492,9 @@ export const Table01DividerLineSm = ({
 
     // Helper: detect a space element under pointer coordinates
     const detectSpaceAtPoint = (x: number, y: number) => {
+        // Use elementFromPoint to find the EXACT element under cursor
         const el = document.elementFromPoint(x, y) as Element | null;
+        // Look for closest data-space-id
         const spaceEl = el?.closest('[data-space-id]') as Element | null;
         if (!spaceEl) return null;
         return {
@@ -3455,6 +3502,7 @@ export const Table01DividerLineSm = ({
                                 sensors={sensors}
                                 onDragStart={handleDragStart}
                                 onDragOver={handleDragOver}
+                                onDragMove={handleDragMove}
                                 onDragEnd={handleDragEnd}
                             >
                                 <div className="w-full relative">
@@ -3757,7 +3805,12 @@ export const Table01DividerLineSm = ({
                                         </div>
                                     )}
                                 </DragOverlay>
-                                <DropHelper folderName={hoveredSpace?.name || currentDropTarget?.name || null} isVisible={!!activeDragItem} />
+                                <DropHelper
+                                    isVisible={!!currentDropTarget || !!hoveredSpace}
+                                    folderName={currentDropTarget?.name || hoveredSpace?.name || null}
+                                    cursorX={cursorPos.x}
+                                    cursorY={cursorPos.y}
+                                />
                             </DndContext>
                         ) : (
                             // Grid View

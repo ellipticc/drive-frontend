@@ -99,7 +99,9 @@ export function NavFolder({ folder, level = 0 }: NavFolderProps) {
             <SidebarMenuSubButton asChild>
                 <button
                     onClick={handleNavigate}
-                    className="flex items-center gap-2 flex-1 min-w-0 pr-8 relative group/folder-btn"
+                    className="flex items-center gap-2 flex-1 min-w-0 pr-8 relative group/folder-btn transition-colors duration-200"
+                    data-space-id={folder.id}
+                    data-space-name={folder.name}
                 >
                     <IconFolder className="size-4 !text-blue-500 shrink-0" />
                     <span className="truncate text-xs font-medium">{folder.name}</span>
@@ -120,24 +122,26 @@ export function NavFolder({ folder, level = 0 }: NavFolderProps) {
                 </button>
             </SidebarMenuSubButton>
 
-            {isOpen && !isLeaf && (
-                <SidebarMenuSub className="ml-3.5 border-l border-border/50">
-                    {isLoading ? (
-                        <div className="flex items-center gap-2 px-2 py-1 text-[10px] text-muted-foreground italic">
-                            <IconLoader2 className="size-3 animate-spin" />
-                            {t("sidebar.loading")}
-                        </div>
-                    ) : subfolders.length > 0 ? (
-                        subfolders.map((sub) => (
-                            <NavFolder
-                                key={sub.id}
-                                folder={{ id: sub.id, name: sub.name || "Untitled", parentId: sub.parentId }}
-                                level={level + 1}
-                            />
-                        ))
-                    ) : null}
-                </SidebarMenuSub>
-            )}
-        </SidebarMenuSubItem>
+            {
+                isOpen && !isLeaf && (
+                    <SidebarMenuSub className="ml-3.5 border-l border-border/50">
+                        {isLoading ? (
+                            <div className="flex items-center gap-2 px-2 py-1 text-[10px] text-muted-foreground italic">
+                                <IconLoader2 className="size-3 animate-spin" />
+                                {t("sidebar.loading")}
+                            </div>
+                        ) : subfolders.length > 0 ? (
+                            subfolders.map((sub) => (
+                                <NavFolder
+                                    key={sub.id}
+                                    folder={{ id: sub.id, name: sub.name || "Untitled", parentId: sub.parentId }}
+                                    level={level + 1}
+                                />
+                            ))
+                        ) : null}
+                    </SidebarMenuSub>
+                )
+            }
+        </SidebarMenuSubItem >
     )
 }
