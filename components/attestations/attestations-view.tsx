@@ -46,10 +46,10 @@ export function AttestationsView() {
                 <div className="flex flex-col h-full space-y-6 pt-6 px-6">
                     <Tabs value={activeTab} onValueChange={onTabChange} className="space-y-4">
                         <TabsList className="bg-muted/50 border">
-                            <TabsTrigger value="sign">Sign Document</TabsTrigger>
-                            <TabsTrigger value="documents">Documents</TabsTrigger>
-                            <TabsTrigger value="keys">Manage Keys</TabsTrigger>
-                            <TabsTrigger value="logs">Audit Logs</TabsTrigger>
+                            <TabsTrigger value="sign" className="data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary hover:text-primary">Sign Document</TabsTrigger>
+                            <TabsTrigger value="documents" className="data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary hover:text-primary">Documents</TabsTrigger>
+                            <TabsTrigger value="keys" className="data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary hover:text-primary">Manage Keys</TabsTrigger>
+                            <TabsTrigger value="logs" className="data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary hover:text-primary">Audit Logs</TabsTrigger>
                         </TabsList>
                         <TabsContent value="sign" className="space-y-4">
                             <PdfSignerView />
