@@ -1122,16 +1122,8 @@
   }
 }
 
-/* Cursor override during drag - forbidden by default */
+/* Cursor override during drag - Always grabbing unless explicitly forbidden */
 body.is-dragging-files,
 body.is-dragging-files * {
-  cursor: not-allowed !important;
-}
-
-/* Allow cursor on valid drop targets (folders and spaces) AND their children */
-body.is-dragging-files [data-droppable="true"],
-body.is-dragging-files [data-droppable="true"] *,
-body.is-dragging-files [data-space-id],
-body.is-dragging-files [data-space-id] * {
-  cursor: grab !important;
+  cursor: grabbing !important;
 }

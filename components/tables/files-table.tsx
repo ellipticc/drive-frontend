@@ -463,9 +463,13 @@ export const Table01DividerLineSm = ({
     const [hoveredSpace, setHoveredSpace] = useState<{ id: string; name: string; el?: Element } | null>(null);
     const hoveredSpaceElRef = useRef<Element | null>(null);
 
-    // Cursor tracking for DropHelper
-    // Cursor tracking for DropHelper - REMOVED for performance (unused)
+    // Custom Collision Detection Cache
+    const cachedDropTargets = useRef<{ id: string; name: string; rect: DOMRect; el: Element; type: 'space' | 'folder' }[]>([]);
 
+    // Helper: Point in Rect
+    const isPointInRect = (x: number, y: number, rect: DOMRect) => {
+        return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+    };
 
     // Global drag state effects
     useEffect(() => {
@@ -499,19 +503,19 @@ export const Table01DividerLineSm = ({
         })
     );
 
-    // Helper: detect a space element under pointer coordinates
-    const detectSpaceAtPoint = (x: number, y: number) => {
-        // Use elementFromPoint to find the EXACT element under cursor
-        const el = document.elementFromPoint(x, y) as Element | null;
-        // Look for closest data-space-id
-        const spaceEl = el?.closest('[data-space-id]') as Element | null;
-        if (!spaceEl) return null;
-        return {
-            el: spaceEl,
-            id: spaceEl.getAttribute('data-space-id') || '',
-            name: spaceEl.getAttribute('data-space-name') || ''
-        };
+    // Helper: Optimized custom collision detection using cached rects
+    const detectTargetAtPoint = (x: number, y: number) => {
+        // Iterate through CACHED targets only (no DOM queries)
+        // Reverse order to prioritize z-index/nested items if any (though usually flat list here)
+        for (let i = cachedDropTargets.current.length - 1; i >= 0; i--) {
+            const target = cachedDropTargets.current[i];
+            if (isPointInRect(x, y, target.rect)) {
+                return target;
+            }
+        }
+        return null;
     };
+
 
     const handleDragStart = (event: DragStartEvent) => {
         const { active } = event;
@@ -521,7 +525,27 @@ export const Table01DividerLineSm = ({
             setIsDragging(true);
         }
 
-        // Try an initial detection in case drag starts directly over a Space
+        // Cache ALL drop targets (Spaces + Visible Folders) once at start
+        const targets: typeof cachedDropTargets.current = [];
+
+        // 1. Sidebar Spaces
+        document.querySelectorAll('[data-space-id]').forEach(el => {
+            targets.push({
+                id: el.getAttribute('data-space-id') || '',
+                name: el.getAttribute('data-space-name') || '',
+                rect: el.getBoundingClientRect(),
+                el: el,
+                type: 'space'
+            });
+        });
+
+        // 2. Visible Table Folders
+        document.querySelectorAll('[data-droppable="true"]').forEach(el => {
+        });
+
+        cachedDropTargets.current = targets;
+
+        // Try an initial detection
         try {
             const sensorEvent = (event as any).sensorEvent as PointerEvent | TouchEvent | undefined;
             let clientX: number | undefined, clientY: number | undefined;
@@ -535,8 +559,8 @@ export const Table01DividerLineSm = ({
                 }
             }
             if (typeof clientX === 'number' && typeof clientY === 'number') {
-                const detected = detectSpaceAtPoint(clientX, clientY);
-                if (detected) {
+                const detected = detectTargetAtPoint(clientX, clientY);
+                if (detected && detected.type === 'space') {
                     if (hoveredSpaceElRef.current) hoveredSpaceElRef.current.classList.remove('space-dnd-over');
                     detected.el.classList.add('space-dnd-over');
                     hoveredSpaceElRef.current = detected.el;
@@ -547,6 +571,7 @@ export const Table01DividerLineSm = ({
             // ignore detection errors
         }
     };
+
 
     const handleDragOver = (event: DragOverEvent) => {
         // Debounce removed to prevent state lag, relying on efficient DOM detection
@@ -581,21 +606,20 @@ export const Table01DividerLineSm = ({
         }
 
         // 2. Fallback: Raycast for "Spaces" in the sidebar
+        // 2. Custom Collision for "Spaces" (and potentially folders if we cached them)
         if (typeof clientX === 'number' && typeof clientY === 'number') {
-            const detected = detectSpaceAtPoint(clientX, clientY);
-            if (detected) {
-                // Only update if hovering a different space or previously wasn't hovering one
+            const detected = detectTargetAtPoint(clientX, clientY);
+
+            if (detected && detected.type === 'space') {
+                // Handle Space Hover
                 if (hoveredSpaceElRef.current !== detected.el) {
-                    // Remove highlight from previous
                     if (hoveredSpaceElRef.current) {
                         hoveredSpaceElRef.current.classList.remove('space-dnd-over');
                     }
-                    // Highlight new
                     detected.el.classList.add('space-dnd-over');
                     hoveredSpaceElRef.current = detected.el;
                     setHoveredSpace({ id: detected.id, name: detected.name, el: detected.el });
                 }
-
                 if (currentDropTarget) setCurrentDropTarget(null); // Clear folder drop
                 return;
             }
@@ -607,8 +631,12 @@ export const Table01DividerLineSm = ({
             hoveredSpaceElRef.current = null;
             setHoveredSpace(null);
         }
-        if (currentDropTarget) setCurrentDropTarget(null);
+        // Only clear currentDropTarget if we didn't hit a folder via dnd-kit AND didn't hit a space
+        if (currentDropTarget && (!target || target.type !== 'folder')) {
+            setCurrentDropTarget(null);
+        }
     };
+
 
     const handleDragEnd = async (event: DragEndEvent) => {
         const { active, over } = event;
@@ -635,8 +663,8 @@ export const Table01DividerLineSm = ({
                     }
                 }
                 if (typeof clientX === 'number' && typeof clientY === 'number') {
-                    const detected = detectSpaceAtPoint(clientX, clientY);
-                    if (detected) {
+                    const detected = detectTargetAtPoint(clientX, clientY);
+                    if (detected && detected.type === 'space') {
                         effectiveHovered = { id: detected.id, name: detected.name, el: detected.el };
                     }
                 }
