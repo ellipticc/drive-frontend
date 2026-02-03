@@ -24,14 +24,6 @@ import {
     CardDescription
 } from "@/components/ui/card"
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table"
-import {
     Tooltip,
     TooltipContent,
     TooltipProvider,
@@ -167,127 +159,136 @@ export function AuditLogs() {
                 </div>
             </div>
 
-            <div className="rounded-md border">
-                <Table>
-                    <TableHeader>
-                        <TableRow className="bg-muted/50 hover:bg-muted/50">
-                            <TableHead className="w-[180px]">Event Type</TableHead>
-                            <TableHead>Details</TableHead>
-                            <TableHead>Integrity</TableHead>
-                            <TableHead className="text-right">Timestamp</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {filteredLogs.length === 0 ? (
-                            <TableRow>
-                                <TableCell colSpan={4} className="h-32 text-center text-muted-foreground">
-                                    {loading ? (
-                                        <div className="flex items-center justify-center gap-2">
-                                            <IconRefresh className="size-4 animate-spin" />
-                                            Loading logs...
-                                        </div>
-                                    ) : (
-                                        "No audit logs found matching your criteria"
-                                    )}
-                                </TableCell>
-                            </TableRow>
-                        ) : (
-                            filteredLogs.map((log) => (
-                                <TableRow key={log.id}>
-                                    <TableCell>
-                                        <div className="flex flex-col gap-1.5">
-                                            <div>{getActionBadge(log.action)}</div>
-                                            <TooltipProvider>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <span className="text-[10px] text-muted-foreground font-mono cursor-pointer hover:text-foreground">
-                                                            ID: {truncateMiddle(log.id)}
-                                                        </span>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>
-                                                        <p>Event ID: {log.id}</p>
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                            </TooltipProvider>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="flex flex-col gap-1">
-                                            <code className="text-xs bg-muted/50 px-1.5 py-1 rounded w-fit max-w-[300px] break-all">
-                                                {JSON.stringify(log.details).replace(/"/g, '')}
-                                            </code>
-                                            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                                                <span className="flex items-center gap-1" title="IP Address">
-                                                    <IconWorld className="size-3" /> {log.ip_address || "Unknown"}
+            <div className="border rounded-lg overflow-hidden bg-card">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                        <thead className="bg-muted/50 border-b">
+                            <tr>
+                                <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider w-[180px]">Event Type</th>
+                                <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Details</th>
+                                <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Integrity</th>
+                                <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                            {filteredLogs.length === 0 ? (
+                                <tr>
+                                    <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
+                                        {loading ? (
+                                            <>
+                                                <IconRefresh className="h-5 w-5 animate-spin mx-auto mb-2" />
+                                                <div>Loading logs...</div>
+                                            </>
+                                        ) : (
+                                            "No audit logs found matching your criteria"
+                                        )}
+                                    </td>
+                                </tr>
+                            ) : (
+                                filteredLogs.map((log) => (
+                                    <tr key={log.id} className="hover:bg-muted/30 transition-colors">
+                                        <td className="px-4 py-3">
+                                            <div className="flex flex-col gap-1.5">
+                                                <div>{getActionBadge(log.action)}</div>
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <span className="text-[10px] text-muted-foreground font-mono cursor-pointer hover:text-foreground">
+                                                                ID: {truncateMiddle(log.id)}
+                                                            </span>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p>Event ID: {log.id}</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                            </div>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <div className="flex flex-col gap-1">
+                                                <code className="text-xs bg-muted/50 px-1.5 py-1 rounded w-fit max-w-[300px] break-all">
+                                                    {JSON.stringify(log.details).replace(/"/g, '')}
+                                                </code>
+                                                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                                    <span className="flex items-center gap-1" title="IP Address">
+                                                        <IconWorld className="size-3" /> {log.ip_address || "Unknown"}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <div className="flex flex-col gap-1">
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <div className="flex items-center gap-1.5 text-xs font-mono text-emerald-600 dark:text-emerald-500 cursor-help bg-emerald-500/10 px-2 py-1 rounded w-fit">
+                                                                <IconShieldLock className="size-3" />
+                                                                {truncateMiddle(log.hash)}
+                                                            </div>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent className="max-w-sm">
+                                                            <div className="space-y-2">
+                                                                <div>
+                                                                    <p className="font-semibold text-xs text-muted-foreground">Current Hash (SHA-256)</p>
+                                                                    <p className="font-mono text-xs break-all">{log.hash}</p>
+                                                                </div>
+                                                                <div className="border-t pt-2">
+                                                                    <p className="font-semibold text-xs text-muted-foreground">Previous Hash</p>
+                                                                    <p className="font-mono text-xs break-all">{log.previous_hash}</p>
+                                                                </div>
+                                                            </div>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                            </div>
+                                        </td>
+                                        <td className="text-right px-4 py-3">
+                                            <div className="flex flex-col items-end gap-1">
+                                                <span className="text-sm font-medium">
+                                                    {format(new Date(log.created_at), "MMM d, yyyy")}
+                                                </span>
+                                                <span className="text-xs text-muted-foreground font-mono">
+                                                    {format(new Date(log.created_at), "HH:mm:ss")}
                                                 </span>
                                             </div>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="flex flex-col gap-1">
-                                            <TooltipProvider>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <div className="flex items-center gap-1.5 text-xs font-mono text-emerald-600 dark:text-emerald-500 cursor-help bg-emerald-500/10 px-2 py-1 rounded w-fit">
-                                                            <IconShieldLock className="size-3" />
-                                                            {truncateMiddle(log.hash)}
-                                                        </div>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent className="max-w-sm">
-                                                        <div className="space-y-2">
-                                                            <div>
-                                                                <p className="font-semibold text-xs text-muted-foreground">Current Hash (SHA-256)</p>
-                                                                <p className="font-mono text-xs break-all">{log.hash}</p>
-                                                            </div>
-                                                            <div className="border-t pt-2">
-                                                                <p className="font-semibold text-xs text-muted-foreground">Previous Hash</p>
-                                                                <p className="font-mono text-xs break-all">{log.previous_hash}</p>
-                                                            </div>
-                                                        </div>
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                            </TooltipProvider>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        <div className="flex flex-col items-end gap-1">
-                                            <span className="text-sm font-medium">
-                                                {format(new Date(log.created_at), "MMM d, yyyy")}
-                                            </span>
-                                            <span className="text-xs text-muted-foreground font-mono">
-                                                {format(new Date(log.created_at), "HH:mm:ss")}
-                                            </span>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             {/* Pagination */}
             {totalPages > 1 && (
-                <div className="flex items-center justify-end gap-2">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPage(p => Math.max(1, p - 1))}
-                        disabled={page === 1 || loading}
-                    >
-                        <IconChevronLeft className="mr-1 size-4" /> Previous
-                    </Button>
-                    <span className="text-sm text-muted-foreground min-w-[80px] text-center">
-                        Page {page} of {totalPages}
-                    </span>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                        disabled={page === totalPages || loading}
-                    >
-                        Next <IconChevronRight className="ml-1 size-4" />
-                    </Button>
+                <div className="flex items-center justify-between mt-4">
+                    <p className="text-xs text-muted-foreground">
+                        Showing {filteredLogs.length} of {logs.length} logs
+                    </p>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            onClick={() => setPage(p => Math.max(1, p - 1))}
+                            disabled={page === 1 || loading}
+                        >
+                            <IconChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <span className="text-xs text-muted-foreground min-w-[3rem] text-center">
+                            Page {page} of {totalPages}
+                        </span>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                            disabled={page === totalPages || loading}
+                        >
+                            <IconChevronRight className="h-4 w-4" />
+                        </Button>
+                    </div>
                 </div>
             )}
         </div>

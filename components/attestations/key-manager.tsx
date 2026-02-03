@@ -37,14 +37,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table"
+import { cn } from "@/lib/utils"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -68,7 +61,6 @@ import { generateAttestationKeypair, encryptPrivateKey, encryptString, decryptSt
 import { masterKeyManager } from "@/lib/master-key"
 import { useUser } from "@/components/user-context"
 import { apiClient as api } from "@/lib/api"
-import { cn } from "@/lib/utils"
 
 interface AttestationKey {
     id: string
@@ -313,117 +305,119 @@ export function KeyManager() {
                 </div>
             </div>
 
-            <div className="rounded-md border">
-                <Table>
-                    <TableHeader>
-                        <TableRow className="bg-muted/50 hover:bg-muted/50">
-                            <TableHead className="w-[300px]">Identity Name</TableHead>
-                            <TableHead>Key ID</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Created</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {filteredKeys.length === 0 ? (
-                            <TableRow>
-                                <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
-                                    {loading ? (
-                                        <div className="flex items-center justify-center gap-2">
-                                            <IconLoader2 className="size-4 animate-spin" />
-                                            Loading keys...
-                                        </div>
-                                    ) : (
-                                        "No identities found"
-                                    )}
-                                </TableCell>
-                            </TableRow>
-                        ) : (
-                            filteredKeys.map((key) => {
-                                const isRevoked = !!key.revokedAt;
-                                return (
-                                    <TableRow key={key.id} className={isRevoked ? "bg-muted/30" : ""}>
-                                        <TableCell className="font-medium">
-                                            <div className="flex items-center gap-3">
-                                                <div className={cn("p-2 rounded-full bg-muted", isRevoked && "opacity-50")}>
-                                                    <IconKey className="size-4 text-foreground" />
+            <div className="border rounded-lg overflow-hidden bg-card">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                        <thead className="bg-muted/50 border-b">
+                            <tr>
+                                <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider w-[300px]">Identity Name</th>
+                                <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Key ID</th>
+                                <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Status</th>
+                                <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Created</th>
+                                <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                            {filteredKeys.length === 0 ? (
+                                <tr>
+                                    <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                                        {loading ? (
+                                            <>
+                                                <IconLoader2 className="h-5 w-5 animate-spin mx-auto mb-2" />
+                                                <div>Loading keys...</div>
+                                            </>
+                                        ) : (
+                                            "No identities found"
+                                        )}
+                                    </td>
+                                </tr>
+                            ) : (
+                                filteredKeys.map((key) => {
+                                    const isRevoked = !!key.revokedAt;
+                                    return (
+                                        <tr key={key.id} className={cn("hover:bg-muted/30 transition-colors", isRevoked && "opacity-50")}>
+                                            <td className="px-4 py-3 font-medium">
+                                                <div className="flex items-center gap-3">
+                                                    <div className={cn("p-2 rounded-full bg-muted", isRevoked && "opacity-50")}>
+                                                        <IconKey className="size-4 text-foreground" />
+                                                    </div>
+                                                    <div className="flex flex-col">
+                                                        <span className={cn(isRevoked && "text-muted-foreground line-through")}>{key.name}</span>
+                                                        {isRevoked && <span className="text-xs text-destructive font-medium">Revoked</span>}
+                                                    </div>
                                                 </div>
-                                                <div className="flex flex-col">
-                                                    <span className={cn(isRevoked && "text-muted-foreground line-through")}>{key.name}</span>
-                                                    {isRevoked && <span className="text-xs text-destructive font-medium">Revoked</span>}
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <div className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded w-fit">
+                                                    <span>{key.id.slice(0, 8)}...{key.id.slice(-4)}</span>
                                                 </div>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded w-fit">
-                                                <span>{key.id.slice(0, 8)}...{key.id.slice(-4)}</span>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            {isRevoked ? (
-                                                <div className="inline-flex items-center rounded-full border border-destructive/50 px-2.5 py-0.5 text-xs font-semibold text-destructive transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
-                                                    Revoked
-                                                </div>
-                                            ) : (
-                                                <div className="inline-flex items-center rounded-full border border-transparent bg-emerald-500/15 px-2.5 py-0.5 text-xs font-semibold text-emerald-600 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 dark:bg-emerald-500/25 dark:text-emerald-400">
-                                                    Active
-                                                </div>
-                                            )}
-                                        </TableCell>
-                                        <TableCell className="text-muted-foreground text-sm">
-                                            {new Date(key.createdAt).toLocaleDateString()}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                        <IconDotsVertical className="size-4" />
-                                                        <span className="sr-only">Open menu</span>
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end" className="w-[160px]">
-                                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                    <DropdownMenuItem onClick={() => downloadFile(`${key.name.replace(/\s+/g, '_')}.crt`, key.publicKey, "Public Certificate")}>
-                                                        <IconDownload className="mr-2 size-4" /> Export Public
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => downloadPrivate(key)}>
-                                                        <IconLock className="mr-2 size-4" /> Export Private
-                                                    </DropdownMenuItem>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                {isRevoked ? (
+                                                    <div className="inline-flex items-center rounded-full border border-destructive/50 px-2.5 py-0.5 text-xs font-semibold text-destructive transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
+                                                        Revoked
+                                                    </div>
+                                                ) : (
+                                                    <div className="inline-flex items-center rounded-full border border-transparent bg-emerald-500/15 px-2.5 py-0.5 text-xs font-semibold text-emerald-600 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 dark:bg-emerald-500/25 dark:text-emerald-400">
+                                                        Active
+                                                    </div>
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3 text-muted-foreground text-sm">
+                                                {new Date(key.createdAt).toLocaleDateString()}
+                                            </td>
+                                            <td className="text-right px-4 py-3">
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                            <IconDotsVertical className="size-4" />
+                                                            <span className="sr-only">Open menu</span>
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end" className="w-[160px]">
+                                                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                                        <DropdownMenuItem onClick={() => downloadFile(`${key.name.replace(/\s+/g, '_')}.crt`, key.publicKey, "Public Certificate")}>
+                                                            <IconDownload className="mr-2 size-4" /> Export Public
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => downloadPrivate(key)}>
+                                                            <IconLock className="mr-2 size-4" /> Export Private
+                                                        </DropdownMenuItem>
 
-                                                    {!isRevoked && (
-                                                        <>
-                                                            <DropdownMenuSeparator />
-                                                            <DropdownMenuItem
-                                                                className="text-amber-600 focus:text-amber-600 focus:bg-amber-50 dark:focus:bg-amber-950/20"
-                                                                onClick={() => {
-                                                                    setKeyToRevoke(key);
-                                                                    setIsRevokeDialogOpen(true);
-                                                                }}
-                                                            >
-                                                                <IconBan className="mr-2 size-4" /> Revoke
-                                                            </DropdownMenuItem>
-                                                        </>
-                                                    )}
+                                                        {!isRevoked && (
+                                                            <>
+                                                                <DropdownMenuSeparator />
+                                                                <DropdownMenuItem
+                                                                    className="text-amber-600 focus:text-amber-600 focus:bg-amber-50 dark:focus:bg-amber-950/20"
+                                                                    onClick={() => {
+                                                                        setKeyToRevoke(key);
+                                                                        setIsRevokeDialogOpen(true);
+                                                                    }}
+                                                                >
+                                                                    <IconBan className="mr-2 size-4" /> Revoke
+                                                                </DropdownMenuItem>
+                                                            </>
+                                                        )}
 
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuItem
-                                                        className="text-destructive focus:text-destructive focus:bg-destructive/10"
-                                                        onClick={() => {
-                                                            setKeyToDelete(key);
-                                                            setIsDeleteDialogOpen(true);
-                                                        }}
-                                                    >
-                                                        <IconTrash className="mr-2 size-4" /> Delete
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </TableCell>
-                                    </TableRow>
-                                )
-                            })
-                        )}
-                    </TableBody>
-                </Table>
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem
+                                                            className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                                                            onClick={() => {
+                                                                setKeyToDelete(key);
+                                                                setIsDeleteDialogOpen(true);
+                                                            }}
+                                                        >
+                                                            <IconTrash className="mr-2 size-4" /> Delete
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </td>
+                                        </tr>
+                                    )
+                                })
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             {/* Revoke Dialog */}

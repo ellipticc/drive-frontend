@@ -210,8 +210,7 @@ export function NavMain({
       case 'feedback':
         return IconBubbleTextFilled
       case 'attestations':
-        // No specific filled icon for attestations yet, could use same
-        return item.icon
+        return item.icon // No filled version for main icon
       default:
         return item.icon
     }
@@ -426,8 +425,8 @@ export function NavMain({
                         }}
                         className="absolute right-1 top-1/2 -translate-y-1/2 p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded-sm transition-colors text-muted-foreground/40 hover:text-muted-foreground z-50 flex items-center justify-center cursor-pointer"
                       >
-                        <IconChevronRight
-                          className={cn("size-3.5 shrink-0 transition-transform duration-200", isAttestationsExpanded && "rotate-90")}
+                        <IconChevronDown
+                          className={cn("size-3.5 shrink-0 transition-transform duration-200", !isAttestationsExpanded && "-rotate-90")}
                         />
                       </button>
                     )}
