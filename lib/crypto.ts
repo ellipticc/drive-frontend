@@ -12,7 +12,6 @@ import { ml_kem768 } from '@noble/post-quantum/ml-kem.js';
 export { ml_kem768 };
 import { ml_dsa65 } from '@noble/post-quantum/ml-dsa.js';
 import { xchacha20poly1305 } from '@noble/ciphers/chacha.js';
-import { PerformanceTracker } from './performance-tracker';
 
 // Configure SHA-512 for noble/ed25519
 import * as ed from '@noble/ed25519';
@@ -142,7 +141,6 @@ export async function deriveEncryptionKey(password: string, salt: string): Promi
     outputType: 'binary'
   });
   const end = performance.now();
-  PerformanceTracker.trackCryptoOp('argon2id.derive_master_key', end - start);
 
   return hash;
 }
@@ -471,7 +469,6 @@ export async function trackedGenerateAllKeypairs(password: string, providedSalt?
   const start = performance.now();
   const result = await generateAllKeypairs(password, providedSalt);
   const end = performance.now();
-  PerformanceTracker.trackCryptoOp('setup.generate_all_keys', end - start);
   return result;
 }
 
@@ -572,7 +569,6 @@ export async function decryptUserPrivateKeys(
     }
 
     const end = performance.now();
-    PerformanceTracker.trackCryptoOp('login.decrypt_private_keys', end - start);
 
     return {
       ed25519PrivateKey,

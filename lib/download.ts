@@ -11,12 +11,10 @@
 
 import { apiClient } from './api';
 import { paperService } from './paper-service';
-import { PerformanceTracker } from './performance-tracker';
-import { decryptData, uint8ArrayToHex, hexToUint8Array, decryptFilename } from './crypto';
+import { decryptData, hexToUint8Array, decryptFilename } from './crypto';
 import { keyManager, UserKeys, UserKeypairs } from './key-manager';
 import { decompressChunk, CompressionAlgorithm } from './compression';
 import { WorkerPool } from './worker-pool';
-import { xchacha20poly1305 } from '@noble/ciphers/chacha.js';
 import { masterKeyManager } from './master-key';
 import { getTransferQueue } from './transfer-queue';
 
@@ -634,7 +632,6 @@ export async function unwrapCEK(encryption: DownloadEncryption, keypairs: UserKe
   const kyberStart = performance.now();
   const sharedSecret = ml_kem768.decapsulate(kyberCiphertext, keypairs.kyberPrivateKey);
   const kyberEnd = performance.now();
-  PerformanceTracker.trackCryptoOp('kyber.decapsulate', Math.round(kyberEnd - kyberStart));
 
   // Decrypt the CEK using the shared secret
   const decryptedCek = decryptData(wrappedCek, new Uint8Array(sharedSecret), cekNonce);

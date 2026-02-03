@@ -401,7 +401,6 @@ export function SettingsModal({
   const [showRevoked, setShowRevoked] = useState(false)
 
   // Privacy settings state
-  const [usageDiagnosticsEnabled, setUsageDiagnosticsEnabled] = useState(true)
   const [crashReportsEnabled, setCrashReportsEnabled] = useState(true)
 
   // Recovery codes state
@@ -1126,12 +1125,10 @@ export function SettingsModal({
       if (response.success && response.data) {
         setActivityMonitorEnabled(response.data.activityMonitorEnabled)
         setDetailedEventsEnabled(response.data.detailedEventsEnabled)
-        setUsageDiagnosticsEnabled(response.data.usageDiagnosticsEnabled ?? true)
         setCrashReportsEnabled(response.data.crashReportsEnabled ?? true)
 
         // Sync to localStorage for initialization scripts
         if (typeof window !== 'undefined') {
-          localStorage.setItem('privacy_usage_diagnostics', String(response.data.usageDiagnosticsEnabled ?? true))
           localStorage.setItem('privacy_crash_reports', String(response.data.crashReportsEnabled ?? true))
         }
       }
@@ -1147,7 +1144,6 @@ export function SettingsModal({
       const response = await apiClient.updateSecurityPreferences(
         activity,
         detailed,
-        usageDiagnosticsEnabled,
         crashReportsEnabled
       )
       if (response.success) {
@@ -1794,13 +1790,11 @@ export function SettingsModal({
   }
 
   // Handle privacy settings update
-  const handleUpdatePrivacySettings = async (analytics: boolean, crashReports: boolean) => {
+  const handleUpdatePrivacySettings = async (crashReports: boolean) => {
     // Optimistic update
-    setUsageDiagnosticsEnabled(analytics)
     setCrashReportsEnabled(crashReports)
 
     // Store previous values for rollback
-    const prevAnalytics = usageDiagnosticsEnabled
     const prevCrashReports = crashReportsEnabled
 
     try {
@@ -1809,7 +1803,6 @@ export function SettingsModal({
       const response = await apiClient.updateSecurityPreferences(
         activityMonitorEnabled, // These variables are from state in this component scope
         detailedEventsEnabled,
-        analytics,
         crashReports
       )
 
@@ -1817,19 +1810,9 @@ export function SettingsModal({
         throw new Error(response.error || "Failed to persist settings")
       }
 
-      // 3. Update Client-Side Services
-
-      // Google Analytics
-      if (typeof window !== 'undefined' && (window as unknown as { gtag?: unknown }).gtag) {
-        ((window as unknown as { gtag?: unknown }).gtag as (command: string, targetId: string, config: unknown) => void)('consent', 'update', {
-          'analytics_storage': analytics ? 'granted' : 'denied'
-        });
-      }
-
       // Update local storage for privacy settings
       if (typeof window !== 'undefined') {
         localStorage.setItem('privacy_crash_reports', crashReports ? 'true' : 'false');
-        localStorage.setItem('privacy_usage_diagnostics', analytics ? 'true' : 'false');
       }
 
       toast.success("Privacy settings updated");
@@ -1838,7 +1821,6 @@ export function SettingsModal({
       toast.error("Failed to save privacy settings")
 
       // Revert optimistic update
-      setUsageDiagnosticsEnabled(prevAnalytics)
       setCrashReportsEnabled(prevCrashReports)
     }
   }
@@ -2178,7 +2160,6 @@ export function SettingsModal({
                       detailedEventsEnabled={detailedEventsEnabled}
                       activityMonitorEnabled={activityMonitorEnabled}
                       handleUpdateSecurityPreferences={handleUpdateSecurityPreferences}
-                      usageDiagnosticsEnabled={usageDiagnosticsEnabled}
                       crashReportsEnabled={crashReportsEnabled}
                       handleUpdatePrivacySettings={handleUpdatePrivacySettings}
                       showDisableMonitorDialog={showDisableMonitorDialog}

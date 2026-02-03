@@ -290,9 +290,8 @@ interface SecurityTabProps {
     showRevoked: boolean;
     setShowRevoked: (val: boolean) => void;
     // Privacy
-    usageDiagnosticsEnabled: boolean;
     crashReportsEnabled: boolean;
-    handleUpdatePrivacySettings: (analytics: boolean, crashReports: boolean) => void;
+    handleUpdatePrivacySettings: (crashReports: boolean) => void;
     userPlan: string; // Added userPlan
 }
 
@@ -327,7 +326,7 @@ export function SecurityTab(props: SecurityTabProps) {
         securityEvents, isLoadingSecurityEvents, detailedEventsEnabled, activityMonitorEnabled, handleUpdateSecurityPreferences, showDisableMonitorDialog, setShowDisableMonitorDialog, handleWipeSecurityEvents, handleDownloadSecurityEvents, loadSecurityEvents, securityEventsTotal, securityEventsPage, securityEventsHasMore, setSecurityEvents, setSecurityEventsTotal, setSecurityEventsHasMore,
         handleLogout, isLoggingOut, setShowDeleteModal,
         showRevoked, setShowRevoked,
-        usageDiagnosticsEnabled, crashReportsEnabled, handleUpdatePrivacySettings,
+        crashReportsEnabled, handleUpdatePrivacySettings,
         userPlan,
         securityEventsDateRange, setSecurityEventsDateRange,
         securityEventType, setSecurityEventType,
@@ -2530,34 +2529,6 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                         <div className="space-y-0.5">
                             <div className="flex items-center gap-2">
                                 <Label className="text-sm font-semibold">
-                                    Anonymous Performance Tracking
-                                </Label>
-                                <TooltipProvider>
-                                    <Tooltip delayDuration={0}>
-                                        <TooltipTrigger asChild>
-                                            <IconInfoCircle className="h-4 w-4 text-muted-foreground cursor-help" />
-                                        </TooltipTrigger>
-                                        <TooltipContent side="right">
-                                            <p>Helps us optimize encryption speed (no identity or file data revealed)</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                            </div>
-                            <p className="text-xs text-muted-foreground">
-                                Allow collection of anonymous performance metrics
-                            </p>
-                        </div>
-                        <Switch
-                            id="usage-diagnostics"
-                            checked={usageDiagnosticsEnabled}
-                            onCheckedChange={(checked) => handleUpdatePrivacySettings(checked, crashReportsEnabled)}
-                        />
-                    </div>
-
-                    <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30 border border-dashed transition-all">
-                        <div className="space-y-0.5">
-                            <div className="flex items-center gap-2">
-                                <Label className="text-sm font-semibold">
                                     Send crash reports
                                 </Label>
                                 <TooltipProvider>
@@ -2578,7 +2549,7 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                         <Switch
                             id="crash-reports"
                             checked={crashReportsEnabled}
-                            onCheckedChange={(checked) => handleUpdatePrivacySettings(usageDiagnosticsEnabled, checked)}
+                            onCheckedChange={(checked) => handleUpdatePrivacySettings(checked)}
                         />
                     </div>
                 </div>

@@ -13,10 +13,8 @@
 
 import { apiClient } from './api';
 import { uuidv7 } from 'uuidv7-js';
-import { PerformanceTracker } from './performance-tracker';
 import { encryptData, uint8ArrayToHex, hexToUint8Array, encryptFilename, computeFilenameHmac } from './crypto';
 import { keyManager } from './key-manager';
-import { xchacha20poly1305 } from '@noble/ciphers/chacha.js';
 import { createMD5 } from 'hash-wasm';
 import { masterKeyManager } from './master-key';
 import { CompressionAlgorithm, CompressionMetadata } from './compression';
@@ -962,7 +960,6 @@ async function initializeUploadSession(
   const kyberStart = performance.now();
   const kyberEncapsulation = ml_kem768.encapsulate(kyberPublicKeyBytes);
   const kyberEnd = performance.now();
-  PerformanceTracker.trackCryptoOp('kyber.encapsulate', Math.round(kyberEnd - kyberStart));
 
   const kyberSharedSecret = new Uint8Array(kyberEncapsulation.sharedSecret);
   const kyberCiphertext = new Uint8Array(kyberEncapsulation.cipherText); // Note: cipherText not ciphertext

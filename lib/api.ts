@@ -3676,7 +3676,6 @@ class ApiClient {
   async getSecurityPreferences(): Promise<ApiResponse<{
     activityMonitorEnabled: boolean;
     detailedEventsEnabled: boolean;
-    usageDiagnosticsEnabled: boolean;
     crashReportsEnabled: boolean;
   }>> {
     return this.request('/auth/security/preferences', {
@@ -3687,7 +3686,6 @@ class ApiClient {
   async updateSecurityPreferences(
     activityMonitorEnabled: boolean,
     detailedEventsEnabled: boolean,
-    usageDiagnosticsEnabled?: boolean,
     crashReportsEnabled?: boolean
   ): Promise<ApiResponse<{
     success: boolean;
@@ -3698,7 +3696,6 @@ class ApiClient {
       body: JSON.stringify({
         activityMonitorEnabled,
         detailedEventsEnabled,
-        usageDiagnosticsEnabled: usageDiagnosticsEnabled ?? true, // Default to true if not provided (though backend handles it too)
         crashReportsEnabled: crashReportsEnabled ?? true
       }),
     });
