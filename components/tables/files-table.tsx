@@ -7,7 +7,7 @@ import { DotsVertical } from "@untitledui/icons";
 import type { SortDescriptor, Selection } from "react-aria-components";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Button } from "@/components/ui/button";
-import { IconFolderPlus, IconFolderDown, IconFileUpload, IconShare3, IconListDetails, IconDownload, IconFolder, IconEdit, IconInfoCircle, IconTrash, IconChevronRight, IconLink, IconEye, IconLayoutColumns, IconCopy, IconStar, IconStarFilled, IconLoader2, IconGrid3x3, IconLock, IconX, IconStack } from "@tabler/icons-react";
+import { IconFolderPlus, IconFolderDown, IconFileUpload, IconShare3, IconListDetails, IconDownload, IconFolder, IconEdit, IconInfoCircle, IconTrash, IconChevronRight, IconLink, IconEye, IconLayoutColumns, IconCopy, IconStar, IconStarFilled, IconLoader2, IconGrid3x3, IconLock, IconX, IconStack, IconUpload } from "@tabler/icons-react";
 
 import dynamic from "next/dynamic";
 
@@ -86,31 +86,32 @@ import {
 } from "@/components/ui/empty";
 
 /**
- * DropHelper: Fixed bottom center overlay that appears during drag
+ * DropHelper: Contextual drop message that appears only when hovering valid targets
  */
 const DropHelper = ({ folderName, isVisible }: { folderName: string | null; isVisible: boolean }) => {
     const { t } = useLanguage();
     return (
         <AnimatePresence>
-            {isVisible && (
+            {isVisible && folderName && (
                 <motion.div
-                    initial={{ opacity: 0, y: 20, x: "-50%" }}
+                    initial={{ opacity: 0, y: 10, x: "-50%" }}
                     animate={{ opacity: 1, y: 0, x: "-50%" }}
-                    exit={{ opacity: 0, y: 20, x: "-50%" }}
-                    transition={{ duration: 0.2, ease: "easeOut" }}
-                    className="fixed bottom-8 left-1/2 z-[100] flex items-center gap-3 px-6 py-3 bg-primary text-primary-foreground rounded-full shadow-2xl border border-primary/20 backdrop-blur-md"
+                    exit={{ opacity: 0, y: 10, x: "-50%" }}
+                    transition={{ duration: 0.15, ease: "easeOut" }}
+                    className="fixed bottom-8 left-1/2 z-[100] flex items-center gap-2.5 px-4 py-2.5 bg-primary text-primary-foreground rounded-lg shadow-lg border border-primary/30 backdrop-blur-sm"
                 >
-                    <IconFileUpload className="w-5 h-5" />
-                    <span className="text-sm font-medium">
-                        {folderName
-                            ? t("files.dropToMove", { folder: folderName })
-                            : t("files.dragToMove")}
+                    <IconUpload className="w-4 h-4 shrink-0" />
+                    <span className="text-xs font-medium whitespace-nowrap">
+                        <span>Drop to move to </span>
+                        <span className="font-semibold">"</span>
+                        <span className="font-semibold">{folderName}</span>
+                        <span className="font-semibold">"</span>
                     </span>
                 </motion.div>
             )}
         </AnimatePresence>
     );
-};
+}
 
 /**
  * DraggableRow: Wrapper for Table.Row that makes it draggable and optionally droppable
@@ -425,6 +426,7 @@ export const Table01DividerLineSm = ({
     // DND State
     const [activeDragItem, setActiveDragItem] = useState<FileItem | null>(null);
     const [currentDropTarget, setCurrentDropTarget] = useState<FileItem | null>(null);
+    const [isDragging, setIsDragging] = useState(false);
     // Hovered Space (drop target in Nav Spaces)
     const [hoveredSpace, setHoveredSpace] = useState<{ id: string; name: string; el?: Element } | null>(null);
     const hoveredSpaceElRef = useRef<Element | null>(null);
@@ -460,6 +462,7 @@ export const Table01DividerLineSm = ({
         const item = active.data.current?.item as FileItem;
         if (item) {
             setActiveDragItem(item);
+            setIsDragging(true);
         }
 
         // Try an initial detection in case drag starts directly over a Space
@@ -493,7 +496,7 @@ export const Table01DividerLineSm = ({
         const { over } = event;
         const target = over?.data.current?.item as FileItem;
 
-        // Reset any space hover if not over a space
+        // Get current pointer coordinates
         const sensorEvent = (event as any).sensorEvent as PointerEvent | TouchEvent | undefined;
         let clientX: number | undefined, clientY: number | undefined;
         if (sensorEvent) {
@@ -508,7 +511,7 @@ export const Table01DividerLineSm = ({
 
         // Prefer folder targets if available
         if (target && target.type === 'folder' && target.id !== activeDragItem?.id) {
-            // remove any space hover
+            // remove any space hover immediately
             if (hoveredSpaceElRef.current) {
                 hoveredSpaceElRef.current.classList.remove('space-dnd-over');
                 hoveredSpaceElRef.current = null;
@@ -522,9 +525,14 @@ export const Table01DividerLineSm = ({
         if (typeof clientX === 'number' && typeof clientY === 'number') {
             const detected = detectSpaceAtPoint(clientX, clientY);
             if (detected) {
-                // If new space hover, update highlight
-                if (!hoveredSpaceElRef.current || hoveredSpaceElRef.current.getAttribute('data-space-id') !== detected.id) {
-                    if (hoveredSpaceElRef.current) hoveredSpaceElRef.current.classList.remove('space-dnd-over');
+                // Only update if hovering a different space
+                const currentSpaceId = hoveredSpaceElRef.current?.getAttribute('data-space-id');
+                if (currentSpaceId !== detected.id) {
+                    // Remove highlight from previous space immediately
+                    if (hoveredSpaceElRef.current) {
+                        hoveredSpaceElRef.current.classList.remove('space-dnd-over');
+                    }
+                    // Add highlight to new space instantly
                     detected.el.classList.add('space-dnd-over');
                     hoveredSpaceElRef.current = detected.el;
                     setHoveredSpace({ id: detected.id, name: detected.name, el: detected.el });
@@ -535,7 +543,7 @@ export const Table01DividerLineSm = ({
             }
         }
 
-        // Not over folder nor space
+        // Not over folder nor space - clear all highlights immediately
         if (hoveredSpaceElRef.current) {
             hoveredSpaceElRef.current.classList.remove('space-dnd-over');
             hoveredSpaceElRef.current = null;
@@ -547,9 +555,10 @@ export const Table01DividerLineSm = ({
     const handleDragEnd = async (event: DragEndEvent) => {
         const { active, over } = event;
 
-        // Clear drag visuals
+        // Clear all drag visuals immediately
         setActiveDragItem(null);
         setCurrentDropTarget(null);
+        setIsDragging(false);
 
         // If we were hovering a space, handle space drop
         // If hoveredSpace is not set for some reason, attempt final detection at pointer location
@@ -4390,7 +4399,7 @@ export const Table01DividerLineSm = ({
             />
 
             <ActionBar
-                open={selectedItems.size > 0}
+                open={selectedItems.size > 0 && !isDragging}
                 onOpenChange={(open) => {
                     if (!open) setSelectedItems(new Set());
                 }}
