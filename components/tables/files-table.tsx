@@ -430,7 +430,8 @@ export const Table01DividerLineSm = ({
     const hoveredSpaceElRef = useRef<Element | null>(null);
 
     // Cursor tracking for DropHelper
-    const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
+    // Cursor tracking for DropHelper - REMOVED for performance (unused)
+
 
     // Global drag state effects
     useEffect(() => {
@@ -451,31 +452,9 @@ export const Table01DividerLineSm = ({
     }, [isDragging]);
 
     // Optimized shared refs
-    const lastDragMoveTime = useRef(0);
-    const dragAnimationFrameId = useRef<number | null>(null);
+    // Performance: Throttle cursor state updates - REMOVED (cursorPos was unused and causing re-renders)
+    // handleDragMove was responsible for 60fps re-renders of the whole table.
 
-    // Performance: Throttle cursor state updates
-    const handleDragMove = (event: React.DragEvent | any) => {
-        // Use requestAnimationFrame for smooth cursor/UI updates
-        if (dragAnimationFrameId.current) {
-            cancelAnimationFrame(dragAnimationFrameId.current);
-        }
-
-        dragAnimationFrameId.current = requestAnimationFrame(() => {
-            const sensorEvent = event.sensorEvent;
-            if (sensorEvent) {
-                let x = 0, y = 0;
-                if (sensorEvent instanceof MouseEvent || sensorEvent instanceof PointerEvent) {
-                    x = sensorEvent.clientX;
-                    y = sensorEvent.clientY;
-                } else if (sensorEvent instanceof TouchEvent && sensorEvent.touches.length > 0) {
-                    x = sensorEvent.touches[0].clientX;
-                    y = sensorEvent.touches[0].clientY;
-                }
-                setCursorPos({ x, y });
-            }
-        });
-    };
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -541,13 +520,7 @@ export const Table01DividerLineSm = ({
     };
 
     const handleDragOver = (event: DragOverEvent) => {
-        // Debounce expensive DOM calculations
-        const now = performance.now();
-        if (now - lastDragMoveTime.current < 16) { // ~60fps Limit
-            return;
-        }
-        lastDragMoveTime.current = now;
-
+        // Debounce removed to prevent state lag, relying on efficient DOM detection
         const { over } = event;
         const target = over?.data.current?.item as FileItem;
 
@@ -3511,7 +3484,6 @@ export const Table01DividerLineSm = ({
                                 sensors={sensors}
                                 onDragStart={handleDragStart}
                                 onDragOver={handleDragOver}
-                                onDragMove={handleDragMove}
                                 onDragEnd={handleDragEnd}
                             >
                                 <div className={cn("w-full relative", isDragging && "table-drag-boundary")}>
@@ -3789,14 +3761,11 @@ export const Table01DividerLineSm = ({
                                     modifiers={isMobile ? [] : [snapCenterToCursor]}
                                     dropAnimation={null}
                                 >
-                                    {activeDragItem && (
-                                        <div className={cx(
-                                            "bg-primary/95 text-primary-foreground border border-primary/20 rounded-md shadow-lg px-2.5 py-1.5 flex items-center gap-2 pointer-events-none max-w-[160px]",
-                                            !isMobile && "scale-95 backdrop-blur-sm"
-                                        )}>
-                                            <div className="flex-shrink-0">
+                                    {activeDragItem && isDragging && (
+                                        <div className="bg-card/90 backdrop-blur-sm border border-border/50  rounded-lg shadow-2xl p-3 flex items-center gap-3 w-64 pointer-events-none relative z-50">
+                                            <div className="flex h-10 w-10 items-center justify-center rounded-md border border-border bg-background">
                                                 {activeDragItem.type === 'folder' ? (
-                                                    <IconFolder className="h-3.5 w-3.5" />
+                                                    <IconFolder className="h-6 w-6 text-blue-500" />
                                                 ) : (
                                                     <FileIcon mimeType={activeDragItem.mimeType} filename={activeDragItem.name} className="h-3.5 w-3.5" />
                                                 )}
@@ -3818,6 +3787,7 @@ export const Table01DividerLineSm = ({
                                     isVisible={!!currentDropTarget || !!hoveredSpace}
                                     folderName={currentDropTarget?.name || hoveredSpace?.name || null}
                                 />
+
                             </DndContext>
                         ) : (
                             // Grid View
