@@ -80,8 +80,8 @@
   --primary-foreground: oklch(0.985 0.001 106.423);
   --secondary: oklch(0.97 0.001 106.424);
   --secondary-foreground: oklch(0.216 0.006 56.043);
-  --muted: oklch(0.97 0.001 106.424);
-  --muted-foreground: oklch(0.553 0.013 58.071);
+  --muted: oklch(0.946 0.002 106.424);
+  --muted-foreground: oklch(0.45 0.02 58.071);
   --accent: oklch(0.97 0.001 106.424);
   --accent-foreground: oklch(0.216 0.006 56.043);
   --destructive: oklch(0.577 0.245 27.325);
@@ -103,21 +103,6 @@
   --sidebar-accent-foreground: oklch(0.216 0.006 56.043);
   --sidebar-border: oklch(0.923 0.003 48.717);
   --sidebar-ring: oklch(0.709 0.01 56.259);
-}
-
-/* Tabs: improve active/hover visibility on light theme */
-:root [data-slot="tabs-trigger"] {
-  transition: color .12s ease, border-color .12s ease;
-}
-:root [data-slot="tabs-trigger"][data-state="active"] {
-  color: var(--primary);
-  background: transparent;
-  box-shadow: none;
-  border-bottom: 2px solid var(--primary);
-  border-radius: 0;
-}
-:root [data-slot="tabs-trigger"]:hover {
-  color: var(--primary);
 }
 
 .dark {
