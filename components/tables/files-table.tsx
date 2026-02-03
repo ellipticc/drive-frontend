@@ -111,6 +111,39 @@ const DropHelper = ({ folderName, isVisible }: { folderName: string | null; isVi
     );
 }
 
+const AutoScroller = () => {
+    useDndMonitor({
+        onDragMove(event) {
+            const sensorEvent = (event as any).sensorEvent;
+            if (!sensorEvent) return;
+
+            // Get coordinates based on event type
+            let clientY = 0;
+            if (sensorEvent instanceof MouseEvent || sensorEvent instanceof PointerEvent) {
+                clientY = sensorEvent.clientY;
+            } else if (sensorEvent instanceof TouchEvent && sensorEvent.touches.length > 0) {
+                clientY = sensorEvent.touches[0].clientY;
+            } else {
+                return;
+            }
+
+            const SCROLL_ZONE_SIZE = 100;
+            const SCROLL_SPEED = 15;
+            const viewportHeight = window.innerHeight;
+
+            // Scroll down
+            if (viewportHeight - clientY < SCROLL_ZONE_SIZE) {
+                window.scrollBy({ top: SCROLL_SPEED, behavior: 'auto' });
+            }
+            // Scroll up
+            else if (clientY < SCROLL_ZONE_SIZE) {
+                window.scrollBy({ top: -SCROLL_SPEED, behavior: 'auto' });
+            }
+        },
+    });
+    return null;
+};
+
 /**
  * DraggableRow: Wrapper for Table.Row that makes it draggable and optionally droppable
  */
@@ -451,37 +484,6 @@ export const Table01DividerLineSm = ({
             appMain.classList.remove('global-drag-active');
         };
     }, [isDragging]);
-
-    // Auto-scroll logic
-    useDndMonitor({
-        onDragMove(event) {
-            const sensorEvent = (event as any).sensorEvent;
-            if (!sensorEvent) return;
-
-            // Get coordinates based on event type
-            let clientY = 0;
-            if (sensorEvent instanceof MouseEvent || sensorEvent instanceof PointerEvent) {
-                clientY = sensorEvent.clientY;
-            } else if (sensorEvent instanceof TouchEvent && sensorEvent.touches.length > 0) {
-                clientY = sensorEvent.touches[0].clientY;
-            } else {
-                return;
-            }
-
-            const SCROLL_ZONE_SIZE = 100;
-            const SCROLL_SPEED = 15;
-            const viewportHeight = window.innerHeight;
-
-            // Scroll down
-            if (viewportHeight - clientY < SCROLL_ZONE_SIZE) {
-                window.scrollBy({ top: SCROLL_SPEED, behavior: 'auto' });
-            }
-            // Scroll up
-            else if (clientY < SCROLL_ZONE_SIZE) {
-                window.scrollBy({ top: -SCROLL_SPEED, behavior: 'auto' });
-            }
-        },
-    });
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -3812,7 +3814,7 @@ export const Table01DividerLineSm = ({
                                     isVisible={!!currentDropTarget || !!hoveredSpace}
                                     folderName={currentDropTarget?.name || hoveredSpace?.name || null}
                                 />
-
+                                <AutoScroller />
                             </DndContext>
                         ) : (
                             // Grid View
