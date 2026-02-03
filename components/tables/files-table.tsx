@@ -88,29 +88,21 @@ import {
 /**
  * DropHelper: Contextual drop message that appears only when hovering valid targets
  */
-const DropHelper = ({ folderName, isVisible, cursorX, cursorY }: { folderName: string | null; isVisible: boolean; cursorX: number; cursorY: number }) => {
+const DropHelper = ({ folderName, isVisible }: { folderName: string | null; isVisible: boolean }) => {
     return (
         <AnimatePresence>
             {isVisible && folderName && (
                 <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    transition={{ duration: 0.1 }}
-                    style={{
-                        position: 'fixed',
-                        left: cursorX,
-                        top: cursorY,
-                        transform: 'translate(-50%, 20px)', // Offset below cursor
-                        pointerEvents: 'none',
-                        zIndex: 10000
-                    }}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-primary text-primary-foreground rounded-md shadow-xl border border-primary/20 backdrop-blur-md"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    transition={{ duration: 0.12, ease: "easeOut" }}
+                    className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-lg shadow-2xl border border-primary/30 backdrop-blur-md"
                 >
-                    <IconUpload className="w-3.5 h-3.5 shrink-0" />
-                    <span className="text-xs font-medium whitespace-nowrap flex items-center gap-1">
-                        <span>Drop to move to</span>
-                        <span className="font-bold underline decoration-primary-foreground/30 underline-offset-2">"{folderName}"</span>
+                    <IconUpload className="w-4 h-4 shrink-0" />
+                    <span className="text-sm font-medium whitespace-nowrap">
+                        <span>Drop to move to </span>
+                        <span className="font-bold">"{folderName}"</span>
                     </span>
                 </motion.div>
             )}
@@ -185,13 +177,11 @@ const DraggableDroppableRow = React.memo(React.forwardRef<HTMLTableRowElement, {
             style={style}
             {...attributes}
             {...listeners}
+            data-droppable={item.type === 'folder' ? 'true' : undefined}
             className={cx(
                 props.className,
-                // Use outline-offset to ensure lines are INSIDE the row boundary, preventing any layout shift
-                // Use outline-offset to ensure lines are INSIDE the row boundary, preventing any layout shift
-                // matched to sidebar "pointed border" style (transparent bg, strong border)
-                isOver && "relative z-20 outline outline-2 outline-primary -outline-offset-2",
-                // Remove background color for "pointed border" feel, or keep very subtle if needed. User asked for "No full rectangle background".
+                // Pointed border indicator for folders when hovering
+                isOver && item.type === 'folder' && "space-dnd-over",
                 isDragging && "opacity-50"
             )}
             onContextMenu={(e) => onContextMenu(e, item)}
@@ -3502,10 +3492,9 @@ export const Table01DividerLineSm = ({
                                 sensors={sensors}
                                 onDragStart={handleDragStart}
                                 onDragOver={handleDragOver}
-                                onDragMove={handleDragMove}
                                 onDragEnd={handleDragEnd}
                             >
-                                <div className="w-full relative">
+                                <div className={cn("w-full relative", isDragging && "table-drag-boundary")}>
                                     <Table size="sm" aria-label="Files" selectionMode="multiple" selectionBehavior="replace" sortDescriptor={sortDescriptor} onSortChange={setSortDescriptor} selectedKeys={selectedItems} onSelectionChange={handleTableSelectionChange}
                                         onContextMenu={(e: React.MouseEvent) => handleContextMenu(e)}
                                     >
@@ -3808,8 +3797,6 @@ export const Table01DividerLineSm = ({
                                 <DropHelper
                                     isVisible={!!currentDropTarget || !!hoveredSpace}
                                     folderName={currentDropTarget?.name || hoveredSpace?.name || null}
-                                    cursorX={cursorPos.x}
-                                    cursorY={cursorPos.y}
                                 />
                             </DndContext>
                         ) : (
@@ -4054,33 +4041,6 @@ export const Table01DividerLineSm = ({
                                 )}
                             </div>
                         )}
-                    </div>
-                )
-                }
-                {/* Pagination Controls */}
-                {totalPages > 1 && (
-                    <div className="flex items-center justify-between px-4 py-3 border-t bg-card rounded-b-lg">
-                        <div className="text-sm text-muted-foreground">
-                            Page {page} of {totalPages} ({totalItems} items)
-                        </div>
-                        <div className="flex gap-2">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setPage(p => Math.max(1, p - 1))}
-                                disabled={page === 1 || isLoading}
-                            >
-                                Previous
-                            </Button>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                                disabled={page === totalPages || isLoading}
-                            >
-                                Next
-                            </Button>
-                        </div>
                     </div>
                 )}
             </TableCard.Root>
@@ -4489,7 +4449,7 @@ export const Table01DividerLineSm = ({
                     <IconX className="h-4 w-4" />
                 </ActionBarClose>
             </ActionBar>
-        </div>
+        </div >
     );
 
 };

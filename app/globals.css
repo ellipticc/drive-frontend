@@ -1091,48 +1091,42 @@
   }
 }
 
-/* Global Drop Zone Boundary */
-.global-drag-active {
-  position: relative;
-}
-
-.global-drag-active::before {
+/* Table Drop Zone Boundary - ONLY for table container */
+.table-drag-boundary::before {
   content: "";
-  position: fixed;
-  inset: 16px;
-  z-index: 9999;
+  position: absolute;
+  inset: 0;
+  z-index: 1;
   pointer-events: none;
   border: 2px dashed var(--primary);
   border-radius: var(--radius-lg);
-  opacity: 0.4;
-  animation: border-dance 4s linear infinite;
+  opacity: 0.5;
+  animation: border-dance 3s linear infinite;
   background: transparent;
 }
 
 @keyframes border-dance {
   0% {
-    opacity: 0.3;
+    opacity: 0.4;
   }
 
   50% {
-    opacity: 0.6;
+    opacity: 0.7;
   }
 
   100% {
-    opacity: 0.3;
+    opacity: 0.4;
   }
 }
 
-/* Cursor override during drag */
+/* Cursor override during drag - forbidden by default */
+body.is-dragging-files,
 body.is-dragging-files * {
-  cursor: grabbing !important;
+  cursor: not-allowed !important;
 }
 
-/* Drop Helper - Floating Message */
-.drop-helper-custom {
-  position: fixed;
-  pointer-events: none;
-  z-index: 10000;
-  transform: translate(-50%, -100%);
-  margin-top: -12px;
+/* Allow cursor on valid drop targets (folders and spaces) */
+body.is-dragging-files [data-droppable="true"],
+body.is-dragging-files [data-space-id] {
+  cursor: grab !important;
 }
