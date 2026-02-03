@@ -1045,38 +1045,25 @@
 .space-dnd-over {
   position: relative;
   z-index: 50;
-  border-radius: var(--radius);
+  /* Ensure the element itself shows the border if possible, or use after for overlay */
 }
 
+/* Delimiting rectangle for Space drop targets */
 .space-dnd-over::after {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: var(--radius);
   pointer-events: none;
-  /* "Pointed border indicators" - Solid border with animation */
-  border: 2px solid var(--primary);
+  border: 2px dashed var(--primary);
   background-color: transparent;
-  animation: dnd-pulse 1.5s infinite;
+  box-shadow: 0 0 0 2px var(--background);
+  /* separation from content */
 }
 
 /* Success flash */
 .space-dnd-success {
   animation: dnd-success 0.5s ease-out forwards;
-}
-
-@keyframes dnd-pulse {
-  0% {
-    box-shadow: 0 0 0 0px var(--primary);
-  }
-
-  50% {
-    box-shadow: 0 0 0 2px var(--primary);
-  }
-
-  100% {
-    box-shadow: 0 0 0 4px transparent;
-  }
 }
 
 @keyframes dnd-success {

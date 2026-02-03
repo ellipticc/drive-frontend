@@ -64,6 +64,7 @@ import {
     DragStartEvent,
     DragOverEvent,
     DragEndEvent,
+    useDndMonitor,
 } from "@dnd-kit/core";
 import { snapCenterToCursor } from "@dnd-kit/modifiers";
 import { AnimatePresence, motion } from "motion/react";
@@ -451,10 +452,36 @@ export const Table01DividerLineSm = ({
         };
     }, [isDragging]);
 
-    // Optimized shared refs
-    // Performance: Throttle cursor state updates - REMOVED (cursorPos was unused and causing re-renders)
-    // handleDragMove was responsible for 60fps re-renders of the whole table.
+    // Auto-scroll logic
+    useDndMonitor({
+        onDragMove(event) {
+            const sensorEvent = (event as any).sensorEvent;
+            if (!sensorEvent) return;
 
+            // Get coordinates based on event type
+            let clientY = 0;
+            if (sensorEvent instanceof MouseEvent || sensorEvent instanceof PointerEvent) {
+                clientY = sensorEvent.clientY;
+            } else if (sensorEvent instanceof TouchEvent && sensorEvent.touches.length > 0) {
+                clientY = sensorEvent.touches[0].clientY;
+            } else {
+                return;
+            }
+
+            const SCROLL_ZONE_SIZE = 100;
+            const SCROLL_SPEED = 15;
+            const viewportHeight = window.innerHeight;
+
+            // Scroll down
+            if (viewportHeight - clientY < SCROLL_ZONE_SIZE) {
+                window.scrollBy({ top: SCROLL_SPEED, behavior: 'auto' });
+            }
+            // Scroll up
+            else if (clientY < SCROLL_ZONE_SIZE) {
+                window.scrollBy({ top: -SCROLL_SPEED, behavior: 'auto' });
+            }
+        },
+    });
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -3762,24 +3789,22 @@ export const Table01DividerLineSm = ({
                                     dropAnimation={null}
                                 >
                                     {activeDragItem && isDragging && (
-                                        <div className="bg-card/90 backdrop-blur-sm border border-border/50  rounded-lg shadow-2xl p-3 flex items-center gap-3 w-64 pointer-events-none relative z-50">
-                                            <div className="flex h-10 w-10 items-center justify-center rounded-md border border-border bg-background">
+                                        <div className="bg-primary text-primary-foreground border border-primary/20 rounded-md shadow-lg px-3 py-1.5 flex items-center gap-2 pointer-events-none z-50 whitespace-nowrap">
+                                            <div className="flex-shrink-0">
                                                 {activeDragItem.type === 'folder' ? (
-                                                    <IconFolder className="h-6 w-6 text-blue-500" />
+                                                    <IconFolder className="h-4 w-4" />
                                                 ) : (
-                                                    <FileIcon mimeType={activeDragItem.mimeType} filename={activeDragItem.name} className="h-3.5 w-3.5" />
+                                                    <FileIcon mimeType={activeDragItem.mimeType} filename={activeDragItem.name} className="h-4 w-4" />
                                                 )}
                                             </div>
-                                            <div className="flex flex-col min-w-0">
-                                                <span className="text-[11px] font-semibold truncate leading-tight">
-                                                    {activeDragItem.name}
+                                            <span className="text-xs font-semibold max-w-[150px] truncate">
+                                                {activeDragItem.name}
+                                            </span>
+                                            {selectedItems.size > 1 && selectedItems.has(activeDragItem.id) && (
+                                                <span className="text-[10px] opacity-90 font-medium bg-primary-foreground/20 px-1 rounded-sm ml-1">
+                                                    +{selectedItems.size - 1}
                                                 </span>
-                                                {selectedItems.size > 1 && selectedItems.has(activeDragItem.id) && (
-                                                    <span className="text-[9px] opacity-80 font-medium">
-                                                        +{selectedItems.size - 1} {t("files.moreItems")}
-                                                    </span>
-                                                )}
-                                            </div>
+                                            )}
                                         </div>
                                     )}
                                 </DragOverlay>
