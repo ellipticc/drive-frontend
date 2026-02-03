@@ -425,6 +425,7 @@ const BillingPage = () => {
   const [leftPlanIdx, setLeftPlanIdx] = useState(0); // Default: Free
   const [rightPlanIdx, setRightPlanIdx] = useState(2); // Default: Pro
   const [isMobileView, setIsMobileView] = useState(false);
+  const plansToShow = isMobileView ? [staticPlans[leftPlanIdx], staticPlans[rightPlanIdx]] : staticPlans;
   const scrollRef = React.useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -747,17 +748,17 @@ const BillingPage = () => {
             )}
 
             <FormCard className="shadow-sm border-primary/5">
-              <div className="w-full">
+              <div className="w-full overflow-hidden rounded-t-xl">
                 <PricingTable className={cn("w-full transition-all duration-300", isMobileView ? "table-fixed min-w-[320px]" : "table-fixed min-w-[1000px]")}>
                   <TableHeader>
-                    <TableRow className="hover:bg-transparent border-b">
+                    <TableRow className="bg-muted/50 border-b">
                       <TableHead className={cn(
-                        "py-12 px-6 text-sm font-medium text-muted-foreground border-r text-left align-middle bg-background transition-all duration-300 relative",
+                        "py-12 px-6 text-sm font-medium text-muted-foreground border-r text-left align-middle bg-muted/50 transition-all duration-300 rounded-tl-lg relative",
                         isMobileView ? "w-[40%] text-xs px-3 whitespace-normal break-words" : "w-[20%]"
                       )}>
                         Features comparison
                       </TableHead>
-                      {(isMobileView ? [staticPlans[leftPlanIdx], staticPlans[rightPlanIdx]] : staticPlans).map((plan, index) => {
+                      {plansToShow.map((plan, index) => {
                         const isCurrent = plan.id === currentPlanObj.id;
                         const price = frequency === 'monthly' ? plan.price.monthly : plan.price.yearlyEquivalent;
                         const isUpgrade = plan.rank > currentPlanObj.rank;
@@ -765,8 +766,9 @@ const BillingPage = () => {
 
                         return (
                           <TableHead key={`${plan.id}-${index}`} className={cn(
-                            "text-center py-8 align-top transition-all duration-300 bg-background relative",
+                            "text-center py-8 align-top transition-all duration-300 bg-muted/50 relative",
                             isMobileView ? "w-[30%] px-1" : "w-[20%] px-4",
+                            index === plansToShow.length - 1 && "rounded-tr-lg",
                             plan.id === 'pro' && "border-x border-primary/10 after:absolute after:inset-y-0 after:left-0 after:w-px after:bg-primary/10 after:content-[''] before:absolute before:inset-y-0 before:right-0 before:w-px before:bg-primary/10 before:content-['']"
                           )}>
                             <div className="flex flex-col gap-4 items-center w-full">
