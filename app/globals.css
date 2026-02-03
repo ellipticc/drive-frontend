@@ -1091,19 +1091,35 @@
   }
 }
 
-/* Table Drop Zone Boundary - ONLY for table container */
-.table-drag-boundary::before {
+/* Table Drop Zone Boundary - Top + Body */
+.table-drag-boundary::before,
+.table-drag-boundary::after {
   content: "";
   position: absolute;
-  inset: 0;
-  z-index: 1;
+  z-index: 10;
   pointer-events: none;
   border: 2px dashed var(--primary);
-  border-radius: var(--radius-lg);
   opacity: 0.5;
   animation: border-dance 3s linear infinite;
   background: transparent;
 }
+
+/* Body boundary */
+.table-drag-boundary::after {
+  inset: 0;
+  border-radius: var(--radius-lg);
+}
+
+/* Top header boundary - Creates a delimiter line at the top */
+.table-drag-boundary::before {
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  border: none;
+  border-top: 2px dashed var(--primary);
+}
+
 
 @keyframes border-dance {
   0% {
@@ -1125,8 +1141,10 @@ body.is-dragging-files * {
   cursor: not-allowed !important;
 }
 
-/* Allow cursor on valid drop targets (folders and spaces) */
+/* Allow cursor on valid drop targets (folders and spaces) AND their children */
 body.is-dragging-files [data-droppable="true"],
-body.is-dragging-files [data-space-id] {
+body.is-dragging-files [data-droppable="true"] *,
+body.is-dragging-files [data-space-id],
+body.is-dragging-files [data-space-id] * {
   cursor: grab !important;
 }

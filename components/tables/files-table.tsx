@@ -450,20 +450,31 @@ export const Table01DividerLineSm = ({
         };
     }, [isDragging]);
 
+    // Optimized shared refs
+    const lastDragMoveTime = useRef(0);
+    const dragAnimationFrameId = useRef<number | null>(null);
+
+    // Performance: Throttle cursor state updates
     const handleDragMove = (event: React.DragEvent | any) => {
-        const { delta, active } = event;
-        const sensorEvent = event.sensorEvent;
-        if (sensorEvent) {
-            let x = 0, y = 0;
-            if (sensorEvent instanceof MouseEvent || sensorEvent instanceof PointerEvent) {
-                x = sensorEvent.clientX;
-                y = sensorEvent.clientY;
-            } else if (sensorEvent instanceof TouchEvent && sensorEvent.touches.length > 0) {
-                x = sensorEvent.touches[0].clientX;
-                y = sensorEvent.touches[0].clientY;
-            }
-            setCursorPos({ x, y });
+        // Use requestAnimationFrame for smooth cursor/UI updates
+        if (dragAnimationFrameId.current) {
+            cancelAnimationFrame(dragAnimationFrameId.current);
         }
+
+        dragAnimationFrameId.current = requestAnimationFrame(() => {
+            const sensorEvent = event.sensorEvent;
+            if (sensorEvent) {
+                let x = 0, y = 0;
+                if (sensorEvent instanceof MouseEvent || sensorEvent instanceof PointerEvent) {
+                    x = sensorEvent.clientX;
+                    y = sensorEvent.clientY;
+                } else if (sensorEvent instanceof TouchEvent && sensorEvent.touches.length > 0) {
+                    x = sensorEvent.touches[0].clientX;
+                    y = sensorEvent.touches[0].clientY;
+                }
+                setCursorPos({ x, y });
+            }
+        });
     };
 
     const sensors = useSensors(
@@ -530,10 +541,17 @@ export const Table01DividerLineSm = ({
     };
 
     const handleDragOver = (event: DragOverEvent) => {
+        // Debounce expensive DOM calculations
+        const now = performance.now();
+        if (now - lastDragMoveTime.current < 16) { // ~60fps Limit
+            return;
+        }
+        lastDragMoveTime.current = now;
+
         const { over } = event;
         const target = over?.data.current?.item as FileItem;
 
-        // Get current pointer coordinates
+        // Get current pointer coordinates from sensor
         const sensorEvent = (event as any).sensorEvent as PointerEvent | TouchEvent | undefined;
         let clientX: number | undefined, clientY: number | undefined;
         if (sensorEvent) {
@@ -546,47 +564,48 @@ export const Table01DividerLineSm = ({
             }
         }
 
-        // Prefer folder targets if available
+        // 1. Prefer direct folder targets first (closest center strategy handled by dnd-kit usually)
         if (target && target.type === 'folder' && target.id !== activeDragItem?.id) {
-            // remove any space hover immediately
+            // Check if we need to clean up space hover
             if (hoveredSpaceElRef.current) {
                 hoveredSpaceElRef.current.classList.remove('space-dnd-over');
                 hoveredSpaceElRef.current = null;
                 setHoveredSpace(null);
             }
-            setCurrentDropTarget(target);
+            if (currentDropTarget?.id !== target.id) {
+                setCurrentDropTarget(target);
+            }
             return;
         }
 
-        // If pointer coordinates available, test for space element under cursor
+        // 2. Fallback: Raycast for "Spaces" in the sidebar
         if (typeof clientX === 'number' && typeof clientY === 'number') {
             const detected = detectSpaceAtPoint(clientX, clientY);
             if (detected) {
-                // Only update if hovering a different space
-                const currentSpaceId = hoveredSpaceElRef.current?.getAttribute('data-space-id');
-                if (currentSpaceId !== detected.id) {
-                    // Remove highlight from previous space immediately
+                // Only update if hovering a different space or previously wasn't hovering one
+                if (hoveredSpaceElRef.current !== detected.el) {
+                    // Remove highlight from previous
                     if (hoveredSpaceElRef.current) {
                         hoveredSpaceElRef.current.classList.remove('space-dnd-over');
                     }
-                    // Add highlight to new space instantly
+                    // Highlight new
                     detected.el.classList.add('space-dnd-over');
                     hoveredSpaceElRef.current = detected.el;
                     setHoveredSpace({ id: detected.id, name: detected.name, el: detected.el });
                 }
-                // clear folder drop target
-                setCurrentDropTarget(null);
+
+                if (currentDropTarget) setCurrentDropTarget(null); // Clear folder drop
                 return;
             }
         }
 
-        // Not over folder nor space - clear all highlights immediately
+        // 3. Cleanup if nothing hit
         if (hoveredSpaceElRef.current) {
             hoveredSpaceElRef.current.classList.remove('space-dnd-over');
             hoveredSpaceElRef.current = null;
             setHoveredSpace(null);
         }
-        setCurrentDropTarget(null);
+        if (currentDropTarget) setCurrentDropTarget(null);
     };
 
     const handleDragEnd = async (event: DragEndEvent) => {
@@ -3492,6 +3511,7 @@ export const Table01DividerLineSm = ({
                                 sensors={sensors}
                                 onDragStart={handleDragStart}
                                 onDragOver={handleDragOver}
+                                onDragMove={handleDragMove}
                                 onDragEnd={handleDragEnd}
                             >
                                 <div className={cn("w-full relative", isDragging && "table-drag-boundary")}>

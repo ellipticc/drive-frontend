@@ -241,6 +241,8 @@ export function NavMain({
                       isActive={pathname === item.url}
                       onClick={() => handleNavigate(item.url)}
                       className="cursor-pointer"
+                      data-space-id={item.id}
+                      data-space-name={item.title}
                     >
                       {(() => {
                         const isActive = pathname === item.url
@@ -503,6 +505,8 @@ export function NavMain({
                   isActive={pathname === item.url}
                   onClick={() => handleNavigate(item.url)}
                   className="cursor-pointer"
+                  data-space-id={item.id}
+                  data-space-name={item.title}
                 >
                   {(() => {
                     const isActive = pathname === item.url
