@@ -105,6 +105,21 @@
   --sidebar-ring: oklch(0.709 0.01 56.259);
 }
 
+/* Tabs: improve active/hover visibility on light theme */
+:root [data-slot="tabs-trigger"] {
+  transition: color .12s ease, border-color .12s ease;
+}
+:root [data-slot="tabs-trigger"][data-state="active"] {
+  color: var(--primary);
+  background: transparent;
+  box-shadow: none;
+  border-bottom: 2px solid var(--primary);
+  border-radius: 0;
+}
+:root [data-slot="tabs-trigger"]:hover {
+  color: var(--primary);
+}
+
 .dark {
   --background: oklch(0.184 0.004 49.25);
   --foreground: oklch(0.985 0.001 106.423);
