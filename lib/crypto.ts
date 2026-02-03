@@ -12,6 +12,7 @@ import { ml_kem768 } from '@noble/post-quantum/ml-kem.js';
 export { ml_kem768 };
 import { ml_dsa65 } from '@noble/post-quantum/ml-dsa.js';
 import { xchacha20poly1305 } from '@noble/ciphers/chacha.js';
+import { filenameCache } from './filename-cache';
 
 // Configure SHA-512 for noble/ed25519
 import * as ed from '@noble/ed25519';
@@ -642,6 +643,27 @@ export async function encryptFilename(filename: string, masterKey: Uint8Array): 
     encryptedFilename: uint8ArrayToBase64(encryptedFilenameBytes) + ':' + uint8ArrayToBase64(filenameNonce),
     filenameSalt: uint8ArrayToBase64(filenameSalt)
   };
+}
+
+/**
+ * Cached version of decryptFilename - checks cache first for performance
+ * 
+ * @param encryptedFilename - Encrypted filename with embedded nonce (format: "encrypted:nonce" in base64)
+ * @param filenameSalt - Salt stored in database (base64)
+ * @param masterKey - User's master encryption key (32 bytes)
+ * @returns Plaintext filename
+ */
+export async function getCachedDecryptedFilename(encryptedFilename: string, filenameSalt: string, masterKey: Uint8Array): Promise<string> {
+  // Check cache first
+  const cached = filenameCache.get(encryptedFilename, filenameSalt);
+  if (cached) {
+    return cached;
+  }
+
+  // Decrypt and cache
+  const decrypted = await decryptFilename(encryptedFilename, filenameSalt, masterKey);
+  filenameCache.set(encryptedFilename, filenameSalt, decrypted);
+  return decrypted;
 }
 
 /**

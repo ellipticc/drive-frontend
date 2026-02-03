@@ -11,8 +11,46 @@ import { FileIcon } from "@/components/file-icon";
 
 // Global cache for thumbnails to prevent re-fetching/decrypting
 // Key: fileId
-// Value: { url: blobUrl, refCount: number, timeout: NodeJS.Timeout }
-const thumbnailCache = new Map<string, { url: string; refCount: number; timeout?: NodeJS.Timeout }>();
+// Value: { url: blobUrl, refCount: number, timeout: NodeJS.Timeout, lastAccessed: number }
+const thumbnailCache = new Map<string, { url: string; refCount: number; timeout?: NodeJS.Timeout; lastAccessed: number }>();
+
+// Maximum number of thumbnails to cache
+const MAX_THUMBNAIL_CACHE_SIZE = 100;
+
+// LRU eviction: remove oldest accessed entries when cache is full
+function evictOldestThumbnails() {
+  if (thumbnailCache.size <= MAX_THUMBNAIL_CACHE_SIZE) return;
+
+  // Convert to array and sort by lastAccessed (oldest first)
+  const entries = Array.from(thumbnailCache.entries())
+    .sort(([,a], [,b]) => a.lastAccessed - b.lastAccessed);
+
+  // Remove oldest entries until we're under the limit
+  const toRemove = entries.slice(0, thumbnailCache.size - MAX_THUMBNAIL_CACHE_SIZE + 10); // Remove 10 extra to prevent frequent evictions
+
+  for (const [fileId] of toRemove) {
+    const entry = thumbnailCache.get(fileId);
+    if (entry) {
+      if (entry.timeout) clearTimeout(entry.timeout);
+      URL.revokeObjectURL(entry.url);
+      thumbnailCache.delete(fileId);
+    }
+  }
+}
+
+// Global function to clear thumbnail cache (called by cache manager)
+if (typeof window !== 'undefined') {
+  (window as any).clearThumbnailCache = () => {
+    for (const [fileId, entry] of thumbnailCache.entries()) {
+      if (entry.timeout) clearTimeout(entry.timeout);
+      URL.revokeObjectURL(entry.url);
+    }
+    thumbnailCache.clear();
+  };
+
+  // Global function to get thumbnail cache size
+  (window as any).getThumbnailCacheSize = () => thumbnailCache.size;
+}
 
 interface FileThumbnailProps {
     fileId: string;
@@ -76,6 +114,7 @@ export function FileThumbnail({
                     cached.timeout = undefined;
                 }
                 cached.refCount++;
+                cached.lastAccessed = Date.now();
                 setThumbnailUrl(cached.url);
                 return;
             }
@@ -172,9 +211,11 @@ export function FileThumbnail({
                     if (existing) {
                         if (existing.timeout) clearTimeout(existing.timeout);
                         existing.refCount++;
+                        existing.lastAccessed = Date.now();
                         setThumbnailUrl(existing.url);
                     } else {
-                        thumbnailCache.set(fileId, { url, refCount: 1 });
+                        thumbnailCache.set(fileId, { url, refCount: 1, lastAccessed: Date.now() });
+                        evictOldestThumbnails(); // Check if we need to evict old entries
                         setThumbnailUrl(url);
                     }
                 }

@@ -5,6 +5,7 @@
 
 import { decryptUserPrivateKeys, UserCryptoData } from './crypto';
 import type { UserData } from './api';
+import { cacheManager } from './cache-manager';
 
 export interface UserKeypairs {
   ed25519PrivateKey: Uint8Array;
@@ -211,6 +212,9 @@ class KeyManager {
   clearKeys(): void {
     this.cachedKeys = null;
     this.userData = null;
+
+    // Clear all application caches
+    cacheManager.clearAllCaches();
 
     if (typeof window !== 'undefined') {
       try {

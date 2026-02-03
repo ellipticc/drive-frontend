@@ -33,7 +33,7 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbP
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/base/checkbox/checkbox";
 import { Input } from "@/components/ui/input";
-import { decryptFilename, encryptFilename, computeFilenameHmac, createSignedFileManifest, createSignedFolderManifest, decryptUserPrivateKeys } from "@/lib/crypto";
+import { getCachedDecryptedFilename, decryptFilename, encryptFilename, computeFilenameHmac, createSignedFileManifest, createSignedFolderManifest, decryptUserPrivateKeys } from "@/lib/crypto";
 import { apiClient, FileItem, FolderContentItem, FileContentItem, PQCKeypairs, Tag } from "@/lib/api";
 import { prepareMoveToTrashPayload } from "@/lib/trash";
 import { toast } from "sonner";
@@ -1082,7 +1082,7 @@ export const Table01DividerLineSm = ({
                         let displayName = '...';
                         if (masterKey && segment.encryptedName && segment.nameSalt) {
                             try {
-                                displayName = await decryptFilename(segment.encryptedName, segment.nameSalt, masterKey);
+                                displayName = await getCachedDecryptedFilename(segment.encryptedName, segment.nameSalt, masterKey);
                             } catch {
                                 displayName = segment.encryptedName || '...';
                             }
@@ -1114,7 +1114,7 @@ export const Table01DividerLineSm = ({
                         if (response.data.encryptedName && response.data.nameSalt && masterKeyManager.hasMasterKey()) {
                             try {
                                 const masterKey = masterKeyManager.getMasterKey();
-                                displayName = await decryptFilename(response.data.encryptedName, response.data.nameSalt, masterKey);
+                                displayName = await getCachedDecryptedFilename(response.data.encryptedName, response.data.nameSalt, masterKey);
                             } catch {
                                 displayName = response.data.name || response.data.encryptedName;
                             }
@@ -1235,7 +1235,7 @@ export const Table01DividerLineSm = ({
                     (async () => {
                         try {
                             const masterKey = masterKeyManager.getMasterKey();
-                            const decryptedName = await decryptFilename(fileData.encryptedFilename!, fileData.filenameSalt!, masterKey);
+                            const decryptedName = await getCachedDecryptedFilename(fileData.encryptedFilename!, fileData.filenameSalt!, masterKey);
                             // Update the file with the decrypted name
                             setFiles(prev => prev.map(file =>
                                 file.id === fileData.id
@@ -1320,7 +1320,7 @@ export const Table01DividerLineSm = ({
                     let name = item.filename || item.name || t('common.untitled');
                     if (item.encrypted_name && item.name_salt && masterKey) {
                         try {
-                            name = await decryptFilename(item.encrypted_name, item.name_salt, masterKey);
+                            name = await getCachedDecryptedFilename(item.encrypted_name, item.name_salt, masterKey);
                         } catch (e) {
                             console.error("Failed to decrypt starred folder name", e);
                         }
@@ -1387,7 +1387,7 @@ export const Table01DividerLineSm = ({
                         // Try decrypting if encrypted
                         if (encryptedName && nameSalt && masterKey) {
                             try {
-                                name = await decryptFilename(encryptedName, nameSalt, masterKey);
+                                name = await getCachedDecryptedFilename(encryptedName, nameSalt, masterKey);
                             } catch (e) {
                                 console.error("Failed to decrypt recent file name", e);
                             }
@@ -1418,7 +1418,7 @@ export const Table01DividerLineSm = ({
                         // Try decrypting if encrypted
                         if (encryptedName && nameSalt && masterKey) {
                             try {
-                                name = await decryptFilename(encryptedName, nameSalt, masterKey);
+                                name = await getCachedDecryptedFilename(encryptedName, nameSalt, masterKey);
                             } catch (e) {
                                 console.error("Failed to decrypt recent folder name", e);
                             }
@@ -1558,7 +1558,7 @@ export const Table01DividerLineSm = ({
                 let displayName = folder.name || '';
                 if (!displayName && folder.encryptedName && folder.nameSalt && masterKey) {
                     try {
-                        displayName = await decryptFilename(folder.encryptedName, folder.nameSalt, masterKey);
+                        displayName = await getCachedDecryptedFilename(folder.encryptedName, folder.nameSalt, masterKey);
                     } catch {
                         displayName = 'Encrypted Folder';
                     }
@@ -1583,7 +1583,7 @@ export const Table01DividerLineSm = ({
 
                         if (masterKey && tEncName && tSalt) {
                             try {
-                                const decrypted = await decryptFilename(tEncName, tSalt, masterKey);
+                                const decrypted = await getCachedDecryptedFilename(tEncName, tSalt, masterKey);
                                 return { ...tag, decryptedName: decrypted };
                             } catch {
                                 return tag;
@@ -1602,7 +1602,7 @@ export const Table01DividerLineSm = ({
                 // Try to decrypt if encrypted fields are available
                 if (file.encryptedFilename && file.filenameSalt && masterKey) {
                     try {
-                        displayName = await decryptFilename(file.encryptedFilename, file.filenameSalt, masterKey);
+                        displayName = await getCachedDecryptedFilename(file.encryptedFilename, file.filenameSalt, masterKey);
                     } catch {
                         displayName = file.encryptedFilename?.substring(0, 20) + '...' || '(Unnamed)';
                     }
@@ -1639,7 +1639,7 @@ export const Table01DividerLineSm = ({
 
                         if (masterKey && tEncName && tSalt) {
                             try {
-                                const decrypted = await decryptFilename(tEncName, tSalt, masterKey);
+                                const decrypted = await getCachedDecryptedFilename(tEncName, tSalt, masterKey);
                                 return { ...tag, decryptedName: decrypted };
                             } catch {
                                 return tag;
