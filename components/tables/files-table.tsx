@@ -471,6 +471,10 @@ export const Table01DividerLineSm = ({
         return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
     };
 
+    // RAF throttling for smooth collision detection
+    const rafIdRef = useRef<number | null>(null);
+    const lastCollisionCheck = useRef<{ x: number; y: number } | null>(null);
+
     // Global drag state effects
     useEffect(() => {
         if (isDragging) {
@@ -529,14 +533,19 @@ export const Table01DividerLineSm = ({
         const targets: typeof cachedDropTargets.current = [];
 
         // 1. Sidebar Spaces
-        document.querySelectorAll('[data-space-id]').forEach(el => {
-            targets.push({
+        const spaceElements = document.querySelectorAll('[data-space-id]');
+        console.log('[DragStart] Found space elements:', spaceElements.length);
+        spaceElements.forEach(el => {
+            const rect = el.getBoundingClientRect();
+            const spaceData = {
                 id: el.getAttribute('data-space-id') || '',
                 name: el.getAttribute('data-space-name') || '',
-                rect: el.getBoundingClientRect(),
+                rect: rect,
                 el: el,
-                type: 'space'
-            });
+                type: 'space' as const
+            };
+            console.log('[DragStart] Caching space:', spaceData.id, spaceData.name, 'rect:', rect);
+            targets.push(spaceData);
         });
 
         // 2. Visible Table Folders
@@ -544,6 +553,7 @@ export const Table01DividerLineSm = ({
         });
 
         cachedDropTargets.current = targets;
+        console.log('[DragStart] Cached', targets.length, 'drop targets');
 
         // Try an initial detection
         try {
@@ -605,24 +615,35 @@ export const Table01DividerLineSm = ({
             return;
         }
 
-        // 2. Fallback: Raycast for "Spaces" in the sidebar
         // 2. Custom Collision for "Spaces" (and potentially folders if we cached them)
         if (typeof clientX === 'number' && typeof clientY === 'number') {
-            const detected = detectTargetAtPoint(clientX, clientY);
-
-            if (detected && detected.type === 'space') {
-                // Handle Space Hover
-                if (hoveredSpaceElRef.current !== detected.el) {
-                    if (hoveredSpaceElRef.current) {
-                        hoveredSpaceElRef.current.classList.remove('space-dnd-over');
-                    }
-                    detected.el.classList.add('space-dnd-over');
-                    hoveredSpaceElRef.current = detected.el;
-                    setHoveredSpace({ id: detected.id, name: detected.name, el: detected.el });
-                }
-                if (currentDropTarget) setCurrentDropTarget(null); // Clear folder drop
-                return;
+            // RAF throttle for smoothness
+            if (rafIdRef.current) {
+                cancelAnimationFrame(rafIdRef.current);
             }
+
+            rafIdRef.current = requestAnimationFrame(() => {
+                const detected = detectTargetAtPoint(clientX, clientY);
+
+                if (detected && detected.type === 'space') {
+                    console.log('[Drag] Space detected:', detected.id, detected.name);
+                    // Handle Space Hover
+                    if (hoveredSpaceElRef.current !== detected.el) {
+                        if (hoveredSpaceElRef.current) {
+                            hoveredSpaceElRef.current.classList.remove('space-dnd-over');
+                            console.log('[Drag] Removed class from previous space');
+                        }
+                        detected.el.classList.add('space-dnd-over');
+                        console.log('[Drag] Added space-dnd-over class to:', detected.el);
+                        hoveredSpaceElRef.current = detected.el;
+                        setHoveredSpace({ id: detected.id, name: detected.name, el: detected.el });
+                    }
+                    if (currentDropTarget) setCurrentDropTarget(null); // Clear folder drop
+                } else {
+                    console.log('[Drag] No space detected at', clientX, clientY, 'cached targets:', cachedDropTargets.current.length);
+                }
+            });
+            return;
         }
 
         // 3. Cleanup if nothing hit
@@ -3819,19 +3840,19 @@ export const Table01DividerLineSm = ({
                                     dropAnimation={null}
                                 >
                                     {activeDragItem && isDragging && (
-                                        <div className="bg-primary text-primary-foreground border border-primary/20 rounded-md shadow-lg px-3 py-1.5 flex items-center gap-2 pointer-events-none z-50 whitespace-nowrap">
+                                        <div className="bg-primary text-primary-foreground border border-primary/20 rounded shadow-md px-1.5 py-0.5 flex items-center gap-1.5 pointer-events-none z-50 whitespace-nowrap" style={{ willChange: 'transform' }}>
                                             <div className="flex-shrink-0">
                                                 {activeDragItem.type === 'folder' ? (
-                                                    <IconFolder className="h-4 w-4" />
+                                                    <IconFolder className="h-3 w-3" />
                                                 ) : (
-                                                    <FileIcon mimeType={activeDragItem.mimeType} filename={activeDragItem.name} className="h-4 w-4" />
+                                                    <FileIcon mimeType={activeDragItem.mimeType} filename={activeDragItem.name} className="h-3 w-3" />
                                                 )}
                                             </div>
-                                            <span className="text-xs font-semibold max-w-[150px] truncate">
+                                            <span className="text-[10px] font-medium max-w-[100px] truncate">
                                                 {activeDragItem.name}
                                             </span>
                                             {selectedItems.size > 1 && selectedItems.has(activeDragItem.id) && (
-                                                <span className="text-[10px] opacity-90 font-medium bg-primary-foreground/20 px-1 rounded-sm ml-1">
+                                                <span className="text-[9px] opacity-90 font-medium bg-primary-foreground/20 px-1 rounded-sm">
                                                     +{selectedItems.size - 1}
                                                 </span>
                                             )}
