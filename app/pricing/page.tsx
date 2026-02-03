@@ -425,28 +425,7 @@ const BillingPage = () => {
   const [leftPlanIdx, setLeftPlanIdx] = useState(0); // Default: Free
   const [rightPlanIdx, setRightPlanIdx] = useState(2); // Default: Pro
   const [isMobileView, setIsMobileView] = useState(false);
-
-  const [isStickyEnabled, setIsStickyEnabled] = useState(false);
   const scrollRef = React.useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const container = scrollRef.current;
-    if (!container) return;
-
-    const handleScroll = () => {
-      const { scrollTop, scrollHeight, clientHeight } = container;
-      // Activate when near bottom (within 300px)
-      if (!isStickyEnabled && scrollTop + clientHeight >= scrollHeight - 300) {
-        setIsStickyEnabled(true);
-      }
-      else if (isStickyEnabled && scrollTop < 100) {
-        setIsStickyEnabled(false);
-      }
-    };
-
-    container.addEventListener('scroll', handleScroll);
-    return () => container.removeEventListener('scroll', handleScroll);
-  }, [isStickyEnabled]);
 
   useEffect(() => {
     const checkMobile = () => setIsMobileView(window.innerWidth < 1024);
@@ -773,8 +752,7 @@ const BillingPage = () => {
                   <TableHeader>
                     <TableRow className="hover:bg-transparent border-b">
                       <TableHead className={cn(
-                        "py-12 px-6 text-sm font-medium text-muted-foreground border-r text-left align-middle bg-background transition-all duration-300",
-                        isStickyEnabled ? "sticky top-0 z-20 shadow-[0_1px_0_0_rgba(0,0,0,0.05)]" : "relative",
+                        "py-12 px-6 text-sm font-medium text-muted-foreground border-r text-left align-middle bg-background transition-all duration-300 relative",
                         isMobileView ? "w-[40%] text-xs px-3 whitespace-normal break-words" : "w-[20%]"
                       )}>
                         Features comparison
@@ -787,8 +765,7 @@ const BillingPage = () => {
 
                         return (
                           <TableHead key={`${plan.id}-${index}`} className={cn(
-                            "text-center py-8 align-top transition-all duration-300 bg-background",
-                            isStickyEnabled ? "sticky top-0 z-20 shadow-[0_1px_0_0_rgba(0,0,0,0.05)]" : "relative",
+                            "text-center py-8 align-top transition-all duration-300 bg-background relative",
                             isMobileView ? "w-[30%] px-1" : "w-[20%] px-4",
                             plan.id === 'pro' && "border-x border-primary/10 after:absolute after:inset-y-0 after:left-0 after:w-px after:bg-primary/10 after:content-[''] before:absolute before:inset-y-0 before:right-0 before:w-px before:bg-primary/10 before:content-['']"
                           )}>

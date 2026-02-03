@@ -47,7 +47,7 @@ export function GalleryToolbar({
 }: GalleryToolbarProps & { selectedCount?: number; onDownloadSelected?: () => void; onShareSelected?: () => void; onMoveToTrashSelected?: () => void; onUpload?: () => void; onPreviewSelected?: () => void; onDetailsSelected?: () => void }) {
 
     return (
-        <div className="flex items-center justify-between px-4 py-3 border-b bg-background/95 backdrop-blur-sm sticky top-0 z-40 gap-4 h-14">
+        <div className="flex items-center justify-between px-4 py-3 border-b bg-background sticky top-0 z-40 gap-4 h-14">
 
             {/* View Filter Group */}
             <div className="flex items-center gap-2">
