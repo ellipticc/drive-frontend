@@ -99,7 +99,8 @@ const sentryOptions = {
     treeshake: {
       removeDebugLogging: true,
     },
-    automaticVercelMonitors: true,
+    // Disable automatic Vercel monitors to prevent duplicate events
+    automaticVercelMonitors: false,
   },
 };
 

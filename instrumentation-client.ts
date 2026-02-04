@@ -26,23 +26,33 @@ if (process.env.NODE_ENV === 'production' && process.env.NEXT_PUBLIC_SENTRY_DSN 
     replaysSessionSampleRate: 0,
     replaysOnErrorSampleRate: 0,
 
-    // Capture ONLY console errors, no warnings
+    // Disable all automatic instrumentation to prevent duplicate events
     integrations: [
       Sentry.captureConsoleIntegration({
         levels: ['error'],
       }),
     ],
 
-    // Capture all events without filtering
+    // STRICTLY filter to ONLY console errors - no HTTP requests, no transactions
     beforeSend(event) {
       // Check privacy settings dynamically
       if (typeof window !== 'undefined' && localStorage.getItem('privacy_crash_reports') === 'false') {
         return null;
       }
 
-      // Scrub sensitive headers but keep Session IDs (Cookies)
-      if (event.request && event.request.headers) {
-        delete event.request.headers['Authorization'];
+      // ONLY send error and exception events - filter everything else
+      if (event.level !== 'error' && event.type !== 'error') {
+        return null;
+      }
+
+      // Reject if it's an HTTP request event or transaction
+      if (event.request || event.transaction || event.type === 'transaction' || event.type === 'http.client') {
+        return null;
+      }
+
+      // Reject breadcrumbs-only events (no actual error)
+      if (!event.exception && !event.message) {
+        return null;
       }
 
       // User anonymization
