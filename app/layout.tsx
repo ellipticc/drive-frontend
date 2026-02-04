@@ -231,12 +231,40 @@ export default function RootLayout({
 
             // Global helper to stop tracking on the fly (e.g. after login)
             window.stopTracking = function() {
-              gtag('consent', 'update', {
-                'analytics_storage': 'denied',
-                'ad_storage': 'denied'
-              });
-              // Disable GA globally for this property
+              try {
+                // Update consent to deny any future collection
+                gtag('consent', 'update', {
+                  'analytics_storage': 'denied',
+                  'ad_storage': 'denied'
+                });
+              } catch (e) {}
+
+              // Disable GA globally for this property (gtag respects this flag)
               window['ga-disable-G-NSQ52X2GM3'] = true;
+
+              // Replace gtag with a noop to prevent any queued or future calls
+              try {
+                window.gtag = function() { /* noop */ } as any;
+              } catch (e) {}
+
+              // Clear and neutralize dataLayer if present
+              try {
+                if (window.dataLayer && Array.isArray(window.dataLayer)) {
+                  window.dataLayer.length = 0;
+                  window.dataLayer.push = function() { /* noop */ };
+                }
+              } catch (e) {}
+
+              // Remove the external GTM script tag and the inline initializer
+              try {
+                var scripts = document.querySelectorAll('script[src*="googletagmanager.com/gtag/js"]');
+                scripts.forEach(function(s) { s.parentNode && s.parentNode.removeChild(s); });
+                var inline = document.getElementById('google-analytics');
+                inline && inline.parentNode && inline.parentNode.removeChild(inline);
+              } catch (e) {}
+
+              // Flag for other code paths
+              try { (window as any).__GA_DISABLED__ = true; } catch (e) {}
             };
 
             if (usageDiagnosticsEnabled) {
