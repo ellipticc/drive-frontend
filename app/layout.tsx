@@ -24,22 +24,30 @@ const roboto = Roboto({
   weight: ["300", "400", "500", "700"],
   subsets: ["latin"],
   variable: "--font-roboto",
+  display: 'swap', // Prevent invisible text during font load
+  preload: true,   // Preload font for better performance
 });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  display: 'swap',
+  preload: true,
 });
 
 const jetbrainsMono = JetBrains_Mono({
   variable: "--font-jetbrains-mono",
   subsets: ["latin"],
+  display: 'swap',
+  preload: true,
 });
 
 const ubuntu = Ubuntu({
   weight: ["300", "400", "500", "700"],
   subsets: ["latin"],
   variable: "--font-ubuntu",
+  display: 'swap',
+  preload: true,
 });
 
 export const metadata: Metadata = {

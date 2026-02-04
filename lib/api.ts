@@ -1,6 +1,7 @@
 import { generateIdempotencyKey } from './idempotency';
 import { getDevicePublicKey, signWithDeviceKey } from './device-keys';
 import { getRequestQueue } from './request-queue';
+import { requestDeduper } from './request-deduper';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://drive.ellipticc.com/api/v1';
 
@@ -684,6 +685,25 @@ class ApiClient {
   }
 
   private async request<T>(
+    endpoint: string,
+    options: RequestInit = {},
+    priority: 'high' | 'normal' | 'low' = 'normal'
+  ): Promise<ApiResponse<T>> {
+    // Use request deduplication for GET requests
+    if (options.method === 'GET' || !options.method) {
+      return requestDeduper.dedupe(
+        endpoint,
+        'GET',
+        () => this.makeRequest(endpoint, options, priority),
+        options.body
+      );
+    }
+
+    // For non-GET requests, make the request directly
+    return this.makeRequest(endpoint, options, priority);
+  }
+
+  private async makeRequest<T>(
     endpoint: string,
     options: RequestInit = {},
     priority: 'high' | 'normal' | 'low' = 'normal'

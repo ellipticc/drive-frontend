@@ -2,6 +2,8 @@
 
 import React, { useMemo, useState, useRef, useEffect, useCallback, useTransition } from "react";
 import { useFormatter } from "@/hooks/use-formatter";
+import { useSortWorker } from "@/hooks/use-sort-worker";
+import { precomputeFileFieldsBatch, precomputeFileFields, ComputedFileItem } from "@/lib/computed-fields";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { DotsVertical } from "@untitledui/icons";
 import type { SortDescriptor, Selection } from "react-aria-components";
@@ -379,7 +381,10 @@ export const Table01DividerLineSm = ({
         direction: "ascending",
     });
 
-    const [files, setFiles] = useState<FileItem[]>([]);
+    // Sort worker for background sorting
+    const { sortItems, isSorting } = useSortWorker();
+
+    const [files, setFiles] = useState<ComputedFileItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isFetching, setIsFetching] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -1195,7 +1200,7 @@ export const Table01DividerLineSm = ({
                 };
 
                 // Add folder to beginning of list
-                setFiles(prev => [newFolder, ...prev]);
+                setFiles(prev => [precomputeFileFields(newFolder), ...prev]);
             }
         } else {
             // Handle file - existing logic
@@ -1228,7 +1233,7 @@ export const Table01DividerLineSm = ({
                 };
 
                 // Add to beginning of files list for visibility
-                setFiles(prev => [newFile, ...prev]);
+                setFiles(prev => [precomputeFileFields(newFile), ...prev]);
 
                 // Asynchronously decrypt the filename and update the file
                 if (fileData.encryptedFilename && fileData.filenameSalt && masterKeyManager.hasMasterKey()) {
@@ -1239,7 +1244,7 @@ export const Table01DividerLineSm = ({
                             // Update the file with the decrypted name
                             setFiles(prev => prev.map(file =>
                                 file.id === fileData.id
-                                    ? { ...file, name: decryptedName }
+                                    ? precomputeFileFields({ ...file, name: decryptedName })
                                     : file
                             ));
                         } catch (err) {
@@ -1653,7 +1658,10 @@ export const Table01DividerLineSm = ({
             // Check staleness again before setting state
             if (currentFetchId !== fetchIdRef.current) return;
 
-            setFiles([...decryptedFolders, ...decryptedFiles]);
+            // Apply precomputed fields for better performance
+            const processedFiles = precomputeFileFieldsBatch([...decryptedFolders, ...decryptedFiles]);
+
+            setFiles(processedFiles);
             success = true;
 
         } catch (err) {
@@ -1720,7 +1728,7 @@ export const Table01DividerLineSm = ({
             setFiles(prev => {
                 // Avoid duplicates
                 if (prev.some(f => f.id === file.id)) return prev;
-                return [file, ...prev];
+                return [precomputeFileFields(file), ...prev];
             });
             setTotalItems(prev => prev + 1);
         }
@@ -2543,41 +2551,79 @@ export const Table01DividerLineSm = ({
 
 
     // Get file icon based on mime type or type
-    const sortedItems = useMemo(() => {
-        return [...files].sort((a, b) => {
-            // ALWAYS separate folders from files first (folders on top)
-            const aIsFolder = a.type === 'folder';
-            const bIsFolder = b.type === 'folder';
+    const [sortedItems, setSortedItems] = useState<ComputedFileItem[]>([]);
 
-            if (aIsFolder && !bIsFolder) return -1;
-            if (!aIsFolder && bIsFolder) return 1;
-
-            // Within same type, apply user-selected sort or default to name ascending
-            if (sortDescriptor.column === 'modified') {
-                const firstDate = new Date(a.updatedAt || a.createdAt).getTime();
-                const secondDate = new Date(b.updatedAt || b.createdAt).getTime();
-                return sortDescriptor.direction === "descending" ? secondDate - firstDate : firstDate - secondDate;
+    // Sort items using web worker when files or sort descriptor changes
+    useEffect(() => {
+        const performSort = async () => {
+            if (files.length === 0) {
+                setSortedItems([]);
+                return;
             }
 
-            if (sortDescriptor.column === 'size') {
-                const aSize = a.size || 0;
-                const bSize = b.size || 0;
-                return sortDescriptor.direction === "descending" ? bSize - aSize : aSize - bSize;
-            }
+            try {
+                // First separate folders from files (this is fast and doesn't need worker)
+                const folders = files.filter(item => item.type === 'folder');
+                const fileItems = files.filter(item => item.type !== 'folder');
 
-            if (sortDescriptor.column === 'name') {
-                const firstName = a.name || '';
-                const secondName = b.name || '';
-                let cmp = firstName.localeCompare(secondName);
-                if (sortDescriptor.direction === "descending") {
-                    cmp *= -1;
-                }
-                return cmp;
-            }
+                // Sort folders and files separately, then combine
+                const sortedFolders = folders.length > 0 ? await sortItems(folders, {
+                    sortBy: sortDescriptor.column as string,
+                    direction: sortDescriptor.direction === 'descending' ? 'desc' : 'asc',
+                    type: getSortType(sortDescriptor.column as string)
+                }) : [];
 
-            return 0;
-        });
-    }, [files, sortDescriptor]);
+                const sortedFiles = fileItems.length > 0 ? await sortItems(fileItems, {
+                    sortBy: sortDescriptor.column as string,
+                    direction: sortDescriptor.direction === 'descending' ? 'desc' : 'asc',
+                    type: getSortType(sortDescriptor.column as string)
+                }) : [];
+
+                setSortedItems([...sortedFolders, ...sortedFiles]);
+            } catch (error) {
+                console.error('Sorting failed:', error);
+                // Fallback to synchronous sort
+                const sorted = [...files].sort((a, b) => {
+                    const aIsFolder = a.type === 'folder';
+                    const bIsFolder = b.type === 'folder';
+                    if (aIsFolder && !bIsFolder) return -1;
+                    if (!aIsFolder && bIsFolder) return 1;
+
+                    if (sortDescriptor.column === 'modified') {
+                        const firstDate = new Date(a.updatedAt || a.createdAt).getTime();
+                        const secondDate = new Date(b.updatedAt || b.createdAt).getTime();
+                        return sortDescriptor.direction === "descending" ? secondDate - firstDate : firstDate - secondDate;
+                    }
+                    if (sortDescriptor.column === 'size') {
+                        const aSize = a.size || 0;
+                        const bSize = b.size || 0;
+                        return sortDescriptor.direction === "descending" ? bSize - aSize : aSize - bSize;
+                    }
+                    if (sortDescriptor.column === 'name') {
+                        const firstName = a.name || '';
+                        const secondName = b.name || '';
+                        let cmp = firstName.localeCompare(secondName);
+                        if (sortDescriptor.direction === "descending") cmp *= -1;
+                        return cmp;
+                    }
+                    return 0;
+                });
+                setSortedItems(sorted);
+            }
+        };
+
+        performSort();
+    }, [files, sortDescriptor, sortItems]);
+
+    // Helper function to map sort column to worker type
+    const getSortType = (column: string): 'name' | 'date' | 'size' | 'type' => {
+        switch (column) {
+            case 'modified': return 'date';
+            case 'size': return 'size';
+            case 'name': return 'name';
+            default: return 'name';
+        }
+    };
 
     // Filter items based on search query
     const deferredQuery = React.useDeferredValue(searchQuery);

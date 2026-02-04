@@ -13,6 +13,7 @@ import { unwrapCEK, DownloadEncryption } from "@/lib/download"
 import { keyManager } from "@/lib/key-manager"
 import { format, parseISO } from "date-fns"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useIntersectionObserver } from "@/hooks/use-intersection-observer"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -68,7 +69,17 @@ export function GalleryItem({ item, isSelected, isSelectionMode, onSelect, onPre
     // Local context menu open flag to persist hover effect when menu is open
     const [menuOpen, setMenuOpen] = useState(false)
 
+    // Intersection observer for lazy loading
+    const [setRef, isIntersecting] = useIntersectionObserver({
+        threshold: 0.1,
+        rootMargin: '100px', // Load 100px before entering viewport
+        triggerOnce: true,
+    })
+
     useEffect(() => {
+        // Only load thumbnail when element intersects viewport
+        if (!isIntersecting) return
+
         let isMounted = true
 
         async function loadThumbnail() {
@@ -171,7 +182,7 @@ export function GalleryItem({ item, isSelected, isSelectionMode, onSelect, onPre
                 }
             }
         }
-    }, [item.id, item.thumbnailPath, retryCount, hasError, item.encryption])
+    }, [item.id, item.thumbnailPath, retryCount, hasError, item.encryption, isIntersecting])
 
 
     const isVideo = item.mimeType?.startsWith('video/')
@@ -199,6 +210,7 @@ export function GalleryItem({ item, isSelected, isSelectionMode, onSelect, onPre
 
     return (
         <div
+            ref={setRef}
             className={`
                 group relative bg-muted rounded-2xl overflow-hidden cursor-pointer select-none
                 transition-all duration-200 

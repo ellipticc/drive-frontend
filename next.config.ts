@@ -12,6 +12,7 @@ const nextConfig: NextConfig = {
   poweredByHeader: false, // Remove X-Powered-By header for security
   experimental: {
     optimizeCss: true, // Optimize CSS
+    scrollRestoration: true, // Better navigation performance
   },
   webpack: (config) => {
     // Set externals for modules that can't be bundled on server
@@ -27,9 +28,51 @@ const nextConfig: NextConfig = {
       crypto: false,
     };
 
+    // CSS optimization
+    if (!config.optimization) config.optimization = {};
+    config.optimization.splitChunks = {
+      ...config.optimization.splitChunks,
+      cacheGroups: {
+        ...config.optimization.splitChunks?.cacheGroups,
+        // Separate CSS chunks for better caching
+        styles: {
+          name: 'styles',
+          test: /\.css$/,
+          chunks: 'all',
+          enforce: true,
+        },
+        // Separate vendor chunks
+        vendor: {
+          test: /[\\/]node_modules[\\/]/,
+          name: 'vendors',
+          chunks: 'all',
+          priority: 10,
+        },
+        // Separate large libraries
+        'react-vendor': {
+          test: /[\\/]node_modules[\\/](react|react-dom|next)[\\/]/,
+          name: 'react-vendor',
+          chunks: 'all',
+          priority: 20,
+        },
+      },
+    };
+
+    // Enable webpack optimizations
+    config.optimization = {
+      ...config.optimization,
+      moduleIds: 'deterministic', // Better long-term caching
+      chunkIds: 'deterministic', // Better long-term caching
+      // Minimize bundle size
+      minimize: true,
+      // Remove unused code
+      usedExports: true,
+      // Merge duplicate chunks
+      mergeDuplicateChunks: true,
+    };
+
     return config;
   },
-  turbopack: {},
 };
 
 const sentryOptions = {

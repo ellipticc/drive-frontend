@@ -1,16 +1,58 @@
-const SW_VERSION = '1.0.1';
+const SW_VERSION = '1.0.2'; // Updated for static asset caching
+
+// Cache names
+const STATIC_CACHE = 'drive-static-v1';
+const RUNTIME_CACHE = 'drive-runtime-v1';
+
+// Static assets to cache immediately
+const STATIC_ASSETS = [
+  '/',
+  '/favicon.ico',
+  '/favicon.svg',
+  '/favicon-96x96.png',
+  '/apple-touch-icon.png',
+  '/manifest.json',
+  '/login.png',
+  '/og-image.png',
+  '/og-share.png',
+  '/register.png',
+  // Cache critical CSS and JS patterns
+];
 
 self.addEventListener('install', (event) => {
     console.log('[SW] Installing SW version:', SW_VERSION);
-    // Skip waiting immediately to take control faster
-    event.waitUntil(self.skipWaiting());
+    event.waitUntil(
+        Promise.all([
+            // Cache static assets
+            caches.open(STATIC_CACHE).then(cache => {
+                console.log('[SW] Caching static assets');
+                return cache.addAll(STATIC_ASSETS);
+            }),
+            // Skip waiting to take control immediately
+            self.skipWaiting()
+        ])
+    );
 });
 
 self.addEventListener('activate', (event) => {
     console.log('[SW] Activating SW version:', SW_VERSION);
     event.waitUntil(
-        self.clients.claim().then(() => {
-            console.log('[SW] Clients claimed. SW now controlling all clients.');
+        Promise.all([
+            // Clean up old caches
+            caches.keys().then(cacheNames => {
+                return Promise.all(
+                    cacheNames.map(cacheName => {
+                        if (cacheName !== STATIC_CACHE && cacheName !== RUNTIME_CACHE) {
+                            console.log('[SW] Deleting old cache:', cacheName);
+                            return caches.delete(cacheName);
+                        }
+                    })
+                );
+            }),
+            // Take control of all clients
+            self.clients.claim()
+        ]).then(() => {
+            console.log('[SW] SW activated and controlling all clients');
             // Notify all clients that SW is ready
             return self.clients.matchAll({ type: 'window' }).then(clients => {
                 clients.forEach(client => {
@@ -31,9 +73,65 @@ self.addEventListener('message', (event) => {
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
 
+    // Handle stream requests (existing functionality)
     if (url.pathname.startsWith('/stream/')) {
         event.respondWith(handleStreamRequest(event));
+        return;
     }
+
+    // Handle static assets and Next.js assets
+    if (event.request.method === 'GET' &&
+        (url.pathname.startsWith('/_next/static/') ||
+         url.pathname.startsWith('/favicon') ||
+         url.pathname.startsWith('/manifest.json') ||
+         url.pathname.match(/\.(css|js|woff2?|png|jpg|jpeg|svg|ico)$/))) {
+
+        event.respondWith(
+            caches.match(event.request)
+                .then(response => {
+                    // Return cached version if available
+                    if (response) {
+                        return response;
+                    }
+
+                    // Fetch and cache
+                    return fetch(event.request).then(response => {
+                        // Only cache successful responses
+                        if (response.status === 200) {
+                            const responseClone = response.clone();
+                            caches.open(RUNTIME_CACHE).then(cache => {
+                                cache.put(event.request, responseClone);
+                            });
+                        }
+                        return response;
+                    });
+                })
+                .catch(() => {
+                    // Fallback for offline - try cache only
+                    return caches.match(event.request);
+                })
+        );
+        return;
+    }
+
+    // For other requests, use network-first strategy
+    event.respondWith(
+        fetch(event.request)
+            .then(response => {
+                // Cache successful GET responses for potential future use
+                if (response.status === 200 && event.request.method === 'GET') {
+                    const responseClone = response.clone();
+                    caches.open(RUNTIME_CACHE).then(cache => {
+                        cache.put(event.request, responseClone);
+                    });
+                }
+                return response;
+            })
+            .catch(() => {
+                // Network failed, try cache
+                return caches.match(event.request);
+            })
+    );
 });
 
 async function handleStreamRequest(event) {
