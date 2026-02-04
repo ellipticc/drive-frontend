@@ -31,6 +31,7 @@ import {
 } from "@tabler/icons-react"
 import { toast } from "sonner"
 import { apiClient, FileInfo, FolderInfo, Tag } from "@/lib/api"
+import { FileIcon } from "@/components/file-icon"
 import {
   Command,
   CommandEmpty,
@@ -746,8 +747,15 @@ export function DetailsModal({
 
                 {/* Preview Area */}
                 <div className="px-6 flex flex-col items-center justify-center py-4">
-                  <div
-                    className={`rounded-2xl bg-white dark:bg-zinc-900 border shadow-sm flex items-center justify-center mb-4 overflow-hidden group ${!shareId ? 'cursor-pointer hover:ring-2 hover:ring-primary/20 hover:scale-[1.02] active:scale-[0.98]' : 'select-none pointer-events-none opacity-90'
+                  {(() => {
+                    const isPreviewable = itemDetails && (
+                      itemDetails.mimetype?.startsWith('image/') ||
+                      itemDetails.mimetype?.startsWith('video/') ||
+                      !!thumbnailUrl
+                    );
+                    return (
+                      <div
+                    className={`rounded-2xl bg-white dark:bg-zinc-900 border shadow-sm flex items-center justify-center mb-4 overflow-hidden group ${!shareId && isPreviewable ? 'cursor-pointer active:scale-[0.98]' : 'select-none pointer-events-none opacity-90'
                       } transition-all`}
                     style={{
                       width: itemDetails?.width && itemDetails?.height
@@ -757,26 +765,36 @@ export function DetailsModal({
                         ? (itemDetails.width > itemDetails.height ? '90px' : (itemDetails.width < itemDetails.height ? '128px' : '128px'))
                         : '128px',
                     }}
-                    onClick={!shareId ? handlePreview : undefined}
+                    onClick={!shareId && isPreviewable ? handlePreview : undefined}
                   >
                     {thumbnailUrl ? (
                       <img
                         src={thumbnailUrl}
                         alt="Thumbnail"
-                        className={`w-full h-full object-cover transition-transform ${!shareId ? 'group-hover:scale-105' : ''}`}
+                        className="w-full h-full object-cover transition-transform"
                         draggable={false}
                         onDragStart={(e) => e.preventDefault()}
                       />
                     ) : (
                       <div className="flex w-full h-full items-center justify-center">
                         {itemType === "file" ? (
-                          <IconFile className="h-10 w-10 text-muted-foreground opacity-20" />
+                          <FileIcon
+                            filename={itemDetails.filename || ''}
+                            mimeType={itemDetails.mimetype || ''}
+                            className="h-10 w-10 opacity-20"
+                          />
                         ) : (
-                          <IconFolder className="h-10 w-10 text-muted-foreground opacity-20" />
+                          <FileIcon
+                            filename={itemDetails.filename || ''}
+                            mimeType="folder"
+                            className="h-10 w-10 opacity-20"
+                          />
                         )}
                       </div>
                     )}
                   </div>
+                    );
+                  })()}
 
                   <h3 className="text-lg font-bold text-center break-all px-4 line-clamp-2">
                     {decryptedFilename || itemName}
@@ -1116,8 +1134,8 @@ export function DetailsModal({
                 </Button>
                 <Button
                   onClick={() => setOpen(false)}
-                  variant="secondary"
-                  className="px-6 h-11 rounded-xl font-medium"
+                  variant="outline"
+                  className="px-6 h-11 rounded-xl font-medium shadow-sm hover:bg-primary/5 hover:text-primary hover:border-primary/30 transition-all"
                 >
                   Close
                 </Button>
