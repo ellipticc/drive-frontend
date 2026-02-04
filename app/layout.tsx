@@ -244,7 +244,7 @@ export default function RootLayout({
 
               // Replace gtag with a noop to prevent any queued or future calls
               try {
-                window.gtag = function() { /* noop */ } as any;
+                window.gtag = function() { /* noop */ };
               } catch (e) {}
 
               // Clear and neutralize dataLayer if present
@@ -264,7 +264,7 @@ export default function RootLayout({
               } catch (e) {}
 
               // Flag for other code paths
-              try { (window as any).__GA_DISABLED__ = true; } catch (e) {}
+              try { window.__GA_DISABLED__ = true; } catch (e) {}
             };
 
             if (usageDiagnosticsEnabled) {

@@ -78,16 +78,8 @@ if (process.env.NODE_ENV === 'production' && process.env.NEXT_PUBLIC_SENTRY_DSN 
       });
     }
   } catch (err) {
-    // Fallback: if anything unexpected happens while checking, attempt to init (safe-guard)
+    // Fallback: if guard check fails, DO NOT initialize (prevents duplicate init)
     console.error('[sentry] Error during initialization check', err);
-    Sentry.init({
-      dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
-      tracesSampleRate: 0,
-      replaysSessionSampleRate: 0,
-      replaysOnErrorSampleRate: 0,
-      integrations: [Sentry.captureConsoleIntegration({ levels: ['error'] })],
-      beforeSend(event) { return event; },
-    });
   }
 }
 
