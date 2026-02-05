@@ -135,7 +135,6 @@ export function SettingsModal({
   onOpenChange: externalOnOpenChange,
   initialTab,
 }: SettingsModalProps) {
-  const isMobile = useIsMobile();
   const [internalOpen, setInternalOpen] = useState(false)
   const { user, refetch, deviceLimitReached, updateUser } = useUser()
   const { theme, setTheme } = useTheme()
@@ -355,6 +354,12 @@ export function SettingsModal({
   const [sessionsDateRange, setSessionsDateRange] = useState<DateRange | undefined>()
   const [sessionsTypeFilter, setSessionsTypeFilter] = useState<string>('')
 
+  // Rows-per-page (persisted)
+  const isMobile = useIsMobile();
+  const [sessionsPageSize, setSessionsPageSize] = useState<number>(isMobile ? 5 : 5);
+  const [devicesPageSize, setDevicesPageSize] = useState<number>(isMobile ? 5 : 5);
+  const [securityEventsPageSize, setSecurityEventsPageSize] = useState<number>(isMobile ? 5 : 10);
+
   // Device management state
   interface Device {
     id: string;
@@ -410,6 +415,58 @@ export function SettingsModal({
   // Track which data has been loaded to prevent duplicate fetches
   const loadedRef = React.useRef(false)
   const loadedTabsRef = React.useRef<Set<string>>(new Set())
+
+  // Load persisted page size preferences
+  useEffect(() => {
+    try {
+      const spRaw = localStorage.getItem('settings.table.sessions.pageSize');
+      const dpRaw = localStorage.getItem('settings.table.devices.pageSize');
+      const apRaw = localStorage.getItem('settings.table.activity-monitor.pageSize');
+      const sp = spRaw ? Number(spRaw) : undefined;
+      const dp = dpRaw ? Number(dpRaw) : undefined;
+      const ap = apRaw ? Number(apRaw) : undefined;
+
+      // On mobile, force 5 rows regardless
+      if (isMobile) {
+        setSessionsPageSize(5);
+        setDevicesPageSize(5);
+        setSecurityEventsPageSize(5);
+      } else {
+        if (sp) setSessionsPageSize(sp);
+        if (dp) setDevicesPageSize(dp);
+        if (ap) setSecurityEventsPageSize(ap);
+      }
+    } catch (e) {
+      // ignore localStorage errors
+    }
+    
+    // If security tab is open, reload data with new page sizes
+    if (open && activeTab === 'security') {
+      loadUserSessions(1);
+      loadUserDevices(1);
+      loadSecurityEvents(1);
+    }
+  }, [isMobile]);
+
+  // Persist helpers
+  const updateSessionsPageSize = (n: number) => {
+    const val = isMobile ? 5 : n;
+    setSessionsPageSize(val);
+    try { localStorage.setItem('settings.table.sessions.pageSize', String(val)); } catch (e) {}
+    loadUserSessions(1);
+  };
+  const updateDevicesPageSize = (n: number) => {
+    const val = isMobile ? 5 : n;
+    setDevicesPageSize(val);
+    try { localStorage.setItem('settings.table.devices.pageSize', String(val)); } catch (e) {}
+    loadUserDevices(1);
+  };
+  const updateSecurityEventsPageSize = (n: number) => {
+    const val = isMobile ? 5 : n;
+    setSecurityEventsPageSize(val);
+    try { localStorage.setItem('settings.table.activity-monitor.pageSize', String(val)); } catch (e) {}
+    loadSecurityEvents(1);
+  };
 
   // Initial loading states for tabs
   const [generalTabLoading, setGeneralTabLoading] = useState(true)
@@ -919,9 +976,10 @@ export function SettingsModal({
   const loadUserSessions = async (page = 1) => {
     setIsLoadingSessions(true)
     try {
+      const pageSize = isMobile ? 5 : sessionsPageSize;
       const response = await apiClient.getSessions(
         page,
-        5,
+        pageSize,
         !showRevoked,
         sessionsDateRange?.from?.toISOString(),
         sessionsDateRange?.to?.toISOString(),
@@ -950,9 +1008,10 @@ export function SettingsModal({
   const loadUserDevices = async (page = 1) => {
     setIsLoadingDevices(true)
     try {
+      const pageSize = isMobile ? 5 : devicesPageSize;
       const response = await apiClient.getDevices(
         page,
-        5,
+        pageSize,
         !showRevoked,
         devicesDateRange?.from?.toISOString(),
         devicesDateRange?.to?.toISOString(),
@@ -1163,7 +1222,7 @@ export function SettingsModal({
   const loadSecurityEvents = async (page: number = 1) => {
     setIsLoadingSecurityEvents(true)
     try {
-      const limit = 10
+      const limit = isMobile ? 5 : securityEventsPageSize
       const offset = (page - 1) * limit
       const startDate = securityEventsDateRange?.from ? format(securityEventsDateRange.from, "yyyy-MM-dd") : undefined
       const endDate = securityEventsDateRange?.to ? format(securityEventsDateRange.to, "yyyy-MM-dd") : undefined
@@ -2135,6 +2194,8 @@ export function SettingsModal({
                       showRevokeAllDialog={showRevokeAllDialog}
                       setShowRevokeAllDialog={setShowRevokeAllDialog}
                       handleRevokeAllSessions={handleRevokeAllSessions}
+                      sessionsPageSize={sessionsPageSize}
+                      updateSessionsPageSize={updateSessionsPageSize}
 
                       // Devices
                       userDevices={userDevices}
@@ -2143,6 +2204,8 @@ export function SettingsModal({
                       devicesPage={devicesPage}
                       devicesTotalPages={devicesTotalPages}
                       loadUserDevices={loadUserDevices}
+                      devicesPageSize={devicesPageSize}
+                      updateDevicesPageSize={updateDevicesPageSize}
 
                       handleRevokeDevice={handleRevokeDevice}
                       handleRevokeAllDevices={handleRevokeAllDevices}
@@ -2177,6 +2240,9 @@ export function SettingsModal({
                       setSecurityEventsDateRange={setSecurityEventsDateRange}
                       securityEventType={securityEventType}
                       setSecurityEventType={setSecurityEventType}
+                      securityEventsPageSize={securityEventsPageSize}
+                      updateSecurityEventsPageSize={updateSecurityEventsPageSize}
+                      isMobile={isMobile}
 
                       // Account
                       handleLogout={handleLogout}

@@ -237,6 +237,9 @@ interface SecurityTabProps {
     setSessionsDateRange: (val: DateRange | undefined) => void;
     sessionsTypeFilter: string;
     setSessionsTypeFilter: (val: string) => void;
+    // Rows per page
+    sessionsPageSize?: number;
+    updateSessionsPageSize?: (n: number) => void;
 
     // Devices
     userDevices: Device[];
@@ -258,6 +261,16 @@ interface SecurityTabProps {
     setDevicesDateRange: (val: DateRange | undefined) => void;
     devicesTypeFilter: string;
     setDevicesTypeFilter: (val: string) => void;
+    // Rows per page for devices
+    devicesPageSize?: number;
+    updateDevicesPageSize?: (n: number) => void;
+
+    // Activity rows-per-page
+    securityEventsPageSize?: number;
+    updateSecurityEventsPageSize?: (n: number) => void;
+
+    // Responsive hint
+    isMobile?: boolean;
 
     // Activity
     securityEvents: SecurityEvent[];
@@ -321,9 +334,9 @@ export function SecurityTab(props: SecurityTabProps) {
         showRecoveryCodesModal, setShowRecoveryCodesModal, recoveryCodes,
         showTOTPDisable, disableToken, setDisableToken, disableRecoveryCode, setDisableRecoveryCode, isDisablingTOTP,
         sessionExpiry, setSessionExpiry,
-        userSessions, isLoadingSessions, sessionsTotal, sessionsPage, sessionsTotalPages, loadUserSessions, handleRevokeSession, currentSessionId, showRevokeAllDialog, setShowRevokeAllDialog, handleRevokeAllSessions,
-        userDevices, isLoadingDevices, devicesTotal, devicesPage, devicesTotalPages, loadUserDevices, handleRevokeDevice, editingDeviceId, setEditingDeviceId, editNameValue, setEditNameValue, handleUpdateDeviceName, devicePlan,
-        securityEvents, isLoadingSecurityEvents, detailedEventsEnabled, activityMonitorEnabled, handleUpdateSecurityPreferences, showDisableMonitorDialog, setShowDisableMonitorDialog, handleWipeSecurityEvents, handleDownloadSecurityEvents, loadSecurityEvents, securityEventsTotal, securityEventsPage, securityEventsHasMore, setSecurityEvents, setSecurityEventsTotal, setSecurityEventsHasMore,
+        userSessions, isLoadingSessions, sessionsTotal, sessionsPage, sessionsTotalPages, loadUserSessions, handleRevokeSession, currentSessionId, showRevokeAllDialog, setShowRevokeAllDialog, handleRevokeAllSessions, sessionsPageSize, updateSessionsPageSize,
+        userDevices, isLoadingDevices, devicesTotal, devicesPage, devicesTotalPages, loadUserDevices, handleRevokeDevice, editingDeviceId, setEditingDeviceId, editNameValue, setEditNameValue, handleUpdateDeviceName, devicePlan, devicesPageSize, updateDevicesPageSize,
+        securityEvents, isLoadingSecurityEvents, detailedEventsEnabled, activityMonitorEnabled, handleUpdateSecurityPreferences, showDisableMonitorDialog, setShowDisableMonitorDialog, handleWipeSecurityEvents, handleDownloadSecurityEvents, loadSecurityEvents, securityEventsTotal, securityEventsPage, securityEventsHasMore, setSecurityEvents, setSecurityEventsTotal, setSecurityEventsHasMore, securityEventsPageSize, updateSecurityEventsPageSize, isMobile,
         handleLogout, isLoggingOut, setShowDeleteModal,
         showRevoked, setShowRevoked,
         crashReportsEnabled, handleUpdatePrivacySettings,
@@ -1120,6 +1133,22 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                             </div>
                         </div>
 
+                        {/* Rows per page selector */}
+                        <Select
+                            value={String(sessionsPageSize || 5)}
+                            onValueChange={(val) => updateSessionsPageSize?.(Number(val))}
+                            disabled={isMobile}
+                        >
+                            <SelectTrigger className="w-20" size="sm">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="5">5 rows</SelectItem>
+                                <SelectItem value="10">10 rows</SelectItem>
+                                <SelectItem value="25">25 rows</SelectItem>
+                            </SelectContent>
+                        </Select>
+
                         {/* Refresh Button */}
                         <TooltipProvider>
                             <Tooltip>
@@ -1461,6 +1490,22 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                 )}
                             </div>
                         </div>
+
+                        {/* Rows per page selector for devices */}
+                        <Select
+                            value={String(devicesPageSize || 5)}
+                            onValueChange={(val) => updateDevicesPageSize?.(Number(val))}
+                            disabled={isMobile}
+                        >
+                            <SelectTrigger className="w-20" size="sm">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="5">5 rows</SelectItem>
+                                <SelectItem value="10">10 rows</SelectItem>
+                                <SelectItem value="25">25 rows</SelectItem>
+                            </SelectContent>
+                        </Select>
 
                         {/* Refresh Button */}
                         <TooltipProvider>
@@ -1836,6 +1881,22 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                     </div>
                     <div className="flex items-center gap-2">
                         <SecurityEventTypeSelector />
+
+                        {/* Rows per page selector for Activity Monitor */}
+                        <Select
+                            value={String(securityEventsPageSize || 10)}
+                            onValueChange={(val) => updateSecurityEventsPageSize?.(Number(val))}
+                            disabled={isMobile}
+                        >
+                            <SelectTrigger className="w-20" size="sm">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="5">5 rows</SelectItem>
+                                <SelectItem value="10">10 rows</SelectItem>
+                                <SelectItem value="25">25 rows</SelectItem>
+                            </SelectContent>
+                        </Select>
 
                         <Popover>
                             <PopoverTrigger asChild>
@@ -2341,7 +2402,7 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                 <IconChevronLeft className="h-4 w-4" />
                             </Button>
                             <span className="text-xs text-muted-foreground min-w-[3rem] text-center">
-                                Page {securityEventsPage} of {securityEventsTotal > 0 ? Math.ceil(securityEventsTotal / 10) : 1}
+                                Page {securityEventsPage} of {securityEventsTotal > 0 ? Math.ceil(securityEventsTotal / (securityEventsPageSize || 10)) : 1}
                             </span>
                             <Button
                                 variant="outline"
