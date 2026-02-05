@@ -40,7 +40,7 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  --font-sans: var(--font-sans);
+  --font-sans: var(--font-sharp-grotesk);
   --font-mono: var(--font-mono);
   --font-serif: var(--font-serif);
   --font-geist-mono: var(--font-geist-mono);
@@ -66,7 +66,7 @@
   --font-sans: var(--font-sharp-grotesk);
   --font-geist-sans: var(--font-sharp-grotesk);
   --font-geist-mono: var(--font-geist-mono);
-  --font-cal-sans: var(--font-geist-sans);
+  --font-cal-sans: var(--font-sharp-grotesk);
   --font-commit-mono: var(--font-geist-mono);
 
   --background: oklch(0.9653 0.0054 117.92);
@@ -610,7 +610,7 @@
   --sidebar-accent-foreground: oklch(1.0000 0 0);
   --sidebar-border: oklch(0.6440 0.0405 52.3917);
   --sidebar-ring: oklch(0.6083 0.0623 44.3588);
-  --font-sans: DM Sans, sans-serif;
+  --font-sans: var(--font-sharp-grotesk);
   --font-serif: Georgia, serif;
   --font-mono: Menlo, monospace;
   --radius: 0.5rem;
@@ -663,7 +663,7 @@
   --sidebar-accent-foreground: oklch(0.2225 0.0098 52.9636);
   --sidebar-border: oklch(0.4063 0.0255 40.3627);
   --sidebar-ring: oklch(0.7272 0.0539 52.3320);
-  --font-sans: DM Sans, sans-serif;
+  --font-sans: var(--font-sharp-grotesk);
   --font-serif: Georgia, serif;
   --font-mono: Menlo, monospace;
   --radius: 0.5rem;
@@ -717,7 +717,7 @@
   --sidebar-accent-foreground: oklch(0.4426 0.1653 352.3762);
   --sidebar-border: oklch(0.9311 0.0448 343.3135);
   --sidebar-ring: oklch(0.6002 0.2414 0.1348);
-  --font-sans: Poppins, sans-serif;
+  --font-sans: var(--font-sharp-grotesk);
   --font-serif: Playfair Display, serif;
   --font-mono: Space Mono, monospace;
   --radius: 0.5rem;
@@ -770,7 +770,7 @@
   --sidebar-accent-foreground: oklch(0.8624 0.1307 326.6356);
   --sidebar-border: oklch(0.3280 0.1202 313.5393);
   --sidebar-ring: oklch(0.7543 0.2319 332.0212);
-  --font-sans: Quicksand, sans-serif;
+  --font-sans: var(--font-sharp-grotesk);
   --font-serif: Playfair Display, serif;
   --font-mono: Space Mono, monospace;
   --radius: 0.5rem;
