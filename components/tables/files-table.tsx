@@ -4582,69 +4582,73 @@ function EmptyState({ title, description, icon, onCreateFolder, onCreatePaper, o
 
     return (
         <Empty>
-            <EmptyContent className="flex flex-col items-center gap-4">
-                {/* Lottie Animation */}
-                <div className="w-40 h-40 -mt-4">
-                    <DotLottieReact src="/chill.lottie" loop autoplay className="w-full h-full" />
-                </div>
+            <div className="w-full min-h-[calc(100vh-6rem)] flex items-center justify-center">
+                <div className="w-full max-w-[760px] flex flex-col items-center gap-6">
 
-                {/* Drop text with dropdown */}
-                <div className="text-center">
-                    <p className="text-sm text-muted-foreground">
-                        Drop anything here to{" "}
-                        <DropdownMenu open={uploadDropdownOpen} onOpenChange={setUploadDropdownOpen}>
-                            <DropdownMenuTrigger asChild>
-                                <button className="inline-flex items-center gap-2 text-foreground font-medium hover:text-primary transition-colors cursor-pointer">
-                                    <span className="inline-flex items-center gap-2 border-b border-current pb-[2px]">
-                                        <span>upload</span>
-                                        <IconChevronDown className="w-3.5 h-3.5" />
-                                    </span>
-                                </button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="center" className="w-32">
-                                <DropdownMenuItem onClick={() => onUploadFile?.()}>
-                                    <IconFileUpload className="w-4 h-4 mr-2" />
-                                    Files
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => onCreateFolder?.()}>
-                                    <IconFolderUp className="w-4 h-4 mr-2" />
-                                    Folder
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    </p>
-                </div>
+                    {/* Lottie Animation (bigger) */}
+                    <div className="w-64 h-64">
+                        <DotLottieReact src="/chill.lottie" loop autoplay className="w-full h-full" />
+                    </div>
 
-                {/* Other ways section */}
-                <div className="mt-4 flex justify-center">
-                    <div className="w-full max-w-[640px]">
-                        <p className="text-xs text-muted-foreground/70 mb-3">Other ways to get started</p>
-                        <div className="flex items-center justify-between gap-4">
-                            <div className="flex-1 flex justify-start">
-                                <button onClick={() => onCreateFolder?.()} className="inline-flex items-center gap-2 bg-muted/10 border border-border/50 rounded-md px-3 py-2 text-sm text-muted-foreground">
-                                    <IconFolderPlus className="w-4 h-4" />
-                                    Create a folder
-                                </button>
-                            </div>
+                    {/* Drop text with dropdown */}
+                    <div className="text-center">
+                        <p className="text-sm text-muted-foreground">
+                            Drop anything here to{' '}
+                            <DropdownMenu open={uploadDropdownOpen} onOpenChange={setUploadDropdownOpen}>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="link" size="sm" className="inline-flex items-center gap-2 p-0">
+                                        <span className="inline-flex items-center gap-1 border-b border-current pb-[2px]">
+                                            <span className="whitespace-nowrap">upload</span>
+                                            <IconChevronDown data-icon="inline-end" className="w-4 h-4" />
+                                        </span>
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="center" className="w-32">
+                                    <DropdownMenuItem onClick={() => onUploadFile?.()}>
+                                        <IconFileUpload data-icon="inline-start" className="w-4 h-4 mr-2" />
+                                        Files
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => onCreateFolder?.()}>
+                                        <IconFolderDown data-icon="inline-start" className="w-4 h-4 mr-2" />
+                                        Folder
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </p>
+                    </div>
 
-                            <div className="flex-1 flex justify-center">
-                                <button onClick={() => onCreatePaper?.()} className="inline-flex items-center gap-2 bg-muted/10 border border-border/50 rounded-md px-3 py-2 text-sm text-muted-foreground">
-                                    <IconStackFilled className="w-4 h-4" />
-                                    Create a Paper
-                                </button>
-                            </div>
+                    {/* Other ways section */}
+                    <div className="w-full">
+                        <div className="w-full max-w-[760px] mx-auto">
+                            <p className="text-xs text-muted-foreground/70 mb-3 text-left">Other ways to get started</p>
 
-                            <div className="flex-1 flex justify-end">
-                                <button onClick={() => onImportFromGoogle?.()} className="inline-flex items-center gap-2 bg-muted/10 border border-border/50 rounded-md px-3 py-2 text-sm text-muted-foreground">
-                                    <IconBrandGoogleDrive className="w-4 h-4" />
-                                    Import from Google Drive
-                                </button>
+                            <div className="w-full bg-muted/5 rounded-md px-3 py-2 flex items-center justify-between gap-4">
+                                <div className="flex-1 flex justify-start">
+                                    <Button variant="ghost" size="sm" onClick={() => onCreateFolder?.()} className="inline-flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground whitespace-nowrap hover:bg-muted/10">
+                                        <IconFolderPlus data-icon="inline-start" className="w-4 h-4" />
+                                        <span>Create a folder</span>
+                                    </Button>
+                                </div>
+                                
+                                <div className="flex-1 flex justify-end">
+                                    <Button variant="ghost" size="sm" onClick={() => onImportFromGoogle?.()} className="inline-flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground whitespace-nowrap hover:bg-muted/10">
+                                        <IconBrandGoogleDrive data-icon="inline-start" className="w-4 h-4" />
+                                        <span>Import from Google Drive</span>
+                                    </Button>
+                                </div>
+
+                                <div className="flex-1 flex justify-center">
+                                    <Button variant="ghost" size="sm" onClick={() => onCreatePaper?.()} className="inline-flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground whitespace-nowrap hover:bg-muted/10">
+                                        <IconStackFilled data-icon="inline-start" className="w-4 h-4" />
+                                        <span>Create a Paper</span>
+                                    </Button>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
 
-            </EmptyContent>
+                </div>
+            </div>
         </Empty>
     );
 }
