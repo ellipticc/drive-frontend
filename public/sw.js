@@ -6,17 +6,17 @@ const RUNTIME_CACHE = 'drive-runtime-v1';
 
 // Static assets to cache immediately
 const STATIC_ASSETS = [
-  '/',
-  '/favicon.ico',
-  '/favicon.svg',
-  '/favicon-96x96.png',
-  '/apple-touch-icon.png',
-  '/manifest.json',
-  '/login.png',
-  '/og-image.png',
-  '/og-share.png',
-  '/register.png',
-  // Cache critical CSS and JS patterns
+    '/',
+    '/favicon.ico',
+    '/favicon.svg',
+    '/favicon-96x96.png',
+    '/apple-touch-icon.png',
+    '/manifest.json',
+    '/login.png',
+    '/og-image.png',
+    '/og-share.png',
+    '/register.png',
+    // Cache critical CSS and JS patterns
 ];
 
 self.addEventListener('install', (event) => {
@@ -107,9 +107,11 @@ self.addEventListener('fetch', (event) => {
     }
 
     // Skip chrome-extension and other unsupported schemes entirely
-    if (url.protocol && url.protocol !== 'http:' && url.protocol !== 'https:' && url.protocol !== 'about:' && url.protocol !== 'data:') {
+    if (url.protocol && !url.protocol.startsWith('http')) {
         // Log at debug level only for non-http schemes
-        console.warn('[SW] Skipping fetch for unsupported protocol:', url.protocol, event.request.url);
+        if (url.protocol !== 'about:' && url.protocol !== 'data:') {
+            // console.debug('[SW] Skipping fetch for unsupported protocol:', url.protocol, event.request.url);
+        }
         return;
     }
 
@@ -122,9 +124,9 @@ self.addEventListener('fetch', (event) => {
     // Handle static assets and Next.js assets
     if (event.request.method === 'GET' &&
         (url.pathname.startsWith('/_next/static/') ||
-         url.pathname.startsWith('/favicon') ||
-         url.pathname.startsWith('/manifest.json') ||
-         url.pathname.match(/\.(css|js|woff2?|png|jpg|jpeg|svg|ico)$/))) {
+            url.pathname.startsWith('/favicon') ||
+            url.pathname.startsWith('/manifest.json') ||
+            url.pathname.match(/\.(css|js|woff2?|png|jpg|jpeg|svg|ico)$/))) {
 
         event.respondWith(
             caches.match(event.request)
