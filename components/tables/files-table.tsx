@@ -3457,10 +3457,11 @@ export const Table01DividerLineSm = ({
         if (keys === 'all') {
             const allIds = filteredItems.map(item => item.id);
             setSelectedItems(prev => {
-                if (prev.size === allIds.length && allIds.every(id => prev.has(id))) {
-                    return new Set(); // Clear selection when all are selected
+                // If nothing is selected, select all. If any items are selected (partial or all), clear selection.
+                if (prev.size === 0) {
+                    return new Set(allIds); // Select all visible rows
                 }
-                return new Set(allIds); // Select all visible rows
+                return new Set(); // Clear selection when any items are selected (including indeterminate)
             });
         } else {
             const newKeys = Array.from(keys as Set<string>);
