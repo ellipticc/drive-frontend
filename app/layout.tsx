@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { Geist_Mono, JetBrains_Mono, Roboto, Ubuntu } from "next/font/google";
+import { Geist_Mono, JetBrains_Mono, Ubuntu } from "next/font/google";
+import localFont from "next/font/local";
 import Script from "next/script";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
@@ -20,10 +21,30 @@ import { OnboardingTourProvider } from "@/components/onboarding/onboarding-tour-
 import "./globals.css";
 
 // Font definitions
-const roboto = Roboto({
-  weight: ["300", "400", "500", "700"],
-  subsets: ["latin"],
-  variable: "--font-roboto",
+const sharpGrotesk = localFont({
+  src: [
+    {
+      path: "./../public/fonts/SharpGrotesk-Light10.otf",
+      weight: "300",
+      style: "normal",
+    },
+    {
+      path: "./../public/fonts/SharpGrotesk-Book10.otf",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "./../public/fonts/SharpGrotesk-Medium10.otf",
+      weight: "500",
+      style: "normal",
+    },
+    {
+      path: "./../public/fonts/SharpGrotesk-Bold10.otf",
+      weight: "700",
+      style: "normal",
+    },
+  ],
+  variable: "--font-sharp-grotesk",
   display: 'swap', // Prevent invisible text during font load
   preload: true,   // Preload font for better performance
 });
@@ -275,7 +296,7 @@ export default function RootLayout({
         </Script>
       </head>
       <body
-        className={`${roboto.variable} ${geistMono.variable} ${jetbrainsMono.variable} ${ubuntu.variable} antialiased`}
+        className={`${sharpGrotesk.variable} ${geistMono.variable} ${jetbrainsMono.variable} ${ubuntu.variable} antialiased`}
       >
         <script
           dangerouslySetInnerHTML={{
