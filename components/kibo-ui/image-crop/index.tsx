@@ -38,13 +38,13 @@ const centerAspectCrop = (
       ? makeAspectCrop(
         {
           unit: "%",
-          width: 90,
+          width: 100,
         },
         aspect,
         mediaWidth,
         mediaHeight
       )
-      : { x: 0, y: 0, width: 90, height: 90, unit: "%" },
+      : { x: 0, y: 0, width: 100, height: 100, unit: "%" },
     mediaWidth,
     mediaHeight
   );
