@@ -30,6 +30,9 @@ if (process.env.NODE_ENV === 'production' && process.env.NEXT_PUBLIC_SENTRY_DSN 
       Sentry.init({
         dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
 
+        // Prevent default integrations (we only want the console integration)
+        defaultIntegrations: [],
+
         // Disable performance tracing
         tracesSampleRate: 0,
 
@@ -75,6 +78,11 @@ if (process.env.NODE_ENV === 'production' && process.env.NEXT_PUBLIC_SENTRY_DSN 
           return event;
         },
 
+        // Prevent any transaction (navigation/perf) events from being sent
+        beforeSendTransaction(transaction) {
+          return null;
+        },
+
       });
     }
   } catch (err) {
@@ -86,4 +94,4 @@ if (process.env.NODE_ENV === 'production' && process.env.NEXT_PUBLIC_SENTRY_DSN 
 // Sentry handles uninitialized state gracefully (no-ops), so we don't need to manually shim it.
 // Attempting to Object.assign(Sentry, ...) fails because module namespaces are immutable.
 
-export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
+export const onRouterTransitionStart = () => undefined;
