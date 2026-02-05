@@ -4594,9 +4594,11 @@ function EmptyState({ title, description, icon, onCreateFolder, onCreatePaper, o
                         Drop anything here to{" "}
                         <DropdownMenu open={uploadDropdownOpen} onOpenChange={setUploadDropdownOpen}>
                             <DropdownMenuTrigger asChild>
-                                <button className="inline-flex items-center gap-1 underline text-foreground font-medium hover:text-primary transition-colors cursor-pointer">
-                                    upload
-                                    <IconChevronDown className="w-3.5 h-3.5" />
+                                <button className="inline-flex items-center gap-2 text-foreground font-medium hover:text-primary transition-colors cursor-pointer">
+                                    <span className="inline-flex items-center gap-2 border-b border-current pb-[2px]">
+                                        <span>upload</span>
+                                        <IconChevronDown className="w-3.5 h-3.5" />
+                                    </span>
                                 </button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="center" className="w-32">
@@ -4614,42 +4616,34 @@ function EmptyState({ title, description, icon, onCreateFolder, onCreatePaper, o
                 </div>
 
                 {/* Other ways section */}
-                <div className="text-center mt-4">
-                    <p className="text-xs text-muted-foreground/70 uppercase tracking-wide font-semibold mb-3">
-                        Other ways to get started
-                    </p>
-                    <div className="flex items-center gap-2 justify-center flex-wrap">
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onCreateFolder?.()}
-                            className="gap-2 text-xs"
-                        >
-                            <IconFolderPlus className="w-4 h-4" />
-                            Create a folder
-                        </Button>
+                <div className="mt-4 flex justify-center">
+                    <div className="w-full max-w-[640px]">
+                        <p className="text-xs text-muted-foreground/70 mb-3">Other ways to get started</p>
+                        <div className="flex items-center justify-between gap-4">
+                            <div className="flex-1 flex justify-start">
+                                <button onClick={() => onCreateFolder?.()} className="inline-flex items-center gap-2 bg-muted/10 border border-border/50 rounded-md px-3 py-2 text-sm text-muted-foreground">
+                                    <IconFolderPlus className="w-4 h-4" />
+                                    Create a folder
+                                </button>
+                            </div>
 
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onCreatePaper?.()}
-                            className="gap-2 text-xs"
-                        >
-                            <IconStackFilled className="w-4 h-4" />
-                            Create a Paper
-                        </Button>
+                            <div className="flex-1 flex justify-center">
+                                <button onClick={() => onCreatePaper?.()} className="inline-flex items-center gap-2 bg-muted/10 border border-border/50 rounded-md px-3 py-2 text-sm text-muted-foreground">
+                                    <IconStackFilled className="w-4 h-4" />
+                                    Create a Paper
+                                </button>
+                            </div>
 
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onImportFromGoogle?.()}
-                            className="gap-2 text-xs"
-                        >
-                            <IconBrandGoogleDrive className="w-4 h-4" />
-                            Import from Google Drive
-                        </Button>
+                            <div className="flex-1 flex justify-end">
+                                <button onClick={() => onImportFromGoogle?.()} className="inline-flex items-center gap-2 bg-muted/10 border border-border/50 rounded-md px-3 py-2 text-sm text-muted-foreground">
+                                    <IconBrandGoogleDrive className="w-4 h-4" />
+                                    Import from Google Drive
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
+
             </EmptyContent>
         </Empty>
     );
