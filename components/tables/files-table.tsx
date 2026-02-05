@@ -391,6 +391,21 @@ export const Table01DividerLineSm = ({
     const [error, setError] = useState<string | null>(null);
     const [isPending] = useTransition();
 
+    // Prevent flashing the empty state: show it slightly after loading finishes
+    const [showEmpty, setShowEmpty] = useState(false);
+    useEffect(() => {
+        let timer: ReturnType<typeof setTimeout> | null = null;
+        if (!isLoading && !isFetching && files.length === 0) {
+            // Delay showing the empty state briefly to avoid flashes during quick reloads
+            timer = setTimeout(() => setShowEmpty(true), 150);
+        } else {
+            setShowEmpty(false);
+        }
+        return () => {
+            if (timer) clearTimeout(timer);
+        };
+    }, [isLoading, isFetching, files.length]);
+
     // Track last fetch to prevent duplicates
     const lastFetchRef = useRef<string | null>(null);
 
@@ -3886,7 +3901,7 @@ export const Table01DividerLineSm = ({
 
                                         ) : null}
                                     </Table>
-                                    {filteredItems.length === 0 && !isLoading && !isFetching && emptyState}
+                                    {filteredItems.length === 0 && showEmpty && emptyState}
                                 </div>
                                 <DragOverlay
                                     modifiers={isMobile ? [] : [snapCenterToCursor]}
@@ -4155,7 +4170,7 @@ export const Table01DividerLineSm = ({
                                     ))}
                                 </div>
 
-                                {filteredItems.length === 0 && !isLoading && !isFetching && (
+                                {filteredItems.length === 0 && showEmpty && (
                                     emptyState
                                 )}
                             </div>

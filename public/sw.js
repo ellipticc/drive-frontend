@@ -109,10 +109,20 @@ self.addEventListener('fetch', (event) => {
                             if (reqUrl.protocol === 'http:' || reqUrl.protocol === 'https:') {
                                 caches.open(RUNTIME_CACHE).then(cache => {
                                     try {
-                                        cache.put(event.request, responseClone);
+                                        // Re-check protocol to avoid race conditions and attach error handling to cache.put promise
+                                        const reqUrlInner = new URL(event.request.url);
+                                        if (reqUrlInner.protocol === 'http:' || reqUrlInner.protocol === 'https:') {
+                                            cache.put(event.request, responseClone).catch(err => {
+                                                console.warn('[SW] Cache.put rejected:', event.request.url, err);
+                                            });
+                                        } else {
+                                            console.warn('[SW] Skipping cache.put for non-http request:', event.request.url);
+                                        }
                                     } catch (err) {
-                                        console.warn('[SW] Unable to cache request:', event.request.url, err);
+                                        console.warn('[SW] Unable to cache request (put-time):', event.request.url, err);
                                     }
+                                }).catch(err => {
+                                    console.warn('[SW] Failed to open cache for request:', event.request.url, err);
                                 });
                             } else {
                                 console.warn('[SW] Skipping caching for non-http request:', event.request.url);
@@ -141,10 +151,20 @@ self.addEventListener('fetch', (event) => {
                     if (reqUrl.protocol === 'http:' || reqUrl.protocol === 'https:') {
                         caches.open(RUNTIME_CACHE).then(cache => {
                             try {
-                                cache.put(event.request, responseClone);
+                                // Re-check protocol and attach error handling to cache.put promise
+                                const reqUrlInner = new URL(event.request.url);
+                                if (reqUrlInner.protocol === 'http:' || reqUrlInner.protocol === 'https:') {
+                                    cache.put(event.request, responseClone).catch(err => {
+                                        console.warn('[SW] Cache.put rejected:', event.request.url, err);
+                                    });
+                                } else {
+                                    console.warn('[SW] Skipping cache.put for non-http request:', event.request.url);
+                                }
                             } catch (err) {
-                                console.warn('[SW] Unable to cache request:', event.request.url, err);
+                                console.warn('[SW] Unable to cache request (put-time):', event.request.url, err);
                             }
+                        }).catch(err => {
+                            console.warn('[SW] Failed to open cache for request:', event.request.url, err);
                         });
                     } else {
                         console.warn('[SW] Skipping caching for non-http request:', event.request.url);
