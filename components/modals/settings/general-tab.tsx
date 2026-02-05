@@ -86,6 +86,18 @@ export function GeneralTab({
         { id: 'custom', name: 'Custom Theme', colors: ['#888888', '#555555', '#333333'], comingSoon: true },
     ]
 
+    const buildTime = (() => {
+        const raw = process.env.NEXT_PUBLIC_BUILD_TIME || '';
+        if (!raw) return 'Unknown';
+        try {
+            const d = isNaN(Number(raw)) ? new Date(raw) : new Date(Number(raw));
+            if (isNaN(d.getTime())) return 'Unknown';
+            return d.toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', second: '2-digit', timeZone: 'UTC' }) + ' UTC';
+        } catch (e) {
+            return 'Unknown';
+        }
+    })();
+
     return (
         <div className="space-y-6">
             {/* Profile Section */}
@@ -322,31 +334,21 @@ export function GeneralTab({
                                         <span>API: {user?.api_version || '—'}</span>
                                     </div>
 
-                                    {/* About Ellipticc - integrated into Account Info to avoid extra border */}
-                                    <div className="mt-4 pt-2">
-                                        <div className="flex items-center gap-2">
-                                            <IconInfoCircle className="w-4 h-4 text-muted-foreground" />
-                                            <div>
-                                                <div className="text-sm font-medium">About Ellipticc</div>
-                                                <div className="text-sm text-muted-foreground mt-1">Last updated on {(() => {
-                                                    const raw = process.env.NEXT_PUBLIC_BUILD_TIME || '';
-                                                    if (!raw) return 'Unknown';
-                                                    try {
-                                                        // Support ISO strings or numeric timestamps
-                                                        const d = isNaN(Number(raw)) ? new Date(raw) : new Date(Number(raw));
-                                                        if (isNaN(d.getTime())) return 'Unknown';
-                                                        return d.toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', second: '2-digit', timeZone: 'UTC' }) + ' UTC';
-                                                    } catch (e) {
-                                                        return 'Unknown';
-                                                    }
-                                                })()}</div>
-                                            </div>
-                                        </div>
-                                    </div>
+
                                 </div>
                             </div>
                         </CardContent>
                     </Card>
+
+                    <div className="mt-4">
+                        <div className="rounded-md border-l-4 border-dashed border-primary/40 bg-muted/10 p-3 flex items-start gap-3">
+                            <IconInfoCircle className="w-5 h-5 text-primary mt-0.5" />
+                            <div>
+                                <div className="text-sm font-medium">About Ellipticc</div>
+                                <div className="text-sm text-muted-foreground mt-1">Last updated on {buildTime}</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div >
