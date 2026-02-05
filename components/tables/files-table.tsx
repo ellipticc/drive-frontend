@@ -1825,6 +1825,45 @@ export const Table01DividerLineSm = ({
         }
     }, [onFolderUpload]);
 
+    const handleCreatePaper = useCallback(async () => {
+        try {
+            const folderId = currentFolderId === 'root' ? null : currentFolderId;
+
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hour = String(now.getHours()).padStart(2, '0');
+            const minute = String(now.getMinutes()).padStart(2, '0');
+            const second = String(now.getSeconds()).padStart(2, '0');
+            const filename = `Untitled paper ${year}-${month}-${day} ${hour}.${minute}.${second}`;
+
+            // Open new tab immediately for better UX
+            const newWin = window.open('/paper/new?creating=1', '_blank');
+            toast('Creating paper...');
+
+            try {
+                const newPaperId = await paperService.createPaper(filename, undefined, folderId);
+
+                if (newPaperId) {
+                    toast.success('Paper created');
+                    if (newWin && !newWin.closed) {
+                        newWin.location.href = `/paper?fileId=${newPaperId}`;
+                    } else {
+                        window.open(`/paper?fileId=${newPaperId}`, '_blank');
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to create new paper:', err);
+                toast.error('Failed to create new paper');
+                if (newWin && !newWin.closed) newWin.close();
+            }
+        } catch (error) {
+            console.error("Failed to create new paper:", error);
+            toast.error("Failed to create new paper");
+        }
+    }, [currentFolderId]);
+
     // Provide upload handlers to parent component
     useEffect(() => {
         if (onUploadHandlersReady) {
@@ -2713,8 +2752,11 @@ export const Table01DividerLineSm = ({
             description={
                 filterMode === 'starred' ? "Mark files as starred to see them here" :
                     filterMode === 'recents' ? "Files you've edited recently will appear here" :
-                        "Get started by uploading a file."
+                        "Get started by adding content."
             }
+            onCreateFolder={() => setCreateFolderOpen(true)}
+            onCreatePaper={handleCreatePaper}
+            onUploadFile={handleFileUpload}
         />
     );
 
@@ -3132,46 +3174,7 @@ export const Table01DividerLineSm = ({
                                 size="sm"
                                 variant="ghost"
                                 className="h-7 w-7 p-0"
-                                onClick={async () => {
-                                    try {
-                                        // Create paper with default title and current folder context
-                                        // Use 'null' for root or currentFolderId if it's a valid UUID
-                                        const folderId = currentFolderId === 'root' ? null : currentFolderId;
-
-                                        const now = new Date();
-                                        const year = now.getFullYear();
-                                        const month = String(now.getMonth() + 1).padStart(2, '0');
-                                        const day = String(now.getDate()).padStart(2, '0');
-                                        const hour = String(now.getHours()).padStart(2, '0');
-                                        const minute = String(now.getMinutes()).padStart(2, '0');
-                                        const second = String(now.getSeconds()).padStart(2, '0');
-                                        const filename = `Untitled paper ${year}-${month}-${day} ${hour}.${minute}.${second}`;
-
-                                        // Open new tab immediately for better UX
-                                        const newWin = window.open('/paper/new?creating=1', '_blank');
-                                        toast('Creating paper...');
-
-                                        try {
-                                            const newPaperId = await paperService.createPaper(filename, undefined, folderId);
-
-                                            if (newPaperId) {
-                                                toast.success('Paper created');
-                                                if (newWin && !newWin.closed) {
-                                                    newWin.location.href = `/paper?fileId=${newPaperId}`;
-                                                } else {
-                                                    window.open(`/paper?fileId=${newPaperId}`, '_blank');
-                                                }
-                                            }
-                                        } catch (err) {
-                                            console.error('Failed to create new paper:', err);
-                                            toast.error('Failed to create new paper');
-                                            if (newWin && !newWin.closed) newWin.close();
-                                        }
-                                    } catch (error) {
-                                        console.error("Failed to create new paper:", error);
-                                        toast.error("Failed to create new paper");
-                                    }
-                                }}
+                                onClick={() => handleCreatePaper()}
                                 aria-label={t("files.newPaper") || "New Paper"}
                             >
                                 <IconStack className="h-3.5 w-3.5" />
@@ -4567,13 +4570,45 @@ export const Table01DividerLineSm = ({
 
 };
 
-function EmptyState({ title, description, icon }: { title: string, description: string, icon?: React.ReactNode }) {
+function EmptyState({ title, description, icon, onCreateFolder, onCreatePaper, onUploadFile }: { title: string, description: string, icon?: React.ReactNode, onCreateFolder?: () => void, onCreatePaper?: () => Promise<void> | void, onUploadFile?: () => void }) {
     return (
         <Empty>
             <EmptyHeader>
                 <EmptyTitle>{title}</EmptyTitle>
                 <EmptyDescription>{description}</EmptyDescription>
             </EmptyHeader>
+
+            <EmptyContent className="mt-6 flex flex-col items-center gap-3">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onCreateFolder?.()}
+                    className="w-56 justify-start px-3"
+                >
+                    <IconFolderPlus className="w-4 h-4 mr-2" />
+                    Create folder
+                </Button>
+
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onCreatePaper?.()}
+                    className="w-56 justify-start px-3"
+                >
+                    <IconStack className="w-4 h-4 mr-2" />
+                    New paper
+                </Button>
+
+                <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => onUploadFile?.()}
+                    className="w-56 justify-start px-3"
+                >
+                    <IconFileUpload className="w-4 h-4 mr-2" />
+                    Upload file
+                </Button>
+            </EmptyContent>
         </Empty>
     );
 }
