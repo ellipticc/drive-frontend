@@ -3573,7 +3573,7 @@ export const Table01DividerLineSm = ({
                 </div>
             )}
 
-            <TableCard.Root size="sm" className={cx(isMobile ? "rounded-none ring-0 shadow-none" : "rounded-xl")}>
+            <TableCard.Root size="sm" className={cx(isMobile ? "rounded-none ring-0 shadow-none" : "rounded-xl", "overflow-hidden")}>
                 {!isMobile && (
                     <TableCard.Header
                         title={renderBreadcrumbs()}
@@ -4602,7 +4602,7 @@ function EmptyState({ title, description, icon, onCreateFolder, onCreatePaper, o
     return (
         <Empty>
             <div className="w-full min-h-[calc(100vh-6rem)] flex items-center justify-center overflow-hidden p-6">
-                <div className="w-full max-w-[760px] flex flex-col items-center gap-4 text-center">
+                <div className="w-full max-w-[760px] flex flex-col items-start gap-8 text-left">
 
                     {/* Lottie Animation (slightly smaller) */}
                     <div className="w-44 h-44">
@@ -4611,7 +4611,7 @@ function EmptyState({ title, description, icon, onCreateFolder, onCreatePaper, o
 
                     {/* Drop text with dropdown */}
                     <div className="w-full">
-                        <p className="text-sm text-muted-foreground mx-auto max-w-[560px]">
+                        <p className="text-sm text-muted-foreground">
                             Drop anything here to{' '}
                             <DropdownMenu open={uploadDropdownOpen} onOpenChange={setUploadDropdownOpen}>
                                 <DropdownMenuTrigger asChild>
@@ -4636,22 +4636,22 @@ function EmptyState({ title, description, icon, onCreateFolder, onCreatePaper, o
                         </p>
                     </div>
 
-                    {/* Other ways section - buttons inline, centered, tighter spacing, secondary variant */}
+                    {/* Other ways section - buttons inline, left-aligned, muted hover */}
                     <div className="w-full">
                         <p className="text-xs text-muted-foreground/70 mb-3">Other ways to get started</p>
 
-                        <div className="w-full flex items-center justify-center gap-3">
-                            <Button variant="secondary" size="sm" onClick={() => onCreateFolder?.()} className="inline-flex items-center gap-2 px-2 py-1.5 text-sm">
+                        <div className="flex items-start gap-3">
+                            <Button variant="secondary" size="sm" onClick={() => onCreateFolder?.()} className="inline-flex items-center gap-2 px-2 py-1.5 text-sm hover:bg-secondary/50 hover:text-muted-foreground transition-colors">
                                 <IconFolderPlus data-icon="inline-start" className="w-4 h-4" />
                                 Create a folder
                             </Button>
 
-                            <Button variant="secondary" size="sm" onClick={() => onCreatePaper?.()} className="inline-flex items-center gap-2 px-2 py-1.5 text-sm">
+                            <Button variant="secondary" size="sm" onClick={() => onCreatePaper?.()} className="inline-flex items-center gap-2 px-2 py-1.5 text-sm hover:bg-secondary/50 hover:text-muted-foreground transition-colors">
                                 <IconStackFilled data-icon="inline-start" className="w-4 h-4" />
                                 Create a Paper
                             </Button>
 
-                            <Button variant="secondary" size="sm" onClick={() => onImportFromGoogle?.()} className="inline-flex items-center gap-2 px-2 py-1.5 text-sm">
+                            <Button variant="secondary" size="sm" onClick={() => onImportFromGoogle?.()} className="inline-flex items-center gap-2 px-2 py-1.5 text-sm hover:bg-secondary/50 hover:text-muted-foreground transition-colors">
                                 <IconBrandGoogleDrive data-icon="inline-start" className="w-4 h-4" />
                                 Import from Google Drive
                             </Button>
