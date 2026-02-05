@@ -21,6 +21,14 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
+      - name: Set build time
+        id: build_time
+        run: |
+          # Use the commit's committer date (ISO 8601) as the canonical build time
+          # Falls back to current UTC time if git query fails
+          TIME=$(git show -s --format=%cI HEAD 2>/dev/null || date -u --iso-8601=seconds)
+          echo "time=$TIME" >> $GITHUB_OUTPUT
+
       - name: Build and Export
         run: npm run build
         env:
@@ -33,6 +41,8 @@ jobs:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           # Inject the exact commit SHA used for this build so the frontend can report its version
           NEXT_PUBLIC_APP_VERSION: ${{ github.sha }}
+          # Inject build time (ISO 8601); used by About Ellipticc in Settings
+          NEXT_PUBLIC_BUILD_TIME: ${{ steps.build_time.outputs.time }}
 
 
       - name: Sync static files to VPS
