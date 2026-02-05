@@ -443,7 +443,8 @@ class PaperService {
                 const blocksWithPositions: Array<any & { position: string }> = [];
 
                 for (let i = 0; i < contentBlocks.length; i++) {
-                    const block = contentBlocks[i];
+                    // Fix: Clone block to avoid "Cannot assign to read only property" error
+                    const block = { ...contentBlocks[i] };
                     if (!block.id || seenIds.has(block.id)) block.id = uuidv7();
                     seenIds.add(block.id);
 
@@ -532,7 +533,7 @@ class PaperService {
                 // Prepare Manifest Chunk (Chunk 0)
                 // Note: We need to re-order newManifestBlocks to match contentBlocks order
                 const orderedManifestBlocks: ManifestEntry[] = [];
-                for (const block of contentBlocks) {
+                for (const block of blocksWithPositions) {
                     const entry = newManifestBlocks.find(b => b.id === block.id);
                     if (entry) orderedManifestBlocks.push(entry);
                 }
