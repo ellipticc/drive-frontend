@@ -326,6 +326,35 @@ export function GeneralTab({
                         </CardContent>
                     </Card>
                 </div>
+
+                {/* About Ellipticc Section */}
+                <div className="border-t pt-6">
+                    <div className="mt-4">
+                        <Card>
+                            <CardHeader>
+                                <div className="flex items-center gap-2">
+                                    <IconInfoCircle className="w-5 h-5 text-muted-foreground" />
+                                    <CardTitle className="text-base">About Ellipticc</CardTitle>
+                                </div>
+                                <CardDescription>Information about this build and platform</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-sm text-muted-foreground">Last updated on {(() => {
+                                    const raw = process.env.NEXT_PUBLIC_BUILD_TIME || '';
+                                    if (!raw) return 'Unknown';
+                                    try {
+                                        // Support ISO strings or numeric timestamps
+                                        const d = isNaN(Number(raw)) ? new Date(raw) : new Date(Number(raw));
+                                        if (isNaN(d.getTime())) return 'Unknown';
+                                        return d.toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', second: '2-digit', timeZone: 'UTC' }) + ' UTC';
+                                    } catch (e) {
+                                        return 'Unknown';
+                                    }
+                                })()}</div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
             </div>
         </div >
     )

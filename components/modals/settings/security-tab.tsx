@@ -1139,7 +1139,7 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                             onValueChange={(val) => updateSessionsPageSize?.(Number(val))}
                             disabled={isMobile}
                         >
-                            <SelectTrigger className="w-20" size="sm">
+                            <SelectTrigger className="w-28" size="sm">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -1497,7 +1497,7 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                             onValueChange={(val) => updateDevicesPageSize?.(Number(val))}
                             disabled={isMobile}
                         >
-                            <SelectTrigger className="w-20" size="sm">
+                            <SelectTrigger className="w-28" size="sm">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -1888,7 +1888,7 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                             onValueChange={(val) => updateSecurityEventsPageSize?.(Number(val))}
                             disabled={isMobile}
                         >
-                            <SelectTrigger className="w-20" size="sm">
+                            <SelectTrigger className="w-28" size="sm">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -2085,6 +2085,17 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                             Loading security events...
                                         </td>
                                     </tr>
+                                ) : isLoadingSecurityEvents ? (
+                                    // While loading but previous events exist, show lightweight skeleton rows equal to page size for smoothness
+                                    Array.from({ length: securityEventsPageSize || 10 }).map((_, i) => (
+                                        <tr key={`skeleton-${i}`} className="opacity-70">
+                                            <td className="px-4 py-3"><div className="h-3 bg-muted rounded w-24" /></td>
+                                            <td className="px-4 py-3"><div className="h-3 bg-muted rounded w-64" /></td>
+                                            <td className="px-4 py-3 hidden md:table-cell"><div className="h-3 bg-muted rounded w-32" /></td>
+                                            <td className="px-4 py-3"><div className="h-3 bg-muted rounded w-24" /></td>
+                                            <td className="px-4 py-3 text-right"><div className="h-3 bg-muted rounded w-20 ml-auto" /></td>
+                                        </tr>
+                                    ))
                                 ) : securityEvents.length === 0 ? (
                                     <tr>
                                         <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">

@@ -453,18 +453,27 @@ export function SettingsModal({
     const val = isMobile ? 5 : n;
     setSessionsPageSize(val);
     try { localStorage.setItem('settings.table.sessions.pageSize', String(val)); } catch (e) {}
+    // Clear and show loading immediately for smooth UX
+    setUserSessions([]);
+    setIsLoadingSessions(true);
     loadUserSessions(1);
   };
   const updateDevicesPageSize = (n: number) => {
     const val = isMobile ? 5 : n;
     setDevicesPageSize(val);
     try { localStorage.setItem('settings.table.devices.pageSize', String(val)); } catch (e) {}
+    // Clear and show loading immediately for smooth UX
+    setUserDevices([]);
+    setIsLoadingDevices(true);
     loadUserDevices(1);
   };
   const updateSecurityEventsPageSize = (n: number) => {
     const val = isMobile ? 5 : n;
     setSecurityEventsPageSize(val);
     try { localStorage.setItem('settings.table.activity-monitor.pageSize', String(val)); } catch (e) {}
+    // Clear and show loading immediately for smooth UX
+    setSecurityEvents([]);
+    setIsLoadingSecurityEvents(true);
     loadSecurityEvents(1);
   };
 
