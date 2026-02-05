@@ -5,12 +5,12 @@ import { useFormatter } from "@/hooks/use-formatter";
 import { useSortWorker } from "@/hooks/use-sort-worker";
 import { precomputeFileFieldsBatch, precomputeFileFields, ComputedFileItem } from "@/lib/computed-fields";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { DotsVertical } from "@untitledui/icons";
 import type { SortDescriptor, Selection } from "react-aria-components";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Button } from "@/components/ui/button";
-import { IconFolderPlus, IconFolderDown, IconFileUpload, IconShare3, IconListDetails, IconDownload, IconFolder, IconEdit, IconInfoCircle, IconTrash, IconChevronRight, IconLink, IconEye, IconLayoutColumns, IconCopy, IconStar, IconStarFilled, IconLoader2, IconGrid3x3, IconLock, IconX, IconStack, IconUpload } from "@tabler/icons-react";
+import { IconFolderPlus, IconFolderDown, IconFileUpload, IconFolderUp, IconStackFilled, IconDotsVertical, IconShare3, IconListDetails, IconDownload, IconFolder, IconEdit, IconInfoCircle, IconTrash, IconChevronRight, IconLink, IconEye, IconLayoutColumns, IconCopy, IconStar, IconStarFilled, IconLoader2, IconGrid3x3, IconLock, IconX, IconStack, IconUpload, IconChevronDown, IconFileText, IconBrandGoogleDrive } from "@tabler/icons-react";
 
+import Lottie from 'lottie-react';
 import dynamic from "next/dynamic";
 
 const CreateFolderModal = dynamic(() => import("@/components/modals/create-folder-modal").then(mod => mod.CreateFolderModal));
@@ -54,6 +54,7 @@ import { TruncatedNameTooltip } from "@/components/tables/truncated-name-tooltip
 import { cx } from "@/utils/cx";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/components/user-context";
+import { useGoogleDrive } from "@/hooks/use-google-drive";
 import {
     DndContext,
     DragOverlay,
@@ -2740,6 +2741,8 @@ export const Table01DividerLineSm = ({
         };
     }, [selectedItemForPreview, getPreviewableFiles]);
 
+    const { openPicker: openGooglePicker, isReady: isGoogleReady } = useGoogleDrive();
+
     const emptyState = (
         <EmptyState
             title={
@@ -2757,6 +2760,10 @@ export const Table01DividerLineSm = ({
             onCreateFolder={() => setCreateFolderOpen(true)}
             onCreatePaper={handleCreatePaper}
             onUploadFile={handleFileUpload}
+            onImportFromGoogle={() => {
+                if (isGoogleReady) openGooglePicker();
+                else toast('Google Drive integration is not configured or still loading');
+            }}
         />
     );
 
@@ -3806,7 +3813,7 @@ export const Table01DividerLineSm = ({
                                                                                 onMouseDown={(e) => e.stopPropagation()}
                                                                                 onPointerDown={(e) => e.stopPropagation()}
                                                                             >
-                                                                                <DotsVertical className="h-4 w-4" />
+                                                                                <IconDotsVertical className="h-4 w-4" />
                                                                             </Button>
                                                                         </DropdownMenuTrigger>
                                                                         <DropdownMenuContent align="end" className="w-48">
@@ -4090,7 +4097,7 @@ export const Table01DividerLineSm = ({
                                                             onMouseDown={(e) => e.stopPropagation()}
                                                             onPointerDown={(e) => e.stopPropagation()}
                                                         >
-                                                            <DotsVertical className="h-3 w-3" />
+                                                            <IconDotsVertical className="h-3 w-3" />
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end" className="w-48">
@@ -4570,44 +4577,93 @@ export const Table01DividerLineSm = ({
 
 };
 
-function EmptyState({ title, description, icon, onCreateFolder, onCreatePaper, onUploadFile }: { title: string, description: string, icon?: React.ReactNode, onCreateFolder?: () => void, onCreatePaper?: () => Promise<void> | void, onUploadFile?: () => void }) {
+function EmptyState({ title, description, icon, onCreateFolder, onCreatePaper, onUploadFile, onImportFromGoogle }: { title: string, description: string, icon?: React.ReactNode, onCreateFolder?: () => void, onCreatePaper?: () => Promise<void> | void, onUploadFile?: () => void, onImportFromGoogle?: () => void }) {
+    const [uploadDropdownOpen, setUploadDropdownOpen] = useState(false);
+    const [lottieData, setLottieData] = useState<any>(null);
+
+    useEffect(() => {
+        fetch('/chill.lottie')
+            .then(res => res.json())
+            .then(data => setLottieData(data))
+            .catch(err => console.error('Failed to load lottie:', err));
+    }, []);
+
     return (
         <Empty>
-            <EmptyHeader>
-                <EmptyTitle>{title}</EmptyTitle>
-                <EmptyDescription>{description}</EmptyDescription>
-            </EmptyHeader>
+            <EmptyContent className="flex flex-col items-center gap-4">
+                {/* Lottie Animation */}
+                {lottieData && (
+                    <div className="w-40 h-40 -mt-4">
+                        <Lottie
+                            animationData={lottieData}
+                            loop
+                            autoplay
+                        />
+                    </div>
+                )}
 
-            <EmptyContent className="mt-6 flex flex-col items-center gap-3">
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onCreateFolder?.()}
-                    className="w-56 justify-start px-3"
-                >
-                    <IconFolderPlus className="w-4 h-4 mr-2" />
-                    Create folder
-                </Button>
+                {/* Drop text with dropdown */}
+                <div className="text-center">
+                    <p className="text-sm text-muted-foreground">
+                        Drop anything here to{" "}
+                        <DropdownMenu open={uploadDropdownOpen} onOpenChange={setUploadDropdownOpen}>
+                            <DropdownMenuTrigger asChild>
+                                <button className="inline-flex items-center gap-1 underline text-foreground font-medium hover:text-primary transition-colors cursor-pointer">
+                                    upload
+                                    <IconChevronDown className="w-3.5 h-3.5" />
+                                </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="center" className="w-32">
+                                <DropdownMenuItem onClick={() => onUploadFile?.()}>
+                                    <IconFileUpload className="w-4 h-4 mr-2" />
+                                    Files
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => onCreateFolder?.()}>
+                                    <IconFolderUp className="w-4 h-4 mr-2" />
+                                    Folder
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </p>
+                </div>
 
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onCreatePaper?.()}
-                    className="w-56 justify-start px-3"
-                >
-                    <IconStack className="w-4 h-4 mr-2" />
-                    New paper
-                </Button>
+                {/* Other ways section */}
+                <div className="text-center mt-4">
+                    <p className="text-xs text-muted-foreground/70 uppercase tracking-wide font-semibold mb-3">
+                        Other ways to get started
+                    </p>
+                    <div className="flex items-center gap-2 justify-center flex-wrap">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onCreateFolder?.()}
+                            className="gap-2 text-xs"
+                        >
+                            <IconFolderPlus className="w-4 h-4" />
+                            Create a folder
+                        </Button>
 
-                <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => onUploadFile?.()}
-                    className="w-56 justify-start px-3"
-                >
-                    <IconFileUpload className="w-4 h-4 mr-2" />
-                    Upload file
-                </Button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onCreatePaper?.()}
+                            className="gap-2 text-xs"
+                        >
+                            <IconStackFilled className="w-4 h-4" />
+                            Create a Paper
+                        </Button>
+
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onImportFromGoogle?.()}
+                            className="gap-2 text-xs"
+                        >
+                            <IconBrandGoogleDrive className="w-4 h-4" />
+                            Import from Google Drive
+                        </Button>
+                    </div>
+                </div>
             </EmptyContent>
         </Empty>
     );
