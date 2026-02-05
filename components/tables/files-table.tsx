@@ -1292,12 +1292,8 @@ export const Table01DividerLineSm = ({
 
         let success = false;
         try {
-            // Only show full loading if files are empty (check ref to avoid dependency loop)
-            if (filesRef.current.length === 0) {
-                setIsLoading(true);
-            } else {
-                setIsFetching(true);
-            }
+            // Set loading state immediately to prevent empty state flash
+            setIsLoading(true);
             setError(null);
             // console.log(`Loading folder contents for: ${folderId}, page: ${page} (Fetch ID: ${currentFetchId})`);
 
@@ -3890,7 +3886,7 @@ export const Table01DividerLineSm = ({
 
                                         ) : null}
                                     </Table>
-                                    {filteredItems.length === 0 && emptyState}
+                                    {filteredItems.length === 0 && !isLoading && !isFetching && emptyState}
                                 </div>
                                 <DragOverlay
                                     modifiers={isMobile ? [] : [snapCenterToCursor]}
@@ -4159,7 +4155,7 @@ export const Table01DividerLineSm = ({
                                     ))}
                                 </div>
 
-                                {filteredItems.length === 0 && (
+                                {filteredItems.length === 0 && !isLoading && !isFetching && (
                                     emptyState
                                 )}
                             </div>
