@@ -4580,13 +4580,22 @@ export const Table01DividerLineSm = ({
 function EmptyState({ title, description, icon, onCreateFolder, onCreatePaper, onUploadFile, onImportFromGoogle }: { title: string, description: string, icon?: React.ReactNode, onCreateFolder?: () => void, onCreatePaper?: () => Promise<void> | void, onUploadFile?: () => void, onImportFromGoogle?: () => void }) {
     const [uploadDropdownOpen, setUploadDropdownOpen] = useState(false);
 
+    // Prevent body scroll while empty state is shown
+    useEffect(() => {
+        const prev = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = prev;
+        };
+    }, []);
+
     return (
         <Empty>
-            <div className="w-full min-h-[calc(100vh-6rem)] flex items-center justify-center">
-                <div className="w-full max-w-[760px] flex flex-col items-center gap-6">
+            <div className="w-full h-[calc(100vh-6rem)] overflow-hidden flex items-center justify-center">
+                <div className="w-full max-w-[760px] flex flex-col items-center gap-4">
 
-                    {/* Lottie Animation (bigger) */}
-                    <div className="w-64 h-64">
+                    {/* Lottie Animation (slightly smaller) */}
+                    <div className="w-56 h-56">
                         <DotLottieReact src="/chill.lottie" loop autoplay className="w-full h-full" />
                     </div>
 
@@ -4596,8 +4605,8 @@ function EmptyState({ title, description, icon, onCreateFolder, onCreatePaper, o
                             Drop anything here to{' '}
                             <DropdownMenu open={uploadDropdownOpen} onOpenChange={setUploadDropdownOpen}>
                                 <DropdownMenuTrigger asChild>
-                                    <Button variant="link" size="sm" className="inline-flex items-center gap-2 p-0">
-                                        <span className="inline-flex items-center gap-1 border-b border-current pb-[2px]">
+                                    <Button variant="link" size="sm" className="inline-flex items-center gap-2 p-0 no-underline hover:no-underline select-none">
+                                        <span className="inline-flex items-center gap-1 border-b border-current pb-[2px] select-none">
                                             <span className="whitespace-nowrap">upload</span>
                                             <IconChevronDown data-icon="inline-end" className="w-4 h-4" />
                                         </span>
@@ -4620,27 +4629,27 @@ function EmptyState({ title, description, icon, onCreateFolder, onCreatePaper, o
                     {/* Other ways section */}
                     <div className="w-full">
                         <div className="w-full max-w-[760px] mx-auto">
-                            <p className="text-xs text-muted-foreground/70 mb-3 text-left">Other ways to get started</p>
+                            <p className="text-xs text-muted-foreground/70 mb-3 text-left pl-3">Other ways to get started</p>
 
-                            <div className="w-full bg-muted/5 rounded-md px-3 py-2 flex items-center justify-between gap-4">
+                            <div className="w-full bg-muted/5 rounded-md px-3 py-2 flex items-center justify-between gap-2">
                                 <div className="flex-1 flex justify-start">
-                                    <Button variant="ghost" size="sm" onClick={() => onCreateFolder?.()} className="inline-flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground whitespace-nowrap hover:bg-muted/10">
+                                    <Button variant="ghost" size="sm" onClick={() => onCreateFolder?.()} className="inline-flex items-center gap-2 px-2 py-1.5 text-sm text-muted-foreground/80 whitespace-nowrap hover:bg-muted/20 hover:text-muted-foreground/60 transition-colors">
                                         <IconFolderPlus data-icon="inline-start" className="w-4 h-4" />
                                         <span>Create a folder</span>
                                     </Button>
                                 </div>
                                 
-                                <div className="flex-1 flex justify-end">
-                                    <Button variant="ghost" size="sm" onClick={() => onImportFromGoogle?.()} className="inline-flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground whitespace-nowrap hover:bg-muted/10">
-                                        <IconBrandGoogleDrive data-icon="inline-start" className="w-4 h-4" />
-                                        <span>Import from Google Drive</span>
+                                <div className="flex-1 flex justify-center">
+                                    <Button variant="ghost" size="sm" onClick={() => onCreatePaper?.()} className="inline-flex items-center gap-2 px-2 py-1.5 text-sm text-muted-foreground/80 whitespace-nowrap hover:bg-muted/20 hover:text-muted-foreground/60 transition-colors">
+                                        <IconStackFilled data-icon="inline-start" className="w-4 h-4" />
+                                        <span>Create a Paper</span>
                                     </Button>
                                 </div>
 
-                                <div className="flex-1 flex justify-center">
-                                    <Button variant="ghost" size="sm" onClick={() => onCreatePaper?.()} className="inline-flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground whitespace-nowrap hover:bg-muted/10">
-                                        <IconStackFilled data-icon="inline-start" className="w-4 h-4" />
-                                        <span>Create a Paper</span>
+                                <div className="flex-1 flex justify-end">
+                                    <Button variant="ghost" size="sm" onClick={() => onImportFromGoogle?.()} className="inline-flex items-center gap-2 px-2 py-1.5 text-sm text-muted-foreground/80 whitespace-nowrap hover:bg-muted/20 hover:text-muted-foreground/60 transition-colors">
+                                        <IconBrandGoogleDrive data-icon="inline-start" className="w-4 h-4" />
+                                        <span>Import from Google Drive</span>
                                     </Button>
                                 </div>
                             </div>
