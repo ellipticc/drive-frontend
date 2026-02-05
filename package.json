@@ -21,6 +21,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@emoji-mart/data": "1.2.1",
     "@faker-js/faker": "^10.2.0",
+    "@lottiefiles/dotlottie-react": "^0.17.14",
     "@marsidev/react-turnstile": "^1.4.1",
     "@noble/ciphers": "^2.0.1",
     "@noble/curves": "^2.0.1",

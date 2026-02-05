@@ -10,7 +10,7 @@ import { Table, TableCard } from "@/components/application/table/table";
 import { Button } from "@/components/ui/button";
 import { IconFolderPlus, IconFolderDown, IconFileUpload, IconFolderUp, IconStackFilled, IconDotsVertical, IconShare3, IconListDetails, IconDownload, IconFolder, IconEdit, IconInfoCircle, IconTrash, IconChevronRight, IconLink, IconEye, IconLayoutColumns, IconCopy, IconStar, IconStarFilled, IconLoader2, IconGrid3x3, IconLock, IconX, IconStack, IconUpload, IconChevronDown, IconFileText, IconBrandGoogleDrive } from "@tabler/icons-react";
 
-import Lottie from 'lottie-react';
+import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import dynamic from "next/dynamic";
 
 const CreateFolderModal = dynamic(() => import("@/components/modals/create-folder-modal").then(mod => mod.CreateFolderModal));
@@ -4579,28 +4579,14 @@ export const Table01DividerLineSm = ({
 
 function EmptyState({ title, description, icon, onCreateFolder, onCreatePaper, onUploadFile, onImportFromGoogle }: { title: string, description: string, icon?: React.ReactNode, onCreateFolder?: () => void, onCreatePaper?: () => Promise<void> | void, onUploadFile?: () => void, onImportFromGoogle?: () => void }) {
     const [uploadDropdownOpen, setUploadDropdownOpen] = useState(false);
-    const [lottieData, setLottieData] = useState<any>(null);
-
-    useEffect(() => {
-        fetch('/chill.lottie')
-            .then(res => res.json())
-            .then(data => setLottieData(data))
-            .catch(err => console.error('Failed to load lottie:', err));
-    }, []);
 
     return (
         <Empty>
             <EmptyContent className="flex flex-col items-center gap-4">
                 {/* Lottie Animation */}
-                {lottieData && (
-                    <div className="w-40 h-40 -mt-4">
-                        <Lottie
-                            animationData={lottieData}
-                            loop
-                            autoplay
-                        />
-                    </div>
-                )}
+                <div className="w-40 h-40 -mt-4">
+                    <DotLottieReact src="/chill.lottie" loop autoplay className="w-full h-full" />
+                </div>
 
                 {/* Drop text with dropdown */}
                 <div className="text-center">

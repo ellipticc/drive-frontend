@@ -100,7 +100,16 @@ self.addEventListener('fetch', (event) => {
                         if (response.status === 200) {
                             const responseClone = response.clone();
                             caches.open(RUNTIME_CACHE).then(cache => {
-                                cache.put(event.request, responseClone);
+                                try {
+                                    const reqUrl = new URL(event.request.url);
+                                    if (reqUrl.protocol === 'http:' || reqUrl.protocol === 'https:') {
+                                        cache.put(event.request, responseClone);
+                                    } else {
+                                        console.warn('[SW] Skipping caching for non-http request:', event.request.url);
+                                    }
+                                } catch (err) {
+                                    console.warn('[SW] Unable to cache request:', event.request.url, err);
+                                }
                             });
                         }
                         return response;
@@ -122,7 +131,16 @@ self.addEventListener('fetch', (event) => {
                 if (response.status === 200 && event.request.method === 'GET') {
                     const responseClone = response.clone();
                     caches.open(RUNTIME_CACHE).then(cache => {
-                        cache.put(event.request, responseClone);
+                        try {
+                            const reqUrl = new URL(event.request.url);
+                            if (reqUrl.protocol === 'http:' || reqUrl.protocol === 'https:') {
+                                cache.put(event.request, responseClone);
+                            } else {
+                                console.warn('[SW] Skipping caching for non-http request:', event.request.url);
+                            }
+                        } catch (err) {
+                            console.warn('[SW] Unable to cache request:', event.request.url, err);
+                        }
                     });
                 }
                 return response;
