@@ -23,10 +23,28 @@ self.addEventListener('install', (event) => {
     console.log('[SW] Installing SW version:', SW_VERSION);
     event.waitUntil(
         Promise.all([
-            // Cache static assets
+            // Cache static assets (filter unsafe entries and handle failures)
             caches.open(STATIC_CACHE).then(cache => {
                 console.log('[SW] Caching static assets');
-                return cache.addAll(STATIC_ASSETS);
+                const safeAssets = STATIC_ASSETS.filter(path => {
+                    try {
+                        const u = new URL(path, self.location.origin);
+                        return u.protocol === 'http:' || u.protocol === 'https:';
+                    } catch (e) {
+                        // Exclude invalid URLs
+                        console.warn('[SW] Excluding invalid static asset from cache list:', path, e);
+                        return false;
+                    }
+                });
+                if (safeAssets.length === 0) return Promise.resolve();
+                return cache.addAll(safeAssets).catch(err => {
+                    console.warn('[SW] cache.addAll failed, continuing without blocking install:', err);
+                    // Don't fail install for cache errors
+                    return Promise.resolve();
+                });
+            }).catch(err => {
+                console.warn('[SW] Failed to open static cache during install:', err);
+                return Promise.resolve();
             }),
             // Skip waiting to take control immediately
             self.skipWaiting()
@@ -70,11 +88,28 @@ self.addEventListener('message', (event) => {
     }
 });
 
-self.addEventListener('fetch', (event) => {
-    const url = new URL(event.request.url);
+// Global handlers to help diagnose and prevent uncaught promise rejections
+self.addEventListener('unhandledrejection', (e) => {
+    try { console.warn('[SW] unhandledrejection:', e.reason); } catch (err) { }
+});
+self.addEventListener('error', (e) => {
+    try { console.warn('[SW] error event:', e.message || e); } catch (err) { }
+});
 
-    // Skip chrome-extension requests entirely
-    if (url.protocol === 'chrome-extension:') {
+self.addEventListener('fetch', (event) => {
+    // Guard URL parsing to avoid unexpected schemes or bad URLs
+    let url;
+    try {
+        url = new URL(event.request.url);
+    } catch (e) {
+        console.warn('[SW] Skipping fetch handler for invalid URL:', event.request.url, e);
+        return; // skip handling this request
+    }
+
+    // Skip chrome-extension and other unsupported schemes entirely
+    if (url.protocol && url.protocol !== 'http:' && url.protocol !== 'https:' && url.protocol !== 'about:' && url.protocol !== 'data:') {
+        // Log at debug level only for non-http schemes
+        console.warn('[SW] Skipping fetch for unsupported protocol:', url.protocol, event.request.url);
         return;
     }
 
@@ -104,17 +139,32 @@ self.addEventListener('fetch', (event) => {
                         // Only cache successful responses
                         if (response.status === 200) {
                             const responseClone = response.clone();
-                            const reqUrl = new URL(event.request.url);
-                            // Only cache HTTP/HTTPS requests
-                            if (reqUrl.protocol === 'http:' || reqUrl.protocol === 'https:') {
+                            // Ensure we can parse the URL and it's http(s)
+                            let reqUrl;
+                            try {
+                                reqUrl = new URL(event.request.url);
+                            } catch (err) {
+                                console.warn('[SW] Invalid request URL, skipping cache:', event.request.url, err);
+                            }
+
+                            if (reqUrl && (reqUrl.protocol === 'http:' || reqUrl.protocol === 'https:')) {
                                 caches.open(RUNTIME_CACHE).then(cache => {
                                     try {
-                                        // Re-check protocol to avoid race conditions and attach error handling to cache.put promise
+                                        // Re-check protocol and attach error handling to cache.put promise
                                         const reqUrlInner = new URL(event.request.url);
                                         if (reqUrlInner.protocol === 'http:' || reqUrlInner.protocol === 'https:') {
-                                            cache.put(event.request, responseClone).catch(err => {
-                                                console.warn('[SW] Cache.put rejected:', event.request.url, err);
-                                            });
+                                            try {
+                                                const putPromise = cache.put(event.request, responseClone);
+                                                // Attach a catch so rejections don't become unhandled
+                                                if (putPromise && typeof putPromise.then === 'function') {
+                                                    putPromise.catch(err => {
+                                                        console.warn('[SW] Cache.put rejected:', event.request.url, err);
+                                                    });
+                                                }
+                                            } catch (err) {
+                                                // cache.put may throw synchronously in some browsers for unsupported request schemes
+                                                console.warn('[SW] cache.put threw synchronously:', event.request.url, err);
+                                            }
                                         } else {
                                             console.warn('[SW] Skipping cache.put for non-http request:', event.request.url);
                                         }
@@ -129,6 +179,9 @@ self.addEventListener('fetch', (event) => {
                             }
                         }
                         return response;
+                    }).catch(err => {
+                        console.warn('[SW] Fetch failed for static asset, falling back to cache:', event.request.url, err);
+                        return caches.match(event.request);
                     });
                 })
                 .catch(() => {
@@ -146,17 +199,30 @@ self.addEventListener('fetch', (event) => {
                 // Cache successful GET responses for potential future use
                 if (response.status === 200 && event.request.method === 'GET') {
                     const responseClone = response.clone();
-                    const reqUrl = new URL(event.request.url);
+                    // Ensure URL parse safe
+                    let reqUrl;
+                    try {
+                        reqUrl = new URL(event.request.url);
+                    } catch (e) {
+                        console.warn('[SW] Invalid request URL, skipping cache (network-first):', event.request.url, e);
+                    }
+
                     // Only cache HTTP/HTTPS requests
-                    if (reqUrl.protocol === 'http:' || reqUrl.protocol === 'https:') {
+                    if (reqUrl && (reqUrl.protocol === 'http:' || reqUrl.protocol === 'https:')) {
                         caches.open(RUNTIME_CACHE).then(cache => {
                             try {
-                                // Re-check protocol and attach error handling to cache.put promise
                                 const reqUrlInner = new URL(event.request.url);
                                 if (reqUrlInner.protocol === 'http:' || reqUrlInner.protocol === 'https:') {
-                                    cache.put(event.request, responseClone).catch(err => {
-                                        console.warn('[SW] Cache.put rejected:', event.request.url, err);
-                                    });
+                                    try {
+                                        const putPromise = cache.put(event.request, responseClone);
+                                        if (putPromise && typeof putPromise.then === 'function') {
+                                            putPromise.catch(err => {
+                                                console.warn('[SW] Cache.put rejected:', event.request.url, err);
+                                            });
+                                        }
+                                    } catch (err) {
+                                        console.warn('[SW] cache.put threw synchronously:', event.request.url, err);
+                                    }
                                 } else {
                                     console.warn('[SW] Skipping cache.put for non-http request:', event.request.url);
                                 }
@@ -172,7 +238,8 @@ self.addEventListener('fetch', (event) => {
                 }
                 return response;
             })
-            .catch(() => {
+            .catch(err => {
+                console.warn('[SW] Network failed in network-first fetch, trying cache:', event.request.url, err);
                 // Network failed, try cache
                 return caches.match(event.request);
             })
