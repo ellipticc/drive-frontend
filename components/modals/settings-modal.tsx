@@ -448,33 +448,42 @@ export function SettingsModal({
     }
   }, [isMobile]);
 
+  // Pending page size refs to avoid UI races when changing page size
+  const pendingSessionsPageSizeRef = React.useRef<number | null>(null);
+  const pendingDevicesPageSizeRef = React.useRef<number | null>(null);
+  const pendingSecurityPageSizeRef = React.useRef<number | null>(null);
+
   // Persist helpers
   const updateSessionsPageSize = (n: number) => {
     const val = isMobile ? 5 : n;
     setSessionsPageSize(val);
     try { localStorage.setItem('settings.table.sessions.pageSize', String(val)); } catch (e) {}
-    // Clear and show loading immediately for smooth UX
+    // Indicate pending size and show loading immediately for smooth UX
+    pendingSessionsPageSizeRef.current = val;
     setUserSessions([]);
     setIsLoadingSessions(true);
-    loadUserSessions(1);
+    // Call load with explicit pageSize to avoid race
+    loadUserSessions(1, val);
   };
   const updateDevicesPageSize = (n: number) => {
     const val = isMobile ? 5 : n;
     setDevicesPageSize(val);
     try { localStorage.setItem('settings.table.devices.pageSize', String(val)); } catch (e) {}
-    // Clear and show loading immediately for smooth UX
+    pendingDevicesPageSizeRef.current = val;
     setUserDevices([]);
     setIsLoadingDevices(true);
-    loadUserDevices(1);
+    // Call load with explicit pageSize to avoid race
+    loadUserDevices(1, val);
   };
   const updateSecurityEventsPageSize = (n: number) => {
     const val = isMobile ? 5 : n;
     setSecurityEventsPageSize(val);
     try { localStorage.setItem('settings.table.activity-monitor.pageSize', String(val)); } catch (e) {}
-    // Clear and show loading immediately for smooth UX
+    pendingSecurityPageSizeRef.current = val;
     setSecurityEvents([]);
     setIsLoadingSecurityEvents(true);
-    loadSecurityEvents(1);
+    // Call load with explicit pageSize to avoid race
+    loadSecurityEvents(1, val);
   };
 
   // Initial loading states for tabs
@@ -981,11 +990,11 @@ export function SettingsModal({
     }
   };
 
-  // Load user sessions
-  const loadUserSessions = async (page = 1) => {
+  // Load user sessions (supports explicit pageSize to avoid race when changing size)
+  const loadUserSessions = async (page = 1, pageSizeParam?: number) => {
     setIsLoadingSessions(true)
     try {
-      const pageSize = isMobile ? 5 : sessionsPageSize;
+      const pageSize = isMobile ? 5 : (typeof pageSizeParam === 'number' ? pageSizeParam : sessionsPageSize);
       const response = await apiClient.getSessions(
         page,
         pageSize,
@@ -1009,15 +1018,17 @@ export function SettingsModal({
       console.error('Failed to load sessions:', error)
       setUserSessions([])
     } finally {
+      // Clear pending state if present and finish loading
+      pendingSessionsPageSizeRef.current = null;
       setIsLoadingSessions(false)
     }
   }
 
   // Load user devices
-  const loadUserDevices = async (page = 1) => {
+  const loadUserDevices = async (page = 1, pageSizeParam?: number) => {
     setIsLoadingDevices(true)
     try {
-      const pageSize = isMobile ? 5 : devicesPageSize;
+      const pageSize = isMobile ? 5 : (typeof pageSizeParam === 'number' ? pageSizeParam : devicesPageSize);
       const response = await apiClient.getDevices(
         page,
         pageSize,
@@ -1044,6 +1055,7 @@ export function SettingsModal({
       console.error('Failed to load devices:', error)
       setUserDevices([])
     } finally {
+      pendingDevicesPageSizeRef.current = null;
       setIsLoadingDevices(false)
     }
   }
@@ -1228,10 +1240,11 @@ export function SettingsModal({
   }
 
   // Load security events history
-  const loadSecurityEvents = async (page: number = 1) => {
+  // Load security events with optional explicit page size to avoid race on size change
+  const loadSecurityEvents = async (page: number = 1, pageSizeParam?: number) => {
     setIsLoadingSecurityEvents(true)
     try {
-      const limit = isMobile ? 5 : securityEventsPageSize
+      const limit = isMobile ? 5 : (typeof pageSizeParam === 'number' ? pageSizeParam : securityEventsPageSize)
       const offset = (page - 1) * limit
       const startDate = securityEventsDateRange?.from ? format(securityEventsDateRange.from, "yyyy-MM-dd") : undefined
       const endDate = securityEventsDateRange?.to ? format(securityEventsDateRange.to, "yyyy-MM-dd") : undefined
@@ -1251,6 +1264,7 @@ export function SettingsModal({
     } catch (error) {
       console.error('Failed to load security events:', error)
     } finally {
+      pendingSecurityPageSizeRef.current = null;
       setIsLoadingSecurityEvents(false)
     }
   }
@@ -2205,6 +2219,7 @@ export function SettingsModal({
                       handleRevokeAllSessions={handleRevokeAllSessions}
                       sessionsPageSize={sessionsPageSize}
                       updateSessionsPageSize={updateSessionsPageSize}
+                      sessionsEffectivePageSize={pendingSessionsPageSizeRef.current ?? sessionsPageSize}
 
                       // Devices
                       userDevices={userDevices}
@@ -2215,6 +2230,7 @@ export function SettingsModal({
                       loadUserDevices={loadUserDevices}
                       devicesPageSize={devicesPageSize}
                       updateDevicesPageSize={updateDevicesPageSize}
+                      devicesEffectivePageSize={pendingDevicesPageSizeRef.current ?? devicesPageSize}
 
                       handleRevokeDevice={handleRevokeDevice}
                       handleRevokeAllDevices={handleRevokeAllDevices}
@@ -2251,6 +2267,7 @@ export function SettingsModal({
                       setSecurityEventType={setSecurityEventType}
                       securityEventsPageSize={securityEventsPageSize}
                       updateSecurityEventsPageSize={updateSecurityEventsPageSize}
+                      securityEventsEffectivePageSize={pendingSecurityPageSizeRef.current ?? securityEventsPageSize}
                       isMobile={isMobile}
 
                       // Account

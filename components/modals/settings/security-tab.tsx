@@ -264,13 +264,18 @@ interface SecurityTabProps {
     // Rows per page for devices
     devicesPageSize?: number;
     updateDevicesPageSize?: (n: number) => void;
+    devicesEffectivePageSize?: number;
 
     // Activity rows-per-page
     securityEventsPageSize?: number;
     updateSecurityEventsPageSize?: (n: number) => void;
+    securityEventsEffectivePageSize?: number;
 
     // Responsive hint
     isMobile?: boolean;
+
+    // Effective sessions page size (for pending/skeleton state)
+    sessionsEffectivePageSize?: number;
 
     // Activity
     securityEvents: SecurityEvent[];
@@ -334,9 +339,9 @@ export function SecurityTab(props: SecurityTabProps) {
         showRecoveryCodesModal, setShowRecoveryCodesModal, recoveryCodes,
         showTOTPDisable, disableToken, setDisableToken, disableRecoveryCode, setDisableRecoveryCode, isDisablingTOTP,
         sessionExpiry, setSessionExpiry,
-        userSessions, isLoadingSessions, sessionsTotal, sessionsPage, sessionsTotalPages, loadUserSessions, handleRevokeSession, currentSessionId, showRevokeAllDialog, setShowRevokeAllDialog, handleRevokeAllSessions, sessionsPageSize, updateSessionsPageSize,
-        userDevices, isLoadingDevices, devicesTotal, devicesPage, devicesTotalPages, loadUserDevices, handleRevokeDevice, editingDeviceId, setEditingDeviceId, editNameValue, setEditNameValue, handleUpdateDeviceName, devicePlan, devicesPageSize, updateDevicesPageSize,
-        securityEvents, isLoadingSecurityEvents, detailedEventsEnabled, activityMonitorEnabled, handleUpdateSecurityPreferences, showDisableMonitorDialog, setShowDisableMonitorDialog, handleWipeSecurityEvents, handleDownloadSecurityEvents, loadSecurityEvents, securityEventsTotal, securityEventsPage, securityEventsHasMore, setSecurityEvents, setSecurityEventsTotal, setSecurityEventsHasMore, securityEventsPageSize, updateSecurityEventsPageSize, isMobile,
+        userSessions, isLoadingSessions, sessionsTotal, sessionsPage, sessionsTotalPages, loadUserSessions, handleRevokeSession, currentSessionId, showRevokeAllDialog, setShowRevokeAllDialog, handleRevokeAllSessions, sessionsPageSize, updateSessionsPageSize, sessionsEffectivePageSize,
+        userDevices, isLoadingDevices, devicesTotal, devicesPage, devicesTotalPages, loadUserDevices, handleRevokeDevice, editingDeviceId, setEditingDeviceId, editNameValue, setEditNameValue, handleUpdateDeviceName, devicePlan, devicesPageSize, updateDevicesPageSize, devicesEffectivePageSize,
+        securityEvents, isLoadingSecurityEvents, detailedEventsEnabled, activityMonitorEnabled, handleUpdateSecurityPreferences, showDisableMonitorDialog, setShowDisableMonitorDialog, handleWipeSecurityEvents, handleDownloadSecurityEvents, loadSecurityEvents, securityEventsTotal, securityEventsPage, securityEventsHasMore, setSecurityEvents, setSecurityEventsTotal, setSecurityEventsHasMore, securityEventsPageSize, updateSecurityEventsPageSize, securityEventsEffectivePageSize, isMobile,
         handleLogout, isLoggingOut, setShowDeleteModal,
         showRevoked, setShowRevoked,
         crashReportsEnabled, handleUpdatePrivacySettings,
@@ -2086,16 +2091,19 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                         </td>
                                     </tr>
                                 ) : isLoadingSecurityEvents ? (
-                                    // While loading but previous events exist, show lightweight skeleton rows equal to page size for smoothness
-                                    Array.from({ length: securityEventsPageSize || 10 }).map((_, i) => (
-                                        <tr key={`skeleton-${i}`} className="opacity-70">
-                                            <td className="px-4 py-3"><div className="h-3 bg-muted rounded w-24" /></td>
-                                            <td className="px-4 py-3"><div className="h-3 bg-muted rounded w-64" /></td>
-                                            <td className="px-4 py-3 hidden md:table-cell"><div className="h-3 bg-muted rounded w-32" /></td>
-                                            <td className="px-4 py-3"><div className="h-3 bg-muted rounded w-24" /></td>
-                                            <td className="px-4 py-3 text-right"><div className="h-3 bg-muted rounded w-20 ml-auto" /></td>
-                                        </tr>
-                                    ))
+                                    // While loading but previous events exist, show lightweight skeleton rows equal to effective page size for smoothness
+                                    (() => {
+                                        const effective = securityEventsEffectivePageSize ?? securityEventsPageSize ?? 10;
+                                        return Array.from({ length: effective }).map((_, i) => (
+                                            <tr key={`skeleton-${i}`} className="opacity-70">
+                                                <td className="px-4 py-3"><div className="h-3 bg-muted rounded w-24" /></td>
+                                                <td className="px-4 py-3"><div className="h-3 bg-muted rounded w-64" /></td>
+                                                <td className="px-4 py-3 hidden md:table-cell"><div className="h-3 bg-muted rounded w-32" /></td>
+                                                <td className="px-4 py-3"><div className="h-3 bg-muted rounded w-24" /></td>
+                                                <td className="px-4 py-3 text-right"><div className="h-3 bg-muted rounded w-20 ml-auto" /></td>
+                                            </tr>
+                                        ));
+                                    })()
                                 ) : securityEvents.length === 0 ? (
                                     <tr>
                                         <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
@@ -2413,7 +2421,7 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                 <IconChevronLeft className="h-4 w-4" />
                             </Button>
                             <span className="text-xs text-muted-foreground min-w-[3rem] text-center">
-                                Page {securityEventsPage} of {securityEventsTotal > 0 ? Math.ceil(securityEventsTotal / (securityEventsPageSize || 10)) : 1}
+                                Page {securityEventsPage} of {securityEventsTotal > 0 ? Math.ceil(securityEventsTotal / (securityEventsEffectivePageSize ?? securityEventsPageSize ?? 10)) : 1}
                             </span>
                             <Button
                                 variant="outline"
