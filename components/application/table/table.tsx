@@ -27,6 +27,7 @@ import { Checkbox } from "@/components/base/checkbox/checkbox";
 import { Dropdown } from "@/components/base/dropdown/dropdown";
 import { Tooltip, TooltipTrigger } from "@/components/base/tooltip/tooltip";
 import { cx } from "@/utils/cx";
+import { useTablePointerHover } from "@/hooks/use-table-pointer-hover";
 
 export const TableRowActionsDropdown = () => (
     <Dropdown.Root>
@@ -122,6 +123,11 @@ const TableRoot = ({ className, size = "md", onSelectionChange, ...props }: Tabl
     const context = useContext(TableContext);
     const [hasSelection, setHasSelection] = useState(false);
     const tableRef = useRef<React.ComponentRef<typeof AriaTable>>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+    
+    // Get row height based on size: sm=32px, md=48px
+    const rowHeight = size === "sm" ? 32 : 48;
+    const { containerRef: hoverContainerRef, hoverHighlightStyle } = useTablePointerHover(rowHeight);
 
     // Narrowed type for tableRef.state.selectionManager
     type SelectionManagerLike = { selectedKeys?: { size?: number }; subscribe?: (cb: () => void) => () => void };
@@ -154,12 +160,25 @@ const TableRoot = ({ className, size = "md", onSelectionChange, ...props }: Tabl
         }
     };
 
+    // Sync container refs
+    useEffect(() => {
+        if (containerRef.current && hoverContainerRef.current !== containerRef.current) {
+            hoverContainerRef.current = containerRef.current;
+        }
+    }, [hoverContainerRef]);
+
     return (
         <TableContext.Provider value={{ size: context?.size ?? size, hasSelection }}>
-            <div className="overflow-x-hidden md:overflow-x-auto">
+            <div 
+                ref={containerRef}
+                className="overflow-x-hidden md:overflow-x-auto relative"
+            >
+                {/* Pointer-tracked hover overlay */}
+                <div style={hoverHighlightStyle} className="absolute inset-x-0 z-0 pointer-events-none" />
+                
                 <AriaTable
                     ref={tableRef}
-                    className={(state) => cx("w-full overflow-x-hidden", typeof className === "function" ? className(state) : className)}
+                    className={(state) => cx("w-full overflow-x-hidden relative z-1", typeof className === "function" ? className(state) : className)}
                     onSelectionChange={handleSelectionChange}
                     {...props}
                 />
@@ -290,11 +309,9 @@ const TableRow = forwardRef(<T extends object>(
             ref={ref}
             className={(state) =>
                 cx(
-                    "relative outline-ring transition-colors hover:bg-muted/50 focus-visible:outline-2 focus-visible:-outline-offset-2 group border-b border-border/60 last:border-b-0",
-                    size === "sm" ? "h-8" : "h-12", // Even more compact height
+                    "relative outline-ring focus-visible:outline-2 focus-visible:-outline-offset-2 group border-b border-border/60 last:border-b-0 transition-colors",
+                    size === "sm" ? "h-8" : "h-12",
                     highlightSelectedRow && state.isSelected && "!bg-blue-100 dark:!bg-blue-900/30",
-
-                    // Removed pseudo-element borders in favor of standard border-b on the row for consistent full-width lines
 
                     typeof className === "function" ? className(state) : className,
                 )
