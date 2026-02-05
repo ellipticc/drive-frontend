@@ -105,8 +105,7 @@ const DropHelper = ({ folderName, isVisible }: { folderName: string | null; isVi
                 >
                     <IconUpload className="w-4 h-4 shrink-0" />
                     <span className="text-sm font-medium whitespace-nowrap">
-                        <span>Drop to move to </span>
-                        <span className="font-bold">"{folderName}"</span>
+                        Drop to move to <span className="font-bold">"{folderName}"</span>
                     </span>
                 </motion.div>
             )}
@@ -4602,16 +4601,16 @@ function EmptyState({ title, description, icon, onCreateFolder, onCreatePaper, o
 
     return (
         <Empty>
-            <div className="w-full h-[calc(100vh-6rem)] overflow-hidden flex items-center justify-center">
-                <div className="w-full max-w-[760px] flex flex-col items-center gap-4">
+            <div className="w-full h-[calc(100vh-6rem)] overflow-hidden flex items-start justify-start pt-6">
+                <div className="w-full max-w-[760px] flex flex-col items-start gap-3">
 
                     {/* Lottie Animation (slightly smaller) */}
-                    <div className="w-56 h-56">
+                    <div className="w-48 h-48">
                         <DotLottieReact src="/chill.lottie" loop autoplay className="w-full h-full" />
                     </div>
 
                     {/* Drop text with dropdown */}
-                    <div className="text-center">
+                    <div className="text-left w-full">
                         <p className="text-sm text-muted-foreground">
                             Drop anything here to{' '}
                             <DropdownMenu open={uploadDropdownOpen} onOpenChange={setUploadDropdownOpen}>
@@ -4637,32 +4636,26 @@ function EmptyState({ title, description, icon, onCreateFolder, onCreatePaper, o
                         </p>
                     </div>
 
-                    {/* Other ways section */}
+                    {/* Other ways section - buttons inline, tighter spacing, secondary variant */}
                     <div className="w-full">
                         <div className="w-full max-w-[760px] mx-auto">
                             <p className="text-xs text-muted-foreground/70 mb-3 text-left pl-3">Other ways to get started</p>
 
-                            <div className="w-full bg-muted/5 rounded-md px-3 py-2 flex items-center justify-between gap-2">
-                                <div className="flex-1 flex justify-start">
-                                    <Button variant="ghost" size="sm" onClick={() => onCreateFolder?.()} className="inline-flex items-center gap-2 px-2 py-1.5 text-sm text-muted-foreground/80 whitespace-nowrap hover:bg-muted/20 hover:text-muted-foreground/60 transition-colors">
-                                        <IconFolderPlus data-icon="inline-start" className="w-4 h-4" />
-                                        <span>Create a folder</span>
-                                    </Button>
-                                </div>
-                                
-                                <div className="flex-1 flex justify-center">
-                                    <Button variant="ghost" size="sm" onClick={() => onCreatePaper?.()} className="inline-flex items-center gap-2 px-2 py-1.5 text-sm text-muted-foreground/80 whitespace-nowrap hover:bg-muted/20 hover:text-muted-foreground/60 transition-colors">
-                                        <IconStackFilled data-icon="inline-start" className="w-4 h-4" />
-                                        <span>Create a Paper</span>
-                                    </Button>
-                                </div>
+                            <div className="w-full flex items-start gap-3">
+                                <Button variant="secondary" size="sm" onClick={() => onCreateFolder?.()} className="inline-flex items-center gap-2 px-2 py-1.5 text-sm">
+                                    <IconFolderPlus data-icon="inline-start" className="w-4 h-4" />
+                                    Create a folder
+                                </Button>
 
-                                <div className="flex-1 flex justify-end">
-                                    <Button variant="ghost" size="sm" onClick={() => onImportFromGoogle?.()} className="inline-flex items-center gap-2 px-2 py-1.5 text-sm text-muted-foreground/80 whitespace-nowrap hover:bg-muted/20 hover:text-muted-foreground/60 transition-colors">
-                                        <IconBrandGoogleDrive data-icon="inline-start" className="w-4 h-4" />
-                                        <span>Import from Google Drive</span>
-                                    </Button>
-                                </div>
+                                <Button variant="secondary" size="sm" onClick={() => onCreatePaper?.()} className="inline-flex items-center gap-2 px-2 py-1.5 text-sm">
+                                    <IconStackFilled data-icon="inline-start" className="w-4 h-4" />
+                                    Create a Paper
+                                </Button>
+
+                                <Button variant="secondary" size="sm" onClick={() => onImportFromGoogle?.()} className="inline-flex items-center gap-2 px-2 py-1.5 text-sm">
+                                    <IconBrandGoogleDrive data-icon="inline-start" className="w-4 h-4" />
+                                    Import from Google Drive
+                                </Button>
                             </div>
                         </div>
                     </div>
