@@ -73,6 +73,11 @@ self.addEventListener('message', (event) => {
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
 
+    // Skip chrome-extension requests entirely
+    if (url.protocol === 'chrome-extension:') {
+        return;
+    }
+
     // Handle stream requests (existing functionality)
     if (url.pathname.startsWith('/stream/')) {
         event.respondWith(handleStreamRequest(event));
@@ -99,18 +104,19 @@ self.addEventListener('fetch', (event) => {
                         // Only cache successful responses
                         if (response.status === 200) {
                             const responseClone = response.clone();
-                            caches.open(RUNTIME_CACHE).then(cache => {
-                                try {
-                                    const reqUrl = new URL(event.request.url);
-                                    if (reqUrl.protocol === 'http:' || reqUrl.protocol === 'https:') {
+                            const reqUrl = new URL(event.request.url);
+                            // Only cache HTTP/HTTPS requests
+                            if (reqUrl.protocol === 'http:' || reqUrl.protocol === 'https:') {
+                                caches.open(RUNTIME_CACHE).then(cache => {
+                                    try {
                                         cache.put(event.request, responseClone);
-                                    } else {
-                                        console.warn('[SW] Skipping caching for non-http request:', event.request.url);
+                                    } catch (err) {
+                                        console.warn('[SW] Unable to cache request:', event.request.url, err);
                                     }
-                                } catch (err) {
-                                    console.warn('[SW] Unable to cache request:', event.request.url, err);
-                                }
-                            });
+                                });
+                            } else {
+                                console.warn('[SW] Skipping caching for non-http request:', event.request.url);
+                            }
                         }
                         return response;
                     });
@@ -130,18 +136,19 @@ self.addEventListener('fetch', (event) => {
                 // Cache successful GET responses for potential future use
                 if (response.status === 200 && event.request.method === 'GET') {
                     const responseClone = response.clone();
-                    caches.open(RUNTIME_CACHE).then(cache => {
-                        try {
-                            const reqUrl = new URL(event.request.url);
-                            if (reqUrl.protocol === 'http:' || reqUrl.protocol === 'https:') {
+                    const reqUrl = new URL(event.request.url);
+                    // Only cache HTTP/HTTPS requests
+                    if (reqUrl.protocol === 'http:' || reqUrl.protocol === 'https:') {
+                        caches.open(RUNTIME_CACHE).then(cache => {
+                            try {
                                 cache.put(event.request, responseClone);
-                            } else {
-                                console.warn('[SW] Skipping caching for non-http request:', event.request.url);
+                            } catch (err) {
+                                console.warn('[SW] Unable to cache request:', event.request.url, err);
                             }
-                        } catch (err) {
-                            console.warn('[SW] Unable to cache request:', event.request.url, err);
-                        }
-                    });
+                        });
+                    } else {
+                        console.warn('[SW] Skipping caching for non-http request:', event.request.url);
+                    }
                 }
                 return response;
             })
