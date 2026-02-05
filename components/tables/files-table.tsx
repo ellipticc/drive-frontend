@@ -4601,17 +4601,17 @@ function EmptyState({ title, description, icon, onCreateFolder, onCreatePaper, o
 
     return (
         <Empty>
-            <div className="w-full h-[calc(100vh-6rem)] overflow-hidden flex items-start justify-start pt-6">
-                <div className="w-full max-w-[760px] flex flex-col items-start gap-3">
+            <div className="w-full min-h-[calc(100vh-6rem)] flex items-center justify-center overflow-hidden p-6">
+                <div className="w-full max-w-[760px] flex flex-col items-center gap-4 text-center">
 
                     {/* Lottie Animation (slightly smaller) */}
-                    <div className="w-48 h-48">
+                    <div className="w-44 h-44">
                         <DotLottieReact src="/chill.lottie" loop autoplay className="w-full h-full" />
                     </div>
 
                     {/* Drop text with dropdown */}
-                    <div className="text-left w-full">
-                        <p className="text-sm text-muted-foreground">
+                    <div className="w-full">
+                        <p className="text-sm text-muted-foreground mx-auto max-w-[560px]">
                             Drop anything here to{' '}
                             <DropdownMenu open={uploadDropdownOpen} onOpenChange={setUploadDropdownOpen}>
                                 <DropdownMenuTrigger asChild>
@@ -4636,27 +4636,25 @@ function EmptyState({ title, description, icon, onCreateFolder, onCreatePaper, o
                         </p>
                     </div>
 
-                    {/* Other ways section - buttons inline, tighter spacing, secondary variant */}
+                    {/* Other ways section - buttons inline, centered, tighter spacing, secondary variant */}
                     <div className="w-full">
-                        <div className="w-full max-w-[760px] mx-auto">
-                            <p className="text-xs text-muted-foreground/70 mb-3 text-left pl-3">Other ways to get started</p>
+                        <p className="text-xs text-muted-foreground/70 mb-3">Other ways to get started</p>
 
-                            <div className="w-full flex items-start gap-3">
-                                <Button variant="secondary" size="sm" onClick={() => onCreateFolder?.()} className="inline-flex items-center gap-2 px-2 py-1.5 text-sm">
-                                    <IconFolderPlus data-icon="inline-start" className="w-4 h-4" />
-                                    Create a folder
-                                </Button>
+                        <div className="w-full flex items-center justify-center gap-3">
+                            <Button variant="secondary" size="sm" onClick={() => onCreateFolder?.()} className="inline-flex items-center gap-2 px-2 py-1.5 text-sm">
+                                <IconFolderPlus data-icon="inline-start" className="w-4 h-4" />
+                                Create a folder
+                            </Button>
 
-                                <Button variant="secondary" size="sm" onClick={() => onCreatePaper?.()} className="inline-flex items-center gap-2 px-2 py-1.5 text-sm">
-                                    <IconStackFilled data-icon="inline-start" className="w-4 h-4" />
-                                    Create a Paper
-                                </Button>
+                            <Button variant="secondary" size="sm" onClick={() => onCreatePaper?.()} className="inline-flex items-center gap-2 px-2 py-1.5 text-sm">
+                                <IconStackFilled data-icon="inline-start" className="w-4 h-4" />
+                                Create a Paper
+                            </Button>
 
-                                <Button variant="secondary" size="sm" onClick={() => onImportFromGoogle?.()} className="inline-flex items-center gap-2 px-2 py-1.5 text-sm">
-                                    <IconBrandGoogleDrive data-icon="inline-start" className="w-4 h-4" />
-                                    Import from Google Drive
-                                </Button>
-                            </div>
+                            <Button variant="secondary" size="sm" onClick={() => onImportFromGoogle?.()} className="inline-flex items-center gap-2 px-2 py-1.5 text-sm">
+                                <IconBrandGoogleDrive data-icon="inline-start" className="w-4 h-4" />
+                                Import from Google Drive
+                            </Button>
                         </div>
                     </div>
 
