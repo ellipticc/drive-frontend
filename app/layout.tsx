@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import { Geist_Mono, JetBrains_Mono, Ubuntu } from "next/font/google";
-import localFont from "next/font/local";
+import { Geist_Mono, JetBrains_Mono, Ubuntu, Space_Grotesk } from "next/font/google";
 import Script from "next/script";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
@@ -21,32 +20,12 @@ import { OnboardingTourProvider } from "@/components/onboarding/onboarding-tour-
 import "./globals.css";
 
 // Font definitions
-const sharpGrotesk = localFont({
-  src: [
-    {
-      path: "./../public/fonts/SharpGrotesk-Light10.otf",
-      weight: "300",
-      style: "normal",
-    },
-    {
-      path: "./../public/fonts/SharpGrotesk-Book10.otf",
-      weight: "400",
-      style: "normal",
-    },
-    {
-      path: "./../public/fonts/SharpGrotesk-Medium10.otf",
-      weight: "500",
-      style: "normal",
-    },
-    {
-      path: "./../public/fonts/SharpGrotesk-Bold10.otf",
-      weight: "700",
-      style: "normal",
-    },
-  ],
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "700"],
   variable: "--font-sharp-grotesk",
-  display: 'swap', // Prevent invisible text during font load
-  preload: true,   // Preload font for better performance
+  display: "swap",
+  preload: true,
 });
 
 const geistMono = Geist_Mono({
@@ -296,7 +275,7 @@ export default function RootLayout({
         </Script>
       </head>
       <body
-        className={`${sharpGrotesk.variable} ${geistMono.variable} ${jetbrainsMono.variable} ${ubuntu.variable} antialiased`}
+        className={`${spaceGrotesk.variable} ${geistMono.variable} ${jetbrainsMono.variable} ${ubuntu.variable} antialiased`}
       >
         <script
           dangerouslySetInnerHTML={{
