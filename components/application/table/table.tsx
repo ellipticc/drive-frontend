@@ -54,7 +54,7 @@ const TableContext = createContext<{ size: "sm" | "md"; hasSelection?: boolean }
 const TableCardRoot = ({ children, className, size = "md", ...props }: HTMLAttributes<HTMLDivElement> & { size?: "sm" | "md" }) => {
     return (
         <TableContext.Provider value={{ size }}>
-            <div {...props} className={cx("overflow-hidden rounded-xl bg-card", className)}>
+            <div {...props} className={cx("overflow-hidden rounded-xl bg-[var(--table-surface)]", className)}>
                 {children}
             </div>
         </TableContext.Provider>
@@ -80,7 +80,7 @@ const TableCardHeader = ({ title, badge, description, contentTrailing, className
     return (
         <div
             className={cx(
-                "relative flex flex-row items-center justify-between gap-2 border-b border-border bg-card px-3 md:px-6 h-10 md:h-12",
+                "relative flex flex-row items-center justify-between gap-2 border-b border-border bg-[var(--table-surface)] px-3 md:px-6 h-10 md:h-12",
                 className,
             )}
         >

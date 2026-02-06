@@ -3555,11 +3555,11 @@ export const Table01DividerLineSm = ({
     return (
         <div className={cn(
             "flex flex-col h-full bg-background mt-1",
-            currentFolderId !== 'root' && "rounded-xl shadow-xs ring-1 ring-border overflow-hidden bg-card"
+            currentFolderId !== 'root' && "rounded-xl shadow-xs ring-1 ring-border overflow-hidden bg-[var(--table-surface)]"
         )}>
 
             {isMobile && (
-                <div className="flex flex-col border-b border-border bg-card shadow-sm z-20">
+                <div className="flex flex-col border-b border-border bg-[var(--table-surface)] shadow-sm z-20">
                     {/* Actions Toolbar - Mobile Only - Rectangle layout */}
                     <div className="flex items-center gap-3 px-4 py-2 bg-muted/20 overflow-x-auto no-scrollbar min-h-[52px] border-b border-border/40">
                         <div className="flex items-center gap-1.5 min-w-max">

@@ -1057,7 +1057,7 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
 
                 {/* Pagination Controls */}
                 {totalPages > 1 && (
-                    <div className="flex items-center justify-between px-4 py-3 border-t bg-card rounded-b-lg">
+                    <div className="flex items-center justify-between px-4 py-3 border-t bg-[var(--table-surface)] rounded-b-lg">
                         <div className="text-sm text-muted-foreground">
                             Page {page} of {totalPages} ({totalItems} items)
                         </div>
