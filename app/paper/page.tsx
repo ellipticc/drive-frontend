@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, useRef, Suspense, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { masterKeyManager } from "@/lib/master-key";
-import { IconLoader2, IconArrowLeft, IconCloudCheck, IconDotsVertical, IconCopy, IconFileText, IconPrinter, IconDownload, IconHelp, IconHome, IconStackFilled, IconLetterCase, IconChevronUp, IconChevronDown, IconLayoutSidebar } from "@tabler/icons-react";
+import { IconLoader2, IconCloudCheck, IconDotsVertical, IconCopy, IconFileText, IconPrinter, IconDownload, IconHelp, IconHome, IconStackFilled, IconLetterCase, IconChevronUp, IconChevronDown, IconLayoutSidebar } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
 import {
     AlertDialog,
@@ -240,9 +240,14 @@ function PaperHeader({
     return (
         <header className="flex h-14 md:h-16 min-h-[3.5rem] md:min-h-[4rem] items-center gap-2 md:gap-4 border-b px-3 md:px-6 shrink-0 bg-background z-50">
             <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
-                <Button variant="ghost" size="icon" onClick={onBack} className="hover:bg-muted shrink-0 h-9 w-9 md:h-10 md:w-10">
-                    <IconArrowLeft className="w-4 h-4 md:w-5 md:h-5" />
-                </Button>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <SidebarTrigger className="h-9 w-9 md:h-10 md:w-10" />
+                    </TooltipTrigger>
+                    <TooltipContent side="top">
+                        <span className="text-xs">Toggle sidebar · <kbd className="rounded bg-muted/40 px-1">Ctrl</kbd>/<kbd className="rounded bg-muted/40 px-1">Cmd</kbd> + <kbd className="rounded bg-muted/40 px-1">B</kbd></span>
+                    </TooltipContent>
+                </Tooltip>
 
                 <EmojiPopover
                     isOpen={isOpen}
@@ -481,10 +486,25 @@ function PaperHeader({
                         <p>Your paper is encrypted with your private key before leaving your device. Only you can read it.</p>
                     </TooltipContent>
                 </Tooltip>
-                <SidebarTrigger className="hidden md:flex h-9 w-9 md:h-10 md:w-10" />
-                <div className="hidden md:block">
-                    <ThemeToggle />
-                </div>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <SidebarTrigger className="h-9 w-9 md:h-10 md:w-10" />
+                    </TooltipTrigger>
+                    <TooltipContent side="top">
+                        <span className="text-xs">Toggle sidebar · <kbd className="rounded bg-muted/40 px-1">Ctrl</kbd>/<kbd className="rounded bg-muted/40 px-1">Cmd</kbd> + <kbd className="rounded bg-muted/40 px-1">B</kbd></span>
+                    </TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <div className="hidden md:flex ml-2">
+                            <ThemeToggle aria-label="Toggle theme" />
+                        </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                        <span className="text-xs">Toggle theme</span>
+                    </TooltipContent>
+                </Tooltip>
                 <div className="h-6 w-px bg-border mx-1 hidden md:block" />
                 <HeaderUser />
             </div>
@@ -618,15 +638,13 @@ function PaperEditorView({
                     </FixedToolbar>
 
                     <main className="flex-1 overflow-y-auto relative min-h-0" style={{ scrollbarGutter: 'stable' }}>
-                        <EditorContainer className="min-h-full h-auto w-full flex md:justify-center overflow-visible">
-                            <div className="w-full md:max-w-[950px] px-4 sm:px-6 md:px-12 pt-3 md:pt-4 pb-48">
-                                <Editor
-                                    className="min-h-full w-full border-none shadow-none focus-visible:ring-0 transition-all text-base md:text-base"
-                                    autoFocus
-                                    placeholder="New Page"
-                                />
-                            </div>
-                        </EditorContainer>
+                        <div className="w-full md:max-w-[950px] mx-auto px-4 sm:px-6 md:px-12 pt-3 md:pt-4 pb-48">
+                            <Editor
+                                className="min-h-full w-full border-none shadow-none focus-visible:ring-0 transition-all text-base md:text-base"
+                                autoFocus
+                                placeholder="New Page"
+                            />
+                        </div>
 
                         {/* Floating Word Count (Bottom Left - Conditionally Visible) */}
                         {showWordCount && (
@@ -780,32 +798,23 @@ function PaperPageContent() {
         };
     }, []);
 
-    // URL State Management for Version History
+    // URL State Management for Version History - using hash-based format
     useEffect(() => {
         if (typeof window === 'undefined') return;
 
-        const hash = window.location.hash;
-        const urlParams = new URLSearchParams(window.location.search);
-        const versionId = urlParams.get('versionId');
-
-        // Check if versions modal should be open
-        if (hash === '#versions') {
-            setHistoryOpen(true);
-            if (versionId) {
-                setSelectedVersionId(versionId);
-            }
-        }
-
-        // Listen for hash changes
         const handleHashChange = () => {
-            const newHash = window.location.hash;
-            const newUrlParams = new URLSearchParams(window.location.search);
-            const newVersionId = newUrlParams.get('versionId');
-
-            if (newHash === '#versions') {
+            const hash = window.location.hash;
+            
+            // Parse hash for #versions or #versions?versionId=xxx
+            if (hash.startsWith('#versions')) {
                 setHistoryOpen(true);
-                if (newVersionId) {
-                    setSelectedVersionId(newVersionId);
+                
+                // Extract versionId from hash if present
+                const versionIdMatch = hash.match(/versionId=([^&]*)/);
+                if (versionIdMatch?.[1]) {
+                    setSelectedVersionId(versionIdMatch[1]);
+                } else {
+                    setSelectedVersionId(null);
                 }
             } else {
                 setHistoryOpen(false);
@@ -813,34 +822,35 @@ function PaperPageContent() {
             }
         };
 
+        // Check initial hash
+        handleHashChange();
+
+        // Listen for hash changes
         window.addEventListener('hashchange', handleHashChange);
         return () => window.removeEventListener('hashchange', handleHashChange);
     }, []);
 
-    // Update URL when history modal state changes
+    // Update URL when history modal state changes - using hash-based state
     const updateHistoryUrl = useCallback((open: boolean, versionId?: string | null) => {
         if (typeof window === 'undefined') return;
 
         if (open) {
-            const url = new URL(window.location.href);
-            url.hash = '#versions';
+            let hash = '#versions';
             if (versionId) {
-                url.searchParams.set('versionId', versionId);
-            } else {
-                url.searchParams.delete('versionId');
+                hash += `?versionId=${versionId}`;
             }
-            window.history.replaceState(null, '', url.toString());
+            window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}${hash}`);
         } else {
-            const url = new URL(window.location.href);
-            url.hash = '';
-            url.searchParams.delete('versionId');
-            window.history.replaceState(null, '', url.toString());
+            window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
         }
     }, []);
 
     // Wrapper for setHistoryOpen that also updates URL
     const handleHistoryOpen = useCallback((open: boolean, versionId?: string | null) => {
         setHistoryOpen(open);
+        if (versionId) {
+            setSelectedVersionId(versionId);
+        }
         updateHistoryUrl(open, versionId);
     }, [updateHistoryUrl]);
 
