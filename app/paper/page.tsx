@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, useRef, Suspense, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { masterKeyManager } from "@/lib/master-key";
-import { IconLoader2, IconArrowLeft, IconCloudCheck, IconDotsVertical, IconCopy, IconFileText, IconPrinter, IconDownload, IconHelp, IconHome, IconStackFilled, IconLetterCase, IconChevronUp, IconChevronDown } from "@tabler/icons-react";
+import { IconLoader2, IconArrowLeft, IconCloudCheck, IconDotsVertical, IconCopy, IconFileText, IconPrinter, IconDownload, IconHelp, IconHome, IconStackFilled, IconLetterCase, IconChevronUp, IconChevronDown, IconLayoutSidebar } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
 import {
     AlertDialog,
@@ -48,6 +48,7 @@ import { SupportRequestDialog } from "@/components/support-request-dialog";
 import { IconHistory, IconEdit, IconFilePlus, IconFolderSymlink, IconTrash, IconChartBar } from "@tabler/icons-react";
 import { PaperIdProvider } from "@/components/paper-id-context";
 import { IconMoon, IconSun } from "@tabler/icons-react";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useTheme } from "next-themes";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -447,6 +448,16 @@ function PaperHeader({
                             {theme === 'dark' ? <IconSun className="w-4 h-4 mr-2" /> : <IconMoon className="w-4 h-4 mr-2" />}
                             {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => {
+                            // Toggle sidebar - this will work for both mobile sheet and desktop floating
+                            const event = new Event('keydown');
+                            (event as any).key = 'b';
+                            (event as any).metaKey = true;
+                            window.dispatchEvent(event);
+                        }}>
+                            <IconLayoutSidebar className="w-4 h-4 mr-2" />
+                            Toggle Sidebar
+                        </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
 
@@ -470,6 +481,7 @@ function PaperHeader({
                         <p>Your paper is encrypted with your private key before leaving your device. Only you can read it.</p>
                     </TooltipContent>
                 </Tooltip>
+                <SidebarTrigger className="hidden md:flex h-9 w-9 md:h-10 md:w-10" />
                 <div className="hidden md:block">
                     <ThemeToggle />
                 </div>

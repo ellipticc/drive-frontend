@@ -25,7 +25,11 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   const publicRoutes = ['/login', '/signup', '/register', '/otp', '/recover', '/recover/otp', '/recover/reset', '/backup', '/backup/verify', '/totp', '/totp/recovery', '/terms-of-service', '/privacy-policy', '/s'];
 
   // Check if current path is public or paper (standalone)
-  const isPublic = publicRoutes.includes(normalizedPathname) || pathname.startsWith('/s/') || pathname.startsWith('/paper');
+  const isPublic = publicRoutes.includes(normalizedPathname) || pathname.startsWith('/s/');
+
+  // For paper pages, use floating sidebar; for others use inset
+  const isPaperPage = pathname.startsWith('/paper');
+  const sidebarVariant = isPaperPage ? 'floating' : 'inset';
 
   // For public routes, render children without sidebar
   if (isPublic) {
@@ -112,7 +116,7 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
         } as React.CSSProperties
       }
     >
-      <AppSidebar variant="inset" side={dir === 'rtl' ? 'right' : 'left'} />
+      <AppSidebar variant={sidebarVariant} side={dir === 'rtl' ? 'right' : 'left'} />
       <SidebarInset>
         {children}
       </SidebarInset>
