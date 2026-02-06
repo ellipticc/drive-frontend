@@ -40,9 +40,16 @@ export default function AssistantPage() {
     // Derived from URL, fallback to empty (New Chat)
     const conversationId = searchParams.get('conversationId') || ""
 
+    const lastCreatedConversationId = React.useRef<string | null>(null);
+
     // Load History when conversationId changes
     React.useEffect(() => {
         if (!isReady) return;
+
+        // If this is the conversation we just created, don't clear messages!
+        if (conversationId && conversationId === lastCreatedConversationId.current) {
+            return;
+        }
 
         if (conversationId) {
             setIsLoading(true);
@@ -60,7 +67,7 @@ export default function AssistantPage() {
             // New Chat
             setMessages([]);
         }
-    }, [conversationId, isReady, decryptHistory]);
+    }, [conversationId, isReady, decryptHistory, router]);
 
     const scrollToBottom = () => {
         if (scrollAreaRef.current) {
@@ -102,7 +109,7 @@ export default function AssistantPage() {
             // We SEND user message as plaintext (for inference) + Encrypted Blob (for storage)
             const response = await apiClient.chatAI(
                 [{ role: 'user', content: value }],
-                conversationId, // Pass current conversationId (empty string if new)
+                conversationId || lastCreatedConversationId.current || "", // Use new ID if we just created one
                 model,
                 kyberPublicKey,
                 encryptedUserMessage
@@ -113,6 +120,9 @@ export default function AssistantPage() {
             // Check for X-Conversation-Id header to redirect if it was a new chat
             const newConversationId = response.headers.get('X-Conversation-Id');
             if (newConversationId && newConversationId !== conversationId) {
+                // Track this ID so we don't wipe state when the URL updates
+                lastCreatedConversationId.current = newConversationId;
+
                 // It's a new chat! Update URL without reloading
                 window.history.replaceState(null, '', `/assistant?conversationId=${newConversationId}`);
                 // Refresh sidebar list

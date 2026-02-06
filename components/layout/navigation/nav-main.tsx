@@ -21,6 +21,9 @@ import {
   IconTrash,
   IconFolder,
   IconFolderOpen,
+  IconDots,
+  IconPencil,
+  IconArchive,
 } from "@tabler/icons-react"
 import { useState, useEffect, useCallback, Fragment } from "react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
@@ -30,6 +33,13 @@ import { decryptFilename } from "@/lib/crypto"
 import { masterKeyManager } from "@/lib/master-key"
 import { NavFolder } from "./nav-folder"
 import { cn } from "@/lib/utils"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { useAICrypto } from "@/hooks/use-ai-crypto"
 import {
   Dialog,
@@ -478,10 +488,39 @@ export function NavMain({
                 return false;
               });
 
-              // Rename Dialog State
-              const [renameDialogOpen, setRenameDialogOpen] = useState(false);
-              const [chatToRename, setChatToRename] = useState<{ id: string, title: string } | null>(null);
-              const [newTitle, setNewTitle] = useState("");
+              // Delete Dialog State
+              const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+              const [chatToDelete, setChatToDelete] = useState<string | null>(null);
+
+              // Inline Rename State
+              const [editingChatId, setEditingChatId] = useState<string | null>(null);
+              const [editTitle, setEditTitle] = useState("");
+
+              const handleRenameStart = (chat: typeof chats[0]) => {
+                setEditingChatId(chat.id);
+                setEditTitle(chat.title);
+              };
+
+              const handleRenameSave = async (chatId: string) => {
+                if (editTitle.trim()) {
+                  await renameChat(chatId, editTitle.trim());
+                }
+                setEditingChatId(null);
+                setEditTitle("");
+              };
+
+              const handleDeleteClick = (chatId: string) => {
+                setChatToDelete(chatId);
+                setDeleteDialogOpen(true);
+              };
+
+              const confirmDelete = async () => {
+                if (chatToDelete) {
+                  await deleteChat(chatToDelete);
+                  setDeleteDialogOpen(false);
+                  setChatToDelete(null);
+                }
+              };
 
               const handleAssistantToggle = (e: React.MouseEvent) => {
                 e.preventDefault();
@@ -493,15 +532,6 @@ export function NavMain({
 
               const isAssistantActive = pathname.startsWith('/assistant');
               const currentConversationId = searchParams.get('conversationId');
-
-              const submitRename = async () => {
-                if (chatToRename && newTitle.trim()) {
-                  await renameChat(chatToRename.id, newTitle.trim());
-                  setRenameDialogOpen(false);
-                  setNewTitle("");
-                  setChatToRename(null);
-                }
-              };
 
               return (
                 <SidebarMenuItem key={item.title}>
@@ -529,67 +559,111 @@ export function NavMain({
                   {isAssistantExpanded && (
                     <SidebarMenuSub className="ml-3.5 border-l border-border/50">
 
-                      {/* Pinned Chats */}
-                      {chats.filter(chat => chat.pinned && !chat.archived).map(chat => (
-                        <SidebarMenuSubItem key={chat.id}>
-                          <SidebarMenuSubButton
-                            onClick={() => handleNavigate(`/assistant?conversationId=${chat.id}`)}
-                            isActive={currentConversationId === chat.id}
-                            className="group/chat-item pr-1 h-8"
-                          >
-                            <span className="truncate flex-1 text-xs">{chat.title}</span>
-                            <div className="opacity-0 group-hover/chat-item:opacity-100 flex gap-0.5 ml-auto">
-                              <IconPinFilled
-                                className="size-3 text-muted-foreground hover:text-foreground cursor-pointer"
-                                onClick={(e) => { e.stopPropagation(); pinChat(chat.id, false); }}
-                              />
-                            </div>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                      ))}
+                      {/* Unified List (Pinned first, then Recent) */}
+                      {chats.sort((a, b) => {
+                        if (a.pinned === b.pinned) {
+                          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+                        }
+                        return a.pinned ? -1 : 1;
+                      }).filter(chat => !chat.archived).map(chat => {
+                        const isEditing = editingChatId === chat.id;
 
-                      {/* Recent Chats */}
-                      {chats.filter(chat => !chat.pinned && !chat.archived).map(chat => (
-                        <SidebarMenuSubItem key={chat.id}>
-                          <SidebarMenuSubButton
-                            className="group/chat-item pr-1 h-8"
-                            onClick={() => handleNavigate(`/assistant?conversationId=${chat.id}`)}
-                            isActive={currentConversationId === chat.id}
-                          >
-                            <span className="truncate flex-1 text-xs">{chat.title}</span>
-                            <div className="opacity-0 group-hover/chat-item:opacity-100 flex gap-0.5 ml-auto">
-                              <IconPin
-                                className="size-3 text-muted-foreground hover:text-foreground cursor-pointer"
-                                onClick={(e) => { e.stopPropagation(); pinChat(chat.id, true); }}
-                              />
-                              <IconTrash
-                                className="size-3 text-muted-foreground hover:text-status-danger cursor-pointer"
-                                onClick={(e) => { e.stopPropagation(); deleteChat(chat.id); }}
-                              />
-                            </div>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                      ))}
+                        return (
+                          <SidebarMenuSubItem key={chat.id}>
+                            <SidebarMenuSubButton
+                              onClick={() => !isEditing && handleNavigate(`/assistant?conversationId=${chat.id}`)}
+                              isActive={currentConversationId === chat.id}
+                              className="group/chat-item pr-1 h-8"
+                            >
+                              {isEditing ? (
+                                <Input
+                                  value={editTitle}
+                                  onChange={(e) => setEditTitle(e.target.value)}
+                                  // onClick={(e) => e.stopPropagation()} 
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleRenameSave(chat.id);
+                                    if (e.key === 'Escape') setEditingChatId(null);
+                                    e.stopPropagation();
+                                  }}
+                                  onBlur={() => handleRenameSave(chat.id)}
+                                  autoFocus
+                                  className="h-6 text-xs px-1 py-0"
+                                />
+                              ) : (
+                                <>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="truncate flex-1 text-xs">{chat.title}</span>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" align="start" className="max-w-[200px] break-words">
+                                      {chat.title}
+                                    </TooltipContent>
+                                  </Tooltip>
+
+                                  {chat.pinned && <IconPinFilled className="size-3 text-muted-foreground mr-1 shrink-0" />}
+
+                                  <div className="opacity-0 group-hover/chat-item:opacity-100 flex gap-0.5 ml-auto">
+                                    <DropdownMenu>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <DropdownMenuTrigger asChild>
+                                            <div
+                                              role="button"
+                                              className="p-0.5 hover:bg-sidebar-accent rounded-sm text-muted-foreground hover:text-foreground"
+                                              onClick={(e) => e.stopPropagation()}
+                                            >
+                                              <IconDots className="size-3.5" />
+                                            </div>
+                                          </DropdownMenuTrigger>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="right">More options</TooltipContent>
+                                      </Tooltip>
+
+                                      <DropdownMenuContent align="end" className="w-40">
+                                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleRenameStart(chat); }}>
+                                          <IconPencil className="size-3.5 mr-2" />
+                                          <span>Rename</span>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); pinChat(chat.id, !chat.pinned); }}>
+                                          {chat.pinned ? <IconPin className="size-3.5 mr-2" /> : <IconPinFilled className="size-3.5 mr-2" />}
+                                          <span>{chat.pinned ? "Unpin" : "Pin"}</span>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); archiveChat(chat.id, true); }}>
+                                          <IconArchive className="size-3.5 mr-2" />
+                                          <span>Archive</span>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem
+                                          onClick={(e) => { e.stopPropagation(); handleDeleteClick(chat.id); }}
+                                          className="text-status-danger focus:text-status-danger focus:bg-status-danger/10"
+                                        >
+                                          <IconTrash className="size-3.5 mr-2" />
+                                          <span>Delete</span>
+                                        </DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+                                  </div>
+                                </>
+                              )}
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                        );
+                      })}
                     </SidebarMenuSub>
                   )}
 
-                  {/* Rename Dialog - Keep it rendered but controlled by open state */}
-                  <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
+                  {/* Delete Confirmation Dialog */}
+                  <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
                     <DialogContent>
                       <DialogHeader>
-                        <DialogTitle>Rename Chat</DialogTitle>
+                        <DialogTitle>Delete Chat?</DialogTitle>
                       </DialogHeader>
-                      <div className="py-4">
-                        <Input
-                          value={newTitle}
-                          onChange={(e) => setNewTitle(e.target.value)}
-                          placeholder="Chat Name"
-                          onKeyDown={(e) => { if (e.key === 'Enter') submitRename(); }}
-                        />
+                      <div className="py-2 text-sm text-muted-foreground">
+                        Are you sure you want to delete this chat? This action cannot be undone.
                       </div>
                       <DialogFooter>
-                        <Button variant="outline" onClick={() => setRenameDialogOpen(false)}>Cancel</Button>
-                        <Button onClick={submitRename}>Save</Button>
+                        <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+                        <Button variant="destructive" onClick={confirmDelete}>Delete</Button>
                       </DialogFooter>
                     </DialogContent>
                   </Dialog>
