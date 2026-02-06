@@ -1,4 +1,4 @@
-const SW_VERSION = '1.0.2'; // Updated for static asset caching
+const SW_VERSION = '1.0.3'; // Updated for static asset caching
 
 // Cache names
 const STATIC_CACHE = 'drive-static-v1';
@@ -115,6 +115,11 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
+    // Exclude AI chat API from service worker (streaming)
+    if (url.pathname.includes('/api/v1/ai/chat')) {
+        return;
+    }
+
     // Handle stream requests (existing functionality)
     if (url.pathname.startsWith('/stream/')) {
         event.respondWith(handleStreamRequest(event));
@@ -166,7 +171,7 @@ self.addEventListener('fetch', (event) => {
                                                 }
                                             } catch (err) {
                                                 // cache.put may throw synchronously in some browsers for unsupported request schemes
-                                                try { console.warn('[SW] cache.put threw synchronously for key:', reqUrlInner.href, err); } catch(e){}
+                                                try { console.warn('[SW] cache.put threw synchronously for key:', reqUrlInner.href, err); } catch (e) { }
                                             }
                                         } else {
                                             console.warn('[SW] Skipping cache.put for non-http request:', event.request.url);
@@ -225,7 +230,7 @@ self.addEventListener('fetch', (event) => {
                                             });
                                         }
                                     } catch (err) {
-                                        try { console.warn('[SW] cache.put threw synchronously for key:', reqUrlInner.href, err); } catch(e){}
+                                        try { console.warn('[SW] cache.put threw synchronously for key:', reqUrlInner.href, err); } catch (e) { }
                                     }
                                 } else {
                                     console.warn('[SW] Skipping cache.put for non-http request:', event.request.url);

@@ -10,6 +10,14 @@ import apiClient from "@/lib/api"
 import { PromptInput, PromptInputProvider, PromptInputProps, PromptInputTextarea, PromptInputFooter, PromptInputSubmit } from "@/components/ai-elements/prompt-input"
 import { ModelSelector, ModelSelectorTrigger, ModelSelectorContent, ModelSelectorItem, ModelSelectorList, ModelSelectorLogo, ModelSelectorName, ModelSelectorLogoGroup } from "@/components/ai-elements/model-selector"
 import { Reasoning, ReasoningTrigger, ReasoningContent } from "@/components/ai-elements/reasoning"
+import { SiteHeader } from "@/components/layout/header/site-header"
+import { Streamdown } from "streamdown"
+import { cjk } from "@streamdown/cjk"
+import { code } from "@streamdown/code"
+import { math } from "@streamdown/math"
+import { mermaid } from "@streamdown/mermaid"
+
+const streamdownPlugins = { cjk, code, math, mermaid }
 
 // Generate UUID
 const generateId = () => {
@@ -115,7 +123,8 @@ export default function AssistantPage() {
 
     return (
         <div className="flex flex-col h-full bg-background">
-            <header className="flex h-14 items-center justify-between border-b bg-card px-6">
+            <SiteHeader sticky />
+            <div className="flex h-14 shrink-0 items-center justify-between border-b bg-card px-6">
                 <div className="flex items-center gap-2">
                     <IconWand className="size-5 text-primary" />
                     <h1 className="text-lg font-semibold">Assistant</h1>
@@ -141,7 +150,7 @@ export default function AssistantPage() {
                         </ModelSelectorList>
                     </ModelSelectorContent>
                 </ModelSelector>
-            </header>
+            </div>
 
             <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
                 <div className="max-w-3xl mx-auto space-y-6 pb-4">
@@ -183,8 +192,10 @@ export default function AssistantPage() {
                                         Thinking...
                                     </Reasoning>
                                 )}
-                                <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                                    {message.content}
+                                <div className="text-sm leading-relaxed">
+                                    <Streamdown plugins={streamdownPlugins as any}>
+                                        {message.content}
+                                    </Streamdown>
                                 </div>
                             </div>
                         </div>
