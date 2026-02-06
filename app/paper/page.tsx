@@ -82,7 +82,7 @@ interface PaperHeaderProps {
     onSelectEmoji: (emoji: any) => void;
     saving: boolean;
     isUnsaved: boolean;
-    setHistoryOpen: (open: boolean) => void;
+    onHistoryOpen: (open: boolean, versionId?: string | null) => void;
     onBack: () => void;
     editorValue: Value | undefined;
     onCreateNewPaper: () => void;
@@ -131,7 +131,7 @@ function PaperHeader({
     onSelectEmoji,
     saving,
     isUnsaved,
-    setHistoryOpen,
+    onHistoryOpen,
     onBack,
     editorValue,
     onCreateNewPaper,
@@ -291,7 +291,7 @@ function PaperHeader({
                                 <IconFolderSymlink className="w-4 h-4 mr-2" />
                                 Move to folder
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setHistoryOpen(true)}>
+                            <DropdownMenuItem onClick={() => onHistoryOpen(true)}>
                                 <IconHistory className="w-4 h-4 mr-2" />
                                 See version history
                             </DropdownMenuItem>
@@ -439,7 +439,7 @@ function PaperHeader({
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-48">
-                        <DropdownMenuItem onClick={() => setHistoryOpen(true)}>
+                        <DropdownMenuItem onClick={() => onHistoryOpen(true)}>
                             <IconHistory className="w-4 h-4 mr-2" />
                             Version History
                         </DropdownMenuItem>
@@ -452,7 +452,7 @@ function PaperHeader({
 
                 <Tooltip>
                     <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={() => setHistoryOpen(true)} className="hidden md:flex h-9 w-9 md:h-10 md:w-10">
+                        <Button variant="ghost" size="icon" onClick={() => onHistoryOpen(true)} className="hidden md:flex h-9 w-9 md:h-10 md:w-10">
                             <IconHistory className="w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />
                         </Button>
                     </TooltipTrigger>
@@ -491,7 +491,7 @@ function PaperEditorView({
     onSelectEmoji,
     saving,
     isUnsaved,
-    setHistoryOpen,
+    onHistoryOpen,
     onBack,
     onCreateNewPaper,
     onMakeCopy,
@@ -514,7 +514,7 @@ function PaperEditorView({
     onSelectEmoji: (emoji: any) => void;
     saving: boolean;
     isUnsaved: boolean;
-    setHistoryOpen: (open: boolean) => void;
+    onHistoryOpen: (open: boolean, versionId?: string | null) => void;
     onBack: () => void;
     onCreateNewPaper: () => void;
     onMakeCopy: () => void;
@@ -586,7 +586,7 @@ function PaperEditorView({
                         onSelectEmoji={onSelectEmoji}
                         saving={saving}
                         isUnsaved={isUnsaved}
-                        setHistoryOpen={setHistoryOpen}
+                        onHistoryOpen={onHistoryOpen}
                         onBack={onBack}
                         editorValue={editorValue}
                         onCreateNewPaper={onCreateNewPaper}
@@ -676,6 +676,7 @@ function PaperPageContent() {
     const [saving, setSaving] = useState(false);
     const [isUnsaved, setIsUnsaved] = useState(false);
     const [historyOpen, setHistoryOpen] = useState(false);
+    const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
     const [content, setContent] = useState<Value | undefined>(undefined);
     const [paperTitle, setPaperTitle] = useState<string>("Untitled Paper");
     const [icon, setIcon] = useState<string | null>(null);
@@ -766,6 +767,70 @@ function PaperPageContent() {
             document.body.style.overflow = prevBodyOverflow;
         };
     }, []);
+
+    // URL State Management for Version History
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+
+        const hash = window.location.hash;
+        const urlParams = new URLSearchParams(window.location.search);
+        const versionId = urlParams.get('versionId');
+
+        // Check if versions modal should be open
+        if (hash === '#versions') {
+            setHistoryOpen(true);
+            if (versionId) {
+                setSelectedVersionId(versionId);
+            }
+        }
+
+        // Listen for hash changes
+        const handleHashChange = () => {
+            const newHash = window.location.hash;
+            const newUrlParams = new URLSearchParams(window.location.search);
+            const newVersionId = newUrlParams.get('versionId');
+
+            if (newHash === '#versions') {
+                setHistoryOpen(true);
+                if (newVersionId) {
+                    setSelectedVersionId(newVersionId);
+                }
+            } else {
+                setHistoryOpen(false);
+                setSelectedVersionId(null);
+            }
+        };
+
+        window.addEventListener('hashchange', handleHashChange);
+        return () => window.removeEventListener('hashchange', handleHashChange);
+    }, []);
+
+    // Update URL when history modal state changes
+    const updateHistoryUrl = useCallback((open: boolean, versionId?: string | null) => {
+        if (typeof window === 'undefined') return;
+
+        if (open) {
+            const url = new URL(window.location.href);
+            url.hash = '#versions';
+            if (versionId) {
+                url.searchParams.set('versionId', versionId);
+            } else {
+                url.searchParams.delete('versionId');
+            }
+            window.history.replaceState(null, '', url.toString());
+        } else {
+            const url = new URL(window.location.href);
+            url.hash = '';
+            url.searchParams.delete('versionId');
+            window.history.replaceState(null, '', url.toString());
+        }
+    }, []);
+
+    // Wrapper for setHistoryOpen that also updates URL
+    const handleHistoryOpen = useCallback((open: boolean, versionId?: string | null) => {
+        setHistoryOpen(open);
+        updateHistoryUrl(open, versionId);
+    }, [updateHistoryUrl]);
 
     // Initial Load
     useEffect(() => {
@@ -1278,7 +1343,7 @@ function PaperPageContent() {
                 onSelectEmoji={onSelectEmoji}
                 saving={saving}
                 isUnsaved={isUnsaved}
-                setHistoryOpen={setHistoryOpen}
+                onHistoryOpen={handleHistoryOpen}
                 onBack={handleGoBack}
                 onCreateNewPaper={handleCreateNewPaper}
                 onMakeCopy={handleMakeCopy}
@@ -1294,9 +1359,11 @@ function PaperPageContent() {
 
             <VersionHistoryModal
                 isOpen={historyOpen}
-                onClose={() => setHistoryOpen(false)}
+                onClose={() => handleHistoryOpen(false)}
                 fileId={fileId}
                 onRestoreComplete={handleRestoreComplete}
+                selectedVersionId={selectedVersionId}
+                onVersionSelect={(versionId) => handleHistoryOpen(true, versionId)}
             />
 
             <MoveToTrashModal

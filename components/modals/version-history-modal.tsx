@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react'
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
+import { Skeleton } from "@/components/ui/skeleton"
 import { apiClient } from "@/lib/api"
 import { toast } from "sonner"
 import { IconHistory, IconRestore, IconTrash, IconLoader2, IconEye, IconX, IconCopyPlus, IconGitBranch, IconPencil, IconGitCompare } from "@tabler/icons-react"
@@ -66,13 +67,17 @@ interface VersionHistoryModalProps {
     onClose: () => void
     fileId: string
     onRestoreComplete: () => void
+    selectedVersionId?: string | null
+    onVersionSelect?: (versionId: string | null) => void
 }
 
 export function VersionHistoryModal({
     isOpen,
     onClose,
     fileId,
-    onRestoreComplete
+    onRestoreComplete,
+    selectedVersionId,
+    onVersionSelect
 }: VersionHistoryModalProps) {
     const { formatDateTime, formatDateOnly, formatTimeOnly } = useFormatter()
     const [versions, setVersions] = useState<Version[]>([])
@@ -315,12 +320,19 @@ export function VersionHistoryModal({
         setRenameDialogOpen(true)
     }
 
-    // Auto-select latest version on load
+    // Auto-select version on load or when selectedVersionId changes
     useEffect(() => {
-        if (versions.length > 0 && !previewVersionId) {
-            handlePreview(versions[0]);
+        if (versions.length > 0) {
+            if (selectedVersionId) {
+                const version = versions.find(v => v.id === selectedVersionId);
+                if (version && version.id !== previewVersionId) {
+                    handlePreview(version);
+                }
+            } else if (!previewVersionId) {
+                handlePreview(versions[0]);
+            }
         }
-    }, [versions, previewVersionId]);
+    }, [versions, previewVersionId, selectedVersionId]);
 
     const handlePreview = async (version: Version) => {
         // Don't reload if already viewing this version
@@ -329,6 +341,7 @@ export function VersionHistoryModal({
         }
 
         setPreviewVersionId(version.id)
+        onVersionSelect?.(version.id)
         setPreviewLoading(true)
         setPreviewContent(null)
         setPreviousContent(null)
@@ -493,9 +506,51 @@ export function VersionHistoryModal({
                             <div className="flex-1 overflow-y-auto">
                                 <div className="flex flex-col pb-10">
                                     {loading ? (
-                                        <div className="flex flex-col items-center justify-center py-20 gap-3 text-muted-foreground">
-                                            <IconLoader2 className="w-6 h-6 animate-spin" />
-                                            <p className="text-xs font-medium">Loading history...</p>
+                                        <div className="space-y-3">
+                                            {/* Skeleton for Today */}
+                                            <div>
+                                                <div className="px-4 py-1.5">
+                                                    <Skeleton className="h-3 w-12" />
+                                                </div>
+                                                {Array.from({ length: 3 }).map((_, i) => (
+                                                    <div key={i} className="px-4 py-2.5 flex flex-col gap-0.5">
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                                                                <Skeleton className="h-3 w-16" />
+                                                            </div>
+                                                            <Skeleton className="h-4 w-12 rounded" />
+                                                        </div>
+                                                        <div className="flex items-center gap-2 text-[10px]">
+                                                            <Skeleton className="h-4 w-4 rounded-full" />
+                                                            <Skeleton className="h-3 w-20" />
+                                                            <Skeleton className="h-3 w-8" />
+                                                            <Skeleton className="h-3 w-12" />
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            {/* Skeleton for Yesterday */}
+                                            <div>
+                                                <div className="px-4 py-1.5">
+                                                    <Skeleton className="h-3 w-16" />
+                                                </div>
+                                                {Array.from({ length: 2 }).map((_, i) => (
+                                                    <div key={i} className="px-4 py-2.5 flex flex-col gap-0.5">
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                                                                <Skeleton className="h-3 w-16" />
+                                                            </div>
+                                                            <Skeleton className="h-4 w-12 rounded" />
+                                                        </div>
+                                                        <div className="flex items-center gap-2 text-[10px]">
+                                                            <Skeleton className="h-4 w-4 rounded-full" />
+                                                            <Skeleton className="h-3 w-20" />
+                                                            <Skeleton className="h-3 w-8" />
+                                                            <Skeleton className="h-3 w-12" />
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
                                     ) : versions.length === 0 ? (
                                         <div className="flex flex-col items-center justify-center py-20 gap-3 text-muted-foreground text-center px-8">
