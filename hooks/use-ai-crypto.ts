@@ -100,6 +100,18 @@ export function useAICrypto(): UseAICryptoReturn {
                 let title = "New Chat";
                 if (chat.encrypted_title && chat.iv && chat.encapsulated_key) {
                     title = await decryptTitle(chat.encrypted_title, chat.iv, chat.encapsulated_key);
+
+                    // Defensive sanitization to strip surrounding quotes/prefixes and stray trailing counts
+                    title = title.replace(/^\s*["'`]+|["'`]+\s*$/g, '')
+                                 .replace(/^Title:\s*/i, '')
+                                 .replace(/^Conversation\s*Start\s*[:\-\s]*/i, '')
+                                 .replace(/\s*[:\-\|]\s*0+$/g, '')
+                                 .replace(/\s+/g, ' ')
+                                 .trim();
+
+                    const words = title.split(/\s+/).filter(Boolean);
+                    if (words.length > 10) title = words.slice(0, 10).join(' ');
+                    if (!/[A-Za-z0-9]/.test(title) || title.length === 0) title = 'New Chat';
                 }
                 return {
                     id: chat.id,

@@ -21,7 +21,7 @@ import {
   IconTrash,
   IconFolder,
   IconFolderOpen,
-  IconDots,
+  IconDotsVertical,
   IconPencil,
   IconArchive,
 } from "@tabler/icons-react"
@@ -612,14 +612,14 @@ export function NavMain({
                                               className="p-0.5 hover:bg-sidebar-accent rounded-sm text-muted-foreground hover:text-foreground"
                                               onClick={(e) => e.stopPropagation()}
                                             >
-                                              <IconDots className="size-3.5" />
+                                              <IconDotsVertical className="size-3.5" />
                                             </div>
                                           </DropdownMenuTrigger>
                                         </TooltipTrigger>
                                         <TooltipContent side="right">More options</TooltipContent>
                                       </Tooltip>
 
-                                      <DropdownMenuContent align="end" className="w-40">
+                                      <DropdownMenuContent side="bottom" align="end" className="w-40">
                                         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleRenameStart(chat); }}>
                                           <IconPencil className="size-3.5 mr-2" />
                                           <span>Rename</span>
