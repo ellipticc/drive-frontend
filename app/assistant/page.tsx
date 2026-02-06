@@ -40,17 +40,62 @@ export default function AssistantPage() {
     const [chatId, setChatId] = React.useState<string>("")
     const scrollAreaRef = React.useRef<HTMLDivElement>(null)
     const [model, setModel] = React.useState("llama-3.1-8b-instant")
+    const [chatKey, setChatKey] = React.useState<Uint8Array | null>(null)
 
     React.useEffect(() => {
         // Generate or retrieve chatId on mount
         const stored = localStorage.getItem('ai_chat_id');
+        let currentChatId = stored;
         if (stored) {
             setChatId(stored);
         } else {
             const newId = generateId();
             setChatId(newId);
             localStorage.setItem('ai_chat_id', newId);
+            currentChatId = newId;
         }
+
+        // Derive chat key if master key is available
+        import('@/lib/master-key').then(async ({ masterKeyManager }) => {
+            try {
+                if (masterKeyManager.hasMasterKey()) {
+                    const mk = masterKeyManager.getMasterKey();
+                    const { deriveAIChatKey, decryptAIMessage } = await import('@/lib/ai-crypto');
+                    const ck = await deriveAIChatKey(mk, currentChatId!);
+                    setChatKey(ck);
+
+                    // Load history if chatKey is derived
+                    if (ck && currentChatId) {
+                        try {
+                            const encryptedMessages = await apiClient.getAIChatMessages(currentChatId);
+                            if (encryptedMessages && encryptedMessages.length > 0) {
+                                const decryptedMessages: Message[] = encryptedMessages.map((msg: any) => {
+                                    try {
+                                        return {
+                                            role: msg.role,
+                                            content: decryptAIMessage(msg.encrypted_content, msg.iv, ck),
+                                        };
+                                    } catch (err) {
+                                        console.error("Failed to decrypt message:", err);
+                                        return {
+                                            role: msg.role,
+                                            content: "[Decryption Failed]",
+                                        };
+                                    }
+                                });
+                                setMessages(prev => [...decryptedMessages, ...prev]); // Or just set if initial load
+                                // Better:
+                                setMessages(decryptedMessages);
+                            }
+                        } catch (loadErr) {
+                            console.error("Failed to load chat history:", loadErr);
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error("Failed to derive chat key:", e);
+            }
+        });
     }, []);
 
     const scrollToBottom = () => {
@@ -138,34 +183,15 @@ export default function AssistantPage() {
 
     return (
         <div className="flex flex-col h-full bg-background">
-            <SiteHeader sticky />
-            <div className="flex h-14 shrink-0 items-center justify-between border-b bg-card px-6">
-                <div className="flex items-center gap-2">
-                    <IconWand className="size-5 text-primary" />
-                    <h1 className="text-lg font-semibold">Assistant</h1>
-                </div>
-
-                <ModelSelector>
-                    <ModelSelectorTrigger className="px-2 py-1 border rounded hover:bg-muted text-sm flex items-center gap-2">
-                        <ModelSelectorLogoGroup>
-                            <ModelSelectorLogo provider="llama" />
-                        </ModelSelectorLogoGroup>
-                        <span>{model}</span>
-                    </ModelSelectorTrigger>
-                    <ModelSelectorContent title="Select Model">
-                        <ModelSelectorList>
-                            <ModelSelectorItem onSelect={() => setModel("llama-3.1-8b-instant")}>
-                                <ModelSelectorLogo provider="llama" className="mr-2" />
-                                <ModelSelectorName>Llama 3.1 8B Instant</ModelSelectorName>
-                            </ModelSelectorItem>
-                            <ModelSelectorItem onSelect={() => setModel("llama-3.3-70b-versatile")}>
-                                <ModelSelectorLogo provider="llama" className="mr-2" />
-                                <ModelSelectorName>Llama 3.3 70B Versatile</ModelSelectorName>
-                            </ModelSelectorItem>
-                        </ModelSelectorList>
-                    </ModelSelectorContent>
-                </ModelSelector>
-            </div>
+            <SiteHeader
+                sticky
+                customTitle={
+                    <div className="flex items-center gap-2">
+                        <IconWand className="size-5 text-primary" />
+                        <h1 className="text-lg font-semibold">Assistant</h1>
+                    </div>
+                }
+            />
 
             <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
                 <div className="max-w-3xl mx-auto space-y-6 pb-4">
@@ -239,6 +265,6 @@ export default function AssistantPage() {
                     AI can make mistakes. Please verify important information.
                 </div>
             </div>
-        </div>
+        </div >
     )
 }

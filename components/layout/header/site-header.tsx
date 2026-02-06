@@ -35,9 +35,10 @@ interface SiteHeaderProps {
   onFolderUpload?: () => void
   searchValue?: string
   sticky?: boolean
+  customTitle?: React.ReactNode
 }
 
-export function SiteHeader({ onSearch, onFileUpload, onFolderUpload, searchValue, sticky = false }: SiteHeaderProps) {
+export function SiteHeader({ onSearch, onFileUpload, onFolderUpload, searchValue, sticky = false, customTitle }: SiteHeaderProps) {
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false)
   const [, setForceUpdate] = useState(0)
   const [localSearchValue, setLocalSearchValue] = useState(searchValue || "")
@@ -173,7 +174,11 @@ export function SiteHeader({ onSearch, onFileUpload, onFolderUpload, searchValue
           orientation="vertical"
           className="mx-2 data-[orientation=vertical]:h-4"
         />
-        {pathname?.startsWith('/attestations') ? (
+        {customTitle ? (
+          <div className="flex items-center gap-2">
+            {customTitle}
+          </div>
+        ) : pathname?.startsWith('/attestations') ? (
           <h2 className="text-lg font-semibold tracking-tight">Attestations</h2>
         ) : (
           <div className="relative flex-1 max-w-md">

@@ -4174,8 +4174,51 @@ class ApiClient {
         messages,
         chatId,
         model,
+        messageToStore: messages.length > 0 && messages[messages.length - 1].role === 'user'
+          ? (messages[messages.length - 1] as any).messageToStore
+          : undefined
       }),
     });
+  }
+
+  async saveAIChatMessage(
+    chatId: string,
+    role: 'user' | 'assistant',
+    encrypted_content: string,
+    iv: string
+  ): Promise<Response> {
+    const endpoint = '/ai/message';
+    const authHeaders = await this.getAuthHeaders(endpoint, 'POST');
+
+    return fetch(`${this.baseURL}${endpoint}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders,
+      },
+      body: JSON.stringify({
+        chatId,
+        role,
+        encrypted_content,
+        iv,
+      }),
+    });
+  }
+
+  async getAIChatMessages(chatId: string): Promise<any[]> {
+    const endpoint = `/ai/chat/${chatId}/messages`;
+    const authHeaders = await this.getAuthHeaders(endpoint, 'GET');
+
+    const response = await fetch(`${this.baseURL}${endpoint}`, {
+      method: 'GET',
+      headers: {
+        ...authHeaders
+      }
+    });
+
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data.messages || [];
   }
 }
 
