@@ -10,6 +10,25 @@ import { decryptFilename } from "@/lib/crypto"
 import { masterKeyManager } from "@/lib/master-key"
 import { NavFolder } from "./nav-folder"
 import { cn } from "@/lib/utils"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator
+} from "@/components/ui/dropdown-menu"
+import { useAICrypto } from "@/hooks/use-ai-crypto"
+import { IconDots, IconPin, IconPinFilled, IconPencil, IconTrash } from "@tabler/icons-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 
 import {
   SidebarGroup,
@@ -304,7 +323,7 @@ export function NavMain({
                   >
                     {(() => {
                       const isActive = pathname === item.url
-                      const IconComponent = getIcon(item, isActive)
+                      const IconComponent = getIcon(item, isActive) as any
                       return IconComponent && <IconComponent />
                     })()}
                     <span>{item.title}</span>
@@ -460,6 +479,158 @@ export function NavMain({
               );
             }
 
+            if (item.id === 'assistant') {
+              const { chats, renameChat, pinChat, deleteChat, archiveChat } = useAICrypto();
+              const [isAssistantExpanded, setIsAssistantExpanded] = useState(() => {
+                if (typeof window !== "undefined") {
+                  return sessionStorage.getItem("assistant-expanded") === "true";
+                }
+                return false;
+              });
+
+              // Rename Dialog State
+              const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+              const [chatToRename, setChatToRename] = useState<{ id: string, title: string } | null>(null);
+              const [newTitle, setNewTitle] = useState("");
+
+              const toggleAssistant = (e: React.MouseEvent) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (state === "collapsed") {
+                  toggleSidebar();
+                  return;
+                }
+                const next = !isAssistantExpanded;
+                setIsAssistantExpanded(next);
+                sessionStorage.setItem("assistant-expanded", String(next));
+              }
+
+              const handleRenameClick = (chat: typeof chats[0]) => {
+                setChatToRename({ id: chat.id, title: chat.title });
+                setNewTitle(chat.title);
+                setRenameDialogOpen(true);
+              };
+
+              const submitRename = async () => {
+                if (chatToRename && newTitle.trim()) {
+                  await renameChat(chatToRename.id, newTitle.trim());
+                  setRenameDialogOpen(false);
+                  setChatToRename(null);
+                }
+              };
+
+              return (
+                <SidebarMenuItem key={item.title} className="space-y-1">
+                  <div className="relative">
+                    <SidebarMenuButton
+                      tooltip={item.title}
+                      isActive={pathname === item.url || pathname.startsWith('/assistant')}
+                      onClick={() => handleNavigate(item.url)}
+                      className="cursor-pointer pr-8"
+                    >
+                      {(() => {
+                        const isActive = pathname === item.url || pathname.startsWith('/assistant')
+                        const IconComponent = getIcon(item, isActive) as any
+                        return IconComponent && <IconComponent className="shrink-0" />
+                      })()}
+                      <span>{item.title}</span>
+                    </SidebarMenuButton>
+
+                    <button
+                      type="button"
+                      onClick={toggleAssistant}
+                      className="absolute right-1 top-1/2 -translate-y-1/2 p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded-sm transition-colors text-muted-foreground/40 hover:text-muted-foreground z-50 flex items-center justify-center cursor-pointer"
+                    >
+                      <IconChevronDown
+                        className={cn("size-3.5 shrink-0 transition-transform duration-200", !isAssistantExpanded && "-rotate-90")}
+                      />
+                    </button>
+                  </div>
+
+                  {isAssistantExpanded && (
+                    <SidebarMenuSub className="ml-3.5 border-l border-border/50">
+                      {/* New Chat Button */}
+                      <SidebarMenuItem>
+                        <SidebarMenuButton
+                          onClick={() => handleNavigate('/assistant')}
+                          isActive={pathname === '/assistant' && !searchParams.get('chatId')}
+                          className="text-sidebar-foreground/70 ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground h-8 mb-1"
+                        >
+                          <IconWritingSignFilled className="size-4 mr-2" />
+                          <span>New Chat</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+
+                      {chats.map(chat => (
+                        <SidebarMenuItem key={chat.id}>
+                          <div className="group flex items-center w-full relative">
+                            <SidebarMenuButton
+                              asChild
+                              isActive={searchParams.get('chatId') === chat.id}
+                              tooltip={chat.title}
+                              className="text-sidebar-foreground/70 ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground h-8 mb-1 pr-8"
+                            >
+                              <a href={`/assistant?chatId=${chat.id}`} onClick={(e) => { e.preventDefault(); handleNavigate(`/assistant?chatId=${chat.id}`); }}>
+                                {chat.pinned ? <IconPinFilled className="size-3.5 mr-2 text-primary" /> : <IconBubbleTextFilled className="size-3.5 mr-2 opacity-70" />}
+                                <span className="truncate">{chat.title}</span>
+                              </a>
+                            </SidebarMenuButton>
+
+                            {/* Actions Menu */}
+                            <div className="absolute right-1 top-1/2 -translate-y-[calc(50%+2px)] opacity-0 group-hover:opacity-100 transition-opacity">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <div className="h-6 w-6 flex items-center justify-center rounded-sm hover:bg-background/80 cursor-pointer">
+                                    <IconDots className="size-3.5" />
+                                  </div>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="start" side="right">
+                                  <DropdownMenuItem onClick={() => handleRenameClick(chat)}>
+                                    <IconPencil className="size-4 mr-2" />
+                                    Rename
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => pinChat(chat.id, !chat.pinned)}>
+                                    {chat.pinned ? <><IconPin className="size-4 mr-2" /> Unpin</> : <><IconPinFilled className="size-4 mr-2" /> Pin</>}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => deleteChat(chat.id)} className="text-destructive focus:text-destructive">
+                                    <IconTrash className="size-4 mr-2" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </div>
+                        </SidebarMenuItem>
+                      ))}
+                    </SidebarMenuSub>
+                  )}
+
+                  {/* Rename Dialog */}
+                  <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Rename Chat</DialogTitle>
+                      </DialogHeader>
+                      <div className="py-4">
+                        <Input
+                          value={newTitle}
+                          onChange={(e) => setNewTitle(e.target.value)}
+                          placeholder="Chat Name"
+                          onKeyDown={(e) => { if (e.key === 'Enter') submitRename(); }}
+                        />
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setRenameDialogOpen(false)}>Cancel</Button>
+                        <Button onClick={submitRename}>Save</Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+
+                </SidebarMenuItem>
+              );
+            }
+
             if (item.id === 'trash') {
               return (
                 <SidebarMenuItem key={item.title}>
@@ -474,7 +645,7 @@ export function NavMain({
                   >
                     {(() => {
                       const isActive = pathname === item.url
-                      const IconComponent = getIcon(item, isActive)
+                      const IconComponent = getIcon(item, isActive) as any
                       return IconComponent && <IconComponent />
                     })()}
                     <span>{item.title}</span>
@@ -488,7 +659,7 @@ export function NavMain({
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton onClick={() => window.location.hash = '#settings/General'} id="tour-settings">
                     {(() => {
-                      const IconComponent = getIcon(item, false) // Settings doesn't have active state in nav-main
+                      const IconComponent = getIcon(item, false) as any // Settings doesn't have active state in nav-main
                       return IconComponent && <IconComponent />
                     })()}
                     <span>{item.title}</span>
@@ -510,11 +681,11 @@ export function NavMain({
                 >
                   {(() => {
                     const isActive = pathname === item.url
-                    const IconComponent = getIcon(item, isActive)
+                    const IconComponent = getIcon(item, isActive) as any
                     return IconComponent && <IconComponent />
                   })()}
                   <span>{item.title}</span>
-                  {item.badge && item.badge > 0 && (
+                  {item.badge !== undefined && item.badge > 0 && (
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-[4px] bg-primary px-0.5 text-[11px] font-semibold text-primary-foreground">

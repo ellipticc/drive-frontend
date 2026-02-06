@@ -1,5 +1,5 @@
-
 import { useState, useEffect, useCallback } from 'react';
+import { masterKeyManager } from '@/lib/master-key';
 import { keyManager } from '@/lib/key-manager';
 import type { UserKeypairs } from '@/lib/key-manager';
 import apiClient from '@/lib/api';
@@ -12,20 +12,31 @@ export interface DecryptedMessage {
     isThinking?: boolean;
 }
 
-interface UseAICryptoReturn {
+export interface UseAICryptoReturn {
     isReady: boolean;
     kyberPublicKey: string | null;
     userKeys: { keypairs: UserKeypairs } | null;
+    chats: { id: string, title: string, pinned: boolean, archived: boolean, createdAt: string }[];
+    loadChats: () => Promise<void>;
+    renameChat: (chatId: string, newTitle: string) => Promise<void>;
+    pinChat: (chatId: string, pinned: boolean) => Promise<void>;
+    archiveChat: (chatId: string, archived: boolean) => Promise<void>;
+    deleteChat: (chatId: string) => Promise<void>;
     decryptHistory: (chatId: string) => Promise<DecryptedMessage[]>;
     decryptStreamChunk: (encryptedContent: string, iv: string, encapsulatedKey?: string, existingSessionKey?: Uint8Array) => Promise<{ decrypted: string, sessionKey: Uint8Array }>;
     error: string | null;
 }
 
 export function useAICrypto(): UseAICryptoReturn {
+    // Check master key availability directly
+    const hasMasterKey = typeof window !== 'undefined' && masterKeyManager.hasMasterKey();
+
     const [isReady, setIsReady] = useState(false);
     const [kyberPublicKey, setKyberPublicKey] = useState<string | null>(null);
     const [userKeys, setUserKeys] = useState<{ keypairs: UserKeypairs } | null>(null);
     const [error, setError] = useState<string | null>(null);
+
+    const [chats, setChats] = useState<{ id: string, title: string, pinned: boolean, archived: boolean, createdAt: string }[]>([]);
 
     useEffect(() => {
         let mounted = true;
@@ -34,7 +45,7 @@ export function useAICrypto(): UseAICryptoReturn {
             try {
                 // 1. Ensure keys are available
                 if (!keyManager.hasKeys()) {
-                    throw new Error("No keys found");
+                    throw Error("No keys available")
                 }
 
                 try {
@@ -53,12 +64,123 @@ export function useAICrypto(): UseAICryptoReturn {
             }
         };
 
-        init();
+        if (hasMasterKey) init();
 
         return () => {
             mounted = false;
         };
+    }, [hasMasterKey]);
+
+    const decryptTitle = useCallback(async (encryptedTitle: string, iv: string, encapsulatedKey: string) => {
+        if (!userKeys) return "Encrypted Chat";
+        try {
+            const { decryptData } = await import('@/lib/crypto');
+            const { ml_kem768 } = await import('@noble/post-quantum/ml-kem');
+
+            const encKeyBytes = Uint8Array.from(atob(encapsulatedKey), c => c.charCodeAt(0));
+            const kyberPriv = userKeys.keypairs.kyberPrivateKey;
+            const sharedSecret = ml_kem768.decapsulate(encKeyBytes, kyberPriv);
+            const decryptedBytes = decryptData(encryptedTitle, sharedSecret, iv);
+            return new TextDecoder().decode(decryptedBytes);
+        } catch (e) {
+            console.error("Title decryption failed:", e);
+            return "Decryption Failed";
+        }
+    }, [userKeys]);
+
+    const loadChats = useCallback(async () => {
+        if (!userKeys) return;
+        try {
+            const res = await apiClient.getChats();
+            const responseData = res as any;
+            const rawChats: any[] = responseData.chats || responseData.data?.chats || [];
+
+            const processed = await Promise.all(rawChats.map(async (chat: any) => {
+                let title = "New Chat";
+                if (chat.encrypted_title && chat.iv && chat.encapsulated_key) {
+                    title = await decryptTitle(chat.encrypted_title, chat.iv, chat.encapsulated_key);
+                }
+                return {
+                    id: chat.id,
+                    title,
+                    pinned: chat.pinned,
+                    archived: !!chat.archived,
+                    createdAt: chat.created_at
+                };
+            }));
+
+            setChats(processed);
+        } catch (e) {
+            console.error("Failed to load chats:", e);
+        }
+    }, [userKeys, decryptTitle]);
+
+    // Load chats once ready
+    useEffect(() => {
+        if (isReady && userKeys) {
+            loadChats();
+        }
+    }, [isReady, userKeys, loadChats]);
+
+    const renameChat = useCallback(async (chatId: string, newTitle: string) => {
+        if (!userKeys || !kyberPublicKey) return;
+        try {
+            const { encryptForUser } = await import('@/lib/ai-crypto');
+
+            // Encrpyt new title
+            const { encryptedContent, iv, encapsulatedKey } = await encryptForUser(newTitle, kyberPublicKey);
+
+            await apiClient.updateChat(chatId, {
+                title: encryptedContent,
+                iv,
+                encapsulated_key: encapsulatedKey
+            });
+
+            // Optimistic Update
+            setChats(prev => prev.map(c => c.id === chatId ? { ...c, title: newTitle } : c));
+        } catch (e) {
+            console.error("Failed to rename chat:", e);
+            throw e;
+        }
+    }, [userKeys, kyberPublicKey]);
+
+    const pinChat = useCallback(async (chatId: string, pinned: boolean) => {
+        try {
+            await apiClient.updateChat(chatId, { pinned });
+            setChats(prev => prev.map(c => c.id === chatId ? { ...c, pinned } : c));
+        } catch (e) {
+            console.error("Failed to pin chat:", e);
+        }
     }, []);
+
+    const archiveChat = useCallback(async (chatId: string, archived: boolean) => {
+        setChats(prev => prev.map(c => c.id === chatId ? { ...c, archived } : c)); // Optimistic
+        try {
+            await apiClient.updateChat(chatId, { archived });
+        } catch (err) {
+            console.error("Failed to archive chat", err);
+            setChats(prev => prev.map(c => c.id === chatId ? { ...c, archived: !archived } : c)); // Revert
+        }
+    }, []);
+
+    const deleteChat = useCallback(async (chatId: string) => {
+        setChats(prev => prev.filter(c => c.id !== chatId)); // Optimistic
+        if (typeof window !== "undefined") {
+            const currentUrlId = new URLSearchParams(window.location.search).get('chatId');
+            if (currentUrlId === chatId) {
+                // Redirect to new chat
+                window.history.replaceState(null, '', '/assistant');
+            }
+        }
+
+        try {
+            await apiClient.deleteChat(chatId);
+        } catch (err) {
+            console.error("Failed to delete chat:", err);
+            loadChats(); // Revert/Reload if failed
+        }
+    }, [loadChats]);
+
 
     const decryptHistory = useCallback(async (chatId: string): Promise<DecryptedMessage[]> => {
         if (!userKeys) return [];
@@ -137,6 +259,12 @@ export function useAICrypto(): UseAICryptoReturn {
         isReady,
         kyberPublicKey,
         userKeys,
+        chats,
+        loadChats, // Expose for manual refresh
+        renameChat,
+        pinChat,
+        archiveChat,
+        deleteChat,
         decryptHistory,
         decryptStreamChunk,
         error

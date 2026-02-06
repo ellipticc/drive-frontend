@@ -61,3 +61,32 @@ export function decryptAIMessage(encryptedContent: string, iv: string, chatKey: 
 
     return new TextDecoder().decode(plaintext);
 }
+
+/**
+ * Hybrid Encryption for User (Kyber + XChaCha20)
+ * Generates a session key, encapsulates it for the user's public key, 
+ * and encrypts the content with the session key.
+ */
+export async function encryptForUser(content: string, kyberPublicKeyHex: string): Promise<{ encryptedContent: string; iv: string; encapsulatedKey: string }> {
+    const { ml_kem768 } = await import('@noble/post-quantum/ml-kem');
+    const { xchacha20poly1305 } = await import('@noble/ciphers/chacha.js');
+
+    // 1. Prepare Public Key
+    const publicKey = Uint8Array.from(
+        kyberPublicKeyHex.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16))
+    );
+
+    // 2. Encapsulate (Generate Shared Secret)
+    const { sharedSecret, cipherText: encapsulatedKeyBytes } = ml_kem768.encapsulate(publicKey);
+
+    // 3. Encrypt Content
+    const nonce = crypto.getRandomValues(new Uint8Array(24));
+    const plaintext = new TextEncoder().encode(content);
+    const locked = xchacha20poly1305(sharedSecret, nonce).encrypt(plaintext);
+
+    return {
+        encryptedContent: toBase64(locked),
+        iv: toBase64(nonce),
+        encapsulatedKey: toBase64(encapsulatedKeyBytes)
+    };
+}

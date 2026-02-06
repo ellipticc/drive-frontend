@@ -37,27 +37,7 @@ class KeyManager {
    * Initialize KeyManager with user data from login
    */
   async initialize(userData: UserData | UserCryptoData): Promise<void> {
-    // Handle Google OAuth users in setup phase (incomplete pqcKeypairs)
     if (!userData?.crypto_keypairs?.pqcKeypairs) {
-      // For users with no pqcKeypairs (e.g., Google OAuth in setup phase), 
-      // just store the userData without full validation
-      // This allows the dashboard to load without throwing "Corrupted" errors
-      if (userData?.crypto_keypairs?.accountSalt === null || userData?.crypto_keypairs?.pqcKeypairs === null) {
-        console.log('⚠️ User data incomplete (Google OAuth setup phase). Storing without full validation.');
-        this.userData = userData;
-        this.cachedKeys = null;
-        
-        // Persist user data to localStorage
-        if (typeof window !== 'undefined') {
-          try {
-            localStorage.setItem(this.STORAGE_KEY, JSON.stringify(userData));
-          } catch {
-            // console.warn('Failed to persist user data to localStorage:', error);
-          }
-        }
-        return;
-      }
-      
       throw new Error('Invalid user data: missing crypto keypairs');
     }
 
@@ -75,18 +55,11 @@ class KeyManager {
           throw new Error(`Missing ${field} in ${keyType} keypair`);
         }
 
-        // Check for suspiciously long data that could cause stack overflow
-        // Adjusted limits for PQC key sizes:
-        // - Kyber private key: ~2400 bytes → ~3200 base64 chars
-        // - Dilithium private key: ~2420 bytes → ~3227 base64 chars, but can be larger with encryption
-        // - Ed25519/X25519 private keys: ~32 bytes → ~44 base64 chars
-        // - Public keys: Kyber ~1568 bytes → ~2088 base64 chars, Dilithium ~1952 bytes → ~2603 base64 chars
-        // - But actual keys may be hex encoded: Kyber ~3136 chars, Dilithium ~3904 chars
         if (typeof value === 'string') {
           const maxLength = field === 'encryptedPrivateKey' ? 6000 :  // Increased for PQC keys
-                           field === 'publicKey' ? 5000 :             // Increased for PQC public keys (hex encoded)
-                           field === 'encryptionKey' ? 200 : 
-                           field === 'encryptionNonce' ? 100 : 1000;
+            field === 'publicKey' ? 5000 :             // Increased for PQC public keys (hex encoded)
+              field === 'encryptionKey' ? 200 :
+                field === 'encryptionNonce' ? 100 : 1000;
           if ((value as string).length > maxLength) {
             // console.error(`Suspiciously long ${field} in ${keyType} keypair: ${(value as string).length} characters (max: ${maxLength})`);
             throw new Error(`Corrupted ${field} data in ${keyType} keypair`);
@@ -118,12 +91,12 @@ class KeyManager {
       const stored = localStorage.getItem(this.STORAGE_KEY);
       if (stored) {
         const parsedData = JSON.parse(stored);
-        
+
         // Validate stored data structure and content
         if (parsedData?.crypto_keypairs?.pqcKeypairs) {
           const requiredKeys = ['ed25519', 'x25519', 'kyber', 'dilithium'] as const;
           const hasAllKeys = requiredKeys.every(key => parsedData.crypto_keypairs.pqcKeypairs[key]);
-          
+
           if (hasAllKeys) {
             // Validate data lengths to prevent restoring corrupted data
             let isValid = true;
@@ -134,11 +107,11 @@ class KeyManager {
                 for (const field of requiredFields) {
                   if (typeof keypair[field] === 'string') {
                     const maxLength = field === 'encryptedPrivateKey' ? 6000 :  // Increased for PQC keys
-                                     field === 'publicKey' ? 5000 :             // Increased for PQC public keys (hex encoded)
-                                     field === 'encryptionKey' ? 200 : 
-                                     field === 'encryptionNonce' ? 100 : 1000;
+                      field === 'publicKey' ? 5000 :             // Increased for PQC public keys (hex encoded)
+                        field === 'encryptionKey' ? 200 :
+                          field === 'encryptionNonce' ? 100 : 1000;
                     if (keypair[field].length > maxLength) {
-                      // console.warn(`🔐 Stored ${field} in ${keyType} keypair is too long (${keypair[field].length} > ${maxLength}), clearing localStorage`);
+                      // console.warn(`Stored ${field} in ${keyType} keypair is too long (${keypair[field].length} > ${maxLength}), clearing localStorage`);
                       isValid = false;
                       break;
                     }
@@ -147,20 +120,20 @@ class KeyManager {
                 if (!isValid) break;
               }
             }
-            
+
             if (isValid) {
               this.userData = parsedData;
-              // console.log('🔐 Restored user crypto data from localStorage');
+              // console.log('Restored user crypto data from localStorage');
             } else {
-              // console.warn('🔐 Stored crypto data has invalid lengths, clearing localStorage');
+              // console.warn('Stored crypto data has invalid lengths, clearing localStorage');
               localStorage.removeItem(this.STORAGE_KEY);
             }
           } else {
-            // console.warn('🔐 Stored crypto data is incomplete, clearing localStorage');
+            // console.warn('Stored crypto data is incomplete, clearing localStorage');
             localStorage.removeItem(this.STORAGE_KEY);
           }
         } else {
-          // console.warn('🔐 Stored crypto data has invalid structure, clearing localStorage');
+          // console.warn('Stored crypto data has invalid structure, clearing localStorage');
           localStorage.removeItem(this.STORAGE_KEY);
         }
       }
@@ -232,7 +205,7 @@ class KeyManager {
     if (typeof window !== 'undefined') {
       try {
         localStorage.removeItem(this.STORAGE_KEY);
-        // console.log('🔐 Force cleared corrupted crypto data from localStorage');
+        // console.log('Force cleared corrupted crypto data from localStorage');
       } catch {
         // console.warn('Failed to force clear localStorage:', error);
       }

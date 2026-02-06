@@ -3,31 +3,21 @@
 import * as React from "react"
 import { useUser } from "@/components/user-context"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { IconWand, IconUser, IconRobot } from "@tabler/icons-react"
+import { IconSparkles } from "@tabler/icons-react"
 import { cn } from "@/lib/utils"
 import apiClient from "@/lib/api"
 // Import AI Elements
-import { PromptInput, PromptInputProvider, PromptInputProps, PromptInputTextarea, PromptInputFooter, PromptInputSubmit } from "@/components/ai-elements/prompt-input"
-import { ModelSelector, ModelSelectorTrigger, ModelSelectorContent, ModelSelectorItem, ModelSelectorList, ModelSelectorLogo, ModelSelectorName, ModelSelectorLogoGroup } from "@/components/ai-elements/model-selector"
-import { Reasoning, ReasoningTrigger, ReasoningContent } from "@/components/ai-elements/reasoning"
+import { PromptInput, PromptInputProvider, PromptInputTextarea, PromptInputFooter, PromptInputSubmit } from "@/components/ai-elements/prompt-input" // Simplified imports
 import { SiteHeader } from "@/components/layout/header/site-header"
 import { Streamdown } from "streamdown"
 import { cjk } from "@streamdown/cjk"
 import { code } from "@streamdown/code"
 import { math } from "@streamdown/math"
 import { mermaid } from "@streamdown/mermaid"
+import { useAICrypto } from "@/hooks/use-ai-crypto";
+import { useRouter, useSearchParams } from "next/navigation"
 
 const streamdownPlugins = { cjk, code, math, mermaid }
-
-import { useAICrypto } from "@/hooks/use-ai-crypto";
-
-// Generate UUID
-const generateId = () => {
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-        return crypto.randomUUID();
-    }
-    return Math.random().toString(36).substring(2, 15);
-};
 
 interface Message {
     role: 'user' | 'assistant';
@@ -37,47 +27,46 @@ interface Message {
 
 export default function AssistantPage() {
     const { user } = useUser()
+    const router = useRouter()
+    const searchParams = useSearchParams()
+
+    // Derived from URL, fallback to empty (New Chat)
+    const chatId = searchParams.get('chatId') || ""
+
     const [messages, setMessages] = React.useState<Message[]>([])
     const [isLoading, setIsLoading] = React.useState(false)
-    const [chatId, setChatId] = React.useState<string>("")
     const scrollAreaRef = React.useRef<HTMLDivElement>(null)
-    const [model, setModel] = React.useState("llama-3.1-8b-instant")
-    const [chatKey, setChatKey] = React.useState<Uint8Array | null>(null)
+    const [model, setModel] = React.useState("llama-3.1-8b-instant") // Could become a setting
 
-    const { isReady, kyberPublicKey, decryptHistory, decryptStreamChunk } = useAICrypto();
+    const { isReady, kyberPublicKey, decryptHistory, decryptStreamChunk, loadChats } = useAICrypto();
 
+    // Load History when chatId changes
     React.useEffect(() => {
         if (!isReady) return;
 
-        // Generate or retrieve chatId on mount
-        const stored = localStorage.getItem('ai_chat_id');
-        let currentChatId = stored;
-        if (stored) {
-            setChatId(stored);
-        } else {
-            const newId = generateId();
-            setChatId(newId);
-            localStorage.setItem('ai_chat_id', newId);
-            currentChatId = newId;
-        }
-
-        // Load History
-        if (currentChatId) {
+        if (chatId) {
             setIsLoading(true);
-            decryptHistory(currentChatId)
+            setMessages([]); // Clear previous messages while loading
+            decryptHistory(chatId)
                 .then((msgs: Message[]) => {
                     setMessages(msgs);
                 })
-                .catch((err: Error) => console.error("History load error:", err))
+                .catch((err: Error) => {
+                    console.error("History load error:", err);
+                    router.push('/assistant');
+                })
                 .finally(() => setIsLoading(false));
+        } else {
+            // New Chat
+            setMessages([]);
         }
-    }, [isReady, decryptHistory]); // Depend on isReady to start loading
+    }, [chatId, isReady, decryptHistory]);
 
     const scrollToBottom = () => {
         if (scrollAreaRef.current) {
             const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
             if (scrollContainer) {
-                // Use smooth scrolling if desired, but immediate is often better for chat
+                // Immediate scroll is better for chat interactions
                 scrollContainer.scrollTop = scrollContainer.scrollHeight;
             }
         }
@@ -92,6 +81,7 @@ export default function AssistantPage() {
 
         const userMessage: Message = { role: 'user', content: value }
         setMessages(prev => [...prev, userMessage])
+        // setInputValue(""); // Handled by PromptInputProvider automatically
         setIsLoading(true)
 
         try {
@@ -101,12 +91,22 @@ export default function AssistantPage() {
             // We SEND user message as plaintext (for inference) + PublicKey (for storage encryption)
             const response = await apiClient.chatAI(
                 [{ role: 'user', content: value }],
-                chatId,
+                chatId, // Pass current chatId (empty string if new)
                 model,
                 kyberPublicKey
             );
 
             if (!response.ok) throw new Error('Failed to fetch response')
+
+            // Check for X-Chat-Id header to redirect if it was a new chat
+            const newChatId = response.headers.get('X-Chat-Id');
+            if (newChatId && newChatId !== chatId) {
+                // It's a new chat! Update URL without reloading
+                window.history.replaceState(null, '', `/assistant?chatId=${newChatId}`);
+                // Refresh sidebar list
+                loadChats();
+            }
+
             if (!response.body) throw new Error('No response body')
 
             const reader = response.body.getReader()
@@ -141,7 +141,7 @@ export default function AssistantPage() {
                                     currentSessionKey
                                 );
                                 contentToAppend = decrypted;
-                                currentSessionKey = sessionKey; // Update session key (it stays same for whole stream, but we get it from first chunk)
+                                currentSessionKey = sessionKey;
                             } else if (data.content) {
                                 // Fallback for Plaintext
                                 contentToAppend = data.content;
@@ -179,29 +179,35 @@ export default function AssistantPage() {
                 return newMessages
             })
         } finally {
-            setIsLoading(false)
+            setIsLoading(false);
+            // If we just finished a new chat response, we might want to ensure the sidebar title is updated (since backend updates title after first msg)
+            if (!chatId) {
+                setTimeout(() => loadChats(), 2000);
+            }
         }
     }
 
     return (
-        <div className="flex flex-col h-full bg-background">
+        <div className="flex flex-col h-full bg-background relative isolate">
             <SiteHeader
                 sticky
                 customTitle={
                     <div className="flex items-center gap-2">
-                        <IconWand className="size-5 text-primary" />
-                        <h1 className="text-lg font-semibold">Assistant</h1>
+                        <IconSparkles className="size-4 text-primary" />
+                        <h1 className="text-sm font-medium">Assistant</h1>
                     </div>
                 }
             />
 
-            <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
-                <div className="max-w-3xl mx-auto space-y-6 pb-4">
+            <ScrollArea className="flex-1" ref={scrollAreaRef}>
+                <div className="max-w-4xl mx-auto px-6 py-8 space-y-10 pb-40">
                     {messages.length === 0 && (
-                        <div className="flex flex-col items-center justify-center h-[50vh] text-center text-muted-foreground">
-                            <IconWand className="size-12 mb-4 opacity-50" />
-                            <h2 className="text-xl font-semibold mb-2">How can I help you today?</h2>
-                            <p>Ask me anything about your files or general questions.</p>
+                        <div className="flex flex-col items-center justify-center min-h-[60vh] text-center text-muted-foreground animate-in fade-in zoom-in duration-500">
+                            <div className="p-4 rounded-full bg-primary/10 mb-6">
+                                <IconSparkles className="size-8 text-primary" />
+                            </div>
+                            <h2 className="text-2xl font-semibold mb-2 text-foreground">How can I help you today?</h2>
+                            <p className="max-w-md">Ask me anything about your documents, analyze data, or just have a chat.</p>
                         </div>
                     )}
 
@@ -209,62 +215,65 @@ export default function AssistantPage() {
                         <div
                             key={index}
                             className={cn(
-                                "flex gap-3",
-                                message.role === 'user' ? "flex-row-reverse" : "flex-row"
+                                "flex w-full flex-col",
+                                message.role === 'user' ? "items-end" : "items-start"
                             )}
                         >
-                            <div className={cn(
-                                "size-8 rounded-full flex items-center justify-center shrink-0 border",
-                                message.role === 'user' ? "bg-primary text-primary-foreground" : "bg-muted"
-                            )}>
-                                {message.role === 'user' ? (
-                                    <IconUser className="size-5" />
-                                ) : (
-                                    <IconWand className="size-5" />
-                                )}
-                            </div>
-
-                            <div className={cn(
-                                "rounded-lg px-4 py-2 max-w-[80%]",
-                                message.role === 'user'
-                                    ? "bg-primary text-primary-foreground"
-                                    : "bg-muted text-foreground"
-                            )}>
-                                {message.role === 'assistant' && message.isThinking && (
-                                    <Reasoning isStreaming={true} duration={1}>
-                                        Thinking...
-                                    </Reasoning>
-                                )}
-                                <div className="text-sm leading-relaxed">
+                            {/* User Message: Card-like, Colored */}
+                            {message.role === 'user' && (
+                                <div className="bg-secondary/50 dark:bg-muted/50 text-foreground px-5 py-3.5 rounded-2xl max-w-[85%] md:max-w-[75%] lg:max-w-[65%] text-sm leading-relaxed shadow-sm border border-border/50">
                                     <Streamdown plugins={streamdownPlugins as any}>
                                         {message.content}
                                     </Streamdown>
                                 </div>
-                            </div>
+                            )}
+
+                            {/* Assistant Message: Clean Text, No Background */}
+                            {message.role === 'assistant' && (
+                                <div className="w-full max-w-[90%] md:max-w-[85%] px-1">
+                                    {message.isThinking && (
+                                        <div className="flex items-center gap-2 mb-2 text-muted-foreground text-xs uppercase tracking-wider font-medium">
+                                            <IconSparkles className="size-3.5 animate-pulse" />
+                                            Thinking...
+                                        </div>
+                                    )}
+                                    <div className="prose dark:prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-pre:p-0 prose-pre:bg-transparent">
+                                        <Streamdown plugins={streamdownPlugins as any}>
+                                            {message.content}
+                                        </Streamdown>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     ))}
                 </div>
             </ScrollArea>
 
-            <div className="p-4 border-t bg-card">
+            {/* Floating Input Area */}
+            <div className="absolute bottom-6 left-0 right-0 px-6 z-20">
                 <div className="max-w-3xl mx-auto">
-                    <PromptInputProvider>
-                        <PromptInput
-                            onSubmit={(msg) => {
-                                handleSubmit(msg.text);
-                                return Promise.resolve();
-                            }}
-                            className="bg-background border rounded-xl overflow-hidden shadow-sm"
-                        >
-                            <PromptInputTextarea placeholder="Message Assistant..." />
-                            <PromptInputFooter className="px-3 pb-3">
-                                <PromptInputSubmit />
-                            </PromptInputFooter>
-                        </PromptInput>
-                    </PromptInputProvider>
-                </div>
-                <div className="text-center mt-2 text-xs text-muted-foreground">
-                    AI can make mistakes. Please verify important information.
+                    <div className="bg-background/80 backdrop-blur-xl border shadow-lg rounded-2xl transition-all duration-200 focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary">
+                        <PromptInputProvider>
+                            <PromptInput
+                                onSubmit={(msg) => {
+                                    handleSubmit(msg.text);
+                                    return Promise.resolve();
+                                }}
+                                className="bg-transparent border-0 shadow-none rounded-2xl"
+                            >
+                                <PromptInputTextarea
+                                    placeholder="Message Assistant..."
+                                    className="min-h-[52px] max-h-[200px] px-4 py-3.5 text-base"
+                                />
+                                <PromptInputFooter className="px-3 pb-3 pt-0">
+                                    <div className="text-xs text-muted-foreground/60 hidden sm:block">
+                                        Enter to send, Shift + Enter for new line
+                                    </div>
+                                    <PromptInputSubmit className="ml-auto" />
+                                </PromptInputFooter>
+                            </PromptInput>
+                        </PromptInputProvider>
+                    </div>
                 </div>
             </div>
         </div >

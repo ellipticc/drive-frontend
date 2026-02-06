@@ -4223,6 +4223,55 @@ class ApiClient {
     const data = await response.json();
     return data.messages || [];
   }
+
+  // AI Chat List Management
+  async getChats(): Promise<ApiResponse<{ chats: AIChat[] }>> {
+    const endpoint = '/ai/chats';
+    const authHeaders = await this.getAuthHeaders(endpoint, 'GET');
+
+    const response = await fetch(`${this.baseURL}${endpoint}`, {
+      method: 'GET',
+      headers: authHeaders
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch chats');
+    }
+    return response.json();
+  }
+
+  async updateChat(chatId: string, updates: { pinned?: boolean; archived?: boolean; title?: string; iv?: string; encapsulated_key?: string }): Promise<void> {
+    const endpoint = `/ai/chats/${chatId}`;
+    const authHeaders = await this.getAuthHeaders(endpoint, 'PATCH');
+
+    const response = await fetch(`${this.baseURL}${endpoint}`, {
+      method: 'PATCH',
+      headers: {
+        ...authHeaders,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(updates)
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to update chat');
+    }
+  }
+
+  async deleteChat(chatId: string): Promise<ApiResponse<any>> {
+    const endpoint = `/ai/chats/${chatId}`;
+    const authHeaders = await this.getAuthHeaders(endpoint, 'DELETE');
+
+    const response = await fetch(`${this.baseURL}${endpoint}`, {
+      method: 'DELETE',
+      headers: authHeaders
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to delete chat');
+    }
+    return response.json();
+  }
 }
 
 export interface AttestationDocument {
@@ -4243,6 +4292,15 @@ export interface AttestationDocument {
     type: string;
     publicKey: string;
   };
+}
+
+export interface AIChat {
+  id: string;
+  encrypted_title: string;
+  iv?: string;
+  encapsulated_key?: string;
+  pinned: boolean;
+  created_at: string;
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);
