@@ -12,6 +12,7 @@ import { SiteHeader } from "@/components/layout/header/site-header"
 import { useUser } from "@/components/user-context"
 import { Tag } from "@/lib/api"
 import { FullPagePreviewModal, PreviewFileItem } from "@/components/previews/full-page-preview-modal"
+import { GallerySkeleton } from "./components/gallery-skeleton"
 import { downloadFileToBrowser } from "@/lib/download"
 import { useGallerySelection } from "./hooks/use-gallery-selection"
 import { GalleryGrid } from "./components/gallery-grid"
@@ -515,9 +516,9 @@ function PhotosPageContent() {
                         />
 
                         {isLoading ? (
-                            <div className="flex-1 flex flex-col items-center justify-center space-y-4">
-                                <IconLoader2 className="h-10 w-10 animate-spin text-primary" />
-                                <p className="text-muted-foreground animate-pulse">Decrypting your secure gallery...</p>
+                            <div className="flex-1">
+                                {/* Gallery skeleton to match grid layout and headers */}
+                                <GallerySkeleton zoomLevel={zoomLevel} />
                             </div>
                         ) : mediaItems.length === 0 ? (
                             <div className="flex-1 flex flex-col items-center justify-center text-center p-8">

@@ -64,6 +64,7 @@ import { cn, formatFileSize } from '@/lib/utils';
 import { PricingTable } from '@/components/ui/pricing-table';
 
 import React from 'react';
+import { PricingSkeleton } from './components/pricing-skeleton'
 
 import {
   Section,
@@ -605,8 +606,10 @@ const BillingPage = () => {
 
   if (loading) {
     return (
-      <div className="flex h-svh items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div className="flex h-full w-full items-start justify-center p-6">
+        <div className="w-full max-w-[1280px]">
+          <PricingSkeleton />
+        </div>
       </div>
     );
   }
