@@ -44,7 +44,7 @@ export default function AssistantPage() {
     const [model, setModel] = React.useState("llama-3.1-8b-instant")
     const [chatKey, setChatKey] = React.useState<Uint8Array | null>(null)
 
-    const { isReady, kyberPublicKey, decryptHistory } = useAICrypto();
+    const { isReady, kyberPublicKey, decryptHistory, decryptStreamChunk } = useAICrypto();
 
     React.useEffect(() => {
         if (!isReady) return;
@@ -112,6 +112,7 @@ export default function AssistantPage() {
             const reader = response.body.getReader()
             const decoder = new TextDecoder()
             let assistantMessageContent = ""
+            let currentSessionKey: Uint8Array | undefined;
 
             while (true) {
                 const { done, value } = await reader.read()
@@ -127,8 +128,27 @@ export default function AssistantPage() {
 
                         try {
                             const data = JSON.parse(dataStr);
-                            if (data.content) {
-                                assistantMessageContent += data.content;
+
+                            // Handle Encrypted Stream
+                            let contentToAppend = "";
+
+                            if (data.encrypted_content && data.iv) {
+                                // Decrypt on the fly
+                                const { decrypted, sessionKey } = await decryptStreamChunk(
+                                    data.encrypted_content,
+                                    data.iv,
+                                    data.encapsulated_key,
+                                    currentSessionKey
+                                );
+                                contentToAppend = decrypted;
+                                currentSessionKey = sessionKey; // Update session key (it stays same for whole stream, but we get it from first chunk)
+                            } else if (data.content) {
+                                // Fallback for Plaintext
+                                contentToAppend = data.content;
+                            }
+
+                            if (contentToAppend) {
+                                assistantMessageContent += contentToAppend;
 
                                 setMessages(prev => {
                                     const newMessages = [...prev]

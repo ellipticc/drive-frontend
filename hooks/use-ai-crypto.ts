@@ -17,6 +17,7 @@ interface UseAICryptoReturn {
     kyberPublicKey: string | null;
     userKeys: { keypairs: UserKeypairs } | null;
     decryptHistory: (chatId: string) => Promise<DecryptedMessage[]>;
+    decryptStreamChunk: (encryptedContent: string, iv: string, encapsulatedKey?: string, existingSessionKey?: Uint8Array) => Promise<{ decrypted: string, sessionKey: Uint8Array }>;
     error: string | null;
 }
 
@@ -101,11 +102,43 @@ export function useAICrypto(): UseAICryptoReturn {
         }
     }, [userKeys]);
 
+    const decryptStreamChunk = useCallback(async (
+        encryptedContent: string,
+        iv: string,
+        encapsulatedKey?: string,
+        existingSessionKey?: Uint8Array
+    ): Promise<{ decrypted: string, sessionKey: Uint8Array }> => {
+        if (!userKeys) throw new Error("User keys not ready");
+
+        let sessionKey = existingSessionKey;
+        const { decryptData } = await import('@/lib/crypto');
+        const { ml_kem768 } = await import('@noble/post-quantum/ml-kem');
+
+        // 1. If we received an encapsulated key (first chunk), derive the session key
+        if (encapsulatedKey && !sessionKey) {
+            const encKeyBytes = Uint8Array.from(atob(encapsulatedKey), c => c.charCodeAt(0));
+            const kyberPriv = userKeys.keypairs.kyberPrivateKey;
+
+            // Decapsulate
+            const sharedSecret = ml_kem768.decapsulate(encKeyBytes, kyberPriv);
+            sessionKey = sharedSecret; // 32 bytest
+        }
+
+        if (!sessionKey) throw new Error("No session key available for decryption");
+
+        // 2. Decrypt the chunk
+        const decryptedBytes = decryptData(encryptedContent, sessionKey, iv);
+        const decrypted = new TextDecoder().decode(decryptedBytes);
+
+        return { decrypted, sessionKey };
+    }, [userKeys]);
+
     return {
         isReady,
         kyberPublicKey,
         userKeys,
         decryptHistory,
+        decryptStreamChunk,
         error
     };
 }
