@@ -1,8 +1,29 @@
 "use client"
 
-import * as React from "react"
-import { IconChevronRight, IconLoader2, type Icon, IconChevronDown, IconChevronUp, IconStarFilled, IconStack2Filled, IconTrashFilled, IconClockHour9Filled, IconPhotoFilled, IconChartAreaLineFilled, IconAdjustmentsFilled, IconHelpCircleFilled, IconBubbleTextFilled, IconWritingSignFilled } from "@tabler/icons-react"
-import { useState, useEffect, useCallback } from "react"
+import {
+  IconChevronRight,
+  IconLoader2,
+  type Icon,
+  IconChevronDown,
+  IconChevronUp,
+  IconStarFilled,
+  IconStack2Filled,
+  IconTrashFilled,
+  IconClockHour9Filled,
+  IconPhotoFilled,
+  IconChartAreaLineFilled,
+  IconAdjustmentsFilled,
+  IconHelpCircleFilled,
+  IconBubbleTextFilled,
+  IconWritingSignFilled,
+  IconDots,
+  IconPin,
+  IconPinFilled,
+  IconPencil,
+  IconTrash,
+  IconArchive,
+} from "@tabler/icons-react"
+import { useState, useEffect, useCallback, Fragment } from "react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import { useLanguage } from "@/lib/i18n/language-context"
 import { apiClient, FolderContentItem } from "@/lib/api"
@@ -14,11 +35,10 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu"
 import { useAICrypto } from "@/hooks/use-ai-crypto"
-import { IconDots, IconPin, IconPinFilled, IconPencil, IconTrash } from "@tabler/icons-react"
 import {
   Dialog,
   DialogContent,
@@ -33,10 +53,13 @@ import { Button } from "@/components/ui/button"
 import {
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   useSidebar,
 } from "@/components/ui/sidebar"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
@@ -253,7 +276,7 @@ export function NavMain({
             // Add the More/Less button right after photos
             if (item.id === 'photos') {
               return (
-                <React.Fragment key={item.title}>
+                <Fragment key={item.title}>
                   <SidebarMenuItem>
                     <SidebarMenuButton
                       tooltip={item.title}
@@ -294,7 +317,7 @@ export function NavMain({
                       </span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                </React.Fragment>
+                </Fragment>
               );
             }
 
@@ -493,6 +516,16 @@ export function NavMain({
               const [chatToRename, setChatToRename] = useState<{ id: string, title: string } | null>(null);
               const [newTitle, setNewTitle] = useState("");
 
+              // Inline Renaming State
+              const [editingChatId, setEditingChatId] = useState<string | null>(null);
+
+              const handleRenameSubmit = async (chatId: string, newTitle: string) => {
+                if (newTitle.trim()) {
+                  await renameChat(chatId, newTitle.trim());
+                }
+                setEditingChatId(null);
+              };
+
               const toggleAssistant = (e: React.MouseEvent) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -549,61 +582,82 @@ export function NavMain({
 
                   {isAssistantExpanded && (
                     <SidebarMenuSub className="ml-3.5 border-l border-border/50">
-                      {/* New Chat Button */}
-                      <SidebarMenuItem>
-                        <SidebarMenuButton
-                          onClick={() => handleNavigate('/assistant')}
-                          isActive={pathname === '/assistant' && !searchParams.get('chatId')}
-                          className="text-sidebar-foreground/70 ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground h-8 mb-1"
-                        >
-                          <IconWritingSignFilled className="size-4 mr-2" />
-                          <span>New Chat</span>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
+
 
                       {chats.map(chat => (
                         <SidebarMenuItem key={chat.id}>
-                          <div className="group flex items-center w-full relative">
+                          <div className="relative group/chat-item w-full">
                             <SidebarMenuButton
                               asChild
                               isActive={searchParams.get('chatId') === chat.id}
-                              tooltip={chat.title}
-                              className="text-sidebar-foreground/70 ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground h-8 mb-1 pr-8"
+                              className="pr-8 h-8 w-full justify-start"
                             >
-                              <a href={`/assistant?chatId=${chat.id}`} onClick={(e) => { e.preventDefault(); handleNavigate(`/assistant?chatId=${chat.id}`); }}>
-                                {chat.pinned ? <IconPinFilled className="size-3.5 mr-2 text-primary" /> : <IconBubbleTextFilled className="size-3.5 mr-2 opacity-70" />}
-                                <span className="truncate">{chat.title}</span>
-                              </a>
+                              {editingChatId === chat.id ? (
+                                <div className="flex items-center w-full" onClick={(e) => e.stopPropagation()}>
+                                  <input
+                                    type="text"
+                                    className="w-full bg-transparent border-none focus:ring-0 p-0 text-xs font-medium h-5 placeholder:text-muted-foreground/50"
+                                    defaultValue={chat.title || "New Chat"}
+                                    autoFocus
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        handleRenameSubmit(chat.id, e.currentTarget.value);
+                                      } else if (e.key === 'Escape') {
+                                        e.preventDefault();
+                                        setEditingChatId(null);
+                                      }
+                                    }}
+                                    onBlur={(e) => {
+                                      handleRenameSubmit(chat.id, e.target.value);
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                  />
+                                </div>
+                              ) : (
+                                <a
+                                  href={`/assistant?chatId=${chat.id}`}
+                                  className="cursor-pointer truncate flex items-center w-full"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    handleNavigate(`/assistant?chatId=${chat.id}`);
+                                  }}
+                                >
+                                  {chat.pinned ? <IconPinFilled className="size-3.5 mr-2 text-primary shrink-0" /> : <IconBubbleTextFilled className="size-3.5 mr-2 opacity-70 shrink-0" />}
+                                  <span className="truncate">{chat.title || "New Chat"}</span>
+                                </a>
+                              )}
                             </SidebarMenuButton>
 
                             {/* Actions Menu */}
-                            <div className="absolute right-1 top-1/2 -translate-y-[calc(50%+2px)] opacity-0 group-hover:opacity-100 transition-opacity">
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <div className="h-6 w-6 flex items-center justify-center rounded-sm hover:bg-background/80 cursor-pointer">
-                                    <IconDots className="size-3.5" />
-                                  </div>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="start" side="right">
-                                  <DropdownMenuItem onClick={() => handleRenameClick(chat)}>
-                                    <IconPencil className="size-4 mr-2" />
-                                    Rename
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => pinChat(chat.id, !chat.pinned)}>
-                                    {chat.pinned ? <><IconPin className="size-4 mr-2" /> Unpin</> : <><IconPinFilled className="size-4 mr-2" /> Pin</>}
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem onClick={() => deleteChat(chat.id)} className="text-destructive focus:text-destructive">
-                                    <IconTrash className="size-4 mr-2" />
-                                    Delete
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
+                            {editingChatId !== chat.id && (
+                              <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover/chat-item:opacity-100 transition-opacity z-10">
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <div className="h-6 w-6 flex items-center justify-center rounded-sm hover:bg-sidebar-accent cursor-pointer text-muted-foreground">
+                                      <IconDots className="size-3.5" />
+                                    </div>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="start" side="right">
+                                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditingChatId(chat.id); }}>
+                                      <IconPencil className="size-4 mr-2" />
+                                      Rename
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); pinChat(chat.id, !chat.pinned); }}>
+                                      {chat.pinned ? <><IconPin className="size-4 mr-2" /> Unpin</> : <><IconPinFilled className="size-4 mr-2" /> Pin</>}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); deleteChat(chat.id); }} className="text-destructive focus:text-destructive">
+                                      <IconTrash className="size-4 mr-2" />
+                                      Delete
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                            )}
                           </div>
                         </SidebarMenuItem>
-                      ))}
-                    </SidebarMenuSub>
+                      ))}  </SidebarMenuSub>
                   )}
 
                   {/* Rename Dialog */}

@@ -263,7 +263,7 @@ export default function AssistantPage() {
                             >
                                 <PromptInputTextarea
                                     placeholder="Message Assistant..."
-                                    className="min-h-[52px] max-h-[200px] px-4 py-3.5 text-base"
+                                    className="min-h-[52px] max-h-[200px] px-4 py-3.5 text-base resize-none field-sizing-content"
                                 />
                                 <PromptInputFooter className="px-3 pb-3 pt-0">
                                     <div className="text-xs text-muted-foreground/60 hidden sm:block">
