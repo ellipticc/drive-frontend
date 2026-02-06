@@ -488,18 +488,7 @@ function PaperHeader({
                 </Tooltip>
                 <Tooltip>
                     <TooltipTrigger asChild>
-                        <SidebarTrigger className="h-9 w-9 md:h-10 md:w-10" />
-                    </TooltipTrigger>
-                    <TooltipContent side="top">
-                        <span className="text-xs">Toggle sidebar · <kbd className="rounded bg-muted/40 px-1">Ctrl</kbd>/<kbd className="rounded bg-muted/40 px-1">Cmd</kbd> + <kbd className="rounded bg-muted/40 px-1">B</kbd></span>
-                    </TooltipContent>
-                </Tooltip>
-
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <div className="hidden md:flex ml-2">
-                            <ThemeToggle aria-label="Toggle theme" />
-                        </div>
+                        <ThemeToggle aria-label="Toggle theme" />
                     </TooltipTrigger>
                     <TooltipContent side="bottom">
                         <span className="text-xs">Toggle theme</span>

@@ -106,6 +106,8 @@ export function VersionHistoryModal({
 
     const fetchVersions = async () => {
         setLoading(true)
+        // Small delay to ensure skeleton renders
+        await new Promise(resolve => setTimeout(resolve, 50))
         try {
             const res = await apiClient.getPaperVersions(fileId)
             if (res.success && res.data) {

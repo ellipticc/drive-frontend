@@ -27,9 +27,8 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   // Check if current path is public or paper (standalone)
   const isPublic = publicRoutes.includes(normalizedPathname) || pathname.startsWith('/s/');
 
-  // For paper pages, use floating sidebar; for others use inset
-  const isPaperPage = pathname.startsWith('/paper');
-  const sidebarVariant = isPaperPage ? 'floating' : 'inset';
+  // Always use inset variant for consistent layout
+  const sidebarVariant = 'inset';
 
   // For public routes, render children without sidebar
   if (isPublic) {
