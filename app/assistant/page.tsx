@@ -91,18 +91,33 @@ export default function AssistantPage() {
                 if (done) break
 
                 const chunk = decoder.decode(value, { stream: true })
-                assistantMessageContent += chunk
+                const lines = chunk.split('\n\n');
 
-                setMessages(prev => {
-                    const newMessages = [...prev]
-                    const lastMessage = newMessages[newMessages.length - 1]
-                    if (lastMessage.role === 'assistant') {
-                        lastMessage.content = assistantMessageContent
-                        // Once we have content, we assume thinking is done or at least we are streaming
-                        lastMessage.isThinking = false
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        const dataStr = line.replace('data: ', '').trim();
+                        if (dataStr === '[DONE]') break;
+
+                        try {
+                            const data = JSON.parse(dataStr);
+                            if (data.content) {
+                                assistantMessageContent += data.content;
+
+                                setMessages(prev => {
+                                    const newMessages = [...prev]
+                                    const lastMessage = newMessages[newMessages.length - 1]
+                                    if (lastMessage.role === 'assistant') {
+                                        lastMessage.content = assistantMessageContent
+                                        lastMessage.isThinking = false
+                                    }
+                                    return newMessages
+                                })
+                            }
+                        } catch (e) {
+                            // console.warn('Failed to parse SSE line', line);
+                        }
                     }
-                    return newMessages
-                })
+                }
             }
 
         } catch (error) {
