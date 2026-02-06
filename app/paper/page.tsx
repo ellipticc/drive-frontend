@@ -420,7 +420,7 @@ function PaperHeader({
             </div>
 
             <div className="ml-auto flex items-center gap-2 md:gap-4 shrink-0">
-                <div className="flex items-center gap-2 mr-4">
+                <div className="flex items-center gap-2">
                     <div className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm text-muted-foreground min-w-[60px] md:min-w-[80px] justify-end">
                         {saving ? (
                             <>
@@ -460,7 +460,7 @@ function PaperHeader({
                     </Tooltip>
                 </div>
 
-                <Separator orientation="vertical" className="mx-2 h-4 hidden md:block" />
+                <Separator orientation="vertical" className="mx-1 h-4 hidden md:block" />
 
                 <Tooltip>
                     <TooltipTrigger asChild>

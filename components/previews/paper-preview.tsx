@@ -106,10 +106,12 @@ export function PaperPreview({ fileId, initialContent, filename }: PaperPreviewP
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full w-full bg-background/50 backdrop-blur-sm">
-        <div className="w-full max-w-[850px] space-y-3 px-8 md:px-16 py-12">
-          <Skeleton className="h-6 w-40" />
-          <Skeleton className="h-10 w-full rounded" />
-          <Skeleton className="h-40 w-full rounded" />
+        <div className="w-full max-w-[850px] px-8 md:px-16 py-12">
+          <div className="space-y-4 min-h-[60vh] flex flex-col justify-center">
+            <Skeleton className="h-6 w-40" />
+            <Skeleton className="h-10 w-full rounded" />
+            <Skeleton className="h-[60vh] w-full rounded" />
+          </div>
         </div>
       </div>
     )
