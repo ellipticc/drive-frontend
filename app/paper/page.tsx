@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, useRef, Suspense, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { masterKeyManager } from "@/lib/master-key";
-import { IconLoader2, IconCloudCheck, IconDotsVertical, IconCopy, IconFileText, IconPrinter, IconDownload, IconHelp, IconHome, IconStackFilled, IconLetterCase, IconChevronUp, IconChevronDown, IconLayoutSidebar } from "@tabler/icons-react";
+import { IconLoader2, IconCloudCheck, IconHistory, IconEdit, IconFolderSymlink, IconTrash, IconCopy, IconFileText, IconPrinter, IconDownload, IconHelp, IconHome, IconStackFilled, IconLetterCase, IconChevronUp, IconChevronDown, IconLayoutSidebar } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
 import {
     AlertDialog,
@@ -28,11 +28,9 @@ import {
 import { toast } from "sonner";
 import { type Value } from "platejs";
 import { paperService } from "@/lib/paper-service";
-import html2canvas from 'html2canvas';
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
-import { HeaderUser } from "@/components/header-user";
 import { Input } from "@/components/ui/input";
 import { Plate, usePlateEditor } from "platejs/react";
 import { Editor, EditorContainer } from "@/components/ui/editor";
@@ -46,9 +44,7 @@ import { MoveToTrashModal } from "@/components/modals/move-to-trash-modal";
 import { MoveToFolderModal } from "@/components/modals/move-to-folder-modal";
 import { CopyModal } from "@/components/modals/copy-modal";
 import { SupportRequestDialog } from "@/components/support-request-dialog";
-import { IconHistory, IconEdit, IconFilePlus, IconFolderSymlink, IconTrash, IconChartBar } from "@tabler/icons-react";
 import { PaperIdProvider } from "@/components/paper-id-context";
-import { IconMoon, IconSun } from "@tabler/icons-react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useTheme } from "next-themes";
 import { Switch } from "@/components/ui/switch";
@@ -250,6 +246,8 @@ function PaperHeader({
                     </TooltipContent>
                 </Tooltip>
 
+                <div className="h-6 w-px bg-border mx-1 hidden md:block" />
+
                 <EmojiPopover
                     isOpen={isOpen}
                     setIsOpen={setIsOpen}
@@ -422,71 +420,45 @@ function PaperHeader({
             </div>
 
             <div className="ml-auto flex items-center gap-2 md:gap-4 shrink-0">
-                <div className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm text-muted-foreground min-w-[60px] md:min-w-[80px] justify-end">
-                    {saving ? (
-                        <>
-                            <IconLoader2 className="w-3.5 h-3.5 md:w-4 md:h-4 animate-spin" />
-                            <span className="hidden sm:inline">Saving...</span>
-                        </>
-                    ) : isUnsaved ? (
-                        <span className="text-muted-foreground/70 hidden sm:inline">Unsaved</span>
-                    ) : (
-                        <>
-                            <IconCloudCheck className="w-3.5 h-3.5 md:w-4 md:h-4 text-green-500" />
-                            <span className="text-green-500 font-medium hidden sm:inline">Saved</span>
-                        </>
-                    )}
+                <div className="flex items-center gap-2 mr-4">
+                    <div className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm text-muted-foreground min-w-[60px] md:min-w-[80px] justify-end">
+                        {saving ? (
+                            <>
+                                <IconLoader2 className="w-3.5 h-3.5 md:w-4 md:h-4 animate-spin" />
+                                <span className="hidden sm:inline">Saving...</span>
+                            </>
+                        ) : isUnsaved ? (
+                            <span className="text-muted-foreground/70 hidden sm:inline">Unsaved</span>
+                        ) : (
+                            <>
+                                <IconCloudCheck className="w-3.5 h-3.5 md:w-4 md:h-4 text-green-500" />
+                                <span className="text-green-500 font-medium hidden sm:inline">Saved</span>
+                            </>
+                        )}
+                    </div>
+
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" onClick={() => onHistoryOpen(true)} className="hidden md:flex h-9 w-9 md:h-10 md:w-10">
+                                <IconHistory className="w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">
+                            <p>Version History</p>
+                        </TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest px-2 py-1 rounded bg-muted/50 hidden lg:block cursor-help hover:bg-muted transition-colors">
+                                Zero-Knowledge Encrypted
+                            </span>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                            <p>Your paper is encrypted with your private key before leaving your device. Only you can read it.</p>
+                        </TooltipContent>
+                    </Tooltip>
                 </div>
-
-                {/* Mobile Menu Dropdown */}
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild className="md:hidden">
-                        <Button variant="ghost" size="icon" className="h-9 w-9">
-                            <IconDotsVertical className="w-4 h-4" />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
-                        <DropdownMenuItem onClick={() => onHistoryOpen(true)}>
-                            <IconHistory className="w-4 h-4 mr-2" />
-                            Version History
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={toggleThemeWithAnimation}>
-                            {theme === 'dark' ? <IconSun className="w-4 h-4 mr-2" /> : <IconMoon className="w-4 h-4 mr-2" />}
-                            {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => {
-                            // Toggle sidebar - this will work for both mobile sheet and desktop floating
-                            const event = new Event('keydown');
-                            (event as any).key = 'b';
-                            (event as any).metaKey = true;
-                            window.dispatchEvent(event);
-                        }}>
-                            <IconLayoutSidebar className="w-4 h-4 mr-2" />
-                            Toggle Sidebar
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={() => onHistoryOpen(true)} className="hidden md:flex h-9 w-9 md:h-10 md:w-10">
-                            <IconHistory className="w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />
-                        </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="top">
-                        <p>Version History</p>
-                    </TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest px-2 py-1 rounded bg-muted/50 hidden lg:block cursor-help hover:bg-muted transition-colors">
-                            Zero-Knowledge Encrypted
-                        </span>
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs">
-                        <p>Your paper is encrypted with your private key before leaving your device. Only you can read it.</p>
-                    </TooltipContent>
-                </Tooltip>
 
                 <Separator orientation="vertical" className="mx-2 h-4 hidden md:block" />
 
@@ -498,8 +470,6 @@ function PaperHeader({
                         <span className="text-xs">Toggle theme</span>
                     </TooltipContent>
                 </Tooltip>
-                <div className="h-6 w-px bg-border mx-1 hidden md:block" />
-                <HeaderUser />
             </div>
         </header>
     );

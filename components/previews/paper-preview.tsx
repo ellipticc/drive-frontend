@@ -9,6 +9,7 @@ import { masterKeyManager } from '@/lib/master-key'
 import { Editor, EditorContainer } from '@/components/ui/editor'
 import { EditorKit } from '@/components/editor-kit'
 import { PaperIdProvider } from '@/components/paper-id-context'
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface PaperPreviewProps {
   fileId: string
@@ -105,7 +106,11 @@ export function PaperPreview({ fileId, initialContent, filename }: PaperPreviewP
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full w-full bg-background/50 backdrop-blur-sm">
-        <IconLoader2 className="w-8 h-8 animate-spin text-primary/40" />
+        <div className="w-full max-w-[850px] space-y-3 px-8 md:px-16 py-12">
+          <Skeleton className="h-6 w-40" />
+          <Skeleton className="h-10 w-full rounded" />
+          <Skeleton className="h-40 w-full rounded" />
+        </div>
       </div>
     )
   }
