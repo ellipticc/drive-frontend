@@ -156,16 +156,17 @@ self.addEventListener('fetch', (event) => {
                                         const reqUrlInner = new URL(event.request.url);
                                         if (reqUrlInner.protocol === 'http:' || reqUrlInner.protocol === 'https:') {
                                             try {
-                                                const putPromise = cache.put(event.request, responseClone);
-                                                // Attach a catch so rejections don't become unhandled
+                                                // Use the sanitized href as cache key (avoid putting non-http request objects)
+                                                const key = reqUrlInner.href;
+                                                const putPromise = cache.put(key, responseClone);
                                                 if (putPromise && typeof putPromise.then === 'function') {
                                                     putPromise.catch(err => {
-                                                        console.warn('[SW] Cache.put rejected:', event.request.url, err);
+                                                        console.warn('[SW] Cache.put rejected for key:', key, err);
                                                     });
                                                 }
                                             } catch (err) {
                                                 // cache.put may throw synchronously in some browsers for unsupported request schemes
-                                                console.warn('[SW] cache.put threw synchronously:', event.request.url, err);
+                                                try { console.warn('[SW] cache.put threw synchronously for key:', reqUrlInner.href, err); } catch(e){}
                                             }
                                         } else {
                                             console.warn('[SW] Skipping cache.put for non-http request:', event.request.url);
@@ -216,14 +217,15 @@ self.addEventListener('fetch', (event) => {
                                 const reqUrlInner = new URL(event.request.url);
                                 if (reqUrlInner.protocol === 'http:' || reqUrlInner.protocol === 'https:') {
                                     try {
-                                        const putPromise = cache.put(event.request, responseClone);
+                                        const key = reqUrlInner.href;
+                                        const putPromise = cache.put(key, responseClone);
                                         if (putPromise && typeof putPromise.then === 'function') {
                                             putPromise.catch(err => {
-                                                console.warn('[SW] Cache.put rejected:', event.request.url, err);
+                                                console.warn('[SW] Cache.put rejected for key:', key, err);
                                             });
                                         }
                                     } catch (err) {
-                                        console.warn('[SW] cache.put threw synchronously:', event.request.url, err);
+                                        try { console.warn('[SW] cache.put threw synchronously for key:', reqUrlInner.href, err); } catch(e){}
                                     }
                                 } else {
                                     console.warn('[SW] Skipping cache.put for non-http request:', event.request.url);

@@ -1294,9 +1294,15 @@ export function SettingsModal({
           // Sync page-size with server pagination if provided (keeps UI & API consistent)
           try {
             const serverLimit = response.data.pagination.limit
-            if (typeof serverLimit === 'number' && serverLimit !== securityEventsPageSize) {
-              setSecurityEventsPageSize(serverLimit)
-              try { localStorage.setItem('settings.table.activity-monitor.pageSize', String(serverLimit)) } catch (e) {}
+            if (typeof serverLimit === 'number') {
+              if (serverLimit !== limit) {
+                // Server honored/request cap differs from requested limit — log for diagnostics
+                console.warn('[Settings] Security events: requested pageSize=%d, server returned limit=%d', limit, serverLimit);
+              }
+              if (serverLimit !== securityEventsPageSize) {
+                setSecurityEventsPageSize(serverLimit)
+                try { localStorage.setItem('settings.table.activity-monitor.pageSize', String(serverLimit)) } catch (e) {}
+              }
             }
           } catch (e) {}
         }

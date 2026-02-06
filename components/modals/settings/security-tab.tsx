@@ -1891,7 +1891,7 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                         <Select
                             value={String(securityEventsPageSize || 10)}
                             onValueChange={(val) => updateSecurityEventsPageSize?.(Number(val))}
-                            disabled={isMobile}
+                            disabled={isMobile || isLoadingSecurityEvents}
                         >
                             <SelectTrigger className="w-28" size="sm">
                                 <SelectValue />
