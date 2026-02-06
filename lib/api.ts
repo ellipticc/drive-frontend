@@ -4159,7 +4159,8 @@ class ApiClient {
   async chatAI(
     messages: { role: 'user' | 'assistant'; content: string }[],
     chatId: string,
-    model: string
+    model: string,
+    kyberPublicKey?: string
   ): Promise<Response> {
     const endpoint = '/ai/chat';
     const authHeaders = await this.getAuthHeaders(endpoint, 'POST');
@@ -4174,6 +4175,8 @@ class ApiClient {
         messages,
         chatId,
         model,
+        kyberPublicKey,
+        // Legacy/Fallback for user message storage if needed
         messageToStore: messages.length > 0 && messages[messages.length - 1].role === 'user'
           ? (messages[messages.length - 1] as any).messageToStore
           : undefined

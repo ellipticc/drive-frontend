@@ -19,6 +19,8 @@ import { mermaid } from "@streamdown/mermaid"
 
 const streamdownPlugins = { cjk, code, math, mermaid }
 
+import { useAICrypto } from "@/hooks/use-ai-crypto";
+
 // Generate UUID
 const generateId = () => {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -42,7 +44,11 @@ export default function AssistantPage() {
     const [model, setModel] = React.useState("llama-3.1-8b-instant")
     const [chatKey, setChatKey] = React.useState<Uint8Array | null>(null)
 
+    const { isReady, kyberPublicKey, decryptHistory } = useAICrypto();
+
     React.useEffect(() => {
+        if (!isReady) return;
+
         // Generate or retrieve chatId on mount
         const stored = localStorage.getItem('ai_chat_id');
         let currentChatId = stored;
@@ -55,53 +61,23 @@ export default function AssistantPage() {
             currentChatId = newId;
         }
 
-        // Derive chat key if master key is available
-        import('@/lib/master-key').then(async ({ masterKeyManager }) => {
-            try {
-                if (masterKeyManager.hasMasterKey()) {
-                    const mk = masterKeyManager.getMasterKey();
-                    const { deriveAIChatKey, decryptAIMessage } = await import('@/lib/ai-crypto');
-                    const ck = await deriveAIChatKey(mk, currentChatId!);
-                    setChatKey(ck);
-
-                    // Load history if chatKey is derived
-                    if (ck && currentChatId) {
-                        try {
-                            const encryptedMessages = await apiClient.getAIChatMessages(currentChatId);
-                            if (encryptedMessages && encryptedMessages.length > 0) {
-                                const decryptedMessages: Message[] = encryptedMessages.map((msg: any) => {
-                                    try {
-                                        return {
-                                            role: msg.role,
-                                            content: decryptAIMessage(msg.encrypted_content, msg.iv, ck),
-                                        };
-                                    } catch (err) {
-                                        console.error("Failed to decrypt message:", err);
-                                        return {
-                                            role: msg.role,
-                                            content: "[Decryption Failed]",
-                                        };
-                                    }
-                                });
-                                setMessages(prev => [...decryptedMessages, ...prev]); // Or just set if initial load
-                                // Better:
-                                setMessages(decryptedMessages);
-                            }
-                        } catch (loadErr) {
-                            console.error("Failed to load chat history:", loadErr);
-                        }
-                    }
-                }
-            } catch (e) {
-                console.error("Failed to derive chat key:", e);
-            }
-        });
-    }, []);
+        // Load History
+        if (currentChatId) {
+            setIsLoading(true);
+            decryptHistory(currentChatId)
+                .then((msgs: Message[]) => {
+                    setMessages(msgs);
+                })
+                .catch((err: Error) => console.error("History load error:", err))
+                .finally(() => setIsLoading(false));
+        }
+    }, [isReady, decryptHistory]); // Depend on isReady to start loading
 
     const scrollToBottom = () => {
         if (scrollAreaRef.current) {
             const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
             if (scrollContainer) {
+                // Use smooth scrolling if desired, but immediate is often better for chat
                 scrollContainer.scrollTop = scrollContainer.scrollHeight;
             }
         }
@@ -112,7 +88,7 @@ export default function AssistantPage() {
     }, [messages, isLoading])
 
     const handleSubmit = async (value: string) => {
-        if (!value.trim() || isLoading) return
+        if (!value.trim() || isLoading || !isReady || !kyberPublicKey) return
 
         const userMessage: Message = { role: 'user', content: value }
         setMessages(prev => [...prev, userMessage])
@@ -122,7 +98,13 @@ export default function AssistantPage() {
             // Add thinking/streaming placeholder
             setMessages(prev => [...prev, { role: 'assistant', content: '', isThinking: true }])
 
-            const response = await apiClient.chatAI([userMessage], chatId, model);
+            // We SEND user message as plaintext (for inference) + PublicKey (for storage encryption)
+            const response = await apiClient.chatAI(
+                [{ role: 'user', content: value }],
+                chatId,
+                model,
+                kyberPublicKey
+            );
 
             if (!response.ok) throw new Error('Failed to fetch response')
             if (!response.body) throw new Error('No response body')
