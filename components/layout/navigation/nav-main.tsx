@@ -16,12 +16,11 @@ import {
   IconHelpCircleFilled,
   IconBubbleTextFilled,
   IconWritingSignFilled,
-  IconDots,
   IconPin,
   IconPinFilled,
-  IconPencil,
   IconTrash,
-  IconArchive,
+  IconFolder,
+  IconFolderOpen,
 } from "@tabler/icons-react"
 import { useState, useEffect, useCallback, Fragment } from "react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
@@ -31,13 +30,6 @@ import { decryptFilename } from "@/lib/crypto"
 import { masterKeyManager } from "@/lib/master-key"
 import { NavFolder } from "./nav-folder"
 import { cn } from "@/lib/utils"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { useAICrypto } from "@/hooks/use-ai-crypto"
 import {
   Dialog,
@@ -45,7 +37,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogClose
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -53,7 +44,6 @@ import { Button } from "@/components/ui/button"
 import {
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -115,7 +105,7 @@ export function NavMain({
   const [isLoadingFolders, setIsLoadingFolders] = useState(false)
   const [hasLoadedRoot, setHasLoadedRoot] = useState(false)
   const [isMyFilesLeaf, setIsMyFilesLeaf] = useState(false)
-  const [isAttestationsLeaf, setIsAttestationsLeaf] = useState(false) // Not really used but keeps pattern
+  // const [isAttestationsLeaf, setIsAttestationsLeaf] = useState(false) // Not really used but keeps pattern
 
   // State for additional items expansion (after Photos) — default collapsed
   const [areAdditionalItemsExpanded, setAreAdditionalItemsExpanded] = useState(false)  // always start collapsed
@@ -218,9 +208,6 @@ export function NavMain({
         return IconWritingSignFilled || originalIcon;
       case 'Documents':
         return IconStack2Filled || originalIcon;
-      case 'Keys':
-        // IconDatabaseFilled not available
-        return originalIcon;
       case 'Logs':
         return IconChartAreaLineFilled || originalIcon;
       default:
@@ -304,24 +291,24 @@ export function NavMain({
                       )}
                       tooltip={areAdditionalItemsExpanded ? "Show less" : "Show more"}
                     >
-                      {areAdditionalItemsExpanded ? (
-                        <IconChevronUp className="shrink-0 size-4" />
-                      ) : (
-                        <IconChevronDown className="shrink-0 size-4" />
-                      )}
                       <span className={cn(
                         "text-sm",
                         state === "collapsed" && "sr-only"
                       )}>
                         {areAdditionalItemsExpanded ? "Less" : "More"}
                       </span>
+                      {areAdditionalItemsExpanded ? (
+                        <IconChevronUp className="shrink-0 size-4 ml-auto" />
+                      ) : (
+                        <IconChevronDown className="shrink-0 size-4 ml-auto" />
+                      )}
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 </Fragment>
               );
             }
 
-            // For items after photos, use smooth transitions instead of conditional rendering
+            // For items after photos, use smooth transitions
             if (isAfterPhotos) {
               return (
                 <SidebarMenuItem
@@ -332,11 +319,6 @@ export function NavMain({
                       ? "max-h-12 opacity-100"
                       : "max-h-0 opacity-0 pointer-events-none"
                   )}
-                  style={{
-                    transitionProperty: 'max-height, opacity',
-                    transitionDuration: '300ms',
-                    transitionTimingFunction: 'ease-in-out'
-                  }}
                 >
                   <SidebarMenuButton
                     tooltip={item.title}
@@ -351,16 +333,9 @@ export function NavMain({
                     })()}
                     <span>{item.title}</span>
                     {item.badge && item.badge > 0 && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-[4px] bg-primary px-0.5 text-[11px] font-semibold text-primary-foreground">
-                            {item.badge}
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent side="right">
-                          {item.badge} pending invitation{item.badge !== 1 ? 's' : ''}
-                        </TooltipContent>
-                      </Tooltip>
+                      <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-[4px] bg-primary px-0.5 text-[11px] font-semibold text-primary-foreground">
+                        {item.badge}
+                      </span>
                     )}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -400,11 +375,7 @@ export function NavMain({
                     )}
                     {!isMyFilesLeaf && state !== 'collapsed' && (
                       <div
-                        onClick={(e) => {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          toggleMyFiles(e)
-                        }}
+                        onClick={toggleMyFiles}
                         className="absolute right-1 top-1/2 -translate-y-1/2 p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded-sm transition-colors text-muted-foreground/40 hover:text-muted-foreground z-20"
                       >
                         <IconChevronRight
@@ -464,11 +435,7 @@ export function NavMain({
                     {item.items && item.items.length > 0 && (
                       <button
                         type="button"
-                        onClick={(e) => {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          toggleAttestations(e)
-                        }}
+                        onClick={toggleAttestations}
                         className="absolute right-1 top-1/2 -translate-y-1/2 p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded-sm transition-colors text-muted-foreground/40 hover:text-muted-foreground z-50 flex items-center justify-center cursor-pointer"
                       >
                         <IconChevronDown
@@ -481,20 +448,20 @@ export function NavMain({
                   {isAttestationsExpanded && item.items && (
                     <SidebarMenuSub className="ml-3.5 border-l border-border/50">
                       {item.items.map((subItem) => (
-                        <SidebarMenuButton
-                          key={subItem.title}
-                          asChild
-                          isActive={currentHash === '#' + subItem.url.split('#')[1]}
-                          className="text-sidebar-foreground/70 ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:bg-sidebar-accent active:text-sidebar-accent-foreground [&>svg]:size-4 [&>svg]:text-sidebar-accent-foreground h-8 min-w-8 mb-1"
-                        >
-                          <a href={subItem.url}>
-                            {(() => {
-                              const SubIcon = getSubItemIcon(subItem.url, subItem.icon)
-                              return SubIcon && <SubIcon />
-                            })()}
-                            <span>{subItem.title}</span>
-                          </a>
-                        </SidebarMenuButton>
+                        <SidebarMenuSubItem key={subItem.title}>
+                          <SidebarMenuSubButton
+                            asChild
+                            isActive={currentHash === '#' + subItem.url.split('#')[1]}
+                          >
+                            <a href={subItem.url}>
+                              {(() => {
+                                const SubIcon = getSubItemIcon(subItem.url, subItem.icon)
+                                return SubIcon && <SubIcon />
+                              })()}
+                              <span>{subItem.title}</span>
+                            </a>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
                       ))}
                     </SidebarMenuSub>
                   )}
@@ -516,151 +483,97 @@ export function NavMain({
               const [chatToRename, setChatToRename] = useState<{ id: string, title: string } | null>(null);
               const [newTitle, setNewTitle] = useState("");
 
-              // Inline Renaming State
-              const [editingChatId, setEditingChatId] = useState<string | null>(null);
-
-              const handleRenameSubmit = async (chatId: string, newTitle: string) => {
-                if (newTitle.trim()) {
-                  await renameChat(chatId, newTitle.trim());
-                }
-                setEditingChatId(null);
-              };
-
-              const toggleAssistant = (e: React.MouseEvent) => {
+              const handleAssistantToggle = (e: React.MouseEvent) => {
                 e.preventDefault();
                 e.stopPropagation();
-                if (state === "collapsed") {
-                  toggleSidebar();
-                  return;
-                }
-                const next = !isAssistantExpanded;
-                setIsAssistantExpanded(next);
-                sessionStorage.setItem("assistant-expanded", String(next));
+                const newState = !isAssistantExpanded;
+                setIsAssistantExpanded(newState);
+                sessionStorage.setItem("assistant-expanded", String(newState));
               }
 
-              const handleRenameClick = (chat: typeof chats[0]) => {
-                setChatToRename({ id: chat.id, title: chat.title });
-                setNewTitle(chat.title);
-                setRenameDialogOpen(true);
-              };
+              const isAssistantActive = pathname.startsWith('/assistant');
+              const currentConversationId = searchParams.get('conversationId');
 
               const submitRename = async () => {
                 if (chatToRename && newTitle.trim()) {
                   await renameChat(chatToRename.id, newTitle.trim());
                   setRenameDialogOpen(false);
+                  setNewTitle("");
                   setChatToRename(null);
                 }
               };
 
               return (
-                <SidebarMenuItem key={item.title} className="space-y-1">
-                  <div className="relative">
-                    <SidebarMenuButton
-                      tooltip={item.title}
-                      isActive={pathname === item.url || pathname.startsWith('/assistant')}
-                      onClick={() => handleNavigate(item.url)}
-                      className="cursor-pointer pr-8"
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton
+                    onClick={() => handleNavigate('/assistant')}
+                    tooltip={item.title}
+                    isActive={isAssistantActive && !currentConversationId && isAssistantExpanded}
+                    className="group/assist-btn"
+                  >
+                    {item.icon && <item.icon />}
+                    <span>{item.title}</span>
+                    <div
+                      role="button"
+                      onClick={handleAssistantToggle}
+                      className="ml-auto p-1 rounded-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
                     >
-                      {(() => {
-                        const isActive = pathname === item.url || pathname.startsWith('/assistant')
-                        const IconComponent = getIcon(item, isActive) as any
-                        return IconComponent && <IconComponent className="shrink-0" />
-                      })()}
-                      <span>{item.title}</span>
-                    </SidebarMenuButton>
-
-                    <button
-                      type="button"
-                      onClick={toggleAssistant}
-                      className="absolute right-1 top-1/2 -translate-y-1/2 p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded-sm transition-colors text-muted-foreground/40 hover:text-muted-foreground z-50 flex items-center justify-center cursor-pointer"
-                    >
-                      <IconChevronDown
-                        className={cn("size-3.5 shrink-0 transition-transform duration-200", !isAssistantExpanded && "-rotate-90")}
-                      />
-                    </button>
-                  </div>
+                      {isAssistantExpanded ? (
+                        <IconFolderOpen className="size-4" />
+                      ) : (
+                        <IconFolder className="size-4" />
+                      )}
+                    </div>
+                  </SidebarMenuButton>
 
                   {isAssistantExpanded && (
                     <SidebarMenuSub className="ml-3.5 border-l border-border/50">
 
+                      {/* Pinned Chats */}
+                      {chats.filter(chat => chat.pinned && !chat.archived).map(chat => (
+                        <SidebarMenuSubItem key={chat.id}>
+                          <SidebarMenuSubButton
+                            onClick={() => handleNavigate(`/assistant?conversationId=${chat.id}`)}
+                            isActive={currentConversationId === chat.id}
+                            className="group/chat-item pr-1 h-8"
+                          >
+                            <span className="truncate flex-1 text-xs">{chat.title}</span>
+                            <div className="opacity-0 group-hover/chat-item:opacity-100 flex gap-0.5 ml-auto">
+                              <IconPinFilled
+                                className="size-3 text-muted-foreground hover:text-foreground cursor-pointer"
+                                onClick={(e) => { e.stopPropagation(); pinChat(chat.id, false); }}
+                              />
+                            </div>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      ))}
 
-                      {chats.map(chat => (
-                        <SidebarMenuItem key={chat.id}>
-                          <div className="relative group/chat-item w-full">
-                            <SidebarMenuButton
-                              asChild
-                              isActive={searchParams.get('chatId') === chat.id}
-                              className="pr-8 h-8 w-full justify-start"
-                            >
-                              {editingChatId === chat.id ? (
-                                <div className="flex items-center w-full" onClick={(e) => e.stopPropagation()}>
-                                  <input
-                                    type="text"
-                                    className="w-full bg-transparent border-none focus:ring-0 p-0 text-xs font-medium h-5 placeholder:text-muted-foreground/50"
-                                    defaultValue={chat.title || "New Chat"}
-                                    autoFocus
-                                    onKeyDown={(e) => {
-                                      if (e.key === 'Enter') {
-                                        e.preventDefault();
-                                        handleRenameSubmit(chat.id, e.currentTarget.value);
-                                      } else if (e.key === 'Escape') {
-                                        e.preventDefault();
-                                        setEditingChatId(null);
-                                      }
-                                    }}
-                                    onBlur={(e) => {
-                                      handleRenameSubmit(chat.id, e.target.value);
-                                    }}
-                                    onClick={(e) => e.stopPropagation()}
-                                  />
-                                </div>
-                              ) : (
-                                <a
-                                  href={`/assistant?chatId=${chat.id}`}
-                                  className="cursor-pointer truncate flex items-center w-full"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    handleNavigate(`/assistant?chatId=${chat.id}`);
-                                  }}
-                                >
-                                  {chat.pinned ? <IconPinFilled className="size-3.5 mr-2 text-primary shrink-0" /> : <IconBubbleTextFilled className="size-3.5 mr-2 opacity-70 shrink-0" />}
-                                  <span className="truncate">{chat.title || "New Chat"}</span>
-                                </a>
-                              )}
-                            </SidebarMenuButton>
-
-                            {/* Actions Menu */}
-                            {editingChatId !== chat.id && (
-                              <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover/chat-item:opacity-100 transition-opacity z-10">
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <div className="h-6 w-6 flex items-center justify-center rounded-sm hover:bg-sidebar-accent cursor-pointer text-muted-foreground">
-                                      <IconDots className="size-3.5" />
-                                    </div>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="start" side="right">
-                                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditingChatId(chat.id); }}>
-                                      <IconPencil className="size-4 mr-2" />
-                                      Rename
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); pinChat(chat.id, !chat.pinned); }}>
-                                      {chat.pinned ? <><IconPin className="size-4 mr-2" /> Unpin</> : <><IconPinFilled className="size-4 mr-2" /> Pin</>}
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); deleteChat(chat.id); }} className="text-destructive focus:text-destructive">
-                                      <IconTrash className="size-4 mr-2" />
-                                      Delete
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </div>
-                            )}
-                          </div>
-                        </SidebarMenuItem>
-                      ))}  </SidebarMenuSub>
+                      {/* Recent Chats */}
+                      {chats.filter(chat => !chat.pinned && !chat.archived).map(chat => (
+                        <SidebarMenuSubItem key={chat.id}>
+                          <SidebarMenuSubButton
+                            className="group/chat-item pr-1 h-8"
+                            onClick={() => handleNavigate(`/assistant?conversationId=${chat.id}`)}
+                            isActive={currentConversationId === chat.id}
+                          >
+                            <span className="truncate flex-1 text-xs">{chat.title}</span>
+                            <div className="opacity-0 group-hover/chat-item:opacity-100 flex gap-0.5 ml-auto">
+                              <IconPin
+                                className="size-3 text-muted-foreground hover:text-foreground cursor-pointer"
+                                onClick={(e) => { e.stopPropagation(); pinChat(chat.id, true); }}
+                              />
+                              <IconTrash
+                                className="size-3 text-muted-foreground hover:text-status-danger cursor-pointer"
+                                onClick={(e) => { e.stopPropagation(); deleteChat(chat.id); }}
+                              />
+                            </div>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      ))}
+                    </SidebarMenuSub>
                   )}
 
-                  {/* Rename Dialog */}
+                  {/* Rename Dialog - Keep it rendered but controlled by open state */}
                   <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
                     <DialogContent>
                       <DialogHeader>
@@ -680,7 +593,6 @@ export function NavMain({
                       </DialogFooter>
                     </DialogContent>
                   </Dialog>
-
                 </SidebarMenuItem>
               );
             }
@@ -713,7 +625,7 @@ export function NavMain({
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton onClick={() => window.location.hash = '#settings/General'} id="tour-settings">
                     {(() => {
-                      const IconComponent = getIcon(item, false) as any // Settings doesn't have active state in nav-main
+                      const IconComponent = getIcon(item, false) as any
                       return IconComponent && <IconComponent />
                     })()}
                     <span>{item.title}</span>
@@ -757,6 +669,6 @@ export function NavMain({
           })}
         </SidebarMenu>
       </SidebarGroupContent>
-    </SidebarGroup >
+    </SidebarGroup>
   )
 }

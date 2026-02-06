@@ -30,24 +30,24 @@ export default function AssistantPage() {
     const router = useRouter()
     const searchParams = useSearchParams()
 
-    // Derived from URL, fallback to empty (New Chat)
-    const chatId = searchParams.get('chatId') || ""
-
     const [messages, setMessages] = React.useState<Message[]>([])
     const [isLoading, setIsLoading] = React.useState(false)
     const scrollAreaRef = React.useRef<HTMLDivElement>(null)
     const [model, setModel] = React.useState("llama-3.1-8b-instant") // Could become a setting
 
-    const { isReady, kyberPublicKey, decryptHistory, decryptStreamChunk, loadChats } = useAICrypto();
+    const { isReady, kyberPublicKey, decryptHistory, decryptStreamChunk, encryptMessage, loadChats } = useAICrypto();
 
-    // Load History when chatId changes
+    // Derived from URL, fallback to empty (New Chat)
+    const conversationId = searchParams.get('conversationId') || ""
+
+    // Load History when conversationId changes
     React.useEffect(() => {
         if (!isReady) return;
 
-        if (chatId) {
+        if (conversationId) {
             setIsLoading(true);
             setMessages([]); // Clear previous messages while loading
-            decryptHistory(chatId)
+            decryptHistory(conversationId)
                 .then((msgs: Message[]) => {
                     setMessages(msgs);
                 })
@@ -60,7 +60,7 @@ export default function AssistantPage() {
             // New Chat
             setMessages([]);
         }
-    }, [chatId, isReady, decryptHistory]);
+    }, [conversationId, isReady, decryptHistory]);
 
     const scrollToBottom = () => {
         if (scrollAreaRef.current) {
@@ -88,21 +88,33 @@ export default function AssistantPage() {
             // Add thinking/streaming placeholder
             setMessages(prev => [...prev, { role: 'assistant', content: '', isThinking: true }])
 
-            // We SEND user message as plaintext (for inference) + PublicKey (for storage encryption)
+            // Encrypt user message for storage
+            let encryptedUserMessage;
+            if (kyberPublicKey) {
+                try {
+                    const { encryptedContent, iv, encapsulatedKey } = await encryptMessage(value);
+                    encryptedUserMessage = { encryptedContent, iv, encapsulatedKey };
+                } catch (e) {
+                    console.error("Failed to encrypt user message:", e);
+                }
+            }
+
+            // We SEND user message as plaintext (for inference) + Encrypted Blob (for storage)
             const response = await apiClient.chatAI(
                 [{ role: 'user', content: value }],
-                chatId, // Pass current chatId (empty string if new)
+                conversationId, // Pass current conversationId (empty string if new)
                 model,
-                kyberPublicKey
+                kyberPublicKey,
+                encryptedUserMessage
             );
 
             if (!response.ok) throw new Error('Failed to fetch response')
 
-            // Check for X-Chat-Id header to redirect if it was a new chat
-            const newChatId = response.headers.get('X-Chat-Id');
-            if (newChatId && newChatId !== chatId) {
+            // Check for X-Conversation-Id header to redirect if it was a new chat
+            const newConversationId = response.headers.get('X-Conversation-Id');
+            if (newConversationId && newConversationId !== conversationId) {
                 // It's a new chat! Update URL without reloading
-                window.history.replaceState(null, '', `/assistant?chatId=${newChatId}`);
+                window.history.replaceState(null, '', `/assistant?conversationId=${newConversationId}`);
                 // Refresh sidebar list
                 loadChats();
             }
@@ -153,7 +165,8 @@ export default function AssistantPage() {
                                 setMessages(prev => {
                                     const newMessages = [...prev]
                                     const lastMessage = newMessages[newMessages.length - 1]
-                                    if (lastMessage.role === 'assistant') {
+                                    // Check if lastMessage exists and is assistant before updating
+                                    if (lastMessage && lastMessage.role === 'assistant') {
                                         lastMessage.content = assistantMessageContent
                                         lastMessage.isThinking = false
                                     }
@@ -172,7 +185,7 @@ export default function AssistantPage() {
             setMessages(prev => {
                 const newMessages = [...prev]
                 const lastMessage = newMessages[newMessages.length - 1]
-                if (lastMessage.role === 'assistant') {
+                if (lastMessage && lastMessage.role === 'assistant') {
                     lastMessage.content = "Sorry, I encountered an error. Please try again."
                     lastMessage.isThinking = false
                 }
@@ -181,7 +194,7 @@ export default function AssistantPage() {
         } finally {
             setIsLoading(false);
             // If we just finished a new chat response, we might want to ensure the sidebar title is updated (since backend updates title after first msg)
-            if (!chatId) {
+            if (!conversationId) {
                 setTimeout(() => loadChats(), 2000);
             }
         }

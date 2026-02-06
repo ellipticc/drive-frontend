@@ -18,12 +18,13 @@ export interface UseAICryptoReturn {
     userKeys: { keypairs: UserKeypairs } | null;
     chats: { id: string, title: string, pinned: boolean, archived: boolean, createdAt: string }[];
     loadChats: () => Promise<void>;
-    renameChat: (chatId: string, newTitle: string) => Promise<void>;
-    pinChat: (chatId: string, pinned: boolean) => Promise<void>;
-    archiveChat: (chatId: string, archived: boolean) => Promise<void>;
-    deleteChat: (chatId: string) => Promise<void>;
-    decryptHistory: (chatId: string) => Promise<DecryptedMessage[]>;
+    renameChat: (conversationId: string, newTitle: string) => Promise<void>;
+    pinChat: (conversationId: string, pinned: boolean) => Promise<void>;
+    archiveChat: (conversationId: string, archived: boolean) => Promise<void>;
+    deleteChat: (conversationId: string) => Promise<void>;
+    decryptHistory: (conversationId: string) => Promise<DecryptedMessage[]>;
     decryptStreamChunk: (encryptedContent: string, iv: string, encapsulatedKey?: string, existingSessionKey?: Uint8Array) => Promise<{ decrypted: string, sessionKey: Uint8Array }>;
+    encryptMessage: (content: string) => Promise<{ encryptedContent: string, iv: string, encapsulatedKey: string }>;
     error: string | null;
 }
 
@@ -122,7 +123,7 @@ export function useAICrypto(): UseAICryptoReturn {
         }
     }, [isReady, userKeys, loadChats]);
 
-    const renameChat = useCallback(async (chatId: string, newTitle: string) => {
+    const renameChat = useCallback(async (conversationId: string, newTitle: string) => {
         if (!userKeys || !kyberPublicKey) return;
         try {
             const { encryptForUser } = await import('@/lib/ai-crypto');
@@ -130,51 +131,51 @@ export function useAICrypto(): UseAICryptoReturn {
             // Encrpyt new title
             const { encryptedContent, iv, encapsulatedKey } = await encryptForUser(newTitle, kyberPublicKey);
 
-            await apiClient.updateChat(chatId, {
+            await apiClient.updateChat(conversationId, {
                 title: encryptedContent,
                 iv,
                 encapsulated_key: encapsulatedKey
             });
 
             // Optimistic Update
-            setChats(prev => prev.map(c => c.id === chatId ? { ...c, title: newTitle } : c));
+            setChats(prev => prev.map(c => c.id === conversationId ? { ...c, title: newTitle } : c));
         } catch (e) {
             console.error("Failed to rename chat:", e);
             throw e;
         }
     }, [userKeys, kyberPublicKey]);
 
-    const pinChat = useCallback(async (chatId: string, pinned: boolean) => {
+    const pinChat = useCallback(async (conversationId: string, pinned: boolean) => {
         try {
-            await apiClient.updateChat(chatId, { pinned });
-            setChats(prev => prev.map(c => c.id === chatId ? { ...c, pinned } : c));
+            await apiClient.updateChat(conversationId, { pinned });
+            setChats(prev => prev.map(c => c.id === conversationId ? { ...c, pinned } : c));
         } catch (e) {
             console.error("Failed to pin chat:", e);
         }
     }, []);
 
-    const archiveChat = useCallback(async (chatId: string, archived: boolean) => {
-        setChats(prev => prev.map(c => c.id === chatId ? { ...c, archived } : c)); // Optimistic
+    const archiveChat = useCallback(async (conversationId: string, archived: boolean) => {
+        setChats(prev => prev.map(c => c.id === conversationId ? { ...c, archived } : c)); // Optimistic
         try {
-            await apiClient.updateChat(chatId, { archived });
+            await apiClient.updateChat(conversationId, { archived });
         } catch (err) {
             console.error("Failed to archive chat", err);
-            setChats(prev => prev.map(c => c.id === chatId ? { ...c, archived: !archived } : c)); // Revert
+            setChats(prev => prev.map(c => c.id === conversationId ? { ...c, archived: !archived } : c)); // Revert
         }
     }, []);
 
-    const deleteChat = useCallback(async (chatId: string) => {
-        setChats(prev => prev.filter(c => c.id !== chatId)); // Optimistic
+    const deleteChat = useCallback(async (conversationId: string) => {
+        setChats(prev => prev.filter(c => c.id !== conversationId)); // Optimistic
         if (typeof window !== "undefined") {
-            const currentUrlId = new URLSearchParams(window.location.search).get('chatId');
-            if (currentUrlId === chatId) {
+            const currentUrlId = new URLSearchParams(window.location.search).get('conversationId');
+            if (currentUrlId === conversationId) {
                 // Redirect to new chat
                 window.history.replaceState(null, '', '/assistant');
             }
         }
 
         try {
-            await apiClient.deleteChat(chatId);
+            await apiClient.deleteChat(conversationId);
         } catch (err) {
             console.error("Failed to delete chat:", err);
             loadChats(); // Revert/Reload if failed
@@ -182,14 +183,14 @@ export function useAICrypto(): UseAICryptoReturn {
     }, [loadChats]);
 
 
-    const decryptHistory = useCallback(async (chatId: string): Promise<DecryptedMessage[]> => {
+    const decryptHistory = useCallback(async (conversationId: string): Promise<DecryptedMessage[]> => {
         if (!userKeys) return [];
 
         try {
             const { decryptData } = await import('@/lib/crypto');
             const { ml_kem768 } = await import('@noble/post-quantum/ml-kem');
 
-            const encryptedMessages = await apiClient.getAIChatMessages(chatId);
+            const encryptedMessages = await apiClient.getAIChatMessages(conversationId);
             if (!encryptedMessages || encryptedMessages.length === 0) return [];
 
             const decrypted = await Promise.all(encryptedMessages.map(async (msg: any) => {
@@ -255,6 +256,12 @@ export function useAICrypto(): UseAICryptoReturn {
         return { decrypted, sessionKey };
     }, [userKeys]);
 
+    const encryptMessage = useCallback(async (content: string) => {
+        if (!userKeys || !kyberPublicKey) throw new Error("Encryption keys not ready");
+        const { encryptForUser } = await import('@/lib/ai-crypto');
+        return encryptForUser(content, kyberPublicKey);
+    }, [userKeys, kyberPublicKey]);
+
     return {
         isReady,
         kyberPublicKey,
@@ -267,6 +274,7 @@ export function useAICrypto(): UseAICryptoReturn {
         deleteChat,
         decryptHistory,
         decryptStreamChunk,
+        encryptMessage,
         error
     };
 }

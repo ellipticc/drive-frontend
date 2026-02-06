@@ -4158,9 +4158,10 @@ class ApiClient {
 
   async chatAI(
     messages: { role: 'user' | 'assistant'; content: string }[],
-    chatId: string,
+    conversationId: string,
     model: string,
-    kyberPublicKey?: string
+    kyberPublicKey?: string,
+    encryptedUserMessage?: { encryptedContent: string; iv: string; encapsulatedKey: string }
   ): Promise<Response> {
     const endpoint = '/ai/chat';
     const authHeaders = await this.getAuthHeaders(endpoint, 'POST');
@@ -4173,19 +4174,16 @@ class ApiClient {
       },
       body: JSON.stringify({
         messages,
-        chatId,
+        conversationId,
         model,
         kyberPublicKey,
-        // Legacy/Fallback for user message storage if needed
-        messageToStore: messages.length > 0 && messages[messages.length - 1].role === 'user'
-          ? (messages[messages.length - 1] as any).messageToStore
-          : undefined
+        encryptedUserMessage
       }),
     });
   }
 
   async saveAIChatMessage(
-    chatId: string,
+    conversationId: string,
     role: 'user' | 'assistant',
     encrypted_content: string,
     iv: string
@@ -4200,7 +4198,7 @@ class ApiClient {
         ...authHeaders,
       },
       body: JSON.stringify({
-        chatId,
+        conversationId,
         role,
         encrypted_content,
         iv,
@@ -4208,8 +4206,8 @@ class ApiClient {
     });
   }
 
-  async getAIChatMessages(chatId: string): Promise<any[]> {
-    const endpoint = `/ai/chat/${chatId}/messages`;
+  async getAIChatMessages(conversationId: string): Promise<any[]> {
+    const endpoint = `/ai/chat/${conversationId}/messages`;
     const authHeaders = await this.getAuthHeaders(endpoint, 'GET');
 
     const response = await fetch(`${this.baseURL}${endpoint}`, {
@@ -4240,8 +4238,8 @@ class ApiClient {
     return response.json();
   }
 
-  async updateChat(chatId: string, updates: { pinned?: boolean; archived?: boolean; title?: string; iv?: string; encapsulated_key?: string }): Promise<void> {
-    const endpoint = `/ai/chats/${chatId}`;
+  async updateChat(conversationId: string, updates: { pinned?: boolean; archived?: boolean; title?: string; iv?: string; encapsulated_key?: string }): Promise<void> {
+    const endpoint = `/ai/chats/${conversationId}`;
     const authHeaders = await this.getAuthHeaders(endpoint, 'PATCH');
 
     const response = await fetch(`${this.baseURL}${endpoint}`, {
@@ -4258,8 +4256,8 @@ class ApiClient {
     }
   }
 
-  async deleteChat(chatId: string): Promise<ApiResponse<any>> {
-    const endpoint = `/ai/chats/${chatId}`;
+  async deleteChat(conversationId: string): Promise<ApiResponse<any>> {
+    const endpoint = `/ai/chats/${conversationId}`;
     const authHeaders = await this.getAuthHeaders(endpoint, 'DELETE');
 
     const response = await fetch(`${this.baseURL}${endpoint}`, {
