@@ -24,6 +24,7 @@
     "@kibo-ui": "https://www.kibo-ui.com/r/{name}.json",
     "@diceui": "https://diceui.com/r/{name}.json",
     "@shadcn-map": "http://shadcn-map.vercel.app/r/{name}.json",
-    "@billingsdk": "https://billingsdk.com/r/{name}.json"
+    "@billingsdk": "https://billingsdk.com/r/{name}.json",
+    "@ai-elements": "https://ai-sdk.dev/elements/api/registry/{name}.json"
   }
 }

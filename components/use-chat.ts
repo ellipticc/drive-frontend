@@ -46,7 +46,7 @@ export type MessageDataPart = {
   table?: TTableCellUpdate;
 };
 
-export type Chat = UseChatHelpers<ChatMessage>;
+export type Chat = UseChatHelpers<any>;
 
 export type ChatMessage = UIMessage<Record<string, never>, MessageDataPart>;
 
@@ -63,7 +63,7 @@ export const useChat = () => {
     }
   };
 
-  const baseChat = useBaseChat<ChatMessage>({
+  const baseChat = useBaseChat<any>({
     id: 'editor',
     transport: new DefaultChatTransport({
       api: options.api || '/api/ai/command',
@@ -159,7 +159,7 @@ export const useChat = () => {
 
         return res;
       }) as typeof fetch,
-    }),
+    }) as any,
     onData(data) {
       if (data.type === 'data-toolName') {
         editor.setOption(AIChatPlugin, 'toolName', data.data as ToolName);

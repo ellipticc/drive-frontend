@@ -4155,6 +4155,28 @@ class ApiClient {
   async getSignedDocuments(): Promise<ApiResponse<{ documents: AttestationDocument[] }>> {
     return this.request('/attestations/documents');
   }
+
+  async chatAI(
+    messages: { role: 'user' | 'assistant'; content: string }[],
+    chatId: string,
+    model: string
+  ): Promise<Response> {
+    const endpoint = '/ai/chat';
+    const authHeaders = await this.getAuthHeaders(endpoint, 'POST');
+
+    return fetch(`${this.baseURL}${endpoint}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders,
+      },
+      body: JSON.stringify({
+        messages,
+        chatId,
+        model,
+      }),
+    });
+  }
 }
 
 export interface AttestationDocument {
