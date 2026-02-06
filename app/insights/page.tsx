@@ -239,7 +239,7 @@ export default function InsightsPage() {
         <SiteHeader onFileUpload={handleFileUpload} onFolderUpload={handleFolderUpload} sticky />
         <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8">
           <div className="w-full flex flex-col gap-6">
-            <div className="h-16 w-full max-w-sm rounded-lg bg-muted/20 animate-pulse" />
+            <Skeleton className="h-16 w-full max-w-sm rounded-lg" />
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
               {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-32 w-full rounded-xl" />)}
             </div>

@@ -37,6 +37,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
 import { useGlobalUpload } from "@/components/global-upload-context"
 import { useUser } from "@/components/user-context"
 import { getDiceBearAvatar } from "@/lib/avatar"
@@ -267,9 +268,9 @@ export const AppSidebar = React.memo(function AppSidebar({
         </SidebarHeader>
         <SidebarContent>
           <div className="px-3 py-3">
-            <div className="h-3 bg-muted rounded mb-2 w-3/4 animate-pulse" />
-            <div className="h-3 bg-muted rounded mb-2 w-1/2 animate-pulse" />
-            <div className="h-3 bg-muted rounded mb-2 w-2/3 animate-pulse" />
+            <Skeleton className="h-3 w-3/4 mb-2" />
+            <Skeleton className="h-3 w-1/2 mb-2" />
+            <Skeleton className="h-3 w-2/3 mb-2" />
           </div>
         </SidebarContent>
         <SidebarFooter>

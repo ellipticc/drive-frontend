@@ -88,7 +88,7 @@ import {
 import OPAQUE, { OPAQUELogin, OPAQUERegistration } from "@/lib/opaque"
 import { deriveEncryptionKey, encryptData, generateKeyDerivationSalt } from "@/lib/crypto"
 import type { UserData, SecurityEvent } from "@/lib/api"
-
+import { Skeleton } from '@/components/ui/skeleton'
 interface Session {
     id: string;
     ip_address: string;
@@ -2096,11 +2096,11 @@ CRITICAL: Keep this file in a safe, offline location. Anyone with access to this
                                         const effective = securityEventsEffectivePageSize ?? securityEventsPageSize ?? 10;
                                         return Array.from({ length: effective }).map((_, i) => (
                                             <tr key={`skeleton-${i}`} className="opacity-70">
-                                                <td className="px-4 py-3"><div className="h-3 bg-muted rounded w-24" /></td>
-                                                <td className="px-4 py-3"><div className="h-3 bg-muted rounded w-64" /></td>
-                                                <td className="px-4 py-3 hidden md:table-cell"><div className="h-3 bg-muted rounded w-32" /></td>
-                                                <td className="px-4 py-3"><div className="h-3 bg-muted rounded w-24" /></td>
-                                                <td className="px-4 py-3 text-right"><div className="h-3 bg-muted rounded w-20 ml-auto" /></td>
+                                                <td className="px-4 py-3"><Skeleton className="h-3 w-24 rounded" /></td>
+                                                <td className="px-4 py-3"><Skeleton className="h-3 w-64 rounded" /></td>
+                                                <td className="px-4 py-3 hidden md:table-cell"><Skeleton className="h-3 w-32 rounded" /></td>
+                                                <td className="px-4 py-3"><Skeleton className="h-3 w-24 rounded" /></td>
+                                                <td className="px-4 py-3 text-right"><div className="ml-auto"><Skeleton className="h-3 w-20 rounded" /></div></td>
                                             </tr>
                                         ));
                                     })()

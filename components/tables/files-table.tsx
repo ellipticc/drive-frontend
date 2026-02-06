@@ -3624,6 +3624,45 @@ export const Table01DividerLineSm = ({
                                 />
                             </div>
                         )}
+
+                        {/* While refetching and we already have items, show skeleton rows that precisely match the table shape */}
+                        {(isFetching || isPending) && filteredItems.length > 0 && (
+                            <Table.Body>
+                                {Array.from({ length: Math.max(5, Math.min(filteredItems.length || 8, 20)) }).map((_, i) => (
+                                    <Table.Row key={`skeleton-${i}`} className="opacity-80 pointer-events-none select-none">
+                                        <Table.Cell className="w-10 text-center pl-2 md:pl-4 pr-0">
+                                            <Skeleton className="h-4 w-4 rounded" />
+                                        </Table.Cell>
+                                        <Table.Cell className="w-full max-w-0">
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <Skeleton className="h-4 w-4 rounded" />
+                                                <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                                                    <div className="flex-1 min-w-0">
+                                                        <Skeleton className="h-4 w-48 mb-1" />
+                                                        <Skeleton className="h-3 w-32" />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </Table.Cell>
+                                        <Table.Cell className="hidden md:table-cell px-1 w-16 text-center">
+                                            <Skeleton className="h-4 w-4 rounded" />
+                                        </Table.Cell>
+                                        <Table.Cell className="hidden md:table-cell text-right w-40 px-4">
+                                            <Skeleton className="h-3 w-20" />
+                                        </Table.Cell>
+                                        <Table.Cell className="hidden md:table-cell text-right w-28 px-4">
+                                            <Skeleton className="h-3 w-12" />
+                                        </Table.Cell>
+                                        <Table.Cell className="hidden md:table-cell px-1 w-16 text-center">
+                                            <Skeleton className="h-4 w-4 rounded" />
+                                        </Table.Cell>
+                                        <Table.Cell className="px-2 md:px-3 w-10 md:w-12">
+                                            <Skeleton className="h-4 w-8 rounded" />
+                                        </Table.Cell>
+                                    </Table.Row>
+                                ))}
+                            </Table.Body>
+                        )}
                         {viewMode === 'table' ? (
                             <DndContext
                                 sensors={sensors}
@@ -3934,13 +3973,12 @@ export const Table01DividerLineSm = ({
                             </DndContext>
                         ) : (
                             // Grid View
-                            <div className="p-4" onContextMenu={(e) => handleContextMenu(e)}>
+                            <div className="p-4 relative" onContextMenu={(e) => handleContextMenu(e)}>
                                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-4">
                                     {filteredItems.map((item) => (
                                         <div
                                             key={item.id}
-                                            className={`group relative bg-card rounded-lg border border-border p-4 hover:bg-muted/50 transition-all duration-200 cursor-pointer ${selectedItems.has(item.id) ? 'ring-2 ring-primary bg-muted' : ''
-                                                }`}
+                                            className={`group relative bg-card rounded-lg border border-border p-4 hover:bg-muted/50 transition-all duration-200 cursor-pointer ${selectedItems.has(item.id) ? 'ring-2 ring-primary bg-muted' : ''}`}
                                             onClick={(e) => {
                                                 e.preventDefault();
                                                 e.stopPropagation();
@@ -4168,6 +4206,22 @@ export const Table01DividerLineSm = ({
                                         </div>
                                     ))}
                                 </div>
+
+                                {(isFetching || isPending) && filteredItems.length > 0 && (
+                                    <div className="absolute inset-0 z-40 pointer-events-none">
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-4 p-0">
+                                            {Array.from({ length: Math.min(filteredItems.length || 8, 24) }).map((_, i) => (
+                                                <div key={`skeleton-card-${i}`} className="group relative bg-card rounded-lg border border-border p-4 opacity-90">
+                                                    <div className="text-4xl w-full flex justify-center aspect-square items-center overflow-hidden rounded-md mb-2">
+                                                        <Skeleton className="w-full h-full rounded-md" />
+                                                    </div>
+                                                    <Skeleton className="h-4 w-full mb-2" />
+                                                    <Skeleton className="h-3 w-3/4" />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
 
                                 {filteredItems.length === 0 && showEmpty && (
                                     emptyState

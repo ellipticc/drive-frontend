@@ -439,14 +439,31 @@ export function SettingsModal({
     } catch (e) {
       // ignore localStorage errors
     }
-    
-    // If security tab is open, reload data with new page sizes
-    if (open && activeTab === 'security') {
-      loadUserSessions(1);
-      loadUserDevices(1);
-      loadSecurityEvents(1);
-    }
   }, [isMobile]);
+
+  // If security tab is open, reload data with new page sizes (runs whenever modal open state or active tab changes)
+  useEffect(() => {
+    try {
+      const spRaw = localStorage.getItem('settings.table.sessions.pageSize');
+      const dpRaw = localStorage.getItem('settings.table.devices.pageSize');
+      const apRaw = localStorage.getItem('settings.table.activity-monitor.pageSize');
+      const sp = spRaw ? Number(spRaw) : undefined;
+      const dp = dpRaw ? Number(dpRaw) : undefined;
+      const ap = apRaw ? Number(apRaw) : undefined;
+
+      if (open && activeTab === 'security') {
+        // Use persisted sizes if available to avoid race between setState and fetch
+        if (sp) loadUserSessions(1, sp);
+        else loadUserSessions(1);
+        if (dp) loadUserDevices(1, dp);
+        else loadUserDevices(1);
+        if (ap) loadSecurityEvents(1, ap);
+        else loadSecurityEvents(1);
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, [open, activeTab]);
 
   // Pending page size refs to avoid UI races when changing page size
   const pendingSessionsPageSizeRef = React.useRef<number | null>(null);
