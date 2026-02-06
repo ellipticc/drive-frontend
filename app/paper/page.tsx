@@ -31,6 +31,7 @@ import { paperService } from "@/lib/paper-service";
 import html2canvas from 'html2canvas';
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Separator } from "@/components/ui/separator";
 import { HeaderUser } from "@/components/header-user";
 import { Input } from "@/components/ui/input";
 import { Plate, usePlateEditor } from "platejs/react";
@@ -486,6 +487,9 @@ function PaperHeader({
                         <p>Your paper is encrypted with your private key before leaving your device. Only you can read it.</p>
                     </TooltipContent>
                 </Tooltip>
+
+                <Separator orientation="vertical" className="mx-2 h-4 hidden md:block" />
+
                 <Tooltip>
                     <TooltipTrigger asChild>
                         <ThemeToggle aria-label="Toggle theme" />

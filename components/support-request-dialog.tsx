@@ -135,14 +135,17 @@ export function SupportRequestDialog({ children, open: externalOpen, onOpenChang
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {children || (
+      {/* Only render default trigger button when not externally controlled and no children are provided */}
+      {children ? (
+        <DialogTrigger asChild>{children}</DialogTrigger>
+      ) : (externalOpen === undefined && (
+        <DialogTrigger asChild>
           <Button variant="ghost" size="sm">
             <IconHelp className="h-4 w-4" />
             <span className="sr-only">Get Help</span>
           </Button>
-        )}
-      </DialogTrigger>
+        </DialogTrigger>
+      ))}
       <DialogContent className={`${isMobile ? 'w-[90vw] max-w-none h-[75vh] max-h-none overflow-y-auto' : 'sm:max-w-2xl'} animate-in fade-in-0 zoom-in-95 duration-200`}>
         <div className="flex flex-col h-full">
           <DialogHeader className="flex-shrink-0">

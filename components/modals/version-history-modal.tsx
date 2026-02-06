@@ -464,8 +464,15 @@ export function VersionHistoryModal({
                             {/* Preview Content */}
                             <div className="flex-1 overflow-auto relative w-full h-full flex items-start justify-center p-6 md:p-10">
                                 {previewLoading ? (
-                                    <div className="flex items-center justify-center h-full">
-                                        <IconLoader2 className="w-8 h-8 animate-spin text-primary" />
+                                    <div className="w-full max-w-6xl">
+                                        <div className="space-y-3">
+                                            <Skeleton className="h-4 w-36" />
+                                            <Skeleton className="h-6 w-full rounded" />
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                                                <Skeleton className="h-48 w-full rounded" />
+                                                <Skeleton className="h-48 w-full rounded" />
+                                            </div>
+                                        </div>
                                     </div>
                                 ) : showDiff && previousContent && previewContent ? (
                                     <div className="w-full max-w-6xl">
