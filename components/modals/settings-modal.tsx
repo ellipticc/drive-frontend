@@ -1244,7 +1244,26 @@ export function SettingsModal({
   const loadSecurityEvents = async (page: number = 1, pageSizeParam?: number) => {
     setIsLoadingSecurityEvents(true)
     try {
-      const limit = isMobile ? 5 : (typeof pageSizeParam === 'number' ? pageSizeParam : securityEventsPageSize)
+      // Resolve effective page size robustly: priority = mobile override -> explicit param -> pending ref -> state -> localStorage -> default(10)
+      let resolvedSize: number | undefined = undefined
+      if (isMobile) {
+        resolvedSize = 5
+      } else if (typeof pageSizeParam === 'number') {
+        resolvedSize = pageSizeParam
+      } else if (typeof pendingSecurityPageSizeRef.current === 'number') {
+        resolvedSize = pendingSecurityPageSizeRef.current as number
+      } else if (typeof securityEventsPageSize === 'number') {
+        resolvedSize = securityEventsPageSize
+      } else {
+        try {
+          const stored = typeof window !== 'undefined' ? localStorage.getItem('settings.table.activity-monitor.pageSize') : null
+          if (stored) resolvedSize = Number(stored)
+        } catch (e) {
+          // ignore
+        }
+      }
+
+      const limit = resolvedSize ?? 10
       const offset = (page - 1) * limit
       const startDate = securityEventsDateRange?.from ? format(securityEventsDateRange.from, "yyyy-MM-dd") : undefined
       const endDate = securityEventsDateRange?.to ? format(securityEventsDateRange.to, "yyyy-MM-dd") : undefined
@@ -1254,6 +1273,15 @@ export function SettingsModal({
         if (response.data.pagination) {
           setSecurityEventsTotal(response.data.pagination.total || 0)
           setSecurityEventsHasMore(!!response.data.pagination.hasMore)
+
+          // Sync page-size with server pagination if provided (keeps UI & API consistent)
+          try {
+            const serverLimit = response.data.pagination.limit
+            if (typeof serverLimit === 'number' && serverLimit !== securityEventsPageSize) {
+              setSecurityEventsPageSize(serverLimit)
+              try { localStorage.setItem('settings.table.activity-monitor.pageSize', String(serverLimit)) } catch (e) {}
+            }
+          } catch (e) {}
         }
         setSecurityEventsPage(page)
       } else {
