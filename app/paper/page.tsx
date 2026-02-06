@@ -241,7 +241,7 @@ function PaperHeader({
                     <TooltipTrigger asChild>
                         <SidebarTrigger className="h-9 w-9 md:h-10 md:w-10" />
                     </TooltipTrigger>
-                    <TooltipContent side="top">
+                    <TooltipContent side="right">
                         <span className="text-xs">Toggle sidebar · <kbd className="rounded bg-muted/40 px-1">Ctrl</kbd>/<kbd className="rounded bg-muted/40 px-1">Cmd</kbd> + <kbd className="rounded bg-muted/40 px-1">B</kbd></span>
                     </TooltipContent>
                 </Tooltip>
