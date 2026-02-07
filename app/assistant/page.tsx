@@ -7,7 +7,22 @@ import { IconSparkles, IconWorld } from "@tabler/icons-react"
 import { cn } from "@/lib/utils"
 import apiClient from "@/lib/api"
 // Import AI Elements
-import { PromptInput, PromptInputProvider, PromptInputTextarea, PromptInputFooter, PromptInputSubmit } from "@/components/ai-elements/prompt-input" // Simplified imports
+import {
+    PromptInput,
+    PromptInputProvider,
+    PromptInputTextarea,
+    PromptInputFooter,
+    PromptInputSubmit,
+    PromptInputTools,
+    PromptInputActionMenuTrigger,
+    PromptInputActionMenuContent,
+    PromptInputActionAddAttachments,
+    PromptInputActionMenu,
+    PromptInputHeader,
+    PromptInputBody,
+    PromptInputButton,
+    usePromptInputAttachments
+} from "@/components/ai-elements/prompt-input"
 import { SiteHeader } from "@/components/layout/header/site-header"
 import { Streamdown } from "streamdown"
 import { cjk } from "@streamdown/cjk"
@@ -17,6 +32,7 @@ import { mermaid } from "@streamdown/mermaid"
 import { useAICrypto } from "@/hooks/use-ai-crypto";
 import { parseFile } from "@/lib/file-parser";
 import { useRouter, useSearchParams } from "next/navigation"
+import { Attachment, AttachmentPreview, AttachmentRemove, Attachments } from "@/components/ai-elements/attachments"
 
 const streamdownPlugins = { cjk, code, math, mermaid }
 
@@ -324,48 +340,78 @@ export default function AssistantPage() {
             </ScrollArea>
 
             {/* Floating Input Area */}
-            <div className="absolute bottom-6 left-0 right-0 px-6 z-20">
-                <div className="max-w-3xl mx-auto">
-                    {/* Search Toggle Pill */}
-                    <div className="flex justify-start mb-2 px-1">
-                        <button
-                            onClick={() => setIsWebSearchEnabled(!isWebSearchEnabled)}
-                            className={cn(
-                                "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-colors border shadow-sm backdrop-blur-md",
-                                isWebSearchEnabled
-                                    ? "bg-primary/20 text-primary border-primary/30 hover:bg-primary/30"
-                                    : "bg-background/80 text-muted-foreground border-border hover:bg-muted/80"
-                            )}
+            <div className="max-w-3xl mx-auto px-4 w-full">
+                <div className="bg-background/80 backdrop-blur-xl border shadow-lg rounded-2xl transition-all duration-200 focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary">
+                    <PromptInputProvider>
+                        <PromptInput
+                            onSubmit={(msg: { text: string; files: any[] }) => {
+                                handleSubmit(msg.text, msg.files.map(f => f.file || f));
+                                return Promise.resolve();
+                            }}
+                            className="bg-transparent border-0 shadow-none rounded-2xl"
                         >
-                            <IconWorld className={cn("size-3.5", isWebSearchEnabled && "text-primary")} />
-                            <span>Search Internet</span>
-                        </button>
-                    </div>
-
-                    <div className="bg-background/80 backdrop-blur-xl border shadow-lg rounded-2xl transition-all duration-200 focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary">
-                        <PromptInputProvider>
-                            <PromptInput
-                                onSubmit={(msg: { text: string; files: any[] }) => {
-                                    handleSubmit(msg.text, msg.files.map(f => f.file || f)); // Extract File objects
-                                    return Promise.resolve();
-                                }}
-                                className="bg-transparent border-0 shadow-none rounded-2xl"
-                            >
+                            <PromptInputHeader>
+                                <PromptInputAttachmentsDisplay />
+                            </PromptInputHeader>
+                            <PromptInputBody>
                                 <PromptInputTextarea
                                     placeholder="Message Assistant..."
                                     className="min-h-[52px] max-h-[200px] px-4 py-3.5 text-base resize-none field-sizing-content"
                                 />
-                                <PromptInputFooter className="px-3 pb-3 pt-0">
-                                    <div className="text-xs text-muted-foreground/60 hidden sm:block">
-                                        Enter to send, Shift + Enter for new line
-                                    </div>
-                                    <PromptInputSubmit className="ml-auto" />
-                                </PromptInputFooter>
-                            </PromptInput>
-                        </PromptInputProvider>
-                    </div>
+                            </PromptInputBody>
+                            <PromptInputFooter className="px-3 pb-3 pt-0">
+                                <PromptInputTools>
+                                    <PromptInputActionMenu>
+                                        <PromptInputActionMenuTrigger />
+                                        <PromptInputActionMenuContent>
+                                            <PromptInputActionAddAttachments />
+                                        </PromptInputActionMenuContent>
+                                    </PromptInputActionMenu>
+
+                                    <PromptInputButton
+                                        onClick={() => setIsWebSearchEnabled(!isWebSearchEnabled)}
+                                        variant={isWebSearchEnabled ? "default" : "ghost"}
+                                        className={cn("gap-2", isWebSearchEnabled ? "bg-primary/20 text-primary hover:bg-primary/30" : "text-muted-foreground")}
+                                    >
+                                        <IconWorld className="size-4" />
+                                        <span className="text-xs font-medium hidden sm:inline">Search</span>
+                                    </PromptInputButton>
+
+                                </PromptInputTools>
+
+                                <div className="text-xs text-muted-foreground/60 hidden sm:block ml-auto mr-2">
+                                    Enter to send, Shift + Enter for new line
+                                </div>
+                                <PromptInputSubmit />
+                            </PromptInputFooter>
+                        </PromptInput>
+                    </PromptInputProvider>
                 </div>
             </div>
         </div >
     )
 }
+
+// Helper Component for Attachments
+const PromptInputAttachmentsDisplay = () => {
+    const attachments = usePromptInputAttachments();
+
+    if (attachments.files.length === 0) {
+        return null;
+    }
+
+    return (
+        <Attachments variant="inline" className="px-4 pt-4">
+            {attachments.files.map((attachment) => (
+                <Attachment
+                    data={attachment}
+                    key={attachment.id}
+                    onRemove={() => attachments.remove(attachment.id)}
+                >
+                    <AttachmentPreview />
+                    <AttachmentRemove />
+                </Attachment>
+            ))}
+        </Attachments>
+    );
+};
