@@ -375,10 +375,10 @@ export default function AssistantPage() {
 
     const handleEditMessage = (messageId: string, newContent: string) => {
         // Update the user message content
-        setMessages(prev => prev.map(m => 
+        setMessages(prev => prev.map(m =>
             m.id === messageId ? { ...m, content: newContent } : m
         ));
-        
+
         // Remove all messages after this one (including assistant response)
         const messageIndex = messages.findIndex(m => m.id === messageId);
         if (messageIndex !== -1) {
@@ -428,10 +428,10 @@ export default function AssistantPage() {
                 toast.info("You've already provided feedback on this message");
                 return;
             }
-            
+
             // Update UI immediately without scrolling (by updating state first)
             setMessages(prev => prev.map(m => m.id === messageId ? { ...m, feedback } : m));
-            
+
             // Then submit to API
             await apiClient.submitAIFeedback(messageId, feedback);
             toast.success("Thanks for your feedback!");
@@ -452,7 +452,7 @@ export default function AssistantPage() {
                 {messages.length === 0 ? (
                     // ZERO STATE: Centered Input
                     <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
-                        <div className="w-full max-w-[960px] mx-auto px-4 space-y-8 animate-in fade-in zoom-in-95 duration-500 slide-in-from-bottom-4">
+                        <div className="w-full max-w-5xl mx-auto px-4 space-y-8 animate-in fade-in zoom-in-95 duration-500 slide-in-from-bottom-4">
 
                             {/* Greeting / Brand */}
                             <div className="text-center space-y-2">
@@ -522,12 +522,13 @@ export default function AssistantPage() {
                         </div>
                     </div>
                 ) : (
+
                     // CHAT STATE: Scrollable Messages + Sticky Bottom Input
                     <div className="flex flex-col h-full w-full">
                         {/* Messages Container */}
                         <ScrollArea ref={scrollAreaRef} className="flex-1 w-full overflow-hidden z-10">
                             <div className="w-full h-full">
-                                <div className="max-w-[960px] mx-auto px-4 py-6 space-y-8 min-h-full pb-36">
+                                <div className="max-w-5xl mx-auto px-4 py-6 space-y-8 min-h-full pb-36">
                                     {messages.map((message, index) => (
                                         <ChatMessage
                                             key={index}
@@ -548,8 +549,8 @@ export default function AssistantPage() {
                         </ScrollArea>
 
                         {/* Sticky Input Footer */}
-                        <div className="sticky bottom-4 z-40 w-full bg-background/95 backdrop-blur-sm">
-                            <div className="max-w-[960px] mx-auto w-full px-4 py-4">
+                        <div className="sticky bottom-0 z-40 w-full bg-background/95 backdrop-blur-sm pb-4 pt-2">
+                            <div className="max-w-5xl mx-auto w-full px-4">
                                 <div className="w-full bg-background border border-border shadow-sm rounded-3xl px-2 py-0 overflow-hidden focus-within:ring-1 focus-within:ring-primary/20 transition-all">
                                     <PromptInputProvider>
                                         <PromptInput
