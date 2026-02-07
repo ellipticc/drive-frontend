@@ -3,7 +3,7 @@
 import * as React from "react"
 import { useUser } from "@/components/user-context"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { IconSparkles, IconWorld } from "@tabler/icons-react"
+import { IconPaperclip, IconSparkles, IconWorld } from "@tabler/icons-react"
 import { cn } from "@/lib/utils"
 import apiClient from "@/lib/api"
 // Import AI Elements
@@ -35,13 +35,16 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Attachment, AttachmentPreview, AttachmentRemove, Attachments } from "@/components/ai-elements/attachments"
 import { Suggestions, Suggestion } from "@/components/ai-elements/suggestion"
 import { Reasoning, ReasoningTrigger, ReasoningContent } from "@/components/ai-elements/reasoning"
+import { ChatMessage } from "@/components/ai-elements/chat-message"
 
 const streamdownPlugins = { cjk, code, math, mermaid }
 
 interface Message {
+    id?: string;
     role: 'user' | 'assistant';
     content: string;
     isThinking?: boolean;
+    feedback?: 'like' | 'dislike';
 }
 
 export default function AssistantPage() {
@@ -292,10 +295,24 @@ export default function AssistantPage() {
         // Actually, better to just submit it directly?
         // User behavior: clicking suggestion usually sends it immediately.
         handleSubmit(text, []);
+        handleSubmit(text, []);
+    };
+
+    const handleCopy = (content: string) => {
+        navigator.clipboard.writeText(content);
+    };
+
+    const handleFeedback = async (messageId: string, feedback: 'like' | 'dislike') => {
+        try {
+            await apiClient.submitAIFeedback(messageId, feedback);
+            setMessages(prev => prev.map(m => m.id === messageId ? { ...m, feedback } : m));
+        } catch (error) {
+            console.error("Feedback error:", error);
+        }
     };
 
     return (
-        <div className="flex flex-col h-full bg-background relative selection:bg-primary/20 selection:text-primary">
+        <div className="flex flex-col h-full bg-background relative">
             {/* Header */}
             <SiteHeader className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-sm" />
 
@@ -328,7 +345,7 @@ export default function AssistantPage() {
                                             handleSubmit(msg.text, msg.files.map(f => f.file || f));
                                             return Promise.resolve();
                                         }}
-                                        className="bg-transparent border shadow-lg rounded-2xl overflow-hidden focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary/50 transition-all"
+                                        className="bg-transparent border shadow-sm rounded-2xl overflow-hidden focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary/50 transition-all"
                                     >
                                         <PromptInputHeader className="px-4 pt-4 empty:hidden">
                                             <PromptInputAttachmentsDisplay />
@@ -342,7 +359,10 @@ export default function AssistantPage() {
                                         <PromptInputFooter className="px-3 pb-3 pt-0">
                                             <PromptInputTools>
                                                 <PromptInputActionMenu>
-                                                    <PromptInputActionMenuTrigger />
+                                                    <PromptInputActionMenuTrigger className="gap-2">
+                                                        <IconPaperclip className="size-4" />
+                                                        <span className="text-xs font-medium">Upload</span>
+                                                    </PromptInputActionMenuTrigger>
                                                     <PromptInputActionMenuContent>
                                                         <PromptInputActionAddAttachments />
                                                     </PromptInputActionMenuContent>
@@ -354,7 +374,7 @@ export default function AssistantPage() {
                                                     className={cn("gap-2", isWebSearchEnabled ? "bg-primary/20 text-primary hover:bg-primary/30" : "text-muted-foreground")}
                                                 >
                                                     <IconWorld className="size-4" />
-                                                    <span className={cn("text-xs font-medium transition-all", isWebSearchEnabled ? "inline-block" : "hidden group-hover:inline-block")}>Search</span>
+                                                    <span className={cn("text-xs font-medium transition-all")}>Web Search</span>
                                                 </PromptInputButton>
 
                                             </PromptInputTools>
@@ -386,45 +406,13 @@ export default function AssistantPage() {
                         <ScrollArea ref={scrollAreaRef} className="flex-1 w-full">
                             <div className="max-w-3xl mx-auto px-4 py-6 space-y-8 min-h-full pb-32">
                                 {messages.map((message, index) => (
-                                    <div
+                                    <ChatMessage
                                         key={index}
-                                        className={cn(
-                                            "flex w-full gap-4",
-                                            message.role === 'user' ? "flex-row-reverse" : "flex-row"
-                                        )}
-                                    >
-                                        <div className={cn(
-                                            "flex flex-col max-w-[85%] sm:max-w-[75%]",
-                                            message.role === 'user' ? "items-end" : "items-start"
-                                        )}>
-                                            {message.role === 'user' ? (
-                                                <div className="bg-primary text-primary-foreground px-5 py-3.5 rounded-2xl rounded-tr-sm text-sm leading-relaxed shadow-sm selection:bg-white/20">
-                                                    <Streamdown plugins={streamdownPlugins as any} className="break-words whitespace-pre-wrap">
-                                                        {message.content}
-                                                    </Streamdown>
-                                                </div>
-                                            ) : (
-                                                <div className="w-full space-y-2">
-                                                    {/* Thinking State / Reasoning */}
-                                                    {message.isThinking && (
-                                                        <Reasoning isStreaming={true} defaultOpen={true} duration={undefined}>
-                                                            <ReasoningTrigger className="w-fit" />
-                                                            <ReasoningContent>
-                                                                Thinking process...
-                                                            </ReasoningContent>
-                                                        </Reasoning>
-                                                    )}
-
-                                                    {/* Main Content */}
-                                                    <div className="prose dark:prose-invert prose-sm max-w-none prose-headings:font-semibold prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-code:bg-muted/50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded-md prose-code:before:content-none prose-code:after:content-none prose-pre:bg-secondary/50 prose-pre:border">
-                                                        <Streamdown plugins={streamdownPlugins as any}>
-                                                            {message.content}
-                                                        </Streamdown>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
+                                        message={message}
+                                        isLast={index === messages.length - 1}
+                                        onCopy={handleCopy}
+                                        onFeedback={handleFeedback}
+                                    />
                                 ))}
                             </div>
                         </ScrollArea>
@@ -432,7 +420,7 @@ export default function AssistantPage() {
                         {/* Bottom Input */}
                         <div className="absolute bottom-0 left-0 right-0 w-full px-4 pb-4 bg-gradient-to-t from-background via-background to-transparent pt-10">
                             <div className="max-w-3xl mx-auto">
-                                <div className="bg-background border shadow-lg rounded-2xl focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary/50 transition-all">
+                                <div className="bg-background border shadow-sm rounded-2xl focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary/50 transition-all">
                                     <PromptInputProvider>
                                         <PromptInput
                                             onSubmit={(msg: { text: string; files: any[] }) => {
@@ -454,7 +442,10 @@ export default function AssistantPage() {
                                             <PromptInputFooter className="px-3 pb-3 pt-0">
                                                 <PromptInputTools>
                                                     <PromptInputActionMenu>
-                                                        <PromptInputActionMenuTrigger />
+                                                        <PromptInputActionMenuTrigger className="gap-2">
+                                                            <IconPaperclip className="size-4" />
+                                                            <span className="text-xs font-medium">Upload</span>
+                                                        </PromptInputActionMenuTrigger>
                                                         <PromptInputActionMenuContent>
                                                             <PromptInputActionAddAttachments />
                                                         </PromptInputActionMenuContent>
@@ -466,13 +457,11 @@ export default function AssistantPage() {
                                                         className={cn("gap-2", isWebSearchEnabled ? "bg-primary/20 text-primary hover:bg-primary/30" : "text-muted-foreground")}
                                                     >
                                                         <IconWorld className="size-4" />
-                                                        {/* <span className={cn("text-xs font-medium transition-all", isWebSearchEnabled ? "inline-block" : "hidden group-hover:inline-block")}>Search</span> */}
+                                                        <span className={cn("text-xs font-medium transition-all")}>Web Search</span>
                                                     </PromptInputButton>
                                                 </PromptInputTools>
 
-                                                <div className="text-xs text-muted-foreground/60 hidden sm:block ml-auto mr-2">
-                                                    Enter to send
-                                                </div>
+
                                                 <PromptInputSubmit className={cn("transition-opacity", isLoading ? "opacity-50" : "opacity-100")} />
                                             </PromptInputFooter>
                                         </PromptInput>

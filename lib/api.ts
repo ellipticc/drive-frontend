@@ -1393,6 +1393,13 @@ class ApiClient {
     });
   }
 
+  async submitAIFeedback(messageId: string, feedback: 'like' | 'dislike'): Promise<ApiResponse> {
+    return this.request('/ai/message/' + messageId + '/feedback', {
+      method: 'POST',
+      body: JSON.stringify({ feedback }),
+    });
+  }
+
   async getPreferences(): Promise<ApiResponse<UserPreferences>> {
     return this.request('/preferences');
   }
