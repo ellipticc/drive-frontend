@@ -75,6 +75,7 @@ export const dictionaries = {
             editAvatar: "Adjust Profile Picture",
             cropDesc: "Drag to reposition or resize your image to fit the circle perfectly.",
             developer: "Developer",
+            ai: "AI",
         },
 
         sidebar: {
@@ -233,6 +234,7 @@ export const dictionaries = {
             editAvatar: "Ajuster la photo de profil",
             cropDesc: "Faites glisser pour repositionner ou redimensionner votre image afin qu'elle s'adapte parfaitement au cercle.",
             developer: "Développeur",
+            ai: "IA",
         },
         sidebar: {
             myFiles: "Mes Fichiers",
@@ -389,6 +391,7 @@ export const dictionaries = {
             editAvatar: "Ajustar foto de perfil",
             cropDesc: "Arrastra para reposicionar o redimensionar tu imagen para que encaje perfectamente en el círculo.",
             developer: "Desarrollador",
+            ai: "IA",
         },
         sidebar: {
             myFiles: "Mis Archivos",
@@ -543,6 +546,7 @@ export const dictionaries = {
             editAvatar: "Profilbild anpassen",
             cropDesc: "Ziehen Sie, um Ihr Bild neu zu positionieren oder in der Größe anzupassen, damit es perfekt in den Kreis passt.",
             developer: "Entwickler",
+            ai: "KI",
         },
         sidebar: {
             myFiles: "Meine Dateien",

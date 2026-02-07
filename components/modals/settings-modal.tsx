@@ -54,6 +54,7 @@ import {
   IconCalendar as CalendarIcon,
   IconPalette,
   IconPaletteFilled,
+  IconBrain,
 } from "@tabler/icons-react"
 import { format } from "date-fns"
 import { DateRange } from "react-day-picker"
@@ -82,6 +83,7 @@ import {
 import {
   DeveloperTab
 } from "./settings/developer-tab"
+import { AITab } from "./settings/ai-tab"
 import {
   ImageCrop,
   ImageCropContent,
@@ -146,6 +148,7 @@ export function SettingsModal({
   const navItems = [
     { name: t("settings.general"), icon: IconUserCog, id: "general" },
     { name: t("settings.preferences"), icon: IconPalette, id: "preferences" },
+    { name: t("settings.ai") || "AI", icon: IconBrain, id: "ai" },
     { name: t("settings.languageTime") || "Language & Time", icon: IconLanguage, id: "language" },
     { name: t("settings.security") || "Security & Privacy", icon: IconLockSquareRounded, id: "security" },
     { name: t("settings.billing"), icon: IconCoin, id: "billing" },
@@ -508,6 +511,7 @@ export function SettingsModal({
   const [securityTabLoading, setSecurityTabLoading] = useState(true)
   const [preferencesTabLoading, setPreferencesTabLoading] = useState(true)
   const [languageTabLoading, setLanguageTabLoading] = useState(true)
+  const [aiTabLoading, setAiTabLoading] = useState(true)
   const [notificationsTabLoading, setNotificationsTabLoading] = useState(true)
   const [billingTabLoading, setBillingTabLoading] = useState(true)
   const [referralsTabLoading, setReferralsTabLoading] = useState(true)
@@ -677,6 +681,10 @@ export function SettingsModal({
       case 'language':
         // Language tab doesn't need specific extra loads currently
         setLanguageTabLoading(false)
+        break
+      case 'ai':
+        // AI tab doesn't need heavy loads here; mark ready
+        setAiTabLoading(false)
         break
       case 'security':
         loadSecurityData()
@@ -2137,6 +2145,20 @@ export function SettingsModal({
                         await handleUpdatePreferences({ show_checkmark: val ? 1 : 0 });
                       }}
                     />
+                  )}
+                </>
+              )}
+
+              {activeTab === "ai" && (
+                <>
+                  {aiTabLoading ? (
+                    <div className="space-y-6">
+                      <Skeleton className="h-6 w-32 mb-2" />
+                      <Skeleton className="h-4 w-80 mb-4" />
+                      <Skeleton className="h-10 w-full" />
+                    </div>
+                  ) : (
+                    <AITab />
                   )}
                 </>
               )}

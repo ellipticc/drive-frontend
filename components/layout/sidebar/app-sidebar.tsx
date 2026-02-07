@@ -19,7 +19,7 @@ import {
   IconClockHour9,
   IconStar,
   IconWritingSign,
-  IconWand,
+  IconBrain,
 } from "@tabler/icons-react"
 
 import { NavMain } from "@/components/layout/navigation/nav-main"
@@ -93,7 +93,7 @@ export const AppSidebar = React.memo(function AppSidebar({
       {
         title: "Assistant",
         url: "/assistant",
-        icon: IconWand,
+        icon: IconBrain,
         id: "assistant",
       },
       {

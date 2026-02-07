@@ -4238,6 +4238,49 @@ class ApiClient {
     return response.json();
   }
 
+  // AI User Preferences
+  // Returns `{ settings: ... }` which is what the backend returns
+  async getAIPreferences(): Promise<ApiResponse<{ settings?: any }>> {
+    const endpoint = '/ai/preferences';
+    const authHeaders = await this.getAuthHeaders(endpoint, 'GET');
+
+    const response = await fetch(`${this.baseURL}${endpoint}`, {
+      method: 'GET',
+      headers: {
+        ...authHeaders
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch AI preferences');
+    }
+
+    const payload = await response.json();
+    // Normalize into ApiResponse shape
+    return { success: true, data: payload } as ApiResponse<{ settings?: any }>;
+  }
+
+  async updateAIPreferences(preferences: any): Promise<ApiResponse<{ settings?: any }>> {
+    const endpoint = '/ai/preferences';
+    const authHeaders = await this.getAuthHeaders(endpoint, 'PATCH');
+
+    const response = await fetch(`${this.baseURL}${endpoint}`, {
+      method: 'PATCH',
+      headers: {
+        ...authHeaders,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ settings: preferences })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to update AI preferences');
+    }
+
+    const payload = await response.json();
+    return { success: true, data: payload } as ApiResponse<{ settings?: any }>;
+  }
+
   async updateChat(conversationId: string, updates: { pinned?: boolean; archived?: boolean; title?: string; iv?: string; encapsulated_key?: string }): Promise<void> {
     const endpoint = `/ai/chats/${conversationId}`;
     const authHeaders = await this.getAuthHeaders(endpoint, 'PATCH');
