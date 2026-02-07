@@ -452,7 +452,7 @@ export default function AssistantPage() {
                 {messages.length === 0 ? (
                     // ZERO STATE: Centered Input
                     <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
-                        <div className="w-full max-w-2xl space-y-8 animate-in fade-in zoom-in-95 duration-500 slide-in-from-bottom-4">
+                        <div className="w-full max-w-[920px] space-y-8 animate-in fade-in zoom-in-95 duration-500 slide-in-from-bottom-4">
 
                             {/* Greeting / Brand */}
                             <div className="text-center space-y-2">
@@ -483,7 +483,7 @@ export default function AssistantPage() {
                                         <PromptInputBody>
                                             <PromptInputTextarea
                                                 placeholder="Ask anything..."
-                                                className="min-h-[60px] max-h-[200px] px-4 py-3.5 text-base resize-none field-sizing-content bg-transparent border-0 shadow-none focus-visible:ring-0"
+                                                className="min-h-[60px] max-h-[200px] px-4 py-3.5 text-base resize-none field-sizing-content bg-transparent border-0 shadow-none focus-visible:ring-0 rounded-2xl"
                                             />
                                         </PromptInputBody>
                                         <PromptInputFooter className="px-3 pb-3 pt-0">
@@ -525,9 +525,9 @@ export default function AssistantPage() {
                     // CHAT STATE: Scrollable Messages + Sticky Bottom Input
                     <div className="flex flex-col h-full w-full">
                         {/* Messages Container */}
-                        <ScrollArea ref={scrollAreaRef} className="flex-1 w-full overflow-hidden">
+                        <ScrollArea ref={scrollAreaRef} className="flex-1 w-full overflow-hidden z-50">
                             <div className="w-full h-full">
-                                <div className="max-w-[920px] mx-auto px-4 py-6 space-y-8 min-h-full pb-32">
+                                <div className="max-w-[920px] mx-auto px-4 py-6 space-y-8 min-h-full pb-24">
                                     {messages.map((message, index) => (
                                         <ChatMessage
                                             key={index}
@@ -549,8 +549,8 @@ export default function AssistantPage() {
 
                         {/* Sticky Input Footer */}
                         <div className="sticky bottom-4 z-40 w-full bg-background">
-                            <div className="max-w-[960px] mx-auto w-full px-4 py-0">
-                                <div className="mx-auto w-full max-w-[960px] bg-background shadow-sm rounded-3xl px-2 py-0 overflow-hidden focus-within:ring-1 focus-within:ring-primary/20 transition-all">
+                            <div className="max-w-[920px] mx-auto w-full px-4 py-0">
+                                <div className="mx-auto w-full max-w-[920px] bg-background shadow-sm rounded-3xl px-2 py-0 overflow-hidden focus-within:ring-1 focus-within:ring-primary/20 transition-all">
                                     <PromptInputProvider>
                                         <PromptInput
                                             onSubmit={(msg: { text: string; files: any[] }) => {
@@ -566,7 +566,7 @@ export default function AssistantPage() {
                                             <PromptInputBody>
                                                 <PromptInputTextarea
                                                     placeholder="Message Assistant..."
-                                                    className="min-h-[52px] max-h-[200px] px-6 py-4 text-base resize-none field-sizing-content bg-transparent border-0 shadow-none focus-visible:ring-0"
+                                                    className="min-h-[52px] max-h-[200px] px-6 py-4 text-base resize-none field-sizing-content bg-transparent border-0 shadow-none focus-visible:ring-0 rounded-2xl"
                                                 />
                                             </PromptInputBody>
                                             <PromptInputFooter className="px-4 pb-4 pt-2 flex items-center justify-between">
