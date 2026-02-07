@@ -452,7 +452,7 @@ export default function AssistantPage() {
                 {messages.length === 0 ? (
                     // ZERO STATE: Centered Input
                     <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
-                        <div className="w-full max-w-[920px] space-y-8 animate-in fade-in zoom-in-95 duration-500 slide-in-from-bottom-4">
+                        <div className="w-full max-w-[960px] mx-auto px-4 space-y-8 animate-in fade-in zoom-in-95 duration-500 slide-in-from-bottom-4">
 
                             {/* Greeting / Brand */}
                             <div className="text-center space-y-2">
@@ -525,9 +525,9 @@ export default function AssistantPage() {
                     // CHAT STATE: Scrollable Messages + Sticky Bottom Input
                     <div className="flex flex-col h-full w-full">
                         {/* Messages Container */}
-                        <ScrollArea ref={scrollAreaRef} className="flex-1 w-full overflow-hidden z-50">
+                        <ScrollArea ref={scrollAreaRef} className="flex-1 w-full overflow-hidden z-10">
                             <div className="w-full h-full">
-                                <div className="max-w-[920px] mx-auto px-4 py-6 space-y-8 min-h-full pb-24">
+                                <div className="max-w-[960px] mx-auto px-4 py-6 space-y-8 min-h-full pb-36">
                                     {messages.map((message, index) => (
                                         <ChatMessage
                                             key={index}
@@ -548,9 +548,9 @@ export default function AssistantPage() {
                         </ScrollArea>
 
                         {/* Sticky Input Footer */}
-                        <div className="sticky bottom-4 z-40 w-full bg-background">
-                            <div className="max-w-[920px] mx-auto w-full px-4 py-0">
-                                <div className="mx-auto w-full max-w-[920px] bg-background shadow-sm rounded-3xl px-2 py-0 overflow-hidden focus-within:ring-1 focus-within:ring-primary/20 transition-all">
+                        <div className="sticky bottom-4 z-40 w-full bg-background/95 backdrop-blur-sm">
+                            <div className="max-w-[960px] mx-auto w-full px-4 py-4">
+                                <div className="w-full bg-background border border-border shadow-sm rounded-3xl px-2 py-0 overflow-hidden focus-within:ring-1 focus-within:ring-primary/20 transition-all">
                                     <PromptInputProvider>
                                         <PromptInput
                                             onSubmit={(msg: { text: string; files: any[] }) => {
