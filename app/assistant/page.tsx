@@ -14,10 +14,6 @@ import {
     PromptInputFooter,
     PromptInputSubmit,
     PromptInputTools,
-    PromptInputActionMenuTrigger,
-    PromptInputActionMenuContent,
-    PromptInputActionAddAttachments,
-    PromptInputActionMenu,
     PromptInputHeader,
     PromptInputBody,
     PromptInputButton,
@@ -36,6 +32,7 @@ import { Attachment, AttachmentPreview, AttachmentRemove, Attachments } from "@/
 import { Suggestions, Suggestion } from "@/components/ai-elements/suggestion"
 import { Reasoning, ReasoningTrigger, ReasoningContent } from "@/components/ai-elements/reasoning"
 import { ChatMessage } from "@/components/ai-elements/chat-message"
+import { toast } from "sonner"
 
 const streamdownPlugins = { cjk, code, math, mermaid }
 
@@ -303,11 +300,59 @@ export default function AssistantPage() {
     ];
 
     const handleSuggestionClick = (text: string) => {
-        // We need to set the input value, but since PromptInput is uncontrolled/internal state might be tricky.
-        // Actually, better to just submit it directly?
-        // User behavior: clicking suggestion usually sends it immediately.
         handleSubmit(text, []);
-        handleSubmit(text, []);
+    };
+
+    const handleRetry = (messageId: string) => {
+        // Find the user message corresponding to this assistant message
+        const messageIndex = messages.findIndex(m => m.id === messageId);
+        if (messageIndex === -1) return;
+
+        // Find the last user message before this assistant message
+        for (let i = messageIndex - 1; i >= 0; i--) {
+            if (messages[i].role === 'user') {
+                handleSubmit(messages[i].content, []);
+                break;
+            }
+        }
+    };
+
+    const handleRegenerate = (messageId: string) => {
+        // Remove the assistant message and the thinking state before it
+        setMessages(prev => {
+            const newMessages = [...prev];
+            const idx = newMessages.findIndex(m => m.id === messageId);
+            if (idx !== -1) {
+                newMessages.splice(idx, 1);
+                // Also remove thinking message if it exists
+                if (idx > 0 && newMessages[idx - 1]?.isThinking) {
+                    newMessages.splice(idx - 1, 1);
+                }
+            }
+            return newMessages;
+        });
+
+        // Find last user message and re-submit
+        const lastUserMsg = messages.slice().reverse().find(m => m.role === 'user');
+        if (lastUserMsg) {
+            handleSubmit(lastUserMsg.content, []);
+        }
+    };
+
+    const handleEditMessage = (messageId: string, newContent: string) => {
+        // Update the user message content
+        setMessages(prev => prev.map(m => 
+            m.id === messageId ? { ...m, content: newContent } : m
+        ));
+        
+        // Remove all messages after this one (including assistant response)
+        const messageIndex = messages.findIndex(m => m.id === messageId);
+        if (messageIndex !== -1) {
+            setMessages(prev => prev.slice(0, messageIndex + 1));
+        }
+
+        // Re-submit with edited content
+        handleSubmit(newContent, []);
     };
 
     const handleCopy = (content: string) => {
@@ -316,10 +361,19 @@ export default function AssistantPage() {
 
     const handleFeedback = async (messageId: string, feedback: 'like' | 'dislike') => {
         try {
+            // Check if message already has feedback
+            const message = messages.find(m => m.id === messageId);
+            if (message?.feedback) {
+                toast.info("You've already provided feedback on this message");
+                return;
+            }
+            
             await apiClient.submitAIFeedback(messageId, feedback);
             setMessages(prev => prev.map(m => m.id === messageId ? { ...m, feedback } : m));
+            toast.success("Thanks for your feedback!");
         } catch (error) {
             console.error("Feedback error:", error);
+            toast.error("Failed to submit feedback");
         }
     };
 
@@ -407,7 +461,7 @@ export default function AssistantPage() {
                     // CHAT STATE: Scrollable Messages + Bottom Input
                     <>
                         <ScrollArea ref={scrollAreaRef} className="flex-1 w-full">
-                            <div className="max-w-3xl mx-auto px-4 py-6 space-y-8 min-h-full pb-32">
+                            <div className="max-w-3xl mx-auto px-4 py-6 space-y-8 min-h-full pb-40">
                                 {messages.map((message, index) => (
                                     <ChatMessage
                                         key={index}
@@ -415,15 +469,18 @@ export default function AssistantPage() {
                                         isLast={index === messages.length - 1}
                                         onCopy={handleCopy}
                                         onFeedback={handleFeedback}
+                                        onRetry={() => handleRetry(message.id || '')}
+                                        onRegenerate={() => handleRegenerate(message.id || '')}
+                                        onEdit={(content) => handleEditMessage(message.id || '', content)}
                                     />
                                 ))}
                             </div>
                         </ScrollArea>
 
                         {/* Bottom Input */}
-                        <div className="absolute bottom-0 left-0 right-0 w-full px-4 pb-4 bg-gradient-to-t from-background via-background to-transparent pt-10">
+                        <div className="absolute bottom-0 left-0 right-0 w-full px-4 pb-6 bg-background pt-4">
                             <div className="max-w-3xl mx-auto">
-                                <div className="bg-background border shadow-sm rounded-2xl focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary/50 transition-all">
+                                <div className="bg-background border shadow-sm rounded-3xl focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary/50 transition-all">
                                     <PromptInputProvider>
                                         <PromptInput
                                             onSubmit={(msg: { text: string; files: any[] }) => {
@@ -433,16 +490,16 @@ export default function AssistantPage() {
                                             }}
                                             className="bg-transparent border-0 shadow-none rounded-2xl"
                                         >
-                                            <PromptInputHeader className="px-4 pt-4 empty:hidden">
+                                            <PromptInputHeader className="px-6 pt-4 empty:hidden">
                                                 <PromptInputAttachmentsDisplay />
                                             </PromptInputHeader>
                                             <PromptInputBody>
                                                 <PromptInputTextarea
                                                     placeholder="Message Assistant..."
-                                                    className="min-h-[52px] max-h-[200px] px-4 py-3.5 text-base resize-none field-sizing-content bg-transparent border-0 shadow-none focus-visible:ring-0"
+                                                    className="min-h-[52px] max-h-[200px] px-6 py-4 text-base resize-none field-sizing-content bg-transparent border-0 shadow-none focus-visible:ring-0"
                                                 />
                                             </PromptInputBody>
-                                            <PromptInputFooter className="px-3 pb-3 pt-0">
+                                            <PromptInputFooter className="px-4 pb-4 pt-2">
                                                 <PromptInputTools>
                                                     <PromptInputUploadButton />
 

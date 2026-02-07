@@ -5,12 +5,15 @@ import { cn } from "@/lib/utils"
 import { IconCopy, IconEdit, IconRefresh, IconThumbDown, IconThumbUp, IconCheck } from "@tabler/icons-react"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
 import { Streamdown } from "streamdown"
 import { cjk } from "@streamdown/cjk"
 import { code } from "@streamdown/code"
 import { math } from "@streamdown/math"
 import { mermaid } from "@streamdown/mermaid"
 import { Reasoning, ReasoningTrigger, ReasoningContent } from "@/components/ai-elements/reasoning"
+import 'katex/dist/katex.css'
 
 const streamdownPlugins = { cjk, code, math, mermaid }
 
@@ -36,12 +39,48 @@ interface ChatMessageProps {
 export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedback, onRegenerate }: ChatMessageProps) {
     const isUser = message.role === 'user';
     const [copied, setCopied] = React.useState(false);
+    const [feedbackGiven, setFeedbackGiven] = React.useState(!!message.feedback);
+    const [editOpen, setEditOpen] = React.useState(false);
+    const [editContent, setEditContent] = React.useState(message.content);
+    const contentRef = React.useRef<HTMLDivElement>(null);
 
     const handleCopy = () => {
         onCopy(message.content);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
+
+    const handleFeedback = (feedback: 'like' | 'dislike') => {
+        if (!feedbackGiven) {
+            setFeedbackGiven(true);
+            onFeedback?.(message.id || '', feedback);
+        }
+    };
+
+    const handleEditSubmit = () => {
+        onEdit?.(editContent);
+        setEditOpen(false);
+    };
+
+    // Render math after content renders
+    React.useEffect(() => {
+        if (contentRef.current && !isUser) {
+            try {
+                // Dynamically import katex auto-render
+                import('katex/dist/contrib/auto-render.mjs' as any).then(({ default: renderMathInElement }: any) => {
+                    renderMathInElement(contentRef.current, {
+                        delimiters: [
+                            { left: '$$', right: '$$', display: true },
+                            { left: '$', right: '$', display: false },
+                        ],
+                        throwOnError: false,
+                    });
+                }).catch((e: any) => console.warn('Math rendering error:', e));
+            } catch (e) {
+                console.warn('Math rendering error:', e);
+            }
+        }
+    }, [message.content, isUser]);
 
     return (
         <div className={cn(
@@ -61,10 +100,45 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                         </div>
                         {/* User Actions (Hover - Bottom Right) */}
                         <div className="flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity justify-end">
-                            <ActionButton icon={IconRefresh} label="Retry" onClick={onRetry} />
-                            <ActionButton icon={IconEdit} label="Edit" onClick={() => onEdit?.(message.content)} />
-                            <ActionButton icon={copied ? IconCheck : IconCopy} label="Copy" onClick={handleCopy} />
+                            <ActionButton 
+                                icon={IconRefresh} 
+                                label="Retry" 
+                                onClick={onRetry} 
+                            />
+                            <ActionButton 
+                                icon={IconEdit} 
+                                label="Edit" 
+                                onClick={() => setEditOpen(true)} 
+                            />
+                            <ActionButton 
+                                icon={copied ? IconCheck : IconCopy} 
+                                label="Copy" 
+                                onClick={handleCopy} 
+                            />
                         </div>
+
+                        {/* Edit Dialog */}
+                        <Dialog open={editOpen} onOpenChange={setEditOpen}>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>Edit Message</DialogTitle>
+                                </DialogHeader>
+                                <Textarea
+                                    value={editContent}
+                                    onChange={(e) => setEditContent(e.target.value)}
+                                    className="min-h-[120px]"
+                                    placeholder="Edit your message..."
+                                />
+                                <DialogFooter>
+                                    <Button variant="outline" onClick={() => setEditOpen(false)}>
+                                        Cancel
+                                    </Button>
+                                    <Button onClick={handleEditSubmit}>
+                                        Update
+                                    </Button>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
                     </>
                 ) : (
                     <div className="w-full space-y-2">
@@ -79,7 +153,10 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                         )}
 
                         {/* Main Content */}
-                        <div className="prose dark:prose-invert prose-sm max-w-none prose-headings:font-semibold prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-code:bg-muted/50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded-md prose-code:before:content-none prose-code:after:content-none prose-pre:bg-secondary/50 prose-pre:border">
+                        <div 
+                            ref={contentRef}
+                            className="w-full prose dark:prose-invert prose-sm max-w-none break-words"
+                        >
                             <Streamdown plugins={streamdownPlugins as any}>
                                 {message.content}
                             </Streamdown>
@@ -92,14 +169,16 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                     <ActionButton
                                         icon={IconThumbUp}
                                         label="Good response"
-                                        onClick={() => message.id && onFeedback?.(message.id, 'like')}
+                                        onClick={() => handleFeedback('like')}
                                         active={message.feedback === 'like'}
+                                        disabled={feedbackGiven}
                                     />
                                     <ActionButton
                                         icon={IconThumbDown}
                                         label="Bad response"
-                                        onClick={() => message.id && onFeedback?.(message.id, 'dislike')}
+                                        onClick={() => handleFeedback('dislike')}
                                         active={message.feedback === 'dislike'}
+                                        disabled={feedbackGiven}
                                     />
                                     <ActionButton
                                         icon={copied ? IconCheck : IconCopy}
@@ -121,20 +200,21 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
     )
 }
 
-function ActionButton({ icon: Icon, label, onClick, active }: { icon: any, label: string, onClick?: () => void, active?: boolean }) {
+function ActionButton({ icon: Icon, label, onClick, active, disabled }: { icon: any, label: string, onClick?: () => void, active?: boolean, disabled?: boolean }) {
     return (
         <Tooltip>
             <TooltipTrigger asChild>
                 <Button
                     variant="ghost"
                     size="icon"
-                    className={cn("h-6 w-6", active && "text-primary bg-primary/10")}
+                    className={cn("h-6 w-6", active && "text-primary bg-primary/10", disabled && "opacity-50 cursor-not-allowed")}
                     onClick={onClick}
+                    disabled={disabled}
                 >
                     <Icon className="size-3.5" />
                 </Button>
             </TooltipTrigger>
-            <TooltipContent side="top">
+            <TooltipContent side="bottom">
                 <p>{label}</p>
             </TooltipContent>
         </Tooltip>
