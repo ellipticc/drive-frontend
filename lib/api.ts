@@ -4161,7 +4161,8 @@ class ApiClient {
     conversationId: string,
     model: string,
     kyberPublicKey?: string,
-    encryptedUserMessage?: { encryptedContent: string; iv: string; encapsulatedKey: string }
+    encryptedUserMessage?: { encryptedContent: string; iv: string; encapsulatedKey: string },
+    webSearch?: boolean
   ): Promise<Response> {
     const endpoint = '/ai/chat';
     const authHeaders = await this.getAuthHeaders(endpoint, 'POST');
@@ -4177,7 +4178,8 @@ class ApiClient {
         conversationId,
         model,
         kyberPublicKey,
-        encryptedUserMessage
+        encryptedUserMessage,
+        webSearch
       }),
     });
   }

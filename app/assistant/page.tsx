@@ -3,7 +3,7 @@
 import * as React from "react"
 import { useUser } from "@/components/user-context"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { IconSparkles } from "@tabler/icons-react"
+import { IconSparkles, IconWorld } from "@tabler/icons-react"
 import { cn } from "@/lib/utils"
 import apiClient from "@/lib/api"
 // Import AI Elements
@@ -34,6 +34,7 @@ export default function AssistantPage() {
     const [isLoading, setIsLoading] = React.useState(false)
     const scrollAreaRef = React.useRef<HTMLDivElement>(null)
     const [model, setModel] = React.useState("llama-3.1-8b-instant") // Could become a setting
+    const [isWebSearchEnabled, setIsWebSearchEnabled] = React.useState(false);
 
     const { isReady, kyberPublicKey, decryptHistory, decryptStreamChunk, encryptMessage, loadChats } = useAICrypto();
 
@@ -120,7 +121,8 @@ export default function AssistantPage() {
                 conversationId || lastCreatedConversationId.current || "", // Use new ID if we just created one
                 model,
                 kyberPublicKey,
-                encryptedUserMessage
+                encryptedUserMessage,
+                isWebSearchEnabled
             );
 
             if (!response.ok) throw new Error('Failed to fetch response')
@@ -283,6 +285,22 @@ export default function AssistantPage() {
             {/* Floating Input Area */}
             <div className="absolute bottom-6 left-0 right-0 px-6 z-20">
                 <div className="max-w-3xl mx-auto">
+                    {/* Search Toggle Pill */}
+                    <div className="flex justify-start mb-2 px-1">
+                        <button
+                            onClick={() => setIsWebSearchEnabled(!isWebSearchEnabled)}
+                            className={cn(
+                                "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-colors border shadow-sm backdrop-blur-md",
+                                isWebSearchEnabled
+                                    ? "bg-primary/20 text-primary border-primary/30 hover:bg-primary/30"
+                                    : "bg-background/80 text-muted-foreground border-border hover:bg-muted/80"
+                            )}
+                        >
+                            <IconWorld className={cn("size-3.5", isWebSearchEnabled && "text-primary")} />
+                            <span>Search Internet</span>
+                        </button>
+                    </div>
+
                     <div className="bg-background/80 backdrop-blur-xl border shadow-lg rounded-2xl transition-all duration-200 focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary">
                         <PromptInputProvider>
                             <PromptInput
