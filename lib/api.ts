@@ -4169,13 +4169,15 @@ class ApiClient {
     model: string,
     kyberPublicKey?: string,
     encryptedUserMessage?: { encryptedContent: string; iv: string; encapsulatedKey: string },
-    webSearch?: boolean
+    webSearch?: boolean,
+    signal?: AbortSignal
   ): Promise<Response> {
     const endpoint = '/ai/chat';
     const authHeaders = await this.getAuthHeaders(endpoint, 'POST');
 
     return fetch(`${this.baseURL}${endpoint}`, {
       method: 'POST',
+      signal,
       headers: {
         'Content-Type': 'application/json',
         ...authHeaders,

@@ -6,7 +6,10 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { IconPaperclip, IconSparkles, IconWorld, IconX } from "@tabler/icons-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
+import { Spinner } from "@/components/ui/spinner"
 import apiClient from "@/lib/api"
+
 // Import AI Elements
 import {
     PromptInput,
@@ -116,6 +119,20 @@ export default function AssistantPage() {
         scrollToBottom()
     }, [messages.length])
 
+    // Keyboard shortcut: Esc to stop active generation
+    React.useEffect(() => {
+        const handler = (e: KeyboardEvent) => {
+            if (e.key === 'Escape' && isLoading && !isCancelling) {
+                e.preventDefault();
+                handleCancel();
+            }
+        };
+        if (isLoading) {
+            document.addEventListener('keydown', handler);
+        }
+        return () => document.removeEventListener('keydown', handler);
+    }, [isLoading, isCancelling]);
+
     const handleSubmit = async (value: string, attachments: File[] = []) => {
         if ((!value.trim() && attachments.length === 0) || isLoading || !isReady || !kyberPublicKey) return;
 
@@ -188,13 +205,17 @@ export default function AssistantPage() {
             const fullPayload = [...historyPayload, { role: 'user' as const, content: value }];
 
             // We SEND user message as plaintext (for inference) + Encrypted Blob (for storage)
+            const controller = new AbortController();
+            abortControllerRef.current = controller;
+
             const response = await apiClient.chatAI(
                 fullPayload,
                 conversationId || lastCreatedConversationId.current || "", // Use new ID if we just created one
                 model,
                 kyberPublicKey,
                 encryptedUserMessage,
-                isWebSearchEnabled
+                isWebSearchEnabled,
+                controller.signal
             );
 
             if (!response.ok) throw new Error('Failed to fetch response')
@@ -276,17 +297,25 @@ export default function AssistantPage() {
 
         } catch (error) {
             console.error('Chat error:', error)
-            setMessages(prev => {
-                const newMessages = [...prev]
-                const lastMessage = newMessages[newMessages.length - 1]
-                if (lastMessage && lastMessage.role === 'assistant') {
-                    lastMessage.content = "Sorry, I encountered an error. Please try again."
-                    lastMessage.isThinking = false
-                }
-                return newMessages
-            })
+            // If this was an abort, we already handled stopping in handleCancel; avoid overwriting the stopped content
+            const errName = (error as any)?.name;
+            if (errName === 'AbortError') {
+                // Do nothing - user intentionally stopped the response
+            } else {
+                setMessages(prev => {
+                    const newMessages = [...prev]
+                    const lastMessage = newMessages[newMessages.length - 1]
+                    if (lastMessage && lastMessage.role === 'assistant') {
+                        lastMessage.content = "Sorry, I encountered an error. Please try again."
+                        lastMessage.isThinking = false
+                    }
+                    return newMessages
+                })
+            }
         } finally {
             setIsLoading(false);
+            setIsCancelling(false);
+            abortControllerRef.current = null;
             // If we just finished a new chat response, we might want to ensure the sidebar title is updated (since backend updates title after first msg)
             if (!conversationId) {
                 setTimeout(() => loadChats(), 2000);
@@ -365,11 +394,29 @@ export default function AssistantPage() {
     };
 
     const handleCancel = () => {
-        if (abortControllerRef.current) {
+        const controller = abortControllerRef.current;
+        if (controller) {
+            // Mark we're cancelling; do NOT set isLoading false here so UI indicates stopping
             setIsCancelling(true);
-            abortControllerRef.current.abort();
-            setIsLoading(false);
-            setIsCancelling(false);
+            try {
+                controller.abort();
+            } catch (e) {
+                console.error('Abort failed', e);
+            }
+            // Keep controller ref until finalization to avoid race conditions
+
+            // Update UI to reflect immediate stop intent (partial content preserved)
+            setMessages(prev => {
+                const newMessages = [...prev];
+                const lastMessage = newMessages[newMessages.length - 1];
+                if (lastMessage && lastMessage.role === 'assistant') {
+                    lastMessage.isThinking = false;
+                    if (lastMessage.content && !/Stopped by user/i.test(lastMessage.content)) {
+                        lastMessage.content = lastMessage.content + "\n\n*Stopped by user.*";
+                    }
+                }
+                return newMessages;
+            });
         }
     };
 
@@ -502,8 +549,8 @@ export default function AssistantPage() {
 
                         {/* Sticky Input Footer */}
                         <div className="sticky bottom-0 z-40 w-full bg-background">
-                            <div className="max-w-[960px] mx-auto w-full px-4 py-3">
-                                <div className="mx-auto w-full max-w-[960px] bg-background shadow-sm rounded-3xl px-2 py-2 overflow-hidden focus-within:ring-1 focus-within:ring-primary/20 transition-all">
+                            <div className="max-w-[960px] mx-auto w-full px-4 py-0">
+                                <div className="mx-auto w-full max-w-[960px] bg-background shadow-sm rounded-3xl px-2 py-0 overflow-hidden focus-within:ring-1 focus-within:ring-primary/20 transition-all">
                                     <PromptInputProvider>
                                         <PromptInput
                                             onSubmit={(msg: { text: string; files: any[] }) => {
@@ -513,7 +560,7 @@ export default function AssistantPage() {
                                             }}
                                             className="bg-background border-0 shadow-sm rounded-3xl"
                                         >
-                                            <PromptInputHeader className="px-6 pt-4 empty:hidden">
+                                            <PromptInputHeader className="px-6 pt-0 empty:hidden">
                                                 <PromptInputAttachmentsDisplay />
                                             </PromptInputHeader>
                                             <PromptInputBody>
@@ -535,16 +582,22 @@ export default function AssistantPage() {
                                                     </PromptInputButton>
                                                 </PromptInputTools>
 
-                                                {isLoading ? (
-                                                    <Button 
-                                                        size="sm"
-                                                        variant="destructive"
-                                                        onClick={handleCancel}
-                                                        className="gap-2"
-                                                    >
-                                                        <IconX className="size-3.5" />
-                                                        Cancel
-                                                    </Button>
+                                                {(isLoading || isCancelling) ? (
+                                                    <Tooltip delayDuration={300}>
+                                                        <TooltipTrigger asChild>
+                                                            <Button
+                                                                size="icon"
+                                                                variant="ghost"
+                                                                onClick={handleCancel}
+                                                                aria-label="Stop generation"
+                                                                disabled={isCancelling}
+                                                                className={cn("text-destructive", isCancelling ? "opacity-50 pointer-events-none" : "")}
+                                                            >
+                                                                {isCancelling ? <Spinner className="size-4" /> : <IconX className="size-4" />}
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent side="top">{isCancelling ? "Stopping..." : "Stop"}</TooltipContent>
+                                                    </Tooltip>
                                                 ) : (
                                                     <PromptInputSubmit />
                                                 )}
