@@ -15,6 +15,7 @@ import { code } from "@streamdown/code"
 import { math } from "@streamdown/math"
 import { mermaid } from "@streamdown/mermaid"
 import { useAICrypto } from "@/hooks/use-ai-crypto";
+import { parseFile } from "@/lib/file-parser";
 import { useRouter, useSearchParams } from "next/navigation"
 
 const streamdownPlugins = { cjk, code, math, mermaid }
@@ -84,23 +85,63 @@ export default function AssistantPage() {
         scrollToBottom()
     }, [messages, isLoading])
 
-    const handleSubmit = async (value: string) => {
-        if (!value.trim() || isLoading || !isReady || !kyberPublicKey) return
+    const handleSubmit = async (value: string, attachments: File[] = []) => {
+        if ((!value.trim() && attachments.length === 0) || isLoading || !isReady || !kyberPublicKey) return;
 
-        const userMessage: Message = { role: 'user', content: value }
-        setMessages(prev => [...prev, userMessage])
-        // setInputValue(""); // Handled by PromptInputProvider automatically
-        setIsLoading(true)
+        // 1. Optimistic Update (Show user message immediately)
+        const tempUserMessage: Message = {
+            role: 'user',
+            content: value,
+            // attachments: attachments.map(f => f.name) // Store names for UI if needed (schema update required)
+        };
+        setMessages(prev => [...prev, tempUserMessage]);
+
+        // 2. Add Thinking State
+        setMessages(prev => [...prev, { role: 'assistant', content: '', isThinking: true }]);
+        setIsLoading(true);
 
         try {
-            // Add thinking/streaming placeholder
-            setMessages(prev => [...prev, { role: 'assistant', content: '', isThinking: true }])
+            let finalContent = value;
 
-            // Encrypt user message for storage
+            // 3. Process Attachments (RAG / Context Stuffing)
+            if (attachments.length > 0) {
+                // Update thinking state to show we are reading files
+                setMessages(prev => {
+                    const newMessages = [...prev]
+                    const lastMessage = newMessages[newMessages.length - 1]
+                    if (lastMessage && lastMessage.role === 'assistant') {
+                        lastMessage.content = "_Reading documents..._";
+                    }
+                    return newMessages
+                })
+
+                const fileContents = await Promise.all(attachments.map(async (file) => {
+                    try {
+                        const parsed = await parseFile(file);
+                        return `--- START FILE: ${parsed.title} ---\n${parsed.content}\n--- END FILE ---\n`;
+                    } catch (e) {
+                        return `[Failed to read file: ${file.name}]`;
+                    }
+                }));
+
+                finalContent = `${value}\n\n${fileContents.join("\n")}`;
+
+                // Clear reading status
+                setMessages(prev => {
+                    const newMessages = [...prev]
+                    const lastMessage = newMessages[newMessages.length - 1]
+                    if (lastMessage && lastMessage.role === 'assistant') {
+                        lastMessage.content = "";
+                    }
+                    return newMessages
+                })
+            }
+
+            // 4. Encrypt User Message (E2EE)
             let encryptedUserMessage;
             if (kyberPublicKey) {
                 try {
-                    const { encryptedContent, iv, encapsulatedKey } = await encryptMessage(value);
+                    const { encryptedContent, iv, encapsulatedKey } = await encryptMessage(finalContent);
                     encryptedUserMessage = { encryptedContent, iv, encapsulatedKey };
                 } catch (e) {
                     console.error("Failed to encrypt user message:", e);
@@ -304,8 +345,8 @@ export default function AssistantPage() {
                     <div className="bg-background/80 backdrop-blur-xl border shadow-lg rounded-2xl transition-all duration-200 focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary">
                         <PromptInputProvider>
                             <PromptInput
-                                onSubmit={(msg) => {
-                                    handleSubmit(msg.text);
+                                onSubmit={(msg: { text: string; files: any[] }) => {
+                                    handleSubmit(msg.text, msg.files.map(f => f.file || f)); // Extract File objects
                                     return Promise.resolve();
                                 }}
                                 className="bg-transparent border-0 shadow-none rounded-2xl"
