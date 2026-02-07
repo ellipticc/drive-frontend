@@ -548,7 +548,7 @@ export default function AssistantPage() {
                         </ScrollArea>
 
                         {/* Sticky Input Footer */}
-                        <div className="sticky bottom-0 z-40 w-full bg-background">
+                        <div className="sticky bottom-4 z-40 w-full bg-background">
                             <div className="max-w-[960px] mx-auto w-full px-4 py-0">
                                 <div className="mx-auto w-full max-w-[960px] bg-background shadow-sm rounded-3xl px-2 py-0 overflow-hidden focus-within:ring-1 focus-within:ring-primary/20 transition-all">
                                     <PromptInputProvider>
@@ -558,7 +558,7 @@ export default function AssistantPage() {
                                                 handleSubmit(msg.text, msg.files.map(f => f.file || f));
                                                 return Promise.resolve();
                                             }}
-                                            className="bg-background border-0 shadow-sm rounded-3xl"
+                                            className="bg-background border border-border shadow-sm rounded-3xl"
                                         >
                                             <PromptInputHeader className="px-6 pt-0 empty:hidden">
                                                 <PromptInputAttachmentsDisplay />

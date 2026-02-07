@@ -108,7 +108,7 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                             </div>
                         ) : (
                             <>
-                                <div className="bg-primary text-primary-foreground px-5 py-3.5 rounded-2xl text-sm leading-relaxed shadow-sm">
+                                <div className="bg-primary text-primary-foreground px-5 py-3.5 rounded-2xl text-sm leading-relaxed shadow-sm font-medium">
                                     {message.content}
                                 </div>
                                 <div className="flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity justify-end">
@@ -142,7 +142,7 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                             </Reasoning>
                         )}
 
-                        <div className="prose dark:prose-invert prose-sm max-w-none text-foreground">
+                        <div className="prose dark:prose-invert prose-sm max-w-none text-foreground font-medium">
                             <Streamdown
                                 plugins={{
                                     code,

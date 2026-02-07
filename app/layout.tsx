@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist_Mono, JetBrains_Mono, Ubuntu, Space_Grotesk } from "next/font/google";
+import { Geist_Mono, JetBrains_Mono, Ubuntu, Space_Grotesk, Inter } from "next/font/google";
 import Script from "next/script";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
@@ -48,6 +48,14 @@ const ubuntu = Ubuntu({
   subsets: ["latin"],
   variable: "--font-ubuntu",
   display: 'swap',
+  preload: true,
+});
+
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-inter",
+  display: "swap",
   preload: true,
 });
 
