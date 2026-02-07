@@ -182,6 +182,8 @@ export function SiteHeader({ className, onSearch, onFileUpload, onFolderUpload, 
           </div>
         ) : pathname?.startsWith('/attestations') ? (
           <h2 className="text-lg font-semibold tracking-tight">Attestations</h2>
+        ) : pathname?.startsWith('/assistant') ? (
+          <h2 className="text-lg font-semibold tracking-tight">Assistant</h2>
         ) : (
           <div className="relative flex-1 max-w-md">
             {!['/insights'].some(path => pathname?.startsWith(path)) && (

@@ -31,6 +31,7 @@ import { useLanguage } from "@/lib/i18n/language-context"
 import { apiClient, FolderContentItem } from "@/lib/api"
 import { decryptFilename } from "@/lib/crypto"
 import { masterKeyManager } from "@/lib/master-key"
+import { toast } from "sonner"
 import { NavFolder } from "./nav-folder"
 import { cn } from "@/lib/utils"
 import {
@@ -503,7 +504,13 @@ export function NavMain({
 
               const handleRenameSave = async (chatId: string) => {
                 if (editTitle.trim()) {
-                  await renameChat(chatId, editTitle.trim());
+                  try {
+                    await renameChat(chatId, editTitle.trim());
+                    toast.success("Chat renamed successfully");
+                  } catch (error) {
+                    console.error("Failed to rename chat:", error);
+                    toast.error("Failed to rename chat");
+                  }
                 }
                 setEditingChatId(null);
                 setEditTitle("");
@@ -516,9 +523,15 @@ export function NavMain({
 
               const confirmDelete = async () => {
                 if (chatToDelete) {
-                  await deleteChat(chatToDelete);
-                  setDeleteDialogOpen(false);
-                  setChatToDelete(null);
+                  try {
+                    await deleteChat(chatToDelete);
+                    setDeleteDialogOpen(false);
+                    setChatToDelete(null);
+                    toast.success("Chat deleted");
+                  } catch (error) {
+                    console.error("Failed to delete chat:", error);
+                    toast.error("Failed to delete chat");
+                  }
                 }
               };
 
@@ -624,18 +637,18 @@ export function NavMain({
                                           <IconPencil className="size-3.5 mr-2" />
                                           <span>Rename</span>
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); pinChat(chat.id, !chat.pinned); }}>
+                                        <DropdownMenuItem onClick={async (e) => { e.stopPropagation(); try { await pinChat(chat.id, !chat.pinned); toast.success(chat.pinned ? "Chat unpinned" : "Chat pinned"); } catch (error) { console.error("Failed to toggle pin:", error); toast.error("Failed to update chat"); } }}>
                                           {chat.pinned ? <IconPin className="size-3.5 mr-2" /> : <IconPinFilled className="size-3.5 mr-2" />}
                                           <span>{chat.pinned ? "Unpin" : "Pin"}</span>
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); archiveChat(chat.id, true); }}>
+                                        <DropdownMenuItem onClick={async (e) => { e.stopPropagation(); try { await archiveChat(chat.id, true); toast.success("Chat archived"); } catch (error) { console.error("Failed to archive chat:", error); toast.error("Failed to archive chat"); } }}>
                                           <IconArchive className="size-3.5 mr-2" />
                                           <span>Archive</span>
                                         </DropdownMenuItem>
                                         <DropdownMenuSeparator />
                                         <DropdownMenuItem
                                           onClick={(e) => { e.stopPropagation(); handleDeleteClick(chat.id); }}
-                                          className="text-status-danger focus:text-status-danger focus:bg-status-danger/10"
+                                          className="text-destructive hover:text-destructive hover:bg-destructive/10 focus:text-destructive focus:bg-destructive/10 cursor-pointer"
                                         >
                                           <IconTrash className="size-3.5 mr-2" />
                                           <span>Delete</span>
