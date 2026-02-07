@@ -501,9 +501,9 @@ export default function AssistantPage() {
                         </ScrollArea>
 
                         {/* Sticky Input Footer */}
-                        <div className="sticky bottom-0 z-40 w-full border-t border-border bg-background">
-                            <div className="max-w-[960px] mx-auto w-full px-4 py-5">
-                                <div className="mx-auto w-full max-w-[960px] bg-background shadow-sm rounded-3xl px-2 py-3 overflow-hidden focus-within:ring-1 focus-within:ring-primary/20 transition-all">
+                        <div className="sticky bottom-0 z-40 w-full bg-background">
+                            <div className="max-w-[960px] mx-auto w-full px-4 py-3">
+                                <div className="mx-auto w-full max-w-[960px] bg-background shadow-sm rounded-3xl px-2 py-2 overflow-hidden focus-within:ring-1 focus-within:ring-primary/20 transition-all">
                                     <PromptInputProvider>
                                         <PromptInput
                                             onSubmit={(msg: { text: string; files: any[] }) => {
