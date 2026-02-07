@@ -13,6 +13,10 @@ import { cjk } from "@streamdown/cjk"
 import "katex/dist/katex.min.css"
 import { Reasoning, ReasoningTrigger, ReasoningContent } from "@/components/ai-elements/reasoning"
 
+
+import { CitationParser } from "@/components/ai-elements/citation-parser";
+import { mermaid } from "@streamdown/mermaid"
+
 interface Message {
     id?: string;
     role: 'user' | 'assistant';
@@ -20,6 +24,7 @@ interface Message {
     isThinking?: boolean;
     createdAt?: number;
     feedback?: 'like' | 'dislike';
+    sources?: { title: string; url: string; content?: string }[];
 }
 
 interface ChatMessageProps {
@@ -31,6 +36,7 @@ interface ChatMessageProps {
     onFeedback?: (messageId: string, feedback: 'like' | 'dislike') => void;
     onRegenerate?: () => void;
 }
+
 
 export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedback, onRegenerate }: ChatMessageProps) {
     const isUser = message.role === 'user';
@@ -58,6 +64,10 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
             setIsEditingPrompt(false);
         }
     };
+
+
+    const streamdownPlugins = React.useMemo(() => ({ code, math, cjk, mermaid } as any), []);
+
 
     return (
         <div className={cn(
@@ -91,14 +101,14 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                     />
                                 </div>
                                 <div className="flex gap-2 justify-end mt-2">
-                                    <Button 
-                                        size="sm" 
+                                    <Button
+                                        size="sm"
                                         variant="outline"
                                         onClick={() => setIsEditingPrompt(false)}
                                     >
                                         Cancel
                                     </Button>
-                                    <Button 
+                                    <Button
                                         size="sm"
                                         onClick={handleEditPromptSubmit}
                                     >
@@ -112,20 +122,20 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                     {message.content}
                                 </div>
                                 <div className="flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity justify-end">
-                                    <ActionButton 
-                                        icon={IconRefresh} 
-                                        label="Retry" 
-                                        onClick={onRetry} 
+                                    <ActionButton
+                                        icon={IconRefresh}
+                                        label="Retry"
+                                        onClick={onRetry}
                                     />
-                                    <ActionButton 
-                                        icon={IconEdit} 
-                                        label="Edit" 
-                                        onClick={() => setIsEditingPrompt(true)} 
+                                    <ActionButton
+                                        icon={IconEdit}
+                                        label="Edit"
+                                        onClick={() => setIsEditingPrompt(true)}
                                     />
-                                    <ActionButton 
-                                        icon={copied ? IconCheck : IconCopy} 
-                                        label="Copy" 
-                                        onClick={handleCopy} 
+                                    <ActionButton
+                                        icon={copied ? IconCheck : IconCopy}
+                                        label="Copy"
+                                        onClick={handleCopy}
                                     />
                                 </div>
                             </>
@@ -142,72 +152,92 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                             </Reasoning>
                         )}
 
-                        <div className="prose dark:prose-invert prose-sm max-w-none text-foreground font-medium">
-                            <Streamdown
-                                plugins={{
-                                    code,
-                                    math,
-                                    cjk,
-                                } as any}
-                            >
-                                {message.content}
-                            </Streamdown>
+                        <div className="prose prose-neutral dark:prose-invert max-w-none leading-relaxed">
+                            {/* Use CitationParser to handle [1] style links if sources exist */}
+                            {message.sources && message.sources.length > 0 ? (
+                                <CitationParser content={message.content} sources={message.sources} />
+                            ) : (
+                                <Streamdown plugins={streamdownPlugins}>
+                                    {message.content}
+                                </Streamdown>
+                            )}
+
                         </div>
 
-                        {!message.isThinking && (
-                            <div className="flex items-center gap-2 pt-2">
-                                <TooltipProvider>
-                                    <ActionButton
-                                        icon={IconThumbUp}
-                                        label="Good response"
-                                        onClick={() => handleFeedback('like')}
-                                        active={message.feedback === 'like'}
-                                        disabled={feedbackGiven}
-                                    />
-                                    <ActionButton
-                                        icon={IconThumbDown}
-                                        label="Bad response"
-                                        onClick={() => handleFeedback('dislike')}
-                                        active={message.feedback === 'dislike'}
-                                        disabled={feedbackGiven}
-                                    />
-                                    <ActionButton
-                                        icon={copied ? IconCheck : IconCopy}
-                                        label="Copy"
-                                        onClick={handleCopy}
-                                    />
-                                    <ActionButton
-                                        icon={IconRefresh}
-                                        label="Regenerate"
-                                        onClick={onRegenerate}
-                                    />
-                                </TooltipProvider>
+                        {/* References Footer */}
+                        {message.sources && message.sources.length > 0 && (
+                            <div className="mt-2 pt-2 border-t border-border/50">
+                                <p className="text-xs font-semibold text-muted-foreground mb-1">Sources</p>
+                                <div className="flex flex-wrap gap-2">
+                                    {message.sources.map((source, idx) => (
+                                        <a
+                                            key={idx}
+                                            href={source.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-xs bg-muted hover:bg-muted/80 px-2 py-1 rounded transition-colors flex items-center gap-1 text-foreground no-underline"
+                                        >
+                                            <span className="opacity-50 font-mono">[{idx + 1}]</span>
+                                            <span className="truncate max-w-[150px]">{source.title}</span>
+                                        </a>
+                                    ))}
+                                </div>
                             </div>
                         )}
+
+                        <div className="flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity justify-end">
+                            <div className="flex items-center gap-0.5 mr-auto">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className={cn("h-6 w-6", feedbackGiven && message.feedback === 'like' && "text-green-500")}
+                                    onClick={() => handleFeedback('like')}
+                                    disabled={feedbackGiven}
+                                >
+                                    <IconThumbUp className="size-3.5" />
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className={cn("h-6 w-6", feedbackGiven && message.feedback === 'dislike' && "text-red-500")}
+                                    onClick={() => handleFeedback('dislike')}
+                                    disabled={feedbackGiven}
+                                >
+                                    <IconThumbDown className="size-3.5" />
+                                </Button>
+                            </div>
+
+                            <ActionButton
+                                icon={IconRefresh}
+                                label="Regenerate"
+                                onClick={onRegenerate}
+                            />
+                            <ActionButton
+                                icon={copied ? IconCheck : IconCopy}
+                                label="Copy"
+                                onClick={handleCopy}
+                            />
+                        </div>
                     </div>
                 )}
             </div>
         </div>
-    )
+    );
 }
 
-function ActionButton({ icon: Icon, label, onClick, active, disabled }: { icon: any, label: string, onClick?: () => void, active?: boolean, disabled?: boolean }) {
+function ActionButton({ icon: Icon, label, onClick }: { icon: any, label: string, onClick?: () => void }) {
     return (
-        <Tooltip>
-            <TooltipTrigger asChild>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className={cn("h-6 w-6", active && "text-primary bg-primary/10", disabled && "opacity-50 cursor-not-allowed")}
-                    onClick={onClick}
-                    disabled={disabled}
-                >
-                    <Icon className="size-3.5" />
-                </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-                <p>{label}</p>
-            </TooltipContent>
-        </Tooltip>
+        <TooltipProvider>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground" onClick={onClick}>
+                        <Icon className="size-3.5" />
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                    <p>{label}</p>
+                </TooltipContent>
+            </Tooltip>
+        </TooltipProvider>
     )
 }

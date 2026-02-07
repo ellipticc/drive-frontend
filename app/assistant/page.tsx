@@ -239,6 +239,10 @@ export default function AssistantPage() {
             let assistantMessageContent = ""
             let currentSessionKey: Uint8Array | undefined;
 
+            // Buffer for smoother updates
+            let lastUpdateTime = 0;
+            const UPDATE_INTERVAL = 16; // ~60fps
+
             while (true) {
                 const { done, value } = await reader.read()
                 if (done) break
@@ -275,18 +279,21 @@ export default function AssistantPage() {
                             if (contentToAppend) {
                                 assistantMessageContent += contentToAppend;
 
-                                setMessages(prev => {
-                                    const newMessages = [...prev]
-                                    const lastMessage = newMessages[newMessages.length - 1]
-                                    // Check if lastMessage exists and is assistant before updating
-                                    if (lastMessage && lastMessage.role === 'assistant') {
-                                        lastMessage.content = assistantMessageContent
-                                        lastMessage.isThinking = false
-                                        // Update ID if available (for feedback)
-                                        if (data.id) lastMessage.id = data.id;
-                                    }
-                                    return newMessages
-                                })
+                                // Throttle state updates for smoother rendering
+                                const now = Date.now();
+                                if (now - lastUpdateTime > UPDATE_INTERVAL) {
+                                    setMessages(prev => {
+                                        const newMessages = [...prev]
+                                        const lastMessage = newMessages[newMessages.length - 1]
+                                        if (lastMessage && lastMessage.role === 'assistant') {
+                                            lastMessage.content = assistantMessageContent
+                                            lastMessage.isThinking = false
+                                            if (data.id) lastMessage.id = data.id;
+                                        }
+                                        return newMessages
+                                    });
+                                    lastUpdateTime = now;
+                                }
                             }
                         } catch (e) {
                             // console.warn('Failed to parse SSE line', line);
@@ -294,6 +301,17 @@ export default function AssistantPage() {
                     }
                 }
             }
+            // Final update to ensure complete content
+            setMessages(prev => {
+                const newMessages = [...prev]
+                const lastMessage = newMessages[newMessages.length - 1]
+                if (lastMessage && lastMessage.role === 'assistant') {
+                    lastMessage.content = assistantMessageContent
+                    lastMessage.isThinking = false
+                }
+                return newMessages
+            });
+
 
         } catch (error) {
             console.error('Chat error:', error)
