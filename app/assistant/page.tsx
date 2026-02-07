@@ -33,6 +33,8 @@ import { useAICrypto } from "@/hooks/use-ai-crypto";
 import { parseFile } from "@/lib/file-parser";
 import { useRouter, useSearchParams } from "next/navigation"
 import { Attachment, AttachmentPreview, AttachmentRemove, Attachments } from "@/components/ai-elements/attachments"
+import { Suggestions, Suggestion } from "@/components/ai-elements/suggestion"
+import { Reasoning, ReasoningTrigger, ReasoningContent } from "@/components/ai-elements/reasoning"
 
 const streamdownPlugins = { cjk, code, math, mermaid }
 
@@ -277,116 +279,209 @@ export default function AssistantPage() {
         }
     }
 
+    // Suggestion Chips
+    const suggestions = [
+        "Explain quantum physics",
+        "Debug a React component",
+        "Write a short story",
+        "Plan a 3-day trip to Paris"
+    ];
+
+    const handleSuggestionClick = (text: string) => {
+        // We need to set the input value, but since PromptInput is uncontrolled/internal state might be tricky.
+        // Actually, better to just submit it directly?
+        // User behavior: clicking suggestion usually sends it immediately.
+        handleSubmit(text, []);
+    };
+
     return (
-        <div className="flex flex-col h-full bg-background relative isolate">
-            <SiteHeader
-                sticky
-                customTitle={
-                    <div className="flex items-center gap-2">
-                        <IconSparkles className="size-4 text-primary" />
-                        <h1 className="text-sm font-medium">Assistant</h1>
-                    </div>
-                }
-            />
+        <div className="flex flex-col h-full bg-background relative selection:bg-primary/20 selection:text-primary">
+            {/* Header */}
+            <SiteHeader className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-sm" />
 
-            <ScrollArea className="flex-1" ref={scrollAreaRef}>
-                <div className="max-w-4xl mx-auto px-6 py-8 space-y-10 pb-40">
-                    {messages.length === 0 && (
-                        <div className="flex flex-col items-center justify-center min-h-[60vh] text-center text-muted-foreground animate-in fade-in zoom-in duration-500">
-                            <div className="p-4 rounded-full bg-primary/10 mb-6">
-                                <IconSparkles className="size-8 text-primary" />
+            {/* Main Content Area */}
+            <div className="flex-1 relative flex flex-col overflow-hidden">
+
+                {messages.length === 0 ? (
+                    // ZERO STATE: Centered Input
+                    <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
+                        <div className="w-full max-w-2xl space-y-8 animate-in fade-in zoom-in-95 duration-500 slide-in-from-bottom-4">
+
+                            {/* Greeting / Brand */}
+                            <div className="text-center space-y-2">
+                                <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-primary/10 mb-4">
+                                    <IconSparkles className="size-8 text-primary" />
+                                </div>
+                                <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">
+                                    How can I help you today?
+                                </h1>
+                                <p className="text-muted-foreground text-sm sm:text-base">
+                                    I can help you write code, analyze documents, or plan your next project.
+                                </p>
                             </div>
-                            <h2 className="text-2xl font-semibold mb-2 text-foreground">How can I help you today?</h2>
-                            <p className="max-w-md">Ask me anything about your documents, analyze data, or just have a chat.</p>
-                        </div>
-                    )}
 
-                    {messages.map((message, index) => (
-                        <div
-                            key={index}
-                            className={cn(
-                                "flex w-full flex-col",
-                                message.role === 'user' ? "items-end" : "items-start"
-                            )}
-                        >
-                            {/* User Message: Card-like, Colored */}
-                            {message.role === 'user' && (
-                                <div className="bg-secondary/50 dark:bg-muted/50 text-foreground px-5 py-3.5 rounded-2xl max-w-[85%] md:max-w-[75%] lg:max-w-[65%] text-sm leading-relaxed shadow-sm border border-border/50">
-                                    <Streamdown plugins={streamdownPlugins as any}>
-                                        {message.content}
-                                    </Streamdown>
-                                </div>
-                            )}
-
-                            {/* Assistant Message: Clean Text, No Background */}
-                            {message.role === 'assistant' && (
-                                <div className="w-full max-w-[90%] md:max-w-[85%] px-1">
-                                    {message.isThinking && (
-                                        <div className="flex items-center gap-2 mb-2 text-muted-foreground text-xs uppercase tracking-wider font-medium">
-                                            <IconSparkles className="size-3.5 animate-pulse" />
-                                            Thinking...
-                                        </div>
-                                    )}
-                                    <div className="prose dark:prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-pre:p-0 prose-pre:bg-transparent">
-                                        <Streamdown plugins={streamdownPlugins as any}>
-                                            {message.content}
-                                        </Streamdown>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    ))}
-                </div>
-            </ScrollArea>
-
-            {/* Floating Input Area */}
-            <div className="max-w-3xl mx-auto px-4 w-full">
-                <div className="bg-background/80 backdrop-blur-xl border shadow-lg rounded-2xl transition-all duration-200 focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary">
-                    <PromptInputProvider>
-                        <PromptInput
-                            onSubmit={(msg: { text: string; files: any[] }) => {
-                                handleSubmit(msg.text, msg.files.map(f => f.file || f));
-                                return Promise.resolve();
-                            }}
-                            className="bg-transparent border-0 shadow-none rounded-2xl"
-                        >
-                            <PromptInputHeader>
-                                <PromptInputAttachmentsDisplay />
-                            </PromptInputHeader>
-                            <PromptInputBody>
-                                <PromptInputTextarea
-                                    placeholder="Message Assistant..."
-                                    className="min-h-[52px] max-h-[200px] px-4 py-3.5 text-base resize-none field-sizing-content"
-                                />
-                            </PromptInputBody>
-                            <PromptInputFooter className="px-3 pb-3 pt-0">
-                                <PromptInputTools>
-                                    <PromptInputActionMenu>
-                                        <PromptInputActionMenuTrigger />
-                                        <PromptInputActionMenuContent>
-                                            <PromptInputActionAddAttachments />
-                                        </PromptInputActionMenuContent>
-                                    </PromptInputActionMenu>
-
-                                    <PromptInputButton
-                                        onClick={() => setIsWebSearchEnabled(!isWebSearchEnabled)}
-                                        variant={isWebSearchEnabled ? "default" : "ghost"}
-                                        className={cn("gap-2", isWebSearchEnabled ? "bg-primary/20 text-primary hover:bg-primary/30" : "text-muted-foreground")}
+                            {/* Input Area */}
+                            <div className="w-full">
+                                <PromptInputProvider>
+                                    <PromptInput
+                                        onSubmit={(msg: { text: string; files: any[] }) => {
+                                            handleSubmit(msg.text, msg.files.map(f => f.file || f));
+                                            return Promise.resolve();
+                                        }}
+                                        className="bg-transparent border shadow-lg rounded-2xl overflow-hidden focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary/50 transition-all"
                                     >
-                                        <IconWorld className="size-4" />
-                                        <span className="text-xs font-medium hidden sm:inline">Search</span>
-                                    </PromptInputButton>
+                                        <PromptInputHeader className="px-4 pt-4 empty:hidden">
+                                            <PromptInputAttachmentsDisplay />
+                                        </PromptInputHeader>
+                                        <PromptInputBody>
+                                            <PromptInputTextarea
+                                                placeholder="Ask anything..."
+                                                className="min-h-[60px] max-h-[200px] px-4 py-3.5 text-base resize-none field-sizing-content bg-transparent border-0 shadow-none focus-visible:ring-0"
+                                            />
+                                        </PromptInputBody>
+                                        <PromptInputFooter className="px-3 pb-3 pt-0">
+                                            <PromptInputTools>
+                                                <PromptInputActionMenu>
+                                                    <PromptInputActionMenuTrigger />
+                                                    <PromptInputActionMenuContent>
+                                                        <PromptInputActionAddAttachments />
+                                                    </PromptInputActionMenuContent>
+                                                </PromptInputActionMenu>
 
-                                </PromptInputTools>
+                                                <PromptInputButton
+                                                    onClick={() => setIsWebSearchEnabled(!isWebSearchEnabled)}
+                                                    tooltip={{ content: "Search Internet", shortcut: "⌘K" }}
+                                                    className={cn("gap-2", isWebSearchEnabled ? "bg-primary/20 text-primary hover:bg-primary/30" : "text-muted-foreground")}
+                                                >
+                                                    <IconWorld className="size-4" />
+                                                    <span className={cn("text-xs font-medium transition-all", isWebSearchEnabled ? "inline-block" : "hidden group-hover:inline-block")}>Search</span>
+                                                </PromptInputButton>
 
-                                <div className="text-xs text-muted-foreground/60 hidden sm:block ml-auto mr-2">
-                                    Enter to send, Shift + Enter for new line
+                                            </PromptInputTools>
+
+                                            <PromptInputSubmit className={cn("transition-opacity", isLoading ? "opacity-50" : "opacity-100")} />
+                                        </PromptInputFooter>
+                                    </PromptInput>
+                                </PromptInputProvider>
+                            </div>
+
+                            {/* Suggestions */}
+                            <div className="pt-2">
+                                <Suggestions>
+                                    {suggestions.map((s, i) => (
+                                        <Suggestion
+                                            key={i}
+                                            suggestion={s}
+                                            onClick={handleSuggestionClick}
+                                            className="bg-secondary/50 hover:bg-secondary text-muted-foreground hover:text-foreground border-transparent hover:border-border transition-all"
+                                        />
+                                    ))}
+                                </Suggestions>
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    // CHAT STATE: Scrollable Messages + Bottom Input
+                    <>
+                        <ScrollArea ref={scrollAreaRef} className="flex-1 w-full">
+                            <div className="max-w-3xl mx-auto px-4 py-6 space-y-8 min-h-full pb-32">
+                                {messages.map((message, index) => (
+                                    <div
+                                        key={index}
+                                        className={cn(
+                                            "flex w-full gap-4",
+                                            message.role === 'user' ? "flex-row-reverse" : "flex-row"
+                                        )}
+                                    >
+                                        <div className={cn(
+                                            "flex flex-col max-w-[85%] sm:max-w-[75%]",
+                                            message.role === 'user' ? "items-end" : "items-start"
+                                        )}>
+                                            {message.role === 'user' ? (
+                                                <div className="bg-primary text-primary-foreground px-5 py-3.5 rounded-2xl rounded-tr-sm text-sm leading-relaxed shadow-sm selection:bg-white/20">
+                                                    <Streamdown plugins={streamdownPlugins as any} className="break-words whitespace-pre-wrap">
+                                                        {message.content}
+                                                    </Streamdown>
+                                                </div>
+                                            ) : (
+                                                <div className="w-full space-y-2">
+                                                    {/* Thinking State / Reasoning */}
+                                                    {message.isThinking && (
+                                                        <Reasoning isStreaming={true} defaultOpen={true} duration={undefined}>
+                                                            <ReasoningTrigger className="w-fit" />
+                                                            <ReasoningContent>
+                                                                Thinking process...
+                                                            </ReasoningContent>
+                                                        </Reasoning>
+                                                    )}
+
+                                                    {/* Main Content */}
+                                                    <div className="prose dark:prose-invert prose-sm max-w-none prose-headings:font-semibold prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-code:bg-muted/50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded-md prose-code:before:content-none prose-code:after:content-none prose-pre:bg-secondary/50 prose-pre:border">
+                                                        <Streamdown plugins={streamdownPlugins as any}>
+                                                            {message.content}
+                                                        </Streamdown>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </ScrollArea>
+
+                        {/* Bottom Input */}
+                        <div className="absolute bottom-0 left-0 right-0 w-full px-4 pb-4 bg-gradient-to-t from-background via-background to-transparent pt-10">
+                            <div className="max-w-3xl mx-auto">
+                                <div className="bg-background border shadow-lg rounded-2xl focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary/50 transition-all">
+                                    <PromptInputProvider>
+                                        <PromptInput
+                                            onSubmit={(msg: { text: string; files: any[] }) => {
+                                                scrollToBottom();
+                                                handleSubmit(msg.text, msg.files.map(f => f.file || f));
+                                                return Promise.resolve();
+                                            }}
+                                            className="bg-transparent border-0 shadow-none rounded-2xl"
+                                        >
+                                            <PromptInputHeader className="px-4 pt-4 empty:hidden">
+                                                <PromptInputAttachmentsDisplay />
+                                            </PromptInputHeader>
+                                            <PromptInputBody>
+                                                <PromptInputTextarea
+                                                    placeholder="Message Assistant..."
+                                                    className="min-h-[52px] max-h-[200px] px-4 py-3.5 text-base resize-none field-sizing-content bg-transparent border-0 shadow-none focus-visible:ring-0"
+                                                />
+                                            </PromptInputBody>
+                                            <PromptInputFooter className="px-3 pb-3 pt-0">
+                                                <PromptInputTools>
+                                                    <PromptInputActionMenu>
+                                                        <PromptInputActionMenuTrigger />
+                                                        <PromptInputActionMenuContent>
+                                                            <PromptInputActionAddAttachments />
+                                                        </PromptInputActionMenuContent>
+                                                    </PromptInputActionMenu>
+
+                                                    <PromptInputButton
+                                                        onClick={() => setIsWebSearchEnabled(!isWebSearchEnabled)}
+                                                        tooltip={{ content: "Search Internet", shortcut: "⌘K" }}
+                                                        className={cn("gap-2", isWebSearchEnabled ? "bg-primary/20 text-primary hover:bg-primary/30" : "text-muted-foreground")}
+                                                    >
+                                                        <IconWorld className="size-4" />
+                                                        {/* <span className={cn("text-xs font-medium transition-all", isWebSearchEnabled ? "inline-block" : "hidden group-hover:inline-block")}>Search</span> */}
+                                                    </PromptInputButton>
+                                                </PromptInputTools>
+
+                                                <div className="text-xs text-muted-foreground/60 hidden sm:block ml-auto mr-2">
+                                                    Enter to send
+                                                </div>
+                                                <PromptInputSubmit className={cn("transition-opacity", isLoading ? "opacity-50" : "opacity-100")} />
+                                            </PromptInputFooter>
+                                        </PromptInput>
+                                    </PromptInputProvider>
                                 </div>
-                                <PromptInputSubmit />
-                            </PromptInputFooter>
-                        </PromptInput>
-                    </PromptInputProvider>
-                </div>
+                            </div>
+                        </div>
+                    </>
+                )}
             </div>
         </div >
     )

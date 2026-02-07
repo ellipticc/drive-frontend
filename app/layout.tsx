@@ -18,6 +18,7 @@ import { IconLoader2 as Loader2 } from "@tabler/icons-react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { OnboardingTourProvider } from "@/components/onboarding/onboarding-tour-provider";
 import "./globals.css";
+import "katex/dist/katex.min.css";
 
 // Font definitions
 const spaceGrotesk = Space_Grotesk({
