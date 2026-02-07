@@ -61,7 +61,7 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
             isUser ? "flex-row-reverse" : "flex-row"
         )}>
             <div className={cn(
-                "flex flex-col max-w-[85%] sm:max-w-[75%]",
+                "flex flex-col max-w-[86%] sm:max-w-[86%]",
                 isUser ? "items-end" : "items-start"
             )}>
                 {isUser ? (
@@ -104,7 +104,7 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                             </div>
                         ) : (
                             <>
-                                <div className="bg-primary text-primary-foreground px-5 py-3.5 rounded-2xl rounded-tr-sm text-sm leading-relaxed shadow-sm">
+                                <div className="bg-primary text-primary-foreground px-5 py-3.5 rounded-2xl text-sm leading-relaxed shadow-sm">
                                     {message.content}
                                 </div>
                                 <div className="flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity justify-end">

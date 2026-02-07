@@ -478,7 +478,7 @@ export default function AssistantPage() {
                     // CHAT STATE: Scrollable Messages + Bottom Input
                     <>
                         <ScrollArea ref={scrollAreaRef} className="flex-1 w-full">
-                            <div className="max-w-3xl mx-auto px-4 py-6 space-y-8 min-h-full pb-40">
+                            <div className="max-w-[920px] mx-auto px-4 py-6 space-y-8 min-h-full pb-40">
                                 {messages.map((message, index) => (
                                     <ChatMessage
                                         key={index}
@@ -495,9 +495,9 @@ export default function AssistantPage() {
                         </ScrollArea>
 
                         {/* Bottom Input */}
-                        <div className="absolute bottom-0 left-0 right-0 w-full px-4 pb-6 bg-background pt-4">
-                            <div className="max-w-3xl mx-auto">
-                                <div className="bg-background border shadow-sm rounded-3xl focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary/50 transition-all">
+                        <div className="absolute bottom-6 left-0 right-0 w-full px-4 pb-0 pointer-events-none">
+                            <div className="mx-auto pointer-events-auto max-w-[960px]">
+                                <div className="bg-background border shadow-lg rounded-3xl overflow-hidden focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary/50 transition-all">
                                     <PromptInputProvider>
                                         <PromptInput
                                             onSubmit={(msg: { text: string; files: any[] }) => {
@@ -505,7 +505,7 @@ export default function AssistantPage() {
                                                 handleSubmit(msg.text, msg.files.map(f => f.file || f));
                                                 return Promise.resolve();
                                             }}
-                                            className="bg-transparent border-0 shadow-none rounded-2xl"
+                                            className="bg-transparent border-0 shadow-none rounded-3xl"
                                         >
                                             <PromptInputHeader className="px-6 pt-4 empty:hidden">
                                                 <PromptInputAttachmentsDisplay />

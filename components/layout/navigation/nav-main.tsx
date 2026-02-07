@@ -632,7 +632,7 @@ export function NavMain({
                                         <TooltipContent side="right">More options</TooltipContent>
                                       </Tooltip>
 
-                                      <DropdownMenuContent side="bottom" align="end" className="w-40">
+                                      <DropdownMenuContent side="bottom" align="end" sideOffset={8} className="w-40 origin-top-right">
                                         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleRenameStart(chat); }}>
                                           <IconPencil className="size-3.5 mr-2" />
                                           <span>Rename</span>

@@ -101,11 +101,12 @@ export function useAICrypto(): UseAICryptoReturn {
                 if (chat.encrypted_title && chat.iv && chat.encapsulated_key) {
                     title = await decryptTitle(chat.encrypted_title, chat.iv, chat.encapsulated_key);
 
-                    // Defensive sanitization to strip surrounding quotes/prefixes and stray trailing counts
+                    // Defensive sanitization to strip surrounding quotes/prefixes and stray trailing counts (including newline + digits like "\n0")
                     title = title.replace(/^\s*["'`]+|["'`]+\s*$/g, '')
                                  .replace(/^Title:\s*/i, '')
                                  .replace(/^Conversation\s*Start\s*[:\-\s]*/i, '')
                                  .replace(/\s*[:\-\|]\s*0+$/g, '')
+                                 .replace(/(?:\n|\r|\s*[:\-\|]\s*)0+\s*$/g, '')
                                  .replace(/\s+/g, ' ')
                                  .trim();
 
