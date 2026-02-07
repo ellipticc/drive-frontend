@@ -302,17 +302,17 @@ export function NavMain({
                       )}
                       tooltip={areAdditionalItemsExpanded ? "Show less" : "Show more"}
                     >
+                      {areAdditionalItemsExpanded ? (
+                        <IconChevronUp className="shrink-0 size-4" />
+                      ) : (
+                        <IconChevronDown className="shrink-0 size-4" />
+                      )}
                       <span className={cn(
                         "text-sm",
                         state === "collapsed" && "sr-only"
                       )}>
                         {areAdditionalItemsExpanded ? "Less" : "More"}
                       </span>
-                      {areAdditionalItemsExpanded ? (
-                        <IconChevronUp className="shrink-0 size-4 ml-auto" />
-                      ) : (
-                        <IconChevronDown className="shrink-0 size-4 ml-auto" />
-                      )}
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 </Fragment>
