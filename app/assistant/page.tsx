@@ -480,7 +480,7 @@ export default function AssistantPage() {
                         {/* Messages Container */}
                         <ScrollArea ref={scrollAreaRef} className="flex-1 w-full overflow-hidden">
                             <div className="w-full h-full">
-                                <div className="max-w-2xl mx-auto px-4 py-6 space-y-8 min-h-full pb-32">
+                                <div className="max-w-[920px] mx-auto px-4 py-6 space-y-8 min-h-full pb-32">
                                     {messages.map((message, index) => (
                                         <ChatMessage
                                             key={index}
@@ -493,14 +493,17 @@ export default function AssistantPage() {
                                             onEdit={(content) => handleEditMessage(message.id || '', content)}
                                         />
                                     ))}
+
+                                    {/* spacer so the last message scrolls fully out before input */}
+                                    <div className="h-36" aria-hidden="true" />
                                 </div>
                             </div>
                         </ScrollArea>
 
                         {/* Sticky Input Footer */}
-                        <div className="relative w-full border-t border-border bg-background/95 backdrop-blur-sm">
-                            <div className="max-w-2xl mx-auto w-full px-4 py-6">
-                                <div className="w-full bg-background border shadow-lg rounded-3xl overflow-hidden focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary/50 transition-all">
+                        <div className="sticky bottom-0 z-40 w-full border-t border-border bg-background">
+                            <div className="max-w-[960px] mx-auto w-full px-4 py-5">
+                                <div className="mx-auto w-full max-w-[960px] bg-background shadow-sm rounded-3xl px-2 py-3 overflow-hidden focus-within:ring-1 focus-within:ring-primary/20 transition-all">
                                     <PromptInputProvider>
                                         <PromptInput
                                             onSubmit={(msg: { text: string; files: any[] }) => {
@@ -508,7 +511,7 @@ export default function AssistantPage() {
                                                 handleSubmit(msg.text, msg.files.map(f => f.file || f));
                                                 return Promise.resolve();
                                             }}
-                                            className="bg-transparent border-0 shadow-none rounded-3xl"
+                                            className="bg-background border-0 shadow-sm rounded-3xl"
                                         >
                                             <PromptInputHeader className="px-6 pt-4 empty:hidden">
                                                 <PromptInputAttachmentsDisplay />
