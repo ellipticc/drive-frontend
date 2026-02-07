@@ -591,7 +591,7 @@ export function NavMain({
                                 />
                               ) : (
                                 <>
-                                  <Tooltip>
+                                  <Tooltip delayDuration={700}>
                                     <TooltipTrigger asChild>
                                       <span className="truncate flex-1 text-xs">{chat.title}</span>
                                     </TooltipTrigger>
