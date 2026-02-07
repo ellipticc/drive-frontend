@@ -475,29 +475,32 @@ export default function AssistantPage() {
                         </div>
                     </div>
                 ) : (
-                    // CHAT STATE: Scrollable Messages + Bottom Input
-                    <>
-                        <ScrollArea ref={scrollAreaRef} className="flex-1 w-full">
-                            <div className="max-w-[920px] mx-auto px-4 py-6 space-y-8 min-h-full pb-40">
-                                {messages.map((message, index) => (
-                                    <ChatMessage
-                                        key={index}
-                                        message={message}
-                                        isLast={index === messages.length - 1}
-                                        onCopy={handleCopy}
-                                        onFeedback={handleFeedback}
-                                        onRetry={() => handleRetry(message.id || '')}
-                                        onRegenerate={() => handleRegenerate(message.id || '')}
-                                        onEdit={(content) => handleEditMessage(message.id || '', content)}
-                                    />
-                                ))}
+                    // CHAT STATE: Scrollable Messages + Sticky Bottom Input
+                    <div className="flex flex-col h-full w-full">
+                        {/* Messages Container */}
+                        <ScrollArea ref={scrollAreaRef} className="flex-1 w-full overflow-hidden">
+                            <div className="w-full h-full">
+                                <div className="max-w-2xl mx-auto px-4 py-6 space-y-8 min-h-full pb-32">
+                                    {messages.map((message, index) => (
+                                        <ChatMessage
+                                            key={index}
+                                            message={message}
+                                            isLast={index === messages.length - 1}
+                                            onCopy={handleCopy}
+                                            onFeedback={handleFeedback}
+                                            onRetry={() => handleRetry(message.id || '')}
+                                            onRegenerate={() => handleRegenerate(message.id || '')}
+                                            onEdit={(content) => handleEditMessage(message.id || '', content)}
+                                        />
+                                    ))}
+                                </div>
                             </div>
                         </ScrollArea>
 
-                        {/* Bottom Input */}
-                        <div className="absolute bottom-6 left-0 right-0 w-full px-4 pb-0 pointer-events-none">
-                            <div className="mx-auto pointer-events-auto max-w-[960px]">
-                                <div className="bg-background border shadow-lg rounded-3xl overflow-hidden focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary/50 transition-all">
+                        {/* Sticky Input Footer */}
+                        <div className="relative w-full border-t border-border bg-background/95 backdrop-blur-sm">
+                            <div className="max-w-2xl mx-auto w-full px-4 py-6">
+                                <div className="w-full bg-background border shadow-lg rounded-3xl overflow-hidden focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary/50 transition-all">
                                     <PromptInputProvider>
                                         <PromptInput
                                             onSubmit={(msg: { text: string; files: any[] }) => {
@@ -548,7 +551,7 @@ export default function AssistantPage() {
                                 </div>
                             </div>
                         </div>
-                    </>
+                    </div>
                 )}
             </div>
         </div >
