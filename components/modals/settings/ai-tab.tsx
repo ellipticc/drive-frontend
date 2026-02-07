@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { apiClient } from '@/lib/api'
 import { listMemories, deleteMemory, clearMemories } from '@/lib/ai-memory'
@@ -159,28 +161,22 @@ export function AITab() {
     <div className="space-y-6 pb-8">
       <TooltipProvider>
         {/* Sovereign Memory Section */}
-        <div className="p-5 bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-950/30 dark:to-blue-950/30 rounded-lg border border-purple-200 dark:border-purple-800">
-          <div className="flex items-start justify-between gap-4">
-            <div className="space-y-2 flex-1">
-              <div className="flex items-center gap-2">
-                <IconBrain className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                <h3 className="text-sm font-semibold">Sovereign Memory</h3>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <IconAlertCircle className="w-4 h-4 text-muted-foreground cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p className="text-xs max-w-xs">AI remembers facts about you. Stored only in your browser's IndexedDB. We cannot see this.</p>
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-              <p className="text-xs text-muted-foreground">Enable persistent memory for personalized responses across conversations.</p>
-              <Badge variant="outline" className="bg-purple-100 dark:bg-purple-950 text-purple-900 dark:text-purple-100 border-purple-200 dark:border-purple-800">
-                Encrypted Locally
-              </Badge>
+        <Card>
+          <CardHeader className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <IconBrain className="w-5 h-5" />
+              <CardTitle className="text-sm font-semibold">Sovereign Memory</CardTitle>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <IconAlertCircle className="w-4 h-4 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p className="text-xs max-w-xs">AI remembers facts about you. Stored only in your browser's IndexedDB. We cannot see this.</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
 
-            <div className="flex flex-col items-end gap-2">
+            <div className="flex items-center gap-3">
               <Switch
                 checked={!!settings.memory_enabled}
                 onCheckedChange={(v: any) => save({ memory_enabled: !!v })}
@@ -190,7 +186,7 @@ export function AITab() {
                   <DialogTrigger asChild>
                     <Button size="sm" variant="outline" onClick={openMemory}>
                       <IconEye className="w-4 h-4 mr-1" />
-                      View Memory
+                      View
                     </Button>
                   </DialogTrigger>
                   <DialogContent>
@@ -219,7 +215,6 @@ export function AITab() {
                       <Button
                         variant="outline"
                         onClick={handleClearMemories}
-                        className="text-destructive"
                       >
                         <IconTrash className="w-4 h-4 mr-1" />
                         Clear All
@@ -235,25 +230,30 @@ export function AITab() {
                 </Button>
               </div>
             </div>
-          </div>
-        </div>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">Enable persistent memory for personalized responses across conversations.</p>
+            <Badge variant="secondary">Encrypted Locally</Badge>
+          </CardContent>
+        </Card>
 
         {/* Base Style & Tone Section */}
-        <div className="p-5 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/30 dark:to-cyan-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <IconRobot className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              <h3 className="text-sm font-semibold">Base Style & Tone</h3>
+        <Card>
+          <CardHeader className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <IconRobot className="w-5 h-5" />
+              <CardTitle className="text-sm font-semibold">Base Style & Tone</CardTitle>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <IconAlertCircle className="w-4 h-4 text-muted-foreground cursor-help" />
                 </TooltipTrigger>
-                <TooltipContent>
+                <TooltipContent side="right">
                   <p className="text-xs max-w-xs">Customize how the AI responds to you. This affects the tone but not capabilities.</p>
                 </TooltipContent>
               </Tooltip>
             </div>
-
+          </CardHeader>
+          <CardContent>
             <div className="space-y-3">
               <div>
                 <Label className="text-xs font-semibold mb-2 block">Tone</Label>
@@ -302,25 +302,26 @@ export function AITab() {
                 </div>
               </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
         {/* Thinking Style Section */}
-        <div className="p-5 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 rounded-lg border border-amber-200 dark:border-amber-800">
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <IconBolt className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-              <h3 className="text-sm font-semibold">Thinking Style</h3>
+        <Card>
+          <CardHeader className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <IconBolt className="w-5 h-5" />
+              <CardTitle className="text-sm font-semibold">Thinking Style</CardTitle>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <IconAlertCircle className="w-4 h-4 text-muted-foreground cursor-help" />
                 </TooltipTrigger>
-                <TooltipContent>
+                <TooltipContent side="right">
                   <p className="text-xs max-w-xs">Precise: Factual, deterministic responses. Creative: More varied, exploratory thinking.</p>
                 </TooltipContent>
               </Tooltip>
             </div>
-
+          </CardHeader>
+          <CardContent>
             <div className="space-y-3">
               <div className="flex justify-between items-center text-xs font-medium text-muted-foreground">
                 <span>Precise & Factual</span>
@@ -339,25 +340,25 @@ export function AITab() {
                 Current: {Math.round((settings.thinking_style ?? 0.5) * 100)}%
               </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        {/* Language Model Section */}
-        <div className="p-5 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 rounded-lg border border-green-200 dark:border-green-800">
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <IconRobot className="w-5 h-5 text-green-600 dark:text-green-400" />
-              <h3 className="text-sm font-semibold">Language Model</h3>
+        <Card>
+          <CardHeader className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <IconRobot className="w-5 h-5" />
+              <CardTitle className="text-sm font-semibold">Language Model</CardTitle>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <IconAlertCircle className="w-4 h-4 text-muted-foreground cursor-help" />
                 </TooltipTrigger>
-                <TooltipContent>
+                <TooltipContent side="right">
                   <p className="text-xs max-w-xs">Choose which AI engine processes your requests. Auto switches based on complexity.</p>
                 </TooltipContent>
               </Tooltip>
             </div>
-
+          </CardHeader>
+          <CardContent>
             <Select value={settings.model || 'auto'} onValueChange={(v) => save({ model: v })}>
               <SelectTrigger className="w-full">
                 <SelectValue />
@@ -369,25 +370,26 @@ export function AITab() {
                 <SelectItem value="deepseek/deepseek-r1-distill">Reasoner (DeepSeek-R1)</SelectItem>
               </SelectContent>
             </Select>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
         {/* Output Format Section */}
-        <div className="p-5 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30 rounded-lg border border-indigo-200 dark:border-indigo-800">
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <IconFileText className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-              <h3 className="text-sm font-semibold">Output Format</h3>
+        <Card>
+          <CardHeader className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <IconFileText className="w-5 h-5" />
+              <CardTitle className="text-sm font-semibold">Output Format</CardTitle>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <IconAlertCircle className="w-4 h-4 text-muted-foreground cursor-help" />
                 </TooltipTrigger>
-                <TooltipContent>
+                <TooltipContent side="right">
                   <p className="text-xs max-w-xs">Control how the AI structures its responses to you.</p>
                 </TooltipContent>
               </Tooltip>
             </div>
-
+          </CardHeader>
+          <CardContent>
             <div className="space-y-3">
               {[
                 { value: 'concise', label: 'Concise Mode', desc: 'No fluff. Just the answer.' },
@@ -408,25 +410,26 @@ export function AITab() {
                 </button>
               ))}
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
         {/* About You Section */}
-        <div className="p-5 bg-gradient-to-br from-pink-50 to-rose-50 dark:from-pink-950/30 dark:to-rose-950/30 rounded-lg border border-pink-200 dark:border-pink-800">
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <IconUser className="w-5 h-5 text-pink-600 dark:text-pink-400" />
-              <h3 className="text-sm font-semibold">About You</h3>
+        <Card>
+          <CardHeader className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <IconUser className="w-5 h-5" />
+              <CardTitle className="text-sm font-semibold">About You</CardTitle>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <IconAlertCircle className="w-4 h-4 text-muted-foreground cursor-help" />
                 </TooltipTrigger>
-                <TooltipContent>
+                <TooltipContent side="right">
                   <p className="text-xs max-w-xs">Help the AI understand your context. This improves personalization without exposure.</p>
                 </TooltipContent>
               </Tooltip>
             </div>
-
+          </CardHeader>
+          <CardContent>
             <div className="space-y-3">
               <div>
                 <Label htmlFor="nickname" className="text-xs font-semibold mb-1.5 block">Nickname</Label>
@@ -456,39 +459,39 @@ export function AITab() {
 
               <div>
                 <Label htmlFor="more_about_you" className="text-xs font-semibold mb-1.5 block">More About You</Label>
-                <textarea
+                <Textarea
                   id="more_about_you"
                   placeholder="Interests, values, preferences the AI should know..."
                   value={settings.user_profile?.more_about_you || ''}
                   onChange={(e) => save({
                     user_profile: { ...settings.user_profile, more_about_you: e.target.value }
                   })}
-                  className="w-full p-2 text-sm border rounded-md bg-white dark:bg-dark resize-none"
                   rows={3}
                 />
               </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
         {/* Privacy & Safety Section */}
-        <div className="p-5 bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-950/30 dark:to-rose-950/30 rounded-lg border border-red-200 dark:border-red-800">
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <IconLock className="w-5 h-5 text-red-600 dark:text-red-400" />
-              <h3 className="text-sm font-semibold">Shield — Privacy & Safety</h3>
+        <Card>
+          <CardHeader className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <IconLock className="w-5 h-5" />
+              <CardTitle className="text-sm font-semibold">Shield — Privacy & Safety</CardTitle>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <IconAlertCircle className="w-4 h-4 text-muted-foreground cursor-help" />
                 </TooltipTrigger>
-                <TooltipContent>
+                <TooltipContent side="right">
                   <p className="text-xs max-w-xs">Control data sensitivity and privacy protections.</p>
                 </TooltipContent>
               </Tooltip>
             </div>
-
+          </CardHeader>
+          <CardContent>
             <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 rounded-md bg-red-100 dark:bg-red-950">
+              <div className="flex items-center justify-between p-3 rounded-md bg-muted/10">
                 <div>
                   <div className="text-sm font-semibold">Incognito Mode</div>
                   <div className="text-xs text-muted-foreground">Forget conversation immediately after session.</div>
@@ -515,7 +518,7 @@ export function AITab() {
                 </Select>
               </div>
 
-              <div className="flex items-center justify-between p-3 rounded-md bg-red-100 dark:bg-red-950">
+              <div className="flex items-center justify-between p-3 rounded-md bg-muted/10">
                 <div>
                   <div className="text-sm font-semibold">Web Search Privacy</div>
                   <div className="text-xs text-muted-foreground">Anonymize all search queries.</div>
@@ -526,25 +529,26 @@ export function AITab() {
                 />
               </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
         {/* Hands — Tools & Integrations Section */}
-        <div className="p-5 bg-gradient-to-br from-teal-50 to-cyan-50 dark:from-teal-950/30 dark:to-cyan-950/30 rounded-lg border border-teal-200 dark:border-teal-800">
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <IconClipboardList className="w-5 h-5 text-teal-600 dark:text-teal-400" />
-              <h3 className="text-sm font-semibold">Hands — Tools & Integrations</h3>
+        <Card>
+          <CardHeader className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <IconClipboardList className="w-5 h-5" />
+              <CardTitle className="text-sm font-semibold">Hands — Tools & Integrations</CardTitle>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <IconAlertCircle className="w-4 h-4 text-muted-foreground cursor-help" />
                 </TooltipTrigger>
-                <TooltipContent>
+                <TooltipContent side="right">
                   <p className="text-xs max-w-xs">Control which external tools and data the AI can access.</p>
                 </TooltipContent>
               </Tooltip>
             </div>
-
+          </CardHeader>
+          <CardContent>
             <div className="space-y-3">
               <div>
                 <Label className="text-xs font-semibold mb-2 block">Drive Access Scope</Label>
@@ -579,76 +583,76 @@ export function AITab() {
                 </Select>
               </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
         {/* Advanced Features Section */}
-        <div className="p-5 bg-gradient-to-br from-slate-50 to-gray-50 dark:from-slate-950/30 dark:to-gray-950/30 rounded-lg border border-slate-200 dark:border-slate-800">
-          <button
-            onClick={() => setShowAdvanced(!showAdvanced)}
-            className="w-full flex items-center justify-between group hover:opacity-75 transition"
-          >
-            <div className="flex items-center gap-2">
-              <IconSettings className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-              <h3 className="text-sm font-semibold">Advanced</h3>
+        <Card>
+          <CardHeader className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <IconSettings className="w-5 h-5" />
+              <CardTitle className="text-sm font-semibold">Advanced</CardTitle>
             </div>
-            <div className={`transform transition ${showAdvanced ? 'rotate-180' : ''}`}>
-              ↓
+            <div>
+              <Button variant="ghost" onClick={() => setShowAdvanced(!showAdvanced)} size="sm">
+                {showAdvanced ? 'Collapse' : 'Show'}
+              </Button>
             </div>
-          </button>
-
+          </CardHeader>
           {showAdvanced && (
-            <div className="mt-4 space-y-3 pt-4 border-t border-slate-200 dark:border-slate-800">
-              <div className="flex items-center justify-between p-3 rounded-md bg-slate-100 dark:bg-slate-900">
-                <div className="flex items-center gap-2">
-                  <IconNetwork className="w-4 h-4" />
-                  <div>
-                    <div className="text-sm font-semibold">Web Search</div>
-                    <div className="text-xs text-muted-foreground">Let AI search the web automatically.</div>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 rounded-md bg-muted/10">
+                  <div className="flex items-center gap-2">
+                    <IconNetwork className="w-4 h-4" />
+                    <div>
+                      <div className="text-sm font-semibold">Web Search</div>
+                      <div className="text-xs text-muted-foreground">Let AI search the web automatically.</div>
+                    </div>
                   </div>
+                  <Switch
+                    checked={!!settings.advanced_features?.web_search_enabled}
+                    onCheckedChange={(v: any) => save({
+                      advanced_features: { ...settings.advanced_features, web_search_enabled: !!v }
+                    })}
+                  />
                 </div>
-                <Switch
-                  checked={!!settings.advanced_features?.web_search_enabled}
-                  onCheckedChange={(v: any) => save({
-                    advanced_features: { ...settings.advanced_features, web_search_enabled: !!v }
-                  })}
-                />
-              </div>
 
-              <div className="flex items-center justify-between p-3 rounded-md bg-slate-100 dark:bg-slate-900">
-                <div className="flex items-center gap-2">
-                  <IconCode className="w-4 h-4" />
-                  <div>
-                    <div className="text-sm font-semibold">Code Interpreter</div>
-                    <div className="text-xs text-muted-foreground">Execute code to solve problems.</div>
+                <div className="flex items-center justify-between p-3 rounded-md bg-muted/10">
+                  <div className="flex items-center gap-2">
+                    <IconCode className="w-4 h-4" />
+                    <div>
+                      <div className="text-sm font-semibold">Code Interpreter</div>
+                      <div className="text-xs text-muted-foreground">Execute code to solve problems.</div>
+                    </div>
                   </div>
+                  <Switch
+                    checked={!!settings.advanced_features?.code_interpreter_enabled}
+                    onCheckedChange={(v: any) => save({
+                      advanced_features: { ...settings.advanced_features, code_interpreter_enabled: !!v }
+                    })}
+                  />
                 </div>
-                <Switch
-                  checked={!!settings.advanced_features?.code_interpreter_enabled}
-                  onCheckedChange={(v: any) => save({
-                    advanced_features: { ...settings.advanced_features, code_interpreter_enabled: !!v }
-                  })}
-                />
-              </div>
 
-              <div className="flex items-center justify-between p-3 rounded-md bg-slate-100 dark:bg-slate-900">
-                <div className="flex items-center gap-2">
-                  <IconFileText className="w-4 h-4" />
-                  <div>
-                    <div className="text-sm font-semibold">Canvas</div>
-                    <div className="text-xs text-muted-foreground">Collaborate on text and code in real-time.</div>
+                <div className="flex items-center justify-between p-3 rounded-md bg-muted/10">
+                  <div className="flex items-center gap-2">
+                    <IconFileText className="w-4 h-4" />
+                    <div>
+                      <div className="text-sm font-semibold">Canvas</div>
+                      <div className="text-xs text-muted-foreground">Collaborate on text and code in real-time.</div>
+                    </div>
                   </div>
+                  <Switch
+                    checked={!!settings.advanced_features?.canvas_enabled}
+                    onCheckedChange={(v: any) => save({
+                      advanced_features: { ...settings.advanced_features, canvas_enabled: !!v }
+                    })}
+                  />
                 </div>
-                <Switch
-                  checked={!!settings.advanced_features?.canvas_enabled}
-                  onCheckedChange={(v: any) => save({
-                    advanced_features: { ...settings.advanced_features, canvas_enabled: !!v }
-                  })}
-                />
               </div>
-            </div>
+            </CardContent>
           )}
-        </div>
+        </Card>
       </TooltipProvider>
     </div>
   )

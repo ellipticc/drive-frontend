@@ -223,19 +223,19 @@ export function SettingsModal({
       // Navigate to the correct tab
       if (pathPart.includes('/')) {
         const tabFromHash = pathPart.replace('#settings/', '').split('?')[0].toLowerCase()
-        // Find the matching tab ID
-        const matchingTab = data.nav.find(tab =>
+        // Find the matching tab ID from current nav items (handles dynamically added tabs like AI)
+        const matchingTab = navItems.find(tab =>
           tab.name.toLowerCase() === tabFromHash || tab.id === tabFromHash
         )
         if (matchingTab) {
           setActiveTab(matchingTab.id)
         } else {
-          // If no matching tab found, default to first tab
-          setActiveTab(data.nav[0].id)
+          // If no matching tab found, default to first nav item
+          setActiveTab(navItems[0].id)
         }
       } else {
-        // No tab specified, default to first tab
-        setActiveTab(data.nav[0].id)
+        // No tab specified, default to first nav item
+        setActiveTab(navItems[0].id)
       }
     } else if (hash === '') {
       // Close modal when hash is cleared
