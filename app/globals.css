@@ -2,6 +2,8 @@
 @import "tw-animate-css";
 @plugin "tailwindcss-react-aria-components";
 
+@source "../node_modules/streamdown/dist/*.js";
+
 @plugin 'tailwind-scrollbar-hide';
 @import "katex/dist/katex.min.css";
 
