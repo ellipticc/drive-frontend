@@ -3,8 +3,9 @@
 import * as React from "react"
 import { useUser } from "@/components/user-context"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { IconPaperclip, IconSparkles, IconWorld } from "@tabler/icons-react"
+import { IconPaperclip, IconSparkles, IconWorld, IconX } from "@tabler/icons-react"
 import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
 import apiClient from "@/lib/api"
 // Import AI Elements
 import {
@@ -20,7 +21,6 @@ import {
     usePromptInputAttachments
 } from "@/components/ai-elements/prompt-input"
 import { SiteHeader } from "@/components/layout/header/site-header"
-import { Streamdown } from "streamdown"
 import { cjk } from "@streamdown/cjk"
 import { code } from "@streamdown/code"
 import { math } from "@streamdown/math"
@@ -30,7 +30,6 @@ import { parseFile } from "@/lib/file-parser";
 import { useRouter, useSearchParams } from "next/navigation"
 import { Attachment, AttachmentPreview, AttachmentRemove, Attachments } from "@/components/ai-elements/attachments"
 import { Suggestions, Suggestion } from "@/components/ai-elements/suggestion"
-import { Reasoning, ReasoningTrigger, ReasoningContent } from "@/components/ai-elements/reasoning"
 import { ChatMessage } from "@/components/ai-elements/chat-message"
 import { toast } from "sonner"
 
@@ -42,6 +41,7 @@ interface Message {
     content: string;
     isThinking?: boolean;
     feedback?: 'like' | 'dislike';
+    originalPromptId?: string;
 }
 
 const PromptInputUploadButton = () => {
@@ -61,8 +61,10 @@ export default function AssistantPage() {
 
     const [messages, setMessages] = React.useState<Message[]>([])
     const [isLoading, setIsLoading] = React.useState(false)
+    const [isCancelling, setIsCancelling] = React.useState(false)
+    const abortControllerRef = React.useRef<AbortController | null>(null)
     const scrollAreaRef = React.useRef<HTMLDivElement>(null)
-    const [model, setModel] = React.useState("llama-3.1-8b-instant") // Could become a setting
+    const [model, setModel] = React.useState("llama-3.1-8b-instant")
     const [isWebSearchEnabled, setIsWebSearchEnabled] = React.useState(false);
 
     const { isReady, kyberPublicKey, decryptHistory, decryptStreamChunk, encryptMessage, loadChats } = useAICrypto();
@@ -109,9 +111,10 @@ export default function AssistantPage() {
         }
     }
 
+    // Only auto-scroll when a NEW message is added (not during streaming updates)
     React.useEffect(() => {
         scrollToBottom()
-    }, [messages, isLoading])
+    }, [messages.length])
 
     const handleSubmit = async (value: string, attachments: File[] = []) => {
         if ((!value.trim() && attachments.length === 0) || isLoading || !isReady || !kyberPublicKey) return;
@@ -304,16 +307,18 @@ export default function AssistantPage() {
     };
 
     const handleRetry = (messageId: string) => {
-        // Find the user message corresponding to this assistant message
-        const messageIndex = messages.findIndex(m => m.id === messageId);
-        if (messageIndex === -1) return;
+        // Find the user message
+        const message = messages.find(m => m.id === messageId);
+        if (!message || message.role !== 'user') return;
 
-        // Find the last user message before this assistant message
-        for (let i = messageIndex - 1; i >= 0; i--) {
-            if (messages[i].role === 'user') {
-                handleSubmit(messages[i].content, []);
-                break;
-            }
+        // Remove this message and all messages after it
+        const messageIndex = messages.findIndex(m => m.id === messageId);
+        if (messageIndex !== -1) {
+            // Use setTimeout to ensure state updates before submit
+            setTimeout(() => {
+                setMessages(prev => prev.slice(0, messageIndex + 1));
+                handleSubmit(message.content, []);
+            }, 0);
         }
     };
 
@@ -359,6 +364,15 @@ export default function AssistantPage() {
         navigator.clipboard.writeText(content);
     };
 
+    const handleCancel = () => {
+        if (abortControllerRef.current) {
+            setIsCancelling(true);
+            abortControllerRef.current.abort();
+            setIsLoading(false);
+            setIsCancelling(false);
+        }
+    };
+
     const handleFeedback = async (messageId: string, feedback: 'like' | 'dislike') => {
         try {
             // Check if message already has feedback
@@ -368,8 +382,11 @@ export default function AssistantPage() {
                 return;
             }
             
-            await apiClient.submitAIFeedback(messageId, feedback);
+            // Update UI immediately without scrolling (by updating state first)
             setMessages(prev => prev.map(m => m.id === messageId ? { ...m, feedback } : m));
+            
+            // Then submit to API
+            await apiClient.submitAIFeedback(messageId, feedback);
             toast.success("Thanks for your feedback!");
         } catch (error) {
             console.error("Feedback error:", error);
@@ -499,7 +516,7 @@ export default function AssistantPage() {
                                                     className="min-h-[52px] max-h-[200px] px-6 py-4 text-base resize-none field-sizing-content bg-transparent border-0 shadow-none focus-visible:ring-0"
                                                 />
                                             </PromptInputBody>
-                                            <PromptInputFooter className="px-4 pb-4 pt-2">
+                                            <PromptInputFooter className="px-4 pb-4 pt-2 flex items-center justify-between">
                                                 <PromptInputTools>
                                                     <PromptInputUploadButton />
 
@@ -512,8 +529,19 @@ export default function AssistantPage() {
                                                     </PromptInputButton>
                                                 </PromptInputTools>
 
-
-                                                <PromptInputSubmit className={cn("transition-opacity", isLoading ? "opacity-50" : "opacity-100")} />
+                                                {isLoading ? (
+                                                    <Button 
+                                                        size="sm"
+                                                        variant="destructive"
+                                                        onClick={handleCancel}
+                                                        className="gap-2"
+                                                    >
+                                                        <IconX className="size-3.5" />
+                                                        Cancel
+                                                    </Button>
+                                                ) : (
+                                                    <PromptInputSubmit />
+                                                )}
                                             </PromptInputFooter>
                                         </PromptInput>
                                     </PromptInputProvider>
