@@ -106,9 +106,17 @@ export default function AssistantPage() {
                 }
             }
 
+            // Prepare history for context (Sanitize UI flags)
+            const historyPayload = messages
+                .filter(m => !m.isThinking && m.content) // Remove thinking placeholders or empty msgs
+                .map(m => ({ role: m.role, content: m.content }));
+
+            // Add current user message
+            const fullPayload = [...historyPayload, { role: 'user' as const, content: value }];
+
             // We SEND user message as plaintext (for inference) + Encrypted Blob (for storage)
             const response = await apiClient.chatAI(
-                [{ role: 'user', content: value }],
+                fullPayload,
                 conversationId || lastCreatedConversationId.current || "", // Use new ID if we just created one
                 model,
                 kyberPublicKey,
