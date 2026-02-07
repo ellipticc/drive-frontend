@@ -53,21 +53,19 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                 isUser ? "items-end" : "items-start"
             )}>
                 {isUser ? (
-                    <div className="relative">
-                        <div className="bg-primary text-primary-foreground px-5 py-3.5 rounded-2xl rounded-tr-sm text-sm leading-relaxed shadow-sm selection:bg-white/20">
+                    <>
+                        <div className="bg-primary text-primary-foreground px-5 py-3.5 rounded-2xl rounded-tr-sm text-sm leading-relaxed shadow-sm">
                             <Streamdown plugins={streamdownPlugins as any} className="break-words whitespace-pre-wrap">
                                 {message.content}
                             </Streamdown>
                         </div>
-                        {/* User Actions (Hover) */}
-                        <div className="absolute top-0 -left-full h-full flex items-center justify-end pr-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <div className="flex items-center gap-1 bg-background/50 backdrop-blur-sm p-1 rounded-lg border shadow-sm">
-                                <ActionButton icon={IconRefresh} label="Retry" onClick={onRetry} />
-                                <ActionButton icon={IconEdit} label="Edit" onClick={() => onEdit?.(message.content)} />
-                                <ActionButton icon={copied ? IconCheck : IconCopy} label="Copy" onClick={handleCopy} />
-                            </div>
+                        {/* User Actions (Hover - Bottom Right) */}
+                        <div className="flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity justify-end">
+                            <ActionButton icon={IconRefresh} label="Retry" onClick={onRetry} />
+                            <ActionButton icon={IconEdit} label="Edit" onClick={() => onEdit?.(message.content)} />
+                            <ActionButton icon={copied ? IconCheck : IconCopy} label="Copy" onClick={handleCopy} />
                         </div>
-                    </div>
+                    </>
                 ) : (
                     <div className="w-full space-y-2">
                         {/* Thinking State / Reasoning */}
@@ -87,9 +85,9 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                             </Streamdown>
                         </div>
 
-                        {/* AI Actions (Bottom) */}
+                        {/* AI Actions (Bottom - Always Visible) */}
                         {!message.isThinking && (
-                            <div className="flex items-center gap-2 pt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="flex items-center gap-2 pt-2">
                                 <TooltipProvider>
                                     <ActionButton
                                         icon={IconThumbUp}

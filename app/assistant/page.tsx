@@ -47,6 +47,16 @@ interface Message {
     feedback?: 'like' | 'dislike';
 }
 
+const PromptInputUploadButton = () => {
+    const { openFileDialog } = usePromptInputAttachments();
+    return (
+        <PromptInputButton onClick={openFileDialog} className="gap-2">
+            <IconPaperclip className="size-4" />
+            <span className="text-xs font-medium">Upload</span>
+        </PromptInputButton>
+    )
+}
+
 export default function AssistantPage() {
     const { user } = useUser()
     const router = useRouter()
@@ -251,6 +261,8 @@ export default function AssistantPage() {
                                     if (lastMessage && lastMessage.role === 'assistant') {
                                         lastMessage.content = assistantMessageContent
                                         lastMessage.isThinking = false
+                                        // Update ID if available (for feedback)
+                                        if (data.id) lastMessage.id = data.id;
                                     }
                                     return newMessages
                                 })
@@ -358,19 +370,10 @@ export default function AssistantPage() {
                                         </PromptInputBody>
                                         <PromptInputFooter className="px-3 pb-3 pt-0">
                                             <PromptInputTools>
-                                                <PromptInputActionMenu>
-                                                    <PromptInputActionMenuTrigger className="gap-2">
-                                                        <IconPaperclip className="size-4" />
-                                                        <span className="text-xs font-medium">Upload</span>
-                                                    </PromptInputActionMenuTrigger>
-                                                    <PromptInputActionMenuContent>
-                                                        <PromptInputActionAddAttachments />
-                                                    </PromptInputActionMenuContent>
-                                                </PromptInputActionMenu>
+                                                <PromptInputUploadButton />
 
                                                 <PromptInputButton
                                                     onClick={() => setIsWebSearchEnabled(!isWebSearchEnabled)}
-                                                    tooltip={{ content: "Search Internet", shortcut: "⌘K" }}
                                                     className={cn("gap-2", isWebSearchEnabled ? "bg-primary/20 text-primary hover:bg-primary/30" : "text-muted-foreground")}
                                                 >
                                                     <IconWorld className="size-4" />
@@ -441,19 +444,10 @@ export default function AssistantPage() {
                                             </PromptInputBody>
                                             <PromptInputFooter className="px-3 pb-3 pt-0">
                                                 <PromptInputTools>
-                                                    <PromptInputActionMenu>
-                                                        <PromptInputActionMenuTrigger className="gap-2">
-                                                            <IconPaperclip className="size-4" />
-                                                            <span className="text-xs font-medium">Upload</span>
-                                                        </PromptInputActionMenuTrigger>
-                                                        <PromptInputActionMenuContent>
-                                                            <PromptInputActionAddAttachments />
-                                                        </PromptInputActionMenuContent>
-                                                    </PromptInputActionMenu>
+                                                    <PromptInputUploadButton />
 
                                                     <PromptInputButton
                                                         onClick={() => setIsWebSearchEnabled(!isWebSearchEnabled)}
-                                                        tooltip={{ content: "Search Internet", shortcut: "⌘K" }}
                                                         className={cn("gap-2", isWebSearchEnabled ? "bg-primary/20 text-primary hover:bg-primary/30" : "text-muted-foreground")}
                                                     >
                                                         <IconWorld className="size-4" />
