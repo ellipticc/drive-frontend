@@ -46,6 +46,32 @@ export const StreamdownWithShiki = React.forwardRef<
     });
   }, []);
 
+  // Clean code by removing common language specifiers from first line
+  const cleanCode = (code: string): { code: string; language: string } => {
+    const lines = code.split('\n');
+    const firstLine = lines[0].trim();
+    
+    // Common language markers that might appear as first line
+    const langPatterns = [
+      { pattern: /^\/\/\s*/, lang: 'javascript' },  // // javascript
+      { pattern: /^#\s*/, lang: 'bash' },           // # bash/shell
+      { pattern: /^<!/, lang: 'html' },             // <! (HTML)
+      { pattern: /^<\?/, lang: 'php' },             // <? (PHP)
+    ];
+    
+    for (const { pattern, lang: detectedLang } of langPatterns) {
+      if (pattern.test(firstLine) && lines.length > 1) {
+        // This looks like a language marker, remove it
+        return {
+          code: lines.slice(1).join('\n'),
+          language: detectedLang
+        };
+      }
+    }
+    
+    return { code, language: 'plain' };
+  };
+
   // Process and highlight code blocks
   const highlightCodeBlocks = React.useCallback(async () => {
     if (!containerRef.current) return;
@@ -67,14 +93,22 @@ export const StreamdownWithShiki = React.forwardRef<
       let language = 'plain'; // Declare outside try/catch for error handling
 
       try {
-        const code = codeBlock.textContent || '';
+        let code = codeBlock.textContent || '';
         if (!code.trim()) continue;
 
-        // Extract language from class or pre element
+        // Extract language from class or pre element, or clean from code
         const langMatch =
           codeBlock.className?.match(/language-(\w+)/) ||
           preElement.className?.match(/language-(\w+)/);
-        language = langMatch?.[1] || 'plain';
+        
+        if (!langMatch) {
+          // No language class found, check if code has language marker
+          const cleaned = cleanCode(code);
+          code = cleaned.code;
+          language = cleaned.language;
+        } else {
+          language = langMatch[1];
+        }
 
         // Highlight asynchronously
         const highlightedHtml = await highlightCode(code, language, isDark);

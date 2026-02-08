@@ -177,12 +177,22 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
         const messageToSend = message;
         const currentFiles = files.map(f => f.file);
 
+        // Clear input immediately, before sending
+        setMessage("");
+        setFiles([]);
+        if (textareaRef.current) textareaRef.current.style.height = 'auto';
+
         try {
             await onSubmit(messageToSend, currentFiles);
-            setMessage("");
-            setFiles([]);
-            if (textareaRef.current) textareaRef.current.style.height = 'auto';
         } catch (error) {
+            // On error, restore the message so user can retry
+            setMessage(messageToSend);
+            setFiles(currentFiles.map((file, index) => ({
+                id: `error-${index}`,
+                file,
+                type: file.type,
+                preview: null
+            })));
             console.error("Failed to send message:", error);
         }
     };
