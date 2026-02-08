@@ -200,6 +200,7 @@ export default function AssistantPage() {
             const decoder = new TextDecoder()
             let assistantMessageContent = ""
             let currentSessionKey: Uint8Array | undefined;
+            let buffer = ""; // Buffer for incomplete SSE events
 
             // Buffer for smoother updates
             let lastUpdateTime = 0;
@@ -210,61 +211,69 @@ export default function AssistantPage() {
                 if (done) break
 
                 const chunk = decoder.decode(value, { stream: true })
-                const lines = chunk.split('\n\n');
+                buffer += chunk;
 
-                for (const line of lines) {
-                    if (line.startsWith('data: ')) {
-                        const dataStr = line.replace('data: ', '').trim();
-                        if (dataStr === '[DONE]') break;
+                // Split by event separator and keep incomplete event
+                const events = buffer.split('\n\n');
+                buffer = events.pop() || "";
 
-                        try {
-                            const data = JSON.parse(dataStr);
-                            console.log("[DEBUG] Stream Chunk:", data);
+                for (const event of events) {
+                    if (!event.trim()) continue;
 
-                            // Handle Encrypted Stream
-                            let contentToAppend = "";
+                    const lines = event.split('\n');
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const dataStr = line.replace('data: ', '').trim();
+                            if (dataStr === '[DONE]') break;
 
-                            if (data.encrypted_content && data.iv) {
-                                // Decrypt on the fly
-                                const { decrypted, sessionKey } = await decryptStreamChunk(
-                                    data.encrypted_content,
-                                    data.iv,
-                                    data.encapsulated_key,
-                                    currentSessionKey
-                                );
-                                contentToAppend = decrypted;
-                                currentSessionKey = sessionKey;
-                            } else if (data.content) {
-                                // Fallback for Plaintext
-                                contentToAppend = data.content;
-                            } else {
-                                console.warn("[DEBUG] Chunk missing content:", data);
-                            }
+                            try {
+                                const data = JSON.parse(dataStr);
 
-                            if (contentToAppend) {
-                                assistantMessageContent += contentToAppend;
-                                console.log("[DEBUG] Appending:", contentToAppend.substring(0, 20) + "...");
+                                // Handle Encrypted Stream
+                                let contentToAppend = "";
 
-                                // Throttle state updates for smoother rendering
-                                const now = Date.now();
-                                if (now - lastUpdateTime > UPDATE_INTERVAL) {
-                                    setMessages(prev => {
-                                        const newMessages = [...prev]
-                                        const lastMessage = newMessages[newMessages.length - 1]
-                                        if (lastMessage && lastMessage.role === 'assistant') {
-                                            lastMessage.content = assistantMessageContent
-                                            lastMessage.isThinking = false
-                                            if (data.id) lastMessage.id = data.id;
-                                        } else {
-                                            console.warn("[DEBUG] Last message not assistant or missing", lastMessage);
-                                        }
-                                        return newMessages
-                                    });
-                                    lastUpdateTime = now;
+                                if (data.encrypted_content && data.iv) {
+                                    // Decrypt on the fly
+                                    const { decrypted, sessionKey } = await decryptStreamChunk(
+                                        data.encrypted_content,
+                                        data.iv,
+                                        data.encapsulated_key,
+                                        currentSessionKey
+                                    );
+                                    contentToAppend = decrypted;
+                                    currentSessionKey = sessionKey;
+                                } else if (data.content) {
+                                    // Fallback for Plaintext
+                                    contentToAppend = data.content;
+                                } else {
+                                    console.warn("[DEBUG] Chunk missing content:", data);
                                 }
+
+                                if (contentToAppend) {
+                                    assistantMessageContent += contentToAppend;
+                                    console.log("[DEBUG] Appending:", contentToAppend.substring(0, 20) + "...");
+
+                                    // Throttle state updates for smoother rendering
+                                    const now = Date.now();
+                                    if (now - lastUpdateTime > UPDATE_INTERVAL) {
+                                        setMessages(prev => {
+                                            const newMessages = [...prev]
+                                            const lastMessage = newMessages[newMessages.length - 1]
+                                            if (lastMessage && lastMessage.role === 'assistant') {
+                                                lastMessage.content = assistantMessageContent
+                                                lastMessage.isThinking = false
+                                                if (data.id) lastMessage.id = data.id;
+                                            } else {
+                                                console.warn("[DEBUG] Last message not assistant or missing", lastMessage);
+                                            }
+                                            return newMessages
+                                        });
+                                        lastUpdateTime = now;
+                                    }
+                                }
+                            } catch (e) {
+                                console.warn('Failed to parse SSE line', line, e);
                             }
-                        } catch (e) {
-                            console.warn('Failed to parse SSE line', line, e);
                         }
                     }
                 }
