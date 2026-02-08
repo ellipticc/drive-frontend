@@ -23,6 +23,7 @@ import {
 } from "@tabler/icons-react"
 
 import { NavMain } from "@/components/layout/navigation/nav-main"
+import { NavAI } from "@/components/layout/navigation/nav-ai"
 import { NavSecondary } from "@/components/layout/navigation/nav-secondary"
 import { NavUser } from "@/components/layout/navigation/nav-user"
 import { NavSpaces } from "@/components/layout/navigation/nav-spaces"
@@ -39,8 +40,10 @@ import {
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Switch } from "@/components/ui/switch"
 import { useGlobalUpload } from "@/components/global-upload-context"
 import { useUser } from "@/components/user-context"
+import { useAIMode } from "@/components/ai-mode-context"
 import { getDiceBearAvatar } from "@/lib/avatar"
 import { useLanguage } from "@/lib/i18n/language-context"
 import { apiClient } from "@/lib/api"
@@ -60,6 +63,7 @@ export const AppSidebar = React.memo(function AppSidebar({
   const { t } = useLanguage()
   const { handleFileUpload, handleFolderUpload } = useGlobalUpload()
   const { user: contextUser, loading: userLoading } = useUser()
+  const { isAIMode, setIsAIMode, isHydrated } = useAIMode()
   const [pendingCount, setPendingCount] = React.useState(0) // State for pending shared items count moved up
 
   const data = {
@@ -312,15 +316,39 @@ export const AppSidebar = React.memo(function AppSidebar({
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
+        {isHydrated && (
+          <div className="flex items-center justify-between px-2 py-2 rounded-md bg-muted/50 border border-border/50">
+            <div className="flex items-center gap-2 flex-1">
+              <IconBrain className="size-4 shrink-0 text-muted-foreground" />
+              <span className="text-xs font-medium text-foreground flex-1">AI Mode</span>
+            </div>
+            <Switch
+              checked={isAIMode}
+              onCheckedChange={setIsAIMode}
+              aria-label="Toggle AI Mode"
+              className="data-[state=checked]:bg-primary"
+            />
+          </div>
+        )}
+        {!isHydrated && <div className="h-8" />}
         <NavNew onFileUpload={handleFileUpload} onFolderUpload={handleFolderUpload} />
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
-        <NavSpaces />
-        <NavSecondary items={data.navSecondary} className="mt-auto" />
+        {isAIMode ? (
+          <>
+            <NavAI />
+            <NavSecondary items={data.navSecondary} className="mt-auto" />
+          </>
+        ) : (
+          <>
+            <NavMain items={data.navMain} />
+            <NavSpaces />
+            <NavSecondary items={data.navSecondary} className="mt-auto" />
+          </>
+        )}
       </SidebarContent>
       <SidebarFooter>
-        {state !== "collapsed" && (
+        {!isAIMode && state !== "collapsed" && (
           <div className="px-3 py-3 mx-2 mb-2 text-xs text-muted-foreground w-auto space-y-3 bg-muted/30 rounded-lg border border-border/30">
             <div className="flex items-center gap-2 mb-2">
               <IconDatabase className="!size-4 text-muted-foreground transition-colors duration-200" stroke={1.8} />

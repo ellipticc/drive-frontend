@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useEffect, useRef } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { AppSidebar } from "@/components/layout/sidebar/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { useUser } from "@/components/user-context";
+import { useAIMode } from "@/components/ai-mode-context";
 import { DeviceLimitOverlay } from "@/components/modals/device-limit-overlay";
 import { useLanguage } from "@/lib/i18n/language-context";
 import { toast } from 'sonner';
@@ -15,7 +16,9 @@ interface ConditionalLayoutProps {
 
 export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const { deviceLimitReached } = useUser();
+  const { isAIMode, isHydrated } = useAIMode();
   const { dir } = useLanguage();
 
   // Normalize pathname to remove trailing slash for comparison
@@ -56,6 +59,21 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
 
   // Listen for frontend version check events and prompt/reload as needed
   const versionNotifiedRef = useRef<string | null>(null);
+
+  // AI Mode routing: redirect home to assistant when AI mode is on
+  useEffect(() => {
+    if (!isHydrated) return;
+
+    // If AI Mode is ON and user is on home, redirect to assistant
+    if (isAIMode && pathname === '/') {
+      router.push('/assistant');
+    }
+
+    // If AI Mode is OFF and user is on assistant, redirect to home
+    if (!isAIMode && pathname === '/assistant') {
+      router.push('/');
+    }
+  }, [isAIMode, pathname, router, isHydrated]);
 
   useEffect(() => {
     const handler = (ev: any) => {
