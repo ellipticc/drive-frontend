@@ -121,6 +121,8 @@ export const AppSidebar = React.memo(function AppSidebar({
         id: "shared-with-me",
         badge: pendingCount > 0 ? pendingCount : undefined, // Display badge if count > 0
       },
+      // Attestations tab hidden for now
+      /*
       {
         title: "Attestations",
         url: "/attestations",
@@ -149,6 +151,7 @@ export const AppSidebar = React.memo(function AppSidebar({
           },
         ]
       },
+      */
       {
         title: t("sidebar.trash"),
         url: "/trash",
