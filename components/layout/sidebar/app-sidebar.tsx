@@ -40,10 +40,12 @@ import {
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Switch } from "@/components/ui/switch"
 import { useGlobalUpload } from "@/components/global-upload-context"
 import { useUser } from "@/components/user-context"
 import { useAIMode } from "@/components/ai-mode-context"
 import { getDiceBearAvatar } from "@/lib/avatar"
+import { usePathname } from "next/navigation"
 import { useLanguage } from "@/lib/i18n/language-context"
 import { apiClient } from "@/lib/api"
 
@@ -62,7 +64,7 @@ export const AppSidebar = React.memo(function AppSidebar({
   const { t } = useLanguage()
   const { handleFileUpload, handleFolderUpload } = useGlobalUpload()
   const { user: contextUser, loading: userLoading } = useUser()
-  const { isAIMode } = useAIMode()
+  const { isAIMode, setIsAIMode, isHydrated } = useAIMode()
   const [pendingCount, setPendingCount] = React.useState(0)
 
   const data = {
@@ -310,7 +312,27 @@ export const AppSidebar = React.memo(function AppSidebar({
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
-        {!isAIMode && <NavNew onFileUpload={handleFileUpload} onFolderUpload={handleFolderUpload} />}
+        {/* Show AI Native switch only on Assistant routes */}
+        {typeof window !== 'undefined' && (function() {
+          const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+          const onAssistant = pathname.startsWith('/assistant');
+          return onAssistant ? (
+            <div className="flex items-center justify-between px-2 py-2 rounded-md bg-muted/50 border border-border/50">
+              <div className="flex items-center gap-2 flex-1">
+                <IconBrain className="size-4 shrink-0 text-muted-foreground" />
+                <span className="text-xs font-medium text-foreground flex-1">AI Native</span>
+              </div>
+              <Switch
+                checked={isAIMode}
+                onCheckedChange={(v) => setIsAIMode(Boolean(v))}
+                aria-label="Toggle AI Native Mode"
+                className="data-[state=checked]:bg-primary"
+              />
+            </div>
+          ) : (
+            <NavNew onFileUpload={handleFileUpload} onFolderUpload={handleFolderUpload} />
+          )
+        })()}
       </SidebarHeader>
       <SidebarContent>
         {isAIMode ? (

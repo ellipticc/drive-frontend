@@ -5,6 +5,11 @@ import { useRouter } from "next/navigation"
 import {
   IconEdit,
   IconSearch,
+  IconDotsVertical,
+  IconPin,
+  IconTrash,
+  IconArchive,
+  IconRefresh,
 } from "@tabler/icons-react"
 import {
   SidebarGroup,
@@ -12,6 +17,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
   useSidebar,
 } from "@/components/ui/sidebar"
 import { Input } from "@/components/ui/input"
@@ -31,6 +39,8 @@ import { cn } from "@/lib/utils"
 import apiClient from "@/lib/api"
 import { useAICrypto } from "@/hooks/use-ai-crypto"
 import { toast } from "sonner"
+import { searchChatsLocal, indexChats, getIndexStatus, clearSearchIndex } from "@/lib/indexeddb"
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
 
 interface SearchResult {
   chatId: string
@@ -49,14 +59,20 @@ interface GroupedResults {
 export function NavAI() {
   const router = useRouter()
   const { state } = useSidebar()
+
+  // Separate states for sidebar search vs command dialog search
+  const [sidebarQuery, setSidebarQuery] = useState("")
+  const [commandQuery, setCommandQuery] = useState("")
+
   const [searchOpen, setSearchOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([])
+  const [commandResults, setCommandResults] = useState<SearchResult[]>([])
   const [isSearching, setIsSearching] = useState(false)
-  const [allChatsData, setAllChatsData] = useState<any[]>([])
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  
-  const { isReady, userKeys } = useAICrypto()
+  const [indexReady, setIndexReady] = useState(false) // Track if IndexedDB index is initialized
+
+  const [displayChats, setDisplayChats] = useState<any[]>([])
+
+  const loadTimeoutRef = useRef<number | null>(null)
+  const { isReady, userKeys, loadChats, renameChat, pinChat, archiveChat, deleteChat } = useAICrypto()
 
   // Decrypt a single message
   const decryptMessage = useCallback(async (encryptedContent: string, iv: string, encapsulatedKey?: string): Promise<string> => {
@@ -78,124 +94,91 @@ export function NavAI() {
     }
   }, [userKeys])
 
-  // Load all chats with their messages on component mount
+  // Load encrypted chats, decrypt all message content, and build IndexedDB full-text search index
   const loadSearchData = useCallback(async () => {
     if (!isReady || !userKeys) return
-    
     try {
-      const response = await apiClient.searchChats(100)
+      setIndexReady(false) // Start index building
+      const response = await apiClient.searchChats(200)
       const responseData = response as any
-      setAllChatsData(responseData.chats || responseData.data?.chats || [])
+      const chats = responseData.chats || responseData.data?.chats || []
+
+      // Decrypt titles and ALL messages to build full-text search index
+      const indexedChats: any[] = []
+      const displayPromises = chats.map(async (chat: any) => {
+        let title = 'New Chat'
+        try {
+          if (chat.encrypted_title && chat.iv && chat.encapsulated_key) {
+            title = await decryptMessage(chat.encrypted_title, chat.iv, chat.encapsulated_key)
+            title = title.replace(/^\s*["'`]+|["'`]+\s*$/g, '')
+                         .replace(/^Title:\s*/i, '')
+                         .replace(/^Conversation\s*Start\s*[:\-\s]*/i, '')
+                         .replace(/\s*[:\-\|]\s*0+$/g, '')
+                         .trim()
+            if (!/[A-Za-z0-9]/.test(title) || title.length === 0) title = 'New Chat'
+          }
+        } catch (e) {
+          title = 'New Chat'
+        }
+
+        // FULL message decryption for search index (not limited to last 3)
+        const msgs = Array.isArray(chat.messages) 
+          ? chat.messages.slice().sort((a:any,b:any)=> new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+          : []
+        const decryptedMsgs: any[] = []
+        
+        for (const m of msgs) {
+          try {
+            const content = await decryptMessage(m.content, m.iv, m.encapsulated_key)
+            decryptedMsgs.push({ 
+              id: m.id, 
+              role: m.role, 
+              content, 
+              created_at: m.created_at 
+            })
+          } catch (e) {
+            // ignore individual message decrypt failures
+          }
+        }
+
+        // For display in sidebar: show only last 3 messages
+        const lastThreeMsgs = decryptedMsgs.slice(-3)
+
+        // For index: store all messages (full-text search)
+        indexedChats.push({
+          id: chat.id,
+          title,
+          createdAt: chat.created_at,
+          pinned: !!chat.pinned,
+          messages: decryptedMsgs,
+        })
+
+        return {
+          id: chat.id,
+          title,
+          created_at: chat.created_at,
+          pinned: !!chat.pinned,
+          messages: lastThreeMsgs,
+        }
+      })
+
+      const resolved = await Promise.all(displayPromises)
+      setDisplayChats(resolved)
+
+      // Persist all decrypted data to IndexedDB for zero-network full-text search
+      if (indexedChats.length > 0) {
+        await indexChats(indexedChats)
+      }
+      
+      setIndexReady(true)
     } catch (error) {
       console.error("Failed to load chats for search:", error)
+      setIndexReady(true) // Mark as ready even on error to prevent blocking UI
     }
-  }, [isReady, userKeys])
+  }, [isReady, userKeys, decryptMessage])
 
-  // Perform search with decryption
-  const performSearch = useCallback(async (query: string) => {
-    if (!query.trim() || !userKeys) {
-      setSearchResults([])
-      return
-    }
+  // (Deprecated) Old search functions replaced by command-query effect and sidebar local filtering
 
-    setIsSearching(true)
-    const lowerQuery = query.toLowerCase()
-    const results: SearchResult[] = []
-
-    try {
-      for (const chat of allChatsData) {
-        // Decrypt and search chat title
-        let chatTitle = "New Chat"
-        if (chat.encrypted_title && chat.iv && chat.encapsulated_key) {
-          chatTitle = await decryptMessage(chat.encrypted_title, chat.iv, chat.encapsulated_key)
-          chatTitle = chatTitle
-            .replace(/^\s*["'`]+|["'`]+\s*$/g, '')
-            .replace(/^Title:\s*/i, '')
-            .replace(/^Conversation\s*Start\s*[:\-\s]*/i, '')
-            .replace(/\s*[:\-\|]\s*0+$/g, '')
-            .trim()
-
-          if (!/[A-Za-z0-9]/.test(chatTitle) || chatTitle.length === 0) {
-            chatTitle = "New Chat"
-          }
-        }
-
-        // Search in title
-        if (chatTitle.toLowerCase().includes(lowerQuery)) {
-          const matchIndex = chatTitle.toLowerCase().indexOf(lowerQuery)
-          results.push({
-            chatId: chat.id,
-            chatTitle,
-            chatCreatedAt: chat.created_at,
-            messageSnippet: `Chat: "${chatTitle}"`,
-            matchedWord: query,
-            role: "user",
-            isTitle: true,
-          })
-        }
-
-        // Search in messages
-        if (chat.messages && Array.isArray(chat.messages)) {
-          for (const message of chat.messages) {
-            if (!message.content || !message.iv) continue
-
-            try {
-              const decryptedContent = await decryptMessage(message.content, message.iv, message.encapsulated_key)
-              
-              if (decryptedContent.toLowerCase().includes(lowerQuery)) {
-                // Extract snippet around match
-                const lowerContent = decryptedContent.toLowerCase()
-                const matchIndex = lowerContent.indexOf(lowerQuery)
-                const start = Math.max(0, matchIndex - 30)
-                const end = Math.min(decryptedContent.length, matchIndex + lowerQuery.length + 30)
-                let snippet = decryptedContent.substring(start, end).trim()
-                
-                if (start > 0) snippet = "..." + snippet
-                if (end < decryptedContent.length) snippet = snippet + "..."
-
-                results.push({
-                  chatId: chat.id,
-                  chatTitle,
-                  chatCreatedAt: chat.created_at,
-                  messageSnippet: snippet,
-                  matchedWord: query,
-                  role: message.role,
-                  isTitle: false,
-                })
-              }
-            } catch (e) {
-              console.error("Failed to decrypt message:", e)
-            }
-          }
-        }
-      }
-
-      setSearchResults(results)
-    } catch (error) {
-      console.error("Search error:", error)
-      toast.error("Search failed")
-    } finally {
-      setIsSearching(false)
-    }
-  }, [allChatsData, userKeys, decryptMessage])
-
-  // Debounced search
-  const handleSearchChange = useCallback((value: string) => {
-    setSearchQuery(value)
-    
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current)
-    }
-
-    if (!value.trim()) {
-      setSearchResults([])
-      return
-    }
-
-    searchTimeoutRef.current = setTimeout(() => {
-      performSearch(value)
-    }, 300)
-  }, [performSearch])
 
   // Load search data when component mounts
   useEffect(() => {
@@ -215,37 +198,61 @@ export function NavAI() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
+  // Listen for command query changes and search IndexedDB (zero API calls, instant results)
+  useEffect(() => {
+    if (!commandQuery.trim()) {
+      setCommandResults([])
+      return
+    }
+
+    let cancelled = false
+    setIsSearching(true)
+
+    ;(async () => {
+      try {
+        // Search IndexedDB locally - no API call, no decryption
+        const results = await searchChatsLocal(commandQuery)
+        
+        if (!cancelled) {
+          // Convert IndexedDB results to SearchResult interface
+          const formattedResults: SearchResult[] = results.map((result, idx) => ({
+            ...result,
+            matchedWord: commandQuery,
+          }))
+          
+          setCommandResults(formattedResults)
+        }
+      } catch (error) {
+        console.error('Local search failed, results may be incomplete:', error)
+        if (!cancelled) {
+          toast.error('Search error - try refreshing')
+        }
+      } finally {
+        if (!cancelled) setIsSearching(false)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [commandQuery, indexReady])
+
   const handleNewChat = () => {
     router.push('/assistant')
     setSearchOpen(false)
   }
 
-  // Group results by date
-  const groupedResults = searchResults.reduce<GroupedResults>((acc, result) => {
-    const date = new Date(result.chatCreatedAt)
-    const now = new Date()
-    
-    let groupKey = "OLDER"
-    const daysDiff = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
-
-    if (daysDiff === 0) {
-      groupKey = "TODAY"
-    } else if (daysDiff === 1) {
-      groupKey = "YESTERDAY"
-    } else if (daysDiff <= 7) {
-      groupKey = "LAST 7 DAYS"
-    } else if (daysDiff <= 30) {
-      groupKey = "LAST MONTH"
-    } else if (daysDiff <= 365) {
-      groupKey = "LAST YEAR"
+  const handleRefreshIndex = async () => {
+    toast.loading('Refreshing search index…')
+    try {
+      await loadSearchData()
+      toast.success('Search index refreshed')
+    } catch (error) {
+      toast.error('Failed to refresh index')
     }
+  }
 
-    if (!acc[groupKey]) acc[groupKey] = []
-    acc[groupKey].push(result)
-    return acc
-  }, {})
 
-  const groupOrder = ["TODAY", "YESTERDAY", "LAST 7 DAYS", "LAST MONTH", "LAST YEAR", "OLDER"]
 
   return (
     <>
@@ -266,6 +273,27 @@ export function NavAI() {
               </SidebarMenuButton>
             </SidebarMenuItem>
 
+            {/* Refresh Index Button (subtle) */}
+            {indexReady && state === "expanded" && (
+              <SidebarMenuItem>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <SidebarMenuButton
+                      onClick={handleRefreshIndex}
+                      className="cursor-pointer"
+                      size="sm"
+                    >
+                      <IconRefresh className="h-4 w-4" />
+                      <span className="text-xs text-muted-foreground">Refresh</span>
+                    </SidebarMenuButton>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="text-xs">
+                    Refresh search index from server
+                  </TooltipContent>
+                </Tooltip>
+              </SidebarMenuItem>
+            )}
+
             {/* Search */}
             {state === "expanded" ? (
               <SidebarMenuItem>
@@ -274,9 +302,8 @@ export function NavAI() {
                     <IconSearch className="h-4 w-4 shrink-0 text-muted-foreground" />
                     <Input
                       placeholder="Search chats…"
-                      value={searchQuery}
-                      onChange={(e) => handleSearchChange(e.target.value)}
-                      onFocus={() => setSearchOpen(true)}
+                      value={sidebarQuery}
+                      onChange={(e) => setSidebarQuery(e.target.value)}
                       className="border-0 bg-transparent placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-0 px-0 h-auto text-sm flex-1"
                     />
                     <Kbd className="text-xs ml-auto">
@@ -313,26 +340,53 @@ export function NavAI() {
       <CommandDialog open={searchOpen} onOpenChange={setSearchOpen}>
         <CommandInput
           placeholder="Search chats by title or message content…"
-          value={searchQuery}
-          onValueChange={handleSearchChange}
+          value={commandQuery}
+          onValueChange={setCommandQuery}
         />
         <CommandList className="max-h-[400px]">
           {isSearching && (
             <div className="flex items-center justify-center py-6">
-              <div className="text-sm text-muted-foreground">Searching…</div>
+              <div className="text-sm text-muted-foreground">Searching locally…</div>
             </div>
           )}
-          {!isSearching && !searchQuery.trim() && (
+          {!isSearching && !commandQuery.trim() && (
             <div className="flex items-center justify-center py-6">
               <div className="text-sm text-muted-foreground">Start typing to search chats</div>
             </div>
           )}
-          {!isSearching && searchQuery.trim() && searchResults.length === 0 && (
-            <CommandEmpty>No chats found matching "{searchQuery}"</CommandEmpty>
+          {!isSearching && commandQuery.trim() && commandResults.length === 0 && (
+            <>
+              <CommandEmpty>No chats found matching "{commandQuery}"</CommandEmpty>
+              {!indexReady && (
+                <div className="flex items-center justify-center py-4 text-xs text-muted-foreground">
+                  Building search index…
+                </div>
+              )}
+            </>
           )}
           
-          {!isSearching && searchResults.length > 0 && (
-            groupOrder.map(groupKey => {
+          {/* Group command results for display */}
+          {!isSearching && commandResults.length > 0 && (() => {
+            const groupedResults = commandResults.reduce<Record<string, SearchResult[]>>((acc, result) => {
+              const date = new Date(result.chatCreatedAt)
+              const now = new Date()
+              const daysDiff = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
+              let groupKey = "OLDER"
+
+              if (daysDiff === 0) groupKey = "TODAY"
+              else if (daysDiff === 1) groupKey = "YESTERDAY"
+              else if (daysDiff <= 7) groupKey = "LAST 7 DAYS"
+              else if (daysDiff <= 30) groupKey = "LAST MONTH"
+              else if (daysDiff <= 365) groupKey = "LAST YEAR"
+
+              acc[groupKey] = acc[groupKey] || []
+              acc[groupKey].push(result)
+              return acc
+            }, {})
+
+            const groupOrder = ["TODAY", "YESTERDAY", "LAST 7 DAYS", "LAST MONTH", "LAST YEAR", "OLDER"]
+
+            return groupOrder.map(groupKey => {
               const groupResults = groupedResults[groupKey] || []
               if (groupResults.length === 0) return null
 
@@ -367,7 +421,7 @@ export function NavAI() {
                 </CommandGroup>
               )
             })
-          )}
+          })()}
         </CommandList>
       </CommandDialog>
     </>
