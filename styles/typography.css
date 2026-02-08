@@ -430,6 +430,156 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
+   SHIKI CODE BLOCK STYLING
+   ═══════════════════════════════════════════════════════════════════════════════
+   Custom styling for Shiki-highlighted code blocks. These styles ensure that
+   Shiki's VS Code-quality syntax highlighting is preserved and not overridden
+   by prose markdown styles.
+*/
+
+:root {
+    --code-bg: var(--color-bg-secondary);
+    --code-text: var(--color-text-primary);
+    --code-border: var(--color-border-secondary);
+    --code-meta: var(--color-text-tertiary);
+    --code-hover: color-mix(in srgb, var(--color-bg-tertiary) 50%, transparent);
+}
+
+.dark-mode {
+    --code-bg: var(--color-bg-secondary);
+    --code-text: var(--color-text-primary);
+    --code-border: var(--color-border-secondary);
+    --code-meta: var(--color-text-tertiary);
+}
+
+/* Shiki pre > code output styling (from shiki library) */
+.prose pre {
+    background: var(--code-bg) !important;
+    border: 1px solid var(--code-border) !important;
+    border-radius: var(--radius-sm) !important;
+    padding: 0 !important;
+    margin: 1.5rem 0 !important;
+}
+
+.prose pre code {
+    all: inherit;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 1rem !important;
+    color: var(--code-text) !important;
+    font-size: 0.875rem !important;
+    line-height: 1.5 !important;
+    display: block !important;
+    overflow-x: auto !important;
+    white-space: pre !important;
+    word-wrap: normal !important;
+}
+
+/* Preserve Shiki token colors - prevent prose from overriding */
+.prose pre code * {
+    color: inherit !important;
+    background: transparent !important;
+}
+
+/* Shiki specific token classes - ensure they render correctly */
+.prose code[class*="shiki"],
+.prose pre code[class*="shiki"] {
+    all: initial;
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: var(--code-text);
+    background: var(--code-bg);
+    display: block;
+    padding: 1rem;
+    overflow-x: auto;
+    white-space: pre;
+}
+
+/* Inline code should NOT be highlighted this way - use smaller variant */
+.prose :not(pre) > code {
+    background: var(--code-bg) !important;
+    color: var(--color-fg-brand-primary) !important;
+    border: 1px solid var(--code-border) !important;
+    border-radius: 3px !important;
+    padding: 2px 4px !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+}
+
+/* Ensure code block wrapper is properly styled */
+.prose > pre {
+    position: relative;
+}
+
+/* Horizontal scrolling for long lines */
+.prose pre code {
+    display: block;
+    background: var(--code-bg) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   SHIKI CODE BLOCK SYNTAX HIGHLIGHTING PRESERVATION
+   ═══════════════════════════════════════════════════════════════════════════════
+   Shiki generates HTML with inline styles for syntax tokens. These rules ensure
+   that prose markdown styles do not interfere with Shiki's carefully crafted colors.
+*/
+
+/* Allow Shiki's inline styles to take precedence */
+.prose pre code span {
+    all: initial;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+}
+
+/* Light theme - GitHub light theme colors */
+[data-theme="light"],
+.light-mode {
+    color-scheme: light;
+}
+
+/* Dark theme - GitHub dark theme colors */
+[data-theme="dark"],
+.dark-mode {
+    color-scheme: dark;
+}
+
+/* Responsive code block sizing */
+@media (max-width: 640px) {
+    .prose pre {
+        font-size: 0.8rem !important;
+        padding: 0 !important;
+    }
+
+    .prose pre code {
+        padding: 0.75rem !important;
+    }
+}
+
+/* Focus states for keyboard navigation */
+.prose pre:focus-visible {
+    outline: 2px solid var(--color-focus-ring);
+    outline-offset: 2px;
+}
+
+/* Copy button styling (for ShikiCodeBlock component) */
+.prose pre button[data-copy-button] {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    z-index: 10;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.prose pre:hover button[data-copy-button],
+.prose pre:focus-within button[data-copy-button] {
+    opacity: 1;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
    PROSE-SM OVERRIDES FOR CHAT MESSAGES
    ═══════════════════════════════════════════════════════════════════════════════
    Ensures proper heading sizes and spacing for chat context where content should

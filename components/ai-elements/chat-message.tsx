@@ -8,8 +8,6 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
-import { Streamdown } from "streamdown"
-import { code } from "@streamdown/code"
 import { math } from "@streamdown/math"
 import { cjk } from "@streamdown/cjk"
 import "katex/dist/katex.min.css"
@@ -17,6 +15,7 @@ import { Reasoning, ReasoningTrigger, ReasoningContent } from "@/components/ai-e
 
 import { CitationParser } from "@/components/ai-elements/citation-parser";
 import { mermaid } from "@streamdown/mermaid"
+import { StreamdownWithShiki } from "@/components/ai-elements/streamdown-with-shiki"
 
 export interface ToolCall {
     id: string;
@@ -112,7 +111,9 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
     };
 
 
-    const streamdownPlugins = React.useMemo(() => ({ code, math, cjk, mermaid } as any), []);
+    // StreamdownWithShiki handles code highlighting automatically
+    // We include other plugins manually (without @streamdown/code)
+    const streamdownPlugins = React.useMemo(() => ({ math, cjk, mermaid } as any), []);
 
     // Version Navigation
     const versionCount = message.versions?.length || 1;
@@ -214,9 +215,9 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                             {message.sources && message.sources.length > 0 ? (
                                 <CitationParser content={message.content} sources={message.sources} />
                             ) : (
-                                <Streamdown plugins={streamdownPlugins}>
+                                <StreamdownWithShiki plugins={streamdownPlugins}>
                                     {message.content}
-                                </Streamdown>
+                                </StreamdownWithShiki>
                             )}
 
                         </div>
