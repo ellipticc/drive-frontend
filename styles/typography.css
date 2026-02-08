@@ -428,3 +428,261 @@
 .prose > :last-child:not(:where([class~="not-prose"], [class~="not-prose"] *)) {
     margin-bottom: 0;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   PROSE-SM OVERRIDES FOR CHAT MESSAGES
+   ═══════════════════════════════════════════════════════════════════════════════
+   Ensures proper heading sizes and spacing for chat context where content should
+   feel natural within message bubbles. prose-sm scales down the typography while
+   these overrides ensure it's optimized for readability in limited space.
+*/
+
+.prose.prose-sm:not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    /* Base sizing for prose-sm */
+    font-size: var(--text-sm);
+    line-height: var(--text-sm--line-height);
+}
+
+.prose.prose-sm :not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    /* Text blocks */
+    &:where(p) {
+        margin-top: calc(var(--spacing) * 2);
+        margin-bottom: calc(var(--spacing) * 2);
+    }
+
+    &:where([class~="lead"]) {
+        font-size: var(--text-sm);
+        line-height: var(--text-sm--line-height);
+        margin-top: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    /* Lists - compact spacing for prose-sm */
+    &:where(ol),
+    &:where(ul) {
+        margin-top: calc(var(--spacing) * 2);
+        margin-bottom: calc(var(--spacing) * 2);
+        padding-inline-start: calc(var(--spacing) * 4);
+    }
+
+    &:where(li) {
+        margin-top: calc(var(--spacing) * 1);
+        margin-bottom: calc(var(--spacing) * 1);
+    }
+
+    /* Headings - appropriately sized for chat bubbles */
+    &:where(h1) {
+        font-size: var(--text-lg);
+        line-height: var(--text-lg--line-height);
+        font-weight: 600;
+        color: var(--tw-prose-headings);
+        margin-top: calc(var(--spacing) * 3);
+        margin-bottom: calc(var(--spacing) * 2);
+    }
+
+    &:where(h2) {
+        font-size: var(--text-base);
+        line-height: 1.5;
+        font-weight: 600;
+        color: var(--tw-prose-headings);
+        margin-top: calc(var(--spacing) * 3);
+        margin-bottom: calc(var(--spacing) * 2);
+    }
+
+    &:where(h3) {
+        font-size: var(--text-sm);
+        line-height: 1.5;
+        font-weight: 600;
+        color: var(--tw-prose-headings);
+        margin-top: calc(var(--spacing) * 2);
+        margin-bottom: calc(var(--spacing) * 1);
+    }
+
+    &:where(h4) {
+        font-size: var(--text-sm);
+        line-height: 1.5;
+        font-weight: 600;
+        color: var(--tw-prose-headings);
+        margin-top: calc(var(--spacing) * 2);
+        margin-bottom: calc(var(--spacing) * 1);
+    }
+
+    /* Remove margin after headings */
+    &:where(h1 + *),
+    &:where(h2 + *),
+    &:where(h3 + *),
+    &:where(h4 + *) {
+        margin-top: 0;
+    }
+
+    /* Blockquotes */
+    &:where(blockquote) {
+        border-left-width: 2px;
+        border-left-color: var(--tw-prose-quote-borders);
+        padding-inline-start: calc(var(--spacing) * 3);
+        margin-top: calc(var(--spacing) * 2);
+        margin-bottom: calc(var(--spacing) * 2);
+        font-style: italic;
+    }
+
+    &:where(blockquote p) {
+        margin: 0;
+        font-size: var(--text-sm);
+        line-height: 1.5;
+    }
+
+    /* Code blocks - preserve custom styling */
+    &:where(pre) {
+        background: var(--color-bg-secondary);
+        border: 1px solid var(--color-border-secondary);
+        border-radius: var(--radius-sm);
+        padding: calc(var(--spacing) * 2);
+        overflow-x: auto;
+        margin-top: calc(var(--spacing) * 2);
+        margin-bottom: calc(var(--spacing) * 2);
+    }
+
+    &:where(pre code) {
+        font-size: var(--text-xs);
+        color: var(--tw-prose-pre-code);
+        background: transparent;
+        padding: 0;
+        border-radius: 0;
+        box-shadow: none;
+
+        &::before,
+        &::after {
+            content: "";
+        }
+    }
+
+    /* Inline code */
+    &:where(code:not(pre code)) {
+        font-size: 0.75rem;
+        line-height: 1rem;
+        font-weight: 600;
+        color: var(--tw-prose-code);
+        background: var(--color-bg-secondary);
+        border-radius: 3px;
+        padding: 2px 4px;
+        margin: 0;
+        border: 1px solid var(--color-border-secondary);
+
+        &::before,
+        &::after {
+            content: "";
+        }
+    }
+
+    /* Links - use theme color */
+    &:where(a:not(h1 a, h2 a, h3 a, h4 a, h5 a, h6 a)) {
+        color: var(--color-fg-brand-primary);
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        font-weight: 500;
+
+        &:hover {
+            opacity: 0.8;
+        }
+
+        &:focus-visible {
+            outline: 2px solid var(--color-focus-ring);
+            outline-offset: 2px;
+            border-radius: 2px;
+        }
+    }
+
+    &:where(:is(h1, h2, h3) a) {
+        color: var(--tw-prose-headings);
+        text-decoration: none;
+
+        &:hover {
+            text-decoration: underline;
+        }
+    }
+
+    /* Horizontal rules */
+    &:where(hr) {
+        margin-top: calc(var(--spacing) * 3);
+        margin-bottom: calc(var(--spacing) * 3);
+        border: none;
+        border-top: 1px solid var(--tw-prose-hr);
+    }
+
+    /* Images and media */
+    &:where(img) {
+        border-radius: var(--radius-md);
+        margin-top: calc(var(--spacing) * 2);
+        margin-bottom: calc(var(--spacing) * 2);
+    }
+
+    &:where(video) {
+        margin-top: calc(var(--spacing) * 2);
+        margin-bottom: calc(var(--spacing) * 2);
+    }
+
+    /* Tables */
+    &:where(table) {
+        margin-top: calc(var(--spacing) * 2);
+        margin-bottom: calc(var(--spacing) * 2);
+        border-collapse: collapse;
+        width: 100%;
+        font-size: var(--text-xs);
+    }
+
+    &:where(thead) {
+        border-bottom: 1px solid var(--tw-prose-th-borders);
+    }
+
+    &:where(tbody tr) {
+        border-bottom: 1px solid var(--tw-prose-td-borders);
+    }
+
+    &:where(th),
+    &:where(td) {
+        padding: calc(var(--spacing) * 1.5) calc(var(--spacing) * 2);
+        text-align: left;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   RESPONSIVE PROSE SCALING FOR CHAT MESSAGES
+   ═══════════════════════════════════════════════════════════════════════════════
+   On larger screens (md breakpoint: 768px), prose-sm headings scale up slightly
+   to maintain hierarchy while still being appropriate for chat bubbles.
+*/
+
+@media (min-width: 768px) {
+    .prose.prose-sm :not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+        /* Slightly larger headings on desktop while maintaining chat proportions */
+        &:where(h1) {
+            font-size: var(--text-base);
+            margin-top: calc(var(--spacing) * 4);
+            margin-bottom: calc(var(--spacing) * 2);
+        }
+
+        &:where(h2) {
+            font-size: var(--text-sm);
+            margin-top: calc(var(--spacing) * 3);
+            margin-bottom: calc(var(--spacing) * 2);
+        }
+
+        /* Slightly better line height on larger screens */
+        &:where(p) {
+            line-height: 1.6;
+        }
+
+        &:where(li) {
+            line-height: 1.6;
+        }
+    }
+}
+
+@media (min-width: 1024px) {
+    .prose.prose-sm :not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+        /* Additional refinements on large screens */
+        &:where(p) {
+            line-height: 1.65;
+        }
+    }
+}

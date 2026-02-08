@@ -209,7 +209,7 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
 
 
 
-                        <div className="prose prose-neutral dark:prose-invert max-w-none leading-relaxed">
+                        <div className="prose prose-sm dark:prose-invert max-w-none leading-relaxed">
                             {/* Use CitationParser to handle [1] style links if sources exist */}
                             {message.sources && message.sources.length > 0 ? (
                                 <CitationParser content={message.content} sources={message.sources} />

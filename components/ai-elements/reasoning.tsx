@@ -217,9 +217,11 @@ export const ReasoningContent = memo(
       )}
       {...props}
     >
-      <Streamdown plugins={streamdownPlugins as any} {...props}>
-        {children}
-      </Streamdown>
+      <div className="prose prose-sm dark:prose-invert max-w-none">
+        <Streamdown plugins={streamdownPlugins as any} {...props}>
+          {children}
+        </Streamdown>
+      </div>
     </CollapsibleContent>
   )
 );
