@@ -204,7 +204,7 @@ export default function AssistantPage() {
 
             // Buffer for smoother updates
             let lastUpdateTime = 0;
-            const UPDATE_INTERVAL = 16; // ~60fps
+            const UPDATE_INTERVAL = 0; // No throttling for real-time streaming
 
             while (true) {
                 const { done, value } = await reader.read()
@@ -251,7 +251,6 @@ export default function AssistantPage() {
 
                                 if (contentToAppend) {
                                     assistantMessageContent += contentToAppend;
-                                    console.log("[DEBUG] Appending:", contentToAppend.substring(0, 20) + "...");
 
                                     // Throttle state updates for smoother rendering
                                     const now = Date.now();
