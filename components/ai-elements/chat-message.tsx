@@ -71,11 +71,11 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
 
     return (
         <div className={cn(
-            "flex w-full gap-4 group",
-            isUser ? "flex-row-reverse" : "flex-row"
+            "flex w-full gap-4 max-w-3xl mx-auto", // Ensure container itself is centered/constrained if needed, though parent does this too
+            isUser ? "justify-end" : "justify-start" // Use justify instead of flex-direction for clearer alignment
         )}>
             <div className={cn(
-                "flex flex-col max-w-[86%] sm:max-w-[86%]",
+                "flex flex-col max-w-[85%]", // Fixed standard width for both
                 isUser ? "items-end" : "items-start"
             )}>
                 {isUser ? (
