@@ -22,6 +22,7 @@ import {
   IconBrain,
   IconDotsVertical,
   IconLoader2,
+  IconChevronDown,
 } from "@tabler/icons-react"
 
 import { NavMain } from "@/components/layout/navigation/nav-main"
@@ -50,8 +51,9 @@ import { getDiceBearAvatar } from "@/lib/avatar"
 import { usePathname } from "next/navigation"
 import { useLanguage } from "@/lib/i18n/language-context"
 import { apiClient } from "@/lib/api"
-import { getAllIndexedChats } from "@/lib/indexeddb"
+import { getAllIndexedChats, getIndexedChatsPaginated } from "@/lib/indexeddb"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useAICrypto } from "@/hooks/use-ai-crypto"
 import { toast } from "sonner"
 import {
@@ -93,6 +95,13 @@ export const AppSidebar = React.memo(function AppSidebar({
   // Delete confirmation modal state
   const [confirmDeleteId, setConfirmDeleteId] = React.useState<string | null>(null)
   const [deleting, setDeleting] = React.useState(false)
+
+  // History collapse state
+  const [historyExpanded, setHistoryExpanded] = React.useState(true)
+  const [historyChats, setHistoryChats] = React.useState<any[]>([])
+  const [historyOffset, setHistoryOffset] = React.useState(0)
+  const historyScrollRef = React.useRef<HTMLDivElement>(null)
+  const pathname = usePathname()
 
   const data = {
     user: contextUser ? {
@@ -329,6 +338,42 @@ export const AppSidebar = React.memo(function AppSidebar({
     }
   }, [])
 
+  // Load paginated history chats when on Assistant route with AI Native enabled
+  React.useEffect(() => {
+    if (!pathname?.startsWith('/assistant') || !isAIMode || !historyExpanded) return
+
+    let mounted = true
+    const loadHistoryChats = async () => {
+      try {
+        const chats = await getIndexedChatsPaginated(50, historyOffset)
+        if (!mounted) return
+        if (historyOffset === 0) {
+          setHistoryChats(chats)
+        } else {
+          setHistoryChats(prev => [...prev, ...chats])
+        }
+      } catch (e) {
+        console.error('Failed to load history chats:', e)
+      }
+    }
+
+    loadHistoryChats()
+
+    // Listen for index updates to refresh history
+    const handler = () => {
+      if (mounted) {
+        setHistoryOffset(0) // Reset pagination on rebuild
+        loadHistoryChats()
+      }
+    }
+
+    window.addEventListener('ai:build-index-complete', handler)
+    return () => {
+      mounted = false
+      window.removeEventListener('ai:build-index-complete', handler)
+    }
+  }, [pathname, isAIMode, historyExpanded, historyOffset])
+
   // If user is loading, render a sidebar skeleton immediately so layout doesn't shift
   if (!isAuthenticated && userLoading) {
     return (
@@ -378,82 +423,185 @@ export const AppSidebar = React.memo(function AppSidebar({
         </SidebarMenu>
         {/* Show AI Native switch only on Assistant routes */}
         {(() => {
-          const pathnameLocal = usePathname();
-          const onAssistant = typeof pathnameLocal === 'string' && pathnameLocal.startsWith('/assistant');
+          const onAssistant = typeof pathname === 'string' && pathname.startsWith('/assistant');
           return onAssistant ? (
-            <div className="flex items-center justify-between px-2 py-2 rounded-md bg-muted/50 border border-border/50">
-              <div className="flex items-center gap-2 flex-1">
-                <IconBrain className="size-4 shrink-0 text-muted-foreground" />
-                <span className="text-xs font-medium text-foreground flex-1">AI Native</span>
-              </div>
-              <Switch
-                checked={isAIMode}
-                onCheckedChange={(v) => setIsAIMode(Boolean(v))}
-                aria-label="Toggle AI Native Mode"
-                className="data-[state=checked]:bg-primary"
-              />
-            </div>
+            state === 'collapsed' ? (
+              <TooltipProvider delayDuration={0}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex justify-center">
+                      <button
+                        className="flex items-center justify-center h-8 w-8 rounded-md hover:bg-accent transition-colors"
+                        onClick={() => setIsAIMode(!isAIMode)}
+                        aria-label="Toggle AI Native Mode"
+                      >
+                        <IconBrain className={`size-4 ${isAIMode ? 'text-primary' : 'text-muted-foreground'}`} />
+                      </button>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">
+                    <p>AI Native {isAIMode ? '(enabled)' : '(disabled)'}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ) : (
+              <TooltipProvider delayDuration={0}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center justify-between px-2 py-2 rounded-md bg-muted/50 border border-border/50">
+                      <div className="flex items-center gap-2 flex-1">
+                        <IconBrain className="size-4 shrink-0 text-muted-foreground" />
+                        <span className="text-xs font-medium text-foreground flex-1">AI Native</span>
+                      </div>
+                      <Switch
+                        checked={isAIMode}
+                        onCheckedChange={(v) => setIsAIMode(Boolean(v))}
+                        aria-label="Toggle AI Native Mode"
+                        className="data-[state=checked]:bg-primary"
+                      />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-xs">
+                    <p>Toggle AI Native mode for assistant-only interface</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )
           ) : (
             <NavNew onFileUpload={handleFileUpload} onFolderUpload={handleFolderUpload} />
           )
         })()}
 
-        {/* History Dropdown - visible when sidebar is expanded */}
-        {state === 'expanded' && (
-          <div className="ml-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-2 px-2 py-2 rounded-md hover:bg-accent">
-                  <IconClockHour9 className="h-4 w-4" />
-                  <span className="text-xs">History</span>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent side="bottom" align="start" className="w-64">
-                {recentChats.length === 0 ? (
-                  <div className="p-2 text-xs text-muted-foreground">No history indexed</div>
+        {/* History Panel - collapsible, only on Assistant tab when AI Native enabled */}
+        {state === 'expanded' && pathname?.startsWith('/assistant') && isAIMode && (
+          <div className="ml-2 border-t border-border/50 pt-2 mt-2">
+            {/* History Header with Chevron Toggle */}
+            <button
+              onClick={() => {
+                setHistoryExpanded(!historyExpanded);
+                // Reset pagination when expanding
+                if (!historyExpanded) {
+                  setHistoryOffset(0);
+                }
+              }}
+              className="flex items-center gap-2 px-2 py-2 rounded-md hover:bg-accent transition-colors w-full"
+            >
+              <IconChevronDown
+                className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${
+                  historyExpanded ? 'rotate-0' : '-rotate-90'
+                }`}
+              />
+              <span className="text-xs font-medium text-muted-foreground flex-1">History</span>
+            </button>
+
+            {/* History List with Infinite Scroll */}
+            {historyExpanded && (
+              <div
+                ref={historyScrollRef}
+                className="max-h-96 overflow-y-auto flex flex-col gap-1 px-2 py-2"
+                onScroll={(e) => {
+                  const el = e.currentTarget;
+                  if (
+                    el.scrollHeight - el.scrollTop - el.clientHeight < 50 &&
+                    historyChats.length >= 50 // Has more to load
+                  ) {
+                    setHistoryOffset(prev => prev + 50);
+                  }
+                }}
+              >
+                {historyChats.length === 0 ? (
+                  <div className="text-xs text-muted-foreground p-2 text-center">
+                    No chats indexed
+                  </div>
                 ) : (
-                  recentChats.map(chat => (
-                    <div key={chat.id} className="flex items-center justify-between px-2 py-1">
-                      <div className="flex-1 pr-2 cursor-pointer" onClick={() => router.push(`/assistant?conversationId=${chat.id}`)}>
-                        <div className="text-sm truncate">{chat.title}</div>
-                        <div className="text-xs text-muted-foreground">{new Date(chat.createdAt).toLocaleDateString()}</div>
+                  historyChats.map(chat => (
+                    <div
+                      key={chat.id}
+                      className="flex items-center justify-between px-2 py-1.5 rounded-sm hover:bg-accent transition-colors group"
+                    >
+                      <div
+                        className="flex-1 pr-2 cursor-pointer min-w-0"
+                        onClick={() => router.push(`/assistant?conversationId=${chat.id}`)}
+                      >
+                        <div className="text-sm truncate text-foreground">{chat.title}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {new Date(chat.createdAt).toLocaleDateString()}
+                        </div>
                       </div>
 
-                      <div className="flex items-center gap-1">
-                        {/* Inline actions dropdown */}
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <button className="p-1 rounded hover:bg-accent text-muted-foreground">
-                              <IconDotsVertical className="h-4 w-4" />
-                            </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent side="bottom" align="end" className="w-44">
-                            <DropdownMenuItem onClick={async (e) => { e.stopPropagation(); const value = window.prompt('Rename chat', chat.title || ''); if (value && value.trim()) { try { await renameChat(chat.id, value.trim()); toast.success('Renamed'); window.dispatchEvent(new Event('ai:build-index')) } catch (err) { console.error(err); toast.error('Rename failed') } } }}>
-                              Rename
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={async (e) => { e.stopPropagation(); try { await pinChat(chat.id, !chat.pinned); toast.success(chat.pinned ? 'Unpinned' : 'Pinned'); window.dispatchEvent(new Event('ai:build-index')) } catch (err) { console.error(err); toast.error('Failed to update pin') } }}>
-                              {chat.pinned ? 'Unpin' : 'Pin'}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={async (e) => { e.stopPropagation(); try { await archiveChat(chat.id, true); toast.success('Archived'); window.dispatchEvent(new Event('ai:build-index')) } catch (err) { console.error(err); toast.error('Archive failed') } }}>
-                              Archive
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(chat.id) }}>
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
+                      {/* Inline actions dropdown */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="p-1 rounded hover:bg-accent text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+                            <IconDotsVertical className="h-4 w-4" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent side="bottom" align="end" className="w-44">
+                          <DropdownMenuItem
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              const value = window.prompt('Rename chat', chat.title || '');
+                              if (value && value.trim()) {
+                                try {
+                                  await renameChat(chat.id, value.trim());
+                                  toast.success('Renamed');
+                                  window.dispatchEvent(new Event('ai:build-index'));
+                                } catch (err) {
+                                  console.error(err);
+                                  toast.error('Rename failed');
+                                }
+                              }
+                            }}
+                          >
+                            Rename
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              try {
+                                await pinChat(chat.id, !chat.pinned);
+                                toast.success(chat.pinned ? 'Unpinned' : 'Pinned');
+                                window.dispatchEvent(new Event('ai:build-index'));
+                              } catch (err) {
+                                console.error(err);
+                                toast.error('Failed to update pin');
+                              }
+                            }}
+                          >
+                            {chat.pinned ? 'Unpin' : 'Pin'}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              try {
+                                await archiveChat(chat.id, true);
+                                toast.success('Archived');
+                                window.dispatchEvent(new Event('ai:build-index'));
+                              } catch (err) {
+                                console.error(err);
+                                toast.error('Archive failed');
+                              }
+                            }}
+                          >
+                            Archive
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setConfirmDeleteId(chat.id);
+                            }}
+                          >
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   ))
                 )}
-
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => window.dispatchEvent(new Event('ai:build-index'))} className="text-xs">
-                  Rebuild Index
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+              </div>
+            )}
           </div>
         )}
 
@@ -474,7 +622,7 @@ export const AppSidebar = React.memo(function AppSidebar({
                 try {
                   await deleteChat(confirmDeleteId);
                   toast.success('Deleted');
-                  setRecentChats(prev => prev.filter(c => c.id !== confirmDeleteId));
+                  setHistoryChats(prev => prev.filter(c => c.id !== confirmDeleteId));
                   window.dispatchEvent(new Event('ai:build-index'));
                 } catch (err) {
                   console.error(err);

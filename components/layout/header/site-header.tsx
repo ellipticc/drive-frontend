@@ -21,7 +21,7 @@ import { useCurrentFolder } from "@/components/current-folder-context"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import { useDebounce } from "@/hooks/use-debounce"
-
+import { useAIMode } from "@/components/ai-mode-context"
 import { masterKeyManager } from "@/lib/master-key"
 import { toast } from "sonner"
 import { paperService } from "@/lib/paper-service"
@@ -50,6 +50,7 @@ export function SiteHeader({ className, onSearch, onFileUpload, onFolderUpload, 
   const { openPicker } = useGoogleDrive()
   const { notifyFileAdded } = useGlobalUpload()
   const { currentFolderId } = useCurrentFolder()
+  const { isAIMode } = useAIMode()
 
   // Sync external searchValue prop to local state
   useEffect(() => {
@@ -186,7 +187,7 @@ export function SiteHeader({ className, onSearch, onFileUpload, onFolderUpload, 
           <h2 className="text-lg font-semibold tracking-tight">Assistant</h2>
         ) : (
           <div className="relative flex-1 max-w-md">
-            {!['/insights'].some(path => pathname?.startsWith(path)) && (
+            {!isAIMode && !['/insights'].some(path => pathname?.startsWith(path)) && (
               <>
                 <IconSearch className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -201,7 +202,7 @@ export function SiteHeader({ className, onSearch, onFileUpload, onFolderUpload, 
           </div>
         )}
         <div className="ml-auto flex items-center gap-2">
-          {showUpgrade && (
+          {!isAIMode && showUpgrade && (
             <Button
               size="sm"
               className="hidden md:inline-flex h-8 text-white font-medium hover:opacity-90 transition-opacity"
@@ -212,13 +213,14 @@ export function SiteHeader({ className, onSearch, onFileUpload, onFolderUpload, 
             </Button>
           )}
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild id="tour-new-button">
-              <Button size="sm" className="h-8">
-                <IconPlus className="h-4 w-4 mr-2" />
-                New
-              </Button>
-            </DropdownMenuTrigger>
+          {!isAIMode && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild id="tour-new-button">
+                <Button size="sm" className="h-8">
+                  <IconPlus className="h-4 w-4 mr-2" />
+                  New
+                </Button>
+              </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={onFileUpload}>
                 <IconFileUpload className="h-4 w-4 mr-2" />
@@ -244,6 +246,7 @@ export function SiteHeader({ className, onSearch, onFileUpload, onFolderUpload, 
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          )}
 
           <CreateFolderModal
             open={isCreateFolderOpen}

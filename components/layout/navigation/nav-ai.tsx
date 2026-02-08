@@ -9,6 +9,7 @@ import {
   IconPin,
   IconTrash,
   IconArchive,
+  IconChevronDown,
 } from "@tabler/icons-react"
 import {
   SidebarGroup,
@@ -38,7 +39,7 @@ import { cn } from "@/lib/utils"
 import apiClient from "@/lib/api"
 import { useAICrypto } from "@/hooks/use-ai-crypto"
 import { toast } from "sonner"
-import { searchChatsLocal, indexChats, getIndexStatus, clearSearchIndex } from "@/lib/indexeddb"
+import { searchChatsLocal, indexChats, getIndexStatus, clearSearchIndex, getIndexedChatsPaginated, getAllIndexedChats } from "@/lib/indexeddb"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
 
 interface SearchResult {
@@ -310,16 +311,28 @@ export function NavAI() {
           <SidebarMenu>
             {/* New Chat Button */}
             <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                onClick={handleNewChat}
-                className="cursor-pointer"
-              >
-                <button className="flex items-center gap-2">
-                  <IconEdit className="h-4 w-4" />
-                  <span>New Chat</span>
-                </button>
-              </SidebarMenuButton>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <SidebarMenuButton
+                    asChild
+                    onClick={handleNewChat}
+                    className="cursor-pointer"
+                  >
+                    <button className="flex items-center gap-2">
+                      <IconEdit className="h-4 w-4" />
+                      {state === 'expanded' && <span>New Chat</span>}
+                    </button>
+                  </SidebarMenuButton>
+                </TooltipTrigger>
+                {state === 'collapsed' && (
+                  <TooltipContent side="right">
+                    <div className="flex items-center gap-2">
+                      <span>New chat</span>
+                      <Kbd className="text-xs">Ctrl+N</Kbd>
+                    </div>
+                  </TooltipContent>
+                )}
+              </Tooltip>
             </SidebarMenuItem>
 
 
@@ -327,20 +340,27 @@ export function NavAI() {
             {/* Search */}
             {state === "expanded" ? (
               <SidebarMenuItem>
-                <div className="px-2 py-1.5">
-                  <div className="flex items-center gap-2 px-2 py-2 rounded-md border border-input bg-background hover:bg-accent transition-colors cursor-pointer" onClick={() => setSearchOpen(true)}>
-                    <IconSearch className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    <Input
-                      placeholder="Search chats…"
-                      value={sidebarQuery}
-                      onChange={(e) => setSidebarQuery(e.target.value)}
-                      className="border-0 bg-transparent placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-0 px-0 h-auto text-sm flex-1"
-                    />
-                    <Kbd className="text-xs ml-auto">
-                      ⌘K
-                    </Kbd>
-                  </div>
-                </div>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="px-2 py-1.5">
+                      <div className="flex items-center gap-2 px-2 py-2 rounded-md border border-input bg-background hover:bg-accent transition-colors cursor-pointer" onClick={() => setSearchOpen(true)}>
+                        <IconSearch className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        <Input
+                          placeholder="Search chats…"
+                          value={sidebarQuery}
+                          onChange={(e) => setSidebarQuery(e.target.value)}
+                          className="border-0 bg-transparent placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-0 px-0 h-auto text-sm flex-1"
+                        />
+                        <Kbd className="text-xs ml-auto">
+                          ⌘K
+                        </Kbd>
+                      </div>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-xs">
+                    <p>Search chats by title or content</p>
+                  </TooltipContent>
+                </Tooltip>
               </SidebarMenuItem>
             ) : (
               <SidebarMenuItem>

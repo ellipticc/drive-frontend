@@ -202,6 +202,22 @@ export async function getAllIndexedChats(): Promise<IndexedChat[]> {
 }
 
 /**
+ * Get paginated indexed chats ordered by createdAt desc.
+ * Useful for history panels with infinite scroll.
+ */
+export async function getIndexedChatsPaginated(limit = 50, offset = 0): Promise<IndexedChat[]> {
+  try {
+    const all = await getAllIndexedChats();
+    // Sort by createdAt desc
+    const sorted = all.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return sorted.slice(offset, offset + limit);
+  } catch (e) {
+    console.error('Failed to get paginated chats:', e);
+    return [];
+  }
+}
+
+/**
  * Clear entire search index (e.g., on logout or manual refresh).
  */
 export async function clearSearchIndex(): Promise<void> {
