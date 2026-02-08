@@ -828,7 +828,7 @@ export default function AssistantPage() {
                 {messages.length === 0 ? (
                     // ZERO STATE: Centered Input
                     <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
-                        <div className="w-full max-w-5xl mx-auto px-4 space-y-8 animate-in fade-in zoom-in-95 duration-500 slide-in-from-bottom-4">
+                        <div className="w-full max-w-4xl mx-auto px-4 space-y-8 animate-in fade-in zoom-in-95 duration-500 slide-in-from-bottom-4">
 
                             {/* Greeting / Brand */}
                             <div className="text-center space-y-2">
@@ -883,7 +883,7 @@ export default function AssistantPage() {
                                 <div
                                     key={message.id || index}
                                     id={`message-${message.id}`}
-                                    className="max-w-3xl mx-auto w-full"
+                                    className="max-w-4xl mx-auto w-full"
                                 >
                                     {message.isCheckpoint ? (
                                         <Checkpoint className="my-4">
@@ -916,8 +916,8 @@ export default function AssistantPage() {
                         </div>
 
                         {/* Sticky Input Footer */}
-                        <div className="sticky bottom-0 z-40 w-full bg-background/95 backdrop-blur-sm pb-4 pt-2">
-                            <div className="max-w-3xl mx-auto w-full px-4 space-y-2">
+                        <div className="sticky bottom-0 z-40 w-full bg-background/95 backdrop-blur-sm pb-4 pt-0">
+                            <div className="max-w-4xl mx-auto w-full px-4 space-y-2">
                                 <div className="flex justify-end">
                                     <Button
                                         variant="ghost"

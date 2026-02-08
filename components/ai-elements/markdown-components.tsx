@@ -3,9 +3,10 @@
 import React, { useState, useRef } from 'react';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
-import { IconCopy, IconCheck } from '@tabler/icons-react';
+import { IconCopy, IconCheck, IconMaximize } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
 import { highlightCode } from '@/lib/shiki-highlighter';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 
 /**
  * CodeBlock Component
@@ -23,6 +24,7 @@ export const CodeBlock = React.forwardRef<
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const [copied, setCopied] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [highlightedHtml, setHighlightedHtml] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
 
@@ -94,19 +96,30 @@ export const CodeBlock = React.forwardRef<
         <span className="text-xs font-semibold text-muted-foreground">
           {displayLabel}
         </span>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleCopy}
-          className="h-6 w-6 p-0"
-          title={copied ? 'Copied!' : 'Copy code'}
-        >
-          {copied ? (
-            <IconCheck className="h-4 w-4 text-green-500" />
-          ) : (
-            <IconCopy className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-          )}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setPreviewOpen(true)}
+            className="h-6 w-6 p-0"
+            title="Preview in full screen"
+          >
+            <IconMaximize className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleCopy}
+            className="h-6 w-6 p-0"
+            title={copied ? 'Copied!' : 'Copy code'}
+          >
+            {copied ? (
+              <IconCheck className="h-4 w-4 text-green-500" />
+            ) : (
+              <IconCopy className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+            )}
+          </Button>
+        </div>
       </div>
 
       {/* Code content */}
@@ -122,6 +135,58 @@ export const CodeBlock = React.forwardRef<
           </pre>
         )}
       </div>
+
+      {/* Code Preview Sheet */}
+      <Sheet open={previewOpen} onOpenChange={setPreviewOpen}>
+        <SheetContent side="right" className="w-[45vw] max-w-none p-0 bg-background">
+          <div className="flex flex-col h-full">
+            {/* Sheet Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b bg-muted/30">
+              <div>
+                <SheetTitle className="text-base font-semibold">{displayLabel}</SheetTitle>
+                <p className="text-xs text-muted-foreground mt-1">Full screen preview</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleCopy}
+                className="h-8 gap-2"
+                title={copied ? 'Copied!' : 'Copy code'}
+              >
+                {copied ? (
+                  <>
+                    <IconCheck className="h-4 w-4 text-green-500" />
+                    <span className="text-xs">Copied</span>
+                  </>
+                ) : (
+                  <>
+                    <IconCopy className="h-4 w-4" />
+                    <span className="text-xs">Copy</span>
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {/* Sheet Content - Large Code Preview */}
+            <div className="flex-1 overflow-auto p-6">
+              <div className="rounded-lg border border-border/50 bg-muted overflow-hidden">
+                <div className="overflow-x-auto">
+                  {!isLoading && highlightedHtml ? (
+                    <div
+                      className="p-6 text-base font-mono"
+                      dangerouslySetInnerHTML={{ __html: highlightedHtml }}
+                    />
+                  ) : (
+                    <pre className="p-6 m-0 text-base font-mono text-foreground whitespace-pre-wrap break-words">
+                      <code>{codeContent}</code>
+                    </pre>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 });
