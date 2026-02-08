@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
-import { IconCopy, IconEdit, IconRefresh, IconThumbDown, IconThumbUp, IconCheck, IconX } from "@tabler/icons-react"
+import { IconCopy, IconEdit, IconRefresh, IconThumbDown, IconThumbUp, IconCheck, IconX, IconCode, IconChevronDown, IconChevronRight } from "@tabler/icons-react"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 import { Input } from "@/components/ui/input"
@@ -17,7 +17,17 @@ import { Reasoning, ReasoningTrigger, ReasoningContent } from "@/components/ai-e
 import { CitationParser } from "@/components/ai-elements/citation-parser";
 import { mermaid } from "@streamdown/mermaid"
 
-interface Message {
+export interface ToolCall {
+    id: string;
+    type: string;
+    function: {
+        name: string;
+        arguments: string;
+    };
+    result?: string;
+}
+
+export interface Message {
     id?: string;
     role: 'user' | 'assistant';
     content: string;
@@ -25,6 +35,7 @@ interface Message {
     createdAt?: number;
     feedback?: 'like' | 'dislike';
     sources?: { title: string; url: string; content?: string }[];
+    toolCalls?: ToolCall[];
 }
 
 interface ChatMessageProps {
@@ -71,11 +82,11 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
 
     return (
         <div className={cn(
-            "flex w-full gap-4 max-w-3xl mx-auto group", // Added group for hover actions
+            "flex w-full gap-4 max-w-3xl mx-auto group",
             isUser ? "justify-end" : "justify-start"
         )}>
             <div className={cn(
-                "flex flex-col max-w-[85%]", // Unified width constraint
+                "flex flex-col max-w-[85%]",
                 isUser ? "items-end" : "items-start"
             )}>
                 {isUser ? (
@@ -152,6 +163,15 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                             </Reasoning>
                         )}
 
+                        {/* Tool Calls (Code Execution) */}
+                        {message.toolCalls && message.toolCalls.length > 0 && (
+                            <div className="space-y-2 mb-2">
+                                {message.toolCalls.map((tool, idx) => (
+                                    <ToolCallItem key={tool.id || idx} tool={tool} />
+                                ))}
+                            </div>
+                        )}
+
                         <div className="prose prose-neutral dark:prose-invert max-w-none leading-relaxed">
                             {/* Use CitationParser to handle [1] style links if sources exist */}
                             {message.sources && message.sources.length > 0 ? (
@@ -223,6 +243,44 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
             </div>
         </div>
     );
+}
+
+function ToolCallItem({ tool }: { tool: ToolCall }) {
+    const [isOpen, setIsOpen] = React.useState(false);
+
+    // Parse arguments to get code safely
+    let codeContent = "";
+    try {
+        const args = tool.function.arguments;
+        if (args.trim().startsWith('{')) {
+            const parsed = JSON.parse(args);
+            codeContent = parsed.code || args;
+        } else {
+            codeContent = args;
+        }
+    } catch (e) {
+        codeContent = tool.function.arguments;
+    }
+
+    return (
+        <div className="border rounded-lg overflow-hidden bg-muted/30">
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                className="flex items-center gap-2 w-full px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-muted/50 transition-colors"
+            >
+                <IconCode className="size-3.5" />
+                <span>{tool.function.name === 'execute_code' ? 'Writing code...' : 'Using tool'}</span>
+                {isOpen ? <IconChevronDown className="size-3.5 ml-auto" /> : <IconChevronRight className="size-3.5 ml-auto" />}
+            </button>
+            {isOpen && (
+                <div className="bg-black/5 p-3 overflow-x-auto">
+                    <pre className="text-xs font-mono language-javascript">
+                        {codeContent}
+                    </pre>
+                </div>
+            )}
+        </div>
+    )
 }
 
 function ActionButton({ icon: Icon, label, onClick }: { icon: any, label: string, onClick?: () => void }) {

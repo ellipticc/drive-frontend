@@ -22,6 +22,7 @@ interface Message {
     isThinking?: boolean;
     feedback?: 'like' | 'dislike';
     originalPromptId?: string;
+    toolCalls?: any[]; // using any for simplicity or import ToolCall
 }
 
 
@@ -288,6 +289,36 @@ export default function AssistantPage() {
 
                             try {
                                 const data = JSON.parse(dataStr);
+                                // Handle Tool Updates
+                                if (data.tool_calls) {
+                                    setMessages(prev => {
+                                        const newMessages = [...prev]
+                                        const lastMessage = newMessages[newMessages.length - 1]
+                                        if (lastMessage && lastMessage.role === 'assistant') {
+                                            const currentToolCalls = lastMessage.toolCalls || [];
+                                            const newToolCalls = [...currentToolCalls];
+
+                                            // Merge deltas
+                                            for (const tc of data.tool_calls) {
+                                                if (!newToolCalls[tc.index]) {
+                                                    newToolCalls[tc.index] = {
+                                                        id: tc.id,
+                                                        type: tc.type,
+                                                        function: { name: tc.function?.name, arguments: "" }
+                                                    };
+                                                }
+                                                if (tc.function?.arguments) {
+                                                    newToolCalls[tc.index].function.arguments += tc.function.arguments;
+                                                }
+                                            }
+
+                                            lastMessage.toolCalls = newToolCalls;
+                                            lastMessage.isThinking = false;
+                                        }
+                                        return newMessages
+                                    })
+                                    continue;
+                                }
 
                                 // Handle Encrypted Stream
                                 let contentToAppend = "";
