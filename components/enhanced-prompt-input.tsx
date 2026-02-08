@@ -114,10 +114,10 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const models = [
-        { id: "llama-3.3-70b-versatile", name: "Llama 3.3 70B", description: "Versatile, 128k context", provider: "meta" },
+        { id: "llama-3.3-70b-versatile", name: "Llama 3.3 70B", description: "Versatile, 128k context", provider: "llama" },
         { id: "qwen-2.5-32b", name: "Qwen 2.5 32B", description: "Code, Reasoning", provider: "alibaba" },
         { id: "openai/gpt-oss-120b", name: "GPT-OSS 120B", description: "Vision, General", provider: "openai" },
-        { id: "llama-guard-4-12b", name: "Llama Guard 4", description: "Safety, Moderation", provider: "meta" }
+        { id: "llama-guard-4-12b", name: "Llama Guard 4", description: "Safety, Moderation", provider: "llama" }
     ];
 
     const currentModel = models.find(m => m.id === effectiveModel) || models[0];
