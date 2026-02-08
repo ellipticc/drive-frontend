@@ -1,4 +1,4 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 @import "tw-animate-css";
 @plugin "tailwindcss-react-aria-components";
 
@@ -810,17 +810,13 @@
   color: var(--primary-foreground);
 }
 
-
 * {
-  border-color: hsl(var(--border));
-  outline-color: hsl(var(--ring) / 0.5);
+  @apply border-border outline-ring/50;
 }
 
 body {
-  background-color: hsl(var(--background));
-  color: hsl(var(--foreground));
+  @apply bg-background text-foreground;
 }
-
 
 button {
   cursor: pointer;
@@ -858,66 +854,51 @@ button {
   letter-spacing: -0.01em;
 }
 
-
 .leaflet-container {
-  background-color: hsl(var(--card)) !important;
-  font-family: inherit !important;
+  @apply !bg-card !font-[inherit];
 }
 
 .leaflet-container a {
-  color: inherit !important;
+  @apply !text-inherit;
 }
 
 .leaflet-div-icon {
-  background: transparent !important;
-  border: none !important;
+  @apply !bg-transparent !border-none;
 }
 
 .leaflet-popup-content-wrapper,
 .leaflet-popup-content,
 .leaflet-popup-content p {
-  all: unset !important;
+  @apply ![all:unset];
 }
 
 .leaflet-popup {
-  animation: none !important;
+  @apply !animate-none;
 }
 
 .leaflet-popup-close-button {
-  /* ring-offset-background focus:ring-ring bg-secondary rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:outline-hidden */
-  background-color: hsl(var(--secondary));
-  border-radius: var(--radius);
-  opacity: 0.7;
-  transition: opacity 0.2s;
-}
-
-.leaflet-popup-close-button:hover {
-  opacity: 1;
+  @apply ring-offset-background focus:ring-ring bg-secondary rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:outline-hidden;
 }
 
 .leaflet-tooltip,
 .leaflet-draw-tooltip {
-  /* !bg-foreground !text-background !animate-none !rounded-md !border-none !p-0 !px-3 !py-1.5 !shadow-none */
-  background-color: hsl(var(--foreground)) !important;
-  color: hsl(var(--background)) !important;
-  animation: none !important;
-  border-radius: calc(var(--radius) - 2px) !important;
-  border: none !important;
-  padding: 0.375rem 0.75rem !important;
-  box-shadow: none !important;
+  @apply !bg-foreground !text-background !animate-none !rounded-md !border-none !p-0 !px-3 !py-1.5 !shadow-none;
 }
 
 .leaflet-draw-tooltip:before {
-  border: none !important;
+  @apply bg-foreground !top-1/2 !right-0.5 size-2.5 translate-x-1/2 -translate-y-1/2 rotate-45 rounded-[2px] !border-none;
 }
 
 .leaflet-error-draw-tooltip {
-  background-color: hsl(var(--destructive)) !important;
-  color: white !important;
+  @apply !bg-destructive !text-white;
+}
+
+.leaflet-error-draw-tooltip:before {
+  @apply bg-destructive;
 }
 
 .leaflet-draw-tooltip-subtext {
-  color: hsl(var(--background)) !important;
+  @apply !text-background;
 }
 
 .leaflet-popup-tip-container,
@@ -925,29 +906,23 @@ button {
 .leaflet-tooltip-bottom:before,
 .leaflet-tooltip-left:before,
 .leaflet-tooltip-right:before {
-  display: none !important;
+  @apply hidden;
 }
 
 .leaflet-control-attribution {
-  background-color: hsl(var(--muted)) !important;
-  border-radius: calc(var(--radius) - 2px);
-  padding: 2px 4px !important;
-  font-size: 10px !important;
-  line-height: 1 !important;
-  color: inherit !important;
+  @apply !bg-muted rounded-md !px-[4px] !py-[2px] text-[10px] !leading-none !text-inherit;
 }
 
 .leaflet-draw-guide-dash {
-  border-radius: 9999px;
+  @apply rounded-full;
 }
 
 .leaflet-edit-marker-selected {
-  border-color: transparent !important;
-  background-color: transparent !important;
+  @apply !border-transparent !bg-transparent;
 }
 
 .marker-cluster div {
-  font-family: inherit;
+  @apply font-[inherit];
 }
 
 @media (max-width: 64rem) {
