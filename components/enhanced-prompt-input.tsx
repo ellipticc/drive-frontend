@@ -251,10 +251,11 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
     const handleSend = async () => {
         if ((!message.trim() && files.length === 0) || isLoading) return;
 
+        const messageToSend = message;
         const currentFiles = files.map(f => f.file);
 
         try {
-            await onSubmit(message, currentFiles);
+            await onSubmit(messageToSend, currentFiles);
             setMessage("");
             setFiles([]);
             if (textareaRef.current) textareaRef.current.style.height = 'auto';

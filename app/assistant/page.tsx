@@ -4,7 +4,6 @@ import * as React from "react"
 import { useUser } from "@/components/user-context"
 import { IconSparkles } from "@tabler/icons-react"
 import apiClient from "@/lib/api"
-import { Virtuoso } from "react-virtuoso"
 
 // Import AI Elements
 import { EnhancedPromptInput } from "@/components/enhanced-prompt-input"
@@ -35,7 +34,6 @@ export default function AssistantPage() {
     const [isLoading, setIsLoading] = React.useState(false)
     const [isCancelling, setIsCancelling] = React.useState(false)
     const abortControllerRef = React.useRef<AbortController | null>(null)
-    const virtuosoRef = React.useRef<any>(null)
     const [model, setModel] = React.useState("llama-3.1-8b-instant")
     const [isWebSearchEnabled, setIsWebSearchEnabled] = React.useState(false);
 
@@ -72,20 +70,6 @@ export default function AssistantPage() {
             setMessages([]);
         }
     }, [conversationId, isReady, decryptHistory, router]);
-
-    const scrollToBottom = () => {
-        if (virtuosoRef.current) {
-            virtuosoRef.current.scrollToIndex({
-                index: messages.length - 1,
-                behavior: 'smooth'
-            });
-        }
-    }
-
-    // Only auto-scroll when a NEW message is added (not during streaming updates)
-    React.useEffect(() => {
-        scrollToBottom()
-    }, [messages.length])
 
     // Keyboard shortcut: Esc to stop active generation
     React.useEffect(() => {
@@ -500,14 +484,9 @@ export default function AssistantPage() {
                     // CHAT STATE: Scrollable Messages + Sticky Bottom Input
                     <div className="flex flex-col h-full w-full">
                         {/* Messages Container */}
-                        <Virtuoso
-                            ref={virtuosoRef}
-                            data={messages}
-                            initialTopMostItemIndex={Math.max(0, messages.length - 1)}
-                            followOutput="smooth"
-                            style={{ width: '100%', height: '100%' }}
-                            itemContent={(index, message) => (
-                                <div key={message.id || `msg-${index}`} className="px-4 py-4 max-w-[960px] mx-auto w-full">
+                        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
+                            {messages.map((message, index) => (
+                                <div key={message.id || index} className="max-w-3xl mx-auto w-full">
                                     <ChatMessage
                                         message={message}
                                         isLast={index === messages.length - 1}
@@ -518,21 +497,15 @@ export default function AssistantPage() {
                                         onEdit={(content) => handleEditMessage(message.id || '', content)}
                                     />
                                 </div>
-                            )}
-                            components={{
-                                Footer: () => (
-                                    <div className="h-20" /> // Bottom spacer for input area
-                                )
-                            }}
-                        />
-
+                            ))}
+                            <div className="h-32" />
+                        </div>
 
                         {/* Sticky Input Footer */}
                         <div className="sticky bottom-0 z-40 w-full bg-background/95 backdrop-blur-sm pb-4 pt-2">
                             <div className="max-w-3xl mx-auto w-full px-4">
                                 <EnhancedPromptInput
                                     onSubmit={async (text, files) => {
-                                        scrollToBottom();
                                         await handleSubmit(text, files);
                                     }}
                                     isLoading={isLoading || isCancelling || !isReady}
