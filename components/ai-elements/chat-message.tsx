@@ -49,6 +49,7 @@ export interface Message {
     currentVersionIndex?: number;
     isCheckpoint?: boolean;
     checkpointId?: string;
+    reasoning?: string; // Content inside <think> tags
 }
 
 interface ChatMessageProps {
@@ -193,23 +194,20 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                     </>
                 ) : (
                     <div className="w-full space-y-2">
-                        {message.isThinking && (
-                            <Reasoning isStreaming={true} defaultOpen={true} duration={undefined}>
+                        {/* Reasoning / Chain of Thought */}
+                        {(message.reasoning || message.isThinking) && (
+                            <Reasoning
+                                isStreaming={isLast && message.isThinking}
+                                defaultOpen={true}
+                            >
                                 <ReasoningTrigger className="w-fit" />
                                 <ReasoningContent>
-                                    Thinking...
+                                    {message.reasoning || "Thinking..."}
                                 </ReasoningContent>
                             </Reasoning>
                         )}
 
-                        {/* Tool Calls (Code Execution) */}
-                        {message.toolCalls && message.toolCalls.length > 0 && (
-                            <div className="space-y-2 mb-2">
-                                {message.toolCalls.map((tool, idx) => (
-                                    <ToolCallItem key={tool.id || idx} tool={tool} />
-                                ))}
-                            </div>
-                        )}
+
 
                         <div className="prose prose-neutral dark:prose-invert max-w-none leading-relaxed">
                             {/* Use CitationParser to handle [1] style links if sources exist */}
@@ -431,45 +429,6 @@ function QuickOption({ icon: Icon, label, ariaLabel, selected, onClick, disabled
             <Icon className="size-3.5" />
             <span>{label}</span>
         </button>
-    )
-}
-
-// ... existing ToolCallItem ...
-function ToolCallItem({ tool }: { tool: ToolCall }) {
-    const [isOpen, setIsOpen] = React.useState(false);
-
-    // Parse arguments to get code safely
-    let codeContent = "";
-    try {
-        const args = tool.function.arguments;
-        if (args.trim().startsWith('{')) {
-            const parsed = JSON.parse(args);
-            codeContent = parsed.code || args;
-        } else {
-            codeContent = args;
-        }
-    } catch (e) {
-        codeContent = tool.function.arguments;
-    }
-
-    return (
-        <div className="border rounded-lg overflow-hidden bg-muted/30">
-            <button
-                onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-2 w-full px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-muted/50 transition-colors"
-            >
-                <IconCode className="size-3.5" />
-                <span>{tool.function.name === 'execute_code' ? 'Writing Python code...' : 'Using tool'}</span>
-                {isOpen ? <IconChevronDown className="size-3.5 ml-auto" /> : <IconChevronRight className="size-3.5 ml-auto" />}
-            </button>
-            {isOpen && (
-                <div className="bg-black/5 p-3 overflow-x-auto">
-                    <pre className="text-xs font-mono language-python">
-                        {codeContent}
-                    </pre>
-                </div>
-            )}
-        </div>
     )
 }
 

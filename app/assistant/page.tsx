@@ -37,6 +37,7 @@ interface Message {
     versions?: MessageVersion[];
     currentVersionIndex?: number;
     isCheckpoint?: boolean;
+    reasoning?: string;
 }
 
 
@@ -315,7 +316,7 @@ export default function AssistantPage() {
 
                 // Split by event separator and keep incomplete event
                 const events = buffer.split('\n\n');
-                buffer = events.pop() || "";
+                buffer = events.pop() || ""; // Keep incomplete event in buffer
 
                 for (const event of events) {
                     if (!event.trim()) continue;
@@ -328,59 +329,9 @@ export default function AssistantPage() {
 
                             try {
                                 const data = JSON.parse(dataStr);
-                                // Handle Tool Updates
-                                if (data.tool_calls) {
-                                    setMessages(prev => {
-                                        const newMessages = [...prev]
-                                        const lastMessage = newMessages[newMessages.length - 1]
-                                        if (lastMessage && lastMessage.role === 'assistant') {
-                                            const currentToolCalls = lastMessage.toolCalls || [];
-                                            const newToolCalls = [...currentToolCalls];
 
-                                            // Merge deltas
-                                            for (const tc of data.tool_calls) {
-                                                if (!newToolCalls[tc.index]) {
-                                                    newToolCalls[tc.index] = {
-                                                        id: tc.id,
-                                                        type: tc.type,
-                                                        function: { name: tc.function?.name, arguments: "" }
-                                                    };
-                                                }
-                                                if (tc.function?.arguments) {
-                                                    newToolCalls[tc.index].function.arguments += tc.function.arguments;
-                                                }
-                                            }
-
-                                            lastMessage.toolCalls = newToolCalls;
-                                            lastMessage.isThinking = false;
-                                        }
-                                        return newMessages
-                                    })
-                                    continue;
-                                }
-
-                                // Handle Encrypted Stream
-                                let contentToAppend = "";
-
-                                if (data.encrypted_content && data.iv) {
-                                    // Decrypt on the fly
-                                    const { decrypted, sessionKey } = await decryptStreamChunk(
-                                        data.encrypted_content,
-                                        data.iv,
-                                        data.encapsulated_key,
-                                        currentSessionKey
-                                    );
-                                    contentToAppend = decrypted;
-                                    currentSessionKey = sessionKey;
-                                } else if (data.content) {
-                                    // Fallback for Plaintext
-                                    contentToAppend = data.content;
-                                } else {
-                                    console.warn("[DEBUG] Chunk missing content:", data);
-                                }
-
+                                // Handle Server-side error or informational message delivered as part of stream
                                 if (data.message) {
-                                    // Server-side error or informational message delivered as part of stream
                                     setMessages(prev => {
                                         const newMessages = [...prev]
                                         const lastMessage = newMessages[newMessages.length - 1]
@@ -411,8 +362,51 @@ export default function AssistantPage() {
                                     continue;
                                 }
 
+                                // Handle Encrypted Stream
+                                let contentToAppend = "";
+
+                                if (data.encrypted_content && data.iv) {
+                                    // Decrypt on the fly
+                                    const { decrypted, sessionKey } = await decryptStreamChunk(
+                                        data.encrypted_content,
+                                        data.iv,
+                                        data.encapsulated_key,
+                                        currentSessionKey
+                                    );
+                                    contentToAppend = decrypted;
+                                    currentSessionKey = sessionKey;
+                                } else if (data.content) {
+                                    // We can't decrypt this message, but we can still display it
+                                    contentToAppend = data.content;
+                                }
+
                                 if (contentToAppend) {
                                     assistantMessageContent += contentToAppend;
+
+                                    // Parse for <think> tags
+                                    let displayContent = assistantMessageContent;
+                                    let reasoningContent = "";
+                                    let isThinking = false;
+
+                                    const thinkStart = "<think>";
+                                    const thinkEnd = "</think>";
+
+                                    if (assistantMessageContent.includes(thinkStart)) {
+                                        if (assistantMessageContent.includes(thinkEnd)) {
+                                            // Completed thought
+                                            const parts = assistantMessageContent.split(thinkEnd);
+                                            const thoughtPart = parts[0].split(thinkStart)[1];
+                                            reasoningContent = thoughtPart;
+                                            displayContent = parts[1] || ""; // The rest is content
+                                            isThinking = false;
+                                        } else {
+                                            // Still thinking
+                                            const parts = assistantMessageContent.split(thinkStart);
+                                            displayContent = parts[0]; // Content before think (rare)
+                                            reasoningContent = parts[1]; // The rest is thought
+                                            isThinking = true;
+                                        }
+                                    }
 
                                     // Throttle state updates for smoother rendering
                                     const now = Date.now();
@@ -421,8 +415,9 @@ export default function AssistantPage() {
                                             const newMessages = [...prev]
                                             const lastMessage = newMessages[newMessages.length - 1]
                                             if (lastMessage && lastMessage.role === 'assistant') {
-                                                lastMessage.content = assistantMessageContent
-                                                lastMessage.isThinking = false
+                                                lastMessage.content = displayContent;
+                                                lastMessage.reasoning = reasoningContent;
+                                                lastMessage.isThinking = isThinking;
                                                 if (data.id) lastMessage.id = data.id;
                                             } else {
                                                 console.warn("[DEBUG] Last message not assistant or missing", lastMessage);
