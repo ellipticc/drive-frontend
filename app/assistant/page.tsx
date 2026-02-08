@@ -102,7 +102,15 @@ export default function AssistantPage() {
     }, [isLoading, isCancelling]);
 
     const handleSubmit = async (value: string, attachments: File[] = []) => {
-        if ((!value.trim() && attachments.length === 0) || isLoading || !isReady || !kyberPublicKey) return;
+        if (!value.trim() && attachments.length === 0) return;
+
+        if (!isReady || !kyberPublicKey) {
+            console.warn("Crypto not ready:", { isReady, hasKey: !!kyberPublicKey });
+            toast.error("Initializing secure session, please wait...");
+            return;
+        }
+
+        if (isLoading) return;
 
         // 1. Optimistic Update (Show user message immediately)
         const tempUserMessage: Message = {
@@ -227,6 +235,7 @@ export default function AssistantPage() {
 
                         try {
                             const data = JSON.parse(dataStr);
+                            console.log("[DEBUG] Stream Chunk:", data);
 
                             // Handle Encrypted Stream
                             let contentToAppend = "";
@@ -244,10 +253,13 @@ export default function AssistantPage() {
                             } else if (data.content) {
                                 // Fallback for Plaintext
                                 contentToAppend = data.content;
+                            } else {
+                                console.warn("[DEBUG] Chunk missing content:", data);
                             }
 
                             if (contentToAppend) {
                                 assistantMessageContent += contentToAppend;
+                                console.log("[DEBUG] Appending:", contentToAppend.substring(0, 20) + "...");
 
                                 // Throttle state updates for smoother rendering
                                 const now = Date.now();
@@ -259,6 +271,8 @@ export default function AssistantPage() {
                                             lastMessage.content = assistantMessageContent
                                             lastMessage.isThinking = false
                                             if (data.id) lastMessage.id = data.id;
+                                        } else {
+                                            console.warn("[DEBUG] Last message not assistant or missing", lastMessage);
                                         }
                                         return newMessages
                                     });
@@ -266,7 +280,7 @@ export default function AssistantPage() {
                                 }
                             }
                         } catch (e) {
-                            // console.warn('Failed to parse SSE line', line);
+                            console.warn('Failed to parse SSE line', line, e);
                         }
                     }
                 }
@@ -455,13 +469,14 @@ export default function AssistantPage() {
                             </div>
 
                             {/* Center Input Area */}
-                            <div className="w-full max-w-3xl px-4 z-20">
+                            <div className="w-full max-w-3xl px-4 z-20 mx-auto">
                                 <EnhancedPromptInput
                                     onSubmit={async (text, files) => {
                                         await handleSubmit(text, files);
                                     }}
                                     model={model}
                                     onModelChange={setModel}
+                                    isLoading={!isReady}
                                 />
                             </div>
 
@@ -521,7 +536,7 @@ export default function AssistantPage() {
                                         scrollToBottom();
                                         await handleSubmit(text, files);
                                     }}
-                                    isLoading={isLoading || isCancelling}
+                                    isLoading={isLoading || isCancelling || !isReady}
                                     onStop={handleCancel}
                                     model={model}
                                     onModelChange={setModel}
