@@ -2,7 +2,8 @@
 
 import * as React from "react"
 import { useUser } from "@/components/user-context"
-import { IconSparkles } from "@tabler/icons-react"
+import { IconSparkles, IconBookmark, IconRotateClockwise } from "@tabler/icons-react"
+import { Checkpoint, CheckpointIcon, CheckpointTrigger } from "@/components/ai-elements/checkpoint"
 import apiClient from "@/lib/api"
 
 // Import AI Elements
@@ -14,6 +15,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Suggestions, Suggestion } from "@/components/ai-elements/suggestion"
 import { ChatMessage } from "@/components/ai-elements/chat-message"
 import { toast } from "sonner"
+import { Button } from "@/components/ui/button"
 
 interface MessageVersion {
     id: string;
@@ -25,14 +27,16 @@ interface MessageVersion {
 
 interface Message {
     id?: string;
-    role: 'user' | 'assistant';
+    role: 'user' | 'assistant' | 'system'; // Added system
     content: string;
     isThinking?: boolean;
+    createdAt?: number | string; // Allow string date
     feedback?: 'like' | 'dislike';
     originalPromptId?: string;
     toolCalls?: any[]; // using any for simplicity or import ToolCall
     versions?: MessageVersion[];
     currentVersionIndex?: number;
+    isCheckpoint?: boolean;
 }
 
 
@@ -774,6 +778,50 @@ export default function AssistantPage() {
         }
     };
 
+    const handleAddCheckpoint = async () => {
+        if (!conversationId) {
+            toast.error("Cannot add checkpoint to a new chat. Please send a message first.");
+            return;
+        }
+
+        try {
+            const data = await apiClient.createCheckpoint(conversationId);
+            setMessages(prev => [
+                ...prev,
+                {
+                    id: data.checkpointId,
+                    role: 'system',
+                    content: 'Checkpoint',
+                    isCheckpoint: true,
+                    createdAt: new Date(data.timestamp).getTime()
+                }
+            ]);
+            toast.success("Checkpoint added");
+        } catch (error) {
+            console.error("Failed to add checkpoint", error);
+            toast.error("Failed to save checkpoint");
+        }
+    };
+
+    const handleRestoreCheckpoint = async (checkpointId: string) => {
+        if (!conversationId) return;
+
+        try {
+            const result = await apiClient.restoreCheckpoint(conversationId, checkpointId);
+            if (result.success) {
+                setMessages(prev => {
+                    const index = prev.findIndex(m => m.id === checkpointId);
+                    if (index === -1) return prev;
+                    return prev.slice(0, index + 1);
+                });
+                toast.success("Restored to checkpoint");
+            }
+        } catch (error) {
+            console.error("Failed to restore checkpoint", error);
+            toast.error("Failed to restore checkpoint");
+        }
+    };
+
     return (
         <div className="flex flex-col h-full bg-background relative">
             {/* Header */}
@@ -842,16 +890,31 @@ export default function AssistantPage() {
                                     id={`message-${message.id}`}
                                     className="max-w-3xl mx-auto w-full"
                                 >
-                                    <ChatMessage
-                                        message={message}
-                                        isLast={index === messages.length - 1}
-                                        onCopy={handleCopy}
-                                        onFeedback={handleFeedback}
-                                        onRetry={() => handleRetry(message.id || '')}
-                                        onRegenerate={(instruction) => handleRegenerate(message.id || '', instruction)}
-                                        onEdit={(content) => handleEditMessage(message.id || '', content)}
-                                        onVersionChange={(dir) => handleVersionChange(message.id || '', dir)}
-                                    />
+                                    {message.isCheckpoint ? (
+                                        <Checkpoint className="my-4">
+                                            <CheckpointIcon>
+                                                <IconBookmark className="size-4 shrink-0" />
+                                            </CheckpointIcon>
+                                            <span className="text-xs font-medium">Checkpoint {index + 1}</span>
+                                            <CheckpointTrigger
+                                                tooltip="Restore checkpoint"
+                                                onClick={() => handleRestoreCheckpoint(message.id || '')}
+                                            >
+                                                <IconRotateClockwise className="size-3" />
+                                            </CheckpointTrigger>
+                                        </Checkpoint>
+                                    ) : (
+                                        <ChatMessage
+                                            message={message}
+                                            isLast={index === messages.length - 1}
+                                            onCopy={handleCopy}
+                                            onFeedback={handleFeedback}
+                                            onRetry={() => handleRetry(message.id || '')}
+                                            onRegenerate={(instruction) => handleRegenerate(message.id || '', instruction)}
+                                            onEdit={(content) => handleEditMessage(message.id || '', content)}
+                                            onVersionChange={(dir) => handleVersionChange(message.id || '', dir)}
+                                        />
+                                    )}
                                 </div>
                             ))}
                             <div className="h-32" />
@@ -859,7 +922,19 @@ export default function AssistantPage() {
 
                         {/* Sticky Input Footer */}
                         <div className="sticky bottom-0 z-40 w-full bg-background/95 backdrop-blur-sm pb-4 pt-2">
-                            <div className="max-w-3xl mx-auto w-full px-4">
+                            <div className="max-w-3xl mx-auto w-full px-4 space-y-2">
+                                <div className="flex justify-end">
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={handleAddCheckpoint}
+                                        className="text-xs text-muted-foreground hover:text-foreground h-6 gap-1"
+                                    >
+                                        <IconBookmark className="size-3" />
+                                        Add Checkpoint
+                                    </Button>
+                                </div>
+
                                 <EnhancedPromptInput
                                     onSubmit={async (text, files) => {
                                         await handleSubmit(text, files);
@@ -874,6 +949,6 @@ export default function AssistantPage() {
                     </div>
                 )}
             </div>
-        </div>
+        </div >
     );
 }

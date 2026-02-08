@@ -5,7 +5,7 @@ import type { UserKeypairs } from '@/lib/key-manager';
 import apiClient from '@/lib/api';
 
 export interface DecryptedMessage {
-    role: 'user' | 'assistant';
+    role: 'user' | 'assistant' | 'system';
     content: string;
     id?: string;
     createdAt?: string;

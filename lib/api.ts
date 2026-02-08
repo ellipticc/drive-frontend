@@ -4164,7 +4164,7 @@ class ApiClient {
   }
 
   async chatAI(
-    messages: { role: 'user' | 'assistant'; content: string }[],
+    messages: { role: 'user' | 'assistant' | 'system'; content: string }[],
     conversationId: string,
     model: string,
     kyberPublicKey?: string,
@@ -4195,7 +4195,7 @@ class ApiClient {
 
   async saveAIChatMessage(
     conversationId: string,
-    role: 'user' | 'assistant',
+    role: 'user' | 'assistant' | 'system',
     encrypted_content: string,
     iv: string
   ): Promise<Response> {
@@ -4338,6 +4338,31 @@ class ApiClient {
       throw new Error('Failed to delete chat');
     }
     return response.json();
+  }
+
+  // AI Checkpoints
+  async createCheckpoint(conversationId: string): Promise<{ success: boolean; checkpointId: string; timestamp: string }> {
+    const response = await this.request<{ success: boolean; checkpointId: string; timestamp: string }>(
+      '/ai/checkpoint',
+      {
+        method: 'POST',
+        body: JSON.stringify({ conversationId }),
+      }
+    );
+    if (!response.success || !response.data) throw new Error(response.error || 'Failed to create checkpoint');
+    return response.data;
+  }
+
+  async restoreCheckpoint(conversationId: string, checkpointId: string): Promise<{ success: boolean; message: string }> {
+    const response = await this.request<{ success: boolean; message: string }>(
+      '/ai/checkpoint/restore',
+      {
+        method: 'POST',
+        body: JSON.stringify({ conversationId, checkpointId }),
+      }
+    );
+    if (!response.success || !response.data) throw new Error(response.error || 'Failed to restore checkpoint');
+    return response.data;
   }
 }
 
