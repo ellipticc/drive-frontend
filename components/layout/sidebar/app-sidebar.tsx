@@ -313,9 +313,9 @@ export const AppSidebar = React.memo(function AppSidebar({
           </SidebarMenuItem>
         </SidebarMenu>
         {/* Show AI Native switch only on Assistant routes */}
-        {typeof window !== 'undefined' && (function() {
-          const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
-          const onAssistant = pathname.startsWith('/assistant');
+        {(() => {
+          const pathnameLocal = usePathname();
+          const onAssistant = typeof pathnameLocal === 'string' && pathnameLocal.startsWith('/assistant');
           return onAssistant ? (
             <div className="flex items-center justify-between px-2 py-2 rounded-md bg-muted/50 border border-border/50">
               <div className="flex items-center gap-2 flex-1">
