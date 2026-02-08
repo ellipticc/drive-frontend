@@ -44,6 +44,26 @@ export default function AssistantPage() {
 
     const lastCreatedConversationId = React.useRef<string | null>(null);
 
+    // Scroll Container Ref
+    const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+
+    // Helper: Scroll to a specific message by index or ID
+    const scrollToMessage = (messageId: string, behavior: ScrollBehavior = 'smooth') => {
+        const container = scrollContainerRef.current;
+        if (!container) return;
+
+        // Find element by ID
+        const element = document.getElementById(`message-${messageId}`);
+        if (element) {
+            // Calculate offset (sticky header height ~60px + padding 24px)
+            const offset = 84;
+            const top = element.offsetTop - offset;
+
+            // Allow manual scroll intervention check if needed, but for now just scroll
+            container.scrollTo({ top, behavior });
+        }
+    };
+
     // Load History when conversationId changes
     React.useEffect(() => {
         if (!isReady) return;
@@ -59,6 +79,14 @@ export default function AssistantPage() {
             decryptHistory(conversationId)
                 .then((msgs: Message[]) => {
                     setMessages(msgs);
+
+                    // Scroll to last user message after render
+                    setTimeout(() => {
+                        const lastUserMsg = msgs.slice().reverse().find(m => m.role === 'user');
+                        if (lastUserMsg && lastUserMsg.id) {
+                            scrollToMessage(lastUserMsg.id, 'auto'); // Instant jump on load
+                        }
+                    }, 100);
                 })
                 .catch((err: Error) => {
                     console.error("History load error:", err);
@@ -97,12 +125,18 @@ export default function AssistantPage() {
         if (isLoading) return;
 
         // 1. Optimistic Update (Show user message immediately)
+        // Generate a temporary ID for the user message to allow scrolling
+        const tempId = crypto.randomUUID();
         const tempUserMessage: Message = {
+            id: tempId,
             role: 'user',
             content: value,
             // attachments: attachments.map(f => f.name) // Store names for UI if needed (schema update required)
         };
         setMessages(prev => [...prev, tempUserMessage]);
+
+        // Scroll to this new message immediately
+        setTimeout(() => scrollToMessage(tempId, 'smooth'), 10);
 
         // 2. Add Thinking State
         setMessages(prev => [...prev, { role: 'assistant', content: '', isThinking: true }]);
@@ -492,9 +526,16 @@ export default function AssistantPage() {
                     // CHAT STATE: Scrollable Messages + Sticky Bottom Input
                     <div className="flex flex-col h-full w-full">
                         {/* Messages Container */}
-                        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
+                        <div
+                            ref={scrollContainerRef}
+                            className="flex-1 overflow-y-auto px-4 py-4 space-y-6 scroll-smooth"
+                        >
                             {messages.map((message, index) => (
-                                <div key={message.id || index} className="max-w-3xl mx-auto w-full">
+                                <div
+                                    key={message.id || index}
+                                    id={`message-${message.id}`}
+                                    className="max-w-3xl mx-auto w-full"
+                                >
                                     <ChatMessage
                                         message={message}
                                         isLast={index === messages.length - 1}

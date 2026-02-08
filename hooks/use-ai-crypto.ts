@@ -103,12 +103,12 @@ export function useAICrypto(): UseAICryptoReturn {
 
                     // Defensive sanitization to strip surrounding quotes/prefixes and stray trailing counts (including newline + digits like "\n0")
                     title = title.replace(/^\s*["'`]+|["'`]+\s*$/g, '')
-                                 .replace(/^Title:\s*/i, '')
-                                 .replace(/^Conversation\s*Start\s*[:\-\s]*/i, '')
-                                 .replace(/\s*[:\-\|]\s*0+$/g, '')
-                                 .replace(/(?:\n|\r|\s*[:\-\|]\s*)0+\s*$/g, '')
-                                 .replace(/\s+/g, ' ')
-                                 .trim();
+                        .replace(/^Title:\s*/i, '')
+                        .replace(/^Conversation\s*Start\s*[:\-\s]*/i, '')
+                        .replace(/\s*[:\-\|]\s*0+$/g, '')
+                        .replace(/(?:\n|\r|\s*[:\-\|]\s*)0+\s*$/g, '')
+                        .replace(/\s+/g, ' ')
+                        .trim();
 
                     const words = title.split(/\s+/).filter(Boolean);
                     if (words.length > 10) title = words.slice(0, 10).join(' ');
@@ -224,6 +224,7 @@ export function useAICrypto(): UseAICryptoReturn {
                             content: new TextDecoder().decode(decryptedBytes)
                         };
                     }
+
                     return msg; // Return as-is if not encrypted (legacy/fallback)
                 } catch (e) {
                     console.error("Failed to decrypt message:", msg.id, e);
