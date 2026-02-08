@@ -2,32 +2,16 @@
 
 import * as React from "react"
 import { useUser } from "@/components/user-context"
-import { IconPaperclip, IconSparkles, IconWorld, IconX } from "@tabler/icons-react"
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
-import { Spinner } from "@/components/ui/spinner"
+import { IconSparkles } from "@tabler/icons-react"
 import apiClient from "@/lib/api"
 import { Virtuoso } from "react-virtuoso"
 
 // Import AI Elements
-import {
-    PromptInput,
-    PromptInputProvider,
-    PromptInputTextarea,
-    PromptInputFooter,
-    PromptInputSubmit,
-    PromptInputTools,
-    PromptInputHeader,
-    PromptInputBody,
-    PromptInputButton,
-    usePromptInputAttachments
-} from "@/components/ai-elements/prompt-input"
+import { EnhancedPromptInput } from "@/components/enhanced-prompt-input"
 import { SiteHeader } from "@/components/layout/header/site-header"
 import { useAICrypto } from "@/hooks/use-ai-crypto";
 import { parseFile } from "@/lib/file-parser";
 import { useRouter, useSearchParams } from "next/navigation"
-import { Attachment, AttachmentPreview, AttachmentRemove, Attachments } from "@/components/ai-elements/attachments"
 import { Suggestions, Suggestion } from "@/components/ai-elements/suggestion"
 import { ChatMessage } from "@/components/ai-elements/chat-message"
 import { toast } from "sonner"
@@ -41,15 +25,6 @@ interface Message {
     originalPromptId?: string;
 }
 
-const PromptInputUploadButton = () => {
-    const { openFileDialog } = usePromptInputAttachments();
-    return (
-        <PromptInputButton onClick={openFileDialog} className="gap-2">
-            <IconPaperclip className="size-4" />
-            <span className="text-xs font-medium">Upload</span>
-        </PromptInputButton>
-    )
-}
 
 export default function AssistantPage() {
     const { user } = useUser()
@@ -479,43 +454,15 @@ export default function AssistantPage() {
                                 </p>
                             </div>
 
-                            {/* Input Area */}
-                            <div className="w-full">
-                                <PromptInputProvider>
-                                    <PromptInput
-                                        onSubmit={(msg: { text: string; files: any[] }) => {
-                                            handleSubmit(msg.text, msg.files.map(f => f.file || f));
-                                            return Promise.resolve();
-                                        }}
-                                        className="bg-transparent border shadow-sm rounded-2xl overflow-hidden focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary/50 transition-all"
-                                    >
-                                        <PromptInputHeader className="px-4 pt-4 empty:hidden">
-                                            <PromptInputAttachmentsDisplay />
-                                        </PromptInputHeader>
-                                        <PromptInputBody>
-                                            <PromptInputTextarea
-                                                placeholder="Ask anything..."
-                                                className="min-h-[60px] max-h-[200px] px-4 py-3.5 text-base resize-none field-sizing-content bg-transparent border-0 shadow-none focus-visible:ring-0 rounded-2xl"
-                                            />
-                                        </PromptInputBody>
-                                        <PromptInputFooter className="px-3 pb-3 pt-0">
-                                            <PromptInputTools>
-                                                <PromptInputUploadButton />
-
-                                                <PromptInputButton
-                                                    onClick={() => setIsWebSearchEnabled(!isWebSearchEnabled)}
-                                                    className={cn("gap-2", isWebSearchEnabled ? "bg-primary/20 text-primary hover:bg-primary/30" : "text-muted-foreground")}
-                                                >
-                                                    <IconWorld className="size-4" />
-                                                    <span className={cn("text-xs font-medium transition-all")}>Web Search</span>
-                                                </PromptInputButton>
-
-                                            </PromptInputTools>
-
-                                            <PromptInputSubmit className={cn("transition-opacity", isLoading ? "opacity-50" : "opacity-100")} />
-                                        </PromptInputFooter>
-                                    </PromptInput>
-                                </PromptInputProvider>
+                            {/* Center Input Area */}
+                            <div className="w-full max-w-3xl px-4 z-20">
+                                <EnhancedPromptInput
+                                    onSubmit={async (text, files) => {
+                                        await handleSubmit(text, files);
+                                    }}
+                                    model={model}
+                                    onModelChange={setModel}
+                                />
                             </div>
 
                             {/* Suggestions */}
@@ -569,61 +516,16 @@ export default function AssistantPage() {
                         {/* Sticky Input Footer */}
                         <div className="sticky bottom-0 z-40 w-full bg-background/95 backdrop-blur-sm pb-4 pt-2">
                             <div className="max-w-3xl mx-auto w-full px-4">
-                                <div className="w-full bg-background border border-border shadow-sm rounded-3xl px-2 py-0 overflow-hidden focus-within:ring-1 focus-within:ring-primary/20 transition-all">
-                                    <PromptInputProvider>
-                                        <PromptInput
-                                            onSubmit={(msg: { text: string; files: any[] }) => {
-                                                scrollToBottom();
-                                                handleSubmit(msg.text, msg.files.map(f => f.file || f));
-                                                return Promise.resolve();
-                                            }}
-                                            className="bg-transparent border-0 shadow-none"
-                                        >
-                                            <PromptInputHeader className="px-6 pt-0 empty:hidden">
-                                                <PromptInputAttachmentsDisplay />
-                                            </PromptInputHeader>
-                                            <PromptInputBody>
-                                                <PromptInputTextarea
-                                                    placeholder="Message Assistant..."
-                                                    className="min-h-[52px] max-h-[200px] px-6 py-4 text-base resize-none field-sizing-content bg-transparent border-0 shadow-none focus-visible:ring-0 rounded-2xl"
-                                                />
-                                            </PromptInputBody>
-                                            <PromptInputFooter className="px-4 pb-4 pt-2 flex items-center justify-between">
-                                                <PromptInputTools>
-                                                    <PromptInputUploadButton />
-
-                                                    <PromptInputButton
-                                                        onClick={() => setIsWebSearchEnabled(!isWebSearchEnabled)}
-                                                        className={cn("gap-2", isWebSearchEnabled ? "bg-primary/20 text-primary hover:bg-primary/30" : "text-muted-foreground")}
-                                                    >
-                                                        <IconWorld className="size-4" />
-                                                        <span className={cn("text-xs font-medium transition-all")}>Web Search</span>
-                                                    </PromptInputButton>
-                                                </PromptInputTools>
-
-                                                {(isLoading || isCancelling) ? (
-                                                    <Tooltip delayDuration={300}>
-                                                        <TooltipTrigger asChild>
-                                                            <Button
-                                                                size="icon"
-                                                                variant="ghost"
-                                                                onClick={handleCancel}
-                                                                aria-label="Stop generation"
-                                                                disabled={isCancelling}
-                                                                className={cn("text-destructive", isCancelling ? "opacity-50 pointer-events-none" : "")}
-                                                            >
-                                                                {isCancelling ? <Spinner className="size-4" /> : <IconX className="size-4" />}
-                                                            </Button>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent side="top">{isCancelling ? "Stopping..." : "Stop"}</TooltipContent>
-                                                    </Tooltip>
-                                                ) : (
-                                                    <PromptInputSubmit />
-                                                )}
-                                            </PromptInputFooter>
-                                        </PromptInput>
-                                    </PromptInputProvider>
-                                </div>
+                                <EnhancedPromptInput
+                                    onSubmit={async (text, files) => {
+                                        scrollToBottom();
+                                        await handleSubmit(text, files);
+                                    }}
+                                    isLoading={isLoading || isCancelling}
+                                    onStop={handleCancel}
+                                    model={model}
+                                    onModelChange={setModel}
+                                />
                             </div>
                         </div>
                     </div>
@@ -632,27 +534,3 @@ export default function AssistantPage() {
         </div>
     );
 }
-
-// Helper Component for Attachments
-const PromptInputAttachmentsDisplay = () => {
-    const attachments = usePromptInputAttachments();
-
-    if (attachments.files.length === 0) {
-        return null;
-    }
-
-    return (
-        <Attachments variant="inline" className="px-4 pt-4">
-            {attachments.files.map((attachment) => (
-                <Attachment
-                    data={attachment}
-                    key={attachment.id}
-                    onRemove={() => attachments.remove(attachment.id)}
-                >
-                    <AttachmentPreview />
-                    <AttachmentRemove />
-                </Attachment>
-            ))}
-        </Attachments>
-    );
-};
