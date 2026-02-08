@@ -9,7 +9,6 @@ import {
   IconPin,
   IconTrash,
   IconArchive,
-  IconRefresh,
 } from "@tabler/icons-react"
 import {
   SidebarGroup,
@@ -68,10 +67,14 @@ export function NavAI() {
   const [commandResults, setCommandResults] = useState<SearchResult[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [indexReady, setIndexReady] = useState(false) // Track if IndexedDB index is initialized
+  const [indexStatus, setIndexStatus] = useState<'idle' | 'indexing' | 'ready' | 'failed'>('idle')
+  const [indexProgress, setIndexProgress] = useState(0) // Percentage 0-100
 
   const [displayChats, setDisplayChats] = useState<any[]>([])
 
   const loadTimeoutRef = useRef<number | null>(null)
+  const indexingRef = useRef(false) // Prevent concurrent indexing runs
+  const indexingAbortRef = useRef(false) // Allow cancellation
   const { isReady, userKeys, loadChats, renameChat, pinChat, archiveChat, deleteChat } = useAICrypto()
 
   // Decrypt a single message
@@ -97,15 +100,24 @@ export function NavAI() {
   // Load encrypted chats, decrypt all message content, and build IndexedDB full-text search index
   const loadSearchData = useCallback(async () => {
     if (!isReady || !userKeys) return
+    if (indexingRef.current) return
+
+    indexingRef.current = true
+    setIndexStatus('indexing')
+    setIndexProgress(0)
+    setIndexReady(false)
+
     try {
-      setIndexReady(false) // Start index building
       const response = await apiClient.searchChats(200)
       const responseData = response as any
       const chats = responseData.chats || responseData.data?.chats || []
 
-      // Decrypt titles and ALL messages to build full-text search index
       const indexedChats: any[] = []
-      const displayPromises = chats.map(async (chat: any) => {
+      const displayList: any[] = []
+
+      const total = chats.length || 1
+      for (let i = 0; i < chats.length; i++) {
+        const chat = chats[i]
         let title = 'New Chat'
         try {
           if (chat.encrypted_title && chat.iv && chat.encapsulated_key) {
@@ -121,59 +133,66 @@ export function NavAI() {
           title = 'New Chat'
         }
 
-        // FULL message decryption for search index (not limited to last 3)
         const msgs = Array.isArray(chat.messages) 
           ? chat.messages.slice().sort((a:any,b:any)=> new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
           : []
         const decryptedMsgs: any[] = []
-        
         for (const m of msgs) {
           try {
             const content = await decryptMessage(m.content, m.iv, m.encapsulated_key)
-            decryptedMsgs.push({ 
-              id: m.id, 
-              role: m.role, 
-              content, 
-              created_at: m.created_at 
-            })
+            decryptedMsgs.push({ id: m.id, role: m.role, content, created_at: m.created_at })
           } catch (e) {
             // ignore individual message decrypt failures
           }
         }
 
-        // For display in sidebar: show only last 3 messages
+        // Keep last 3 for sidebar display
         const lastThreeMsgs = decryptedMsgs.slice(-3)
 
-        // For index: store all messages (full-text search)
-        indexedChats.push({
-          id: chat.id,
-          title,
-          createdAt: chat.created_at,
-          pinned: !!chat.pinned,
-          messages: decryptedMsgs,
-        })
+        indexedChats.push({ id: chat.id, title, createdAt: chat.created_at, pinned: !!chat.pinned, messages: decryptedMsgs })
+        displayList.push({ id: chat.id, title, created_at: chat.created_at, pinned: !!chat.pinned, messages: lastThreeMsgs })
 
-        return {
-          id: chat.id,
-          title,
-          created_at: chat.created_at,
-          pinned: !!chat.pinned,
-          messages: lastThreeMsgs,
+        // Update progress
+          setIndexProgress(Math.round(((i + 1) / total) * 100))
+        // Emit progress event
+        if (typeof window !== 'undefined') {
+          try { window.dispatchEvent(new CustomEvent('ai:index-progress', { detail: { progress: Math.round(((i + 1) / total) * 100) } })) } catch (e) {}
         }
-      })
+        // Check cancel flag
+        if (indexingAbortRef.current) {
+          setIndexStatus('idle')
+          indexingRef.current = false
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new Event('ai:build-index-cancel'))
+          }
+          return
+        }
+      }
 
-      const resolved = await Promise.all(displayPromises)
-      setDisplayChats(resolved)
+      setDisplayChats(displayList)
 
-      // Persist all decrypted data to IndexedDB for zero-network full-text search
       if (indexedChats.length > 0) {
         await indexChats(indexedChats)
       }
-      
+
+      setIndexStatus('ready')
       setIndexReady(true)
+
+      // Notify other UI parts (sidebar history) that index is ready
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('ai:build-index-complete'))
+      }
     } catch (error) {
       console.error("Failed to load chats for search:", error)
-      setIndexReady(true) // Mark as ready even on error to prevent blocking UI
+      setIndexStatus('failed')
+      setIndexReady(false)
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('ai:build-index-failed', { detail: { message: String((error as any)?.message || error) } }))
+      }
+    } finally {
+      indexingRef.current = false
+      indexingAbortRef.current = false
+      setTimeout(() => setIndexProgress(100), 200)
     }
   }, [isReady, userKeys, decryptMessage])
 
@@ -198,9 +217,47 @@ export function NavAI() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
+  // If user opens command dialog and index is not ready, build it (once)
+  useEffect(() => {
+    if (searchOpen && indexStatus !== 'ready' && !indexingRef.current) {
+      // Dispatch 'start' event
+      if (typeof window !== 'undefined') window.dispatchEvent(new Event('ai:build-index-start'))
+      loadSearchData()
+    }
+  }, [searchOpen, indexStatus, loadSearchData])
+
+  // Allow external cancel events to stop indexing
+  useEffect(() => {
+    const handler = () => {
+      if (indexingRef.current) {
+        indexingAbortRef.current = true
+        setIndexStatus('idle')
+        setIndexProgress(0)
+      }
+    }
+    window.addEventListener('ai:cancel-index', handler)
+    return () => window.removeEventListener('ai:cancel-index', handler)
+  }, [])
+
+  // Listen for global 'build index' events (e.g., from header history rebuild button)
+  useEffect(() => {
+    const handler = () => {
+      if (!indexingRef.current) loadSearchData()
+    }
+    window.addEventListener('ai:build-index', handler)
+    return () => window.removeEventListener('ai:build-index', handler)
+  }, [loadSearchData])
+
   // Listen for command query changes and search IndexedDB (zero API calls, instant results)
   useEffect(() => {
     if (!commandQuery.trim()) {
+      setCommandResults([])
+      return
+    }
+
+    // If index not ready, bail and show that indexing is in progress
+    if (indexStatus !== 'ready') {
+      setIsSearching(false)
       setCommandResults([])
       return
     }
@@ -225,7 +282,7 @@ export function NavAI() {
       } catch (error) {
         console.error('Local search failed, results may be incomplete:', error)
         if (!cancelled) {
-          toast.error('Search error - try refreshing')
+          toast.error('Search error - try rebuilding the index')
         }
       } finally {
         if (!cancelled) setIsSearching(false)
@@ -235,22 +292,14 @@ export function NavAI() {
     return () => {
       cancelled = true
     }
-  }, [commandQuery, indexReady])
+  }, [commandQuery, indexStatus])
 
   const handleNewChat = () => {
     router.push('/assistant')
     setSearchOpen(false)
   }
 
-  const handleRefreshIndex = async () => {
-    toast.loading('Refreshing search index…')
-    try {
-      await loadSearchData()
-      toast.success('Search index refreshed')
-    } catch (error) {
-      toast.error('Failed to refresh index')
-    }
-  }
+
 
 
 
@@ -273,26 +322,7 @@ export function NavAI() {
               </SidebarMenuButton>
             </SidebarMenuItem>
 
-            {/* Refresh Index Button (subtle) */}
-            {indexReady && state === "expanded" && (
-              <SidebarMenuItem>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <SidebarMenuButton
-                      onClick={handleRefreshIndex}
-                      className="cursor-pointer"
-                      size="sm"
-                    >
-                      <IconRefresh className="h-4 w-4" />
-                      <span className="text-xs text-muted-foreground">Refresh</span>
-                    </SidebarMenuButton>
-                  </TooltipTrigger>
-                  <TooltipContent side="right" className="text-xs">
-                    Refresh search index from server
-                  </TooltipContent>
-                </Tooltip>
-              </SidebarMenuItem>
-            )}
+
 
             {/* Search */}
             {state === "expanded" ? (
@@ -344,6 +374,25 @@ export function NavAI() {
           onValueChange={setCommandQuery}
         />
         <CommandList className="max-h-[400px]">
+          {indexStatus === 'indexing' && (
+            <div className="px-4 py-3">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-xs font-medium">Indexing chats…</div>
+                <div className="text-xs text-muted-foreground">{indexProgress}%</div>
+              </div>
+              <div className="w-full bg-muted rounded-full h-2">
+                <div className="bg-primary h-2 rounded-full transition-all" style={{ width: `${indexProgress}%` }} />
+              </div>
+              <div className="flex justify-end mt-2">
+                <button className="text-xs text-destructive underline" onClick={() => {
+                  indexingAbortRef.current = true
+                  window.dispatchEvent(new Event('ai:cancel-index'))
+                  setIndexStatus('idle')
+                }}>Cancel</button>
+              </div>
+            </div>
+          )}
+
           {isSearching && (
             <div className="flex items-center justify-center py-6">
               <div className="text-sm text-muted-foreground">Searching locally…</div>
@@ -357,9 +406,9 @@ export function NavAI() {
           {!isSearching && commandQuery.trim() && commandResults.length === 0 && (
             <>
               <CommandEmpty>No chats found matching "{commandQuery}"</CommandEmpty>
-              {!indexReady && (
+              {indexStatus !== 'ready' && (
                 <div className="flex items-center justify-center py-4 text-xs text-muted-foreground">
-                  Building search index…
+                  Index not ready. Building index when you open search.
                 </div>
               )}
             </>

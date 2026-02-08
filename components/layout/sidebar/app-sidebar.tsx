@@ -20,6 +20,8 @@ import {
   IconStar,
   IconWritingSign,
   IconBrain,
+  IconDotsVertical,
+  IconLoader2,
 } from "@tabler/icons-react"
 
 import { NavMain } from "@/components/layout/navigation/nav-main"
@@ -48,6 +50,20 @@ import { getDiceBearAvatar } from "@/lib/avatar"
 import { usePathname } from "next/navigation"
 import { useLanguage } from "@/lib/i18n/language-context"
 import { apiClient } from "@/lib/api"
+import { getAllIndexedChats } from "@/lib/indexeddb"
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
+import { useAICrypto } from "@/hooks/use-ai-crypto"
+import { toast } from "sonner"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 const defaultUser = {
   name: "Loading...",
@@ -66,6 +82,17 @@ export const AppSidebar = React.memo(function AppSidebar({
   const { user: contextUser, loading: userLoading } = useUser()
   const { isAIMode, setIsAIMode, isHydrated } = useAIMode()
   const [pendingCount, setPendingCount] = React.useState(0)
+
+  // Recent chat history (populated from local IndexedDB index)
+  const [recentChats, setRecentChats] = React.useState<any[]>([])
+  const { renameChat, pinChat, archiveChat, deleteChat } = useAICrypto()
+
+  const [indexingActive, setIndexingActive] = React.useState(false)
+  const [indexProgressLocal, setIndexProgressLocal] = React.useState(0)
+
+  // Delete confirmation modal state
+  const [confirmDeleteId, setConfirmDeleteId] = React.useState<string | null>(null)
+  const [deleting, setDeleting] = React.useState(false)
 
   const data = {
     user: contextUser ? {
@@ -265,6 +292,43 @@ export const AppSidebar = React.memo(function AppSidebar({
     checkAuth()
   }, [contextUser])
 
+  // Load recent indexed chats from local search index (if available)
+  React.useEffect(() => {
+    let mounted = true
+    const loadRecent = async () => {
+      try {
+        const chats = await getAllIndexedChats()
+        if (!mounted) return
+        const sorted = chats.sort((a:any,b:any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        setRecentChats(sorted.slice(0, 6))
+      } catch (e) {
+        console.error('Failed to load indexed history', e)
+      }
+    }
+
+    loadRecent()
+    const handler = () => loadRecent()
+    const onStart = () => setIndexingActive(true)
+    const onComplete = () => { setIndexingActive(false); setIndexProgressLocal(100); handler() }
+    const onCancel = () => { setIndexingActive(false); setIndexProgressLocal(0); handler() }
+    const onProgress = (e: any) => setIndexProgressLocal(e?.detail?.progress || 0)
+
+    window.addEventListener('ai:build-index-complete', onComplete)
+    window.addEventListener('ai:build-index', handler)
+    window.addEventListener('ai:build-index-start', onStart)
+    window.addEventListener('ai:build-index-cancel', onCancel)
+    window.addEventListener('ai:index-progress', onProgress)
+
+    return () => {
+      mounted = false;
+      window.removeEventListener('ai:build-index-complete', onComplete);
+      window.removeEventListener('ai:build-index', handler);
+      window.removeEventListener('ai:build-index-start', onStart);
+      window.removeEventListener('ai:build-index-cancel', onCancel);
+      window.removeEventListener('ai:index-progress', onProgress);
+    }
+  }, [])
+
   // If user is loading, render a sidebar skeleton immediately so layout doesn't shift
   if (!isAuthenticated && userLoading) {
     return (
@@ -333,6 +397,105 @@ export const AppSidebar = React.memo(function AppSidebar({
             <NavNew onFileUpload={handleFileUpload} onFolderUpload={handleFolderUpload} />
           )
         })()}
+
+        {/* History Dropdown - visible when sidebar is expanded */}
+        {state === 'expanded' && (
+          <div className="ml-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-2 px-2 py-2 rounded-md hover:bg-accent">
+                  <IconClockHour9 className="h-4 w-4" />
+                  <span className="text-xs">History</span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent side="bottom" align="start" className="w-64">
+                {recentChats.length === 0 ? (
+                  <div className="p-2 text-xs text-muted-foreground">No history indexed</div>
+                ) : (
+                  recentChats.map(chat => (
+                    <div key={chat.id} className="flex items-center justify-between px-2 py-1">
+                      <div className="flex-1 pr-2 cursor-pointer" onClick={() => router.push(`/assistant?conversationId=${chat.id}`)}>
+                        <div className="text-sm truncate">{chat.title}</div>
+                        <div className="text-xs text-muted-foreground">{new Date(chat.createdAt).toLocaleDateString()}</div>
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        {/* Inline actions dropdown */}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button className="p-1 rounded hover:bg-accent text-muted-foreground">
+                              <IconDotsVertical className="h-4 w-4" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent side="bottom" align="end" className="w-44">
+                            <DropdownMenuItem onClick={async (e) => { e.stopPropagation(); const value = window.prompt('Rename chat', chat.title || ''); if (value && value.trim()) { try { await renameChat(chat.id, value.trim()); toast.success('Renamed'); window.dispatchEvent(new Event('ai:build-index')) } catch (err) { console.error(err); toast.error('Rename failed') } } }}>
+                              Rename
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={async (e) => { e.stopPropagation(); try { await pinChat(chat.id, !chat.pinned); toast.success(chat.pinned ? 'Unpinned' : 'Pinned'); window.dispatchEvent(new Event('ai:build-index')) } catch (err) { console.error(err); toast.error('Failed to update pin') } }}>
+                              {chat.pinned ? 'Unpin' : 'Pin'}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={async (e) => { e.stopPropagation(); try { await archiveChat(chat.id, true); toast.success('Archived'); window.dispatchEvent(new Event('ai:build-index')) } catch (err) { console.error(err); toast.error('Archive failed') } }}>
+                              Archive
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(chat.id) }}>
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </div>
+                  ))
+                )}
+
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => window.dispatchEvent(new Event('ai:build-index'))} className="text-xs">
+                  Rebuild Index
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
+
+        {/* Delete confirmation modal */}
+        <AlertDialog open={!!confirmDeleteId} onOpenChange={(open) => { if (!open) setConfirmDeleteId(null) }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete chat?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. Are you sure you want to permanently delete this chat?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction disabled={deleting} onClick={async () => {
+                if (!confirmDeleteId) return;
+                setDeleting(true);
+                try {
+                  await deleteChat(confirmDeleteId);
+                  toast.success('Deleted');
+                  setRecentChats(prev => prev.filter(c => c.id !== confirmDeleteId));
+                  window.dispatchEvent(new Event('ai:build-index'));
+                } catch (err) {
+                  console.error(err);
+                  toast.error('Delete failed');
+                } finally {
+                  setDeleting(false);
+                  setConfirmDeleteId(null);
+                }
+              }}>
+                {deleting ? (
+                  <>
+                    <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
+                    Deleting...
+                  </>
+                ) : (
+                  'Delete'
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </SidebarHeader>
       <SidebarContent>
         {isAIMode ? (
