@@ -15,6 +15,14 @@ import { Suggestions, Suggestion } from "@/components/ai-elements/suggestion"
 import { ChatMessage } from "@/components/ai-elements/chat-message"
 import { toast } from "sonner"
 
+interface MessageVersion {
+    id: string;
+    content: string;
+    toolCalls?: any[];
+    createdAt?: number;
+    feedback?: 'like' | 'dislike';
+}
+
 interface Message {
     id?: string;
     role: 'user' | 'assistant';
@@ -23,6 +31,8 @@ interface Message {
     feedback?: 'like' | 'dislike';
     originalPromptId?: string;
     toolCalls?: any[]; // using any for simplicity or import ToolCall
+    versions?: MessageVersion[];
+    currentVersionIndex?: number;
 }
 
 
@@ -63,6 +73,31 @@ export default function AssistantPage() {
             // Allow manual scroll intervention check if needed, but for now just scroll
             container.scrollTo({ top, behavior });
         }
+    };
+
+    const handleVersionChange = (messageId: string, direction: 'prev' | 'next') => {
+        setMessages(prev => {
+            const newMessages = [...prev];
+            const msgIndex = newMessages.findIndex(m => m.id === messageId);
+            if (msgIndex === -1) return prev;
+
+            const msg = newMessages[msgIndex];
+            if (!msg.versions || msg.versions.length <= 1) return prev;
+
+            const currentIndex = msg.currentVersionIndex || 0;
+            const newIndex = direction === 'prev' ? currentIndex - 1 : currentIndex + 1;
+
+            if (newIndex >= 0 && newIndex < msg.versions.length) {
+                // Swap content to main object
+                const version = msg.versions[newIndex];
+                msg.content = version.content;
+                msg.toolCalls = version.toolCalls;
+                msg.id = version.id; // Although ID might change if backend treats them as diff messages, usually nice to keep stable unless backend returns new ID.
+                msg.feedback = version.feedback;
+                msg.currentVersionIndex = newIndex;
+            }
+            return newMessages;
+        });
     };
 
     // Load History when conversationId changes
@@ -483,28 +518,195 @@ export default function AssistantPage() {
         }
     };
 
-    const handleRegenerate = (messageId: string) => {
-        // Remove the assistant message and the thinking state before it
+    const handleRegenerate = async (messageId: string, instruction?: string) => {
+        const messageIndex = messages.findIndex(m => m.id === messageId);
+        if (messageIndex === -1) return;
+
+        // 1. Prepare Versioning
         setMessages(prev => {
-            const newMessages = [...prev];
-            const idx = newMessages.findIndex(m => m.id === messageId);
-            if (idx !== -1) {
-                newMessages.splice(idx, 1);
-                // Also remove thinking message if it exists
-                if (idx > 0 && newMessages[idx - 1]?.isThinking) {
-                    newMessages.splice(idx - 1, 1);
+            const newMessages = prev.map((m, idx) => {
+                if (idx !== messageIndex) return m;
+
+                const msg = { ...m };
+                // Initialize versions if needed
+                if (!msg.versions) {
+                    msg.versions = [{
+                        id: msg.id || 'initial',
+                        content: msg.content,
+                        toolCalls: msg.toolCalls,
+                        createdAt: Date.now(),
+                        feedback: msg.feedback
+                    }];
+                    msg.currentVersionIndex = 0;
+                } else {
+                    // Update current version with latest state
+                    const currentIdx = msg.currentVersionIndex || 0;
+                    if (msg.versions[currentIdx]) {
+                        msg.versions[currentIdx] = {
+                            ...msg.versions[currentIdx],
+                            content: msg.content,
+                            toolCalls: msg.toolCalls,
+                            feedback: msg.feedback
+                        };
+                    }
                 }
-            }
+
+                // Create new version slot
+                const newVersionIndex = msg.versions.length;
+                msg.versions.push({
+                    id: `pending-${Date.now()}`,
+                    content: "",
+                    createdAt: Date.now()
+                });
+                msg.currentVersionIndex = newVersionIndex;
+
+                // Reset main display
+                msg.content = "";
+                msg.toolCalls = [];
+                msg.isThinking = true;
+                msg.feedback = undefined;
+
+                return msg;
+            });
             return newMessages;
         });
 
-        // Find last user message and re-submit
-        const lastUserMsg = messages.slice().reverse().find(m => m.role === 'user');
-        if (lastUserMsg) {
-            handleSubmit(lastUserMsg.content, []);
+        const historyPayload = messages.slice(0, messageIndex).map(m => ({
+            role: m.role,
+            content: m.content
+        }));
+
+        if (instruction) {
+            historyPayload.push({
+                role: 'user',
+                content: instruction
+            });
+        }
+
+        setIsLoading(true);
+        const controller = new AbortController();
+        abortControllerRef.current = controller;
+
+        try {
+            const response = await apiClient.chatAI(
+                historyPayload,
+                conversationId || lastCreatedConversationId.current || "",
+                model,
+                kyberPublicKey || undefined,
+                undefined,
+                isWebSearchEnabled,
+                controller.signal
+            );
+
+            if (!response.ok) throw new Error('Failed to regenerate');
+            if (!response.body) throw new Error('No response body');
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let assistantMessageContent = "";
+            let currentSessionKey: Uint8Array | undefined;
+            let buffer = "";
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                const chunk = decoder.decode(value, { stream: true });
+                buffer += chunk;
+                const events = buffer.split('\n\n');
+                buffer = events.pop() || "";
+
+                for (const event of events) {
+                    if (!event.trim()) continue;
+                    const lines = event.split('\n');
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const dataStr = line.replace('data: ', '').trim();
+                            if (dataStr === '[DONE]') break;
+
+                            try {
+                                const data = JSON.parse(dataStr);
+
+                                // Decryption Handling
+                                let decryptedContent = "";
+                                if (data.encrypted_content && data.iv) {
+                                    const { decrypted, sessionKey } = await decryptStreamChunk(
+                                        data.encrypted_content,
+                                        data.iv,
+                                        data.encapsulated_key,
+                                        currentSessionKey
+                                    );
+                                    decryptedContent = decrypted;
+                                    currentSessionKey = sessionKey;
+                                }
+
+                                setMessages(prev => {
+                                    const newMessages = [...prev];
+                                    const msg = newMessages[messageIndex];
+                                    if (!msg) return newMessages;
+
+                                    if (data.tool_calls) {
+                                        const currentToolCalls = msg.toolCalls || [];
+                                        const newToolCalls = [...currentToolCalls];
+                                        for (const tc of data.tool_calls) {
+                                            if (!newToolCalls[tc.index]) {
+                                                newToolCalls[tc.index] = { id: tc.id, type: tc.type, function: { name: tc.function?.name, arguments: "" } };
+                                            }
+                                            if (tc.function?.arguments) {
+                                                newToolCalls[tc.index].function.arguments += tc.function.arguments;
+                                            }
+                                        }
+                                        msg.toolCalls = newToolCalls;
+                                        msg.isThinking = false;
+                                        if (msg.versions && typeof msg.currentVersionIndex === 'number') {
+                                            if (msg.versions[msg.currentVersionIndex]) {
+                                                msg.versions[msg.currentVersionIndex].toolCalls = newToolCalls;
+                                            }
+                                        }
+                                    }
+
+                                    const contentToAdd = decryptedContent || data.content || "";
+                                    if (contentToAdd) {
+                                        assistantMessageContent += contentToAdd;
+                                        msg.content = assistantMessageContent;
+                                        msg.isThinking = false;
+                                        if (msg.versions && typeof msg.currentVersionIndex === 'number') {
+                                            if (msg.versions[msg.currentVersionIndex]) {
+                                                msg.versions[msg.currentVersionIndex].content = assistantMessageContent;
+                                            }
+                                        }
+                                    }
+
+                                    if (data.id) {
+                                        msg.id = data.id;
+                                        if (msg.versions && typeof msg.currentVersionIndex === 'number') {
+                                            if (msg.versions[msg.currentVersionIndex]) {
+                                                msg.versions[msg.currentVersionIndex].id = data.id;
+                                            }
+                                        }
+                                    }
+
+                                    return newMessages;
+                                });
+
+                            } catch (e) { console.error(e); }
+                        }
+                    }
+                }
+            }
+        } catch (e) {
+            console.error(e);
+            toast.error("Failed to regenerate");
+            setMessages(prev => {
+                const newMessages = [...prev];
+                if (newMessages[messageIndex]) newMessages[messageIndex].isThinking = false;
+                return newMessages;
+            });
+        } finally {
+            setIsLoading(false);
+            abortControllerRef.current = null;
         }
     };
-
     const handleEditMessage = (messageId: string, newContent: string) => {
         // Update the user message content
         setMessages(prev => prev.map(m =>
@@ -646,8 +848,9 @@ export default function AssistantPage() {
                                         onCopy={handleCopy}
                                         onFeedback={handleFeedback}
                                         onRetry={() => handleRetry(message.id || '')}
-                                        onRegenerate={() => handleRegenerate(message.id || '')}
+                                        onRegenerate={(instruction) => handleRegenerate(message.id || '', instruction)}
                                         onEdit={(content) => handleEditMessage(message.id || '', content)}
+                                        onVersionChange={(dir) => handleVersionChange(message.id || '', dir)}
                                     />
                                 </div>
                             ))}

@@ -2,9 +2,11 @@
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
-import { IconCopy, IconEdit, IconRefresh, IconThumbDown, IconThumbUp, IconCheck, IconX, IconCode, IconChevronDown, IconChevronRight } from "@tabler/icons-react"
+import { IconCopy, IconEdit, IconRefresh, IconThumbDown, IconThumbUp, IconCheck, IconX, IconCode, IconChevronDown, IconChevronRight, IconDownload, IconChevronLeft, IconListDetails, IconArrowsMinimize, IconBrain, IconClock } from "@tabler/icons-react"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { Streamdown } from "streamdown"
 import { code } from "@streamdown/code"
@@ -12,7 +14,6 @@ import { math } from "@streamdown/math"
 import { cjk } from "@streamdown/cjk"
 import "katex/dist/katex.min.css"
 import { Reasoning, ReasoningTrigger, ReasoningContent } from "@/components/ai-elements/reasoning"
-
 
 import { CitationParser } from "@/components/ai-elements/citation-parser";
 import { mermaid } from "@streamdown/mermaid"
@@ -27,6 +28,14 @@ export interface ToolCall {
     result?: string;
 }
 
+export interface MessageVersion {
+    id: string;
+    content: string;
+    toolCalls?: ToolCall[];
+    createdAt?: number;
+    feedback?: 'like' | 'dislike';
+}
+
 export interface Message {
     id?: string;
     role: 'user' | 'assistant';
@@ -36,6 +45,8 @@ export interface Message {
     feedback?: 'like' | 'dislike';
     sources?: { title: string; url: string; content?: string }[];
     toolCalls?: ToolCall[];
+    versions?: MessageVersion[];
+    currentVersionIndex?: number;
 }
 
 interface ChatMessageProps {
@@ -45,21 +56,37 @@ interface ChatMessageProps {
     onRetry?: () => void;
     onEdit?: (content: string) => void;
     onFeedback?: (messageId: string, feedback: 'like' | 'dislike') => void;
-    onRegenerate?: () => void;
+    onRegenerate?: (instruction?: string) => void;
+    onVersionChange?: (direction: 'prev' | 'next') => void;
 }
 
 
-export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedback, onRegenerate }: ChatMessageProps) {
+export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedback, onRegenerate, onVersionChange }: ChatMessageProps) {
+    // ... existing state ...
     const isUser = message.role === 'user';
     const [copied, setCopied] = React.useState(false);
     const [feedbackGiven, setFeedbackGiven] = React.useState(!!message.feedback);
     const [isEditingPrompt, setIsEditingPrompt] = React.useState(false);
     const [editContent, setEditContent] = React.useState(message.content);
+    const [isRegenPanelOpen, setIsRegenPanelOpen] = React.useState(false);
 
+    // ... existing handlers ...
     const handleCopy = () => {
         onCopy(message.content);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
+    };
+
+    const handleDownload = () => {
+        const blob = new Blob([message.content], { type: 'text/markdown' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `response-${message.id || Date.now()}.md`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     };
 
     const handleFeedback = (feedback: 'like' | 'dislike') => {
@@ -76,20 +103,30 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
         }
     };
 
+    const handleRegenerateSubmit = (instruction?: string) => {
+        setIsRegenPanelOpen(false);
+        onRegenerate?.(instruction);
+    };
+
 
     const streamdownPlugins = React.useMemo(() => ({ code, math, cjk, mermaid } as any), []);
 
+    // Version Navigation
+    const versionCount = message.versions?.length || 1;
+    const currentVersion = (message.currentVersionIndex || 0) + 1;
 
     return (
         <div className={cn(
             "flex w-full gap-4 max-w-3xl mx-auto group",
             isUser ? "justify-end" : "justify-start"
         )}>
+            {/* ... existing render logic ... */}
             <div className={cn(
                 "flex flex-col max-w-[85%]",
                 isUser ? "items-end" : "items-start"
             )}>
                 {isUser ? (
+                    // ... User Message Render ...
                     <>
                         {isEditingPrompt ? (
                             <div className="w-full space-y-2">
@@ -205,8 +242,10 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                             </div>
                         )}
 
-                        <div className="flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity justify-end">
-                            <div className="flex items-center gap-0.5 mr-auto">
+                        {/* Actions Footer - Always Visible for Assistant */}
+                        <div className="flex items-center justify-between mt-2 select-none">
+                            {/* Left Actions */}
+                            <div className="flex items-center gap-0.5">
                                 <Button
                                     variant="ghost"
                                     size="icon"
@@ -225,18 +264,51 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                 >
                                     <IconThumbDown className="size-3.5" />
                                 </Button>
+                                <ActionButton
+                                    icon={copied ? IconCheck : IconCopy}
+                                    label="Copy"
+                                    onClick={handleCopy}
+                                />
+
+                                <RegeneratePanel
+                                    isOpen={isRegenPanelOpen}
+                                    onOpenChange={setIsRegenPanelOpen}
+                                    onSubmit={handleRegenerateSubmit}
+                                />
+
+                                <ActionButton
+                                    icon={IconDownload}
+                                    label="Download"
+                                    onClick={handleDownload}
+                                />
                             </div>
 
-                            <ActionButton
-                                icon={IconRefresh}
-                                label="Regenerate"
-                                onClick={onRegenerate}
-                            />
-                            <ActionButton
-                                icon={copied ? IconCheck : IconCopy}
-                                label="Copy"
-                                onClick={handleCopy}
-                            />
+                            {/* Right Actions - Version Navigation */}
+                            {versionCount > 1 && (
+                                <div className="flex items-center gap-1 text-xs text-muted-foreground bg-muted/30 rounded-md px-1">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-5 w-5"
+                                        onClick={() => onVersionChange?.('prev')}
+                                        disabled={currentVersion <= 1}
+                                    >
+                                        <IconChevronLeft className="size-3" />
+                                    </Button>
+                                    <span className="px-1 min-w-[30px] text-center font-mono">
+                                        {currentVersion} / {versionCount}
+                                    </span>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-5 w-5"
+                                        onClick={() => onVersionChange?.('next')}
+                                        disabled={currentVersion >= versionCount}
+                                    >
+                                        <IconChevronRight className="size-3" />
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
@@ -245,6 +317,122 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
     );
 }
 
+function RegeneratePanel({ isOpen, onOpenChange, onSubmit }: { isOpen: boolean, onOpenChange: (open: boolean) => void, onSubmit: (instruction?: string) => void }) {
+    const [instruction, setInstruction] = React.useState("");
+    const [selectedOption, setSelectedOption] = React.useState<string | null>(null);
+
+    React.useEffect(() => {
+        if (!isOpen) {
+            setInstruction("");
+            setSelectedOption(null);
+        }
+    }, [isOpen]);
+
+    const handleSubmit = () => {
+        if (instruction.trim()) {
+            onSubmit(`User requested the following changes to the previous answer: ${instruction}`);
+        } else if (selectedOption) {
+            switch (selectedOption) {
+                case 'try-again': onSubmit(); break; // Default regen
+                case 'details': onSubmit("Provide a more detailed and expanded version."); break;
+                case 'concise': onSubmit("Provide a shorter, more concise version."); break;
+                case 'think': onSubmit("Take more time to reason and provide a deeper answer."); break;
+                default: onSubmit();
+            }
+        } else {
+            onSubmit(); // Default try again
+        }
+    };
+
+    return (
+        <Popover open={isOpen} onOpenChange={onOpenChange}>
+            <PopoverTrigger asChild>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn("h-6 w-6 text-muted-foreground hover:text-foreground", isOpen && "text-foreground bg-muted")}
+                >
+                    <IconRefresh className="size-3.5" />
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80 p-0" align="start" side="bottom">
+                <div className="p-3 space-y-3">
+                    <p className="text-xs font-semibold text-muted-foreground">Describe desired changes...</p>
+                    <Textarea
+                        value={instruction}
+                        onChange={(e) => setInstruction(e.target.value)}
+                        placeholder="What needs to be changed?"
+                        className="min-h-[80px] text-sm resize-none"
+                        maxLength={500}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                handleSubmit();
+                            }
+                        }}
+                    />
+
+                    <div className="grid grid-cols-2 gap-2">
+                        <QuickOption
+                            icon={IconRefresh}
+                            label="Try Again"
+                            ariaLabel="Regenerate the response without changes"
+                            selected={selectedOption === 'try-again'}
+                            onClick={() => setSelectedOption('try-again')}
+                            disabled={!!instruction}
+                        />
+                        <QuickOption
+                            icon={IconListDetails}
+                            label="Add Details"
+                            ariaLabel="Regenerate with more details and explanation"
+                            selected={selectedOption === 'details'}
+                            onClick={() => setSelectedOption('details')}
+                            disabled={!!instruction}
+                        />
+                        <QuickOption
+                            icon={IconArrowsMinimize}
+                            label="More Concise"
+                            ariaLabel="Regenerate a shorter, more concise response"
+                            selected={selectedOption === 'concise'}
+                            onClick={() => setSelectedOption('concise')}
+                            disabled={!!instruction}
+                        />
+                        <QuickOption
+                            icon={IconBrain}
+                            label="Think Longer"
+                            ariaLabel="Regenerate with deeper reasoning and analysis"
+                            selected={selectedOption === 'think'}
+                            onClick={() => setSelectedOption('think')}
+                            disabled={!!instruction}
+                        />
+                    </div>
+                </div>
+            </PopoverContent>
+        </Popover>
+    );
+}
+
+function QuickOption({ icon: Icon, label, ariaLabel, selected, onClick, disabled }: { icon: any, label: string, ariaLabel: string, selected: boolean, onClick: () => void, disabled?: boolean }) {
+    return (
+        <button
+            onClick={onClick}
+            disabled={disabled}
+            aria-label={ariaLabel}
+            className={cn(
+                "flex items-center gap-2 p-2 rounded-md border text-xs font-medium transition-all",
+                selected
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background hover:bg-muted text-muted-foreground hover:text-foreground",
+                disabled && "opacity-50 cursor-not-allowed"
+            )}
+        >
+            <Icon className="size-3.5" />
+            <span>{label}</span>
+        </button>
+    )
+}
+
+// ... existing ToolCallItem ...
 function ToolCallItem({ tool }: { tool: ToolCall }) {
     const [isOpen, setIsOpen] = React.useState(false);
 
@@ -269,7 +457,7 @@ function ToolCallItem({ tool }: { tool: ToolCall }) {
                 className="flex items-center gap-2 w-full px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-muted/50 transition-colors"
             >
                 <IconCode className="size-3.5" />
-                <span>{tool.function.name === 'execute_code' ? 'Writing code...' : 'Using tool'}</span>
+                <span>{tool.function.name === 'execute_code' ? 'Writing Python code...' : 'Using tool'}</span>
                 {isOpen ? <IconChevronDown className="size-3.5 ml-auto" /> : <IconChevronRight className="size-3.5 ml-auto" />}
             </button>
             {isOpen && (
@@ -292,7 +480,7 @@ function ActionButton({ icon: Icon, label, onClick }: { icon: any, label: string
                         <Icon className="size-3.5" />
                     </Button>
                 </TooltipTrigger>
-                <TooltipContent>
+                <TooltipContent side="bottom">
                     <p>{label}</p>
                 </TooltipContent>
             </Tooltip>
