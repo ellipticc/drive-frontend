@@ -503,13 +503,12 @@ export default function AssistantPage() {
                         <Virtuoso
                             ref={virtuosoRef}
                             data={messages}
-                            initialTopMostItemIndex={messages.length - 1}
-                            followOutput="auto"
-                            className="w-full h-full scrollbar-transparent"
+                            initialTopMostItemIndex={Math.max(0, messages.length - 1)}
+                            followOutput="smooth"
+                            style={{ width: '100%', height: '100%' }}
                             itemContent={(index, message) => (
-                                <div className="px-4 py-4 max-w-3xl mx-auto w-full">
+                                <div key={message.id || `msg-${index}`} className="px-4 py-4 max-w-[960px] mx-auto w-full">
                                     <ChatMessage
-                                        key={message.id || index}
                                         message={message}
                                         isLast={index === messages.length - 1}
                                         onCopy={handleCopy}
@@ -522,7 +521,7 @@ export default function AssistantPage() {
                             )}
                             components={{
                                 Footer: () => (
-                                    <div className="h-36" /> // Bottom spacer for input area
+                                    <div className="h-20" /> // Bottom spacer for input area
                                 )
                             }}
                         />
