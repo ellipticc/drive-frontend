@@ -49,7 +49,7 @@ export default function AssistantPage() {
     const [isLoading, setIsLoading] = React.useState(false)
     const [isCancelling, setIsCancelling] = React.useState(false)
     const abortControllerRef = React.useRef<AbortController | null>(null)
-    const [model, setModel] = React.useState("llama-3.1-8b-instant")
+    const [model, setModel] = React.useState("llama-3.3-70b-versatile")
     const [isWebSearchEnabled, setIsWebSearchEnabled] = React.useState(false);
 
     const { isReady, kyberPublicKey, decryptHistory, decryptStreamChunk, encryptMessage, loadChats } = useAICrypto();

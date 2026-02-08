@@ -4196,6 +4196,7 @@ class ApiClient {
   async saveAIChatMessage(
     conversationId: string,
     role: 'user' | 'assistant' | 'system',
+    model: string,
     encrypted_content: string,
     iv: string
   ): Promise<Response> {
@@ -4210,6 +4211,7 @@ class ApiClient {
       },
       body: JSON.stringify({
         conversationId,
+        model,
         role,
         encrypted_content,
         iv,

@@ -15,6 +15,19 @@ export const Icons = {
     Archive: IconArchive,
 };
 
+import {
+    ModelSelector,
+    ModelSelectorContent,
+    ModelSelectorEmpty,
+    ModelSelectorGroup,
+    ModelSelectorInput,
+    ModelSelectorItem,
+    ModelSelectorList,
+    ModelSelectorLogo,
+    ModelSelectorName,
+    ModelSelectorTrigger,
+} from "@/components/ai-elements/model-selector"
+
 interface AttachedFile {
     id: string;
     file: File;
@@ -72,99 +85,6 @@ const FilePreviewCard: React.FC<FilePreviewCardProps> = ({ file, onRemove }) => 
     );
 };
 
-// 2. Model Selector
-interface Model {
-    id: string;
-    name: string;
-    description: string;
-    badge?: string;
-}
-
-interface ModelSelectorProps {
-    models: Model[];
-    selectedModel: string;
-    onSelect: (modelId: string) => void;
-}
-
-const ModelSelector: React.FC<ModelSelectorProps> = ({ models, selectedModel, onSelect }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const dropdownRef = useRef<HTMLDivElement>(null);
-
-    const currentModel = models.find(m => m.id === selectedModel) || models[0];
-
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-                setIsOpen(false);
-            }
-        };
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
-
-    return (
-        <div className="relative" ref={dropdownRef}>
-            <button
-                onClick={() => setIsOpen(!isOpen)}
-                className={cn(
-                    "inline-flex items-center justify-center relative shrink-0 transition font-base duration-300 h-8 rounded-xl px-3 min-w-[4rem] active:scale-[0.98] whitespace-nowrap !text-xs pl-2.5 pr-2 gap-1",
-                    isOpen
-                        ? 'bg-muted text-foreground'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                )}
-            >
-                <div className="font-ui inline-flex gap-[3px] text-[14px] h-[14px] leading-none items-baseline">
-                    <div className="flex items-center gap-[4px]">
-                        <div className="whitespace-nowrap select-none font-medium">{currentModel.name}</div>
-                    </div>
-                </div>
-                <div className="flex items-center justify-center opacity-75" style={{ width: '20px', height: '20px' }}>
-                    <Icons.SelectArrow className={cn("shrink-0 opacity-75 transition-transform duration-200", isOpen && 'rotate-180')} />
-                </div>
-            </button>
-
-            {isOpen && (
-                <div className="absolute bottom-full right-0 mb-2 w-[260px] bg-popover border border-border rounded-2xl shadow-xl overflow-hidden z-50 flex flex-col p-1.5 animate-in fade-in zoom-in-95 origin-bottom-right">
-                    {models.map(model => (
-                        <button
-                            key={model.id}
-                            onClick={() => {
-                                onSelect(model.id);
-                                setIsOpen(false);
-                            }}
-                            className="w-full text-left px-3 py-2.5 rounded-xl flex items-start justify-between group transition-colors hover:bg-muted"
-                        >
-                            <div className="flex flex-col gap-0.5">
-                                <div className="flex items-center gap-2">
-                                    <span className="text-[13px] font-semibold text-foreground">
-                                        {model.name}
-                                    </span>
-                                    {model.badge && (
-                                        <span className={cn(
-                                            "px-1.5 py-[1px] rounded-full text-[10px] font-medium border",
-                                            model.badge === 'Upgrade'
-                                                ? 'border-blue-200 text-blue-600 bg-blue-50 dark:border-blue-500/30 dark:text-blue-400 dark:bg-blue-500/10'
-                                                : 'border-border text-muted-foreground'
-                                        )}>
-                                            {model.badge}
-                                        </span>
-                                    )}
-                                </div>
-                                <span className="text-[11px] text-muted-foreground">
-                                    {model.description}
-                                </span>
-                            </div>
-                            {selectedModel === model.id && (
-                                <Icons.Check className="w-4 h-4 text-primary mt-1" />
-                            )}
-                        </button>
-                    ))}
-                </div>
-            )}
-        </div>
-    );
-};
-
 // 3. Main Enhanced Prompt Input Component
 interface EnhancedPromptInputProps {
     onSubmit: (value: string, attachments: File[]) => Promise<void>;
@@ -194,10 +114,13 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const models = [
-        { id: "llama-3.1-8b-instant", name: "Llama 3.1", description: "Fastest response time" },
-        { id: "llama-3.3-70b-versatile", name: "Llama 3.3", description: "Better reasoning & detail" },
-        { id: "mixtral-8x7b-32768", name: "Mixtral", description: "Balanced performance" }
+        { id: "llama-3.3-70b-versatile", name: "Llama 3.3 70B", description: "Versatile, 128k context", provider: "meta" },
+        { id: "qwen-2.5-32b", name: "Qwen 2.5 32B", description: "Code, Reasoning", provider: "alibaba" },
+        { id: "openai/gpt-oss-120b", name: "GPT-OSS 120B", description: "Vision, General", provider: "openai" },
+        { id: "llama-guard-4-12b", name: "Llama Guard 4", description: "Safety, Moderation", provider: "meta" }
     ];
+
+    const currentModel = models.find(m => m.id === effectiveModel) || models[0];
 
     // Auto-resize textarea
     useEffect(() => {
@@ -348,11 +271,37 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                                 <Icons.Thinking className="w-5 h-5" />
                             </button>
 
-                            <ModelSelector
-                                models={models}
-                                selectedModel={effectiveModel}
-                                onSelect={handleModelChange}
-                            />
+                            <ModelSelector>
+                                <ModelSelectorTrigger className="inline-flex items-center justify-center relative shrink-0 transition font-base duration-300 h-8 rounded-xl px-3 min-w-[4rem] active:scale-[0.98] whitespace-nowrap !text-xs pl-2.5 pr-2 gap-1 text-muted-foreground hover:text-foreground hover:bg-muted">
+                                    <div className="font-ui inline-flex gap-[3px] text-[14px] h-[14px] leading-none items-baseline">
+                                        <div className="whitespace-nowrap select-none font-medium">{currentModel.name}</div>
+                                    </div>
+                                    <Icons.SelectArrow className="shrink-0 opacity-75 w-3 h-3" />
+                                </ModelSelectorTrigger>
+                                <ModelSelectorContent>
+                                    <ModelSelectorInput placeholder="Search models..." />
+                                    <ModelSelectorList>
+                                        <ModelSelectorEmpty>No model found.</ModelSelectorEmpty>
+                                        <ModelSelectorGroup heading="Platform Models">
+                                            {models.map((model) => (
+                                                <ModelSelectorItem
+                                                    key={model.id}
+                                                    onSelect={() => {
+                                                        handleModelChange(model.id);
+                                                    }}
+                                                >
+                                                    <ModelSelectorLogo provider={model.provider as any} />
+                                                    <div className="flex flex-col ml-2">
+                                                        <ModelSelectorName>{model.name}</ModelSelectorName>
+                                                        <span className="text-[10px] text-muted-foreground">{model.description}</span>
+                                                    </div>
+                                                    {effectiveModel === model.id && <Icons.Check className="w-4 h-4 ml-auto text-primary" />}
+                                                </ModelSelectorItem>
+                                            ))}
+                                        </ModelSelectorGroup>
+                                    </ModelSelectorList>
+                                </ModelSelectorContent>
+                            </ModelSelector>
                         </div>
 
                         {/* Right Tools (Send/Stop) */}
