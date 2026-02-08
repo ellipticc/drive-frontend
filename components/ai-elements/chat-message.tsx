@@ -274,7 +274,7 @@ function ToolCallItem({ tool }: { tool: ToolCall }) {
             </button>
             {isOpen && (
                 <div className="bg-black/5 p-3 overflow-x-auto">
-                    <pre className="text-xs font-mono language-javascript">
+                    <pre className="text-xs font-mono language-python">
                         {codeContent}
                     </pre>
                 </div>
