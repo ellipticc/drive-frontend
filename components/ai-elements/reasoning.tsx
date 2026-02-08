@@ -9,9 +9,6 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import { cjk } from "@streamdown/cjk";
-import { math } from "@streamdown/math";
-import { mermaid } from "@streamdown/mermaid";
 import { IconBrain, IconChevronDown } from "@tabler/icons-react";
 import {
   createContext,
@@ -23,7 +20,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { StreamdownWithShiki } from "@/components/ai-elements/streamdown-with-shiki";
+import { MarkdownRenderer } from "@/components/ai-elements/markdown-renderer";
 
 import { Shimmer } from "./shimmer";
 
@@ -204,8 +201,6 @@ export type ReasoningContentProps = ComponentProps<
   children: string;
 };
 
-const streamdownPlugins = { cjk, math, mermaid };
-
 export const ReasoningContent = memo(
   ({ className, children, ...props }: ReasoningContentProps) => (
     <CollapsibleContent
@@ -216,11 +211,7 @@ export const ReasoningContent = memo(
       )}
       {...props}
     >
-      <div className="prose prose-sm dark:prose-invert max-w-none">
-        <StreamdownWithShiki plugins={streamdownPlugins as any} {...props}>
-          {children}
-        </StreamdownWithShiki>
-      </div>
+      <MarkdownRenderer content={children} compact={true} />
     </CollapsibleContent>
   )
 );

@@ -8,14 +8,10 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
-import { math } from "@streamdown/math"
-import { cjk } from "@streamdown/cjk"
-import "katex/dist/katex.min.css"
 import { Reasoning, ReasoningTrigger, ReasoningContent } from "@/components/ai-elements/reasoning"
 
 import { CitationParser } from "@/components/ai-elements/citation-parser";
-import { mermaid } from "@streamdown/mermaid"
-import { StreamdownWithShiki } from "@/components/ai-elements/streamdown-with-shiki"
+import { MarkdownRenderer } from "@/components/ai-elements/markdown-renderer"
 
 export interface ToolCall {
     id: string;
@@ -111,9 +107,8 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
     };
 
 
-    // StreamdownWithShiki handles code highlighting automatically
-    // We include other plugins manually (without @streamdown/code)
-    const streamdownPlugins = React.useMemo(() => ({ math, cjk, mermaid } as any), []);
+    // MarkdownRenderer handles all Markdown parsing with Shiki highlighting
+    // Uses Remark + Rehype AST pipeline for streaming-safe rendering
 
     // Version Navigation
     const versionCount = message.versions?.length || 1;
@@ -210,14 +205,12 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
 
 
 
-                        <div className="prose prose-sm dark:prose-invert max-w-none leading-relaxed">
+                        <div className="w-full">
                             {/* Use CitationParser to handle [1] style links if sources exist */}
                             {message.sources && message.sources.length > 0 ? (
                                 <CitationParser content={message.content} sources={message.sources} />
                             ) : (
-                                <StreamdownWithShiki plugins={streamdownPlugins}>
-                                    {message.content}
-                                </StreamdownWithShiki>
+                                <MarkdownRenderer content={message.content} compact={false} />
                             )}
 
                         </div>
