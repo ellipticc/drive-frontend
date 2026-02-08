@@ -544,11 +544,6 @@ export default function AssistantPage() {
                             initialTopMostItemIndex={messages.length - 1}
                             followOutput="auto"
                             className="w-full h-full scrollbar-transparent"
-                            atBottomStateChange={(atBottom) => {
-                                if (atBottom) {
-                                    virtuosoRef.current?.scrollToIndex({ index: messages.length - 1, behavior: "smooth" });
-                                }
-                            }}
                             itemContent={(index, message) => (
                                 <div className="px-4 py-4 max-w-3xl mx-auto w-full">
                                     <ChatMessage
