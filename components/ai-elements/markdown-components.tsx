@@ -336,22 +336,18 @@ export const BlockQuote: React.FC<{
 );
 
 /**
- * Table Components
+ * Table Components - Using security tab styling
  */
 export const Table: React.FC<{
   children?: React.ReactNode;
   className?: string;
 }> = ({ children, className }) => (
-  <div className="overflow-x-auto my-4">
-    <table
-      className={cn(
-        'w-full border-collapse',
-        'text-sm',
-        className
-      )}
-    >
-      {children}
-    </table>
+  <div className={cn('my-4 border rounded-lg overflow-hidden bg-card', className)}>
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        {children}
+      </table>
+    </div>
   </div>
 );
 
@@ -359,12 +355,7 @@ export const TableHead: React.FC<{
   children?: React.ReactNode;
   className?: string;
 }> = ({ children, className }) => (
-  <thead
-    className={cn(
-      'bg-muted/60 border-b border-border',
-      className
-    )}
-  >
+  <thead className={cn('bg-muted/50 border-b', className)}>
     {children}
   </thead>
 );
@@ -373,7 +364,7 @@ export const TableBody: React.FC<{
   children?: React.ReactNode;
   className?: string;
 }> = ({ children, className }) => (
-  <tbody className={cn(className)}>
+  <tbody className={cn('divide-y', className)}>
     {children}
   </tbody>
 );
@@ -383,13 +374,7 @@ export const TableRow: React.FC<{
   className?: string;
   isHeader?: boolean;
 }> = ({ children, className, isHeader }) => (
-  <tr
-    className={cn(
-      'border-b border-border/50',
-      'hover:bg-muted/30 transition-colors',
-      className
-    )}
-  >
+  <tr className={cn('hover:bg-muted/30 transition-colors', className)}>
     {children}
   </tr>
 );
@@ -400,24 +385,25 @@ export const TableCell: React.FC<{
   isHeader?: boolean;
   align?: 'left' | 'center' | 'right';
 }> = ({ children, className, isHeader, align = 'left' }) => {
-  const Component = isHeader ? 'th' : 'td';
   const alignClass = {
     left: 'text-left',
     center: 'text-center',
     right: 'text-right',
   }[align];
 
-  return React.createElement(Component, {
-    className: cn(
-      'px-3 py-2',
-      'text-foreground',
-      isHeader && 'font-semibold text-sm',
-      !isHeader && 'text-sm',
-      alignClass,
-      className
-    ),
-    children,
-  });
+  if (isHeader) {
+    return (
+      <th className={cn('px-4 py-3 font-medium text-muted-foreground text-xs tracking-wider', alignClass, className)}>
+        {children}
+      </th>
+    );
+  }
+
+  return (
+    <td className={cn('px-4 py-3', alignClass, className)}>
+      {children}
+    </td>
+  );
 };
 
 /**
