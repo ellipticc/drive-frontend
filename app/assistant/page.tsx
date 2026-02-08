@@ -2,13 +2,13 @@
 
 import * as React from "react"
 import { useUser } from "@/components/user-context"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { IconPaperclip, IconSparkles, IconWorld, IconX } from "@tabler/icons-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { Spinner } from "@/components/ui/spinner"
 import apiClient from "@/lib/api"
+import { Virtuoso } from "react-virtuoso"
 
 // Import AI Elements
 import {
@@ -24,10 +24,6 @@ import {
     usePromptInputAttachments
 } from "@/components/ai-elements/prompt-input"
 import { SiteHeader } from "@/components/layout/header/site-header"
-import { cjk } from "@streamdown/cjk"
-import { code } from "@streamdown/code"
-import { math } from "@streamdown/math"
-import { mermaid } from "@streamdown/mermaid"
 import { useAICrypto } from "@/hooks/use-ai-crypto";
 import { parseFile } from "@/lib/file-parser";
 import { useRouter, useSearchParams } from "next/navigation"
@@ -35,8 +31,6 @@ import { Attachment, AttachmentPreview, AttachmentRemove, Attachments } from "@/
 import { Suggestions, Suggestion } from "@/components/ai-elements/suggestion"
 import { ChatMessage } from "@/components/ai-elements/chat-message"
 import { toast } from "sonner"
-
-const streamdownPlugins = { cjk, code, math, mermaid }
 
 interface Message {
     id?: string;
@@ -66,7 +60,7 @@ export default function AssistantPage() {
     const [isLoading, setIsLoading] = React.useState(false)
     const [isCancelling, setIsCancelling] = React.useState(false)
     const abortControllerRef = React.useRef<AbortController | null>(null)
-    const scrollAreaRef = React.useRef<HTMLDivElement>(null)
+    const virtuosoRef = React.useRef<any>(null)
     const [model, setModel] = React.useState("llama-3.1-8b-instant")
     const [isWebSearchEnabled, setIsWebSearchEnabled] = React.useState(false);
 
@@ -105,12 +99,11 @@ export default function AssistantPage() {
     }, [conversationId, isReady, decryptHistory, router]);
 
     const scrollToBottom = () => {
-        if (scrollAreaRef.current) {
-            const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
-            if (scrollContainer) {
-                // Immediate scroll is better for chat interactions
-                scrollContainer.scrollTop = scrollContainer.scrollHeight;
-            }
+        if (virtuosoRef.current) {
+            virtuosoRef.current.scrollToIndex({
+                index: messages.length - 1,
+                behavior: 'smooth'
+            });
         }
     }
 
@@ -197,14 +190,16 @@ export default function AssistantPage() {
             }
 
             // Prepare history for context (Sanitize UI flags)
+            // Optimization: Only send last 30 messages to save bandwidth/tokens
             const historyPayload = messages
                 .filter(m => !m.isThinking && m.content) // Remove thinking placeholders or empty msgs
+                .slice(-30)
                 .map(m => ({ role: m.role, content: m.content }));
 
             // Add current user message
             const fullPayload = [...historyPayload, { role: 'user' as const, content: value }];
 
-            // We SEND user message as plaintext (for inference) + Encrypted Blob (for storage)
+            // We SEND user message as plaintext (for server inference) + Encrypted Blob (for storage)
             const controller = new AbortController();
             abortControllerRef.current = controller;
 
@@ -421,7 +416,6 @@ export default function AssistantPage() {
             } catch (e) {
                 console.error('Abort failed', e);
             }
-            // Keep controller ref until finalization to avoid race conditions
 
             // Update UI to reflect immediate stop intent (partial content preserved)
             setMessages(prev => {
@@ -544,31 +538,42 @@ export default function AssistantPage() {
                     // CHAT STATE: Scrollable Messages + Sticky Bottom Input
                     <div className="flex flex-col h-full w-full">
                         {/* Messages Container */}
-                        <ScrollArea ref={scrollAreaRef} className="flex-1 w-full overflow-hidden z-10">
-                            <div className="w-full h-full">
-                                <div className="max-w-5xl mx-auto px-4 py-6 space-y-8 min-h-full pb-36">
-                                    {messages.map((message, index) => (
-                                        <ChatMessage
-                                            key={index}
-                                            message={message}
-                                            isLast={index === messages.length - 1}
-                                            onCopy={handleCopy}
-                                            onFeedback={handleFeedback}
-                                            onRetry={() => handleRetry(message.id || '')}
-                                            onRegenerate={() => handleRegenerate(message.id || '')}
-                                            onEdit={(content) => handleEditMessage(message.id || '', content)}
-                                        />
-                                    ))}
-
-                                    {/* spacer so the last message scrolls fully out before input */}
-                                    <div className="h-36" aria-hidden="true" />
+                        <Virtuoso
+                            ref={virtuosoRef}
+                            data={messages}
+                            initialTopMostItemIndex={messages.length - 1}
+                            followOutput="auto"
+                            className="w-full h-full scrollbar-transparent"
+                            atBottomStateChange={(atBottom) => {
+                                if (atBottom) {
+                                    virtuosoRef.current?.scrollToIndex({ index: messages.length - 1, behavior: "smooth" });
+                                }
+                            }}
+                            itemContent={(index, message) => (
+                                <div className="px-4 py-4 max-w-3xl mx-auto w-full">
+                                    <ChatMessage
+                                        key={message.id || index}
+                                        message={message}
+                                        isLast={index === messages.length - 1}
+                                        onCopy={handleCopy}
+                                        onFeedback={handleFeedback}
+                                        onRetry={() => handleRetry(message.id || '')}
+                                        onRegenerate={() => handleRegenerate(message.id || '')}
+                                        onEdit={(content) => handleEditMessage(message.id || '', content)}
+                                    />
                                 </div>
-                            </div>
-                        </ScrollArea>
+                            )}
+                            components={{
+                                Footer: () => (
+                                    <div className="h-36" /> // Bottom spacer for input area
+                                )
+                            }}
+                        />
+
 
                         {/* Sticky Input Footer */}
                         <div className="sticky bottom-0 z-40 w-full bg-background/95 backdrop-blur-sm pb-4 pt-2">
-                            <div className="max-w-5xl mx-auto w-full px-4">
+                            <div className="max-w-3xl mx-auto w-full px-4">
                                 <div className="w-full bg-background border border-border shadow-sm rounded-3xl px-2 py-0 overflow-hidden focus-within:ring-1 focus-within:ring-primary/20 transition-all">
                                     <PromptInputProvider>
                                         <PromptInput
@@ -577,7 +582,7 @@ export default function AssistantPage() {
                                                 handleSubmit(msg.text, msg.files.map(f => f.file || f));
                                                 return Promise.resolve();
                                             }}
-                                            className="bg-background border border-border shadow-sm rounded-3xl"
+                                            className="bg-transparent border-0 shadow-none"
                                         >
                                             <PromptInputHeader className="px-6 pt-0 empty:hidden">
                                                 <PromptInputAttachmentsDisplay />
@@ -629,8 +634,8 @@ export default function AssistantPage() {
                     </div>
                 )}
             </div>
-        </div >
-    )
+        </div>
+    );
 }
 
 // Helper Component for Attachments
