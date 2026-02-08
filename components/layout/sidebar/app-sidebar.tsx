@@ -40,7 +40,6 @@ import {
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Switch } from "@/components/ui/switch"
 import { useGlobalUpload } from "@/components/global-upload-context"
 import { useUser } from "@/components/user-context"
 import { useAIMode } from "@/components/ai-mode-context"
@@ -63,8 +62,8 @@ export const AppSidebar = React.memo(function AppSidebar({
   const { t } = useLanguage()
   const { handleFileUpload, handleFolderUpload } = useGlobalUpload()
   const { user: contextUser, loading: userLoading } = useUser()
-  const { isAIMode, setIsAIMode, isHydrated } = useAIMode()
-  const [pendingCount, setPendingCount] = React.useState(0) // State for pending shared items count moved up
+  const { isAIMode } = useAIMode()
+  const [pendingCount, setPendingCount] = React.useState(0)
 
   const data = {
     user: contextUser ? {
@@ -296,11 +295,6 @@ export const AppSidebar = React.memo(function AppSidebar({
     );
   }
 
-  // Don't render if not authenticated (will redirect)
-  if (!isAuthenticated && !userLoading) {
-    return null;
-  }
-
   return (
     <Sidebar collapsible="icon" className="bg-sidebar" {...props}>
       <SidebarHeader className="gap-2 p-2">
@@ -316,22 +310,7 @@ export const AppSidebar = React.memo(function AppSidebar({
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
-        {isHydrated && (
-          <div className="flex items-center justify-between px-2 py-2 rounded-md bg-muted/50 border border-border/50">
-            <div className="flex items-center gap-2 flex-1">
-              <IconBrain className="size-4 shrink-0 text-muted-foreground" />
-              <span className="text-xs font-medium text-foreground flex-1">AI Mode</span>
-            </div>
-            <Switch
-              checked={isAIMode}
-              onCheckedChange={setIsAIMode}
-              aria-label="Toggle AI Mode"
-              className="data-[state=checked]:bg-primary"
-            />
-          </div>
-        )}
-        {!isHydrated && <div className="h-8" />}
-        <NavNew onFileUpload={handleFileUpload} onFolderUpload={handleFolderUpload} />
+        {!isAIMode && <NavNew onFileUpload={handleFileUpload} onFolderUpload={handleFolderUpload} />}
       </SidebarHeader>
       <SidebarContent>
         {isAIMode ? (

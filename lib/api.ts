@@ -4249,6 +4249,21 @@ class ApiClient {
     return response.json();
   }
 
+  async searchChats(limit?: number): Promise<ApiResponse<{ chats: any[] }>> {
+    const endpoint = `/ai/search?limit=${limit || 50}`;
+    const authHeaders = await this.getAuthHeaders(endpoint, 'GET');
+
+    const response = await fetch(`${this.baseURL}${endpoint}`, {
+      method: 'GET',
+      headers: authHeaders
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to search chats');
+    }
+    return response.json();
+  }
+
   // AI User Preferences
   // Returns `{ settings: ... }` which is what the backend returns
   async getAIPreferences(): Promise<ApiResponse<{ settings?: any }>> {

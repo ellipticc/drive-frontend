@@ -1,44 +1,21 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext } from "react";
+import { usePathname } from "next/navigation";
 
 interface AIModeContextType {
   isAIMode: boolean;
-  setIsAIMode: (value: boolean) => void;
-  isHydrated: boolean;
 }
 
 const AIModeContext = createContext<AIModeContextType | undefined>(undefined);
 
 export function AIModeProvider({ children }: { children: React.ReactNode }) {
-  const [isAIMode, setIsAIModeState] = useState(false);
-  const [isHydrated, setIsHydrated] = useState(false);
-
-  // Hydrate from localStorage on mount
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("ai-mode");
-      if (saved !== null) {
-        setIsAIModeState(saved === "true");
-      }
-    } catch (e) {
-      console.error("Failed to read AI Mode from localStorage", e);
-    }
-    setIsHydrated(true);
-  }, []);
-
-  // Persist to localStorage when mode changes
-  const setIsAIMode = (value: boolean) => {
-    setIsAIModeState(value);
-    try {
-      localStorage.setItem("ai-mode", String(value));
-    } catch (e) {
-      console.error("Failed to save AI Mode to localStorage", e);
-    }
-  };
+  // AI Mode is determined by route - automatically active in /assistant
+  const pathname = usePathname();
+  const isAIMode = pathname.startsWith("/assistant");
 
   return (
-    <AIModeContext.Provider value={{ isAIMode, setIsAIMode, isHydrated }}>
+    <AIModeContext.Provider value={{ isAIMode }}>
       {children}
     </AIModeContext.Provider>
   );
