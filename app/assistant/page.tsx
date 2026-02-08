@@ -214,7 +214,33 @@ export default function AssistantPage() {
                 controller.signal
             );
 
-            if (!response.ok) throw new Error('Failed to fetch response')
+            if (!response.ok) {
+                // Attempt to parse JSON body for error and requestId
+                let body = null;
+                try {
+                    body = await response.clone().json();
+                } catch (e) {
+                    // ignore
+                }
+                const requestId = response.headers.get('X-Request-Id') || body?.requestId || null;
+                const errMsg = body?.error || 'Failed to fetch response';
+
+                // Show message inline in assistant chat with request ID
+                setMessages(prev => {
+                    const newMessages = [...prev];
+                    const lastMessage = newMessages[newMessages.length - 1];
+                    const display = `${errMsg}${requestId ? ` Request ID: \`${requestId}\`` : ''}`;
+                    if (lastMessage && lastMessage.role === 'assistant') {
+                        lastMessage.content = display;
+                        lastMessage.isThinking = false;
+                    } else {
+                        newMessages.push({ role: 'assistant', content: display, isThinking: false });
+                    }
+                    return newMessages;
+                });
+
+                throw new Error(JSON.stringify({ message: errMsg, requestId }));
+            }
 
             // Check for X-Conversation-Id header to redirect if it was a new chat
             const newConversationId = response.headers.get('X-Conversation-Id');
@@ -283,6 +309,38 @@ export default function AssistantPage() {
                                     console.warn("[DEBUG] Chunk missing content:", data);
                                 }
 
+                                if (data.message) {
+                                    // Server-side error or informational message delivered as part of stream
+                                    setMessages(prev => {
+                                        const newMessages = [...prev]
+                                        const lastMessage = newMessages[newMessages.length - 1]
+                                        if (lastMessage && lastMessage.role === 'assistant') {
+                                            lastMessage.content = data.message
+                                            lastMessage.isThinking = false
+                                        } else {
+                                            newMessages.push({ role: 'assistant', content: data.message, isThinking: false })
+                                        }
+                                        return newMessages
+                                    })
+
+                                    // Also show a toast to surface the Request ID quickly
+                                    try {
+                                        const m = data.message;
+                                        // Extract backticked requestId if present for convenience
+                                        const match = m && m.match(/`([^`]+)`/);
+                                        const id = match ? match[1] : null;
+                                        if (id) {
+                                            toast.error(`Server error (Request ID: ${id})`)
+                                        } else {
+                                            toast.error('Server error')
+                                        }
+                                    } catch (e) {
+                                        // ignore
+                                    }
+
+                                    continue;
+                                }
+
                                 if (contentToAppend) {
                                     assistantMessageContent += contentToAppend;
 
@@ -330,11 +388,26 @@ export default function AssistantPage() {
             if (errName === 'AbortError') {
                 // Do nothing - user intentionally stopped the response
             } else {
+                // Try to extract requestId from thrown error (we may have thrown a JSON string)
+                let display = 'Sorry, I encountered an error. Please try again.';
+                try {
+                    if (typeof (error as any).message === 'string') {
+                        const parsed = JSON.parse((error as any).message);
+                        if (parsed && parsed.requestId) {
+                            display += ` Request ID: \`${parsed.requestId}\``;
+                        } else if (parsed && parsed.message) {
+                            display = `${parsed.message}${parsed.requestId ? ` Request ID: \`${parsed.requestId}\`` : ''}`;
+                        }
+                    }
+                } catch (e) {
+                    // ignore parse errors
+                }
+
                 setMessages(prev => {
                     const newMessages = [...prev]
                     const lastMessage = newMessages[newMessages.length - 1]
                     if (lastMessage && lastMessage.role === 'assistant') {
-                        lastMessage.content = "Sorry, I encountered an error. Please try again."
+                        lastMessage.content = display
                         lastMessage.isThinking = false
                     }
                     return newMessages
