@@ -52,6 +52,7 @@ export default function AssistantPage() {
     const abortControllerRef = React.useRef<AbortController | null>(null)
     const [model, setModel] = React.useState("llama-3.3-70b-versatile")
     const [isWebSearchEnabled, setIsWebSearchEnabled] = React.useState(false);
+    const [chatTitle, setChatTitle] = React.useState<string>('Chat');
 
     const { isReady, kyberPublicKey, decryptHistory, decryptStreamChunk, encryptMessage, loadChats } = useAICrypto();
 
@@ -138,6 +139,15 @@ export default function AssistantPage() {
         });
     };
 
+    // Update page title based on chat
+    React.useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const title = conversationId ? `Chat | Ellipticc` : 'New Chat | Ellipticc';
+            document.title = title;
+            setChatTitle(conversationId ? 'Chat' : 'New Chat');
+        }
+    }, [conversationId]);
+
     // Load History when conversationId changes
     React.useEffect(() => {
         if (!isReady) return;
@@ -153,6 +163,7 @@ export default function AssistantPage() {
             decryptHistory(conversationId)
                 .then((msgs: Message[]) => {
                     setMessages(msgs);
+                    setChatTitle('Chat');
 
                     // Scroll to last user message after render
                     setTimeout(() => {
@@ -169,6 +180,7 @@ export default function AssistantPage() {
                 .finally(() => setIsLoading(false));
         } else {
             // New Chat
+            setChatTitle('New Chat');
             setMessages([]);
         }
     }, [conversationId, isReady, decryptHistory, router]);
@@ -968,6 +980,10 @@ export default function AssistantPage() {
                                         model={model}
                                         onModelChange={setModel}
                                     />
+                                    {/* Disclaimer Text */}
+                                    <p className="text-xs text-center text-muted-foreground mt-2">
+                                        AI may display inaccurate or offensive information.
+                                    </p>
                                 </div>
                             </div>
                         </div>

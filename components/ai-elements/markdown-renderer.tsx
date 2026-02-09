@@ -160,7 +160,9 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     <div
       className={cn(
         // Base wrapper with prose styling
-        'prose dark:prose-invert max-w-none',
+        'prose dark:prose-invert max-w-none w-full overflow-hidden',
+        '[&_pre]:overflow-x-auto [&_pre]:max-w-full [&_pre]:w-full',
+        '[&_code]:break-words',
         
         // Remove margins if compact
         compact && [

@@ -73,10 +73,10 @@ export const CodeBlock = React.forwardRef<
       className={cn(
         'my-4 rounded-lg overflow-hidden',
         'border border-border/40 dark:border-border/50',
-        'group max-w-full',
+        'group w-full',
         className
       )}
-      style={{ backgroundColor: bgColor, maxWidth: '100%' }}
+      style={{ backgroundColor: bgColor }}
     >
       {/* Header with Language Label */}
       <div className="flex items-center justify-between px-4 py-2.5">
@@ -102,7 +102,7 @@ export const CodeBlock = React.forwardRef<
       </div>
 
       {/* Code Content - Direct Scroll with Strict Width */}
-      <div className="overflow-x-auto" style={{ backgroundColor: bgColor, maxWidth: '100%' }}>
+      <div className="overflow-x-auto w-full" style={{ backgroundColor: bgColor }}>
         {!isLoading && highlightedHtml ? (
           <div
             className={cn(
@@ -112,7 +112,7 @@ export const CodeBlock = React.forwardRef<
               '[&_*]:!bg-transparent [&_*]:!background-transparent',
               '[&_span]:!background-color-transparent'
             )}
-            style={{ color: textColor, backgroundColor: 'transparent' }}
+            style={{ color: textColor, backgroundColor: 'transparent', fontFamily: "'IBM Plex Mono', monospace" }}
             dangerouslySetInnerHTML={{ __html: highlightedHtml }}
           />
         ) : (
@@ -121,7 +121,7 @@ export const CodeBlock = React.forwardRef<
             'whitespace-pre',
             'min-w-max'
           )}
-          style={{ color: textColor, backgroundColor: 'transparent' }}>
+          style={{ color: textColor, backgroundColor: 'transparent', fontFamily: "'IBM Plex Mono', monospace" }}>
             <code>{codeContent}</code>
           </pre>
         )}
@@ -170,7 +170,7 @@ export const CodeBlock = React.forwardRef<
                     '[&_*]:!bg-transparent [&_*]:!background-transparent',
                     '[&_span]:!background-color-transparent'
                   )}
-                  style={{ color: '#e5e5e5', backgroundColor: 'transparent' }}
+                  style={{ color: '#e5e5e5', backgroundColor: 'transparent', fontFamily: "'IBM Plex Mono', monospace" }}
                   dangerouslySetInnerHTML={{ __html: highlightedHtml }}
                 />
               ) : (
@@ -179,7 +179,7 @@ export const CodeBlock = React.forwardRef<
                   'whitespace-pre',
                   'min-w-max'
                 )}
-                style={{ color: '#e5e5e5', backgroundColor: 'transparent' }}>
+                style={{ color: '#e5e5e5', backgroundColor: 'transparent', fontFamily: "'IBM Plex Mono', monospace" }}>
                   <code>{codeContent}</code>
                 </pre>
               )}
