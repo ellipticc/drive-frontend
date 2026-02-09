@@ -66,11 +66,18 @@ const groups: Group[] = [
         label: 'Ask AI',
         value: 'ai',
         focusEditor: true,
-        onSelect: (editor) => {
-          editor.tf.delete({ unit: 'block' });
-          setTimeout(() => {
-            editor.getApi(AIChatPlugin).aiChat.show();
-          }, 0);
+        onSelect: async (editor) => {
+          // Focus the editor first
+          editor.tf.focus();
+
+          // Select the current block to ensure we have a valid selection for the AI menu anchor
+          if (editor.selection) {
+            editor.tf.select(editor.selection);
+          }
+
+          await new Promise((resolve) => setTimeout(resolve, 0));
+
+          editor.getApi(AIChatPlugin).aiChat.show();
         },
       },
     ],

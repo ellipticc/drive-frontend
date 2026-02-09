@@ -4344,6 +4344,43 @@ class ApiClient {
     return response.data;
   }
 
+  async aiCommand(body: any): Promise<Response> {
+    const endpoint = '/ai/command';
+    const requestUrl = `${this.baseURL}${endpoint}`;
+
+    if (!this.ensureValidToken()) {
+      throw new Error('Session expired. Please log in again.');
+    }
+
+    const config: RequestInit = {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+      credentials: 'include',
+    };
+
+    // Add authorization and device headers using the existing method
+    const authHeaders = await this.getAuthHeaders(endpoint, 'POST');
+    config.headers = {
+      ...config.headers,
+      ...authHeaders,
+    };
+
+    // Add frontend build version header
+    try {
+      if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_APP_VERSION) {
+        (config.headers as Record<string, string>)['X-Ecc-App-Version'] = process.env.NEXT_PUBLIC_APP_VERSION;
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    // Return the raw response for streaming
+    return fetch(requestUrl, config);
+  }
+
   async restoreCheckpoint(conversationId: string, checkpointId: string): Promise<{ success: boolean; message: string }> {
     const response = await this.request<{ success: boolean; message: string }>(
       '/ai/checkpoint/restore',

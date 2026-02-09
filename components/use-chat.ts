@@ -79,15 +79,9 @@ export const useChat = () => {
           ...bodyOptions,
         };
 
-        const authHeaders = await apiClient.getAuthHeaders(options.api || '/api/ai/command', 'POST');
-
-        const res = await fetch(input, {
-          ...init,
-          headers: {
-            ...init?.headers,
-            ...authHeaders,
-          },
-          body: JSON.stringify(body),
+        const res = await apiClient.aiCommand({
+          ...initBody,
+          ...bodyOptions,
         });
 
         if (!res.ok) {
