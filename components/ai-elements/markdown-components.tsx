@@ -138,7 +138,7 @@ export const CodeBlock = React.forwardRef<
 
       {/* Code Preview Sheet */}
       <Sheet open={previewOpen} onOpenChange={setPreviewOpen}>
-        <SheetContent side="right" className="w-[45vw] max-w-none p-0 bg-background">
+        <SheetContent side="right" resizable initialFraction={0.45} minWidth={320} className="max-w-none p-0 bg-background">
           <div className="flex flex-col h-full">
             {/* Sheet Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b bg-muted/30">
@@ -203,9 +203,8 @@ export const InlineCode: React.FC<{
 }> = ({ children, className }) => (
   <code
     className={cn(
-      'px-1.5 py-0.5 rounded',
-      'bg-muted text-sm font-mono text-foreground/90',
-      'inline-block whitespace-pre-wrap break-words',
+      'inline-block align-baseline max-w-full overflow-x-auto whitespace-nowrap px-1.5 py-0.5 rounded',
+      'bg-muted text-xs font-mono text-foreground/90',
       className
     )}
   >

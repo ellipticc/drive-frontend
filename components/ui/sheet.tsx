@@ -3,6 +3,7 @@
 import * as React from "react"
 import * as SheetPrimitive from "@radix-ui/react-dialog"
 import { IconX } from "@tabler/icons-react"
+import { DndContext, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 
 import { cn } from "@/lib/utils"
 
@@ -48,35 +49,115 @@ function SheetContent({
   className,
   children,
   side = "right",
+  resizable = false,
+  initialFraction = 0.45, // fraction of viewport width when opened
+  minWidth = 320,
+  maxWidth = null,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
   side?: "top" | "right" | "bottom" | "left"
+  resizable?: boolean
+  initialFraction?: number
+  minWidth?: number
+  maxWidth?: number | null
 }) {
+  const sensors = useSensors(useSensor(PointerSensor))
+  const [widthPx, setWidthPx] = React.useState<number | null>(null)
+
+  React.useEffect(() => {
+    // initialize width on mount
+    if (resizable && typeof window !== 'undefined') {
+      const w = Math.max(minWidth, Math.floor(window.innerWidth * initialFraction))
+      setWidthPx(w)
+      window.dispatchEvent(new CustomEvent('sheet:resize', { detail: { width: w } }))
+    }
+    return () => {
+      // clear on unmount
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('sheet:resize', { detail: { width: 0 } }))
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resizable])
+
+  const handleDragMove = (event: any) => {
+    if (!resizable) return
+    const original = event?.event?.clientX ?? event?.clientX
+    if (!original) return
+    // compute width as distance from right edge
+    const newWidth = Math.max(minWidth, Math.min((maxWidth || window.innerWidth - 120), Math.floor(window.innerWidth - original)))
+    setWidthPx(newWidth)
+    // notify listeners
+    window.dispatchEvent(new CustomEvent('sheet:resize', { detail: { width: newWidth } }))
+  }
+
+  const onDragEnd = () => {
+    // no-op for now (persistence can be added later)
+  }
+
+  const contentStyle: React.CSSProperties = widthPx ? { width: `${widthPx}px`, maxWidth: undefined, minWidth: `${minWidth}px`, fontSize: `${Math.max(12, Math.min(18, (widthPx / window.innerWidth) * 18))}px` } : {}
+
   return (
     <SheetPortal>
       <SheetOverlay />
-      <SheetPrimitive.Content
-        data-slot="sheet-content"
-        className={cn(
-          "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out fixed z-50 flex flex-col gap-4 shadow-lg transition ease-in-out data-[state=closed]:duration-300 data-[state=open]:duration-500",
-          side === "right" &&
-          "data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right inset-y-0 right-0 h-full w-3/4 border-l sm:max-w-sm",
-          side === "left" &&
-          "data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left inset-y-0 left-0 h-full w-3/4 border-r sm:max-w-sm",
-          side === "top" &&
-          "data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top inset-x-0 top-0 h-auto border-b",
-          side === "bottom" &&
-          "data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom inset-x-0 bottom-0 h-auto border-t",
-          className
-        )}
-        {...props}
-      >
-        {children}
-        <SheetPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-secondary absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none">
-          <IconX className="size-6" />
-          <span className="sr-only">Close</span>
-        </SheetPrimitive.Close>
-      </SheetPrimitive.Content>
+      <DndContext sensors={sensors} onDragMove={handleDragMove} onDragEnd={onDragEnd}>
+        <SheetPrimitive.Content
+          data-slot="sheet-content"
+          className={cn(
+            "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out fixed z-50 flex flex-col gap-4 shadow-lg transition ease-in-out data-[state=closed]:duration-300 data-[state=open]:duration-500",
+            side === "right" &&
+            "data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right inset-y-0 right-0 h-full border-l",
+            side === "left" &&
+            "data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left inset-y-0 left-0 h-full border-r",
+            side === "top" &&
+            "data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top inset-x-0 top-0 h-auto border-b",
+            side === "bottom" &&
+            "data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom inset-x-0 bottom-0 h-auto border-t",
+            className
+          )}
+          style={contentStyle}
+          {...props}
+        >
+          {resizable && (
+            // Drag handle on left edge
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              data-drag-handle
+              title="Resize preview"
+              className="absolute left-0 top-0 h-full w-6 -translate-x-3 cursor-ew-resize z-50 touch-none flex items-center justify-center"
+              onPointerDown={(e) => {
+                e.preventDefault();
+                if (e.pointerType) (e.target as Element).setPointerCapture?.((e as any).pointerId);
+
+                const onMove = (ev: PointerEvent) => {
+                  const clientX = ev.clientX;
+                  const newWidth = Math.max(minWidth, Math.min((maxWidth || window.innerWidth - 120), Math.floor(window.innerWidth - clientX)));
+                  setWidthPx(newWidth);
+                  window.dispatchEvent(new CustomEvent('sheet:resize', { detail: { width: newWidth } }));
+                };
+
+                const onUp = () => {
+                  window.removeEventListener('pointermove', onMove);
+                  window.removeEventListener('pointerup', onUp);
+                  try { (e.target as Element).releasePointerCapture?.((e as any).pointerId); } catch (err) {}
+                };
+
+                window.addEventListener('pointermove', onMove);
+                window.addEventListener('pointerup', onUp);
+              }}
+            >
+              <div className="h-8 w-[2px] rounded bg-border/60" />
+            </div>
+          )}
+
+          {children}
+          <SheetPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-secondary absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none">
+            <IconX className="size-6" />
+            <span className="sr-only">Close</span>
+          </SheetPrimitive.Close>
+        </SheetPrimitive.Content>
+      </DndContext>
     </SheetPortal>
   )
 }

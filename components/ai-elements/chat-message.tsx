@@ -116,9 +116,9 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
 
     return (
         <div className={cn(
-            "flex w-full gap-4 max-w-3xl mx-auto group",
+            "flex w-full gap-4 max-w-4xl mx-auto group",
             isUser ? "justify-end" : "justify-start"
-        )}>
+        )}> 
             {/* ... existing render logic ... */}
             <div className={cn(
                 "flex flex-col max-w-[85%]",
