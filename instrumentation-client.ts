@@ -1,8 +1,12 @@
-// This file configures the initialization of Sentry on the client.
+// This file configures the initialization of Sentry and OpenTelemetry on the client.
 // The added config here will be used whenever a users loads a page in their browser.
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
 import * as Sentry from "@sentry/nextjs";
+import { initFrontendTelemetry } from "./lib/telemetry";
+
+// Initialize OpenTelemetry FIRST (before Sentry)
+initFrontendTelemetry();
 
 // Simple helper for user anonymization
 function hashUserId(id: string | number | undefined): string | undefined {
@@ -33,7 +37,7 @@ if (process.env.NODE_ENV === 'production' && process.env.NEXT_PUBLIC_SENTRY_DSN 
         // Prevent default integrations (we only want the console integration)
         defaultIntegrations: [],
 
-        // Disable performance tracing
+        // Disable performance tracing (let OpenTelemetry handle it)
         tracesSampleRate: 0,
 
         // Disable Session Replay
