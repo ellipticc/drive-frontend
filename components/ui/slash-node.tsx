@@ -4,6 +4,8 @@ import * as React from 'react';
 
 import type { PlateEditor, PlateElementProps } from 'platejs/react';
 
+import { AIChatPlugin } from '@platejs/ai/react';
+
 import {
   CalendarIcon,
   ChevronRightIcon,
@@ -22,6 +24,7 @@ import {
   Square,
   Table,
   TableOfContentsIcon,
+  Wand,
 } from 'lucide-react';
 import { type TComboboxInputElement, KEYS } from 'platejs';
 import { PlateElement } from 'platejs/react';
@@ -55,6 +58,19 @@ type Group = {
 };
 
 const groups: Group[] = [
+  {
+    group: 'AI',
+    items: [
+      {
+        icon: <Wand />,
+        label: 'Ask AI',
+        value: 'ai',
+        onSelect: (editor) => {
+          editor.getApi(AIChatPlugin).aiChat.show();
+        },
+      },
+    ],
+  },
   {
     group: 'Basic blocks',
     items: [

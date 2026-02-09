@@ -8,10 +8,12 @@ import {
   ItalicIcon,
   StrikethroughIcon,
   UnderlineIcon,
+  Wand,
 } from 'lucide-react';
 import { KEYS } from 'platejs';
 import { useEditorReadOnly } from 'platejs/react';
 
+import { AIToolbarButton } from './ai-toolbar-button';
 import { CommentToolbarButton } from './comment-toolbar-button';
 import { InlineEquationToolbarButton } from './equation-toolbar-button';
 import { LinkToolbarButton } from './link-toolbar-button';
@@ -30,6 +32,10 @@ export function FloatingToolbarButtons() {
         <>
 
           <ToolbarGroup>
+            <AIToolbarButton tooltip="AI Commands">
+              <Wand className="size-4" />
+            </AIToolbarButton>
+
             <TurnIntoToolbarButton />
 
             <MarkToolbarButton nodeType={KEYS.bold} tooltip="Bold (⌘+B)">

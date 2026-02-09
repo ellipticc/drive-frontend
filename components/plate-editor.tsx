@@ -5,6 +5,7 @@ import { Plate, usePlateEditor } from 'platejs/react';
 import { type Value } from 'platejs';
 import { EditorKit } from '@/components/editor-kit';
 import { Editor, EditorContainer } from '@/components/ui/editor';
+import { AIMenu } from '@/components/ui/ai-menu';
 
 interface PlateEditorProps {
   initialValue?: Value;
@@ -42,6 +43,7 @@ export function PlateEditor({ initialValue, onChange, readOnly }: PlateEditorPro
             autoFocus
             placeholder="New Page"
           />
+          <AIMenu />
         </EditorContainer>
       </Plate>
     </div>

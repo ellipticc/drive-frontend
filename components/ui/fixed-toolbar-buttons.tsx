@@ -12,10 +12,12 @@ import {
   PaintBucketIcon,
   StrikethroughIcon,
   UnderlineIcon,
+  Wand,
 } from 'lucide-react';
 import { KEYS } from 'platejs';
 import { useEditorReadOnly } from 'platejs/react';
 
+import { AIToolbarButton } from './ai-toolbar-button';
 import { AlignToolbarButton } from './align-toolbar-button';
 import { CommentToolbarButton } from './comment-toolbar-button';
 import { EmojiToolbarButton } from './emoji-toolbar-button';
@@ -56,6 +58,12 @@ export function FixedToolbarButtons() {
           <ToolbarGroup className="gap-0.5 md:gap-1">
             <UndoToolbarButton />
             <RedoToolbarButton />
+          </ToolbarGroup>
+
+          <ToolbarGroup className="gap-0.5 md:gap-1">
+            <AIToolbarButton tooltip="AI Commands">
+              <Wand className="size-4" />
+            </AIToolbarButton>
           </ToolbarGroup>
 
 
