@@ -17,6 +17,7 @@ import { type TNode, KEYS, nanoid, NodeApi, TextApi } from 'platejs';
 import { type PlateEditor, useEditorRef, usePluginOption } from 'platejs/react';
 
 import { aiChatPlugin } from '@/components/ai-kit';
+import { apiClient } from '@/lib/api';
 
 import { discussionPlugin } from './discussion-kit';
 import { withAIBatch } from '@platejs/ai';
@@ -78,8 +79,14 @@ export const useChat = () => {
           ...bodyOptions,
         };
 
+        const authHeaders = await apiClient.getAuthHeaders(options.api || '/api/ai/command', 'POST');
+
         const res = await fetch(input, {
           ...init,
+          headers: {
+            ...init?.headers,
+            ...authHeaders,
+          },
           body: JSON.stringify(body),
         });
 

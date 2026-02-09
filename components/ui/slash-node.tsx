@@ -65,8 +65,12 @@ const groups: Group[] = [
         icon: <Wand />,
         label: 'Ask AI',
         value: 'ai',
+        focusEditor: true,
         onSelect: (editor) => {
-          editor.getApi(AIChatPlugin).aiChat.show();
+          editor.tf.delete({ unit: 'block' });
+          setTimeout(() => {
+            editor.getApi(AIChatPlugin).aiChat.show();
+          }, 0);
         },
       },
     ],

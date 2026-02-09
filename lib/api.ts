@@ -952,7 +952,7 @@ class ApiClient {
     return null;
   }
 
-  private async getAuthHeaders(endpoint: string, method: string = 'GET'): Promise<Record<string, string>> {
+  public async getAuthHeaders(endpoint: string, method: string = 'GET'): Promise<Record<string, string>> {
     const headers: Record<string, string> = {
       'X-Idempotency-Key': generateIdempotencyKey()
     };
