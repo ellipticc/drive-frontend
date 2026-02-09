@@ -76,9 +76,16 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
       // Code blocks with Shiki highlighting
       code: (props: any) => {
         const { inline, className: codeClassName, children } = props;
-        
+        const content = typeof children === 'string' ? children : String(children || '');
+
         if (inline) {
           return <InlineCode>{children}</InlineCode>;
+        }
+
+        // Heuristic: some sources mistakenly render short inline tokens as fenced code blocks
+        const looksInlineLike = !content.includes('\n') && content.length <= 80 && /[\w\d\-–—\u2011()\/]+/.test(content);
+        if (looksInlineLike) {
+          return <p><InlineCode>{content}</InlineCode></p>;
         }
 
         // Extract language from className
@@ -89,7 +96,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
         return (
           <CodeBlock
             language={language}
-            code={typeof children === 'string' ? children : String(children || '')}
+            code={content}
           />
         );
       },

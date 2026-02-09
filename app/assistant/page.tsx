@@ -817,16 +817,6 @@ export default function AssistantPage() {
         }
     };
 
-    const [sheetWidth, setSheetWidth] = React.useState<number>(0);
-
-    React.useEffect(() => {
-      const handler = (e: any) => {
-        const w = Number(e?.detail?.width ?? 0) || 0;
-        setSheetWidth(w);
-      };
-      window.addEventListener('sheet:resize', handler as EventListener);
-      return () => window.removeEventListener('sheet:resize', handler as EventListener);
-    }, []);
 
     return (
         <div className="flex flex-col h-full bg-background relative">
@@ -855,7 +845,7 @@ export default function AssistantPage() {
                             </div>
 
                             {/* Center Input Area */}
-                            <div className="w-full max-w-4xl mx-auto px-4 z-20 mx-auto" style={sheetWidth ? { maxWidth: `calc(100% - ${sheetWidth}px - 4rem)` } : undefined}>
+                            <div className="w-full max-w-5xl mx-auto px-4 z-20 mx-auto">
                                 <EnhancedPromptInput
                                     onSubmit={async (text, files) => {
                                         await handleSubmit(text, files);
@@ -894,8 +884,7 @@ export default function AssistantPage() {
                                 <div
                                     key={message.id || index}
                                     id={`message-${message.id}`}
-                                    className="max-w-4xl mx-auto w-full"
-                                    style={sheetWidth ? { maxWidth: `calc(100% - ${sheetWidth}px - 4rem)` } : undefined}
+                                    className="max-w-7xl mx-auto w-full"
                                 >
                                     {message.isCheckpoint ? (
                                         <Checkpoint className="my-4">
@@ -929,7 +918,7 @@ export default function AssistantPage() {
 
                         {/* Sticky Input Footer */}
                         <div className="sticky bottom-0 z-40 w-full bg-background/95 backdrop-blur-sm pb-4 pt-0">
-                            <div className="max-w-4xl mx-auto w-full px-4 space-y-2" style={sheetWidth ? { maxWidth: `calc(100% - ${sheetWidth}px - 4rem)` } : undefined}>
+                            <div className="max-w-5xl mx-auto w-full px-4 space-y-2">
                                 <div className="flex justify-end">
                                     <Button
                                         variant="ghost"

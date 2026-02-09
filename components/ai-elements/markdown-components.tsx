@@ -203,10 +203,11 @@ export const InlineCode: React.FC<{
 }> = ({ children, className }) => (
   <code
     className={cn(
-      'inline-block align-baseline max-w-full overflow-x-auto whitespace-nowrap px-1.5 py-0.5 rounded',
+      'inline align-baseline px-1.5 py-0.5 rounded break-words',
       'bg-muted text-xs font-mono text-foreground/90',
       className
     )}
+    style={{ display: 'inline' }}
   >
     {children}
   </code>
