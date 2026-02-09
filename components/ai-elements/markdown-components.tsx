@@ -10,7 +10,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 
 /**
  * CodeBlock Component
- * Renders fenced code blocks with Shiki highlighting, language label, and copy button
+ * Renders fenced code blocks with Shiki highlighting, lowercase language label, hover-only copy button
  */
 export const CodeBlock = React.forwardRef<
   HTMLDivElement,
@@ -59,129 +59,125 @@ export const CodeBlock = React.forwardRef<
     }
   };
 
-  // Format language label
-  const labelMap: Record<string, string> = {
-    'javascript': 'JavaScript',
-    'typescript': 'TypeScript',
-    'python': 'Python',
-    'jsx': 'JSX',
-    'tsx': 'TSX',
-    'json': 'JSON',
-    'html': 'HTML',
-    'css': 'CSS',
-    'bash': 'Bash',
-    'shell': 'Shell',
-    'sql': 'SQL',
-    'java': 'Java',
-    'cpp': 'C++',
-    'csharp': 'C#',
-    'php': 'PHP',
-    'ruby': 'Ruby',
-    'go': 'Go',
-    'rust': 'Rust',
-  };
-  const displayLabel = labelMap[language] || (language === 'plain' ? 'Code' : language.charAt(0).toUpperCase() + language.slice(1));
+  // Map language codes to lowercase labels (ChatGPT style)
+  const languageLabel = language === 'plain' ? '' : language.toLowerCase();
 
   return (
     <div
       ref={ref}
       className={cn(
-        'my-4 rounded-lg overflow-hidden border border-border/50',
-        'bg-muted',
+        'my-4 rounded-lg overflow-hidden',
+        'border border-border/40 dark:border-border/50',
+        'bg-slate-50 dark:bg-slate-950',
+        'group',
         className
       )}
     >
-      {/* Header bar */}
-      <div className="flex items-center justify-between px-4 py-3 bg-muted/80 border-b border-border/30">
-        <span className="text-xs font-semibold text-muted-foreground">
-          {displayLabel}
-        </span>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setPreviewOpen(true)}
-            className="h-6 w-6 p-0"
-            title="Preview in full screen"
-          >
-            <IconMaximize className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-          </Button>
+      {/* Minimal Header Bar */}
+      {languageLabel && (
+        <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/30 dark:border-border/40 bg-slate-100 dark:bg-slate-900/50">
+          <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
+            {languageLabel}
+          </span>
           <Button
             variant="ghost"
             size="sm"
             onClick={handleCopy}
-            className="h-6 w-6 p-0"
+            className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
             title={copied ? 'Copied!' : 'Copy code'}
           >
             {copied ? (
-              <IconCheck className="h-4 w-4 text-green-500" />
+              <IconCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
             ) : (
-              <IconCopy className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+              <IconCopy className="h-3.5 w-3.5 text-slate-600 dark:text-slate-400" />
             )}
           </Button>
         </div>
+      )}
+
+      {/* Code Content - Horizontal Scroll Wrapper */}
+      <div className="overflow-hidden">
+        <div className="overflow-x-auto smooth-scroll">
+          {!isLoading && highlightedHtml ? (
+            <div
+              className={cn(
+                'p-4 text-sm font-mono',
+                'whitespace-pre',
+                'overflow-x-auto',
+                'min-w-full'
+              )}
+              dangerouslySetInnerHTML={{ __html: highlightedHtml }}
+            />
+          ) : (
+            <pre className={cn(
+              'p-4 m-0 text-sm font-mono',
+              'text-foreground',
+              'whitespace-pre',
+              'overflow-x-auto',
+              'min-w-full'
+            )}>
+              <code>{codeContent}</code>
+            </pre>
+          )}
+        </div>
       </div>
 
-      {/* Code content */}
-      <div className="overflow-x-auto">
-        {!isLoading && highlightedHtml ? (
-          <div
-            className="p-4 text-sm overflow-x-auto min-w-full whitespace-pre"
-            dangerouslySetInnerHTML={{ __html: highlightedHtml }}
-          />
-        ) : (
-          <pre className="p-4 m-0 text-sm font-mono text-foreground overflow-x-auto">
-            <code>{codeContent}</code>
-          </pre>
-        )}
-      </div>
-
-      {/* Code Preview Sheet */}
+      {/* Full Screen Preview */}
       <Sheet open={previewOpen} onOpenChange={setPreviewOpen}>
-        <SheetContent side="right" resizable initialFraction={0.45} minWidth={320} className="max-w-none p-0 bg-background">
+        <SheetContent side="right" resizable initialFraction={0.5} minWidth={400} className="max-w-none p-0 bg-slate-950">
           <div className="flex flex-col h-full">
-            {/* Sheet Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b bg-muted/30">
+            {/* Preview Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border/30 bg-slate-900/50">
               <div>
-                <SheetTitle className="text-base font-semibold">{displayLabel}</SheetTitle>
-                <p className="text-xs text-muted-foreground mt-1">Full screen preview</p>
+                <SheetTitle className="text-sm font-medium text-foreground">
+                  {languageLabel || 'code'}
+                </SheetTitle>
               </div>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleCopy}
-                className="h-8 gap-2"
+                className="h-7 gap-2 text-xs"
                 title={copied ? 'Copied!' : 'Copy code'}
               >
                 {copied ? (
                   <>
-                    <IconCheck className="h-4 w-4 text-green-500" />
-                    <span className="text-xs">Copied</span>
+                    <IconCheck className="h-3.5 w-3.5 text-emerald-400" />
+                    <span>Copied</span>
                   </>
                 ) : (
                   <>
-                    <IconCopy className="h-4 w-4" />
-                    <span className="text-xs">Copy</span>
+                    <IconCopy className="h-3.5 w-3.5" />
+                    <span>Copy</span>
                   </>
                 )}
               </Button>
             </div>
 
-            {/* Sheet Content - Large Code Preview */}
-            <div className="flex-1 overflow-auto p-6">
-              <div className="rounded-lg border border-border/50 bg-muted overflow-hidden">
-                <div className="overflow-x-auto [&>pre]:whitespace-pre [&>pre]:overflow-x-auto [&>pre]:min-w-[max-content]">
-                  {!isLoading && highlightedHtml ? (
-                    <div
-                      className="p-6 text-base font-mono whitespace-pre"
-                      dangerouslySetInnerHTML={{ __html: highlightedHtml }}
-                    />
-                  ) : (
-                    <pre className="p-6 m-0 text-base font-mono text-foreground whitespace-pre">
-                      <code>{codeContent}</code>
-                    </pre>
-                  )}
-                </div>
+            {/* Preview Content */}
+            <div className="flex-1 overflow-auto">
+              <div className="overflow-x-auto">
+                {!isLoading && highlightedHtml ? (
+                  <div
+                    className={cn(
+                      'p-6 text-sm font-mono',
+                      'whitespace-pre',
+                      'overflow-x-auto',
+                      'min-w-full'
+                    )}
+                    dangerouslySetInnerHTML={{ __html: highlightedHtml }}
+                  />
+                ) : (
+                  <pre className={cn(
+                    'p-6 m-0 text-sm font-mono',
+                    'text-foreground',
+                    'whitespace-pre',
+                    'overflow-x-auto',
+                    'min-w-full'
+                  )}>
+                    <code>{codeContent}</code>
+                  </pre>
+                )}
               </div>
             </div>
           </div>

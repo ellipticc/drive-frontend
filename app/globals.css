@@ -1026,6 +1026,12 @@ button {
     font-family: sans-serif;
   }
 
+  /* Smooth scroll behavior for code blocks */
+  .smooth-scroll {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+
   /* Tiny scrollbar for compact dropdown lists */
   .tiny-scrollbar::-webkit-scrollbar {
     width: 6px;
