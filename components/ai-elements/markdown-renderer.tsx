@@ -82,20 +82,21 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
           return <InlineCode>{children}</InlineCode>;
         }
 
-        // Heuristic: some sources mistakenly render short inline tokens as fenced code blocks
-        const looksInlineLike = !content.includes('\n') && content.length <= 80 && /[\w\d\-–—\u2011()\/]+/.test(content);
-        if (looksInlineLike) {
-          return <p><InlineCode>{content}</InlineCode></p>;
-        }
-
-        // Extract language from className
+        // Extract language hint from className
         const language = codeClassName
-          ? codeClassName.match(/language-(\w+)/)?.[1] || 'plain'
-          : 'plain';
+          ? codeClassName.match(/language-(\w+)/)?.[1]
+          : undefined;
+        const hasLanguageHint = !!language;
+
+        // Heuristic: if NO language hint and single-line and reasonable length (≤150 chars),
+        // it's likely backtick code that was misparsed as a fenced block
+        if (!hasLanguageHint && !content.includes('\n') && content.length <= 150) {
+          return <InlineCode>{content}</InlineCode>;
+        }
 
         return (
           <CodeBlock
-            language={language}
+            language={language || 'plain'}
             code={content}
           />
         );

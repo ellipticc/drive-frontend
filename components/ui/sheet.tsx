@@ -113,6 +113,7 @@ function SheetContent({
             "data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top inset-x-0 top-0 h-auto border-b",
             side === "bottom" &&
             "data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom inset-x-0 bottom-0 h-auto border-t",
+            "overflow-x-auto",
             className
           )}
           style={contentStyle}
@@ -151,7 +152,9 @@ function SheetContent({
             </div>
           )}
 
-          {children}
+          <div className="flex-shrink-0">
+            {children}
+          </div>
           <SheetPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-secondary absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none">
             <IconX className="size-6" />
             <span className="sr-only">Close</span>
