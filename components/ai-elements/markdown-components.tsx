@@ -3,7 +3,7 @@
 import React, { useState, useRef } from 'react';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
-import { IconCopy, IconCheck, IconMaximize } from '@tabler/icons-react';
+import { IconCopy, IconCheck, IconMaximize, IconCode } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
 import { highlightCode } from '@/lib/shiki-highlighter';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -60,7 +60,7 @@ export const CodeBlock = React.forwardRef<
   };
 
   // Map language codes to lowercase labels (ChatGPT style)
-  const languageLabel = language === 'plain' ? '' : language.toLowerCase();
+  const languageLabel = language === 'plain' ? 'code' : language.toLowerCase();
   
   // Fixed color values for light/dark modes
   const bgColor = isDark ? '#171717' : '#f9f9f9';
@@ -71,45 +71,48 @@ export const CodeBlock = React.forwardRef<
     <div
       ref={ref}
       className={cn(
-        'my-4 rounded-lg',
+        'my-4 rounded-lg overflow-hidden',
         'border border-border/40 dark:border-border/50',
-        'group',
+        'group max-w-full',
         className
       )}
-      style={{ backgroundColor: bgColor }}
+      style={{ backgroundColor: bgColor, maxWidth: '100%' }}
     >
       {/* Header with Language Label */}
-      {languageLabel && (
-        <div className="flex items-center justify-between px-4 py-2.5">
+      <div className="flex items-center justify-between px-4 py-2.5">
+        <div className="flex items-center gap-2">
+          <IconCode className="h-3.5 w-3.5" style={{ color: labelColor }} />
           <span className="text-xs font-medium" style={{ color: labelColor }}>
             {languageLabel}
           </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleCopy}
-            className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-            title={copied ? 'Copied!' : 'Copy code'}
-          >
-            {copied ? (
-              <IconCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-            ) : (
-              <IconCopy className="h-3.5 w-3.5" style={{ color: labelColor }} />
-            )}
-          </Button>
         </div>
-      )}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleCopy}
+          className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+          title={copied ? 'Copied!' : 'Copy code'}
+        >
+          {copied ? (
+            <IconCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+          ) : (
+            <IconCopy className="h-3.5 w-3.5" style={{ color: labelColor }} />
+          )}
+        </Button>
+      </div>
 
-      {/* Code Content - Direct Scroll */}
-      <div className="overflow-x-auto" style={{ backgroundColor: bgColor }}>
+      {/* Code Content - Direct Scroll with Strict Width */}
+      <div className="overflow-x-auto" style={{ backgroundColor: bgColor, maxWidth: '100%' }}>
         {!isLoading && highlightedHtml ? (
           <div
             className={cn(
               'p-4 text-sm font-mono',
               'whitespace-pre',
-              'min-w-max'
+              'min-w-max',
+              '[&_*]:!bg-transparent [&_*]:!background-transparent',
+              '[&_span]:!background-color-transparent'
             )}
-            style={{ color: textColor }}
+            style={{ color: textColor, backgroundColor: 'transparent' }}
             dangerouslySetInnerHTML={{ __html: highlightedHtml }}
           />
         ) : (
@@ -118,7 +121,7 @@ export const CodeBlock = React.forwardRef<
             'whitespace-pre',
             'min-w-max'
           )}
-          style={{ color: textColor }}>
+          style={{ color: textColor, backgroundColor: 'transparent' }}>
             <code>{codeContent}</code>
           </pre>
         )}
@@ -157,15 +160,17 @@ export const CodeBlock = React.forwardRef<
             </div>
 
             {/* Preview Content */}
-            <div className="flex-1 overflow-x-auto" style={{ backgroundColor: '#171717' }}>
+            <div className="flex-1 overflow-x-auto" style={{ backgroundColor: '#171717', maxWidth: '100%' }}>
               {!isLoading && highlightedHtml ? (
                 <div
                   className={cn(
                     'p-6 text-sm font-mono',
                     'whitespace-pre',
-                    'min-w-max'
+                    'min-w-max',
+                    '[&_*]:!bg-transparent [&_*]:!background-transparent',
+                    '[&_span]:!background-color-transparent'
                   )}
-                  style={{ color: '#e5e5e5' }}
+                  style={{ color: '#e5e5e5', backgroundColor: 'transparent' }}
                   dangerouslySetInnerHTML={{ __html: highlightedHtml }}
                 />
               ) : (
@@ -174,7 +179,7 @@ export const CodeBlock = React.forwardRef<
                   'whitespace-pre',
                   'min-w-max'
                 )}
-                style={{ color: '#e5e5e5' }}>
+                style={{ color: '#e5e5e5', backgroundColor: 'transparent' }}>
                   <code>{codeContent}</code>
                 </pre>
               )}
