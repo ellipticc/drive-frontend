@@ -57,18 +57,22 @@ interface ChatMessageProps {
     onRegenerate?: (instruction?: string) => void;
     onVersionChange?: (direction: 'prev' | 'next') => void;
     onCheckpoint?: (messageId: string) => void;
+    availableModels?: { id: string; name: string }[];
+    onRerunSystemWithModel?: (messageId: string, modelId: string) => void;
 }
 
 
-export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedback, onRegenerate, onVersionChange, onCheckpoint }: ChatMessageProps) {
+export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedback, onRegenerate, onVersionChange, onCheckpoint, availableModels = [], onRerunSystemWithModel }: ChatMessageProps) {
     // ... existing state ...
     const isUser = message.role === 'user';
     const isAssistant = message.role === 'assistant';
+    const isSystem = message.role === 'system';
     const [copied, setCopied] = React.useState(false);
     const [feedbackGiven, setFeedbackGiven] = React.useState(!!message.feedback);
     const [isEditingPrompt, setIsEditingPrompt] = React.useState(false);
     const [editContent, setEditContent] = React.useState(message.content);
     const [isRegenPanelOpen, setIsRegenPanelOpen] = React.useState(false);
+    const [systemModelPopoverOpen, setSystemModelPopoverOpen] = React.useState(false);
 
     // ... existing handlers ...
     const handleCopy = () => {
@@ -121,7 +125,7 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
             "flex w-full gap-4 group",
             isUser ? "justify-end" : "justify-start"
         )}> 
-                    
+
             {/* Message Content */}
             <div className={cn(
                 "flex flex-col flex-1",
@@ -168,30 +172,37 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                             </div>
                         ) : (
                             <>
-                                <div className="flex items-center">
-                                    <div className="bg-primary text-primary-foreground px-5 py-3.5 rounded-2xl text-sm leading-relaxed shadow-sm font-medium flex-1">
+                                <div className="relative flex items-start">
+                                    {/* Message bubble */}
+                                    <div className="bg-primary text-primary-foreground px-5 py-3.5 rounded-2xl text-sm leading-relaxed shadow-sm font-medium w-full">
                                         {message.content}
                                     </div>
-                                    {/* Separator + Bookmark */}
-                                    <div className="ml-3 pl-3 border-l border-dashed border-border/50 flex items-center opacity-0 group-hover:opacity-100 transition-opacity" style={{height: '40px'}}>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <button
-                                                    onClick={() => onCheckpoint?.(message.id || '')}
-                                                    className={cn("p-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors", message.isCheckpoint ? 'text-primary' : '')}
-                                                    aria-label="Create bookmark"
-                                                >
-                                                    {message.isCheckpoint ? <IconBookmark className="size-4" /> : <IconBookmark className="size-4" />}
-                                                </button>
-                                            </TooltipTrigger>
-                                            <TooltipContent side="left">
-                                                <p>{message.isCheckpoint ? 'Bookmarked' : 'Create bookmark'}</p>
-                                            </TooltipContent>
-                                        </Tooltip>
+
+                                    {/* Overlay dashed separator and bookmark aligned over the message */}
+                                    <div className="absolute left-0 right-0 -top-3 pointer-events-none">
+                                        <div className="border-t border-dashed border-border/50 w-full" />
+                                        <div className="flex justify-end pr-2 mt-0.5">
+                                            <div className="pointer-events-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <button
+                                                            onClick={() => onCheckpoint?.(message.id || '')}
+                                                            className={cn("p-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors")}
+                                                            aria-label="Create bookmark"
+                                                        >
+                                                            <IconBookmark className={cn("size-4", message.isCheckpoint ? 'text-primary' : '')} />
+                                                        </button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent side="bottom">
+                                                        <p>{message.isCheckpoint ? 'Bookmarked' : 'Create bookmark'}</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
-                                <div className="flex items-center gap-1 mt-3 justify-end">
+                                <div className="flex items-center gap-1 mt-3 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
                                     <ActionButton
                                         icon={IconRefresh}
                                         label="Retry"
@@ -329,6 +340,29 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                 </div>
                             )}
                         </div>
+                        )}
+
+                        {/* System message actions */}
+                        {isSystem && availableModels.length > 0 && (
+                            <div className="flex items-center justify-end mt-2 select-none">
+                                <Popover open={systemModelPopoverOpen} onOpenChange={setSystemModelPopoverOpen}>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-6 w-6">
+                                            <IconRefresh className="size-3.5" />
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent side="bottom" align="start" className="w-56">
+                                        <div className="p-2 space-y-1">
+                                            <p className="text-xs text-muted-foreground">Rerun this prompt with another model (this will remove the current system response)</p>
+                                            <div className="pt-2">
+                                                {availableModels.map(m => (
+                                                    <button key={m.id} onClick={() => { onRerunSystemWithModel?.(message.id || '', m.id); setSystemModelPopoverOpen(false); }} className="w-full text-left px-2 py-1 rounded hover:bg-muted">{m.name}</button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
                         )}
                     </div>
                 )}

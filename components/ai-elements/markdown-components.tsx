@@ -126,11 +126,11 @@ export const CodeBlock = React.forwardRef<
       <div className="overflow-x-auto">
         {!isLoading && highlightedHtml ? (
           <div
-            className="p-4 text-sm"
+            className="p-4 text-sm overflow-x-auto min-w-full whitespace-pre"
             dangerouslySetInnerHTML={{ __html: highlightedHtml }}
           />
         ) : (
-          <pre className="p-4 m-0 text-sm font-mono text-foreground">
+          <pre className="p-4 m-0 text-sm font-mono text-foreground overflow-x-auto">
             <code>{codeContent}</code>
           </pre>
         )}
@@ -203,7 +203,7 @@ export const InlineCode: React.FC<{
 }> = ({ children, className }) => (
   <code
     className={cn(
-      'inline align-baseline px-1.5 py-0.5 rounded break-words',
+      'inline align-baseline px-1.5 py-0.5 rounded-md break-words',
       'bg-muted text-xs font-mono text-foreground/90',
       className
     )}

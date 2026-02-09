@@ -55,6 +55,39 @@ export default function AssistantPage() {
 
     const { isReady, kyberPublicKey, decryptHistory, decryptStreamChunk, encryptMessage, loadChats } = useAICrypto();
 
+    // Available models for system rerun popovers
+    const availableModels = [
+        { id: "llama-3.3-70b-versatile", name: "Llama 3.3 70B" },
+        { id: "qwen-2.5-32b", name: "Qwen 2.5 32B" },
+        { id: "openai/gpt-oss-120b", name: "GPT-OSS 120B" },
+    ];
+
+    const handleRerunSystemWithModel = async (systemMessageId: string, modelId: string) => {
+        // Find the system message index
+        const systemIndex = messages.findIndex(m => m.id === systemMessageId);
+        if (systemIndex === -1) return;
+
+        // Find the preceding user message
+        let userIndex = -1;
+        for (let i = systemIndex - 1; i >= 0; i--) {
+            if (messages[i].role === 'user') { userIndex = i; break; }
+        }
+        if (userIndex === -1) {
+            toast.error('No user message to rerun');
+            return;
+        }
+
+        const userMessage = messages[userIndex];
+        if (!userMessage) return;
+
+        // Remove system response (and anything after it) so we replace the assistant reply
+        setMessages(prev => prev.slice(0, userIndex + 1));
+
+        // Temporarily set the model and resubmit the user prompt
+        setModel(modelId);
+        await handleSubmit(userMessage.content, []);
+    };
+
     // Derived from URL, fallback to empty (New Chat)
     const conversationId = searchParams.get('conversationId') || ""
 
@@ -912,6 +945,8 @@ export default function AssistantPage() {
                                             onEdit={(content) => handleEditMessage(message.id || '', content)}
                                             onVersionChange={(dir) => handleVersionChange(message.id || '', dir)}
                                             onCheckpoint={() => handleAddCheckpoint()}
+                                            availableModels={availableModels}
+                                            onRerunSystemWithModel={handleRerunSystemWithModel}
                                         />
                                     )}
                                 </div>
