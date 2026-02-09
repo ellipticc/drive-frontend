@@ -875,16 +875,18 @@ export default function AssistantPage() {
 
                     // CHAT STATE: Scrollable Messages + Sticky Bottom Input
                     <div className="flex flex-col h-full w-full">
-                        {/* Messages Container */}
+                        {/* Messages Container - Centered with consistent max-width */}
                         <div
                             ref={scrollContainerRef}
-                            className="flex-1 overflow-y-auto px-4 py-4 space-y-6 scroll-smooth"
+                            className="flex-1 overflow-y-auto px-4 py-4 space-y-4 scroll-smooth"
                         >
+                            {/* Centered wrapper for messages */}
+                            <div className="flex flex-col items-center w-full">
                             {messages.map((message, index) => (
                                 <div
                                     key={message.id || index}
                                     id={`message-${message.id}`}
-                                    className="max-w-7xl mx-auto w-full"
+                                    className="w-full max-w-2xl"
                                 >
                                     {message.isCheckpoint ? (
                                         <Checkpoint className="my-4">
@@ -909,37 +911,29 @@ export default function AssistantPage() {
                                             onRegenerate={(instruction) => handleRegenerate(message.id || '', instruction)}
                                             onEdit={(content) => handleEditMessage(message.id || '', content)}
                                             onVersionChange={(dir) => handleVersionChange(message.id || '', dir)}
+                                            onCheckpoint={() => handleAddCheckpoint()}
                                         />
                                     )}
                                 </div>
                             ))}
+                            </div>
                             <div className="h-24" />
                         </div>
 
-                        {/* Sticky Input Footer */}
+                        {/* Sticky Input Footer - Centered with consistent max-width */}
                         <div className="sticky bottom-0 z-40 w-full bg-background/95 backdrop-blur-sm pb-4 pt-0">
-                            <div className="max-w-5xl mx-auto w-full px-4 space-y-2">
-                                <div className="flex justify-end">
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={handleAddCheckpoint}
-                                        className="text-xs text-muted-foreground hover:text-foreground h-6 gap-1"
-                                    >
-                                        <IconBookmark className="size-3" />
-                                        Add Checkpoint
-                                    </Button>
+                            <div className="flex justify-center w-full">
+                                <div className="max-w-2xl w-full px-4">
+                                    <EnhancedPromptInput
+                                        onSubmit={async (text, files) => {
+                                            await handleSubmit(text, files);
+                                        }}
+                                        isLoading={isLoading || isCancelling || !isReady}
+                                        onStop={handleCancel}
+                                        model={model}
+                                        onModelChange={setModel}
+                                    />
                                 </div>
-
-                                <EnhancedPromptInput
-                                    onSubmit={async (text, files) => {
-                                        await handleSubmit(text, files);
-                                    }}
-                                    isLoading={isLoading || isCancelling || !isReady}
-                                    onStop={handleCancel}
-                                    model={model}
-                                    onModelChange={setModel}
-                                />
                             </div>
                         </div>
                     </div>

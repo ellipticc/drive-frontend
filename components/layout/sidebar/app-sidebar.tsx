@@ -421,52 +421,39 @@ export const AppSidebar = React.memo(function AppSidebar({
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
-        {/* Show AI Native switch only on Assistant routes */}
+        {/* Show AI Native switch only on Assistant routes - styled as a menu item */}
         {(() => {
           const onAssistant = typeof pathname === 'string' && pathname.startsWith('/assistant');
           return onAssistant ? (
-            state === 'collapsed' ? (
-              <TooltipProvider delayDuration={0}>
+            <SidebarMenu>
+              <SidebarMenuItem>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className="flex justify-center">
-                      <button
-                        className="flex items-center justify-center h-8 w-8 rounded-md hover:bg-accent transition-colors"
-                        onClick={() => setIsAIMode(!isAIMode)}
-                        aria-label="Toggle AI Native Mode"
-                      >
-                        <IconBrain className={`size-4 ${isAIMode ? 'text-primary' : 'text-muted-foreground'}`} />
-                      </button>
-                    </div>
+                    <SidebarMenuButton
+                      onClick={() => setIsAIMode(!isAIMode)}
+                      isActive={isAIMode}
+                      tooltip={state === 'collapsed' ? `AI Native ${isAIMode ? '(enabled)' : '(disabled)'}` : undefined}
+                      className="cursor-pointer"
+                    >
+                      <IconBrain className="size-4" />
+                      {state === 'expanded' && (
+                        <>
+                          <span className="flex-1">AI Native</span>
+                          <span className="text-xs text-muted-foreground ml-auto">
+                            {isAIMode ? 'on' : 'off'}
+                          </span>
+                        </>
+                      )}
+                    </SidebarMenuButton>
                   </TooltipTrigger>
-                  <TooltipContent side="right">
-                    <p>AI Native {isAIMode ? '(enabled)' : '(disabled)'}</p>
-                  </TooltipContent>
+                  {state === 'expanded' && (
+                    <TooltipContent side="bottom" className="max-w-xs">
+                      <p>Toggle AI Native mode for assistant-only interface</p>
+                    </TooltipContent>
+                  )}
                 </Tooltip>
-              </TooltipProvider>
-            ) : (
-              <TooltipProvider delayDuration={0}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="flex items-center justify-between px-2 py-2 rounded-md bg-muted/50 border border-border/50">
-                      <div className="flex items-center gap-2 flex-1">
-                        <IconBrain className="size-4 shrink-0 text-muted-foreground" />
-                        <span className="text-xs font-medium text-foreground flex-1">AI Native</span>
-                      </div>
-                      <Switch
-                        checked={isAIMode}
-                        onCheckedChange={(v) => setIsAIMode(Boolean(v))}
-                        aria-label="Toggle AI Native Mode"
-                        className="data-[state=checked]:bg-primary"
-                      />
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" className="max-w-xs">
-                    <p>Toggle AI Native mode for assistant-only interface</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )
+              </SidebarMenuItem>
+            </SidebarMenu>
           ) : (
             <NavNew onFileUpload={handleFileUpload} onFolderUpload={handleFolderUpload} />
           )

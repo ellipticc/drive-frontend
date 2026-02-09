@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
-import { IconCopy, IconEdit, IconRefresh, IconThumbDown, IconThumbUp, IconCheck, IconX, IconCode, IconChevronDown, IconChevronRight, IconDownload, IconChevronLeft, IconListDetails, IconArrowsMinimize, IconBrain, IconClock } from "@tabler/icons-react"
+import { IconCopy, IconEdit, IconRefresh, IconThumbDown, IconThumbUp, IconCheck, IconX, IconCode, IconChevronDown, IconChevronRight, IconDownload, IconChevronLeft, IconListDetails, IconArrowsMinimize, IconBrain, IconClock, IconBookmark } from "@tabler/icons-react"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -56,10 +56,11 @@ interface ChatMessageProps {
     onFeedback?: (messageId: string, feedback: 'like' | 'dislike') => void;
     onRegenerate?: (instruction?: string) => void;
     onVersionChange?: (direction: 'prev' | 'next') => void;
+    onCheckpoint?: (messageId: string) => void;
 }
 
 
-export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedback, onRegenerate, onVersionChange }: ChatMessageProps) {
+export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedback, onRegenerate, onVersionChange, onCheckpoint }: ChatMessageProps) {
     // ... existing state ...
     const isUser = message.role === 'user';
     const [copied, setCopied] = React.useState(false);
@@ -116,12 +117,34 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
 
     return (
         <div className={cn(
-            "flex w-full gap-4 max-w-5xl mx-auto group",
+            "flex w-full gap-4 group",
             isUser ? "justify-end" : "justify-start"
         )}> 
-            {/* ... existing render logic ... */}
+            {/* Checkpoint Icon - Left side for user messages */}
+            {isUser && (
+                <div className="flex-shrink-0 w-6 opacity-0 group-hover:opacity-100 transition-opacity flex items-start justify-center pt-1">
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <button
+                                onClick={() => {
+                                    onCheckpoint?.(message.id || '');
+                                }}
+                                className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                                aria-label="Create checkpoint"
+                            >
+                                <IconBookmark className="size-4" />
+                            </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="right">
+                            <p>Create checkpoint</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </div>
+            )}
+            
+            {/* Message Content */}
             <div className={cn(
-                "flex flex-col max-w-[85%]",
+                "flex flex-col flex-1",
                 isUser ? "items-end" : "items-start"
             )}>
                 {isUser ? (
