@@ -163,7 +163,14 @@ export const useChat = () => {
     }) as any,
     onData(data) {
       if (data.type === 'data-toolName') {
-        editor.setOption(AIChatPlugin, 'toolName', data.data as ToolName);
+        const toolName = data.data as ToolName;
+        editor.setOption(AIChatPlugin, 'toolName', toolName);
+
+        // Set mode to 'chat' for edit operations, 'insert' for generate
+        const mode = toolName === 'edit' ? 'chat' : 'insert';
+        editor.setOption(AIChatPlugin, 'mode', mode);
+
+        console.log('[useChat] Set toolName:', toolName, 'mode:', mode);
       }
 
       if (data.type === 'data-table' && data.data) {
