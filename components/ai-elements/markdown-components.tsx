@@ -61,22 +61,27 @@ export const CodeBlock = React.forwardRef<
 
   // Map language codes to lowercase labels (ChatGPT style)
   const languageLabel = language === 'plain' ? '' : language.toLowerCase();
+  
+  // Fixed color values for light/dark modes
+  const bgColor = isDark ? '#171717' : '#f9f9f9';
+  const textColor = isDark ? '#e5e5e5' : '#1a1a1a';
+  const labelColor = isDark ? '#a1a1a1' : '#666666';
 
   return (
     <div
       ref={ref}
       className={cn(
-        'my-4 rounded-lg overflow-hidden',
+        'my-4 rounded-lg',
         'border border-border/40 dark:border-border/50',
-        'bg-slate-50 dark:bg-slate-950',
         'group',
         className
       )}
+      style={{ backgroundColor: bgColor }}
     >
-      {/* Minimal Header Bar */}
+      {/* Header with Language Label */}
       {languageLabel && (
-        <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/30 dark:border-border/40 bg-slate-100 dark:bg-slate-900/50">
-          <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
+        <div className="flex items-center justify-between px-4 py-2.5">
+          <span className="text-xs font-medium" style={{ color: labelColor }}>
             {languageLabel}
           </span>
           <Button
@@ -89,47 +94,44 @@ export const CodeBlock = React.forwardRef<
             {copied ? (
               <IconCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
             ) : (
-              <IconCopy className="h-3.5 w-3.5 text-slate-600 dark:text-slate-400" />
+              <IconCopy className="h-3.5 w-3.5" style={{ color: labelColor }} />
             )}
           </Button>
         </div>
       )}
 
-      {/* Code Content - Horizontal Scroll Wrapper */}
-      <div className="overflow-hidden">
-        <div className="overflow-x-auto smooth-scroll">
-          {!isLoading && highlightedHtml ? (
-            <div
-              className={cn(
-                'p-4 text-sm font-mono',
-                'whitespace-pre',
-                'overflow-x-auto',
-                'min-w-full'
-              )}
-              dangerouslySetInnerHTML={{ __html: highlightedHtml }}
-            />
-          ) : (
-            <pre className={cn(
-              'p-4 m-0 text-sm font-mono',
-              'text-foreground',
+      {/* Code Content - Direct Scroll */}
+      <div className="overflow-x-auto" style={{ backgroundColor: bgColor }}>
+        {!isLoading && highlightedHtml ? (
+          <div
+            className={cn(
+              'p-4 text-sm font-mono',
               'whitespace-pre',
-              'overflow-x-auto',
-              'min-w-full'
-            )}>
-              <code>{codeContent}</code>
-            </pre>
+              'min-w-max'
+            )}
+            style={{ color: textColor }}
+            dangerouslySetInnerHTML={{ __html: highlightedHtml }}
+          />
+        ) : (
+          <pre className={cn(
+            'p-4 m-0 text-sm font-mono',
+            'whitespace-pre',
+            'min-w-max'
           )}
-        </div>
+          style={{ color: textColor }}>
+            <code>{codeContent}</code>
+          </pre>
+        )}
       </div>
 
       {/* Full Screen Preview */}
       <Sheet open={previewOpen} onOpenChange={setPreviewOpen}>
-        <SheetContent side="right" resizable initialFraction={0.5} minWidth={400} className="max-w-none p-0 bg-slate-950">
+        <SheetContent side="right" resizable initialFraction={0.5} minWidth={400} className="max-w-none p-0" style={{ backgroundColor: '#171717' }}>
           <div className="flex flex-col h-full">
             {/* Preview Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border/30 bg-slate-900/50">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border/30">
               <div>
-                <SheetTitle className="text-sm font-medium text-foreground">
+                <SheetTitle className="text-sm font-medium" style={{ color: textColor }}>
                   {languageLabel || 'code'}
                 </SheetTitle>
               </div>
@@ -155,30 +157,27 @@ export const CodeBlock = React.forwardRef<
             </div>
 
             {/* Preview Content */}
-            <div className="flex-1 overflow-auto">
-              <div className="overflow-x-auto">
-                {!isLoading && highlightedHtml ? (
-                  <div
-                    className={cn(
-                      'p-6 text-sm font-mono',
-                      'whitespace-pre',
-                      'overflow-x-auto',
-                      'min-w-full'
-                    )}
-                    dangerouslySetInnerHTML={{ __html: highlightedHtml }}
-                  />
-                ) : (
-                  <pre className={cn(
-                    'p-6 m-0 text-sm font-mono',
-                    'text-foreground',
+            <div className="flex-1 overflow-x-auto" style={{ backgroundColor: '#171717' }}>
+              {!isLoading && highlightedHtml ? (
+                <div
+                  className={cn(
+                    'p-6 text-sm font-mono',
                     'whitespace-pre',
-                    'overflow-x-auto',
-                    'min-w-full'
-                  )}>
-                    <code>{codeContent}</code>
-                  </pre>
+                    'min-w-max'
+                  )}
+                  style={{ color: '#e5e5e5' }}
+                  dangerouslySetInnerHTML={{ __html: highlightedHtml }}
+                />
+              ) : (
+                <pre className={cn(
+                  'p-6 m-0 text-sm font-mono',
+                  'whitespace-pre',
+                  'min-w-max'
                 )}
-              </div>
+                style={{ color: '#e5e5e5' }}>
+                  <code>{codeContent}</code>
+                </pre>
+              )}
             </div>
           </div>
         </SheetContent>
