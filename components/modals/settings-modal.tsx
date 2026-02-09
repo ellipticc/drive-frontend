@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useRef, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import {
@@ -84,20 +84,13 @@ import {
   DeveloperTab
 } from "./settings/developer-tab"
 import { AITab } from "./settings/ai-tab"
-import {
-  ImageCrop,
-  ImageCropContent,
-  ImageCropApply,
-  ImageCropReset
-} from "@/components/kibo-ui/image-crop"
-
 import { apiClient, Referral, Subscription, BillingUsage, PricingPlan, SubscriptionHistory, SecurityEvent } from "@/lib/api"
 import { useTheme } from "next-themes"
 import { useUser } from "@/components/user-context"
 import { useGlobalUpload } from "@/components/global-upload-context"
 import { useIsMobile } from "@/hooks/use-mobile"
-import { compressAvatar } from "@/lib/image"
 import { useLanguage } from "@/lib/i18n/language-context"
+import { getDiceBearAvatar } from "@/lib/avatar"
 
 interface Session {
   id: string;
@@ -140,7 +133,7 @@ export function SettingsModal({
   const [internalOpen, setInternalOpen] = useState(false)
   const { user, refetch, deviceLimitReached, updateUser } = useUser()
   const { theme, setTheme } = useTheme()
-  const fileInputRef = useRef<HTMLInputElement>(null)
+
   const nameInputRef = useRef<HTMLInputElement>(null)
   const { registerOnUploadComplete, unregisterOnUploadComplete } = useGlobalUpload()
   const { language, setLanguage, t } = useLanguage()
@@ -254,23 +247,7 @@ export function SettingsModal({
     return () => window.removeEventListener('hashchange', handleHashChange)
   }, [handleHashChange])
 
-  // If modal opened with ?open=avatar, trigger the hidden file input once the dialog is mounted
-  useEffect(() => {
-    if (open && openToAvatar) {
-      // Wait a tick so the file input is mounted
-      const id = window.setTimeout(() => {
-        try {
-          fileInputRef.current?.click()
-        } catch (e) {
-          // ignore
-        }
-        // Clear the flag so we don't re-trigger on subsequent opens
-        setOpenToAvatar(false)
-      }, 50)
-      return () => window.clearTimeout(id)
-    }
-    return
-  }, [open, openToAvatar])
+
 
   // State management
   const [displayName, setDisplayName] = useState("")
@@ -279,7 +256,7 @@ export function SettingsModal({
   const [isLoadingAvatar, setIsLoadingAvatar] = useState(false)
   const [isSavingName, setIsSavingName] = useState(false)
   const [dateTimePreference, setDateTimePreference] = useState("24h")
-  const [croppingFile, setCroppingFile] = useState<File | null>(null)
+
   const [appearanceTheme, setAppearanceTheme] = useState("default")
   const [themeSync, setThemeSync] = useState(true)
   const [dateFormat, setDateFormat] = useState("MM/DD/YYYY")
@@ -477,7 +454,7 @@ export function SettingsModal({
   const updateSessionsPageSize = (n: number) => {
     const val = isMobile ? 5 : n;
     setSessionsPageSize(val);
-    try { localStorage.setItem('settings.table.sessions.pageSize', String(val)); } catch (e) {}
+    try { localStorage.setItem('settings.table.sessions.pageSize', String(val)); } catch (e) { }
     // Indicate pending size and show loading immediately for smooth UX
     pendingSessionsPageSizeRef.current = val;
     setUserSessions([]);
@@ -488,7 +465,7 @@ export function SettingsModal({
   const updateDevicesPageSize = (n: number) => {
     const val = isMobile ? 5 : n;
     setDevicesPageSize(val);
-    try { localStorage.setItem('settings.table.devices.pageSize', String(val)); } catch (e) {}
+    try { localStorage.setItem('settings.table.devices.pageSize', String(val)); } catch (e) { }
     pendingDevicesPageSizeRef.current = val;
     setUserDevices([]);
     setIsLoadingDevices(true);
@@ -498,7 +475,7 @@ export function SettingsModal({
   const updateSecurityEventsPageSize = (n: number) => {
     const val = isMobile ? 5 : n;
     setSecurityEventsPageSize(val);
-    try { localStorage.setItem('settings.table.activity-monitor.pageSize', String(val)); } catch (e) {}
+    try { localStorage.setItem('settings.table.activity-monitor.pageSize', String(val)); } catch (e) { }
     pendingSecurityPageSizeRef.current = val;
     setSecurityEvents([]);
     setIsLoadingSecurityEvents(true);
@@ -1309,10 +1286,10 @@ export function SettingsModal({
               }
               if (serverLimit !== securityEventsPageSize) {
                 setSecurityEventsPageSize(serverLimit)
-                try { localStorage.setItem('settings.table.activity-monitor.pageSize', String(serverLimit)) } catch (e) {}
+                try { localStorage.setItem('settings.table.activity-monitor.pageSize', String(serverLimit)) } catch (e) { }
               }
             }
-          } catch (e) {}
+          } catch (e) { }
         }
         setSecurityEventsPage(page)
       } else {
@@ -1506,83 +1483,28 @@ export function SettingsModal({
     }
   }, [securityEventsDateRange, securityEventType])
 
-  // Handle avatar click to open file picker
-  const handleAvatarClick = () => {
-    fileInputRef.current?.click()
-  }
-
-  // Handle avatar file selection and open cropper
-  const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      toast.error("Please select an image file")
-      return
-    }
-
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Image size must be less than 5MB")
-      return
-    }
-
-    setCroppingFile(file)
-  }
-
-  // Handle upload of the cropped avatar
-  const handleUploadCroppedAvatar = async (croppedImageDataUrl: string) => {
-    if (!croppingFile) return
-
+  // Handle shuffle avatar
+  const handleShuffleAvatar = async () => {
     setIsLoadingAvatar(true)
-    setCroppingFile(null)
-
     try {
-      // Fetch the cropped image blob
-      const res = await fetch(croppedImageDataUrl)
-      const blob = await res.blob()
+      // Generate a random seed based on user ID and a random suffix
+      // Using a timestamp + random string for uniqueness
+      const randomSuffix = Math.random().toString(36).substring(7)
+      const newSeed = `${user?.id || 'user'}-${randomSuffix}`
+      const newAvatarUrl = getDiceBearAvatar(newSeed)
 
-      // Compress image client-side before hashing and uploading
-      // Uses fixed parameters (512px, 0.8 quality, JPEG) for deterministic output
-      const compressedBlob = await compressAvatar(new File([blob], 'avatar.jpg', { type: 'image/jpeg' }));
+      await apiClient.updateProfile({
+        avatar: newAvatarUrl
+      })
 
-      // Calculate SHA256 hash of the COMPRESSED image for idempotency
-      const buffer = await compressedBlob.arrayBuffer();
-      const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      const fileHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-
-      const formData = new FormData()
-      formData.append('file', compressedBlob, 'avatar.jpg')
-
-      // Pass the hash as the idempotency key (header)
-      const uploadResponse = await apiClient.uploadAvatar(formData, fileHash)
-
-      if (uploadResponse.success && uploadResponse.data?.avatarUrl) {
-        // Update the user's profile with the new avatar URL
-        await apiClient.updateProfile({
-          avatar: uploadResponse.data.avatarUrl
-        })
-        // Force refetch to update user data
-        await refetch()
-        toast.success(t("settings.avatarUpdated"))
-      } else {
-        if (uploadResponse.error === 'This image is already set as your avatar.') {
-          toast.error("This image is already set as your avatar.");
-        } else {
-          toast.error(uploadResponse.error || "Failed to upload avatar");
-        }
-      }
+      // Force refetch to update user data
+      await refetch()
+      toast.success(t("settings.avatarUpdated"))
     } catch (error) {
-      console.error('Avatar upload error:', error)
-      toast.error("Failed to upload avatar")
+      console.error('Avatar shuffle error:', error)
+      toast.error("Failed to update avatar")
     } finally {
       setIsLoadingAvatar(false)
-      // Reset file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ""
-      }
     }
   }
 
@@ -2087,10 +2009,9 @@ export function SettingsModal({
                       isSavingName={isSavingName}
                       handleSaveName={handleSaveName}
                       handleCancelEdit={handleCancelEdit}
-                      handleAvatarClick={handleAvatarClick}
+                      handleShuffleAvatar={handleShuffleAvatar}
                       isLoadingAvatar={isLoadingAvatar}
                       isDiceBearAvatar={isDiceBearAvatar}
-                      handleRemoveAvatar={handleRemoveAvatar}
                       nameInputRef={nameInputRef as React.RefObject<HTMLInputElement>}
                     />
                   )}
@@ -3043,66 +2964,7 @@ export function SettingsModal({
           </DialogContent>
         </Dialog>
 
-        {/* Avatar Cropper Modal */}
-        <Dialog open={!!croppingFile} onOpenChange={(open) => !open && setCroppingFile(null)}>
-          <DialogContent className="sm:max-w-lg p-0 overflow-hidden gap-0 border-none shadow-2xl bg-background/95 backdrop-blur-xl">
-            <DialogHeader className="p-8 pb-4">
-              <DialogTitle className="text-2xl font-bold">
-                {t('settings.editAvatar')}
-              </DialogTitle>
-              <DialogDescription className="text-muted-foreground text-base">
-                {t('settings.cropDesc')}
-              </DialogDescription>
-            </DialogHeader>
 
-            <div className="px-8 pb-8 pt-2">
-              <div className="relative group rounded-3xl overflow-hidden bg-muted/20 border shadow-inner flex items-center justify-center min-h-[300px] transition-colors hover:bg-muted/30">
-                {croppingFile && (
-                  <ImageCrop
-                    file={croppingFile}
-                    aspect={1}
-                    circularCrop
-                    onCrop={handleUploadCroppedAvatar}
-                  >
-                    <ImageCropContent className="max-h-[450px] w-full" />
-
-                    {/* Floating Controls Overlay */}
-                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 p-1.5 bg-background/80 backdrop-blur-md rounded-full border shadow-xl border-white/10 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0">
-                      <ImageCropReset className="hover:bg-muted transition-all active:scale-90" />
-                      <div className="h-4 w-[1px] bg-border mx-1" />
-                      <ImageCropApply className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full h-11 w-11 shadow-lg transition-all hover:scale-110 active:scale-95 flex items-center justify-center p-0">
-                        <IconCheck className="w-6 h-6" />
-                      </ImageCropApply>
-                    </div>
-                  </ImageCrop>
-                )}
-              </div>
-            </div>
-
-            <DialogFooter className="p-4 px-8 bg-muted/30 border-t flex justify-between items-center bg-muted/20">
-              <p className="text-xs text-muted-foreground hidden sm:block">
-                Changes apply instantly to your profile.
-              </p>
-              <Button
-                variant="ghost"
-                onClick={() => setCroppingFile(null)}
-                className="rounded-xl hover:bg-background/50"
-              >
-                {t('common.cancel')}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Hidden file input */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          onChange={handleAvatarChange}
-          className="hidden"
-          disabled={isLoadingAvatar}
-        />
       </DialogContent>
     </Dialog>
   )

@@ -167,7 +167,6 @@
     "react-dnd-html5-backend": "^16.0.1",
     "react-dom": "19.2.0",
     "react-i18next": "^16.5.1",
-    "react-image-crop": "^11.0.10",
     "react-json-syntax-highlighter": "^0.1.17",
     "react-leaflet": "^5.0.0",
     "react-leaflet-markercluster": "^5.0.0-rc.0",

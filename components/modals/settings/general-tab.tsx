@@ -13,25 +13,16 @@ import {
     CardTitle,
 } from "@/components/ui/card"
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
-import {
     IconLoader2,
     IconPencil,
     IconCheck as IconCheckmark,
     IconX,
     IconInfoCircle,
     IconRosetteDiscountCheckFilled,
-    IconSparkles,
     IconGhost2,
     IconCopy,
+    IconArrowsShuffle,
 } from "@tabler/icons-react"
-import { Switch } from "@/components/ui/switch"
-import { cn } from "@/lib/utils"
 import { getDiceBearAvatar } from "@/lib/avatar"
 import { getInitials } from "@/components/layout/navigation/nav-user"
 import { useLanguage } from "@/lib/i18n/language-context"
@@ -47,10 +38,10 @@ interface GeneralTabProps {
     isSavingName: boolean;
     handleSaveName: () => void;
     handleCancelEdit: () => void;
-    handleAvatarClick: () => void;
+
+    handleShuffleAvatar: () => Promise<void>;
     isLoadingAvatar: boolean;
     isDiceBearAvatar: boolean;
-    handleRemoveAvatar: () => Promise<void>;
     nameInputRef: React.RefObject<HTMLInputElement>;
 }
 
@@ -64,10 +55,10 @@ export function GeneralTab({
     isSavingName,
     handleSaveName,
     handleCancelEdit,
-    handleAvatarClick,
+
+    handleShuffleAvatar,
     isLoadingAvatar,
     isDiceBearAvatar,
-    handleRemoveAvatar,
     nameInputRef,
 }: GeneralTabProps) {
     const { t } = useLanguage()
@@ -108,42 +99,35 @@ export function GeneralTab({
                     <div className="relative group">
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <Avatar
-                                    className="h-20 w-20 cursor-pointer hover:opacity-75 transition-opacity flex-shrink-0"
-                                    onClick={handleAvatarClick}
-                                >
-                                    <AvatarImage
-                                        src={user?.avatar || getDiceBearAvatar(user?.id || "user")}
-                                        alt="Profile"
-                                        onError={(e) => {
-                                            // Prevent favicon.ico fallback request
-                                            (e.target as HTMLImageElement).src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
-                                        }}
-                                    />
-                                    <AvatarFallback className="text-base">
-                                        {getInitials(displayName || "User")}
-                                    </AvatarFallback>
-                                </Avatar>
+                                <div className="relative cursor-pointer" onClick={handleShuffleAvatar}>
+                                    <Avatar
+                                        className="h-20 w-20 hover:opacity-75 transition-opacity flex-shrink-0"
+                                    >
+                                        <AvatarImage
+                                            src={user?.avatar || getDiceBearAvatar(user?.id || "user")}
+                                            alt="Profile"
+                                            onError={(e) => {
+                                                // Prevent favicon.ico fallback request
+                                                (e.target as HTMLImageElement).src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+                                            }}
+                                        />
+                                        <AvatarFallback className="text-base">
+                                            {getInitials(displayName || "User")}
+                                        </AvatarFallback>
+                                    </Avatar>
+
+                                    {/* Shuffle Overlay */}
+                                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/30 rounded-full">
+                                        <IconArrowsShuffle className="h-6 w-6 text-white drop-shadow-md" />
+                                    </div>
+                                </div>
                             </TooltipTrigger>
-                            <TooltipContent>Click to upload new avatar</TooltipContent>
+                            <TooltipContent>Click to shuffle avatar</TooltipContent>
                         </Tooltip>
                         {isLoadingAvatar && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full">
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full pointer-events-none">
                                 <IconLoader2 className="h-5 w-5 animate-spin text-white" />
                             </div>
-                        )}
-                        {/* Remove avatar cross - only show for non-DiceBear avatars */}
-                        {user?.avatar && !isDiceBearAvatar && (
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation()
-                                    handleRemoveAvatar()
-                                }}
-                                className="absolute -top-1 -right-1 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
-                                title={t('settings.removeAvatar')}
-                            >
-                                <span className="text-xs font-bold">×</span>
-                            </button>
                         )}
                         {user?.is_checkmarked && (
                             <Tooltip>

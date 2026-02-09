@@ -1256,18 +1256,7 @@ class ApiClient {
     });
   }
 
-  async uploadAvatar(formData: FormData, fileHash?: string): Promise<ApiResponse<{ avatarUrl: string }>> {
-    const requestHeaders: Record<string, string> = {};
-    if (fileHash) {
-      requestHeaders['X-Avatar-Hash'] = fileHash;
-    }
 
-    return this.request('/auth/avatar', {
-      method: 'POST',
-      body: formData,
-      headers: requestHeaders,
-    });
-  }
 
   async getUserStorage(): Promise<ApiResponse<{
     used_bytes: number;
