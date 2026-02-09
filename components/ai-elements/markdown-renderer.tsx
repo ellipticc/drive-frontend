@@ -70,6 +70,11 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   className,
   compact = false,
 }) => {
+  // Normalize problematic unicode characters (e.g., en-dash) to avoid strict LaTeX warnings in rehype-katex
+  const safeContent = React.useMemo(() => {
+    if (!content) return content;
+    return content.replace(/\u2013|\u2014/g, '-');
+  }, [content]);
   // Components mapping for react-markdown
   const components = useMemo(
     () => ({
@@ -181,7 +186,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
         rehypePlugins={rehypePlugins}
         components={components}
       >
-        {content}
+        {safeContent}
       </ReactMarkdown>
     </div>
   );

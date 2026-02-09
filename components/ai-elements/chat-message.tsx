@@ -122,7 +122,7 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
 
     return (
         <div className={cn(
-            "flex w-full gap-4 group",
+            "flex w-full gap-3 group",
             isUser ? "justify-end" : "justify-start"
         )}> 
 
@@ -130,7 +130,7 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
             <div className={cn(
                 "flex flex-col flex-1",
                 isUser ? "items-end" : "items-start"
-            )}>
+            )}> 
                 {isUser ? (
                     // ... User Message Render ...
                     <>
@@ -173,12 +173,13 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                         ) : (
                             <>
                                 <div className="relative flex items-start">
-                                    {/* Message bubble */}
-                                    <div className="bg-primary text-primary-foreground px-5 py-3.5 rounded-2xl text-sm leading-relaxed shadow-sm font-medium w-full">
+                                    {/* Message bubble (reduced padding slightly) */}
+                                    <div className="bg-primary text-primary-foreground px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm font-medium w-full">
                                         {message.content}
                                     </div>
 
-                                    {/* Overlay dashed separator and bookmark aligned over the message */}
+                                    {/* Bookmark overlay commented out for now (disabled per request) */}
+                                    {/*
                                     <div className="absolute left-0 right-0 -top-3 pointer-events-none">
                                         <div className="border-t border-dashed border-border/50 w-full" />
                                         <div className="flex justify-end pr-2 mt-0.5">
@@ -200,9 +201,10 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                             </div>
                                         </div>
                                     </div>
-                                </div>
+                                    */}
+                                </div> 
 
-                                <div className="flex items-center gap-1 mt-3 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="flex items-center gap-1 mt-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
                                     <ActionButton
                                         icon={IconRefresh}
                                         label="Retry"
@@ -218,7 +220,7 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                         label="Copy"
                                         onClick={handleCopy}
                                     />
-                                </div>
+                                </div> 
                             </>
                         )}
                     </>
@@ -276,24 +278,38 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                         <div className="flex items-center justify-between mt-2 select-none">
                             {/* Left Actions */}
                             <div className="flex items-center gap-0.5">
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className={cn("h-6 w-6", feedbackGiven && message.feedback === 'like' ? "text-green-500" : "text-muted-foreground hover:text-green-500")}
-                                    onClick={() => handleFeedback('like')}
-                                    disabled={feedbackGiven}
-                                >
-                                    <IconThumbUp className="size-3.5" />
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className={cn("h-6 w-6", feedbackGiven && message.feedback === 'dislike' ? "text-red-500" : "text-muted-foreground hover:text-red-500")}
-                                    onClick={() => handleFeedback('dislike')}
-                                    disabled={feedbackGiven}
-                                >
-                                    <IconThumbDown className="size-3.5" />
-                                </Button>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className={cn("h-6 w-6", feedbackGiven && message.feedback === 'like' ? "text-green-500" : "text-muted-foreground hover:text-green-500")}
+                                            onClick={() => handleFeedback('like')}
+                                            disabled={feedbackGiven}
+                                        >
+                                            <IconThumbUp className="size-3.5" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="bottom">
+                                        <p>Like</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className={cn("h-6 w-6", feedbackGiven && message.feedback === 'dislike' ? "text-red-500" : "text-muted-foreground hover:text-red-500")}
+                                            onClick={() => handleFeedback('dislike')}
+                                            disabled={feedbackGiven}
+                                        >
+                                            <IconThumbDown className="size-3.5" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="bottom">
+                                        <p>Dislike</p>
+                                    </TooltipContent>
+                                </Tooltip> 
                                 <ActionButton
                                     icon={copied ? IconCheck : IconCopy}
                                     label="Copy"
@@ -345,6 +361,8 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                         {/* System message actions */}
                         {isSystem && availableModels.length > 0 && (
                             <div className="flex items-center justify-end mt-2 select-none">
+                                {/* System rerun UI commented out for now */}
+                                {/*
                                 <Popover open={systemModelPopoverOpen} onOpenChange={setSystemModelPopoverOpen}>
                                     <PopoverTrigger asChild>
                                         <Button variant="ghost" size="icon" className="h-6 w-6">
@@ -362,8 +380,9 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                         </div>
                                     </PopoverContent>
                                 </Popover>
+                                */}
                             </div>
-                        )}
+                        )} 
                     </div>
                 )}
             </div>
@@ -400,15 +419,20 @@ function RegeneratePanel({ isOpen, onOpenChange, onSubmit }: { isOpen: boolean, 
 
     return (
         <Popover open={isOpen} onOpenChange={onOpenChange}>
-            <PopoverTrigger asChild>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className={cn("h-6 w-6 text-muted-foreground hover:text-foreground", isOpen && "text-foreground bg-muted")}
-                >
-                    <IconRefresh className="size-3.5" />
-                </Button>
-            </PopoverTrigger>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <PopoverTrigger asChild>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className={cn("h-6 w-6 text-muted-foreground hover:text-foreground", isOpen && "text-foreground bg-muted")}
+                        >
+                            <IconRefresh className="size-3.5" />
+                        </Button>
+                    </PopoverTrigger>
+                </TooltipTrigger>
+                <TooltipContent side="bottom"><p>Regenerate</p></TooltipContent>
+            </Tooltip>
             <PopoverContent className="w-80 p-0" align="start" side="bottom">
                 <div className="p-3 space-y-3">
                     <p className="text-xs font-semibold text-muted-foreground">Describe desired changes...</p>

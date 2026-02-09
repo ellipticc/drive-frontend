@@ -170,14 +170,14 @@ export const CodeBlock = React.forwardRef<
             {/* Sheet Content - Large Code Preview */}
             <div className="flex-1 overflow-auto p-6">
               <div className="rounded-lg border border-border/50 bg-muted overflow-hidden">
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto [&>pre]:whitespace-pre [&>pre]:overflow-x-auto [&>pre]:min-w-[max-content]">
                   {!isLoading && highlightedHtml ? (
                     <div
-                      className="p-6 text-base font-mono"
+                      className="p-6 text-base font-mono whitespace-pre"
                       dangerouslySetInnerHTML={{ __html: highlightedHtml }}
                     />
                   ) : (
-                    <pre className="p-6 m-0 text-base font-mono text-foreground whitespace-pre-wrap break-words">
+                    <pre className="p-6 m-0 text-base font-mono text-foreground whitespace-pre">
                       <code>{codeContent}</code>
                     </pre>
                   )}
