@@ -3,6 +3,7 @@
 import { type Value, TrailingBlockPlugin } from 'platejs';
 import { type TPlateEditor, useEditorRef } from 'platejs/react';
 
+import { AIKit } from '@/components/ai-kit';
 import { AlignKit } from '@/components/align-kit';
 import { AutoformatKit } from '@/components/autoformat-kit';
 import { BasicBlocksKit } from '@/components/basic-blocks-kit';
@@ -41,6 +42,7 @@ export const EditorKit = [
   ...DiscussionKit,
   ...CommentKit,
   ...SuggestionKit,
+  ...AIKit,
 
   // Elements
   ...BasicBlocksKit,
