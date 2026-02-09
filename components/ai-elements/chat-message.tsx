@@ -63,6 +63,7 @@ interface ChatMessageProps {
 export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedback, onRegenerate, onVersionChange, onCheckpoint }: ChatMessageProps) {
     // ... existing state ...
     const isUser = message.role === 'user';
+    const isAssistant = message.role === 'assistant';
     const [copied, setCopied] = React.useState(false);
     const [feedbackGiven, setFeedbackGiven] = React.useState(!!message.feedback);
     const [isEditingPrompt, setIsEditingPrompt] = React.useState(false);
@@ -120,28 +121,7 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
             "flex w-full gap-4 group",
             isUser ? "justify-end" : "justify-start"
         )}> 
-            {/* Checkpoint Icon - Left side for user messages */}
-            {isUser && (
-                <div className="flex-shrink-0 w-6 opacity-0 group-hover:opacity-100 transition-opacity flex items-start justify-center pt-1">
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <button
-                                onClick={() => {
-                                    onCheckpoint?.(message.id || '');
-                                }}
-                                className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-                                aria-label="Create checkpoint"
-                            >
-                                <IconBookmark className="size-4" />
-                            </button>
-                        </TooltipTrigger>
-                        <TooltipContent side="right">
-                            <p>Create checkpoint</p>
-                        </TooltipContent>
-                    </Tooltip>
-                </div>
-            )}
-            
+                    
             {/* Message Content */}
             <div className={cn(
                 "flex flex-col flex-1",
@@ -188,10 +168,30 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                             </div>
                         ) : (
                             <>
-                                <div className="bg-primary text-primary-foreground px-5 py-3.5 rounded-2xl text-sm leading-relaxed shadow-sm font-medium">
-                                    {message.content}
+                                <div className="flex items-center">
+                                    <div className="bg-primary text-primary-foreground px-5 py-3.5 rounded-2xl text-sm leading-relaxed shadow-sm font-medium flex-1">
+                                        {message.content}
+                                    </div>
+                                    {/* Separator + Bookmark */}
+                                    <div className="ml-3 pl-3 border-l border-dashed border-border/50 flex items-center opacity-0 group-hover:opacity-100 transition-opacity" style={{height: '40px'}}>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <button
+                                                    onClick={() => onCheckpoint?.(message.id || '')}
+                                                    className={cn("p-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors", message.isCheckpoint ? 'text-primary' : '')}
+                                                    aria-label="Create bookmark"
+                                                >
+                                                    {message.isCheckpoint ? <IconBookmark className="size-4" /> : <IconBookmark className="size-4" />}
+                                                </button>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="left">
+                                                <p>{message.isCheckpoint ? 'Bookmarked' : 'Create bookmark'}</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </div>
                                 </div>
-                                <div className="flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity justify-end">
+
+                                <div className="flex items-center gap-1 mt-3 justify-end">
                                     <ActionButton
                                         icon={IconRefresh}
                                         label="Retry"
@@ -260,13 +260,15 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                         )}
 
                         {/* Actions Footer - Always Visible for Assistant */}
+                        {/* Only show assistant actions when this is an assistant message */}
+                        {isAssistant && (
                         <div className="flex items-center justify-between mt-2 select-none">
                             {/* Left Actions */}
                             <div className="flex items-center gap-0.5">
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    className={cn("h-6 w-6", feedbackGiven && message.feedback === 'like' && "text-green-500")}
+                                    className={cn("h-6 w-6", feedbackGiven && message.feedback === 'like' ? "text-green-500" : "text-muted-foreground hover:text-green-500")}
                                     onClick={() => handleFeedback('like')}
                                     disabled={feedbackGiven}
                                 >
@@ -275,7 +277,7 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    className={cn("h-6 w-6", feedbackGiven && message.feedback === 'dislike' && "text-red-500")}
+                                    className={cn("h-6 w-6", feedbackGiven && message.feedback === 'dislike' ? "text-red-500" : "text-muted-foreground hover:text-red-500")}
                                     onClick={() => handleFeedback('dislike')}
                                     disabled={feedbackGiven}
                                 >
@@ -327,6 +329,7 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                 </div>
                             )}
                         </div>
+                        )}
                     </div>
                 )}
             </div>
@@ -395,7 +398,7 @@ function RegeneratePanel({ isOpen, onOpenChange, onSubmit }: { isOpen: boolean, 
                             label="Try Again"
                             ariaLabel="Regenerate the response without changes"
                             selected={selectedOption === 'try-again'}
-                            onClick={() => setSelectedOption('try-again')}
+                            onClick={() => { setSelectedOption('try-again'); onSubmit(); onOpenChange(false); }}
                             disabled={!!instruction}
                         />
                         <QuickOption
@@ -403,7 +406,7 @@ function RegeneratePanel({ isOpen, onOpenChange, onSubmit }: { isOpen: boolean, 
                             label="Add Details"
                             ariaLabel="Regenerate with more details and explanation"
                             selected={selectedOption === 'details'}
-                            onClick={() => setSelectedOption('details')}
+                            onClick={() => { setSelectedOption('details'); onSubmit("Provide a more detailed and expanded version."); onOpenChange(false); }}
                             disabled={!!instruction}
                         />
                         <QuickOption
@@ -411,7 +414,7 @@ function RegeneratePanel({ isOpen, onOpenChange, onSubmit }: { isOpen: boolean, 
                             label="More Concise"
                             ariaLabel="Regenerate a shorter, more concise response"
                             selected={selectedOption === 'concise'}
-                            onClick={() => setSelectedOption('concise')}
+                            onClick={() => { setSelectedOption('concise'); onSubmit("Provide a shorter, more concise version."); onOpenChange(false); }}
                             disabled={!!instruction}
                         />
                         <QuickOption
@@ -419,7 +422,7 @@ function RegeneratePanel({ isOpen, onOpenChange, onSubmit }: { isOpen: boolean, 
                             label="Think Longer"
                             ariaLabel="Regenerate with deeper reasoning and analysis"
                             selected={selectedOption === 'think'}
-                            onClick={() => setSelectedOption('think')}
+                            onClick={() => { setSelectedOption('think'); onSubmit("Take more time to reason and provide a deeper answer."); onOpenChange(false); }}
                             disabled={!!instruction}
                         />
                     </div>

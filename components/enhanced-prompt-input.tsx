@@ -106,9 +106,13 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
     const [isDragging, setIsDragging] = useState(false);
     const [localModel, setLocalModel] = useState("llama-3.1-8b-instant");
     const [isThinkingEnabled, setIsThinkingEnabled] = useState(false);
+    const [modelOpen, setModelOpen] = useState(false);
 
     const effectiveModel = externalModel || localModel;
-    const handleModelChange = onModelChange || setLocalModel;
+    const handleModelChange = (m: string) => {
+        setLocalModel(m);
+        onModelChange?.(m);
+    }
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -281,7 +285,8 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                                 <Icons.Thinking className="w-5 h-5" />
                             </button>
 
-                            <ModelSelector>
+                            {/* Controlled Model Selector so selection closes the modal on select */}
+                            <ModelSelector open={modelOpen} onOpenChange={(open) => setModelOpen(open)}>
                                 <ModelSelectorTrigger className="inline-flex items-center justify-center relative shrink-0 transition font-base duration-300 h-8 rounded-xl px-3 min-w-[4rem] active:scale-[0.98] whitespace-nowrap !text-xs pl-2.5 pr-2 gap-1 text-muted-foreground hover:text-foreground hover:bg-muted">
                                     <div className="font-ui inline-flex gap-[3px] text-[14px] h-[14px] leading-none items-baseline">
                                         <div className="whitespace-nowrap select-none font-medium">{currentModel.name}</div>
@@ -298,6 +303,8 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                                                     key={model.id}
                                                     onSelect={() => {
                                                         handleModelChange(model.id);
+                                                        // Close dialog after choice
+                                                        setModelOpen(false);
                                                     }}
                                                 >
                                                     <ModelSelectorLogo provider={model.provider as any} />

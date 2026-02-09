@@ -886,7 +886,7 @@ export default function AssistantPage() {
                                 <div
                                     key={message.id || index}
                                     id={`message-${message.id}`}
-                                    className="w-full max-w-2xl"
+                                    className="w-full max-w-3xl"
                                 >
                                     {message.isCheckpoint ? (
                                         <Checkpoint className="my-4">
@@ -923,7 +923,7 @@ export default function AssistantPage() {
                         {/* Sticky Input Footer - Centered with consistent max-width */}
                         <div className="sticky bottom-0 z-40 w-full bg-background/95 backdrop-blur-sm pb-4 pt-0">
                             <div className="flex justify-center w-full">
-                                <div className="max-w-2xl w-full px-4">
+                                <div className="max-w-4xl w-full px-4">
                                     <EnhancedPromptInput
                                         onSubmit={async (text, files) => {
                                             await handleSubmit(text, files);
