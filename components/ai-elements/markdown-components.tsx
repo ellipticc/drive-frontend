@@ -27,6 +27,8 @@ export const CodeBlock = React.forwardRef<
   const [previewOpen, setPreviewOpen] = useState(false);
   const [highlightedHtml, setHighlightedHtml] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
+  // Track local hover for this specific code block so copy button only shows for the hovered block
+  const [isHovered, setIsHovered] = React.useState(false);
 
   // Get code content
   const codeContent = code || (typeof children === 'string' ? children : String(children || ''));
@@ -70,10 +72,12 @@ export const CodeBlock = React.forwardRef<
   return (
     <div
       ref={ref}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       className={cn(
         'my-4 rounded-lg overflow-hidden',
         'border border-border/40 dark:border-border/50',
-        'group w-full',
+        'group w-full max-w-full',
         className
       )}
       style={{ backgroundColor: bgColor }}
@@ -90,7 +94,7 @@ export const CodeBlock = React.forwardRef<
           variant="ghost"
           size="sm"
           onClick={handleCopy}
-          className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+          className={cn('h-5 w-5 p-0 transition-opacity', isHovered ? 'opacity-100' : 'opacity-0')}
           title={copied ? 'Copied!' : 'Copy code'}
         >
           {copied ? (
@@ -104,26 +108,28 @@ export const CodeBlock = React.forwardRef<
       {/* Code Content - Direct Scroll with Strict Width */}
       <div className="overflow-x-auto w-full" style={{ backgroundColor: bgColor }}>
         {!isLoading && highlightedHtml ? (
-          <div
-            className={cn(
-              'p-4 text-sm font-mono',
-              'whitespace-pre',
-              'min-w-max',
-              '[&_*]:!bg-transparent [&_*]:!background-transparent',
-              '[&_span]:!background-color-transparent'
-            )}
-            style={{ color: textColor, backgroundColor: 'transparent', fontFamily: "'IBM Plex Mono', monospace" }}
-            dangerouslySetInnerHTML={{ __html: highlightedHtml }}
-          />
+          <div className="p-0">
+            <div
+              className={cn(
+                'p-4 text-sm font-mono inline-block whitespace-pre',
+                'min-w-[max-content]',
+                '[&_*]:!bg-transparent [&_*]:!background-transparent',
+                '[&_span]:!background-color-transparent'
+              )}
+              style={{ color: textColor, backgroundColor: 'transparent', fontFamily: "'IBM Plex Mono', monospace", minWidth: 'max-content' }}
+              dangerouslySetInnerHTML={{ __html: highlightedHtml }}
+            />
+          </div>
         ) : (
-          <pre className={cn(
-            'p-4 m-0 text-sm font-mono',
-            'whitespace-pre',
-            'min-w-max'
-          )}
-          style={{ color: textColor, backgroundColor: 'transparent', fontFamily: "'IBM Plex Mono', monospace" }}>
-            <code>{codeContent}</code>
-          </pre>
+          <div className="p-0">
+            <pre className={cn(
+              'p-4 m-0 text-sm font-mono',
+              'whitespace-pre'
+            )}
+            style={{ color: textColor, backgroundColor: 'transparent', fontFamily: "'IBM Plex Mono', monospace", display: 'inline-block', minWidth: 'max-content' }}>
+              <code>{codeContent}</code>
+            </pre>
+          </div>
         )}
       </div>
 
@@ -162,26 +168,28 @@ export const CodeBlock = React.forwardRef<
             {/* Preview Content */}
             <div className="flex-1 overflow-x-auto" style={{ backgroundColor: '#171717', maxWidth: '100%' }}>
               {!isLoading && highlightedHtml ? (
+                <div className="p-0">
                 <div
                   className={cn(
-                    'p-6 text-sm font-mono',
-                    'whitespace-pre',
-                    'min-w-max',
+                    'p-6 text-sm font-mono inline-block whitespace-pre',
+                    'min-w-[max-content]',
                     '[&_*]:!bg-transparent [&_*]:!background-transparent',
                     '[&_span]:!background-color-transparent'
                   )}
-                  style={{ color: '#e5e5e5', backgroundColor: 'transparent', fontFamily: "'IBM Plex Mono', monospace" }}
+                  style={{ color: '#e5e5e5', backgroundColor: 'transparent', fontFamily: "'IBM Plex Mono', monospace", minWidth: 'max-content' }}
                   dangerouslySetInnerHTML={{ __html: highlightedHtml }}
                 />
+              </div>
               ) : (
-                <pre className={cn(
-                  'p-6 m-0 text-sm font-mono',
-                  'whitespace-pre',
-                  'min-w-max'
-                )}
-                style={{ color: '#e5e5e5', backgroundColor: 'transparent', fontFamily: "'IBM Plex Mono', monospace" }}>
-                  <code>{codeContent}</code>
-                </pre>
+            <div className="p-0">
+              <pre className={cn(
+                'p-6 m-0 text-sm font-mono',
+                'whitespace-pre'
+              )}
+              style={{ color: '#e5e5e5', backgroundColor: 'transparent', fontFamily: "'IBM Plex Mono', monospace", display: 'inline-block', minWidth: 'max-content' }}>
+                <code>{codeContent}</code>
+              </pre>
+            </div>
               )}
             </div>
           </div>
