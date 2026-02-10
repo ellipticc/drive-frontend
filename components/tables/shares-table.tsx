@@ -217,65 +217,72 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                     console.warn('Could not retrieve master key for filename decryption', err);
                 }
 
-                // Decrypt filenames and folder paths in shares
-                const sharesWithDecryptedNames = await Promise.all(sharesData.map(async (share: ShareItem) => {
-                    let displayName = share.fileName || '';
-                    let displayPath = share.folderPath || '';
+                // Decrypt filenames and folder paths in shares (batched to avoid overwhelming worker pool)
+                const sharesWithDecryptedNames: ShareItem[] = [];
+                const batchSize = 20;
+                
+                for (let i = 0; i < sharesData.length; i += batchSize) {
+                    const batch = sharesData.slice(i, i + batchSize);
+                    const batchResults = await Promise.all(batch.map(async (share: ShareItem) => {
+                        let displayName = share.fileName || '';
+                        let displayPath = share.folderPath || '';
 
-                    if (share.encryptedFilename && share.filenameSalt && masterKey) {
-                        try {
-                            displayName = await decryptFilenameInWorker(share.encryptedFilename, share.filenameSalt, masterKey);
-                        } catch (err) {
-                            console.warn(`Failed to decrypt filename for share ${share.id}:`, err);
-                            displayName = share.fileName || '';
+                        if (share.encryptedFilename && share.filenameSalt && masterKey) {
+                            try {
+                                displayName = await decryptFilenameInWorker(share.encryptedFilename, share.filenameSalt, masterKey);
+                            } catch (err) {
+                                console.warn(`Failed to decrypt filename for share ${share.id}:`, err);
+                                displayName = share.fileName || '';
+                            }
                         }
-                    }
 
-                    // Decrypt folder path if it exists and we have salts
-                    if (share.folderPath && share.folderPathSalt && masterKey) {
-                        try {
-                            const encryptedParts = share.folderPath.split('|||').filter((p: string) => p);
-                            const saltParts = share.folderPathSalt.split('|||').filter((p: string) => p);
+                        // Decrypt folder path if it exists and we have salts
+                        if (share.folderPath && share.folderPathSalt && masterKey) {
+                            try {
+                                const encryptedParts = share.folderPath.split('|||').filter((p: string) => p);
+                                const saltParts = share.folderPathSalt.split('|||').filter((p: string) => p);
 
-                            if (encryptedParts.length > 0 && encryptedParts.length === saltParts.length) {
-                                const decryptedParts = [];
-                                for (let i = 0; i < encryptedParts.length; i++) {
-                                    if (encryptedParts[i] && saltParts[i]) {
-                                        try {
-                                            const decryptedPart = await decryptFilenameInWorker(encryptedParts[i], saltParts[i], masterKey);
-                                            decryptedParts.push(decryptedPart);
-                                        } catch (partErr) {
-                                            console.warn(`Failed to decrypt folder path part ${i} for share ${share.id}:`, partErr);
-                                            decryptedParts.push(encryptedParts[i]); // Keep encrypted as fallback
+                                if (encryptedParts.length > 0 && encryptedParts.length === saltParts.length) {
+                                    const decryptedParts = [];
+                                    for (let i = 0; i < encryptedParts.length; i++) {
+                                        if (encryptedParts[i] && saltParts[i]) {
+                                            try {
+                                                const decryptedPart = await decryptFilenameInWorker(encryptedParts[i], saltParts[i], masterKey);
+                                                decryptedParts.push(decryptedPart);
+                                            } catch (partErr) {
+                                                console.warn(`Failed to decrypt folder path part ${i} for share ${share.id}:`, partErr);
+                                                decryptedParts.push(encryptedParts[i]); // Keep encrypted as fallback
+                                            }
                                         }
                                     }
+                                    displayPath = decryptedParts.length > 0 ? decryptedParts.join('/') : 'Root';
+                                } else if (encryptedParts.length > 0) {
+                                    displayPath = share.folderPath; // Keep encrypted if mismatched lengths
+                                } else {
+                                    displayPath = 'Root'; // Empty path means root
                                 }
-                                displayPath = decryptedParts.length > 0 ? decryptedParts.join('/') : 'Root';
-                            } else if (encryptedParts.length > 0) {
-                                displayPath = share.folderPath; // Keep encrypted if mismatched lengths
-                            } else {
-                                displayPath = 'Root'; // Empty path means root
+                            } catch (err) {
+                                console.warn(`Failed to decrypt folder path for share ${share.id}:`, err);
+                                displayPath = share.folderPath || 'Root'; // Keep encrypted as fallback
                             }
-                        } catch (err) {
-                            console.warn(`Failed to decrypt folder path for share ${share.id}:`, err);
-                            displayPath = share.folderPath || 'Root'; // Keep encrypted as fallback
+                        } else {
+                            displayPath = 'Root'; // Default to Root if no path or no salts
                         }
-                    } else {
-                        displayPath = 'Root'; // Default to Root if no path or no salts
-                    }
 
-                    // Trim any trailing slashes and ensure Root is the fallback
-                    displayPath = displayPath.trim();
-                    if (!displayPath || displayPath === '/') {
-                        displayPath = 'Root';
-                    }
+                        // Trim any trailing slashes and ensure Root is the fallback
+                        displayPath = displayPath.trim();
+                        if (!displayPath || displayPath === '/') {
+                            displayPath = 'Root';
+                        }
 
-                    return {
-                        ...share,
-                        fileName: displayName,
-                        folderPath: displayPath
-                    };
-                }));
+                        return {
+                            ...share,
+                            fileName: displayName,
+                            folderPath: displayPath
+                        };
+                    }));
+                    sharesWithDecryptedNames.push(...batchResults);
+                }
 
                 setShares(sharesWithDecryptedNames);
             } else {

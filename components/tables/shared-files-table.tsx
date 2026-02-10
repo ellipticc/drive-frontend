@@ -132,28 +132,31 @@ export function SharedFilesTable({ status, searchQuery }: SharedFilesTableProps)
 
                 let newDecrypted: Record<string, string> = {};
                 if (kyberPrivateKey) {
-                    // Offload KEM decapsulation + filename decryption to worker pool for responsiveness
-                    await Promise.all(response.data.map(async (item) => {
-                        if (!item.kyberCiphertext || !item.encryptedCek || !item.encryptedCekNonce) {
-                            return;
-                        }
-
-                        try {
-                            // Use worker pool to derive CEK and decrypt filename if available
-                            const res = await decryptShareInWorker({ id: item.id, kyberPrivateKey: kyberPrivateKey.buffer as ArrayBuffer, share: item });
-                            if (res && res.cek) {
-                                const cek = new Uint8Array(res.cek);
-                                setCekForShare(item.id, cek);
+                    // Process items in batches to avoid overwhelming the worker pool
+                    // Each batch processes up to 20 items concurrently
+                    const batchSize = 20;
+                    const items = response.data.filter(item => item.kyberCiphertext && item.encryptedCek && item.encryptedCekNonce);
+                    
+                    for (let i = 0; i < items.length; i += batchSize) {
+                        const batch = items.slice(i, i + batchSize);
+                        await Promise.all(batch.map(async (item) => {
+                            try {
+                                // Use worker pool to derive CEK and decrypt filename if available
+                                const res = await decryptShareInWorker({ id: item.id, kyberPrivateKey: kyberPrivateKey.buffer as ArrayBuffer, share: item });
+                                if (res && res.cek) {
+                                    const cek = new Uint8Array(res.cek);
+                                    setCekForShare(item.id, cek);
+                                }
+                                if (res && res.name) {
+                                    // Allow valid names (removed strict ASCII check)
+                                    newDecrypted[item.id] = res.name;
+                                }
+                            } catch (e) {
+                                console.error("Worker decryption failed for item " + item.id, e);
+                                newDecrypted[item.id] = "Decryption Failed";
                             }
-                            if (res && res.name) {
-                                // Allow valid names (removed strict ASCII check)
-                                newDecrypted[item.id] = res.name;
-                            }
-                        } catch (e) {
-                            console.error("Worker decryption failed for item " + item.id, e);
-                            newDecrypted[item.id] = "Decryption Failed";
-                        }
-                    }));
+                        }));
+                    }
                 }
                 setDecryptedNames(prev => ({ ...prev, ...newDecrypted }));
             }

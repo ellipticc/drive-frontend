@@ -6,16 +6,13 @@ let decryptionPool: WorkerPool | null = null;
 function getDecryptionPool(): WorkerPool {
     if (!decryptionPool) {
         const concurrency = (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 4;
-        decryptionPool = new WorkerPool(
-            () => {
-                return new Worker(new URL('./workers/decrypt-filename.worker.ts', import.meta.url));
-            },
-            {
-                maxWorkers: concurrency,
-                maxQueueSize: 100,
-                taskTimeout: 5000,
-            }
-        );
+        decryptionPool = new WorkerPool(() => {
+            return new Worker(new URL('./workers/decrypt-filename.worker.ts', import.meta.url));
+        }, {
+            maxWorkers: concurrency,
+            maxQueueSize: 100,
+            taskTimeout: 5000,
+        });
     }
     return decryptionPool;
 }

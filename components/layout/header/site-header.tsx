@@ -216,7 +216,7 @@ export function SiteHeader({ className, onSearch, onFileUpload, onFolderUpload, 
           {!isAIMode && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild id="tour-new-button">
-                <Button size="sm" className="h-8">
+                <Button size="sm" className="h-8 dark:bg-white dark:text-black dark:hover:bg-gray-200">
                   <IconPlus className="h-4 w-4 mr-2" />
                   New
                 </Button>
