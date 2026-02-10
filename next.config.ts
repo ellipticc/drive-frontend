@@ -15,11 +15,9 @@ const nextConfig: NextConfig = {
     scrollRestoration: true, // Better navigation performance
   },
   webpack: (config) => {
-    // Set externals for modules that can't be bundled on server
-    config.externals = config.externals || [];
-    config.externals.push(
-      '@noble/post-quantum'
-    );
+    // config.externals.push(
+    //   '@noble/post-quantum'
+    // );
 
     config.resolve.fallback = {
       ...config.resolve.fallback,

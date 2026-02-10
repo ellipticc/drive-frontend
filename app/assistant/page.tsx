@@ -5,7 +5,7 @@ import { useUser } from "@/components/user-context"
 import { IconSparkles, IconBookmark, IconRotateClockwise } from "@tabler/icons-react"
 import { Checkpoint, CheckpointIcon, CheckpointTrigger } from "@/components/ai-elements/checkpoint"
 import apiClient from "@/lib/api"
-import { useVirtualizer } from "@tanstack/react-virtual"
+
 import { Skeleton } from "@/components/ui/skeleton"
 import { IconLoader2 } from "@tabler/icons-react"
 // Import AI Elements
@@ -104,25 +104,31 @@ export default function AssistantPage() {
     const scrollContainerRef = React.useRef<HTMLDivElement>(null)
     const virtualParentRef = React.useRef<HTMLDivElement>(null)
 
-    // Virtual list setup for performance with many messages
-    const virtualizer = useVirtualizer({
-        count: messages.length,
-        getScrollElement: () => scrollContainerRef.current,
-        estimateSize: () => 200, // Estimate item height - 200px average
-        overscan: 5, // Render 5 items outside viewport
-    });
+    // Standard scrolling state
+    const [isAtBottom, setIsAtBottom] = React.useState(true);
+    const scrollEndRef = React.useRef<HTMLDivElement>(null);
 
     const scrollToMessage = (messageId: string, behavior: ScrollBehavior = 'smooth') => {
-        // Only auto-scroll if user hasn't manually scrolled away
+        // Only auto-scroll if user hasn't manually scrolled away, unless explicit 'auto' jump
         if (!shouldAutoScroll && behavior !== 'auto') return;
 
-        const index = messages.findIndex(m => m.id === messageId);
-        if (index !== -1) {
-            // tanstack-virtual only supports 'smooth' | 'auto'
-            const virtualBehavior = behavior === 'smooth' ? 'smooth' : 'auto';
-            virtualizer.scrollToIndex(index, { align: 'start', behavior: virtualBehavior });
+        const element = document.getElementById(`message-${messageId}`);
+        if (element) {
+            element.scrollIntoView({ behavior, block: 'start' });
         }
     };
+
+    // Robust scroll-to-bottom
+    const scrollToBottom = React.useCallback((behavior: ScrollBehavior = 'smooth') => {
+        scrollEndRef.current?.scrollIntoView({ behavior, block: 'end' });
+    }, []);
+
+    // Effect to auto-scroll when messages change and we are "sticking" to bottom
+    React.useEffect(() => {
+        if (shouldAutoScrollRef.current) {
+            scrollToBottom('smooth');
+        }
+    }, [messages, scrollToBottom]);
 
     const handleVersionChange = (messageId: string, direction: 'prev' | 'next') => {
         setMessages(prev => {
@@ -1190,9 +1196,8 @@ export default function AssistantPage() {
                             ref={scrollContainerRef}
                             className="flex-1 overflow-y-auto px-4 py-4 scroll-smooth"
                         >
-                            {/* Virtual List Parent */}
-                            <div ref={virtualParentRef} className="flex flex-col items-center w-full">
-
+                            {/* Standard List Rendering */}
+                            <div className="flex flex-col items-center w-full min-h-full">
                                 {/* Loading skeleton when initial messages are fetching */}
                                 {isLoading && messages.length === 0 ? (
                                     <div className="w-full max-w-3xl mx-auto py-8 space-y-4">
@@ -1214,81 +1219,57 @@ export default function AssistantPage() {
                                         ))}
                                     </div>
                                 ) : (
-                                    <div
-                                        style={{
-                                            height: `${virtualizer.getTotalSize()}px`,
-                                            width: '100%',
-                                            position: 'relative',
-                                        }}
-                                    >
-                                        {virtualizer.getVirtualItems().map((virtualItem) => {
-                                            const message = messages[virtualItem.index];
-                                            if (!message) return null;
-
-                                            return (
-                                                <div
-                                                    key={message.id || virtualItem.index}
-                                                    data-index={virtualItem.index}
-                                                    ref={virtualizer.measureElement}
-                                                    id={`message-${message.id}`}
-                                                    style={{
-                                                        position: 'absolute',
-                                                        top: 0,
-                                                        left: 0,
-                                                        width: '100%',
-                                                        transform: `translateY(${virtualItem.start}px)`,
-                                                    }}
-                                                >
-                                                    <div className="flex justify-center w-full mb-4">
-                                                        <div className="w-full max-w-3xl">
-                                                            {message.isCheckpoint ? (
-                                                                <Checkpoint className="my-4">
-                                                                    <CheckpointIcon>
-                                                                        <IconBookmark className="size-4 shrink-0" />
-                                                                    </CheckpointIcon>
-                                                                    <span className="text-xs font-medium">Checkpoint {virtualItem.index + 1}</span>
-                                                                    <CheckpointTrigger
-                                                                        tooltip="Restore checkpoint"
-                                                                        onClick={() => handleRestoreCheckpoint(message.id || '')}
-                                                                    >
-                                                                        <IconRotateClockwise className="size-3" />
-                                                                    </CheckpointTrigger>
-                                                                </Checkpoint>
-                                                            ) : (
-                                                                <ChatMessage
-                                                                    message={message}
-                                                                    isLast={virtualItem.index === messages.length - 1}
-                                                                    onCopy={handleCopy}
-                                                                    onFeedback={handleFeedback}
-                                                                    onRetry={() => handleRetry(message.id || '')}
-                                                                    onRegenerate={(instruction) => handleRegenerate(message.id || '', instruction)}
-                                                                    onEdit={(content) => handleEditMessage(message.id || '', content)}
-                                                                    onVersionChange={(dir) => handleVersionChange(message.id || '', dir)}
-                                                                    onCheckpoint={() => handleAddCheckpoint()}
-                                                                    availableModels={availableModels}
-                                                                    onRerunSystemWithModel={handleRerunSystemWithModel}
-                                                                    onAddToChat={(text) => {
-                                                                        // Add as context item instead of appending text
-                                                                        setContextItems(prev => [...prev, {
-                                                                            id: crypto.randomUUID(),
-                                                                            type: 'text',
-                                                                            content: text
-                                                                        }]);
-                                                                        toast.success("Added to context");
-
-                                                                        // Focus input (optional but nice)
-                                                                        const inputRef = document.querySelector('textarea[placeholder*="How can I help"]') as HTMLTextAreaElement;
-                                                                        if (inputRef) inputRef.focus();
-                                                                    }}
-                                                                />
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
+                                    messages.map((message, index) => (
+                                        <div
+                                            key={message.id || index}
+                                            id={`message-${message.id}`}
+                                            className="w-full flex justify-center mb-4 animate-in fade-in duration-300"
+                                        >
+                                            <div className="w-full max-w-3xl">
+                                                {message.isCheckpoint ? (
+                                                    <Checkpoint className="my-4">
+                                                        <CheckpointIcon>
+                                                            <IconBookmark className="size-4 shrink-0" />
+                                                        </CheckpointIcon>
+                                                        <span className="text-xs font-medium">Checkpoint {index + 1}</span>
+                                                        <CheckpointTrigger
+                                                            tooltip="Restore checkpoint"
+                                                            onClick={() => handleRestoreCheckpoint(message.id || '')}
+                                                        >
+                                                            <IconRotateClockwise className="size-3" />
+                                                        </CheckpointTrigger>
+                                                    </Checkpoint>
+                                                ) : (
+                                                    <ChatMessage
+                                                        message={message}
+                                                        isLast={index === messages.length - 1}
+                                                        onCopy={handleCopy}
+                                                        onFeedback={handleFeedback}
+                                                        onRetry={() => handleRetry(message.id || '')}
+                                                        onRegenerate={(instruction) => handleRegenerate(message.id || '', instruction)}
+                                                        onEdit={(content) => handleEditMessage(message.id || '', content)}
+                                                        onVersionChange={(dir) => handleVersionChange(message.id || '', dir)}
+                                                        onCheckpoint={() => handleAddCheckpoint()}
+                                                        availableModels={availableModels}
+                                                        onRerunSystemWithModel={handleRerunSystemWithModel}
+                                                        onAddToChat={(text) => {
+                                                            setContextItems(prev => [...prev, {
+                                                                id: crypto.randomUUID(),
+                                                                type: 'text',
+                                                                content: text
+                                                            }]);
+                                                            toast.success("Added to context");
+                                                            const inputRef = document.querySelector('textarea[placeholder*="How can I help"]') as HTMLTextAreaElement;
+                                                            if (inputRef) inputRef.focus();
+                                                        }}
+                                                    />
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))
                                 )}
+                                {/* Scroll Anchor */}
+                                <div ref={scrollEndRef} className="h-1 w-full" />
                             </div>
                         </div>
 
