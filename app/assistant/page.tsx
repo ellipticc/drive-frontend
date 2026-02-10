@@ -14,6 +14,7 @@ import { parseFile } from "@/lib/file-parser";
 import { useRouter, useSearchParams } from "next/navigation"
 import { Suggestions, Suggestion } from "@/components/ai-elements/suggestion"
 import { ChatMessage } from "@/components/ai-elements/chat-message"
+import { ThinkingBlock } from "@/components/ai-elements/thinking-block"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 
@@ -199,7 +200,7 @@ export default function AssistantPage() {
         return () => document.removeEventListener('keydown', handler);
     }, [isLoading, isCancelling]);
 
-    const handleSubmit = async (value: string, attachments: File[] = []) => {
+    const handleSubmit = async (value: string, attachments: File[] = [], thinkingMode: boolean = false, searchMode: boolean = false) => {
         if (!value.trim() && attachments.length === 0) return;
 
         if (!isReady || !kyberPublicKey) {
@@ -225,7 +226,7 @@ export default function AssistantPage() {
         setTimeout(() => scrollToMessage(tempId, 'smooth'), 10);
 
         // 2. Add Thinking State
-        setMessages(prev => [...prev, { role: 'assistant', content: '', isThinking: true }]);
+        setMessages(prev => [...prev, { role: 'assistant', content: '', isThinking: true, reasoning: '' }]);
         setIsLoading(true);
 
         try {
@@ -296,7 +297,8 @@ export default function AssistantPage() {
                 model,
                 kyberPublicKey,
                 encryptedUserMessage,
-                isWebSearchEnabled,
+                searchMode,
+                thinkingMode,
                 controller.signal
             );
 
@@ -345,6 +347,7 @@ export default function AssistantPage() {
             const reader = response.body.getReader()
             const decoder = new TextDecoder()
             let assistantMessageContent = ""
+            let assistantReasoningContent = ""
             let currentSessionKey: Uint8Array | undefined;
             let buffer = ""; // Buffer for incomplete SSE events
 
@@ -367,114 +370,151 @@ export default function AssistantPage() {
                     if (!event.trim()) continue;
 
                     const lines = event.split('\n');
+                    let eventType = 'data'; // Default event type
+                    let dataStr = '';
+
+                    // Parse event type and data
                     for (const line of lines) {
-                        if (line.startsWith('data: ')) {
-                            const dataStr = line.replace('data: ', '').trim();
-                            if (dataStr === '[DONE]') break;
+                        if (line.startsWith('event: ')) {
+                            eventType = line.replace('event: ', '').trim();
+                        } else if (line.startsWith('data: ')) {
+                            dataStr = line.replace('data: ', '').trim();
+                        }
+                    }
 
-                            try {
-                                const data = JSON.parse(dataStr);
+                    // Handle different event types
+                    if (eventType === 'reasoning' && dataStr) {
+                        try {
+                            const data = JSON.parse(dataStr);
+                            if (data.reasoning) {
+                                assistantReasoningContent += data.reasoning;
 
-                                // Handle Server-side error or informational message delivered as part of stream
-                                if (data.message) {
+                                // Update message with reasoning
+                                const now = Date.now();
+                                if (now - lastUpdateTime > UPDATE_INTERVAL) {
                                     setMessages(prev => {
                                         const newMessages = [...prev]
                                         const lastMessage = newMessages[newMessages.length - 1]
                                         if (lastMessage && lastMessage.role === 'assistant') {
-                                            lastMessage.content = data.message
-                                            lastMessage.isThinking = false
-                                        } else {
-                                            newMessages.push({ role: 'assistant', content: data.message, isThinking: false })
+                                            lastMessage.reasoning = assistantReasoningContent;
                                         }
                                         return newMessages
-                                    })
-
-                                    // Also show a toast to surface the Request ID quickly
-                                    try {
-                                        const m = data.message;
-                                        // Extract backticked requestId if present for convenience
-                                        const match = m && m.match(/`([^`]+)`/);
-                                        const id = match ? match[1] : null;
-                                        if (id) {
-                                            toast.error(`Server error (Request ID: ${id})`)
-                                        } else {
-                                            toast.error('Server error')
-                                        }
-                                    } catch (e) {
-                                        // ignore
-                                    }
-
-                                    continue;
+                                    });
+                                    lastUpdateTime = now;
                                 }
-
-                                // Handle Encrypted Stream
-                                let contentToAppend = "";
-
-                                if (data.encrypted_content && data.iv) {
-                                    // Decrypt on the fly
-                                    const { decrypted, sessionKey } = await decryptStreamChunk(
-                                        data.encrypted_content,
-                                        data.iv,
-                                        data.encapsulated_key,
-                                        currentSessionKey
-                                    );
-                                    contentToAppend = decrypted;
-                                    currentSessionKey = sessionKey;
-                                } else if (data.content) {
-                                    // We can't decrypt this message, but we can still display it
-                                    contentToAppend = data.content;
-                                }
-
-                                if (contentToAppend) {
-                                    assistantMessageContent += contentToAppend;
-
-                                    // Parse for <think> tags
-                                    let displayContent = assistantMessageContent;
-                                    let reasoningContent = "";
-                                    let isThinking = false;
-
-                                    const thinkStart = "<think>";
-                                    const thinkEnd = "</think>";
-
-                                    if (assistantMessageContent.includes(thinkStart)) {
-                                        if (assistantMessageContent.includes(thinkEnd)) {
-                                            // Completed thought
-                                            const parts = assistantMessageContent.split(thinkEnd);
-                                            const thoughtPart = parts[0].split(thinkStart)[1];
-                                            reasoningContent = thoughtPart;
-                                            displayContent = parts[1] || ""; // The rest is content
-                                            isThinking = false;
-                                        } else {
-                                            // Still thinking
-                                            const parts = assistantMessageContent.split(thinkStart);
-                                            displayContent = parts[0]; // Content before think (rare)
-                                            reasoningContent = parts[1]; // The rest is thought
-                                            isThinking = true;
-                                        }
-                                    }
-
-                                    // Throttle state updates for smoother rendering
-                                    const now = Date.now();
-                                    if (now - lastUpdateTime > UPDATE_INTERVAL) {
-                                        setMessages(prev => {
-                                            const newMessages = [...prev]
-                                            const lastMessage = newMessages[newMessages.length - 1]
-                                            if (lastMessage && lastMessage.role === 'assistant') {
-                                                lastMessage.content = displayContent;
-                                                lastMessage.reasoning = reasoningContent;
-                                                lastMessage.isThinking = isThinking;
-                                                if (data.id) lastMessage.id = data.id;
-                                            } else {
-                                                console.warn("[DEBUG] Last message not assistant or missing", lastMessage);
-                                            }
-                                            return newMessages
-                                        });
-                                        lastUpdateTime = now;
-                                    }
-                                }
-                            } catch (e) {
-                                console.warn('Failed to parse SSE line', line, e);
                             }
+                        } catch (e) {
+                            console.warn('Failed to parse reasoning event', dataStr, e);
+                        }
+                        continue;
+                    }
+
+                    // Handle regular data events
+                    if (dataStr === '[DONE]') break;
+
+                    if (dataStr) {
+                        try {
+                            const data = JSON.parse(dataStr);
+
+                            // Handle Server-side error or informational message delivered as part of stream
+                            if (data.message) {
+                                setMessages(prev => {
+                                    const newMessages = [...prev]
+                                    const lastMessage = newMessages[newMessages.length - 1]
+                                    if (lastMessage && lastMessage.role === 'assistant') {
+                                        lastMessage.content = data.message
+                                        lastMessage.isThinking = false
+                                    } else {
+                                        newMessages.push({ role: 'assistant', content: data.message, isThinking: false })
+                                    }
+                                    return newMessages
+                                })
+
+                                // Also show a toast to surface the Request ID quickly
+                                try {
+                                    const m = data.message;
+                                    // Extract backticked requestId if present for convenience
+                                    const match = m && m.match(/`([^`]+)`/);
+                                    const id = match ? match[1] : null;
+                                    if (id) {
+                                        toast.error(`Server error (Request ID: ${id})`)
+                                    } else {
+                                        toast.error('Server error')
+                                    }
+                                } catch (e) {
+                                    // ignore
+                                }
+
+                                continue;
+                            }
+
+                            // Handle Encrypted Stream
+                            let contentToAppend = "";
+
+                            if (data.encrypted_content && data.iv) {
+                                // Decrypt on the fly
+                                const { decrypted, sessionKey } = await decryptStreamChunk(
+                                    data.encrypted_content,
+                                    data.iv,
+                                    data.encapsulated_key,
+                                    currentSessionKey
+                                );
+                                contentToAppend = decrypted;
+                                currentSessionKey = sessionKey;
+                            } else if (data.content) {
+                                // We can't decrypt this message, but we can still display it
+                                contentToAppend = data.content;
+                            }
+
+                            if (contentToAppend) {
+                                assistantMessageContent += contentToAppend;
+
+                                // Parse for <think> tags
+                                let displayContent = assistantMessageContent;
+                                let reasoningContent = assistantReasoningContent;
+                                let isThinking = false;
+
+                                const thinkStart = "<think>";
+                                const thinkEnd = "</think>";
+
+                                if (assistantMessageContent.includes(thinkStart)) {
+                                    if (assistantMessageContent.includes(thinkEnd)) {
+                                        // Completed thought
+                                        const parts = assistantMessageContent.split(thinkEnd);
+                                        const thoughtPart = parts[0].split(thinkStart)[1];
+                                        reasoningContent = assistantReasoningContent || thoughtPart;
+                                        displayContent = parts[1] || ""; // The rest is content
+                                        isThinking = false;
+                                    } else {
+                                        // Still thinking
+                                        const parts = assistantMessageContent.split(thinkStart);
+                                        displayContent = parts[0]; // Content before think (rare)
+                                        reasoningContent = assistantReasoningContent || parts[1]; // The rest is thought
+                                        isThinking = true;
+                                    }
+                                }
+
+                                // Throttle state updates for smoother rendering
+                                const now = Date.now();
+                                if (now - lastUpdateTime > UPDATE_INTERVAL) {
+                                    setMessages(prev => {
+                                        const newMessages = [...prev]
+                                        const lastMessage = newMessages[newMessages.length - 1]
+                                        if (lastMessage && lastMessage.role === 'assistant') {
+                                            lastMessage.content = displayContent;
+                                            lastMessage.reasoning = reasoningContent;
+                                            lastMessage.isThinking = isThinking;
+                                            if (data.id) lastMessage.id = data.id;
+                                        } else {
+                                            console.warn("[DEBUG] Last message not assistant or missing", lastMessage);
+                                        }
+                                        return newMessages
+                                    });
+                                    lastUpdateTime = now;
+                                }
+                            }
+                        } catch (e) {
+                            console.warn('Failed to parse SSE data', dataStr, e);
                         }
                     }
                 }
@@ -639,6 +679,7 @@ export default function AssistantPage() {
                 kyberPublicKey || undefined,
                 undefined,
                 isWebSearchEnabled,
+                false,
                 controller.signal
             );
 
@@ -892,8 +933,8 @@ export default function AssistantPage() {
                             {/* Center Input Area */}
                             <div className="w-full max-w-5xl mx-auto px-4 z-20 mx-auto">
                                 <EnhancedPromptInput
-                                    onSubmit={async (text, files) => {
-                                        await handleSubmit(text, files);
+                                    onSubmit={async (text, files, thinkingMode, searchMode) => {
+                                        await handleSubmit(text, files, thinkingMode, searchMode);
                                     }}
                                     model={model}
                                     onModelChange={setModel}
@@ -947,19 +988,27 @@ export default function AssistantPage() {
                                             </CheckpointTrigger>
                                         </Checkpoint>
                                     ) : (
-                                        <ChatMessage
-                                            message={message}
-                                            isLast={index === messages.length - 1}
-                                            onCopy={handleCopy}
-                                            onFeedback={handleFeedback}
-                                            onRetry={() => handleRetry(message.id || '')}
-                                            onRegenerate={(instruction) => handleRegenerate(message.id || '', instruction)}
-                                            onEdit={(content) => handleEditMessage(message.id || '', content)}
-                                            onVersionChange={(dir) => handleVersionChange(message.id || '', dir)}
-                                            onCheckpoint={() => handleAddCheckpoint()}
-                                            availableModels={availableModels}
-                                            onRerunSystemWithModel={handleRerunSystemWithModel}
-                                        />
+                                        <>
+                                            {message.reasoning && (
+                                                <ThinkingBlock 
+                                                    content={message.reasoning} 
+                                                    isStreaming={false}
+                                                />
+                                            )}
+                                            <ChatMessage
+                                                message={message}
+                                                isLast={index === messages.length - 1}
+                                                onCopy={handleCopy}
+                                                onFeedback={handleFeedback}
+                                                onRetry={() => handleRetry(message.id || '')}
+                                                onRegenerate={(instruction) => handleRegenerate(message.id || '', instruction)}
+                                                onEdit={(content) => handleEditMessage(message.id || '', content)}
+                                                onVersionChange={(dir) => handleVersionChange(message.id || '', dir)}
+                                                onCheckpoint={() => handleAddCheckpoint()}
+                                                availableModels={availableModels}
+                                                onRerunSystemWithModel={handleRerunSystemWithModel}
+                                            />
+                                        </>
                                     )}
                                 </div>
                             ))}
@@ -972,8 +1021,8 @@ export default function AssistantPage() {
                             <div className="flex justify-center w-full">
                                 <div className="max-w-4xl w-full px-4">
                                     <EnhancedPromptInput
-                                        onSubmit={async (text, files) => {
-                                            await handleSubmit(text, files);
+                                        onSubmit={async (text, files, thinkingMode, searchMode) => {
+                                            await handleSubmit(text, files, thinkingMode, searchMode);
                                         }}
                                         isLoading={isLoading || isCancelling || !isReady}
                                         onStop={handleCancel}

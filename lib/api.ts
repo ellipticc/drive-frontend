@@ -4159,6 +4159,7 @@ class ApiClient {
     kyberPublicKey?: string,
     encryptedUserMessage?: { encryptedContent: string; iv: string; encapsulatedKey: string },
     webSearch?: boolean,
+    thinkingMode?: boolean,
     signal?: AbortSignal
   ): Promise<Response> {
     const endpoint = '/ai/chat';
@@ -4177,7 +4178,8 @@ class ApiClient {
         model,
         kyberPublicKey,
         encryptedUserMessage,
-        webSearch
+        webSearch,
+        thinking_mode: thinkingMode
       }),
     });
   }

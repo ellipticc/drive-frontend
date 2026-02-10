@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { IconPlus, IconChevronDown, IconArrowUp, IconX, IconFileText, IconLoader2, IconCheck, IconArchive, IconBrain } from "@tabler/icons-react";
+import { IconPlus, IconChevronDown, IconArrowUp, IconX, IconFileText, IconLoader2, IconCheck, IconArchive, IconBrain, IconWorld } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 import { formatFileSize } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export const Icons = {
     Plus: IconPlus,
@@ -87,7 +88,7 @@ const FilePreviewCard: React.FC<FilePreviewCardProps> = ({ file, onRemove }) => 
 
 // 3. Main Enhanced Prompt Input Component
 interface EnhancedPromptInputProps {
-    onSubmit: (value: string, attachments: File[]) => Promise<void>;
+    onSubmit: (value: string, attachments: File[], thinkingMode?: boolean, searchMode?: boolean) => Promise<void>;
     isLoading?: boolean;
     onStop?: () => void;
     model?: string;
@@ -105,7 +106,8 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
     const [files, setFiles] = useState<AttachedFile[]>([]);
     const [isDragging, setIsDragging] = useState(false);
     const [localModel, setLocalModel] = useState("llama-3.1-8b-instant");
-    const [isThinkingEnabled, setIsThinkingEnabled] = useState(false);
+    const [thinkingMode, setThinkingMode] = useState(false);
+    const [searchMode, setSearchMode] = useState(false);
     const [modelOpen, setModelOpen] = useState(false);
 
     const effectiveModel = externalModel || localModel;
@@ -113,6 +115,10 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
         setLocalModel(m);
         onModelChange?.(m);
     }
+
+    // Thinking mode supported models
+    const thinkingSupportedModels = ["qwen-2.5-32b", "openai/gpt-oss-120b"];
+    const isThinkingSupported = thinkingSupportedModels.includes(effectiveModel);
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -180,6 +186,8 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
 
         const messageToSend = message;
         const currentFiles = files.map(f => f.file);
+        const shouldThink = thinkingMode && isThinkingSupported;
+        const shouldSearch = searchMode;
 
         // Clear input immediately, before sending
         setMessage("");
@@ -187,7 +195,7 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
         if (textareaRef.current) textareaRef.current.style.height = 'auto';
 
         try {
-            await onSubmit(messageToSend, currentFiles);
+            await onSubmit(messageToSend, currentFiles, shouldThink, shouldSearch);
         } catch (error) {
             // On error, restore the message so user can retry
             setMessage(messageToSend);
@@ -222,7 +230,7 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
         >
             {/* Main Container */}
             <div className={cn(
-                "flex flex-col mx-2 md:mx-0 items-stretch transition-all duration-200 relative z-10 rounded-3xl border border-border bg-background shadow-sm hover:shadow-md focus-within:shadow-lg focus-within:ring-1 focus-within:ring-ring/20",
+                "flex flex-col mx-2 md:mx-0 items-stretch transition-all duration-200 relative z-10 rounded-2xl border border-border/30 bg-muted/20 hover:border-border/40",
                 isLoading && "opacity-80 pointer-events-none"
             )}>
 
@@ -272,19 +280,6 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                                 <Icons.Plus className="w-5 h-5" />
                             </button>
 
-                            <button
-                                onClick={() => setIsThinkingEnabled(!isThinkingEnabled)}
-                                className={cn(
-                                    "h-8 w-8 flex items-center justify-center rounded-lg transition-colors",
-                                    isThinkingEnabled
-                                        ? "text-primary bg-primary/10"
-                                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                                )}
-                                aria-label="Extended thinking"
-                            >
-                                <Icons.Thinking className="w-5 h-5" />
-                            </button>
-
                             {/* Controlled Model Selector so selection closes the modal on select */}
                             <ModelSelector open={modelOpen} onOpenChange={(open) => setModelOpen(open)}>
                                 <ModelSelectorTrigger className="inline-flex items-center justify-center relative shrink-0 transition font-base duration-300 h-8 rounded-xl px-3 min-w-[4rem] active:scale-[0.98] whitespace-nowrap !text-xs pl-2.5 pr-2 gap-1 text-muted-foreground hover:text-foreground hover:bg-muted">
@@ -319,6 +314,60 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                                     </ModelSelectorList>
                                 </ModelSelectorContent>
                             </ModelSelector>
+                        </div>
+
+                        {/* Mode Pills (Center-Right) */}
+                        <div className="flex items-center gap-2">
+                            {/* Thinking Mode Pill */}
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        onClick={() => {
+                                            if (isThinkingSupported) setThinkingMode(!thinkingMode);
+                                        }}
+                                        disabled={!isThinkingSupported}
+                                        className={cn(
+                                            'inline-flex items-center gap-1.5 px-3 py-1.5 h-8 rounded-full text-xs font-medium transition-all',
+                                            isThinkingSupported && thinkingMode
+                                                ? 'bg-primary/15 text-primary border border-primary/30'
+                                                : isThinkingSupported
+                                                    ? 'bg-muted text-muted-foreground hover:bg-muted/80 border border-border/40'
+                                                    : 'bg-muted text-muted-foreground/50 border border-border/20 cursor-not-allowed opacity-50'
+                                        )}
+                                        type="button"
+                                    >
+                                        <IconBrain className="w-3.5 h-3.5" />
+                                        <span>Thinking</span>
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom" className="text-xs">
+                                    {isThinkingSupported
+                                        ? 'Deeper reasoning. Slower but more accurate responses.'
+                                        : 'This model doesn\'t support reasoning mode.'}
+                                </TooltipContent>
+                            </Tooltip>
+
+                            {/* Search Mode Pill */}
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        onClick={() => setSearchMode(!searchMode)}
+                                        className={cn(
+                                            'inline-flex items-center gap-1.5 px-3 py-1.5 h-8 rounded-full text-xs font-medium transition-all',
+                                            searchMode
+                                                ? 'bg-primary/15 text-primary border border-primary/30'
+                                                : 'bg-muted text-muted-foreground hover:bg-muted/80 border border-border/40'
+                                        )}
+                                        type="button"
+                                    >
+                                        <IconWorld className="w-3.5 h-3.5" />
+                                        <span>Search</span>
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom" className="text-xs">
+                                    Allow the assistant to use web search for up-to-date info.
+                                </TooltipContent>
+                            </Tooltip>
                         </div>
 
                         {/* Right Tools (Send/Stop) */}
