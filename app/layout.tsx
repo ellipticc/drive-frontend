@@ -21,7 +21,6 @@ import { OnboardingTourProvider } from "@/components/onboarding/onboarding-tour-
 import { AIPreferencesSync } from "@/components/ai-preferences-sync";
 import "./globals.css";
 import "katex/dist/katex.min.css";
-import PlausibleInit from '@/components/analytics/plausible-init';
 
 // Font definitions
 const spaceGrotesk = Space_Grotesk({
@@ -214,6 +213,9 @@ export default function RootLayout({
           }}
         />
 
+        {/* Privacy-friendly analytics by Plausible */}
+        <Script async src="https://plausible.io/js/pa-xaWxy57oZIsbcB7yhMiKs.js" strategy="afterInteractive" />
+        <Script id="plausible-inline" strategy="afterInteractive">{`window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};\nplausible.init()`}</Script>
 
       </head>
       <body
@@ -236,7 +238,6 @@ export default function RootLayout({
             `,
           }}
         />
-        <PlausibleInit domain={plausibleDomain} />
         <div
           id="initial-loading-overlay"
           style={{
