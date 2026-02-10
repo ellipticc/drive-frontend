@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { IconBrain } from '@tabler/icons-react';
+import { IconBrain, IconChevronRight } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
 
 interface ReasoningContextType {
@@ -53,7 +53,7 @@ export const Reasoning: React.FC<ReasoningProps> = ({
 
   return (
     <ReasoningContext.Provider value={{ isStreaming, isExpanded, setIsExpanded, duration }}>
-      <div className={cn('w-full space-y-0', className)}>
+      <div className={cn('my-4 rounded-lg overflow-hidden border border-border/30 bg-muted/40', className)}>
         {children}
       </div>
     </ReasoningContext.Provider>
@@ -77,26 +77,31 @@ export const ReasoningTrigger: React.FC<ReasoningTriggerProps> = ({ className })
     <button
       onClick={() => setIsExpanded(!isExpanded)}
       className={cn(
-        'inline-flex items-center gap-2 text-sm font-medium transition-all duration-200 py-1 px-0',
-        'select-none focus:outline-none',
-        'text-primary hover:text-primary/80',
+        'w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/60 transition-colors group',
         className
       )}
       type="button"
       aria-expanded={isExpanded}
     >
-      <div className={cn(
-        'relative flex items-center justify-center',
-        isExpanded && 'animate-pulse'
-      )}>
-        <div className="absolute inset-0 bg-primary/20 blur-md rounded-full" />
-        <IconBrain
-          className={cn('w-4 h-4 relative transition-transform duration-200 z-10')}
-        />
+      <div className="relative">
+        <IconBrain className="h-4 w-4 text-primary/70" />
+        {isStreaming && (
+          <div className="absolute inset-0 animate-pulse">
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20 blur-sm rounded-full" />
+          </div>
+        )}
       </div>
-      <span className="bg-gradient-to-r from-primary via-primary to-primary/80 bg-clip-text text-transparent">
+      <span className="text-sm font-medium text-foreground/80">
         {durationText}
       </span>
+      <div className="ml-auto">
+        <IconChevronRight
+          className={cn(
+            'h-4 w-4 text-muted-foreground transition-transform duration-200',
+            !isExpanded ? 'rotate-90' : ''
+          )}
+        />
+      </div>
     </button>
   );
 };
@@ -105,51 +110,15 @@ export const ReasoningContent: React.FC<ReasoningContentProps> = ({ children, cl
   const context = React.useContext(ReasoningContext);
   if (!context) return null;
 
-  const { isExpanded, isStreaming } = context;
+  const { isExpanded } = context;
 
   if (!isExpanded) return null;
 
-  // Split content by lines and filter empty lines
-  const lines = children.split('\n').filter((line) => line.trim());
-
   return (
-    <div className={cn('relative pl-0 mb-4 space-y-0', className)}>
-      {/* Top dot indicator */}
-      <div className="flex items-center gap-2 mb-2">
-        <span className="inline-block w-1.5 h-1.5 bg-primary rounded-full" />
-        <div className="flex-1 h-px bg-primary/40" />
+    <div className={cn('px-4 pb-3 pt-2 border-t border-border/20', className)}>
+      <div className="text-sm text-foreground/70 leading-relaxed whitespace-pre-wrap">
+        {children}
       </div>
-
-      {/* Thinking content - bigger, with glow */}
-      <div className="pl-4 space-y-2">
-        {lines.map((line, idx) => (
-          <div
-            key={idx}
-            className={cn(
-              'text-sm leading-relaxed',
-              'text-primary/70 dark:text-primary/60',
-              'whitespace-pre-wrap break-words',
-              'font-medium'
-            )}
-          >
-            {line}
-          </div>
-        ))}
-
-        {/* Streaming indicator */}
-        {isStreaming && (
-          <div className="flex items-center gap-2 mt-3">
-            <div className="flex gap-1">
-              <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-              <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-              <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Solid bottom divider */}
-      <div className="mt-3 h-px bg-primary/30" />
     </div>
   );
 };
