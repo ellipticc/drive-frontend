@@ -185,20 +185,18 @@ export type ReasoningTriggerProps = ComponentProps<
 };
 
 const defaultGetThinkingMessage = (isStreaming: boolean, duration?: number, tokenCount?: number, thinkingType?: 'thinking' | 'think') => {
-  const stats = [];
-  
-  if (isStreaming || duration === 0) {
+  if (isStreaming) {
     return <Shimmer duration={1}>Thinking...</Shimmer>;
   }
   
-  if (duration !== undefined && duration > 0) {
-    stats.push(`${duration}s`);
-  }
-
-  const statsText = stats.length > 0 ? ` (${stats.join(', ')})` : '';
   const typeLabel = thinkingType === 'think' ? 'Think' : 'Thinking';
   
-  return <p>{typeLabel}{statsText}</p>;
+  if (duration !== undefined && duration > 0) {
+    return <p>{typeLabel} ({duration}s)</p>;
+  }
+  
+  // Old message without stored duration - show placeholder
+  return <p>{typeLabel}...</p>;
 };
 
 export const ReasoningTrigger = memo(
@@ -219,15 +217,15 @@ export const ReasoningTrigger = memo(
         {...props}
       >
         {children ?? (
-          <div className="flex gap-2">
-            <div className="relative mt-0.5">
+          <div className="flex gap-2 items-center">
+            <div className="relative flex items-center">
               <IconBrain className="size-4" />
-              <div className="absolute top-7 bottom-0 left-1/2 -mx-px w-px bg-border" />
+              {isOpen && <div className="absolute top-5 bottom-0 left-1/2 -mx-px w-px bg-border" />}
             </div>
             <div className="flex-1">
               {getThinkingMessage(isStreaming, duration, tokenCount, thinkingType)}
             </div>
-            <div className="ml-auto">
+            <div className="ml-auto flex items-center">
               {isOpen ? (
                 <IconChevronDown className="size-4 transition-transform duration-200" />
               ) : (

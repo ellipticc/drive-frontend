@@ -55,16 +55,18 @@ export const TextSelectionMenu: React.FC<TextSelectionMenuProps> = ({ onAddToCha
       ref={menuRef}
       onClick={handleAddToChat}
       className={cn(
-        'fixed z-50 flex items-center gap-1.5 bg-popover border border-border rounded-lg shadow-lg px-3 py-2',
+        'fixed flex items-center gap-1.5 bg-popover border border-border rounded-lg shadow-2xl px-3 py-2',
         'animate-in fade-in zoom-in-95 duration-200 text-sm font-medium',
         'text-primary bg-primary/10 hover:bg-primary/20 transition-colors',
-        'focus:outline-none focus:ring-2 focus:ring-primary/50'
+        'focus:outline-none focus:ring-2 focus:ring-primary/50',
+        'pointer-events-auto'
       )}
       style={{
-        left: `calc(${position.x}px - 50%)`,
+        left: `${position.x}px`,
         top: `${position.y}px`,
-        transform: 'translateY(-100%) translateY(-8px)'
-      }}
+        transform: 'translate(-50%, calc(-100% - 12px))',
+        zIndex: 9999
+      } as React.CSSProperties}
       title="Add selected text to chat input as a follow-up"
     >
       <IconQuoteFilled className="w-4 h-4" />

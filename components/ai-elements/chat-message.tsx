@@ -8,7 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
-import { Reasoning, ReasoningTrigger, ReasoningContent, parseThinkingStats, detectThinkingTagType } from "@/components/ai-elements/reasoning"
+import { Reasoning, ReasoningTrigger, ReasoningContent, detectThinkingTagType } from "@/components/ai-elements/reasoning"
 import { TextSelectionMenu } from "@/components/ai-elements/text-selection-menu"
 
 import { CitationParser } from "@/components/ai-elements/citation-parser";
@@ -46,6 +46,7 @@ export interface Message {
     isCheckpoint?: boolean;
     checkpointId?: string;
     reasoning?: string; // Content inside <think> tags
+    reasoningDuration?: number; // Duration of thinking in seconds
 }
 
 interface ChatMessageProps {
@@ -231,13 +232,13 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                         {(message.reasoning || message.isThinking) && (
                             (() => {
                                 const reasoningContent = message.reasoning || "Thinking...";
-                                const stats = parseThinkingStats(reasoningContent);
                                 const tagType = detectThinkingTagType(reasoningContent);
                                 
                                 return (
                                     <Reasoning
                                         isStreaming={isLast && message.isThinking}
                                         defaultOpen={true}
+                                        duration={message.reasoningDuration}
                                         thinkingType={tagType || undefined}
                                     >
                                         <ReasoningTrigger className="w-fit" />

@@ -305,7 +305,8 @@ export function useAICrypto(): UseAICryptoReturn {
                             ...msg,
                             role: msg.role,
                             content: cleanContent,
-                            reasoning: parsedReasoning
+                            reasoning: parsedReasoning,
+                            reasoningDuration: msg.reasoning_duration
                         };
                     }
 
