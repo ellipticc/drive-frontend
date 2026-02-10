@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
-import { IconCopy, IconEdit, IconRefresh, IconThumbDown, IconThumbUp, IconCheck, IconX, IconCode, IconChevronDown, IconChevronRight, IconDownload, IconChevronLeft, IconListDetails, IconArrowsMinimize, IconBrain, IconClock, IconBookmark } from "@tabler/icons-react"
+import { IconCopy, IconEdit, IconRefresh, IconThumbDown, IconThumbUp, IconCheck, IconX, IconCode, IconChevronDown, IconChevronRight, IconDownload, IconChevronLeft, IconListDetails, IconArrowsMinimize, IconBrain, IconClock, IconBookmark, IconArrowRight } from "@tabler/icons-react"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -223,6 +223,14 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                         label="Copy"
                                         onClick={handleCopy}
                                     />
+                                    {/* Continue button - shown when response was stopped by user */}
+                                    {message.content && /Stopped by user/i.test(message.content) && (
+                                        <ActionButton
+                                            icon={IconArrowRight}
+                                            label="Continue"
+                                            onClick={() => onRegenerate?.('continue')}
+                                        />
+                                    )}
                                 </div> 
                             </>
                         )}

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { IconPlus, IconChevronDown, IconArrowUp, IconX, IconFileText, IconLoader2, IconCheck, IconArchive, IconBrain, IconWorld } from "@tabler/icons-react";
+import { IconPlus, IconChevronDown, IconArrowUp, IconX, IconFileText, IconLoader2, IconCheck, IconArchive, IconBrain, IconWorld, IconSquareFilled } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 import { formatFileSize } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -10,6 +10,7 @@ export const Icons = {
     SelectArrow: IconChevronDown,
     ArrowUp: IconArrowUp,
     X: IconX,
+    SquareFilled: IconSquareFilled,
     FileText: IconFileText,
     Loader2: IconLoader2,
     Check: IconCheck,
@@ -28,6 +29,7 @@ import {
     ModelSelectorName,
     ModelSelectorTrigger,
 } from "@/components/ai-elements/model-selector"
+import { Square } from "lucide-react";
 
 interface AttachedFile {
     id: string;
@@ -383,15 +385,15 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                                     <TooltipTrigger asChild>
                                         <button
                                             onClick={onStop}
-                                            className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors"
+                                            className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-muted text-foreground hover:bg-muted/80 transition-colors"
                                             type="button"
                                             aria-label="Stop generation"
                                         >
-                                            <Icons.Loader2 className="w-4 h-4 animate-spin" />
+                                            <Icons.SquareFilled className="w-4 h-4" />
                                         </button>
                                     </TooltipTrigger>
                                     <TooltipContent side="top" className="text-xs">
-                                        Stop generation
+                                        Stop generation (Esc)
                                     </TooltipContent>
                                 </Tooltip>
                             ) : (

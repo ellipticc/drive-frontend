@@ -355,12 +355,13 @@ export default function AssistantPage() {
             let lastUpdateTime = 0;
             const UPDATE_INTERVAL = 30; // Throttle UI updates to ~30ms for smooth token rendering (balanced between smoothness and re-render cost)
 
-            while (true) {
-                const { done, value } = await reader.read()
-                if (done) break
+            try {
+                while (true) {
+                    const { done, value } = await reader.read()
+                    if (done) break
 
-                const chunk = decoder.decode(value, { stream: true })
-                buffer += chunk;
+                    const chunk = decoder.decode(value, { stream: true })
+                    buffer += chunk;
 
                 // Split by event separator and keep incomplete event
                 const events = buffer.split('\n\n');
@@ -571,7 +572,18 @@ export default function AssistantPage() {
                 return newMessages
             });
 
-
+            } catch (streamError) {
+                // Catch stream reading errors (abort, timeout, connection loss, etc.)
+                const errName = (streamError as any)?.name;
+                console.error('[Stream Error]', errName);
+                
+                if (errName !== 'AbortError') {
+                    // Only throw non-abort errors; AbortError means user intentionally stopped
+                    throw streamError;
+                }
+                // AbortError will be handled in the outer catch below
+                throw streamError;
+            }
         } catch (error) {
             console.error('Chat error:', error)
             // If this was an abort, we already handled stopping in handleCancel; avoid overwriting the stopped content
@@ -646,6 +658,19 @@ export default function AssistantPage() {
     const handleRegenerate = async (messageId: string, instruction?: string) => {
         const messageIndex = messages.findIndex(m => m.id === messageId);
         if (messageIndex === -1) return;
+
+        // Special case: Continue the previous response
+        if (instruction === 'continue') {
+            const lastMessage = messages[messageIndex];
+            if (lastMessage && lastMessage.role === 'assistant' && lastMessage.content) {
+                // Removed "Stopped by user" marker will be done naturally by the API
+                // Send appropriate continuation message
+                setTimeout(() => {
+                    handleSubmit('Please continue the previous answer from where it left off. Do not repeat what was already said.', []);
+                }, 0);
+                return;
+            }
+        }
 
         // 1. Prepare Versioning
         setMessages(prev => {

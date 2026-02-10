@@ -4167,7 +4167,7 @@ class ApiClient {
 
     return fetch(`${this.baseURL}${endpoint}`, {
       method: 'POST',
-      signal,
+      signal, // User abort signal only - no artificial timeout
       headers: {
         'Content-Type': 'application/json',
         ...authHeaders,
