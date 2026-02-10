@@ -55,7 +55,6 @@ export default function AssistantPage() {
     const [model, setModel] = React.useState("llama-3.3-70b-versatile")
     const [isWebSearchEnabled, setIsWebSearchEnabled] = React.useState(false);
     const [chatTitle, setChatTitle] = React.useState<string>('Chat');
-    const [shouldAutoScroll, setShouldAutoScroll] = React.useState(true)
     const lastScrollTopRef = React.useRef(0)
     const [isLoadingOlder, setIsLoadingOlder] = React.useState(false)
     const [pagination, setPagination] = React.useState({ offset: 0, limit: 50, total: 0, hasMore: false })
@@ -108,10 +107,11 @@ export default function AssistantPage() {
     // Standard scrolling state
     const [isAtBottom, setIsAtBottom] = React.useState(true);
     const scrollEndRef = React.useRef<HTMLDivElement>(null);
+    const [showScrollToBottom, setShowScrollToBottom] = React.useState(false); // Show button when user scrolls up
 
     const scrollToMessage = (messageId: string, behavior: ScrollBehavior = 'smooth') => {
-        // Only auto-scroll if user hasn't manually scrolled away, unless explicit 'auto' jump
-        if (!shouldAutoScroll && behavior !== 'auto') return;
+        // Only auto-scroll if user hasn't manually scrolled away from bottom
+        if (!shouldAutoScrollRef.current && behavior !== 'auto') return;
 
         const element = document.getElementById(`message-${messageId}`);
         if (element) {
@@ -263,6 +263,8 @@ export default function AssistantPage() {
             // Check if user is at the bottom (with tolerance)
             const isAtBottom = scrollHeight - scrollTop - clientHeight < 100;
             shouldAutoScrollRef.current = isAtBottom;
+            setIsAtBottom(isAtBottom);
+            setShowScrollToBottom(!isAtBottom); // Show button only if scrolled up
 
             // Debounced pagination check
             if (scrollTimeout) clearTimeout(scrollTimeout);
@@ -573,6 +575,13 @@ export default function AssistantPage() {
                             continue;
                         }
 
+                        // Handle stream-complete signal (backend finished streaming all events)
+                        if (eventType === 'stream-complete') {
+                            console.log('[Stream] Received stream-complete marker from backend');
+                            // This ensures we process any remaining buffer before the while loop exits
+                            continue;
+                        }
+
                         // Handle sources events (citations from web search)
                         if (eventType === 'sources' && dataStr) {
                             try {
@@ -781,6 +790,48 @@ export default function AssistantPage() {
                     }
                 }
 
+                // CRITICAL: Flush any remaining buffered data (fixes incomplete final chunk issue)
+                if (buffer.trim()) {
+                    console.log('[Stream] Processing remaining buffer:', buffer.substring(0, 100));
+                    const lines = buffer.split('\n');
+                    let eventType = 'data';
+                    let dataStr = '';
+
+                    for (const line of lines) {
+                        if (line.startsWith('event: ')) {
+                            eventType = line.replace('event: ', '').trim();
+                        } else if (line.startsWith('data: ')) {
+                            dataStr = line.replace('data: ', '').trim();
+                        }
+                    }
+
+                    // Process final buffered event
+                    if (dataStr && eventType === 'data') {
+                        try {
+                            const data = JSON.parse(dataStr);
+                            let contentToAppend = "";
+                            if (data.encrypted_content && data.iv) {
+                                const { decrypted, sessionKey } = await decryptStreamChunk(
+                                    data.encrypted_content,
+                                    data.iv,
+                                    data.encapsulated_key,
+                                    currentSessionKey
+                                );
+                                contentToAppend = decrypted;
+                                currentSessionKey = sessionKey;
+                            } else if (data.content) {
+                                contentToAppend = data.content;
+                            }
+                            if (contentToAppend) {
+                                answerBuffer += contentToAppend;
+                                console.log('[Stream] Added final buffered content, total length now:', answerBuffer.length);
+                            }
+                        } catch (e) {
+                            console.warn('[Stream] Failed to parse final buffer', buffer, e);
+                        }
+                    }
+                }
+
                 // Final update: ensure stream is fully complete
                 const finalReasoningContent = assistantReasoningContent || thinkingBuffer;
                 console.log('[Stream Final] About to call final setMessages:', {
@@ -866,7 +917,8 @@ export default function AssistantPage() {
             if (!conversationId) {
                 setTimeout(() => loadChats(), 2000);
             }
-            shouldAutoScrollRef.current = false;
+            // Don't force shouldAutoScroll to false - let the current scroll position determine it
+            // This allows auto-scroll to remain enabled if user stayed at bottom during streaming
         }
     }
 
@@ -1356,6 +1408,26 @@ export default function AssistantPage() {
                                 <div ref={scrollEndRef} className="h-1 w-full" />
                             </div>
                         </div>
+
+                        {/* Floating "Scroll to Bottom" Button - Shows when user scrolls up */}
+                        {showScrollToBottom && (
+                            <div className="absolute bottom-24 right-4 z-30">
+                                <button
+                                    onClick={() => {
+                                        shouldAutoScrollRef.current = true;
+                                        scrollToBottom('smooth');
+                                        setShowScrollToBottom(false);
+                                    }}
+                                    className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-full shadow-lg hover:shadow-xl hover:bg-primary/90 transition-all duration-200 animate-in fade-in slide-in-from-bottom-2"
+                                    title="Auto-scroll is paused. Click to resume."
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                                    </svg>
+                                    <span className="text-sm font-medium">Latest</span>
+                                </button>
+                            </div>
+                        )}
 
                         {/* Sticky Input Footer - Centered with consistent max-width */}
                         <div className="sticky bottom-0 z-40 w-full bg-background/95 backdrop-blur-sm pb-4 pt-0">
