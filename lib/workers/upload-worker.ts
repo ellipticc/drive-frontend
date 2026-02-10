@@ -98,11 +98,15 @@ async function compressData(data: Uint8Array, shouldCompress: boolean): Promise<
 // Message Handler
 // -----------------------------------------------------------------------------
 
+console.log('[UploadWorker] Worker started');
+
 self.onmessage = async (e: MessageEvent) => {
   const { type, id } = e.data;
+  console.log(`[UploadWorker] Received message type: ${type} id: ${id}`);
 
   try {
     if (type === 'hash_file') {
+      console.log(`[UploadWorker] Hashing file for ${id}`);
       const file = e.data.file; // Cast or assume File
       const hasher = await createBLAKE3();
       hasher.init();
@@ -118,15 +122,18 @@ self.onmessage = async (e: MessageEvent) => {
       }
 
       const hashHex = hasher.digest('hex');
+      console.log(`[UploadWorker] Hashing complete for ${id}`);
       self.postMessage({ id, success: true, result: hashHex });
 
     } else if (type === 'process_chunk') {
       const { chunk, key, index, shouldCompress } = e.data;
+      console.log(`[UploadWorker] Processing chunk ${index} for ${id}`);
 
       // 1. Compress (only if file-level test determined it's worthwhile)
       const compressionDesc = await compressData(chunk, shouldCompress);
 
       // 2. Encrypt
+      console.log(`[UploadWorker] Encrypting chunk ${index}`);
       const { encryptedData, nonce } = encryptChunk(compressionDesc.data, key);
 
       // 3. Hash (BLAKE3)
@@ -137,38 +144,46 @@ self.onmessage = async (e: MessageEvent) => {
 
       // 4. Checksum (MD5) - Required for B2 Object Lock
       // Use MD5 for Content-MD5 header (standard, won't be signed by AWS SDK)
-      const { createMD5 } = await import('hash-wasm');
-      const md5 = await createMD5();
-      md5.init();
-      md5.update(encryptedData);
-      const md5Bytes = new Uint8Array(md5.digest('binary'));
-      const md5Base64 = btoa(String.fromCharCode.apply(null, Array.from(md5Bytes)));
+      try {
+        const { createMD5 } = await import('hash-wasm');
+        const md5 = await createMD5();
+        md5.init();
+        md5.update(encryptedData);
+        const md5Bytes = new Uint8Array(md5.digest('binary'));
+        const md5Base64 = btoa(String.fromCharCode.apply(null, Array.from(md5Bytes)));
 
-      const nonceB64 = uint8ArrayToBase64(nonce);
+        const nonceB64 = uint8ArrayToBase64(nonce);
 
-      // Compress metadata
-      const compressionMeta = {
-        isCompressed: compressionDesc.isCompressed,
-        algorithm: compressionDesc.algorithm,
-        originalSize: chunk.length,
-        compressedSize: compressionDesc.data.length,
-        ratio: compressionDesc.ratio
-      };
+        // Compress metadata
+        const compressionMeta = {
+          isCompressed: compressionDesc.isCompressed,
+          algorithm: compressionDesc.algorithm,
+          originalSize: chunk.length,
+          compressedSize: compressionDesc.data.length,
+          ratio: compressionDesc.ratio
+        };
 
-      self.postMessage({
-        id,
-        success: true,
-        result: {
-          encryptedData,
-          nonce: nonceB64,
-          hash: hashHex,
-          md5: md5Base64,
-          index,
-          compression: compressionMeta
-        }
-      }, [encryptedData.buffer]); // Transfer encrypted data
+        console.log(`[UploadWorker] Chunk ${index} processed successfully`, { compressionMeta });
+
+        self.postMessage({
+          id,
+          success: true,
+          result: {
+            encryptedData,
+            nonce: nonceB64,
+            hash: hashHex,
+            md5: md5Base64,
+            index,
+            compression: compressionMeta
+          }
+        }, [encryptedData.buffer]); // Transfer encrypted data
+      } catch (err) {
+        console.error('[UploadWorker] MD5 or final step failed:', err);
+        throw err;
+      }
     }
   } catch (err) {
+    console.error(`[UploadWorker] Error processing message ${id}:`, err);
     self.postMessage({
       id,
       success: false,

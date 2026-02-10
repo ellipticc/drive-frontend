@@ -123,10 +123,12 @@ export class WorkerPool {
 
         // Track active task
         this.activeTasks.set(task.id, task);
+        console.log(`[WorkerPool] Starting task ${task.id} on worker`, worker);
 
         // Set up timeout
         const timeout = timeoutMs || this.taskTimeout;
         task.timeout = setTimeout(() => {
+            console.error(`[WorkerPool] Task ${task.id} timed out!`);
             this.metrics.taskTimeouts++;
             task.timeout = null;
             task.reject(new Error(`Task ${task.id} timed out after ${timeout}ms`));
@@ -139,22 +141,25 @@ export class WorkerPool {
         // Set up message handler
         const messageHandler = (e: MessageEvent) => {
             const responseId = (e.data as any)?.id;
+            // console.log(`[WorkerPool] Received message from worker:`, e.data);
             if (responseId === task.id) {
+                console.log(`[WorkerPool] Task ${task.id} completed`);
                 cleanup();
-                
-                const { error, html } = e.data as any;
-                if (error) {
+
+                const { error, success, result } = e.data as any; // Adjusted destructuring
+                if (error || success === false) {
                     this.metrics.taskErrors++;
-                    task.reject(new Error(error));
+                    task.reject(new Error(error || 'Worker reported failure'));
                 } else {
-                    // Return full response object
-                    task.resolve(e.data as any);
+                    // Return the result part if it exists, otherwise the whole data
+                    task.resolve(result || e.data);
                 }
             }
         };
 
         // Set up error handler
         const errorHandler = (err: ErrorEvent) => {
+            console.error(`[WorkerPool] Worker error for task ${task.id}:`, err.message);
             this.metrics.taskErrors++;
             cleanup();
             task.reject(new Error(`Worker error: ${err.message}`));
@@ -183,8 +188,10 @@ export class WorkerPool {
 
         // Send task to worker
         try {
+            console.log(`[WorkerPool] Posting message to worker for task ${task.id}`);
             worker.postMessage(task.message, task.transferables || []);
         } catch (err) {
+            console.error(`[WorkerPool] Failed to post message:`, err);
             this.metrics.taskErrors++;
             cleanup();
             task.reject(new Error(`Failed to post message to worker: ${err instanceof Error ? err.message : String(err)}`));
@@ -210,13 +217,13 @@ export class WorkerPool {
         } catch (err) {
             console.error('Error terminating worker:', err);
         }
-        
+
         // Remove from both arrays
         const idx = this.workers.indexOf(worker);
         if (idx !== -1) {
             this.workers.splice(idx, 1);
         }
-        
+
         const freeIdx = this.freeWorkers.indexOf(worker);
         if (freeIdx !== -1) {
             this.freeWorkers.splice(freeIdx, 1);
