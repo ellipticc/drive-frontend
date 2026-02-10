@@ -266,7 +266,8 @@ export function useAICrypto(): UseAICryptoReturn {
             const { decryptData } = await import('@/lib/crypto');
             const { ml_kem768 } = await import('@noble/post-quantum/ml-kem');
 
-            const encryptedMessages = await apiClient.getAIChatMessages(conversationId);
+            const response = await apiClient.getAIChatMessages(conversationId);
+            const encryptedMessages = response.messages || [];
             if (!encryptedMessages || encryptedMessages.length === 0) return [];
 
             const decrypted = await Promise.all(encryptedMessages.map(async (msg: any) => {

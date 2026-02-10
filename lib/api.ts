@@ -4210,8 +4210,13 @@ class ApiClient {
     });
   }
 
-  async getAIChatMessages(conversationId: string): Promise<any[]> {
-    const endpoint = `/ai/chat/${conversationId}/messages`;
+  async getAIChatMessages(
+    conversationId: string,
+    options?: { offset?: number; limit?: number }
+  ): Promise<{ messages: any[]; pagination: { offset: number; limit: number; total: number; hasMore: boolean } }> {
+    const offset = options?.offset || 0;
+    const limit = options?.limit || 50;
+    const endpoint = `/ai/chat/${conversationId}/messages?offset=${offset}&limit=${limit}`;
     const authHeaders = await this.getAuthHeaders(endpoint, 'GET');
 
     const response = await fetch(`${this.baseURL}${endpoint}`, {
@@ -4221,9 +4226,76 @@ class ApiClient {
       }
     });
 
-    if (!response.ok) return [];
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        `Failed to fetch chat messages: ${response.statusText} (${response.status})` +
+        (errorData.error ? ` - ${errorData.error}` : '')
+      );
+    }
+
     const data = await response.json();
-    return data.messages || [];
+    
+    if (!data.success && data.error) {
+      throw new Error(`Failed to fetch chat messages: ${data.error}`);
+    }
+
+    return {
+      messages: data.messages || [],
+      pagination: data.pagination || { offset, limit, total: 0, hasMore: false }
+    };
+  }
+
+  async archiveAIChatMessages(
+    conversationId: string,
+    beforeDate: string
+  ): Promise<{ success: boolean; archivedCount: number }> {
+    const endpoint = '/ai/messages/archive';
+    const authHeaders = await this.getAuthHeaders(endpoint, 'POST');
+
+    const response = await fetch(`${this.baseURL}${endpoint}`, {
+      method: 'POST',
+      headers: {
+        ...authHeaders,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ conversationId, beforeDate })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to archive messages');
+    }
+    const data = await response.json();
+    return { success: data.success, archivedCount: data.archivedCount || 0 };
+  }
+
+  async searchAIChatMessages(
+    conversationId: string,
+    query: string,
+    options?: { offset?: number; limit?: number }
+  ): Promise<{ results: any[]; pagination: { offset: number; limit: number; count: number } }> {
+    const offset = options?.offset || 0;
+    const limit = options?.limit || 50;
+    const endpoint = `/ai/messages/search?conversationId=${conversationId}&query=${encodeURIComponent(
+      query
+    )}&offset=${offset}&limit=${limit}`;
+    const authHeaders = await this.getAuthHeaders(endpoint, 'GET');
+
+    const response = await fetch(`${this.baseURL}${endpoint}`, {
+      method: 'GET',
+      headers: {
+        ...authHeaders
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to search messages');
+    }
+    const data = await response.json();
+    return {
+      results: data.results || [],
+      pagination: data.pagination || { offset, limit, count: 0 }
+    };
   }
 
   // AI Chat List Management

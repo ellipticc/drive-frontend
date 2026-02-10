@@ -185,6 +185,7 @@
     "react-tweet": "^3.3.0",
     "recharts": "2.15.4",
     "rehype-katex": "^7.0.1",
+    "rehype-stringify": "^10.0.1",
     "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0",
     "shiki": "^1.29.2",

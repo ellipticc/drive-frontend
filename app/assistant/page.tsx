@@ -5,6 +5,7 @@ import { useUser } from "@/components/user-context"
 import { IconSparkles, IconBookmark, IconRotateClockwise } from "@tabler/icons-react"
 import { Checkpoint, CheckpointIcon, CheckpointTrigger } from "@/components/ai-elements/checkpoint"
 import apiClient from "@/lib/api"
+import { useVirtualizer } from "@tanstack/react-virtual"
 
 // Import AI Elements
 import { EnhancedPromptInput } from "@/components/enhanced-prompt-input"
@@ -55,6 +56,9 @@ export default function AssistantPage() {
     const [chatTitle, setChatTitle] = React.useState<string>('Chat');
     const [shouldAutoScroll, setShouldAutoScroll] = React.useState(true)
     const lastScrollTopRef = React.useRef(0)
+    const [isLoadingOlder, setIsLoadingOlder] = React.useState(false)
+    const [pagination, setPagination] = React.useState({ offset: 0, limit: 50, total: 0, hasMore: false })
+    const isLoadingOlderRef = React.useRef(false)
 
     const { isReady, kyberPublicKey, decryptHistory, decryptStreamChunk, encryptMessage, loadChats } = useAICrypto();
 
@@ -97,7 +101,16 @@ export default function AssistantPage() {
     const lastCreatedConversationId = React.useRef<string | null>(null);
 
     // Scroll Container Ref
-    const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+    const scrollContainerRef = React.useRef<HTMLDivElement>(null)
+    const virtualParentRef = React.useRef<HTMLDivElement>(null)
+
+    // Virtual list setup for performance with many messages
+    const virtualizer = useVirtualizer({
+        count: messages.length,
+        getScrollElement: () => scrollContainerRef.current,
+        estimateSize: () => 200, // Estimate item height - 200px average
+        overscan: 5, // Render 5 items outside viewport
+    });
 
     // Helper: Scroll to a specific message by index or ID
     const scrollToMessage = (messageId: string, behavior: ScrollBehavior = 'smooth') => {
@@ -169,6 +182,16 @@ export default function AssistantPage() {
                 .then((msgs: Message[]) => {
                     setMessages(msgs);
                     setChatTitle('Chat');
+                    
+                    // Initialize pagination after loading history
+                    // Set hasMore to true if we have a reasonable number of messages  
+                    // (in a real app, the backend would tell us)
+                    setPagination({
+                        offset: 0,
+                        limit: 50,
+                        total: msgs.length,
+                        hasMore: msgs.length >= 50
+                    });
 
                     // Scroll to last user message after render
                     setTimeout(() => {
@@ -187,6 +210,7 @@ export default function AssistantPage() {
             // New Chat
             setChatTitle('New Chat');
             setMessages([]);
+            setPagination({ offset: 0, limit: 50, total: 0, hasMore: false });
         }
     }, [conversationId, isReady, decryptHistory, router]);
 
@@ -205,9 +229,15 @@ export default function AssistantPage() {
     }, [isLoading, isCancelling]);
 
     // Auto-scroll interruption detection: stop auto-scroll if user manually scrolls
+    // Also handle pagination when scrolling to top
     React.useEffect(() => {
         const container = scrollContainerRef.current;
         if (!container) return;
+
+        // Debounced scroll handler to avoid excessive pagination loads
+        let scrollTimeout: NodeJS.Timeout | null = null;
+        const SCROLL_THRESHOLD = 500; // px from top to trigger load
+        const DEBOUNCE_MS = 300; // Wait 300ms before checking pagination
 
         const handleScroll = () => {
             const scrollTop = container.scrollTop;
@@ -215,22 +245,90 @@ export default function AssistantPage() {
             const clientHeight = container.clientHeight;
             const isAtBottom = scrollHeight - scrollTop - clientHeight < 50; // 50px tolerance
 
-            // If user scrolled away from bottom, disable auto-scroll
+            // Update auto-scroll state
             if (!isAtBottom && shouldAutoScroll) {
                 setShouldAutoScroll(false);
             }
-            
-            // Re-enable auto-scroll when back at bottom
             if (isAtBottom && !shouldAutoScroll) {
                 setShouldAutoScroll(true);
             }
 
+            // Debounced pagination check
+            if (scrollTimeout) clearTimeout(scrollTimeout);
+            scrollTimeout = setTimeout(async () => {
+                // Check if should load older messages
+                if (
+                    scrollTop < SCROLL_THRESHOLD &&
+                    pagination.hasMore &&
+                    !isLoadingOlderRef.current &&
+                    conversationId
+                ) {
+                    // Prevent concurrent loads
+                    isLoadingOlderRef.current = true;
+                    setIsLoadingOlder(true);
+
+                    try {
+                        const nextOffset = pagination.offset + pagination.limit;
+                        
+                        // Store first message ID before loading to maintain scroll position
+                        const firstMessageIdBeforePagination = messages[0]?.id;
+
+                        const result = await apiClient.getAIChatMessages(conversationId, {
+                            offset: nextOffset,
+                            limit: pagination.limit,
+                        });
+
+                        if (result.messages && result.messages.length > 0) {
+                            // Prepend older messages to the beginning
+                            setMessages(prev => {
+                                // Ensure no duplicates by checking IDs
+                                const existingIds = new Set(prev.map(m => m.id));
+                                const newMessages = result.messages.filter(m => !existingIds.has(m.id));
+                                return [...newMessages, ...prev];
+                            });
+
+                            // Update pagination state AFTER message update
+                            setPagination(prev => ({
+                                offset: result.pagination.offset,
+                                limit: result.pagination.limit,
+                                total: result.pagination.total,
+                                hasMore: result.pagination.hasMore,
+                            }));
+
+                            // Schedule scroll position maintenance after virtual list recalculates
+                            // Scroll to the first message that was at the top before pagination
+                            setTimeout(() => {
+                                if (firstMessageIdBeforePagination) {
+                                    const element = document.getElementById(`message-${firstMessageIdBeforePagination}`);
+                                    if (element && container) {
+                                        // Scroll to element, accounting for element's position in rendered content
+                                        const rect = element.getBoundingClientRect();
+                                        const containerRect = container.getBoundingClientRect();
+                                        const elementTop = rect.top - containerRect.top + container.scrollTop;
+                                        container.scrollTop = elementTop - 100; // 100px buffer
+                                    }
+                                }
+                            }, 0);
+                        }
+                    } catch (err) {
+                        console.error("Failed to load older messages:", err);
+                        toast.error("Failed to load older messages");
+                    } finally {
+                        isLoadingOlderRef.current = false;
+                        setIsLoadingOlder(false);
+                    }
+                }
+            }, DEBOUNCE_MS);
+
             lastScrollTopRef.current = scrollTop;
         };
 
-        container.addEventListener('scroll', handleScroll);
-        return () => container.removeEventListener('scroll', handleScroll);
-    }, [shouldAutoScroll]);
+        container.addEventListener('scroll', handleScroll, { passive: true });
+        return () => {
+            container.removeEventListener('scroll', handleScroll);
+            if (scrollTimeout) clearTimeout(scrollTimeout);
+        };
+    }, [conversationId, pagination.hasMore, pagination.offset, pagination.limit]);
 
     const handleSubmit = async (value: string, attachments: File[] = [], thinkingMode: boolean = false, searchMode: boolean = false) => {
         if (!value.trim() && attachments.length === 0) return;
@@ -1099,64 +1197,85 @@ export default function AssistantPage() {
 
                     // CHAT STATE: Scrollable Messages + Sticky Bottom Input
                     <div className="flex flex-col h-full w-full">
-                        {/* Messages Container - Centered with consistent max-width */}
+                        {/* Messages Container - Virtual List for Performance */}
                         <div
                             ref={scrollContainerRef}
-                            className="flex-1 overflow-y-auto px-4 py-4 space-y-4 scroll-smooth"
+                            className="flex-1 overflow-y-auto px-4 py-4 scroll-smooth"
                         >
-                            {/* Centered wrapper for messages */}
-                            <div className="flex flex-col items-center w-full">
-                            {messages.map((message, index) => (
+                            {/* Virtual List Parent */}
+                            <div ref={virtualParentRef} className="flex flex-col items-center w-full">
                                 <div
-                                    key={message.id || index}
-                                    id={`message-${message.id}`}
-                                    className="w-full max-w-3xl"
+                                    style={{
+                                        height: `${virtualizer.getTotalSize()}px`,
+                                        width: '100%',
+                                        position: 'relative',
+                                    }}
                                 >
-                                    {message.isCheckpoint ? (
-                                        <Checkpoint className="my-4">
-                                            <CheckpointIcon>
-                                                <IconBookmark className="size-4 shrink-0" />
-                                            </CheckpointIcon>
-                                            <span className="text-xs font-medium">Checkpoint {index + 1}</span>
-                                            <CheckpointTrigger
-                                                tooltip="Restore checkpoint"
-                                                onClick={() => handleRestoreCheckpoint(message.id || '')}
+                                    {virtualizer.getVirtualItems().map((virtualItem) => {
+                                        const message = messages[virtualItem.index];
+                                        if (!message) return null;
+
+                                        return (
+                                            <div
+                                                key={message.id || virtualItem.index}
+                                                data-index={virtualItem.index}
+                                                id={`message-${message.id}`}
+                                                style={{
+                                                    position: 'absolute',
+                                                    top: 0,
+                                                    left: 0,
+                                                    width: '100%',
+                                                    transform: `translateY(${virtualItem.start}px)`,
+                                                }}
                                             >
-                                                <IconRotateClockwise className="size-3" />
-                                            </CheckpointTrigger>
-                                        </Checkpoint>
-                                    ) : (
-                                        <ChatMessage
-                                            message={message}
-                                            isLast={index === messages.length - 1}
-                                            onCopy={handleCopy}
-                                            onFeedback={handleFeedback}
-                                            onRetry={() => handleRetry(message.id || '')}
-                                            onRegenerate={(instruction) => handleRegenerate(message.id || '', instruction)}
-                                            onEdit={(content) => handleEditMessage(message.id || '', content)}
-                                            onVersionChange={(dir) => handleVersionChange(message.id || '', dir)}
-                                            onCheckpoint={() => handleAddCheckpoint()}
-                                            availableModels={availableModels}
-                                            onRerunSystemWithModel={handleRerunSystemWithModel}
-                                            onAddToChat={(text) => {
-                                                // Add selected text to input with context marker
-                                                const inputRef = document.querySelector('textarea[placeholder*="How can I help"]') as HTMLTextAreaElement;
-                                                if (inputRef) {
-                                                    const newText = (inputRef.value ? inputRef.value + '\n\n' : '') + `> ${text}`;
-                                                    inputRef.value = newText;
-                                                    inputRef.style.height = "auto";
-                                                    inputRef.style.height = Math.min(inputRef.scrollHeight, 384) + "px";
-                                                    inputRef.focus();
-                                                    // Trigger input event to update React state
-                                                    inputRef.dispatchEvent(new Event('input', { bubbles: true }));
-                                                }
-                                            }}
-                                        />
-                                    )}
+                                                <div className="flex justify-center w-full mb-4">
+                                                    <div className="w-full max-w-3xl">
+                                                        {message.isCheckpoint ? (
+                                                            <Checkpoint className="my-4">
+                                                                <CheckpointIcon>
+                                                                    <IconBookmark className="size-4 shrink-0" />
+                                                                </CheckpointIcon>
+                                                                <span className="text-xs font-medium">Checkpoint {virtualItem.index + 1}</span>
+                                                                <CheckpointTrigger
+                                                                    tooltip="Restore checkpoint"
+                                                                    onClick={() => handleRestoreCheckpoint(message.id || '')}
+                                                                >
+                                                                    <IconRotateClockwise className="size-3" />
+                                                                </CheckpointTrigger>
+                                                            </Checkpoint>
+                                                        ) : (
+                                                            <ChatMessage
+                                                                message={message}
+                                                                isLast={virtualItem.index === messages.length - 1}
+                                                                onCopy={handleCopy}
+                                                                onFeedback={handleFeedback}
+                                                                onRetry={() => handleRetry(message.id || '')}
+                                                                onRegenerate={(instruction) => handleRegenerate(message.id || '', instruction)}
+                                                                onEdit={(content) => handleEditMessage(message.id || '', content)}
+                                                                onVersionChange={(dir) => handleVersionChange(message.id || '', dir)}
+                                                                onCheckpoint={() => handleAddCheckpoint()}
+                                                                availableModels={availableModels}
+                                                                onRerunSystemWithModel={handleRerunSystemWithModel}
+                                                                onAddToChat={(text) => {
+                                                                    const inputRef = document.querySelector('textarea[placeholder*="How can I help"]') as HTMLTextAreaElement;
+                                                                    if (inputRef) {
+                                                                        const newText = (inputRef.value ? inputRef.value + '\n\n' : '') + `> ${text}`;
+                                                                        inputRef.value = newText;
+                                                                        inputRef.style.height = "auto";
+                                                                        inputRef.style.height = Math.min(inputRef.scrollHeight, 384) + "px";
+                                                                        inputRef.focus();
+                                                                        inputRef.dispatchEvent(new Event('input', { bubbles: true }));
+                                                                    }
+                                                                }}
+                                                            />
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
-                            ))}
                             </div>
-                            <div className="h-24" />
                         </div>
 
                         {/* Sticky Input Footer - Centered with consistent max-width */}
