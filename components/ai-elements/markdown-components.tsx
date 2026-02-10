@@ -63,7 +63,7 @@ export const CodeBlock = React.forwardRef<
 
   // Map language codes to lowercase labels (ChatGPT style)
   const languageLabel = language === 'plain' ? 'code' : language.toLowerCase();
-  
+
   // Fixed color values for light/dark modes
   const bgColor = isDark ? '#171717' : '#f9f9f9';
   const textColor = isDark ? '#e5e5e5' : '#1a1a1a';
@@ -126,7 +126,7 @@ export const CodeBlock = React.forwardRef<
               'p-4 m-0 text-sm font-mono',
               'whitespace-pre'
             )}
-            style={{ color: textColor, backgroundColor: 'transparent', fontFamily: "'IBM Plex Mono', monospace", display: 'inline-block', minWidth: 'max-content' }}>
+              style={{ color: textColor, backgroundColor: 'transparent', fontFamily: "'IBM Plex Mono', monospace", display: 'inline-block', minWidth: 'max-content' }}>
               <code>{codeContent}</code>
             </pre>
           </div>
@@ -169,27 +169,27 @@ export const CodeBlock = React.forwardRef<
             <div className="flex-1 overflow-x-auto" style={{ backgroundColor: '#171717', maxWidth: '100%' }}>
               {!isLoading && highlightedHtml ? (
                 <div className="p-0">
-                <div
-                  className={cn(
-                    'p-6 text-sm font-mono inline-block whitespace-pre',
-                    'min-w-[max-content]',
-                    '[&_*]:!bg-transparent [&_*]:!background-transparent',
-                    '[&_span]:!background-color-transparent'
-                  )}
-                  style={{ color: '#e5e5e5', backgroundColor: 'transparent', fontFamily: "'IBM Plex Mono', monospace", minWidth: 'max-content' }}
-                  dangerouslySetInnerHTML={{ __html: highlightedHtml }}
-                />
-              </div>
+                  <div
+                    className={cn(
+                      'p-6 text-sm font-mono inline-block whitespace-pre',
+                      'min-w-[max-content]',
+                      '[&_*]:!bg-transparent [&_*]:!background-transparent',
+                      '[&_span]:!background-color-transparent'
+                    )}
+                    style={{ color: '#e5e5e5', backgroundColor: 'transparent', fontFamily: "'IBM Plex Mono', monospace", minWidth: 'max-content' }}
+                    dangerouslySetInnerHTML={{ __html: highlightedHtml }}
+                  />
+                </div>
               ) : (
-            <div className="p-0">
-              <pre className={cn(
-                'p-6 m-0 text-sm font-mono',
-                'whitespace-pre'
-              )}
-              style={{ color: '#e5e5e5', backgroundColor: 'transparent', fontFamily: "'IBM Plex Mono', monospace", display: 'inline-block', minWidth: 'max-content' }}>
-                <code>{codeContent}</code>
-              </pre>
-            </div>
+                <div className="p-0">
+                  <pre className={cn(
+                    'p-6 m-0 text-sm font-mono',
+                    'whitespace-pre'
+                  )}
+                    style={{ color: '#e5e5e5', backgroundColor: 'transparent', fontFamily: "'IBM Plex Mono', monospace", display: 'inline-block', minWidth: 'max-content' }}>
+                    <code>{codeContent}</code>
+                  </pre>
+                </div>
               )}
             </div>
           </div>
@@ -335,7 +335,7 @@ export const Text: React.FC<{
   <p
     className={cn(
       'text-foreground',
-      'text-sm leading-relaxed',
+      'text-base leading-relaxed',
       'my-2',
       className
     )}
@@ -355,7 +355,7 @@ export const UnorderedList: React.FC<{
     className={cn(
       'list-disc list-inside',
       'my-3 space-y-1.5 ml-2',
-      'text-foreground text-sm',
+      'text-foreground text-base',
       className
     )}
   >
@@ -371,7 +371,7 @@ export const OrderedList: React.FC<{
     className={cn(
       'list-decimal list-inside',
       'my-3 space-y-1.5 ml-2',
-      'text-foreground text-sm',
+      'text-foreground text-base',
       className
     )}
   >

@@ -88,13 +88,15 @@ const FilePreviewCard: React.FC<FilePreviewCardProps> = ({ file, onRemove }) => 
     );
 };
 
-// 3. Main Enhanced Prompt Input Component
+
 interface EnhancedPromptInputProps {
     onSubmit: (value: string, attachments: File[], thinkingMode?: boolean, searchMode?: boolean) => Promise<void>;
     isLoading?: boolean;
     onStop?: () => void;
     model?: string;
     onModelChange?: (model: string) => void;
+    contextItems?: Array<{ id: string; type: 'text' | 'code'; content: string }>;
+    onRemoveContextItem?: (id: string) => void;
 }
 
 export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
@@ -102,7 +104,9 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
     isLoading,
     onStop,
     model: externalModel,
-    onModelChange
+    onModelChange,
+    contextItems = [],
+    onRemoveContextItem
 }) => {
     const [message, setMessage] = useState("");
     const [files, setFiles] = useState<AttachedFile[]>([]);
@@ -184,7 +188,7 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
     };
 
     const handleSend = async () => {
-        if ((!message.trim() && files.length === 0) || isLoading) return;
+        if ((!message.trim() && files.length === 0 && contextItems.length === 0) || isLoading) return;
 
         const messageToSend = message;
         const currentFiles = files.map(f => f.file);
@@ -218,7 +222,7 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
         }
     };
 
-    const hasContent = message.trim() || files.length > 0;
+    const hasContent = message.trim() || files.length > 0 || contextItems.length > 0;
 
     return (
         <div
@@ -238,9 +242,44 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
 
                 <div className="flex flex-col px-4 pt-4 pb-3 gap-2">
 
-                    {/* 1. Attached Files */}
-                    {files.length > 0 && (
+
+                    {(files.length > 0 || contextItems.length > 0) && (
                         <div className="flex gap-3 overflow-x-auto custom-scrollbar pb-2 px-1">
+
+                            {contextItems.map(item => (
+                                <div
+                                    key={item.id}
+                                    className={cn(
+                                        "relative group flex-shrink-0 max-w-[200px] h-24 rounded-xl overflow-hidden border border-primary/20 bg-primary/5 transition-all",
+                                        "animate-in fade-in zoom-in-95 duration-200"
+                                    )}
+                                >
+                                    <div className="w-full h-full p-3 flex flex-col justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <div className="p-1.5 bg-background rounded text-primary">
+                                                <Icons.FileText className="w-4 h-4" />
+                                            </div>
+                                            <span className="text-[10px] font-medium text-primary uppercase tracking-wider truncate">
+                                                Context
+                                            </span>
+                                        </div>
+                                        <div className="space-y-0.5">
+                                            <p className="text-xs font-medium text-foreground line-clamp-2" title={item.content}>
+                                                {item.content}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        onClick={() => onRemoveContextItem?.(item.id)}
+                                        className="absolute top-1 right-1 p-1 bg-black/50 hover:bg-black/70 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                                    >
+                                        <Icons.X className="w-3 h-3" />
+                                    </button>
+                                </div>
+                            ))}
+
+
                             {files.map(file => (
                                 <FilePreviewCard
                                     key={file.id}
@@ -251,7 +290,7 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                         </div>
                     )}
 
-                    {/* 2. Input Area */}
+
                     <div className="relative mb-1">
                         <div className="max-h-96 w-full overflow-y-auto custom-scrollbar font-sans break-words min-h-[2.5rem] pl-1">
                             <textarea
@@ -269,9 +308,9 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                         </div>
                     </div>
 
-                    {/* 3. Action Bar - Redesigned Layout */}
+
                     <div className="flex gap-2 w-full items-center justify-between">
-                        {/* Left Tools: +, Thinking, Search */}
+
                         <div className="flex items-center gap-1">
                             {/* Attach File Button */}
                             <Tooltip>
@@ -342,10 +381,10 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                             </Tooltip>
                         </div>
 
-                        {/* Spacer */}
+
                         <div className="flex-1" />
 
-                        {/* Right Tools: Model Selector, Send/Stop */}
+
                         <div className="flex items-center gap-1">
                             {/* Model Selector */}
                             <ModelSelector open={modelOpen} onOpenChange={(open) => setModelOpen(open)}>
@@ -424,7 +463,6 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                 </div>
             </div>
 
-            {/* Drag Overlay */}
             {isDragging && (
                 <div className="absolute inset-0 bg-background/80 border-2 border-dashed border-primary rounded-3xl z-50 flex flex-col items-center justify-center backdrop-blur-sm pointer-events-none animate-in fade-in duration-200">
                     <Icons.Archive className="w-10 h-10 text-primary mb-2 animate-bounce" />
@@ -432,7 +470,6 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                 </div>
             )}
 
-            {/* Hidden Input */}
             <input
                 ref={fileInputRef}
                 type="file"

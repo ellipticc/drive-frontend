@@ -16,7 +16,6 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Suggestions, Suggestion } from "@/components/ai-elements/suggestion"
 import { ChatMessage } from "@/components/ai-elements/chat-message"
 import { toast } from "sonner"
-import { Button } from "@/components/ui/button"
 
 interface MessageVersion {
     id: string;
@@ -112,7 +111,6 @@ export default function AssistantPage() {
         overscan: 5, // Render 5 items outside viewport
     });
 
-    // Helper: Scroll to a specific message by index or ID
     const scrollToMessage = (messageId: string, behavior: ScrollBehavior = 'smooth') => {
         // Only auto-scroll if user hasn't manually scrolled away
         if (!shouldAutoScroll && behavior !== 'auto') return;
@@ -176,9 +174,6 @@ export default function AssistantPage() {
                     setMessages(msgs);
                     setChatTitle('Chat');
 
-                    // Initialize pagination after loading history
-                    // Set hasMore to true if we have a reasonable number of messages  
-                    // (in a real app, the backend would tell us)
                     setPagination({
                         offset: 0,
                         limit: 50,
@@ -206,6 +201,13 @@ export default function AssistantPage() {
             setPagination({ offset: 0, limit: 50, total: 0, hasMore: false });
         }
     }, [conversationId, isReady, decryptHistory, router]);
+
+    const [contextItems, setContextItems] = React.useState<Array<{ id: string; type: 'text' | 'code'; content: string }>>([]);
+
+    // We use a ref to track if we should auto-scroll, to avoid state updates causing re-renders/race conditions during scroll events
+    const shouldAutoScrollRef = React.useRef(true);
+
+
 
     // Keyboard shortcut: Esc to stop active generation
     React.useEffect(() => {
@@ -236,15 +238,10 @@ export default function AssistantPage() {
             const scrollTop = container.scrollTop;
             const scrollHeight = container.scrollHeight;
             const clientHeight = container.clientHeight;
-            const isAtBottom = scrollHeight - scrollTop - clientHeight < 50; // 50px tolerance
 
-            // Update auto-scroll state
-            if (!isAtBottom && shouldAutoScroll) {
-                setShouldAutoScroll(false);
-            }
-            if (isAtBottom && !shouldAutoScroll) {
-                setShouldAutoScroll(true);
-            }
+            // Check if user is at the bottom (with tolerance)
+            const isAtBottom = scrollHeight - scrollTop - clientHeight < 100;
+            shouldAutoScrollRef.current = isAtBottom;
 
             // Debounced pagination check
             if (scrollTimeout) clearTimeout(scrollTimeout);
@@ -262,9 +259,6 @@ export default function AssistantPage() {
 
                     try {
                         const nextOffset = pagination.offset + pagination.limit;
-
-                        // Store first message ID before loading to maintain scroll position
-                        const firstMessageIdBeforePagination = messages[0]?.id;
 
                         const result = await apiClient.getAIChatMessages(conversationId, {
                             offset: nextOffset,
@@ -287,21 +281,6 @@ export default function AssistantPage() {
                                 total: result.pagination.total,
                                 hasMore: result.pagination.hasMore,
                             }));
-
-                            // Schedule scroll position maintenance after virtual list recalculates
-                            // Scroll to the first message that was at the top before pagination
-                            setTimeout(() => {
-                                if (firstMessageIdBeforePagination) {
-                                    const element = document.getElementById(`message-${firstMessageIdBeforePagination}`);
-                                    if (element && container) {
-                                        // Scroll to element, accounting for element's position in rendered content
-                                        const rect = element.getBoundingClientRect();
-                                        const containerRect = container.getBoundingClientRect();
-                                        const elementTop = rect.top - containerRect.top + container.scrollTop;
-                                        container.scrollTop = elementTop - 100; // 100px buffer
-                                    }
-                                }
-                            }, 0);
                         }
                     } catch (err) {
                         console.error("Failed to load older messages:", err);
@@ -324,7 +303,7 @@ export default function AssistantPage() {
     }, [conversationId, pagination.hasMore, pagination.offset, pagination.limit]);
 
     const handleSubmit = async (value: string, attachments: File[] = [], thinkingMode: boolean = false, searchMode: boolean = false) => {
-        if (!value.trim() && attachments.length === 0) return;
+        if (!value.trim() && attachments.length === 0 && contextItems.length === 0) return;
 
         if (!isReady || !kyberPublicKey) {
             console.warn("Crypto not ready:", { isReady, hasKey: !!kyberPublicKey });
@@ -334,30 +313,44 @@ export default function AssistantPage() {
 
         if (isLoading) return;
 
-        // 1. Optimistic Update (Show user message immediately)
+        // Prepare content with context items if present
+        let finalContent = value;
+        if (contextItems.length > 0) {
+            const contextString = contextItems.map(item =>
+                `[CONTEXT (${item.type})]\n${item.content}\n[/CONTEXT]`
+            ).join('\n\n');
+
+            // Append context to the message
+            finalContent = `${contextString}\n\n${value}`;
+
+            // Clear context items after sending
+            setContextItems([]);
+        }
+
+        // Optimistic Update
         // Generate a temporary ID for the user message to allow scrolling
         const tempId = crypto.randomUUID();
         const tempUserMessage: Message = {
             id: tempId,
             role: 'user',
-            content: value,
+            content: finalContent,
             // attachments: attachments.map(f => f.name) // Store names for UI if needed (schema update required)
         };
         setMessages(prev => [...prev, tempUserMessage]);
 
-        // Scroll to this new message immediately
+        // Force scroll to bottom on new message
+        shouldAutoScrollRef.current = true;
         setTimeout(() => scrollToMessage(tempId, 'smooth'), 10);
 
-        // 2. Add Thinking State & Reset auto-scroll
+        // Add Thinking State & Reset auto-scroll
         const assistantMessageId = crypto.randomUUID();
-        setShouldAutoScroll(true);
         setMessages(prev => [...prev, { id: assistantMessageId, role: 'assistant', content: '', isThinking: true, reasoning: '' }]);
         setIsLoading(true);
 
         try {
             let finalContent = value;
 
-            // 3. Process Attachments (RAG / Context Stuffing)
+            // Process Attachments (RAG / Context Stuffing)
             if (attachments.length > 0) {
                 // Update thinking state to show we are reading files
                 setMessages(prev => {
@@ -391,7 +384,7 @@ export default function AssistantPage() {
                 })
             }
 
-            // 4. Encrypt User Message (E2EE)
+            // Encrypt User Message (E2EE)
             let encryptedUserMessage;
             if (kyberPublicKey) {
                 try {
@@ -1251,15 +1244,17 @@ export default function AssistantPage() {
                                                                 availableModels={availableModels}
                                                                 onRerunSystemWithModel={handleRerunSystemWithModel}
                                                                 onAddToChat={(text) => {
+                                                                    // Add as context item instead of appending text
+                                                                    setContextItems(prev => [...prev, {
+                                                                        id: crypto.randomUUID(),
+                                                                        type: 'text',
+                                                                        content: text
+                                                                    }]);
+                                                                    toast.success("Added to context");
+
+                                                                    // Focus input (optional but nice)
                                                                     const inputRef = document.querySelector('textarea[placeholder*="How can I help"]') as HTMLTextAreaElement;
-                                                                    if (inputRef) {
-                                                                        const newText = (inputRef.value ? inputRef.value + '\n\n' : '') + `> ${text}`;
-                                                                        inputRef.value = newText;
-                                                                        inputRef.style.height = "auto";
-                                                                        inputRef.style.height = Math.min(inputRef.scrollHeight, 384) + "px";
-                                                                        inputRef.focus();
-                                                                        inputRef.dispatchEvent(new Event('input', { bubbles: true }));
-                                                                    }
+                                                                    if (inputRef) inputRef.focus();
                                                                 }}
                                                             />
                                                         )}
@@ -1284,9 +1279,11 @@ export default function AssistantPage() {
                                         onStop={handleCancel}
                                         model={model}
                                         onModelChange={setModel}
+                                        contextItems={contextItems}
+                                        onRemoveContextItem={(id) => setContextItems(prev => prev.filter(i => i.id !== id))}
                                     />
                                     {/* Disclaimer Text */}
-                                    <p className="text-xs text-center text-muted-foreground mt-2">
+                                    <p className="text-xs text-center text-muted-foreground mt-2 select-none" aria-hidden="false">
                                         AI may display inaccurate or offensive information.
                                     </p>
                                 </div>
