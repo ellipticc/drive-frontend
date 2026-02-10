@@ -8,7 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
-import { Reasoning, ReasoningTrigger, ReasoningContent } from "@/components/ai-elements/reasoning"
+import { Reasoning, ReasoningTrigger, ReasoningContent, parseThinkingStats, detectThinkingTagType } from "@/components/ai-elements/reasoning"
 import { TextSelectionMenu } from "@/components/ai-elements/text-selection-menu"
 
 import { CitationParser } from "@/components/ai-elements/citation-parser";
@@ -229,15 +229,25 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                 ) : (
                     <div className="w-full space-y-2 selection:bg-primary/20 selection:text-foreground">{/* Reasoning / Chain of Thought */}
                         {(message.reasoning || message.isThinking) && (
-                            <Reasoning
-                                isStreaming={isLast && message.isThinking}
-                                defaultOpen={true}
-                            >
-                                <ReasoningTrigger className="w-fit" />
-                                <ReasoningContent>
-                                    {message.reasoning || "Thinking..."}
-                                </ReasoningContent>
-                            </Reasoning>
+                            (() => {
+                                const reasoningContent = message.reasoning || "Thinking...";
+                                const stats = parseThinkingStats(reasoningContent);
+                                const tagType = detectThinkingTagType(reasoningContent);
+                                
+                                return (
+                                    <Reasoning
+                                        isStreaming={isLast && message.isThinking}
+                                        defaultOpen={true}
+                                        tokenCount={stats.tokenCount}
+                                        thinkingType={tagType || undefined}
+                                    >
+                                        <ReasoningTrigger className="w-fit" />
+                                        <ReasoningContent>
+                                            {reasoningContent}
+                                        </ReasoningContent>
+                                    </Reasoning>
+                                );
+                            })()
                         )}
 
 

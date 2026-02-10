@@ -1,6 +1,5 @@
 "use client";
 
-import type { IconProps, Icon } from "@tabler/icons-react";
 import type { ComponentProps, ReactNode } from "react";
 
 import { useControllableState } from "@radix-ui/react-use-controllable-state";
@@ -10,8 +9,8 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { cn } from "@/lib/utils";
-import { IconBrain, IconChevronDown, IconPoint } from "@tabler/icons-react";
+import { cn } from '@/lib/utils';
+import { IconBrain, IconChevronDown, IconChevronRight, IconDots, IconSearch, IconCode, IconBulb } from "@tabler/icons-react";
 import { createContext, memo, useContext, useMemo } from "react";
 
 interface ChainOfThoughtContextValue {
@@ -90,12 +89,11 @@ export const ChainOfThoughtHeader = memo(
           <span className="flex-1 text-left">
             {children ?? "Chain of Thought"}
           </span>
-          <IconChevronDown
-            className={cn(
-              "size-4 transition-transform",
-              isOpen ? "rotate-180" : "rotate-0"
-            )}
-          />
+          {isOpen ? (
+            <IconChevronDown className="size-4 transition-transform duration-200" />
+          ) : (
+            <IconChevronRight className="size-4 transition-transform duration-200" />
+          )}
         </CollapsibleTrigger>
       </Collapsible>
     );
@@ -103,10 +101,11 @@ export const ChainOfThoughtHeader = memo(
 );
 
 export type ChainOfThoughtStepProps = ComponentProps<"div"> & {
-  icon?: Icon;
+  icon?: React.ComponentType<any>;
   label: ReactNode;
   description?: ReactNode;
   status?: "complete" | "active" | "pending";
+  stepType?: "thinking" | "search" | "code" | "think" | "default";
 };
 
 const stepStatusStyles = {
@@ -115,16 +114,34 @@ const stepStatusStyles = {
   pending: "text-muted-foreground/50",
 };
 
+const getStepIcon = (stepType?: ChainOfThoughtStepProps['stepType']) => {
+  switch (stepType) {
+    case 'search':
+      return IconSearch;
+    case 'code':
+      return IconCode;
+    case 'thinking':
+    case 'think':
+      return IconBulb;
+    default:
+      return IconDots;
+  }
+};
+
 export const ChainOfThoughtStep = memo(
   ({
     className,
-    icon: Icon = IconPoint,
+    icon: Icon,
     label,
     description,
     status = "complete",
+    stepType,
     children,
     ...props
-  }: ChainOfThoughtStepProps) => (
+  }: ChainOfThoughtStepProps) => {
+    const DefaultIcon = Icon || getStepIcon(stepType);
+    
+    return (
     <div
       className={cn(
         "flex gap-2 text-sm",
@@ -135,7 +152,7 @@ export const ChainOfThoughtStep = memo(
       {...props}
     >
       <div className="relative mt-0.5">
-        <Icon className="size-4" />
+        <DefaultIcon className="size-4" />
         <div className="absolute top-7 bottom-0 left-1/2 -mx-px w-px bg-border" />
       </div>
       <div className="flex-1 space-y-2 overflow-hidden">
@@ -146,7 +163,8 @@ export const ChainOfThoughtStep = memo(
         {children}
       </div>
     </div>
-  )
+  );
+  }
 );
 
 export type ChainOfThoughtSearchResultsProps = ComponentProps<"div">;

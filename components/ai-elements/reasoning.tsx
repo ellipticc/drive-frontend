@@ -13,7 +13,7 @@ import { cjk } from "@streamdown/cjk";
 import { code } from "@streamdown/code";
 import { math } from "@streamdown/math";
 import { mermaid } from "@streamdown/mermaid";
-import { IconBrain, IconChevronDown } from "@tabler/icons-react";
+import { IconBrain, IconChevronDown, IconChevronRight, IconBulb } from "@tabler/icons-react";
 import {
   createContext,
   memo,
@@ -33,6 +33,8 @@ interface ReasoningContextValue {
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
   duration: number | undefined;
+  tokenCount?: number;
+  thinkingType?: 'thinking' | 'think';
 }
 
 const ReasoningContext = createContext<ReasoningContextValue | null>(null);
@@ -51,10 +53,31 @@ export type ReasoningProps = ComponentProps<typeof Collapsible> & {
   defaultOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
   duration?: number;
+  tokenCount?: number;
+  thinkingType?: 'thinking' | 'think';
 };
 
 const AUTO_CLOSE_DELAY = 1000;
 const MS_IN_S = 1000;
+
+// Helper to parse thinking stats from content
+export const parseThinkingStats = (content: string) => {
+  const lines = content.split('\n');
+  const tokenCount = content.split(/\s+/).length;
+  
+  return {
+    tokenCount,
+    lineCount: lines.length,
+    wordCount: content.split(/\s+/).length,
+  };
+};
+
+// Helper to detect thinking tag type
+export const detectThinkingTagType = (content: string): 'thinking' | 'think' | null => {
+  if (content.includes('<thinking>')) return 'thinking';
+  if (content.includes('<think>')) return 'think';
+  return null;
+};
 
 export const Reasoning = memo(
   ({
@@ -64,6 +87,8 @@ export const Reasoning = memo(
     defaultOpen,
     onOpenChange,
     duration: durationProp,
+    tokenCount: tokenCountProp,
+    thinkingType: thinkingTypeProp,
     children,
     ...props
   }: ReasoningProps) => {
@@ -79,6 +104,10 @@ export const Reasoning = memo(
     const [duration, setDuration] = useControllableState<number | undefined>({
       defaultProp: undefined,
       prop: durationProp,
+    });
+    const [tokenCount, setTokenCount] = useControllableState<number | undefined>({
+      defaultProp: undefined,
+      prop: tokenCountProp,
     });
 
     const hasEverStreamedRef = useRef(isStreaming);
@@ -130,8 +159,8 @@ export const Reasoning = memo(
     );
 
     const contextValue = useMemo(
-      () => ({ duration, isOpen, isStreaming, setIsOpen }),
-      [duration, isOpen, isStreaming, setIsOpen]
+      () => ({ duration, isOpen, isStreaming, setIsOpen, tokenCount, thinkingType: thinkingTypeProp }),
+      [duration, isOpen, isStreaming, setIsOpen, tokenCount, thinkingTypeProp]
     );
 
     return (
@@ -152,17 +181,29 @@ export const Reasoning = memo(
 export type ReasoningTriggerProps = ComponentProps<
   typeof CollapsibleTrigger
 > & {
-  getThinkingMessage?: (isStreaming: boolean, duration?: number) => ReactNode;
+  getThinkingMessage?: (isStreaming: boolean, duration?: number, tokenCount?: number, thinkingType?: 'thinking' | 'think') => ReactNode;
 };
 
-const defaultGetThinkingMessage = (isStreaming: boolean, duration?: number) => {
+const defaultGetThinkingMessage = (isStreaming: boolean, duration?: number, tokenCount?: number, thinkingType?: 'thinking' | 'think') => {
+  const stats = [];
+  
   if (isStreaming || duration === 0) {
     return <Shimmer duration={1}>Thinking...</Shimmer>;
   }
-  if (duration === undefined) {
-    return <p>Thought for a few seconds</p>;
+  
+  if (duration !== undefined && duration > 0) {
+    stats.push(`${duration}s`);
   }
-  return <p>Thought for {duration} seconds</p>;
+  
+  if (tokenCount !== undefined && tokenCount > 0) {
+    stats.push(`${tokenCount} tokens`);
+  }
+
+  const statsText = stats.length > 0 ? ` (${stats.join(', ')})` : '';
+  const typeIcon = thinkingType === 'think' ? <IconBulb className="size-3 inline mr-1" /> : <IconBrain className="size-3 inline mr-1" />;
+  const typeLabel = thinkingType === 'think' ? 'Think' : 'Thinking';
+  
+  return <p>{typeIcon}{typeLabel}{statsText}</p>;
 };
 
 export const ReasoningTrigger = memo(
@@ -172,7 +213,7 @@ export const ReasoningTrigger = memo(
     getThinkingMessage = defaultGetThinkingMessage,
     ...props
   }: ReasoningTriggerProps) => {
-    const { isStreaming, isOpen, duration } = useReasoning();
+    const { isStreaming, isOpen, duration, tokenCount, thinkingType } = useReasoning();
 
     return (
       <CollapsibleTrigger
@@ -185,13 +226,12 @@ export const ReasoningTrigger = memo(
         {children ?? (
           <>
             <IconBrain className="size-4" />
-            {getThinkingMessage(isStreaming, duration)}
-            <IconChevronDown
-              className={cn(
-                "size-4 transition-transform",
-                isOpen ? "rotate-180" : "rotate-0"
-              )}
-            />
+            {getThinkingMessage(isStreaming, duration, tokenCount, thinkingType)}
+            {isOpen ? (
+              <IconChevronDown className="size-4 transition-transform duration-200" />
+            ) : (
+              <IconChevronRight className="size-4 transition-transform duration-200" />
+            )}
           </>
         )}
       </CollapsibleTrigger>
