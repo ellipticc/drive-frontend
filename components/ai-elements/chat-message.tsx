@@ -229,9 +229,9 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                     </>
                 ) : (
                     <div className="w-full space-y-2 selection:bg-primary/20 selection:text-foreground">{/* Reasoning / Chain of Thought */}
-                        {(message.reasoning || message.isThinking) && (
+                        {message.reasoning && (
                             (() => {
-                                const reasoningContent = message.reasoning || "Thinking...";
+                                const reasoningContent = message.reasoning;
                                 const tagType = detectThinkingTagType(reasoningContent);
                                 
                                 return (
@@ -248,6 +248,9 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                     </Reasoning>
                                 );
                             })()
+                        )}{/* Show thinking placeholder only during active streaming */}
+                        {message.isThinking && isLast && !message.reasoning && (
+                            <div className="text-sm text-muted-foreground italic">Thinking...</div>
                         )}
 
 
