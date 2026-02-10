@@ -117,7 +117,7 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
     }
 
     // Thinking mode supported models
-    const thinkingSupportedModels = ["qwen-2.5-32b", "openai/gpt-oss-120b"];
+    const thinkingSupportedModels = ["qwen/qwen3-32b", "openai/gpt-oss-120b"];
     const isThinkingSupported = thinkingSupportedModels.includes(effectiveModel);
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -125,7 +125,7 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
 
     const models = [
         { id: "llama-3.3-70b-versatile", name: "Llama 3.3 70B", description: "Versatile, 128k context", provider: "llama" },
-        { id: "qwen-2.5-32b", name: "Qwen 2.5 32B", description: "Code, Reasoning", provider: "alibaba" },
+        { id: "qwen/qwen3-32b", name: "Qwen 3 32B", description: "Code, Reasoning", provider: "alibaba" },
         { id: "openai/gpt-oss-120b", name: "GPT-OSS 120B", description: "Vision, General", provider: "openai" },
         { id: "llama-guard-4-12b", name: "Llama Guard 4", description: "Safety, Moderation", provider: "llama" }
     ];
@@ -221,7 +221,7 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
     return (
         <div
             className={cn(
-                "relative w-full max-w-5xl mx-auto transition-all duration-300 font-sans",
+                "relative w-full max-w-4xl mx-auto transition-all duration-300 font-sans",
                 isDragging && "scale-[1.02]"
             )}
             onDragOver={onDragOver}
@@ -230,8 +230,8 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
         >
             {/* Main Container */}
             <div className={cn(
-                "flex flex-col mx-2 md:mx-0 items-stretch transition-all duration-200 relative z-10 rounded-2xl border border-border/30 bg-muted/20 hover:border-border/40",
-                isLoading && "opacity-80 pointer-events-none"
+                "flex flex-col mx-2 md:mx-0 items-stretch transition-all duration-200 relative z-10 rounded-2xl border border-border/20 bg-muted/15 hover:border-border/30 hover:bg-muted/20",
+                isLoading && "opacity-60 pointer-events-none"
             )}>
 
                 <div className="flex flex-col px-4 pt-4 pb-3 gap-2">
@@ -267,25 +267,86 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                         </div>
                     </div>
 
-                    {/* 3. Action Bar */}
+                    {/* 3. Action Bar - Redesigned Layout */}
                     <div className="flex gap-2 w-full items-center justify-between">
-                        {/* Left Tools */}
+                        {/* Left Tools: +, Thinking, Search */}
                         <div className="flex items-center gap-1">
-                            <button
-                                onClick={() => fileInputRef.current?.click()}
-                                className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                                type="button"
-                                aria-label="Attach file"
-                            >
-                                <Icons.Plus className="w-5 h-5" />
-                            </button>
+                            {/* Attach File Button */}
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+                                        type="button"
+                                        aria-label="Attach file"
+                                    >
+                                        <Icons.Plus className="w-5 h-5" />
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="text-xs">
+                                    Attach files
+                                </TooltipContent>
+                            </Tooltip>
 
-                            {/* Controlled Model Selector so selection closes the modal on select */}
+                            {/* Thinking Mode Button */}
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        onClick={() => {
+                                            if (isThinkingSupported) setThinkingMode(!thinkingMode);
+                                        }}
+                                        disabled={!isThinkingSupported}
+                                        className={cn(
+                                            'inline-flex items-center justify-center h-8 w-8 rounded-lg transition-all',
+                                            isThinkingSupported && thinkingMode
+                                                ? 'bg-primary/15 text-primary'
+                                                : isThinkingSupported
+                                                    ? 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                                                    : 'text-muted-foreground/40 cursor-not-allowed opacity-40'
+                                        )}
+                                        type="button"
+                                    >
+                                        <IconBrain className="w-5 h-5" />
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="text-xs">
+                                    {isThinkingSupported
+                                        ? 'Enable deeper reasoning'
+                                        : 'This model doesn\'t support reasoning'}
+                                </TooltipContent>
+                            </Tooltip>
+
+                            {/* Search Mode Button */}
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        onClick={() => setSearchMode(!searchMode)}
+                                        className={cn(
+                                            'inline-flex items-center justify-center h-8 w-8 rounded-lg transition-all',
+                                            searchMode
+                                                ? 'bg-primary/15 text-primary'
+                                                : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                                        )}
+                                        type="button"
+                                    >
+                                        <IconWorld className="w-5 h-5" />
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="text-xs">
+                                    Enable web search
+                                </TooltipContent>
+                            </Tooltip>
+                        </div>
+
+                        {/* Spacer */}
+                        <div className="flex-1" />
+
+                        {/* Right Tools: Model Selector, Send/Stop */}
+                        <div className="flex items-center gap-1">
+                            {/* Model Selector */}
                             <ModelSelector open={modelOpen} onOpenChange={(open) => setModelOpen(open)}>
-                                <ModelSelectorTrigger className="inline-flex items-center justify-center relative shrink-0 transition font-base duration-300 h-8 rounded-xl px-3 min-w-[4rem] active:scale-[0.98] whitespace-nowrap !text-xs pl-2.5 pr-2 gap-1 text-muted-foreground hover:text-foreground hover:bg-muted">
-                                    <div className="font-ui inline-flex gap-[3px] text-[14px] h-[14px] leading-none items-baseline">
-                                        <div className="whitespace-nowrap select-none font-medium">{currentModel.name}</div>
-                                    </div>
+                                <ModelSelectorTrigger className="inline-flex items-center justify-center h-8 px-2.5 gap-1 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all">
+                                    <span className="inline text-[12px] max-w-[80px] truncate">{currentModel.name}</span>
                                     <Icons.SelectArrow className="shrink-0 opacity-75 w-3 h-3" />
                                 </ModelSelectorTrigger>
                                 <ModelSelectorContent>
@@ -298,7 +359,6 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                                                     key={model.id}
                                                     onSelect={() => {
                                                         handleModelChange(model.id);
-                                                        // Close dialog after choice
                                                         setModelOpen(false);
                                                     }}
                                                 >
@@ -314,88 +374,46 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                                     </ModelSelectorList>
                                 </ModelSelectorContent>
                             </ModelSelector>
-                        </div>
 
-                        {/* Mode Pills (Center-Right) */}
-                        <div className="flex items-center gap-2">
-                            {/* Thinking Mode Pill */}
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <button
-                                        onClick={() => {
-                                            if (isThinkingSupported) setThinkingMode(!thinkingMode);
-                                        }}
-                                        disabled={!isThinkingSupported}
-                                        className={cn(
-                                            'inline-flex items-center gap-1.5 px-3 py-1.5 h-8 rounded-full text-xs font-medium transition-all',
-                                            isThinkingSupported && thinkingMode
-                                                ? 'bg-primary/15 text-primary border border-primary/30'
-                                                : isThinkingSupported
-                                                    ? 'bg-muted text-muted-foreground hover:bg-muted/80 border border-border/40'
-                                                    : 'bg-muted text-muted-foreground/50 border border-border/20 cursor-not-allowed opacity-50'
-                                        )}
-                                        type="button"
-                                    >
-                                        <IconBrain className="w-3.5 h-3.5" />
-                                        <span>Thinking</span>
-                                    </button>
-                                </TooltipTrigger>
-                                <TooltipContent side="bottom" className="text-xs">
-                                    {isThinkingSupported
-                                        ? 'Deeper reasoning. Slower but more accurate responses.'
-                                        : 'This model doesn\'t support reasoning mode.'}
-                                </TooltipContent>
-                            </Tooltip>
-
-                            {/* Search Mode Pill */}
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <button
-                                        onClick={() => setSearchMode(!searchMode)}
-                                        className={cn(
-                                            'inline-flex items-center gap-1.5 px-3 py-1.5 h-8 rounded-full text-xs font-medium transition-all',
-                                            searchMode
-                                                ? 'bg-primary/15 text-primary border border-primary/30'
-                                                : 'bg-muted text-muted-foreground hover:bg-muted/80 border border-border/40'
-                                        )}
-                                        type="button"
-                                    >
-                                        <IconWorld className="w-3.5 h-3.5" />
-                                        <span>Search</span>
-                                    </button>
-                                </TooltipTrigger>
-                                <TooltipContent side="bottom" className="text-xs">
-                                    Allow the assistant to use web search for up-to-date info.
-                                </TooltipContent>
-                            </Tooltip>
-                        </div>
-
-                        {/* Right Tools (Send/Stop) */}
-                        <div>
+                            {/* Send/Stop Button */}
                             {isLoading ? (
-                                <button
-                                    onClick={onStop}
-                                    className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors shadow-sm"
-                                    type="button"
-                                    aria-label="Stop generation"
-                                >
-                                    <Icons.Loader2 className="w-4 h-4 animate-spin" /> {/* Or a Stop icon */}
-                                </button>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <button
+                                            onClick={onStop}
+                                            className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors"
+                                            type="button"
+                                            aria-label="Stop generation"
+                                        >
+                                            <Icons.Loader2 className="w-4 h-4 animate-spin" />
+                                        </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="text-xs">
+                                        Stop generation
+                                    </TooltipContent>
+                                </Tooltip>
                             ) : (
-                                <button
-                                    onClick={handleSend}
-                                    disabled={!hasContent}
-                                    className={cn(
-                                        "inline-flex items-center justify-center h-8 w-8 rounded-xl transition-all shadow-sm",
-                                        hasContent
-                                            ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                                            : "bg-muted text-muted-foreground cursor-not-allowed"
-                                    )}
-                                    type="button"
-                                    aria-label="Send message"
-                                >
-                                    <Icons.ArrowUp className="w-4 h-4" />
-                                </button>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <button
+                                            onClick={handleSend}
+                                            disabled={!hasContent}
+                                            className={cn(
+                                                "inline-flex items-center justify-center h-8 w-8 rounded-lg transition-all",
+                                                hasContent
+                                                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                                                    : "bg-muted text-muted-foreground cursor-not-allowed"
+                                            )}
+                                            type="button"
+                                            aria-label="Send message"
+                                        >
+                                            <Icons.ArrowUp className="w-4 h-4" />
+                                        </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="text-xs">
+                                        {hasContent ? 'Send message (Enter)' : 'Message is empty'}
+                                    </TooltipContent>
+                                </Tooltip>
                             )}
                         </div>
                     </div>

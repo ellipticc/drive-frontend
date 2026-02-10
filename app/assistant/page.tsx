@@ -60,7 +60,7 @@ export default function AssistantPage() {
     // Available models for system rerun popovers
     const availableModels = [
         { id: "llama-3.3-70b-versatile", name: "Llama 3.3 70B" },
-        { id: "qwen-2.5-32b", name: "Qwen 2.5 32B" },
+        { id: "qwen/qwen3-32b", name: "Qwen 3 32B" },
         { id: "openai/gpt-oss-120b", name: "GPT-OSS 120B" },
     ];
 
