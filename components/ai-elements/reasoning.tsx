@@ -194,16 +194,11 @@ const defaultGetThinkingMessage = (isStreaming: boolean, duration?: number, toke
   if (duration !== undefined && duration > 0) {
     stats.push(`${duration}s`);
   }
-  
-  if (tokenCount !== undefined && tokenCount > 0) {
-    stats.push(`${tokenCount} tokens`);
-  }
 
   const statsText = stats.length > 0 ? ` (${stats.join(', ')})` : '';
-  const typeIcon = thinkingType === 'think' ? <IconBulb className="size-3 inline mr-1" /> : <IconBrain className="size-3 inline mr-1" />;
   const typeLabel = thinkingType === 'think' ? 'Think' : 'Thinking';
   
-  return <p>{typeIcon}{typeLabel}{statsText}</p>;
+  return <p>{typeLabel}{statsText}</p>;
 };
 
 export const ReasoningTrigger = memo(
@@ -218,21 +213,28 @@ export const ReasoningTrigger = memo(
     return (
       <CollapsibleTrigger
         className={cn(
-          "flex w-full items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground",
+          "flex w-full items-center gap-2 text-foreground text-sm transition-colors hover:text-foreground/80",
           className
         )}
         {...props}
       >
         {children ?? (
-          <>
-            <IconBrain className="size-4" />
-            {getThinkingMessage(isStreaming, duration, tokenCount, thinkingType)}
-            {isOpen ? (
-              <IconChevronDown className="size-4 transition-transform duration-200" />
-            ) : (
-              <IconChevronRight className="size-4 transition-transform duration-200" />
-            )}
-          </>
+          <div className="flex gap-2">
+            <div className="relative mt-0.5">
+              <IconBrain className="size-4" />
+              <div className="absolute top-7 bottom-0 left-1/2 -mx-px w-px bg-border" />
+            </div>
+            <div className="flex-1">
+              {getThinkingMessage(isStreaming, duration, tokenCount, thinkingType)}
+            </div>
+            <div className="ml-auto">
+              {isOpen ? (
+                <IconChevronDown className="size-4 transition-transform duration-200" />
+              ) : (
+                <IconChevronRight className="size-4 transition-transform duration-200" />
+              )}
+            </div>
+          </div>
         )}
       </CollapsibleTrigger>
     );

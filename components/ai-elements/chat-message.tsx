@@ -238,7 +238,6 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                     <Reasoning
                                         isStreaming={isLast && message.isThinking}
                                         defaultOpen={true}
-                                        tokenCount={stats.tokenCount}
                                         thinkingType={tagType || undefined}
                                     >
                                         <ReasoningTrigger className="w-fit" />

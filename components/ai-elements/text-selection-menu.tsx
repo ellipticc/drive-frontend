@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
-import { IconCopy, IconQuoteFilled } from '@tabler/icons-react';
+import { IconQuoteFilled } from '@tabler/icons-react';
 
 interface TextSelectionMenuProps {
   onAddToChat: (text: string) => void;
@@ -11,7 +11,7 @@ interface TextSelectionMenuProps {
 export const TextSelectionMenu: React.FC<TextSelectionMenuProps> = ({ onAddToChat }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
-  const menuRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const handleMouseUp = () => {
@@ -23,10 +23,10 @@ export const TextSelectionMenu: React.FC<TextSelectionMenuProps> = ({ onAddToCha
           const range = selection.getRangeAt(0);
           const rect = range.getBoundingClientRect();
 
-          // Position menu above the selected text
+          // Position menu directly over the selected text
           setPosition({
             x: rect.left + rect.width / 2,
-            y: rect.top - 10
+            y: rect.top
           });
           setIsVisible(true);
         }
@@ -48,54 +48,28 @@ export const TextSelectionMenu: React.FC<TextSelectionMenuProps> = ({ onAddToCha
     }
   };
 
-  const handleCopyToClipboard = () => {
-    const selectedText = window.getSelection()?.toString().trim();
-    if (selectedText) {
-      navigator.clipboard.writeText(selectedText);
-      setIsVisible(false);
-    }
-  };
-
   if (!isVisible) return null;
 
   return (
-    <div
+    <button
       ref={menuRef}
+      onClick={handleAddToChat}
       className={cn(
-        'fixed z-50 flex items-center gap-1 bg-popover border border-border rounded-lg shadow-lg px-2 py-2',
-        'animate-in fade-in zoom-in-95 duration-200'
+        'fixed z-50 flex items-center gap-1.5 bg-popover border border-border rounded-lg shadow-lg px-3 py-2',
+        'animate-in fade-in zoom-in-95 duration-200 text-sm font-medium',
+        'text-primary bg-primary/10 hover:bg-primary/20 transition-colors',
+        'focus:outline-none focus:ring-2 focus:ring-primary/50'
       )}
       style={{
         left: `calc(${position.x}px - 50%)`,
         top: `${position.y}px`,
-        transform: 'translateY(-100%)'
+        transform: 'translateY(-100%) translateY(-8px)'
       }}
+      title="Add selected text to chat input as a follow-up"
     >
-      <button
-        onClick={handleAddToChat}
-        className={cn(
-          'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium',
-          'text-primary bg-primary/10 hover:bg-primary/20 transition-colors',
-          'focus:outline-none focus:ring-2 focus:ring-primary/50'
-        )}
-        title="Add selected text to chat input as a follow-up"
-      >
-        <IconQuoteFilled className="w-4 h-4" />
-        <span>Add to chat</span>
-      </button>
-
-      <button
-        onClick={handleCopyToClipboard}
-        className={cn(
-          'inline-flex items-center justify-center p-1.5 rounded-md',
-          'text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors',
-          'focus:outline-none focus:ring-2 focus:ring-primary/50'
-        )}
-        title="Copy to clipboard"
-      >
-        <IconCopy className="w-4 h-4" />
-      </button>
-    </div>
+      <IconQuoteFilled className="w-4 h-4" />
+      <span>Add to chat</span>
+    </button>
   );
 };
 

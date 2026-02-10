@@ -1027,13 +1027,15 @@ export default function AssistantPage() {
                                             onRerunSystemWithModel={handleRerunSystemWithModel}
                                             onAddToChat={(text) => {
                                                 // Add selected text to input with context marker
-                                                const inputRef = document.querySelector('textarea[placeholder*="Ask"]') as HTMLTextAreaElement;
+                                                const inputRef = document.querySelector('textarea[placeholder*="How can I help"]') as HTMLTextAreaElement;
                                                 if (inputRef) {
                                                     const newText = (inputRef.value ? inputRef.value + '\n\n' : '') + `> ${text}`;
                                                     inputRef.value = newText;
                                                     inputRef.style.height = "auto";
                                                     inputRef.style.height = Math.min(inputRef.scrollHeight, 384) + "px";
                                                     inputRef.focus();
+                                                    // Trigger input event to update React state
+                                                    inputRef.dispatchEvent(new Event('input', { bubbles: true }));
                                                 }
                                             }}
                                         />
