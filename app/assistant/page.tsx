@@ -53,6 +53,8 @@ export default function AssistantPage() {
     const [model, setModel] = React.useState("llama-3.3-70b-versatile")
     const [isWebSearchEnabled, setIsWebSearchEnabled] = React.useState(false);
     const [chatTitle, setChatTitle] = React.useState<string>('Chat');
+    const [shouldAutoScroll, setShouldAutoScroll] = React.useState(true)
+    const lastScrollTopRef = React.useRef(0)
 
     const { isReady, kyberPublicKey, decryptHistory, decryptStreamChunk, encryptMessage, loadChats } = useAICrypto();
 
@@ -99,6 +101,9 @@ export default function AssistantPage() {
 
     // Helper: Scroll to a specific message by index or ID
     const scrollToMessage = (messageId: string, behavior: ScrollBehavior = 'smooth') => {
+        // Only auto-scroll if user hasn't manually scrolled away
+        if (!shouldAutoScroll && behavior !== 'auto') return;
+
         const container = scrollContainerRef.current;
         if (!container) return;
 
@@ -199,6 +204,34 @@ export default function AssistantPage() {
         return () => document.removeEventListener('keydown', handler);
     }, [isLoading, isCancelling]);
 
+    // Auto-scroll interruption detection: stop auto-scroll if user manually scrolls
+    React.useEffect(() => {
+        const container = scrollContainerRef.current;
+        if (!container) return;
+
+        const handleScroll = () => {
+            const scrollTop = container.scrollTop;
+            const scrollHeight = container.scrollHeight;
+            const clientHeight = container.clientHeight;
+            const isAtBottom = scrollHeight - scrollTop - clientHeight < 50; // 50px tolerance
+
+            // If user scrolled away from bottom, disable auto-scroll
+            if (!isAtBottom && shouldAutoScroll) {
+                setShouldAutoScroll(false);
+            }
+            
+            // Re-enable auto-scroll when back at bottom
+            if (isAtBottom && !shouldAutoScroll) {
+                setShouldAutoScroll(true);
+            }
+
+            lastScrollTopRef.current = scrollTop;
+        };
+
+        container.addEventListener('scroll', handleScroll);
+        return () => container.removeEventListener('scroll', handleScroll);
+    }, [shouldAutoScroll]);
+
     const handleSubmit = async (value: string, attachments: File[] = [], thinkingMode: boolean = false, searchMode: boolean = false) => {
         if (!value.trim() && attachments.length === 0) return;
 
@@ -224,8 +257,10 @@ export default function AssistantPage() {
         // Scroll to this new message immediately
         setTimeout(() => scrollToMessage(tempId, 'smooth'), 10);
 
-        // 2. Add Thinking State
-        setMessages(prev => [...prev, { role: 'assistant', content: '', isThinking: true, reasoning: '' }]);
+        // 2. Add Thinking State & Reset auto-scroll
+        const assistantMessageId = crypto.randomUUID();
+        setShouldAutoScroll(true);
+        setMessages(prev => [...prev, { id: assistantMessageId, role: 'assistant', content: '', isThinking: true, reasoning: '' }]);
         setIsLoading(true);
 
         try {
@@ -410,13 +445,17 @@ export default function AssistantPage() {
                                 const now = Date.now();
                                 if (now - lastUpdateTime > UPDATE_INTERVAL) {
                                     setMessages(prev => {
-                                        const newMessages = [...prev]
-                                        const lastMessage = newMessages[newMessages.length - 1]
+                                        const newMessages = [...prev];
+                                        const lastIdx = newMessages.length - 1;
+                                        const lastMessage = newMessages[lastIdx];
                                         if (lastMessage && lastMessage.role === 'assistant') {
-                                            lastMessage.reasoning = assistantReasoningContent;
-                                            lastMessage.isThinking = true;
+                                            newMessages[lastIdx] = {
+                                                ...lastMessage,
+                                                reasoning: assistantReasoningContent,
+                                                isThinking: true
+                                            };
                                         }
-                                        return newMessages
+                                        return newMessages;
                                     });
                                     lastUpdateTime = now;
                                 }
@@ -428,7 +467,10 @@ export default function AssistantPage() {
                     }
 
                     // Handle regular content events
-                    if (dataStr === '[DONE]') break;
+                    if (dataStr === '[DONE]') {
+                        console.log('[Stream] Received [DONE]. answerBuffer.length:', answerBuffer.length, 'reasoning.length:', assistantReasoningContent.length);
+                        break;
+                    }
 
                     if (dataStr) {
                         try {
@@ -437,16 +479,20 @@ export default function AssistantPage() {
                             // Handle Server-side error
                             if (data.message) {
                                 setMessages(prev => {
-                                    const newMessages = [...prev]
-                                    const lastMessage = newMessages[newMessages.length - 1]
+                                    const newMessages = [...prev];
+                                    const lastIdx = newMessages.length - 1;
+                                    const lastMessage = newMessages[lastIdx];
                                     if (lastMessage && lastMessage.role === 'assistant') {
-                                        lastMessage.content = data.message
-                                        lastMessage.isThinking = false
+                                        newMessages[lastIdx] = {
+                                            ...lastMessage,
+                                            content: data.message,
+                                            isThinking: false
+                                        };
                                     } else {
-                                        newMessages.push({ role: 'assistant', content: data.message, isThinking: false })
+                                        newMessages.push({ role: 'assistant', content: data.message, isThinking: false });
                                     }
-                                    return newMessages
-                                })
+                                    return newMessages;
+                                });
 
                                 try {
                                     const m = data.message;
@@ -539,15 +585,18 @@ export default function AssistantPage() {
                                 const now = Date.now();
                                 if (now - lastUpdateTime > UPDATE_INTERVAL) {
                                     setMessages(prev => {
-                                        const newMessages = [...prev]
-                                        const lastMessage = newMessages[newMessages.length - 1]
+                                        const newMessages = [...prev];
+                                        const lastIdx = newMessages.length - 1;
+                                        const lastMessage = newMessages[lastIdx];
                                         if (lastMessage && lastMessage.role === 'assistant') {
-                                            lastMessage.content = answerBuffer.trim();
-                                            lastMessage.reasoning = finalReasoningContent;
-                                            lastMessage.isThinking = isInsideThinkingTag;
-                                            if (data.id) lastMessage.id = data.id;
+                                            newMessages[lastIdx] = {
+                                                ...lastMessage,
+                                                content: answerBuffer.trim(),
+                                                reasoning: finalReasoningContent,
+                                                isThinking: isInsideThinkingTag
+                                            };
                                         }
-                                        return newMessages
+                                        return newMessages;
                                     });
                                     lastUpdateTime = now;
                                 }
@@ -561,16 +610,30 @@ export default function AssistantPage() {
 
             // Final update: ensure stream is fully complete
             const finalReasoningContent = assistantReasoningContent || thinkingBuffer;
-            setMessages(prev => {
-                const newMessages = [...prev]
-                const lastMessage = newMessages[newMessages.length - 1]
-                if (lastMessage && lastMessage.role === 'assistant') {
-                    lastMessage.content = answerBuffer.trim();
-                    lastMessage.reasoning = finalReasoningContent;
-                    lastMessage.isThinking = false;
-                }
-                return newMessages
+            console.log('[Stream Final] About to call final setMessages:', {
+                answerLength: answerBuffer.length,
+                reasoningLength: finalReasoningContent.length,
+                answerPreview: answerBuffer.trim().substring(0, 100),
+                reasoningPreview: finalReasoningContent.substring(0, 100)
             });
+            setMessages(prev => {
+                console.log('[Stream Final] Inside setMessages callback, prev.length:', prev.length);
+                const newMessages = [...prev];
+                const lastIdx = newMessages.length - 1;
+                const lastMessage = newMessages[lastIdx];
+                console.log('[Stream Final] lastMessage:', lastMessage?.role, 'content.length:', lastMessage?.content?.length);
+                if (lastMessage && lastMessage.role === 'assistant') {
+                    newMessages[lastIdx] = {
+                        ...lastMessage,
+                        content: answerBuffer.trim(),
+                        reasoning: finalReasoningContent,
+                        isThinking: false
+                    };
+                    console.log('[Stream Final] Updated lastMessage, new content.length:', newMessages[lastIdx].content.length);
+                }
+                return newMessages;
+            });
+            console.log('[Stream Final] setMessages call completed');
 
             } catch (streamError) {
                 // Catch stream reading errors (abort, timeout, connection loss, etc.)
@@ -607,13 +670,17 @@ export default function AssistantPage() {
                 }
 
                 setMessages(prev => {
-                    const newMessages = [...prev]
-                    const lastMessage = newMessages[newMessages.length - 1]
+                    const newMessages = [...prev];
+                    const lastIdx = newMessages.length - 1;
+                    const lastMessage = newMessages[lastIdx];
                     if (lastMessage && lastMessage.role === 'assistant') {
-                        lastMessage.content = display
-                        lastMessage.isThinking = false
+                        newMessages[lastIdx] = {
+                            ...lastMessage,
+                            content: display,
+                            isThinking: false
+                        };
                     }
-                    return newMessages
+                    return newMessages;
                 })
             }
         } finally {
@@ -892,12 +959,17 @@ export default function AssistantPage() {
             // Update UI to reflect immediate stop intent (partial content preserved)
             setMessages(prev => {
                 const newMessages = [...prev];
-                const lastMessage = newMessages[newMessages.length - 1];
+                const lastIdx = newMessages.length - 1;
+                const lastMessage = newMessages[lastIdx];
                 if (lastMessage && lastMessage.role === 'assistant') {
-                    lastMessage.isThinking = false;
-                    if (lastMessage.content && !/Stopped by user/i.test(lastMessage.content)) {
-                        lastMessage.content = lastMessage.content + "\n\n*Stopped by user.*";
-                    }
+                    const newContent = lastMessage.content && !/Stopped by user/i.test(lastMessage.content)
+                        ? lastMessage.content + "\n\n*Stopped by user.*"
+                        : lastMessage.content;
+                    newMessages[lastIdx] = {
+                        ...lastMessage,
+                        isThinking: false,
+                        content: newContent
+                    };
                 }
                 return newMessages;
             });

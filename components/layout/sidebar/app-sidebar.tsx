@@ -504,10 +504,10 @@ export const AppSidebar = React.memo(function AppSidebar({
                   historyChats.map(chat => (
                     <div
                       key={chat.id}
-                      className="flex items-center justify-between px-2 py-1.5 rounded-sm hover:bg-accent transition-colors group"
+                      className="flex items-center justify-between px-2 py-1.5 rounded-sm hover:bg-accent transition-colors group select-none"
                     >
                       <div
-                        className="flex-1 pr-2 cursor-pointer min-w-0"
+                        className="flex-1 pr-2 min-w-0 cursor-pointer"
                         onClick={() => router.push(`/assistant?conversationId=${chat.id}`)}
                       >
                         <div className="text-sm truncate text-foreground">{chat.title}</div>
@@ -519,7 +519,7 @@ export const AppSidebar = React.memo(function AppSidebar({
                       {/* Inline actions dropdown */}
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <button className="p-1 rounded hover:bg-accent text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button className="p-1 rounded hover:bg-accent text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
                             <IconDotsVertical className="h-4 w-4" />
                           </button>
                         </DropdownMenuTrigger>
@@ -546,8 +546,10 @@ export const AppSidebar = React.memo(function AppSidebar({
                             onClick={async (e) => {
                               e.stopPropagation();
                               try {
-                                await pinChat(chat.id, !chat.pinned);
-                                toast.success(chat.pinned ? 'Unpinned' : 'Pinned');
+                                // Always toggle the opposite of current state
+                                const newPinnedState = !chat.pinned;
+                                await pinChat(chat.id, newPinnedState);
+                                toast.success(newPinnedState ? 'Pinned' : 'Unpinned');
                                 window.dispatchEvent(new Event('ai:build-index'));
                               } catch (err) {
                                 console.error(err);

@@ -159,8 +159,8 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   return (
     <div
       className={cn(
-        // Base wrapper with prose styling
-        'prose dark:prose-invert max-w-none w-full overflow-hidden',
+        // Base wrapper with prose styling - increased text size from default
+        'prose dark:prose-invert prose-base max-w-none w-full overflow-hidden',
         '[&_pre]:overflow-x-auto [&_pre]:max-w-full [&_pre]:w-full',
         '[&_code]:break-words',
         

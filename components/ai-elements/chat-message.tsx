@@ -246,7 +246,6 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                     <Reasoning
                                         key={`reasoning-${message.id}-${message.reasoningDuration ?? 'none'}`}
                                         isStreaming={isLast && message.isThinking}
-                                        defaultOpen={true}
                                         duration={message.reasoningDuration}
                                         thinkingType={tagType || undefined}
                                     >
@@ -265,8 +264,6 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                         {!message.isThinking && message.reasoningDuration !== undefined && !message.reasoning && (
                             <div className="text-sm text-muted-foreground italic">Think ({message.reasoningDuration}s)</div>
                         )}
-
-
 
                         <div className="w-full">
                             {/* Use CitationParser to handle [1] style links if sources exist */}
