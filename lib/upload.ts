@@ -28,7 +28,7 @@ let uploadWorkerPool: WorkerPool | null = null;
 
 const getUploadWorkerPool = () => {
   if (!uploadWorkerPool) {
-    uploadWorkerPool = new WorkerPool(() => new Worker(new URL('./workers/upload-worker.ts', import.meta.url)));
+    uploadWorkerPool = new WorkerPool(() => new Worker(new URL('./workers/upload-worker.ts', import.meta.url), { type: 'module' }));
   }
   return uploadWorkerPool;
 };

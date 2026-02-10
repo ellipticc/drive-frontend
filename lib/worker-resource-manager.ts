@@ -11,14 +11,14 @@
 
 import { WorkerPool } from './worker-pool';
 
-export type WorkerPoolType = 
-  | 'filename-decryption' 
-  | 'share-decryption' 
-  | 'download' 
-  | 'markdown' 
-  | 'highlight' 
-  | 'paper' 
-  | 'upload' 
+export type WorkerPoolType =
+  | 'filename-decryption'
+  | 'share-decryption'
+  | 'download'
+  | 'markdown'
+  | 'highlight'
+  | 'paper'
+  | 'upload'
   | 'sort';
 
 interface PoolEntry {
@@ -167,7 +167,7 @@ class WorkerResourceManager {
         return () => {
           const concurrency = Math.min((typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 2, 4);
           return new WorkerPool(() => {
-            return new Worker(new URL('./workers/decrypt-filename.worker.ts', import.meta.url));
+            return new Worker(new URL('./workers/decrypt-filename.worker.ts', import.meta.url), { type: 'module' });
           }, {
             maxWorkers: concurrency,
             maxQueueSize: 100,
@@ -177,7 +177,7 @@ class WorkerResourceManager {
 
       case 'share-decryption':
         return () => {
-          return new WorkerPool(() => new Worker(new URL('./workers/decrypt-share.worker.ts', import.meta.url)), {
+          return new WorkerPool(() => new Worker(new URL('./workers/decrypt-share.worker.ts', import.meta.url), { type: 'module' }), {
             maxWorkers: 4,
             taskTimeout: 60000,
           });
@@ -185,7 +185,7 @@ class WorkerResourceManager {
 
       case 'download':
         return () => {
-          return new WorkerPool(() => new Worker(new URL('./workers/download-worker.ts', import.meta.url)), {
+          return new WorkerPool(() => new Worker(new URL('./workers/download-worker.ts', import.meta.url), { type: 'module' }), {
             maxWorkers: 4,
             taskTimeout: 60000,
           });
@@ -232,7 +232,7 @@ class WorkerResourceManager {
 
       case 'sort':
         return () => {
-          return new WorkerPool(() => new Worker(new URL('./workers/sort-worker.ts', import.meta.url)), {
+          return new WorkerPool(() => new Worker(new URL('./workers/sort-worker.ts', import.meta.url), { type: 'module' }), {
             maxWorkers: 1,
             taskTimeout: 10000,
           });

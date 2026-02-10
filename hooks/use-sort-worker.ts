@@ -13,7 +13,7 @@ export function useSortWorker() {
 
   const getWorker = useCallback(() => {
     if (!workerRef.current) {
-      workerRef.current = new Worker(new URL('../lib/workers/sort-worker.ts', import.meta.url));
+      workerRef.current = new Worker(new URL('../lib/workers/sort-worker.ts', import.meta.url), { type: 'module' });
     }
     return workerRef.current;
   }, []);

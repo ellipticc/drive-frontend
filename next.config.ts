@@ -39,9 +39,14 @@ const nextConfig: NextConfig = {
           chunks: 'all',
           enforce: true,
         },
-        // Separate vendor chunks
+        // Separate vendor chunks (exclude worker files — they need self-contained bundles)
         vendor: {
-          test: /[\\/]node_modules[\\/]/,
+          test: (module: any) => {
+            if (!module.resource) return false;
+            // Don't split vendor code that workers depend on
+            if (/[\\/]workers[\\/]/.test(module.issuer?.resource || '')) return false;
+            return /[\\/]node_modules[\\/]/.test(module.resource);
+          },
           name: 'vendors',
           chunks: 'all',
           priority: 10,

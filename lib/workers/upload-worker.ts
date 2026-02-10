@@ -1,10 +1,8 @@
 /// <reference lib="webworker" />
 
 // Encryption dependencies
-// Encryption dependencies
-// NOTE: Dynamic imports used inside handlers to prevent load-time errors
-// import { xchacha20poly1305 } from '@noble/ciphers/chacha.js';
-// import { createBLAKE3 } from 'hash-wasm';
+import { xchacha20poly1305 } from '@noble/ciphers/chacha.js';
+import { createBLAKE3 } from 'hash-wasm';
 
 // -----------------------------------------------------------------------------
 // Message Types
