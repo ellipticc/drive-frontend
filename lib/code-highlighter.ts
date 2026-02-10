@@ -24,15 +24,10 @@ interface HighlightResponse {
   html?: string;
 }
 
-// Create a singleton worker pool for highlighting
-const highlightWorkerPool = new WorkerPool(
-  () => new Worker(new URL('./workers/highlight-worker.ts', import.meta.url), { type: 'module' }),
-  {
-    maxWorkers: 4,
-    maxQueueSize: 50,
-    taskTimeout: 10000, // 10 second timeout for highlighting
-  }
-);
+import { getWorkerPool, getWorkerManager } from './worker-resource-manager';
+
+// Get the singleton worker pool for highlighting (lazy-loaded and managed by WorkerResourceManager)
+const getHighlightWorkerPool = () => getWorkerPool('highlight');
 
 // Cache for recently highlighted code (LRU with max 50 entries)
 const highlightCache = new Map<string, string>();
@@ -62,7 +57,7 @@ export async function highlightCode(
   try {
     const taskId = Math.random().toString(36).substring(7);
     
-    const response = await highlightWorkerPool.execute<HighlightResponse>(
+    const response = await getHighlightWorkerPool().execute<HighlightResponse>(
       {
         id: taskId,
         code,
@@ -112,7 +107,7 @@ function escapeHtml(text: string): string {
 
 export function getHighlighterMetrics() {
   return {
-    pool: highlightWorkerPool.getMetrics(),
+    pool: getHighlightWorkerPool().getMetrics(),
     cacheSize: highlightCache.size,
   };
 }
@@ -122,6 +117,6 @@ export function clearHighlightCache() {
 }
 
 export function terminateHighlighters() {
-  highlightWorkerPool.terminate();
+  getWorkerManager().destroyPool('highlight');
   highlightCache.clear();
 }

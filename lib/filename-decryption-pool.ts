@@ -1,32 +1,17 @@
-import { WorkerPool } from './worker-pool';
-
-// Singleton instance
-let decryptionPool: WorkerPool | null = null;
-
-function getDecryptionPool(): WorkerPool {
-    if (!decryptionPool) {
-        const concurrency = (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 4;
-        decryptionPool = new WorkerPool(() => {
-            return new Worker(new URL('./workers/decrypt-filename.worker.ts', import.meta.url));
-        }, {
-            maxWorkers: concurrency,
-            maxQueueSize: 100,
-            taskTimeout: 5000,
-        });
-    }
-    return decryptionPool;
-}
+import { getWorkerPool } from './worker-resource-manager';
 
 /**
  * Decrypts a filename using a background worker thread.
  * This prevents the main thread from freezing when decrypting thousands of filenames.
+ * 
+ * Uses the WorkerResourceManager for smart lazy loading and idle cleanup.
  */
 export async function decryptFilenameInWorker(
     encryptedFilename: string,
     filenameSalt: string,
     masterKey: Uint8Array
 ): Promise<string> {
-    const pool = getDecryptionPool();
+    const pool = getWorkerPool('filename-decryption');
 
     const id = Math.random().toString(36).substring(7);
 

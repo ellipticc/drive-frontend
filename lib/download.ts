@@ -14,18 +14,13 @@ import { paperService } from './paper-service';
 import { decryptData, hexToUint8Array, decryptFilename } from './crypto';
 import { keyManager, UserKeys, UserKeypairs } from './key-manager';
 import { decompressChunk, CompressionAlgorithm } from './compression';
-import { WorkerPool } from './worker-pool';
 import { masterKeyManager } from './master-key';
 import { getTransferQueue } from './transfer-queue';
+import { getWorkerPool } from './worker-resource-manager';
 
-// Lazy-initialized worker pool
-let downloadWorkerPool: WorkerPool | null = null;
-
+// Lazy-initialized worker pool using resource manager
 const getDownloadWorkerPool = () => {
-  if (!downloadWorkerPool) {
-    downloadWorkerPool = new WorkerPool(() => new Worker(new URL('./workers/download-worker.ts', import.meta.url)));
-  }
-  return downloadWorkerPool;
+  return getWorkerPool('download');
 };
 
 // Utility function to convert Uint8Array to base64 safely (avoids stack overflow)

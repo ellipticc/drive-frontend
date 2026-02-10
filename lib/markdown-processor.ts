@@ -10,7 +10,7 @@
  * - Timeout handling
  */
 
-import { WorkerPool } from './worker-pool';
+import { WorkerPool } from './worker-pool'
 import { getHighlighterMetrics } from './code-highlighter';
 
 interface MarkdownRequest {
@@ -24,15 +24,10 @@ interface MarkdownResponse {
   html?: string;
 }
 
-// Create a singleton worker pool for markdown processing
-const markdownWorkerPool = new WorkerPool(
-  () => new Worker(new URL('./workers/markdown-worker.ts', import.meta.url), { type: 'module' }),
-  {
-    maxWorkers: 2,
-    maxQueueSize: 30,
-    taskTimeout: 15000, // 15 second timeout for markdown processing
-  }
-);
+import { getWorkerPool, getWorkerManager } from './worker-resource-manager';
+
+// Get the singleton worker pool for markdown (lazy-loaded and managed by WorkerResourceManager)
+const getMarkdownWorkerPool = () => getWorkerPool('markdown');
 
 // Cache for processed markdown (LRU with max 30 entries)
 const markdownCache = new Map<string, string>();
@@ -58,7 +53,7 @@ export async function processMarkdown(markdown: string): Promise<string> {
   try {
     const taskId = Math.random().toString(36).substring(7);
 
-    const response = await markdownWorkerPool.execute<MarkdownResponse>(
+    const response = await getMarkdownWorkerPool().execute<MarkdownResponse>(
       {
         id: taskId,
         content: markdown,
@@ -106,7 +101,7 @@ function escapeHtml(text: string): string {
 
 export function getMarkdownProcessorMetrics() {
   return {
-    pool: markdownWorkerPool.getMetrics(),
+    pool: getMarkdownWorkerPool().getMetrics(),
     cacheSize: markdownCache.size,
   };
 }
@@ -116,7 +111,7 @@ export function clearMarkdownCache() {
 }
 
 export function terminateMarkdownProcessor() {
-  markdownWorkerPool.terminate();
+  getWorkerManager().destroyPool('markdown');
   markdownCache.clear();
 }
 
