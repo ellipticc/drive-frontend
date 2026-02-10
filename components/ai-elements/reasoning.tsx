@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { IconChevronRight } from '@tabler/icons-react';
+import { IconBrain } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
 
 interface ReasoningContextType {
@@ -66,27 +66,37 @@ export const ReasoningTrigger: React.FC<ReasoningTriggerProps> = ({ className })
 
   const { isExpanded, setIsExpanded, isStreaming, duration } = context;
 
-  const durationText = isStreaming
-    ? 'Thinking…'
-    : duration !== undefined
-      ? `Thought for ${duration}s`
-      : 'Thinking';
+  let durationText = 'Thinking';
+  if (isStreaming) {
+    durationText = 'Thinking…';
+  } else if (duration !== undefined && duration > 0) {
+    durationText = `Thought for ${duration}s`;
+  }
 
   return (
     <button
       onClick={() => setIsExpanded(!isExpanded)}
       className={cn(
-        'inline-flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors py-2 px-0',
+        'inline-flex items-center gap-2 text-sm font-medium transition-all duration-200 py-1 px-0',
         'select-none focus:outline-none',
+        'text-primary hover:text-primary/80',
         className
       )}
       type="button"
       aria-expanded={isExpanded}
     >
-      <IconChevronRight
-        className={cn('w-4 h-4 transition-transform duration-200', isExpanded && 'rotate-90')}
-      />
-      <span>{durationText}</span>
+      <div className={cn(
+        'relative flex items-center justify-center',
+        isExpanded && 'animate-pulse'
+      )}>
+        <div className="absolute inset-0 bg-primary/20 blur-md rounded-full" />
+        <IconBrain
+          className={cn('w-4 h-4 relative transition-transform duration-200 z-10')}
+        />
+      </div>
+      <span className="bg-gradient-to-r from-primary via-primary to-primary/80 bg-clip-text text-transparent">
+        {durationText}
+      </span>
     </button>
   );
 };
@@ -103,34 +113,43 @@ export const ReasoningContent: React.FC<ReasoningContentProps> = ({ children, cl
   const lines = children.split('\n').filter((line) => line.trim());
 
   return (
-    <div className={cn('relative pl-0 mb-3 space-y-0', className)}>
-      {/* Vertical divider line */}
-      <div className="absolute left-2 top-0 bottom-0 w-px bg-gradient-to-b from-muted-foreground/50 via-muted-foreground/30 to-transparent" />
+    <div className={cn('relative pl-0 mb-4 space-y-0', className)}>
+      {/* Top dot indicator */}
+      <div className="flex items-center gap-2 mb-2">
+        <span className="inline-block w-1.5 h-1.5 bg-primary rounded-full" />
+        <div className="flex-1 h-px bg-primary/40" />
+      </div>
 
-      {/* Thinking content with dots */}
-      <div className="pl-6 space-y-0">
+      {/* Thinking content - bigger, with glow */}
+      <div className="pl-4 space-y-2">
         {lines.map((line, idx) => (
           <div
             key={idx}
             className={cn(
-              'text-xs text-muted-foreground py-0.5 leading-relaxed',
-              'opacity-70',
-              'whitespace-pre-wrap break-words'
+              'text-sm leading-relaxed',
+              'text-primary/70 dark:text-primary/60',
+              'whitespace-pre-wrap break-words',
+              'font-medium'
             )}
           >
-            <span className="inline-block mr-2 text-muted-foreground/60">·</span>
-            <span className="inline">{line}</span>
+            {line}
           </div>
         ))}
 
         {/* Streaming indicator */}
         {isStreaming && (
-          <div className="inline-block w-1 h-3 bg-muted-foreground/40 animate-pulse mt-1" />
+          <div className="flex items-center gap-2 mt-3">
+            <div className="flex gap-1">
+              <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+              <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+              <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+            </div>
+          </div>
         )}
       </div>
 
-      {/* Visual separator */}
-      <div className="h-2" />
+      {/* Solid bottom divider */}
+      <div className="mt-3 h-px bg-primary/30" />
     </div>
   );
 };

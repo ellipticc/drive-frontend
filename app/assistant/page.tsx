@@ -1025,6 +1025,17 @@ export default function AssistantPage() {
                                             onCheckpoint={() => handleAddCheckpoint()}
                                             availableModels={availableModels}
                                             onRerunSystemWithModel={handleRerunSystemWithModel}
+                                            onAddToChat={(text) => {
+                                                // Add selected text to input with context marker
+                                                const inputRef = document.querySelector('textarea[placeholder*="Ask"]') as HTMLTextAreaElement;
+                                                if (inputRef) {
+                                                    const newText = (inputRef.value ? inputRef.value + '\n\n' : '') + `> ${text}`;
+                                                    inputRef.value = newText;
+                                                    inputRef.style.height = "auto";
+                                                    inputRef.style.height = Math.min(inputRef.scrollHeight, 384) + "px";
+                                                    inputRef.focus();
+                                                }
+                                            }}
                                         />
                                     )}
                                 </div>

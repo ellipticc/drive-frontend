@@ -230,7 +230,7 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
         >
             {/* Main Container */}
             <div className={cn(
-                "flex flex-col mx-2 md:mx-0 items-stretch transition-all duration-200 relative z-10 rounded-2xl border border-border/20 bg-muted/15 hover:border-border/30 hover:bg-muted/20",
+                "flex flex-col mx-2 md:mx-0 items-stretch transition-all duration-200 relative z-10 rounded-2xl border border-border/20 bg-muted/15",
                 isLoading && "opacity-60 pointer-events-none"
             )}>
 

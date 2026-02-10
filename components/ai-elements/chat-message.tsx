@@ -9,6 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { Reasoning, ReasoningTrigger, ReasoningContent } from "@/components/ai-elements/reasoning"
+import { TextSelectionMenu } from "@/components/ai-elements/text-selection-menu"
 
 import { CitationParser } from "@/components/ai-elements/citation-parser";
 import { MarkdownRenderer } from "@/components/ai-elements/markdown-renderer"
@@ -59,10 +60,11 @@ interface ChatMessageProps {
     onCheckpoint?: (messageId: string) => void;
     availableModels?: { id: string; name: string }[];
     onRerunSystemWithModel?: (messageId: string, modelId: string) => void;
+    onAddToChat?: (text: string) => void;
 }
 
 
-export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedback, onRegenerate, onVersionChange, onCheckpoint, availableModels = [], onRerunSystemWithModel }: ChatMessageProps) {
+export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedback, onRegenerate, onVersionChange, onCheckpoint, availableModels = [], onRerunSystemWithModel, onAddToChat }: ChatMessageProps) {
     // ... existing state ...
     const isUser = message.role === 'user';
     const isAssistant = message.role === 'assistant';
@@ -247,8 +249,10 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                             ) : (
                                 <MarkdownRenderer content={message.content} compact={false} />
                             )}
-
                         </div>
+
+                        {/* Text Selection Menu for adding to chat */}
+                        {onAddToChat && <TextSelectionMenu onAddToChat={onAddToChat} />}
 
                         {/* References Footer */}
                         {message.sources && message.sources.length > 0 && (
