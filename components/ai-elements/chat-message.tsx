@@ -10,8 +10,21 @@ import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { Reasoning, ReasoningTrigger, ReasoningContent, detectThinkingTagType } from "@/components/ai-elements/reasoning"
 import { TextSelectionMenu } from "@/components/ai-elements/text-selection-menu"
-
-import { CitationParser } from "@/components/ai-elements/citation-parser";
+import {
+  InlineCitation,
+  InlineCitationText,
+  InlineCitationCard,
+  InlineCitationCardTrigger,
+  InlineCitationCardBody,
+  InlineCitationCarousel,
+  InlineCitationCarouselContent,
+  InlineCitationCarouselItem,
+  InlineCitationCarouselHeader,
+  InlineCitationCarouselIndex,
+  InlineCitationCarouselPrev,
+  InlineCitationCarouselNext,
+  InlineCitationSource,
+} from "@/components/ai-elements/inline-citation"
 import { MarkdownRenderer } from "@/components/ai-elements/markdown-renderer"
 
 export interface ToolCall {
@@ -62,6 +75,85 @@ interface ChatMessageProps {
     availableModels?: { id: string; name: string }[];
     onRerunSystemWithModel?: (messageId: string, modelId: string) => void;
     onAddToChat?: (text: string) => void;
+}
+
+// Helper component to render content with inline citations using ai-elements
+function InlineCitationRenderer({ content, sources = [] }: { content: string; sources: { title: string; url: string; content?: string }[] }) {
+    if (!sources.length) {
+        return <MarkdownRenderer content={content} compact={false} />;
+    }
+
+    // Split content by citation markers [N] or 【N】
+    const citationRegex = /(?:\[(\d+)\]|【(\d+)】)/g;
+    const parts: React.ReactNode[] = [];
+    let lastIndex = 0;
+    let match;
+
+    while ((match = citationRegex.exec(content)) !== null) {
+        const citationNum = parseInt(match[1] || match[2], 10);
+        const source = sources[citationNum - 1];
+
+        // Add text before citation
+        if (match.index > lastIndex) {
+            parts.push(
+                <MarkdownRenderer
+                    key={`text-${lastIndex}`}
+                    content={content.substring(lastIndex, match.index)}
+                    compact={true}
+                />
+            );
+        }
+
+        // Add citation with hover card
+        if (source) {
+            parts.push(
+                <InlineCitationCard key={`citation-${citationNum}`}>
+                    <InlineCitation>
+                        <InlineCitationText>
+                            <MarkdownRenderer content={`[${citationNum}]`} compact={true} />
+                        </InlineCitationText>
+                        <InlineCitationCardTrigger sources={[source.url]} />
+                    </InlineCitation>
+                    <InlineCitationCardBody>
+                        <InlineCitationCarousel>
+                            <InlineCitationCarouselContent>
+                                <InlineCitationCarouselItem>
+                                    <InlineCitationSource
+                                        title={source.title}
+                                        url={source.url}
+                                        description={source.content}
+                                    />
+                                </InlineCitationCarouselItem>
+                            </InlineCitationCarouselContent>
+                            <InlineCitationCarouselHeader>
+                                <div />
+                                <InlineCitationCarouselIndex />
+                                <div className="flex gap-1">
+                                    <InlineCitationCarouselPrev />
+                                    <InlineCitationCarouselNext />
+                                </div>
+                            </InlineCitationCarouselHeader>
+                        </InlineCitationCarousel>
+                    </InlineCitationCardBody>
+                </InlineCitationCard>
+            );
+        }
+
+        lastIndex = match.index + match[0].length;
+    }
+
+    // Add remaining text
+    if (lastIndex < content.length) {
+        parts.push(
+            <MarkdownRenderer
+                key={`text-${lastIndex}`}
+                content={content.substring(lastIndex)}
+                compact={false}
+            />
+        );
+    }
+
+    return <div className="space-y-2">{parts}</div>;
 }
 
 
@@ -267,9 +359,9 @@ export const ChatMessage = React.memo(
                         )}
 
                         <div className="w-full">
-                            {/* Use CitationParser to handle [1] style links if sources exist */}
+                            {/* Use inline-citation component from ai-elements if sources exist */}
                             {message.sources && message.sources.length > 0 ? (
-                                <CitationParser content={message.content} sources={message.sources} />
+                                <InlineCitationRenderer content={message.content} sources={message.sources} />
                             ) : (
                                 <MarkdownRenderer content={message.content} compact={false} />
                             )}

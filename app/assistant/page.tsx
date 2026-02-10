@@ -34,6 +34,7 @@ interface Message {
     createdAt?: number | string; // Allow string date
     feedback?: 'like' | 'dislike';
     originalPromptId?: string;
+    sources?: { title: string; url: string; content?: string }[];
     toolCalls?: any[]; // using any for simplicity or import ToolCall
     versions?: MessageVersion[];
     currentVersionIndex?: number;
@@ -488,6 +489,7 @@ export default function AssistantPage() {
             let thinkingBuffer = ""; // Content inside <>thinking>...</thinking>
             let answerBuffer = ""; // Content outside thinking tags
             let assistantReasoningContent = ""; // Processed thinking (from backend reasoning event)
+            let messageSources: any[] = []; // Track sources for citations
             let isInsideThinkingTag = false;
             let currentSessionKey: Uint8Array | undefined;
             let buffer = ""; // Buffer for incomplete SSE events
@@ -566,6 +568,73 @@ export default function AssistantPage() {
                                 }
                             } catch (e) {
                                 console.warn('Failed to parse reasoning event', dataStr, e);
+                            }
+
+                            continue;
+                        }
+
+                        // Handle sources events (citations from web search)
+                        if (eventType === 'sources' && dataStr) {
+                            try {
+                                const data = JSON.parse(dataStr);
+                                let sourcesData = null;
+
+                                // Support encrypted sources payloads
+                                if (data.encrypted_sources && data.sources_iv) {
+                                    const { decrypted, sessionKey } = await decryptStreamChunk(
+                                        data.encrypted_sources,
+                                        data.sources_iv,
+                                        data.encapsulated_key,
+                                        currentSessionKey
+                                    );
+                                    currentSessionKey = sessionKey;
+                                    sourcesData = JSON.parse(decrypted);
+                                } else if (data.sources) {
+                                    sourcesData = data.sources || data;
+                                }
+
+                                if (sourcesData && Array.isArray(sourcesData.sources)) {
+                                    messageSources = sourcesData.sources.map((s: any, idx: number) => ({
+                                        title: s.title,
+                                        url: s.url,
+                                        content: s.description || s.content || ''
+                                    }));
+
+                                    // Update message with sources
+                                    setMessages(prev => {
+                                        const newMessages = [...prev];
+                                        const lastIdx = newMessages.length - 1;
+                                        const lastMessage = newMessages[lastIdx];
+                                        if (lastMessage && lastMessage.role === 'assistant') {
+                                            newMessages[lastIdx] = {
+                                                ...lastMessage,
+                                                sources: messageSources
+                                            };
+                                        }
+                                        return newMessages;
+                                    });
+                                } else if (Array.isArray(sourcesData)) {
+                                    messageSources = sourcesData.map((s: any) => ({
+                                        title: s.title,
+                                        url: s.url,
+                                        content: s.description || s.content || ''
+                                    }));
+
+                                    setMessages(prev => {
+                                        const newMessages = [...prev];
+                                        const lastIdx = newMessages.length - 1;
+                                        const lastMessage = newMessages[lastIdx];
+                                        if (lastMessage && lastMessage.role === 'assistant') {
+                                            newMessages[lastIdx] = {
+                                                ...lastMessage,
+                                                sources: messageSources
+                                            };
+                                        }
+                                        return newMessages;
+                                    });
+                                }
+                            } catch (e) {
+                                console.warn('Failed to parse sources event', dataStr, e);
                             }
                             continue;
                         }
@@ -717,6 +786,7 @@ export default function AssistantPage() {
                 console.log('[Stream Final] About to call final setMessages:', {
                     answerLength: answerBuffer.length,
                     reasoningLength: finalReasoningContent.length,
+                    sourcesCount: messageSources.length,
                     answerPreview: answerBuffer.trim().substring(0, 100),
                     reasoningPreview: finalReasoningContent.substring(0, 100)
                 });
@@ -731,9 +801,10 @@ export default function AssistantPage() {
                             ...lastMessage,
                             content: answerBuffer.trim(),
                             reasoning: finalReasoningContent,
+                            sources: messageSources.length > 0 ? messageSources : lastMessage.sources,
                             isThinking: false
                         };
-                        console.log('[Stream Final] Updated lastMessage, new content.length:', newMessages[lastIdx].content.length);
+                        console.log('[Stream Final] Updated lastMessage, new content.length:', newMessages[lastIdx].content.length, 'sources:', messageSources.length);
                     }
                     return newMessages;
                 });
