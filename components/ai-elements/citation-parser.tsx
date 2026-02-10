@@ -11,17 +11,22 @@ interface CitationParserProps {
 export function CitationParser({ content, sources = [] }: CitationParserProps) {
     if (!content) return null;
 
-    // Regex to match [1], [2], etc.
-    const parts = content.split(/(\[\d+\])/g);
+    // Regex to match both [1] and 【1】 formats
+    const parts = content.split(/(\[\d+\]|【\d+】)/g);
 
     return (
         <span>
             {parts.map((part, i) => {
-                const match = part.match(/^\[(\d+)\]$/);
+                // Try standard format [N]
+                let match = part.match(/^\[(\d+)\]$/);
+                // If not found, try full-width format 【N】
+                if (!match) {
+                    match = part.match(/^【(\d+)】$/);
+                }
+                
                 if (match) {
                     const index = parseInt(match[1], 10);
                     // Adjust index if sources are 0-indexed but citations are 1-indexed
-                    // Typically LLMs use [1] for the first source.
                     const source = sources[index - 1];
 
                     if (source) {
@@ -36,7 +41,7 @@ export function CitationParser({ content, sources = [] }: CitationParserProps) {
                                                 window.open(source.url, '_blank');
                                             }}
                                         >
-                                            {part}
+                                            [{index}]
                                         </sup>
                                     </TooltipTrigger>
                                     <TooltipContent className="max-w-[300px] p-3 text-xs">
@@ -47,8 +52,8 @@ export function CitationParser({ content, sources = [] }: CitationParserProps) {
                             </TooltipProvider>
                         );
                     }
-                    // If no matching source, just render the text
-                    return <sup key={i} className="text-muted-foreground ml-0.5">{part}</sup>;
+                    // If no matching source, show as standard format
+                    return <sup key={i} className="text-muted-foreground ml-0.5">[{index}]</sup>;
                 }
                 return <span key={i}>{part}</span>;
             })}
