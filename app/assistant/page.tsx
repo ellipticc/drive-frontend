@@ -776,6 +776,7 @@ export default function AssistantPage() {
             if (!conversationId) {
                 setTimeout(() => loadChats(), 2000);
             }
+            shouldAutoScrollRef.current = false;
         }
     }
 
@@ -1202,7 +1203,7 @@ export default function AssistantPage() {
 
                                         {/* Sample skeleton message blocks */}
                                         {[...Array(6)].map((_, i) => (
-                                            <div key={i} className={`p-4 rounded-xl bg-muted/10 border border-border/50 ${i % 2 === 0 ? 'self-start' : 'self-end'} w-full` }>
+                                            <div key={i} className={`p-4 rounded-xl bg-muted/10 border border-border/50 ${i % 2 === 0 ? 'self-start' : 'self-end'} w-full`}>
                                                 <div className="flex items-center gap-3 mb-2">
                                                     <Skeleton className="h-4 w-24" />
                                                     <Skeleton className="h-3 w-14" />
@@ -1224,70 +1225,70 @@ export default function AssistantPage() {
                                             const message = messages[virtualItem.index];
                                             if (!message) return null;
 
-                                        return (
-                                            <div
-                                                key={message.id || virtualItem.index}
-                                                data-index={virtualItem.index}
-                                                ref={virtualizer.measureElement}
-                                                id={`message-${message.id}`}
-                                                style={{
-                                                    position: 'absolute',
-                                                    top: 0,
-                                                    left: 0,
-                                                    width: '100%',
-                                                    transform: `translateY(${virtualItem.start}px)`,
-                                                }}
-                                            >
-                                                <div className="flex justify-center w-full mb-4">
-                                                    <div className="w-full max-w-3xl">
-                                                        {message.isCheckpoint ? (
-                                                            <Checkpoint className="my-4">
-                                                                <CheckpointIcon>
-                                                                    <IconBookmark className="size-4 shrink-0" />
-                                                                </CheckpointIcon>
-                                                                <span className="text-xs font-medium">Checkpoint {virtualItem.index + 1}</span>
-                                                                <CheckpointTrigger
-                                                                    tooltip="Restore checkpoint"
-                                                                    onClick={() => handleRestoreCheckpoint(message.id || '')}
-                                                                >
-                                                                    <IconRotateClockwise className="size-3" />
-                                                                </CheckpointTrigger>
-                                                            </Checkpoint>
-                                                        ) : (
-                                                            <ChatMessage
-                                                                message={message}
-                                                                isLast={virtualItem.index === messages.length - 1}
-                                                                onCopy={handleCopy}
-                                                                onFeedback={handleFeedback}
-                                                                onRetry={() => handleRetry(message.id || '')}
-                                                                onRegenerate={(instruction) => handleRegenerate(message.id || '', instruction)}
-                                                                onEdit={(content) => handleEditMessage(message.id || '', content)}
-                                                                onVersionChange={(dir) => handleVersionChange(message.id || '', dir)}
-                                                                onCheckpoint={() => handleAddCheckpoint()}
-                                                                availableModels={availableModels}
-                                                                onRerunSystemWithModel={handleRerunSystemWithModel}
-                                                                onAddToChat={(text) => {
-                                                                    // Add as context item instead of appending text
-                                                                    setContextItems(prev => [...prev, {
-                                                                        id: crypto.randomUUID(),
-                                                                        type: 'text',
-                                                                        content: text
-                                                                    }]);
-                                                                    toast.success("Added to context");
+                                            return (
+                                                <div
+                                                    key={message.id || virtualItem.index}
+                                                    data-index={virtualItem.index}
+                                                    ref={virtualizer.measureElement}
+                                                    id={`message-${message.id}`}
+                                                    style={{
+                                                        position: 'absolute',
+                                                        top: 0,
+                                                        left: 0,
+                                                        width: '100%',
+                                                        transform: `translateY(${virtualItem.start}px)`,
+                                                    }}
+                                                >
+                                                    <div className="flex justify-center w-full mb-4">
+                                                        <div className="w-full max-w-3xl">
+                                                            {message.isCheckpoint ? (
+                                                                <Checkpoint className="my-4">
+                                                                    <CheckpointIcon>
+                                                                        <IconBookmark className="size-4 shrink-0" />
+                                                                    </CheckpointIcon>
+                                                                    <span className="text-xs font-medium">Checkpoint {virtualItem.index + 1}</span>
+                                                                    <CheckpointTrigger
+                                                                        tooltip="Restore checkpoint"
+                                                                        onClick={() => handleRestoreCheckpoint(message.id || '')}
+                                                                    >
+                                                                        <IconRotateClockwise className="size-3" />
+                                                                    </CheckpointTrigger>
+                                                                </Checkpoint>
+                                                            ) : (
+                                                                <ChatMessage
+                                                                    message={message}
+                                                                    isLast={virtualItem.index === messages.length - 1}
+                                                                    onCopy={handleCopy}
+                                                                    onFeedback={handleFeedback}
+                                                                    onRetry={() => handleRetry(message.id || '')}
+                                                                    onRegenerate={(instruction) => handleRegenerate(message.id || '', instruction)}
+                                                                    onEdit={(content) => handleEditMessage(message.id || '', content)}
+                                                                    onVersionChange={(dir) => handleVersionChange(message.id || '', dir)}
+                                                                    onCheckpoint={() => handleAddCheckpoint()}
+                                                                    availableModels={availableModels}
+                                                                    onRerunSystemWithModel={handleRerunSystemWithModel}
+                                                                    onAddToChat={(text) => {
+                                                                        // Add as context item instead of appending text
+                                                                        setContextItems(prev => [...prev, {
+                                                                            id: crypto.randomUUID(),
+                                                                            type: 'text',
+                                                                            content: text
+                                                                        }]);
+                                                                        toast.success("Added to context");
 
-                                                                    // Focus input (optional but nice)
-                                                                    const inputRef = document.querySelector('textarea[placeholder*="How can I help"]') as HTMLTextAreaElement;
-                                                                    if (inputRef) inputRef.focus();
-                                                                }}
-                                                            />
-                                                        )}
+                                                                        // Focus input (optional but nice)
+                                                                        const inputRef = document.querySelector('textarea[placeholder*="How can I help"]') as HTMLTextAreaElement;
+                                                                        if (inputRef) inputRef.focus();
+                                                                    }}
+                                                                />
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
+                                            );
+                                        })}
+                                    </div>
+                                )}
                             </div>
                         </div>
 
