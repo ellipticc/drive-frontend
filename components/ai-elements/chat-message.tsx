@@ -263,7 +263,7 @@ export const ChatMessage = React.memo(
                         )}
                         {/* If reasoning finished but we only have duration (no content), show duration */}
                         {!message.isThinking && message.reasoningDuration !== undefined && !message.reasoning && (
-                            <div className="text-sm text-muted-foreground italic">Think ({message.reasoningDuration}s)</div>
+                            <div className="text-sm text-muted-foreground italic">Thought for {message.reasoningDuration}s</div>
                         )}
 
                         <div className="w-full">

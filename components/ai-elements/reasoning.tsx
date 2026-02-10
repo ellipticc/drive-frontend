@@ -189,15 +189,13 @@ const defaultGetThinkingMessage = (isStreaming: boolean, duration?: number, toke
     return <Shimmer duration={1}>Thinking...</Shimmer>;
   }
   
-  const typeLabel = thinkingType === 'think' ? 'Think' : 'Thinking';
-  
   // If we have any duration (even 0), show it explicitly to avoid stale "Thinking..." UI
   if (duration !== undefined) {
-    return <p>{typeLabel} ({duration}s)</p>;
+    return <p>Thought for {duration}s</p>;
   }
   
   // Old message without stored duration - show placeholder
-  return <p>{typeLabel}...</p>;
+  return <p>Thought...</p>;
 };
 
 export const ReasoningTrigger = memo(

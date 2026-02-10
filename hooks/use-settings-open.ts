@@ -42,7 +42,10 @@ export function useSettingsOpen() {
     } else {
       // Close settings (clear settings hash)
       if (window.location.hash.startsWith("#settings")) {
-        window.history.replaceState(null, "", window.location.pathname)
+        // Preserve search params when clearing hash
+        const url = new URL(window.location.href)
+        url.hash = ""
+        window.history.replaceState(null, "", url.toString())
         // Manually trigger state update
         setOpenLocal(false)
         // Dispatch custom event to sync across all instances

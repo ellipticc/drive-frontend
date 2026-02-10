@@ -213,6 +213,7 @@ export const InlineCode: React.FC<{
     className={cn(
       'inline align-baseline px-1.5 py-0.5 rounded-md break-words',
       'bg-muted text-xs font-mono text-foreground/90',
+      'border border-border/50',
       className
     )}
     style={{ display: 'inline' }}
@@ -397,10 +398,7 @@ export const BlockQuote: React.FC<{
 }> = ({ children, className }) => (
   <blockquote
     className={cn(
-      'border-l-4 border-primary/30 pl-4',
-      'py-2 my-3',
-      'bg-muted/50 rounded',
-      'italic text-muted-foreground text-sm',
+      'border-l-2 border-border pl-4 my-2',
       className
     )}
   >

@@ -60,7 +60,7 @@ export default function AssistantPage() {
     const [pagination, setPagination] = React.useState({ offset: 0, limit: 50, total: 0, hasMore: false })
     const isLoadingOlderRef = React.useRef(false)
 
-    const { isReady, kyberPublicKey, decryptHistory, decryptStreamChunk, encryptMessage, loadChats } = useAICrypto();
+    const { isReady, kyberPublicKey, decryptHistory, decryptStreamChunk, encryptMessage, loadChats, chats } = useAICrypto();
 
     // Available models for system rerun popovers
     const availableModels = [
@@ -158,11 +158,24 @@ export default function AssistantPage() {
     // Update page title based on chat
     React.useEffect(() => {
         if (typeof window !== 'undefined') {
-            const title = conversationId ? `Chat | Ellipticc` : 'New Chat | Ellipticc';
+            let title = 'New Chat | Ellipticc';
+            let chatTitle = 'New Chat';
+            
+            if (conversationId) {
+                const currentChat = chats.find(chat => chat.id === conversationId);
+                if (currentChat) {
+                    title = `${currentChat.title} | Ellipticc`;
+                    chatTitle = currentChat.title;
+                } else {
+                    title = 'Chat | Ellipticc';
+                    chatTitle = 'Chat';
+                }
+            }
+            
             document.title = title;
-            setChatTitle(conversationId ? 'Chat' : 'New Chat');
+            setChatTitle(chatTitle);
         }
-    }, [conversationId]);
+    }, [conversationId, chats]);
 
     // Load History when conversationId changes
     React.useEffect(() => {
