@@ -196,6 +196,51 @@ export function useAICrypto(): UseAICryptoReturn {
         }
     }, [loadChats]);
 
+    // Helper: Parse thinking tags from content and move to reasoning
+    const parseThinkingFromContent = (content: string, existingReasoning?: string): { content: string; reasoning: string } => {
+        let thinkingBuffer = "";
+        let displayContent = "";
+        let isInsideThinkingTag = false;
+        let i = 0;
+
+        while (i < content.length) {
+            if (!isInsideThinkingTag) {
+                // Look for opening tag
+                const openIdx = content.indexOf("<thinking>", i);
+                if (openIdx !== -1) {
+                    // Add everything before tag to display content
+                    displayContent += content.substring(i, openIdx);
+                    i = openIdx + "<thinking>".length;
+                    isInsideThinkingTag = true;
+                } else {
+                    // No opening tag found, add everything from i to end
+                    displayContent += content.substring(i);
+                    break;
+                }
+            } else {
+                // Inside thinking tag, look for closing tag
+                const closeIdx = content.indexOf("</thinking>", i);
+                if (closeIdx !== -1) {
+                    // Add thinking content to buffer
+                    thinkingBuffer += content.substring(i, closeIdx);
+                    i = closeIdx + "</thinking>".length;
+                    isInsideThinkingTag = false;
+                } else {
+                    // Closing tag not found, rest is thinking
+                    thinkingBuffer += content.substring(i);
+                    break;
+                }
+            }
+        }
+
+        // Combine thinking: prefer existing reasoning, fallback to parsed thinking
+        const finalReasoning = existingReasoning || thinkingBuffer || "";
+
+        return {
+            content: displayContent.trim(),
+            reasoning: finalReasoning.trim()
+        };
+    };
 
     const decryptHistory = useCallback(async (conversationId: string): Promise<DecryptedMessage[]> => {
         if (!userKeys) return [];
@@ -233,15 +278,31 @@ export function useAICrypto(): UseAICryptoReturn {
                             }
                         }
 
+                        // Parse thinking tags from content and reasoning
+                        const { content: cleanContent, reasoning: parsedReasoning } = parseThinkingFromContent(
+                            decryptedContent,
+                            decryptedReasoning
+                        );
+
                         return {
                             ...msg,
                             role: msg.role,
-                            content: decryptedContent,
-                            reasoning: decryptedReasoning || msg.reasoning || ''
+                            content: cleanContent,
+                            reasoning: parsedReasoning
                         };
                     }
 
-                    return msg; // Return as-is if not encrypted (legacy/fallback)
+                    // Legacy/fallback: Parse thinking tags from unencrypted content
+                    if (msg.content) {
+                        const { content: cleanContent, reasoning: parsedReasoning } = parseThinkingFromContent(msg.content);
+                        return {
+                            ...msg,
+                            content: cleanContent,
+                            reasoning: parsedReasoning
+                        };
+                    }
+
+                    return msg; // Return as-is if no parseable content
                 } catch (e) {
                     console.error("Failed to decrypt message:", msg.id, e);
                     return { ...msg, content: "[Decryption Failed]" };
