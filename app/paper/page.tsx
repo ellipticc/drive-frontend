@@ -25,6 +25,7 @@ import {
     DropdownMenuSubContent,
     DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { type Value } from "platejs";
 import { paperService } from "@/lib/paper-service";
@@ -1285,9 +1286,36 @@ function PaperPageContent() {
 
     if (loading) {
         return (
-            <div className="h-screen w-full flex flex-col items-center justify-center gap-4">
-                <IconLoader2 className="w-8 h-8 animate-spin text-primary" />
-                <p className="text-muted-foreground animate-pulse">Loading your fantastic work...</p>
+            <div className="h-screen w-full flex flex-col items-center justify-center gap-6 bg-background/50">
+                <div className="w-full max-w-[1100px] px-6">
+                    <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-4">
+                            <Skeleton className="h-10 w-10 rounded-full" />
+                            <div className="space-y-2">
+                                <Skeleton className="h-6 w-64 rounded" />
+                                <Skeleton className="h-4 w-40 rounded" />
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <Skeleton className="h-8 w-28 rounded" />
+                            <Skeleton className="h-8 w-16 rounded" />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <div className="md:col-span-3 space-y-4">
+                            <Skeleton className="h-10 w-32 rounded" />
+                            <Skeleton className="h-[60vh] w-full rounded" />
+                        </div>
+
+                        <aside className="md:col-span-1 space-y-3">
+                            <Skeleton className="h-6 w-full rounded" />
+                            <Skeleton className="h-6 w-full rounded" />
+                            <Skeleton className="h-6 w-full rounded" />
+                            <Skeleton className="h-6 w-full rounded" />
+                        </aside>
+                    </div>
+                </div>
             </div>
         );
     }

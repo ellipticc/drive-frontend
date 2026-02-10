@@ -6,7 +6,8 @@ import { IconSparkles, IconBookmark, IconRotateClockwise } from "@tabler/icons-r
 import { Checkpoint, CheckpointIcon, CheckpointTrigger } from "@/components/ai-elements/checkpoint"
 import apiClient from "@/lib/api"
 import { useVirtualizer } from "@tanstack/react-virtual"
-
+import { Skeleton } from "@/components/ui/skeleton"
+import { IconLoader2 } from "@tabler/icons-react"
 // Import AI Elements
 import { EnhancedPromptInput } from "@/components/enhanced-prompt-input"
 import { SiteHeader } from "@/components/layout/header/site-header"
@@ -1190,16 +1191,38 @@ export default function AssistantPage() {
                         >
                             {/* Virtual List Parent */}
                             <div ref={virtualParentRef} className="flex flex-col items-center w-full">
-                                <div
-                                    style={{
-                                        height: `${virtualizer.getTotalSize()}px`,
-                                        width: '100%',
-                                        position: 'relative',
-                                    }}
-                                >
-                                    {virtualizer.getVirtualItems().map((virtualItem) => {
-                                        const message = messages[virtualItem.index];
-                                        if (!message) return null;
+
+                                {/* Loading skeleton when initial messages are fetching */}
+                                {isLoading && messages.length === 0 ? (
+                                    <div className="w-full max-w-3xl mx-auto py-8 space-y-4">
+                                        <div className="text-center">
+                                            <IconLoader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                                            <p className="text-sm text-muted-foreground">Loading chat…</p>
+                                        </div>
+
+                                        {/* Sample skeleton message blocks */}
+                                        {[...Array(6)].map((_, i) => (
+                                            <div key={i} className={`p-4 rounded-xl bg-muted/10 border border-border/50 ${i % 2 === 0 ? 'self-start' : 'self-end'} w-full` }>
+                                                <div className="flex items-center gap-3 mb-2">
+                                                    <Skeleton className="h-4 w-24" />
+                                                    <Skeleton className="h-3 w-14" />
+                                                </div>
+                                                <Skeleton className="h-4 w-5/6 mb-2" />
+                                                <Skeleton className="h-4 w-2/3" />
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div
+                                        style={{
+                                            height: `${virtualizer.getTotalSize()}px`,
+                                            width: '100%',
+                                            position: 'relative',
+                                        }}
+                                    >
+                                        {virtualizer.getVirtualItems().map((virtualItem) => {
+                                            const message = messages[virtualItem.index];
+                                            if (!message) return null;
 
                                         return (
                                             <div
@@ -1264,6 +1287,7 @@ export default function AssistantPage() {
                                         );
                                     })}
                                 </div>
+                            )}
                             </div>
                         </div>
 
