@@ -117,18 +117,11 @@ export default function AssistantPage() {
         // Only auto-scroll if user hasn't manually scrolled away
         if (!shouldAutoScroll && behavior !== 'auto') return;
 
-        const container = scrollContainerRef.current;
-        if (!container) return;
-
-        // Find element by ID
-        const element = document.getElementById(`message-${messageId}`);
-        if (element) {
-            // Calculate offset (sticky header height ~60px + padding 24px)
-            const offset = 84;
-            const top = element.offsetTop - offset;
-
-            // Allow manual scroll intervention check if needed, but for now just scroll
-            container.scrollTo({ top, behavior });
+        const index = messages.findIndex(m => m.id === messageId);
+        if (index !== -1) {
+            // tanstack-virtual only supports 'smooth' | 'auto'
+            const virtualBehavior = behavior === 'smooth' ? 'smooth' : 'auto';
+            virtualizer.scrollToIndex(index, { align: 'start', behavior: virtualBehavior });
         }
     };
 
@@ -182,7 +175,7 @@ export default function AssistantPage() {
                 .then((msgs: Message[]) => {
                     setMessages(msgs);
                     setChatTitle('Chat');
-                    
+
                     // Initialize pagination after loading history
                     // Set hasMore to true if we have a reasonable number of messages  
                     // (in a real app, the backend would tell us)
@@ -269,7 +262,7 @@ export default function AssistantPage() {
 
                     try {
                         const nextOffset = pagination.offset + pagination.limit;
-                        
+
                         // Store first message ID before loading to maintain scroll position
                         const firstMessageIdBeforePagination = messages[0]?.id;
 
@@ -496,52 +489,86 @@ export default function AssistantPage() {
                     const chunk = decoder.decode(value, { stream: true })
                     buffer += chunk;
 
-                // Split by event separator and keep incomplete event
-                const events = buffer.split('\n\n');
-                buffer = events.pop() || ""; // Keep incomplete event in buffer
+                    // Split by event separator and keep incomplete event
+                    const events = buffer.split('\n\n');
+                    buffer = events.pop() || ""; // Keep incomplete event in buffer
 
-                for (const event of events) {
-                    if (!event.trim()) continue;
+                    for (const event of events) {
+                        if (!event.trim()) continue;
 
-                    const lines = event.split('\n');
-                    let eventType = 'data'; // Default event type
-                    let dataStr = '';
+                        const lines = event.split('\n');
+                        let eventType = 'data'; // Default event type
+                        let dataStr = '';
 
-                    // Parse event type and data
-                    for (const line of lines) {
-                        if (line.startsWith('event: ')) {
-                            eventType = line.replace('event: ', '').trim();
-                        } else if (line.startsWith('data: ')) {
-                            dataStr = line.replace('data: ', '').trim();
-                        }
-                    }
-
-                    // Handle reasoning events (from backend)
-                    if (eventType === 'reasoning' && dataStr) {
-                        try {
-                            const data = JSON.parse(dataStr);
-                            let chunkReasoning = '';
-
-                            // Support encrypted reasoning payloads
-                            if (data.encrypted_reasoning && data.reasoning_iv) {
-                                const { decrypted, sessionKey } = await decryptStreamChunk(
-                                    data.encrypted_reasoning,
-                                    data.reasoning_iv,
-                                    data.encapsulated_key,
-                                    currentSessionKey
-                                );
-                                chunkReasoning = decrypted;
-                                currentSessionKey = sessionKey;
-                            } else if (data.reasoning) {
-                                chunkReasoning = data.reasoning;
+                        // Parse event type and data
+                        for (const line of lines) {
+                            if (line.startsWith('event: ')) {
+                                eventType = line.replace('event: ', '').trim();
+                            } else if (line.startsWith('data: ')) {
+                                dataStr = line.replace('data: ', '').trim();
                             }
+                        }
 
-                            if (chunkReasoning) {
-                                assistantReasoningContent += chunkReasoning;
+                        // Handle reasoning events (from backend)
+                        if (eventType === 'reasoning' && dataStr) {
+                            try {
+                                const data = JSON.parse(dataStr);
+                                let chunkReasoning = '';
 
-                                // Update message with reasoning
-                                const now = Date.now();
-                                if (now - lastUpdateTime > UPDATE_INTERVAL) {
+                                // Support encrypted reasoning payloads
+                                if (data.encrypted_reasoning && data.reasoning_iv) {
+                                    const { decrypted, sessionKey } = await decryptStreamChunk(
+                                        data.encrypted_reasoning,
+                                        data.reasoning_iv,
+                                        data.encapsulated_key,
+                                        currentSessionKey
+                                    );
+                                    chunkReasoning = decrypted;
+                                    currentSessionKey = sessionKey;
+                                } else if (data.reasoning) {
+                                    chunkReasoning = data.reasoning;
+                                }
+
+                                if (chunkReasoning) {
+                                    assistantReasoningContent += chunkReasoning;
+
+                                    // Update message with reasoning
+                                    const now = Date.now();
+                                    if (now - lastUpdateTime > UPDATE_INTERVAL) {
+                                        setMessages(prev => {
+                                            const newMessages = [...prev];
+                                            const lastIdx = newMessages.length - 1;
+                                            const lastMessage = newMessages[lastIdx];
+                                            if (lastMessage && lastMessage.role === 'assistant') {
+                                                newMessages[lastIdx] = {
+                                                    ...lastMessage,
+                                                    reasoning: assistantReasoningContent,
+                                                    isThinking: true
+                                                };
+                                            }
+                                            return newMessages;
+                                        });
+                                        lastUpdateTime = now;
+                                    }
+                                }
+                            } catch (e) {
+                                console.warn('Failed to parse reasoning event', dataStr, e);
+                            }
+                            continue;
+                        }
+
+                        // Handle regular content events
+                        if (dataStr === '[DONE]') {
+                            console.log('[Stream] Received [DONE]. answerBuffer.length:', answerBuffer.length, 'reasoning.length:', assistantReasoningContent.length);
+                            break;
+                        }
+
+                        if (dataStr) {
+                            try {
+                                const data = JSON.parse(dataStr);
+
+                                // Handle Server-side error
+                                if (data.message) {
                                     setMessages(prev => {
                                         const newMessages = [...prev];
                                         const lastIdx = newMessages.length - 1;
@@ -549,195 +576,161 @@ export default function AssistantPage() {
                                         if (lastMessage && lastMessage.role === 'assistant') {
                                             newMessages[lastIdx] = {
                                                 ...lastMessage,
-                                                reasoning: assistantReasoningContent,
-                                                isThinking: true
+                                                content: data.message,
+                                                isThinking: false
                                             };
+                                        } else {
+                                            newMessages.push({ role: 'assistant', content: data.message, isThinking: false });
                                         }
                                         return newMessages;
                                     });
-                                    lastUpdateTime = now;
-                                }
-                            }
-                        } catch (e) {
-                            console.warn('Failed to parse reasoning event', dataStr, e);
-                        }
-                        continue;
-                    }
 
-                    // Handle regular content events
-                    if (dataStr === '[DONE]') {
-                        console.log('[Stream] Received [DONE]. answerBuffer.length:', answerBuffer.length, 'reasoning.length:', assistantReasoningContent.length);
-                        break;
-                    }
-
-                    if (dataStr) {
-                        try {
-                            const data = JSON.parse(dataStr);
-
-                            // Handle Server-side error
-                            if (data.message) {
-                                setMessages(prev => {
-                                    const newMessages = [...prev];
-                                    const lastIdx = newMessages.length - 1;
-                                    const lastMessage = newMessages[lastIdx];
-                                    if (lastMessage && lastMessage.role === 'assistant') {
-                                        newMessages[lastIdx] = {
-                                            ...lastMessage,
-                                            content: data.message,
-                                            isThinking: false
-                                        };
-                                    } else {
-                                        newMessages.push({ role: 'assistant', content: data.message, isThinking: false });
-                                    }
-                                    return newMessages;
-                                });
-
-                                try {
-                                    const m = data.message;
-                                    const match = m && m.match(/`([^`]+)`/);
-                                    const id = match ? match[1] : null;
-                                    if (id) {
-                                        toast.error(`Server error (Request ID: ${id})`)
-                                    } else {
-                                        toast.error('Server error')
-                                    }
-                                } catch (e) {
-                                    // ignore
-                                }
-
-                                continue;
-                            }
-
-                            // Handle Encrypted/Plain Stream Content
-                            let contentToAppend = "";
-
-                            if (data.encrypted_content && data.iv) {
-                                const { decrypted, sessionKey } = await decryptStreamChunk(
-                                    data.encrypted_content,
-                                    data.iv,
-                                    data.encapsulated_key,
-                                    currentSessionKey
-                                );
-                                contentToAppend = decrypted;
-                                currentSessionKey = sessionKey;
-                            } else if (data.content) {
-                                contentToAppend = data.content;
-                            }
-
-                            if (contentToAppend) {
-                                // Process thinking tags: extract thinking content, keep answer separate
-                                let remaining = contentToAppend;
-                                let currentTagFormat = { open: '', close: '' };
-
-                                const thinkingTags = [
-                                    { open: '<thinking>', close: '</thinking>' },
-                                    { open: '<think>', close: '</think>' }
-                                ];
-                                
-                                while (remaining.length > 0) {
-                                    if (isInsideThinkingTag) {
-                                        // Look for closing thinking tag
-                                        const closeIdx = remaining.indexOf(currentTagFormat.close);
-                                        if (closeIdx !== -1) {
-                                            // Found closing tag - extract thinking content
-                                            thinkingBuffer += remaining.substring(0, closeIdx);
-                                            remaining = remaining.substring(closeIdx + currentTagFormat.close.length);
-                                            isInsideThinkingTag = false;
-                                            currentTagFormat = { open: '', close: '' };
+                                    try {
+                                        const m = data.message;
+                                        const match = m && m.match(/`([^`]+)`/);
+                                        const id = match ? match[1] : null;
+                                        if (id) {
+                                            toast.error(`Server error (Request ID: ${id})`)
                                         } else {
-                                            // No closing tag - everything is thinking
-                                            thinkingBuffer += remaining;
-                                            remaining = '';
+                                            toast.error('Server error')
                                         }
-                                    } else {
-                                        // Look for opening thinking tag (check both formats)
-                                        let openIdx = -1;
-                                        let foundTag = null;
+                                    } catch (e) {
+                                        // ignore
+                                    }
 
-                                        for (const tag of thinkingTags) {
-                                            const idx = remaining.indexOf(tag.open);
-                                            if (idx !== -1 && (openIdx === -1 || idx < openIdx)) {
-                                                openIdx = idx;
-                                                foundTag = tag;
+                                    continue;
+                                }
+
+                                // Handle Encrypted/Plain Stream Content
+                                let contentToAppend = "";
+
+                                if (data.encrypted_content && data.iv) {
+                                    const { decrypted, sessionKey } = await decryptStreamChunk(
+                                        data.encrypted_content,
+                                        data.iv,
+                                        data.encapsulated_key,
+                                        currentSessionKey
+                                    );
+                                    contentToAppend = decrypted;
+                                    currentSessionKey = sessionKey;
+                                } else if (data.content) {
+                                    contentToAppend = data.content;
+                                }
+
+                                if (contentToAppend) {
+                                    // Process thinking tags: extract thinking content, keep answer separate
+                                    let remaining = contentToAppend;
+                                    let currentTagFormat = { open: '', close: '' };
+
+                                    const thinkingTags = [
+                                        { open: '<thinking>', close: '</thinking>' },
+                                        { open: '<think>', close: '</think>' }
+                                    ];
+
+                                    while (remaining.length > 0) {
+                                        if (isInsideThinkingTag) {
+                                            // Look for closing thinking tag
+                                            const closeIdx = remaining.indexOf(currentTagFormat.close);
+                                            if (closeIdx !== -1) {
+                                                // Found closing tag - extract thinking content
+                                                thinkingBuffer += remaining.substring(0, closeIdx);
+                                                remaining = remaining.substring(closeIdx + currentTagFormat.close.length);
+                                                isInsideThinkingTag = false;
+                                                currentTagFormat = { open: '', close: '' };
+                                            } else {
+                                                // No closing tag - everything is thinking
+                                                thinkingBuffer += remaining;
+                                                remaining = '';
+                                            }
+                                        } else {
+                                            // Look for opening thinking tag (check both formats)
+                                            let openIdx = -1;
+                                            let foundTag = null;
+
+                                            for (const tag of thinkingTags) {
+                                                const idx = remaining.indexOf(tag.open);
+                                                if (idx !== -1 && (openIdx === -1 || idx < openIdx)) {
+                                                    openIdx = idx;
+                                                    foundTag = tag;
+                                                }
+                                            }
+
+                                            if (openIdx !== -1 && foundTag) {
+                                                // Found opening tag - add content before it to answer
+                                                answerBuffer += remaining.substring(0, openIdx);
+                                                remaining = remaining.substring(openIdx + foundTag.open.length);
+                                                currentTagFormat = foundTag;
+                                                isInsideThinkingTag = true;
+                                            } else {
+                                                // No opening tag - everything is answer
+                                                answerBuffer += remaining;
+                                                remaining = '';
                                             }
                                         }
+                                    }
 
-                                        if (openIdx !== -1 && foundTag) {
-                                            // Found opening tag - add content before it to answer
-                                            answerBuffer += remaining.substring(0, openIdx);
-                                            remaining = remaining.substring(openIdx + foundTag.open.length);
-                                            currentTagFormat = foundTag;
-                                            isInsideThinkingTag = true;
-                                        } else {
-                                            // No opening tag - everything is answer
-                                            answerBuffer += remaining;
-                                            remaining = '';
-                                        }
+                                    // Use backend reasoning if available, otherwise use extracted thinking
+                                    const finalReasoningContent = assistantReasoningContent || thinkingBuffer;
+
+                                    // Throttle state updates
+                                    const now = Date.now();
+                                    if (now - lastUpdateTime > UPDATE_INTERVAL) {
+                                        setMessages(prev => {
+                                            const newMessages = [...prev];
+                                            const lastIdx = newMessages.length - 1;
+                                            const lastMessage = newMessages[lastIdx];
+                                            if (lastMessage && lastMessage.role === 'assistant') {
+                                                newMessages[lastIdx] = {
+                                                    ...lastMessage,
+                                                    content: answerBuffer.trim(),
+                                                    reasoning: finalReasoningContent,
+                                                    isThinking: isInsideThinkingTag
+                                                };
+                                            }
+                                            return newMessages;
+                                        });
+                                        lastUpdateTime = now;
                                     }
                                 }
-
-                                // Use backend reasoning if available, otherwise use extracted thinking
-                                const finalReasoningContent = assistantReasoningContent || thinkingBuffer;
-
-                                // Throttle state updates
-                                const now = Date.now();
-                                if (now - lastUpdateTime > UPDATE_INTERVAL) {
-                                    setMessages(prev => {
-                                        const newMessages = [...prev];
-                                        const lastIdx = newMessages.length - 1;
-                                        const lastMessage = newMessages[lastIdx];
-                                        if (lastMessage && lastMessage.role === 'assistant') {
-                                            newMessages[lastIdx] = {
-                                                ...lastMessage,
-                                                content: answerBuffer.trim(),
-                                                reasoning: finalReasoningContent,
-                                                isThinking: isInsideThinkingTag
-                                            };
-                                        }
-                                        return newMessages;
-                                    });
-                                    lastUpdateTime = now;
-                                }
+                            } catch (e) {
+                                console.warn('Failed to parse SSE data', dataStr, e);
                             }
-                        } catch (e) {
-                            console.warn('Failed to parse SSE data', dataStr, e);
                         }
                     }
                 }
-            }
 
-            // Final update: ensure stream is fully complete
-            const finalReasoningContent = assistantReasoningContent || thinkingBuffer;
-            console.log('[Stream Final] About to call final setMessages:', {
-                answerLength: answerBuffer.length,
-                reasoningLength: finalReasoningContent.length,
-                answerPreview: answerBuffer.trim().substring(0, 100),
-                reasoningPreview: finalReasoningContent.substring(0, 100)
-            });
-            setMessages(prev => {
-                console.log('[Stream Final] Inside setMessages callback, prev.length:', prev.length);
-                const newMessages = [...prev];
-                const lastIdx = newMessages.length - 1;
-                const lastMessage = newMessages[lastIdx];
-                console.log('[Stream Final] lastMessage:', lastMessage?.role, 'content.length:', lastMessage?.content?.length);
-                if (lastMessage && lastMessage.role === 'assistant') {
-                    newMessages[lastIdx] = {
-                        ...lastMessage,
-                        content: answerBuffer.trim(),
-                        reasoning: finalReasoningContent,
-                        isThinking: false
-                    };
-                    console.log('[Stream Final] Updated lastMessage, new content.length:', newMessages[lastIdx].content.length);
-                }
-                return newMessages;
-            });
-            console.log('[Stream Final] setMessages call completed');
+                // Final update: ensure stream is fully complete
+                const finalReasoningContent = assistantReasoningContent || thinkingBuffer;
+                console.log('[Stream Final] About to call final setMessages:', {
+                    answerLength: answerBuffer.length,
+                    reasoningLength: finalReasoningContent.length,
+                    answerPreview: answerBuffer.trim().substring(0, 100),
+                    reasoningPreview: finalReasoningContent.substring(0, 100)
+                });
+                setMessages(prev => {
+                    console.log('[Stream Final] Inside setMessages callback, prev.length:', prev.length);
+                    const newMessages = [...prev];
+                    const lastIdx = newMessages.length - 1;
+                    const lastMessage = newMessages[lastIdx];
+                    console.log('[Stream Final] lastMessage:', lastMessage?.role, 'content.length:', lastMessage?.content?.length);
+                    if (lastMessage && lastMessage.role === 'assistant') {
+                        newMessages[lastIdx] = {
+                            ...lastMessage,
+                            content: answerBuffer.trim(),
+                            reasoning: finalReasoningContent,
+                            isThinking: false
+                        };
+                        console.log('[Stream Final] Updated lastMessage, new content.length:', newMessages[lastIdx].content.length);
+                    }
+                    return newMessages;
+                });
+                console.log('[Stream Final] setMessages call completed');
 
             } catch (streamError) {
                 // Catch stream reading errors (abort, timeout, connection loss, etc.)
                 const errName = (streamError as any)?.name;
                 console.error('[Stream Error]', errName);
-                
+
                 if (errName !== 'AbortError') {
                     // Only throw non-abort errors; AbortError means user intentionally stopped
                     throw streamError;
@@ -1219,6 +1212,7 @@ export default function AssistantPage() {
                                             <div
                                                 key={message.id || virtualItem.index}
                                                 data-index={virtualItem.index}
+                                                ref={virtualizer.measureElement}
                                                 id={`message-${message.id}`}
                                                 style={{
                                                     position: 'absolute',
