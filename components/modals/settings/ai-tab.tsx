@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,7 +29,7 @@ import { getDevicePublicKey, signWithDeviceKey } from '@/lib/device-keys'
 import {
   IconBrain, IconBolt, IconRobot, IconFileText, IconLock, IconClipboardList,
   IconAlertCircle, IconDownload, IconTrash, IconEye, IconSettings, IconCode,
-  IconNetwork, IconUser, IconChevronDown, IconRefresh, IconCloudUpload, IconCheck
+  IconNetwork, IconUser, IconChevronDown, IconRefresh, IconCloudUpload, IconCheck, IconLoader2
 } from '@tabler/icons-react'
 import { toast } from 'sonner'
 import { getDB } from '@/lib/ai-preferences-db'
@@ -291,7 +292,76 @@ export function AITab() {
     })
   }
 
-  if (loading) return <div className="p-4 text-sm text-muted-foreground">Loading AI settings...</div>
+  if (loading) return (
+    <div className="p-4 space-y-6">
+      <div className="text-center">
+        <IconLoader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+        <p className="text-sm text-muted-foreground">Loading AI settings...</p>
+      </div>
+
+      {/* Card-like skeleton for Sovereign Memory */}
+      <div className="bg-muted/10 p-4 rounded-xl border border-border/50 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-5 w-5 rounded" />
+            <Skeleton className="h-4 w-40 rounded" />
+          </div>
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-6 w-16 rounded" />
+            <Skeleton className="h-6 w-12 rounded" />
+          </div>
+        </div>
+        <div className="mt-2 flex gap-2">
+          <Skeleton className="h-4 w-48" />
+          <Skeleton className="h-4 w-24" />
+        </div>
+      </div>
+
+      {/* Base Style & Tone skeleton */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-5 w-5 rounded" />
+          <Skeleton className="h-4 w-32 rounded" />
+        </div>
+
+        <div className="bg-muted/10 p-4 rounded-xl border border-border/50 space-y-3">
+          <Skeleton className="h-4 w-1/3 rounded" />
+          <div className="flex gap-2">
+            <Skeleton className="h-6 w-24 rounded" />
+            <Skeleton className="h-6 w-24 rounded" />
+            <Skeleton className="h-6 w-16 rounded" />
+          </div>
+        </div>
+      </div>
+
+      {/* Personality & Profile skeleton */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-muted/10 p-4 rounded-xl border border-border/50 space-y-3">
+          <Skeleton className="h-4 w-2/3 rounded" />
+          <Skeleton className="h-4 w-1/2 rounded" />
+          <Skeleton className="h-4 w-3/4 rounded" />
+        </div>
+        <div className="bg-muted/10 p-4 rounded-xl border border-border/50 space-y-3">
+          <Skeleton className="h-4 w-2/3 rounded" />
+          <Skeleton className="h-4 w-1/2 rounded" />
+          <Skeleton className="h-4 w-3/4 rounded" />
+        </div>
+      </div>
+
+      {/* Advanced features skeleton */}
+      <div className="bg-muted/10 p-4 rounded-xl border border-border/50 space-y-3">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-4 w-48 rounded" />
+          <Skeleton className="h-6 w-24 rounded" />
+        </div>
+        <div className="flex gap-2 mt-2">
+          <Skeleton className="h-4 w-1/4 rounded" />
+          <Skeleton className="h-4 w-1/4 rounded" />
+          <Skeleton className="h-4 w-1/4 rounded" />
+        </div>
+      </div>
+    </div>
+  )
 
   return (
     <div className="space-y-6 pb-8">
