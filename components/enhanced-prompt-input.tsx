@@ -288,7 +288,7 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                                 </TooltipContent>
                             </Tooltip>
 
-                            {/* Thinking Mode Button */}
+                            {/* Thinking Mode Button - With Label */}
                             <Tooltip>
                                 <TooltipTrigger asChild>
                                     <button
@@ -297,43 +297,45 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                                         }}
                                         disabled={!isThinkingSupported}
                                         className={cn(
-                                            'inline-flex items-center justify-center h-8 w-8 rounded-lg transition-all',
+                                            'inline-flex items-center gap-1.5 px-2.5 py-1 h-8 rounded-lg text-xs font-medium transition-all',
                                             isThinkingSupported && thinkingMode
                                                 ? 'bg-primary/15 text-primary'
                                                 : isThinkingSupported
-                                                    ? 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-                                                    : 'text-muted-foreground/40 cursor-not-allowed opacity-40'
+                                                    ? 'text-muted-foreground hover:bg-muted/40 hover:text-foreground'
+                                                    : 'text-muted-foreground/50 cursor-not-allowed opacity-50'
                                         )}
                                         type="button"
                                     >
-                                        <IconBrain className="w-5 h-5" />
+                                        <IconBrain className="w-4 h-4" />
+                                        <span>Reasoning</span>
                                     </button>
                                 </TooltipTrigger>
                                 <TooltipContent side="top" className="text-xs">
                                     {isThinkingSupported
-                                        ? 'Enable deeper reasoning'
+                                        ? 'Deeper reasoning for complex questions'
                                         : 'This model doesn\'t support reasoning'}
                                 </TooltipContent>
                             </Tooltip>
 
-                            {/* Search Mode Button */}
+                            {/* Search Mode Button - With Label */}
                             <Tooltip>
                                 <TooltipTrigger asChild>
                                     <button
                                         onClick={() => setSearchMode(!searchMode)}
                                         className={cn(
-                                            'inline-flex items-center justify-center h-8 w-8 rounded-lg transition-all',
+                                            'inline-flex items-center gap-1.5 px-2.5 py-1 h-8 rounded-lg text-xs font-medium transition-all',
                                             searchMode
                                                 ? 'bg-primary/15 text-primary'
-                                                : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                                                : 'text-muted-foreground hover:bg-muted/40 hover:text-foreground'
                                         )}
                                         type="button"
                                     >
-                                        <IconWorld className="w-5 h-5" />
+                                        <IconWorld className="w-4 h-4" />
+                                        <span>Search</span>
                                     </button>
                                 </TooltipTrigger>
                                 <TooltipContent side="top" className="text-xs">
-                                    Enable web search
+                                    Use web search for current information
                                 </TooltipContent>
                             </Tooltip>
                         </div>

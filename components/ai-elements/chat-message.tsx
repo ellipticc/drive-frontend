@@ -174,7 +174,7 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                             <>
                                 <div className="relative flex items-start">
                                     {/* Message bubble (reduced padding slightly) */}
-                                    <div className="bg-primary text-primary-foreground px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm font-medium w-full">
+                                    <div className="bg-primary text-primary-foreground px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm font-medium w-full selection:bg-primary-foreground/20 selection:text-inherit">
                                         {message.content}
                                     </div>
 
@@ -225,8 +225,7 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                         )}
                     </>
                 ) : (
-                    <div className="w-full space-y-2">
-                        {/* Reasoning / Chain of Thought */}
+                    <div className="w-full space-y-2 selection:bg-primary/20 selection:text-foreground">{/* Reasoning / Chain of Thought */}
                         {(message.reasoning || message.isThinking) && (
                             <Reasoning
                                 isStreaming={isLast && message.isThinking}

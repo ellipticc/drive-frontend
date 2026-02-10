@@ -14,7 +14,6 @@ import { parseFile } from "@/lib/file-parser";
 import { useRouter, useSearchParams } from "next/navigation"
 import { Suggestions, Suggestion } from "@/components/ai-elements/suggestion"
 import { ChatMessage } from "@/components/ai-elements/chat-message"
-import { ThinkingBlock } from "@/components/ai-elements/thinking-block"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 
@@ -346,12 +345,13 @@ export default function AssistantPage() {
 
             const reader = response.body.getReader()
             const decoder = new TextDecoder()
-            let assistantMessageContent = ""
-            let assistantReasoningContent = ""
+            // Three separate buffers for proper content separation
+            let thinkingBuffer = ""; // Content inside <>thinking>...</thinking>
+            let answerBuffer = ""; // Content outside thinking tags
+            let assistantReasoningContent = ""; // Processed thinking (from backend reasoning event)
+            let isInsideThinkingTag = false;
             let currentSessionKey: Uint8Array | undefined;
             let buffer = ""; // Buffer for incomplete SSE events
-
-            // Buffer for smoother updates
             let lastUpdateTime = 0;
             const UPDATE_INTERVAL = 0; // No throttling for real-time streaming
 
@@ -382,7 +382,7 @@ export default function AssistantPage() {
                         }
                     }
 
-                    // Handle different event types
+                    // Handle reasoning events (from backend)
                     if (eventType === 'reasoning' && dataStr) {
                         try {
                             const data = JSON.parse(dataStr);
@@ -397,6 +397,7 @@ export default function AssistantPage() {
                                         const lastMessage = newMessages[newMessages.length - 1]
                                         if (lastMessage && lastMessage.role === 'assistant') {
                                             lastMessage.reasoning = assistantReasoningContent;
+                                            lastMessage.isThinking = true;
                                         }
                                         return newMessages
                                     });
@@ -409,14 +410,14 @@ export default function AssistantPage() {
                         continue;
                     }
 
-                    // Handle regular data events
+                    // Handle regular content events
                     if (dataStr === '[DONE]') break;
 
                     if (dataStr) {
                         try {
                             const data = JSON.parse(dataStr);
 
-                            // Handle Server-side error or informational message delivered as part of stream
+                            // Handle Server-side error
                             if (data.message) {
                                 setMessages(prev => {
                                     const newMessages = [...prev]
@@ -430,10 +431,8 @@ export default function AssistantPage() {
                                     return newMessages
                                 })
 
-                                // Also show a toast to surface the Request ID quickly
                                 try {
                                     const m = data.message;
-                                    // Extract backticked requestId if present for convenience
                                     const match = m && m.match(/`([^`]+)`/);
                                     const id = match ? match[1] : null;
                                     if (id) {
@@ -448,11 +447,10 @@ export default function AssistantPage() {
                                 continue;
                             }
 
-                            // Handle Encrypted Stream
+                            // Handle Encrypted/Plain Stream Content
                             let contentToAppend = "";
 
                             if (data.encrypted_content && data.iv) {
-                                // Decrypt on the fly
                                 const { decrypted, sessionKey } = await decryptStreamChunk(
                                     data.encrypted_content,
                                     data.iv,
@@ -462,51 +460,57 @@ export default function AssistantPage() {
                                 contentToAppend = decrypted;
                                 currentSessionKey = sessionKey;
                             } else if (data.content) {
-                                // We can't decrypt this message, but we can still display it
                                 contentToAppend = data.content;
                             }
 
                             if (contentToAppend) {
-                                assistantMessageContent += contentToAppend;
-
-                                // Parse for <think> tags
-                                let displayContent = assistantMessageContent;
-                                let reasoningContent = assistantReasoningContent;
-                                let isThinking = false;
-
-                                const thinkStart = "<think>";
-                                const thinkEnd = "</think>";
-
-                                if (assistantMessageContent.includes(thinkStart)) {
-                                    if (assistantMessageContent.includes(thinkEnd)) {
-                                        // Completed thought
-                                        const parts = assistantMessageContent.split(thinkEnd);
-                                        const thoughtPart = parts[0].split(thinkStart)[1];
-                                        reasoningContent = assistantReasoningContent || thoughtPart;
-                                        displayContent = parts[1] || ""; // The rest is content
-                                        isThinking = false;
+                                // Process thinking tags: extract thinking content, keep answer separate
+                                let remaining = contentToAppend;
+                                
+                                while (remaining.length > 0) {
+                                    if (isInsideThinkingTag) {
+                                        // Look for closing thinking tag
+                                        const closeIdx = remaining.indexOf('</thinking>');
+                                        if (closeIdx !== -1) {
+                                            // Found closing tag - extract thinking content
+                                            thinkingBuffer += remaining.substring(0, closeIdx);
+                                            remaining = remaining.substring(closeIdx + '</thinking>'.length);
+                                            isInsideThinkingTag = false;
+                                        } else {
+                                            // No closing tag - everything is thinking
+                                            thinkingBuffer += remaining;
+                                            remaining = '';
+                                        }
                                     } else {
-                                        // Still thinking
-                                        const parts = assistantMessageContent.split(thinkStart);
-                                        displayContent = parts[0]; // Content before think (rare)
-                                        reasoningContent = assistantReasoningContent || parts[1]; // The rest is thought
-                                        isThinking = true;
+                                        // Look for opening thinking tag
+                                        const openIdx = remaining.indexOf('<thinking>');
+                                        if (openIdx !== -1) {
+                                            // Found opening tag - add content before it to answer
+                                            answerBuffer += remaining.substring(0, openIdx);
+                                            remaining = remaining.substring(openIdx + '<thinking>'.length);
+                                            isInsideThinkingTag = true;
+                                        } else {
+                                            // No opening tag - everything is answer
+                                            answerBuffer += remaining;
+                                            remaining = '';
+                                        }
                                     }
                                 }
 
-                                // Throttle state updates for smoother rendering
+                                // Use backend reasoning if available, otherwise use extracted thinking
+                                const finalReasoningContent = assistantReasoningContent || thinkingBuffer;
+
+                                // Throttle state updates
                                 const now = Date.now();
                                 if (now - lastUpdateTime > UPDATE_INTERVAL) {
                                     setMessages(prev => {
                                         const newMessages = [...prev]
                                         const lastMessage = newMessages[newMessages.length - 1]
                                         if (lastMessage && lastMessage.role === 'assistant') {
-                                            lastMessage.content = displayContent;
-                                            lastMessage.reasoning = reasoningContent;
-                                            lastMessage.isThinking = isThinking;
+                                            lastMessage.content = answerBuffer.trim();
+                                            lastMessage.reasoning = finalReasoningContent;
+                                            lastMessage.isThinking = isInsideThinkingTag;
                                             if (data.id) lastMessage.id = data.id;
-                                        } else {
-                                            console.warn("[DEBUG] Last message not assistant or missing", lastMessage);
                                         }
                                         return newMessages
                                     });
@@ -519,13 +523,16 @@ export default function AssistantPage() {
                     }
                 }
             }
-            // Final update to ensure complete content
+
+            // Final update: ensure stream is fully complete
+            const finalReasoningContent = assistantReasoningContent || thinkingBuffer;
             setMessages(prev => {
                 const newMessages = [...prev]
                 const lastMessage = newMessages[newMessages.length - 1]
                 if (lastMessage && lastMessage.role === 'assistant') {
-                    lastMessage.content = assistantMessageContent
-                    lastMessage.isThinking = false
+                    lastMessage.content = answerBuffer.trim();
+                    lastMessage.reasoning = finalReasoningContent;
+                    lastMessage.isThinking = false;
                 }
                 return newMessages
             });
@@ -988,27 +995,19 @@ export default function AssistantPage() {
                                             </CheckpointTrigger>
                                         </Checkpoint>
                                     ) : (
-                                        <>
-                                            {message.reasoning && (
-                                                <ThinkingBlock 
-                                                    content={message.reasoning} 
-                                                    isStreaming={false}
-                                                />
-                                            )}
-                                            <ChatMessage
-                                                message={message}
-                                                isLast={index === messages.length - 1}
-                                                onCopy={handleCopy}
-                                                onFeedback={handleFeedback}
-                                                onRetry={() => handleRetry(message.id || '')}
-                                                onRegenerate={(instruction) => handleRegenerate(message.id || '', instruction)}
-                                                onEdit={(content) => handleEditMessage(message.id || '', content)}
-                                                onVersionChange={(dir) => handleVersionChange(message.id || '', dir)}
-                                                onCheckpoint={() => handleAddCheckpoint()}
-                                                availableModels={availableModels}
-                                                onRerunSystemWithModel={handleRerunSystemWithModel}
-                                            />
-                                        </>
+                                        <ChatMessage
+                                            message={message}
+                                            isLast={index === messages.length - 1}
+                                            onCopy={handleCopy}
+                                            onFeedback={handleFeedback}
+                                            onRetry={() => handleRetry(message.id || '')}
+                                            onRegenerate={(instruction) => handleRegenerate(message.id || '', instruction)}
+                                            onEdit={(content) => handleEditMessage(message.id || '', content)}
+                                            onVersionChange={(dir) => handleVersionChange(message.id || '', dir)}
+                                            onCheckpoint={() => handleAddCheckpoint()}
+                                            availableModels={availableModels}
+                                            onRerunSystemWithModel={handleRerunSystemWithModel}
+                                        />
                                     )}
                                 </div>
                             ))}
