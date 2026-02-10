@@ -10,6 +10,7 @@ export interface DecryptedMessage {
     id?: string;
     createdAt?: string;
     isThinking?: boolean;
+    reasoning?: string;
 }
 
 export interface UseAICryptoReturn {
@@ -216,12 +217,27 @@ export function useAICrypto(): UseAICryptoReturn {
                         // Decapsulate
                         const sharedSecret = ml_kem768.decapsulate(encapsulatedKey, kyberPriv);
 
-                        // Decrypt
+                        // Decrypt content
                         const decryptedBytes = decryptData(msg.encrypted_content, sharedSecret, msg.iv);
+                        const decryptedContent = new TextDecoder().decode(decryptedBytes);
+
+                        // Decrypt reasoning if it exists
+                        let decryptedReasoning: string | undefined;
+                        if (msg.reasoning && msg.reasoning_iv) {
+                            try {
+                                const reasoningDecryptedBytes = decryptData(msg.reasoning, sharedSecret, msg.reasoning_iv);
+                                decryptedReasoning = new TextDecoder().decode(reasoningDecryptedBytes);
+                            } catch (e) {
+                                console.warn("Failed to decrypt reasoning:", msg.id, e);
+                                // Continue without reasoning if decryption fails
+                            }
+                        }
+
                         return {
                             ...msg,
                             role: msg.role,
-                            content: new TextDecoder().decode(decryptedBytes)
+                            content: decryptedContent,
+                            reasoning: decryptedReasoning || msg.reasoning || ''
                         };
                     }
 
