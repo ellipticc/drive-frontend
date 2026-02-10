@@ -300,7 +300,7 @@ export function SignupFormAuth({
 
 
 
-      // Stop Google Analytics immediately after registration
+      // Stop analytics tracking immediately after registration
       if (typeof window !== 'undefined') {
         (window as { stopTracking?: () => void }).stopTracking?.();
       }

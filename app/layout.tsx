@@ -21,6 +21,7 @@ import { OnboardingTourProvider } from "@/components/onboarding/onboarding-tour-
 import { AIPreferencesSync } from "@/components/ai-preferences-sync";
 import "./globals.css";
 import "katex/dist/katex.min.css";
+import PlausibleInit from '@/components/analytics/plausible-init';
 
 // Font definitions
 const spaceGrotesk = Space_Grotesk({
@@ -151,6 +152,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://ellipticc.com'
+  const plausibleDomain = process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN || (process.env.NEXT_PUBLIC_BASE_URL ? new URL(process.env.NEXT_PUBLIC_BASE_URL).hostname : 'drive.ellipticc.com');
 
   const structuredData = {
     "@context": "https://schema.org",
@@ -212,78 +214,7 @@ export default function RootLayout({
           }}
         />
 
-        {/* Google Analytics 4 */}
-        <Script
-          src="https://www.googletagmanager.com/gtag/js?id=G-NSQ52X2GM3"
-          strategy="afterInteractive"
-        />
-        <Script
-          id="google-analytics"
-          strategy="afterInteractive"
-        >
-          {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            
-            // Check privacy settings and authentication state
-            var usageDiagnosticsEnabled = true;
-            try {
-              var hasAuthToken = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
-              if (localStorage.getItem('privacy_usage_diagnostics') === 'false' || hasAuthToken) {
-                usageDiagnosticsEnabled = false;
-              }
-            } catch(e) {}
 
-            // Set default consent
-            gtag('consent', 'default', {
-              'analytics_storage': usageDiagnosticsEnabled ? 'granted' : 'denied',
-              'ad_storage': usageDiagnosticsEnabled ? 'granted' : 'denied'
-            });
-
-            // Global helper to stop tracking on the fly (e.g. after login)
-            window.stopTracking = function() {
-              try {
-                // Update consent to deny any future collection
-                gtag('consent', 'update', {
-                  'analytics_storage': 'denied',
-                  'ad_storage': 'denied'
-                });
-              } catch (e) {}
-
-              // Disable GA globally for this property (gtag respects this flag)
-              window['ga-disable-G-NSQ52X2GM3'] = true;
-
-              // Replace gtag with a noop to prevent any queued or future calls
-              try {
-                window.gtag = function() { /* noop */ };
-              } catch (e) {}
-
-              // Clear and neutralize dataLayer if present
-              try {
-                if (window.dataLayer && Array.isArray(window.dataLayer)) {
-                  window.dataLayer.length = 0;
-                  window.dataLayer.push = function() { /* noop */ };
-                }
-              } catch (e) {}
-
-              // Remove the external GTM script tag and the inline initializer
-              try {
-                var scripts = document.querySelectorAll('script[src*="googletagmanager.com/gtag/js"]');
-                scripts.forEach(function(s) { s.parentNode && s.parentNode.removeChild(s); });
-                var inline = document.getElementById('google-analytics');
-                inline && inline.parentNode && inline.parentNode.removeChild(inline);
-              } catch (e) {}
-
-              // Flag for other code paths
-              try { window.__GA_DISABLED__ = true; } catch (e) {}
-            };
-
-            if (usageDiagnosticsEnabled) {
-              gtag('js', new Date());
-              gtag('config', 'G-NSQ52X2GM3');
-            }
-          `}
-        </Script>
       </head>
       <body
         className={`${spaceGrotesk.variable} ${geistMono.variable} ${jetbrainsMono.variable} ${ubuntu.variable} antialiased`}
@@ -305,6 +236,7 @@ export default function RootLayout({
             `,
           }}
         />
+        <PlausibleInit domain={plausibleDomain} />
         <div
           id="initial-loading-overlay"
           style={{

@@ -412,7 +412,7 @@ export function LoginFormAuth({
       // Token and auth should already be set at this point
 
 
-      // Stop Google Analytics immediately after login
+      // Stop analytics tracking immediately after login
       if (typeof window !== 'undefined') {
         (window as { stopTracking?: () => void }).stopTracking?.();
       }

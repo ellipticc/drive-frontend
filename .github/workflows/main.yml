@@ -39,6 +39,10 @@ jobs:
           NEXT_PUBLIC_GOOGLE_API_KEY: ${{ secrets.NEXT_PUBLIC_GOOGLE_API_KEY }}
           NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          # Plausible analytics domain (optional; falls back to base URL hostname)
+          NEXT_PUBLIC_PLAUSIBLE_DOMAIN: ${{ secrets.NEXT_PUBLIC_PLAUSIBLE_DOMAIN }}
+          # Enable frontend OpenTelemetry (set to 'true' to enable)
+          NEXT_PUBLIC_OTEL_ENABLED: ${{ secrets.NEXT_PUBLIC_OTEL_ENABLED }}
           # Inject the exact commit SHA used for this build so the frontend can report its version
           NEXT_PUBLIC_APP_VERSION: ${{ github.sha }}
           # Inject build time (ISO 8601); used by About Ellipticc in Settings

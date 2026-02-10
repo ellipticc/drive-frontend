@@ -144,7 +144,7 @@ export function TOTPLoginForm({
 
 
         // Redirect
-        // Stop Google Analytics immediately after login
+        // Stop analytics tracking immediately after login
         if (typeof window !== 'undefined') {
           (window as { stopTracking?: () => void }).stopTracking?.();
         }
