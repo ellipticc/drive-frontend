@@ -99,8 +99,7 @@ export function AIPreferencesSync() {
         const handleLogin = () => {
             console.log('AI Sync: User login detected. Scheduling sync.')
             hasSyncedRef.current = false
-            // Delay slightly to ensure keys are fully initialized
-            setTimeout(syncPreferences, 2000)
+            syncPreferences()
         }
 
         const handleSyncEvent = () => {
@@ -114,11 +113,9 @@ export function AIPreferencesSync() {
         // Check on mount if user is logged in
         if (user && !hasSyncedRef.current) {
             // Wait a bit for hydrations
-            setTimeout(() => {
-                if (masterKeyManager.hasMasterKey()) {
-                    syncPreferences()
-                }
-            }, 3000)
+            if (masterKeyManager.hasMasterKey()) {
+                syncPreferences()
+            }
         }
 
         return () => {
