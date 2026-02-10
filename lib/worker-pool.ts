@@ -189,6 +189,12 @@ export class WorkerPool {
         // Send task to worker
         try {
             console.log(`[WorkerPool] Posting message to worker for task ${task.id}`);
+            // Inject the pool's task ID into the message so the worker echoes it back
+            // This ensures the response ID matches what the pool expects
+            // Use direct property assignment (not spread) to preserve ArrayBuffer references for transferables
+            if (typeof task.message === 'object' && task.message !== null) {
+                (task.message as Record<string, unknown>).id = task.id;
+            }
             worker.postMessage(task.message, task.transferables || []);
         } catch (err) {
             console.error(`[WorkerPool] Failed to post message:`, err);
