@@ -353,7 +353,7 @@ export default function AssistantPage() {
             let currentSessionKey: Uint8Array | undefined;
             let buffer = ""; // Buffer for incomplete SSE events
             let lastUpdateTime = 0;
-            const UPDATE_INTERVAL = 0; // No throttling for real-time streaming
+            const UPDATE_INTERVAL = 30; // Throttle UI updates to ~30ms for smooth token rendering (balanced between smoothness and re-render cost)
 
             while (true) {
                 const { done, value } = await reader.read()
@@ -386,8 +386,24 @@ export default function AssistantPage() {
                     if (eventType === 'reasoning' && dataStr) {
                         try {
                             const data = JSON.parse(dataStr);
-                            if (data.reasoning) {
-                                assistantReasoningContent += data.reasoning;
+                            let chunkReasoning = '';
+
+                            // Support encrypted reasoning payloads
+                            if (data.encrypted_reasoning && data.reasoning_iv) {
+                                const { decrypted, sessionKey } = await decryptStreamChunk(
+                                    data.encrypted_reasoning,
+                                    data.reasoning_iv,
+                                    data.encapsulated_key,
+                                    currentSessionKey
+                                );
+                                chunkReasoning = decrypted;
+                                currentSessionKey = sessionKey;
+                            } else if (data.reasoning) {
+                                chunkReasoning = data.reasoning;
+                            }
+
+                            if (chunkReasoning) {
+                                assistantReasoningContent += chunkReasoning;
 
                                 // Update message with reasoning
                                 const now = Date.now();

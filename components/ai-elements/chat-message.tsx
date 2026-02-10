@@ -236,13 +236,14 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                 
                                 return (
                                     <Reasoning
+                                        key={`reasoning-${message.id}-${message.reasoningDuration ?? 'none'}`}
                                         isStreaming={isLast && message.isThinking}
                                         defaultOpen={true}
                                         duration={message.reasoningDuration}
                                         thinkingType={tagType || undefined}
                                     >
                                         <ReasoningTrigger className="w-fit" />
-                                        <ReasoningContent>
+                                        <ReasoningContent isStreaming={isLast && message.isThinking}>
                                             {reasoningContent}
                                         </ReasoningContent>
                                     </Reasoning>
@@ -251,6 +252,10 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                         )}{/* Show thinking placeholder only during active streaming */}
                         {message.isThinking && isLast && !message.reasoning && (
                             <div className="text-sm text-muted-foreground italic">Thinking...</div>
+                        )}
+                        {/* If reasoning finished but we only have duration (no content), show duration */}
+                        {!message.isThinking && message.reasoningDuration !== undefined && !message.reasoning && (
+                            <div className="text-sm text-muted-foreground italic">Think ({message.reasoningDuration}s)</div>
                         )}
 
 

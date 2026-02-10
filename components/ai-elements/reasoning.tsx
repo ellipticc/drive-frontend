@@ -57,7 +57,7 @@ export type ReasoningProps = ComponentProps<typeof Collapsible> & {
   thinkingType?: 'thinking' | 'think';
 };
 
-const AUTO_CLOSE_DELAY = 1000;
+const AUTO_CLOSE_DELAY = 200; // Close quickly after streaming ends for a snappier UX
 const MS_IN_S = 1000;
 
 // Helper to parse thinking stats from content
@@ -191,7 +191,8 @@ const defaultGetThinkingMessage = (isStreaming: boolean, duration?: number, toke
   
   const typeLabel = thinkingType === 'think' ? 'Think' : 'Thinking';
   
-  if (duration !== undefined && duration > 0) {
+  // If we have any duration (even 0), show it explicitly to avoid stale "Thinking..." UI
+  if (duration !== undefined) {
     return <p>{typeLabel} ({duration}s)</p>;
   }
   
@@ -243,25 +244,38 @@ export type ReasoningContentProps = ComponentProps<
   typeof CollapsibleContent
 > & {
   children: string;
+  isStreaming?: boolean;
 };
 
 const streamdownPlugins = { cjk, code, math, mermaid };
 
 export const ReasoningContent = memo(
-  ({ className, children, ...props }: ReasoningContentProps) => (
-    <CollapsibleContent
-      className={cn(
-        "mt-4 text-sm",
-        "data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 text-muted-foreground outline-none data-[state=closed]:animate-out data-[state=open]:animate-in",
-        className
-      )}
-      {...props}
-    >
-      <Streamdown plugins={streamdownPlugins as any} {...props}>
-        {children}
-      </Streamdown>
-    </CollapsibleContent>
-  )
+  ({ className, children, isStreaming, ...props }: ReasoningContentProps) => {
+    // While streaming, render a lightweight, append-friendly text block for smooth token updates
+    if (isStreaming) {
+      return (
+        <div className={cn("mt-4 text-sm text-muted-foreground whitespace-pre-wrap font-mono", className)} {...props}>
+          {children}
+        </div>
+      );
+    }
+
+    // Once streaming is complete, render with Streamdown for rich formatting
+    return (
+      <CollapsibleContent
+        className={cn(
+          "mt-4 text-sm",
+          "data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 text-muted-foreground outline-none data-[state=closed]:animate-out data-[state=open]:animate-in",
+          className
+        )}
+        {...props}
+      >
+        <Streamdown plugins={streamdownPlugins as any} {...props}>
+          {children}
+        </Streamdown>
+      </CollapsibleContent>
+    );
+  }
 );
 
 Reasoning.displayName = "Reasoning";
