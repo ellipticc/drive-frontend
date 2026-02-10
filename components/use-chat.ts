@@ -18,6 +18,9 @@ import { type PlateEditor, useEditorRef, usePluginOption } from 'platejs/react';
 
 import { aiChatPlugin } from '@/components/ai-kit';
 import { apiClient } from '@/lib/api';
+import { getAIPreferences } from '@/lib/ai-preferences-db';
+import { decryptString } from '@/lib/crypto';
+import { masterKeyManager } from '@/lib/master-key';
 
 import { discussionPlugin } from './discussion-kit';
 import { withAIBatch } from '@platejs/ai';
@@ -54,6 +57,75 @@ export type ChatMessage = UIMessage<Record<string, never>, MessageDataPart>;
 export const useChat = () => {
   const editor = useEditorRef();
   const options = usePluginOption(aiChatPlugin, 'chatOptions');
+  const [systemPrompt, setSystemPrompt] = React.useState<string>('');
+
+  React.useEffect(() => {
+    async function loadPrefs() {
+      try {
+        const prefsStr = await getAIPreferences();
+        if (prefsStr) {
+          let settings;
+          try {
+            if (masterKeyManager.hasMasterKey()) {
+              const decrypted = decryptString(prefsStr, masterKeyManager.getMasterKey());
+              settings = JSON.parse(decrypted);
+            } else {
+              console.warn("Master key missing, cannot decrypt AI preferences");
+              return;
+            }
+          } catch (e) {
+            console.warn("Failed to decrypt AI preferences, might be unencrypted or invalid", e);
+            // Fallback: try parsing as plain JSON just in case checks fail or during migration
+            try { settings = JSON.parse(prefsStr); } catch (_) { }
+          }
+
+          if (!settings) return;
+          // Construct system prompt from settings
+          let prompt = "You are a helpful AI assistant.";
+
+          if (settings.personality_style) {
+            const { tone, characteristics } = settings.personality_style;
+            if (tone && tone !== 'default') {
+              prompt += `\n\nAdopt a ${tone} tone.`;
+            }
+            if (characteristics && characteristics.length > 0) {
+              prompt += `\n\nCharacteristics to embody: ${characteristics.join(', ')}.`;
+            }
+          }
+
+          if (settings.custom_instructions) {
+            prompt += `\n\nCustom Instructions:\n${settings.custom_instructions}`;
+          }
+
+          if (settings.user_profile) {
+            const { nickname, occupation, more_about_you } = settings.user_profile;
+            if (nickname) prompt += `\n\nUser's nickname: ${nickname}`;
+            if (occupation) prompt += `\nUser's occupation: ${occupation}`;
+            if (more_about_you) prompt += `\nMore about the user: ${more_about_you}`;
+          }
+
+          if (settings.output_format) {
+            switch (settings.output_format) {
+              case 'concise':
+                prompt += `\n\nOutput format: Concise. Be brief and to the point.`;
+                break;
+              case 'el5':
+                prompt += `\n\nOutput format: Explain Like I'm 5. Use simple analogies and avoid jargon.`;
+                break;
+              case 'executive':
+                prompt += `\n\nOutput format: Executive Summary. Start with the bottom line up front (BLUF).`;
+                break;
+            }
+          }
+
+          setSystemPrompt(prompt);
+        }
+      } catch (e) {
+        console.error("Failed to load local ai prefs for chat", e);
+      }
+    }
+    loadPrefs();
+  }, []);
 
   // remove when you implement the route /api/ai/command
   const abortControllerRef = React.useRef<AbortController | null>(null);
@@ -79,9 +151,22 @@ export const useChat = () => {
           ...bodyOptions,
         };
 
+        // Inject system prompt if available
+        if (systemPrompt) {
+          // Check if messages already have a system prompt, if so replace/prepend, or just add one
+          const messages = body.messages || [];
+          // We want to ensure the system prompt is the first message
+          const newMessages = [
+            { role: 'system', content: systemPrompt },
+            ...messages.filter((m: any) => m.role !== 'system')
+          ];
+          body.messages = newMessages;
+        }
+
         const res = await apiClient.aiCommand({
           ...initBody,
           ...bodyOptions,
+          messages: body.messages // Ensure modified messages are passed
         });
 
         if (!res.ok) {

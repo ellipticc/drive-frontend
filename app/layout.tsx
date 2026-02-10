@@ -18,6 +18,7 @@ import { ServiceWorkerRegister } from "@/components/service-worker-register";
 import { IconLoader2 as Loader2 } from "@tabler/icons-react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { OnboardingTourProvider } from "@/components/onboarding/onboarding-tour-provider";
+import { AIPreferencesSync } from "@/components/ai-preferences-sync";
 import "./globals.css";
 import "katex/dist/katex.min.css";
 
@@ -334,6 +335,7 @@ export default function RootLayout({
               <NotificationProvider>
                 <CurrentFolderProvider>
                   <UserProvider>
+                    <AIPreferencesSync />
                     <BillingProvider>
                       <LanguageProvider>
                         <GlobalUploadProvider>

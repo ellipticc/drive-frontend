@@ -291,6 +291,37 @@ export function decryptData(encryptedData: string, key: Uint8Array, nonce: strin
 }
 
 // =====================================================
+// STRING ENCRYPTION HELPERS (Format: "encryptedBase64:nonceBase64")
+// =====================================================
+
+/**
+ * Encrypt a string using XChaCha20-Poly1305
+ * Returns a single string with embedded nonce: "encryptedData:nonce"
+ */
+export function encryptString(text: string, key: Uint8Array): string {
+  if (!text) return '';
+  const data = new TextEncoder().encode(text);
+  const { encryptedData, nonce } = encryptData(data, key);
+  return `${encryptedData}:${nonce}`;
+}
+
+/**
+ * Decrypt a string using XChaCha20-Poly1305
+ * Expects format: "encryptedData:nonce"
+ */
+export function decryptString(encryptedString: string, key: Uint8Array): string {
+  if (!encryptedString) return '';
+
+  const [encryptedData, nonce] = encryptedString.split(':');
+  if (!encryptedData || !nonce) {
+    throw new Error('Invalid encrypted string format. Expected "encryptedData:nonce"');
+  }
+
+  const decryptedBytes = decryptData(encryptedData, key, nonce);
+  return new TextDecoder().decode(decryptedBytes);
+}
+
+// =====================================================
 // MASTER KEY INTEGRITY VALIDATION
 // =====================================================
 

@@ -1,5 +1,6 @@
 "use client"
 
+
 import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
@@ -22,11 +23,17 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { apiClient } from '@/lib/api'
 import { listMemories, deleteMemory, clearMemories } from '@/lib/ai-memory'
+import { getAIPreferences, saveAIPreferences, clearAIPreferences } from '@/lib/ai-preferences-db'
+import { getDevicePublicKey, signWithDeviceKey } from '@/lib/device-keys'
 import {
   IconBrain, IconBolt, IconRobot, IconFileText, IconLock, IconClipboardList,
   IconAlertCircle, IconDownload, IconTrash, IconEye, IconSettings, IconCode,
-  IconNetwork, IconUser, IconChevronDown
+  IconNetwork, IconUser, IconChevronDown, IconRefresh, IconCloudUpload, IconCheck
 } from '@tabler/icons-react'
+import { toast } from 'sonner'
+import { getDB } from '@/lib/ai-preferences-db'
+import { encryptString, decryptString } from '@/lib/crypto'
+import { masterKeyManager } from '@/lib/master-key'
 
 const defaultSettings = {
   memory_enabled: false,
@@ -80,11 +87,59 @@ export function AITab() {
     }
   }, [])
 
+  const [lastSynced, setLastSynced] = useState<string | null>(null)
+  const [syncing, setSyncing] = useState(false)
+
+  // Initialize personality characteristics if not present
+  useEffect(() => {
+    if (!settings.personality_style) {
+      setSettings((s: any) => ({
+        ...s,
+        personality_style: { tone: 'balanced', characteristics: [], characteristicsSettings: {} }
+      }))
+    }
+    if (!settings.user_profile) {
+      setSettings((s: any) => ({
+        ...s,
+        user_profile: { nickname: '', occupation: '', more_about_you: '' }
+      }))
+    }
+    if (settings.custom_instructions === undefined) {
+      setSettings((s: any) => ({ ...s, custom_instructions: '' }))
+    }
+    if (!settings.advanced_features) {
+      setSettings((s: any) => ({
+        ...s,
+        advanced_features: { web_search_enabled: false, code_interpreter_enabled: false, canvas_enabled: false }
+      }))
+    }
+  }, [])
+
   useEffect(() => {
     async function load() {
       try {
-        const res = await apiClient.getAIPreferences()
-        setSettings(res?.data?.settings ?? (res as any)?.settings ?? defaultSettings)
+        setLoading(true)
+        // 1. Try to load from local IndexedDB first (faster)
+        const encryptedLocal = await getAIPreferences()
+
+        if (encryptedLocal) {
+          try {
+            if (masterKeyManager.hasMasterKey()) {
+              const masterKey = masterKeyManager.getMasterKey()
+              const decrypted = decryptString(encryptedLocal, masterKey)
+              const parsed = JSON.parse(decrypted)
+              setSettings({ ...defaultSettings, ...parsed })
+            } else {
+              console.warn("AI Tab: Master key not available for decryption")
+            }
+          } catch (e) {
+            console.warn("Failed to parse/decrypt local preferences", e)
+          }
+        }
+
+        // 2. Sync with server (Background fetch)
+        await syncWithServer()
+
       } catch (e) {
         console.error('Failed to load AI preferences', e)
       } finally {
@@ -95,13 +150,83 @@ export function AITab() {
     load()
   }, [])
 
+  const syncWithServer = async () => {
+    try {
+      setSyncing(true)
+      const res = await apiClient.getIndexedDbPreferences()
+      if (res.success && res.data) {
+        const { settings: serverEncryptedSettings, hash: serverHash, updated_at } = res.data
+
+        if (serverEncryptedSettings) {
+          try {
+            if (masterKeyManager.hasMasterKey()) {
+              const masterKey = masterKeyManager.getMasterKey()
+              const decrypted = decryptString(serverEncryptedSettings, masterKey)
+              const parsedServer = JSON.parse(decrypted)
+
+              setSettings((prev: any) => ({ ...defaultSettings, ...prev, ...parsedServer }))
+              setLastSynced(new Date(updated_at).toLocaleString())
+
+              // Update local DB with the server's encrypted version (source of truth)
+              await saveAIPreferences(serverEncryptedSettings)
+            }
+          } catch (e) {
+            console.warn("Failed to decrypt server settings", e)
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Sync failed", e)
+    } finally {
+      setSyncing(false)
+    }
+  }
+
   const save = async (patch: any) => {
     const newSettings = { ...settings, ...patch }
     setSettings(newSettings)
+
     try {
-      await apiClient.updateAIPreferences(newSettings)
+      if (!masterKeyManager.hasMasterKey()) {
+        console.error("Cannot save: Master key missing")
+        return
+      }
+
+      const masterKey = masterKeyManager.getMasterKey()
+      const settingsStr = JSON.stringify(newSettings)
+      const encrypted = encryptString(settingsStr, masterKey)
+
+      // 1. Save Encrypted locally
+      await saveAIPreferences(encrypted)
+
+      // 2. Hash calculation (SHA-256) of the ENCRYPTED string
+      const encoder = new TextEncoder()
+      const data = encoder.encode(encrypted)
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+      const hashArray = Array.from(new Uint8Array(hashBuffer))
+      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+
+      // 3. Sign the hash
+      const signature = await signWithDeviceKey(hashHex)
+      const deviceId = await getDevicePublicKey()
+
+      if (signature && deviceId) {
+        // 4. Send to server
+        await apiClient.storeIndexedDbPreferences({
+          settings: encrypted,
+          hash: hashHex,
+          signature,
+          deviceId
+        })
+        setLastSynced(new Date().toLocaleString())
+
+        // Notify other components (like the sync worker)
+        window.dispatchEvent(new CustomEvent('ai-preferences-sync'))
+      }
+
     } catch (e) {
       console.error('Failed to save AI preferences', e)
+      toast.error("Failed to save settings")
     }
   }
 
@@ -109,7 +234,7 @@ export function AITab() {
   const handleSliderChange = useCallback((vals: any) => {
     const v = (vals[0] || 50) / 100
     setSettings((s: any) => ({ ...s, thinking_style: v }))
-    
+
     // Clear existing timeout
     if (sliderTimeoutRef.current) {
       clearTimeout(sliderTimeoutRef.current)
@@ -157,7 +282,7 @@ export function AITab() {
     const updated = newChars.includes(char)
       ? newChars.filter((c: string) => c !== char)
       : [...newChars, char]
-    
+
     save({
       personality_style: {
         ...settings.personality_style,
@@ -186,65 +311,76 @@ export function AITab() {
                 </TooltipContent>
               </Tooltip>
             </div>
+            <div className="text-xs text-muted-foreground hidden sm:block">
+              {syncing ? (
+                <span className="flex items-center gap-1"><IconRefresh className="w-3 h-3 animate-spin" /> Syncing...</span>
+              ) : lastSynced ? (
+                <span className="flex items-center gap-1"><IconCheck className="w-3 h-3 text-green-500" /> Synced {lastSynced}</span>
+              ) : null}
+            </div>
 
-            <div className="flex items-center gap-3">
-              <Switch
-                checked={!!settings.memory_enabled}
-                onCheckedChange={(v: any) => save({ memory_enabled: !!v })}
-              />
-              <div className="flex gap-2">
-                <Dialog open={openMemoryDialog} onOpenChange={setOpenMemoryDialog}>
-                  <DialogTrigger asChild>
-                    <Button size="sm" variant="outline" onClick={openMemory}>
-                      <IconEye className="w-4 h-4 mr-1" />
-                      View
+            <Switch
+              checked={!!settings.memory_enabled}
+              onCheckedChange={(v: any) => save({ memory_enabled: !!v })}
+            />
+            <div className="flex gap-2">
+              <Dialog open={openMemoryDialog} onOpenChange={setOpenMemoryDialog}>
+                <DialogTrigger asChild>
+                  <Button size="sm" variant="outline" onClick={openMemory}>
+                    <IconEye className="w-4 h-4 mr-1" />
+                    View
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Your AI Memory</DialogTitle>
+                  </DialogHeader>
+                  <div className="max-h-[60vh] overflow-y-auto space-y-2">
+                    {memories.length === 0 && (
+                      <div className="text-sm text-muted-foreground py-4 text-center">No memories saved yet.</div>
+                    )}
+                    {memories.map((m) => (
+                      <div key={m.id} className="p-3 flex items-start justify-between bg-muted/30 rounded-md hover:bg-muted/50 transition">
+                        <div className="max-w-[70%] break-words text-sm">{m.text}</div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleDeleteMemory(m.id)}
+                          className="h-7 w-7 p-0"
+                        >
+                          <IconTrash className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                  <DialogFooter className="gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={handleClearMemories}
+                    >
+                      <IconTrash className="w-4 h-4 mr-1" />
+                      Clear All
                     </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Your AI Memory</DialogTitle>
-                    </DialogHeader>
-                    <div className="max-h-[60vh] overflow-y-auto space-y-2">
-                      {memories.length === 0 && (
-                        <div className="text-sm text-muted-foreground py-4 text-center">No memories saved yet.</div>
-                      )}
-                      {memories.map((m) => (
-                        <div key={m.id} className="p-3 flex items-start justify-between bg-muted/30 rounded-md hover:bg-muted/50 transition">
-                          <div className="max-w-[70%] break-words text-sm">{m.text}</div>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleDeleteMemory(m.id)}
-                            className="h-7 w-7 p-0"
-                          >
-                            <IconTrash className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                    <DialogFooter className="gap-2">
-                      <Button
-                        variant="outline"
-                        onClick={handleClearMemories}
-                      >
-                        <IconTrash className="w-4 h-4 mr-1" />
-                        Clear All
-                      </Button>
-                      <Button onClick={() => setOpenMemoryDialog(false)}>Close</Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
+                    <Button onClick={() => setOpenMemoryDialog(false)}>Close</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
 
-                <Button size="sm" variant="outline" onClick={exportMemory}>
-                  <IconDownload className="w-4 h-4 mr-1" />
-                  Export
-                </Button>
-              </div>
+              <Button size="sm" variant="outline" onClick={exportMemory}>
+                <IconDownload className="w-4 h-4 mr-1" />
+                Export
+              </Button>
             </div>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">Enable persistent memory for personalized responses across conversations.</p>
-            <Badge variant="secondary">Encrypted Locally</Badge>
+            <div className="flex gap-2 mt-2">
+              <Badge variant="secondary">Encrypted Locally</Badge>
+              <Badge variant="outline" className="cursor-pointer hover:bg-muted" onClick={syncWithServer}>
+                <IconCloudUpload className="w-3 h-3 mr-1" />
+                Sync
+              </Badge>
+            </div>
           </CardContent>
         </Card>
 
@@ -323,8 +459,9 @@ export function AITab() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-44">
                         <DropdownMenuLabel className="text-xs">Adjust intensity</DropdownMenuLabel>
-                                <DropdownMenuItem onClick={() => save({
-                          personality_style: { ...settings.personality_style,
+                        <DropdownMenuItem onClick={() => save({
+                          personality_style: {
+                            ...settings.personality_style,
                             characteristicsSettings: { ...settings.personality_style?.characteristicsSettings, [char.id]: 'more' }
                           }
                         })}>
@@ -334,7 +471,8 @@ export function AITab() {
                           </div>
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => save({
-                          personality_style: { ...settings.personality_style,
+                          personality_style: {
+                            ...settings.personality_style,
                             characteristicsSettings: { ...settings.personality_style?.characteristicsSettings, [char.id]: 'default' }
                           }
                         })}>
@@ -344,7 +482,8 @@ export function AITab() {
                           </div>
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => save({
-                          personality_style: { ...settings.personality_style,
+                          personality_style: {
+                            ...settings.personality_style,
                             characteristicsSettings: { ...settings.personality_style?.characteristicsSettings, [char.id]: 'less' }
                           }
                         })}>
@@ -475,11 +614,10 @@ export function AITab() {
               <button
                 key={fmt.value}
                 onClick={() => save({ output_format: fmt.value })}
-                className={`w-full p-3 rounded-md text-left transition-all ${
-                  settings.output_format === fmt.value
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-indigo-100 dark:bg-indigo-950 text-indigo-900 dark:text-indigo-100 hover:bg-indigo-200 dark:hover:bg-indigo-900'
-                }`}
+                className={`w-full p-3 rounded-md text-left transition-all ${settings.output_format === fmt.value
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-indigo-100 dark:bg-indigo-950 text-indigo-900 dark:text-indigo-100 hover:bg-indigo-200 dark:hover:bg-indigo-900'
+                  }`}
               >
                 <div className="text-sm font-semibold">{fmt.title}</div>
                 <div className="text-xs opacity-80">{fmt.desc}</div>
