@@ -1,4 +1,4 @@
-name: Deploy Frontend to Debian VPS
+name: Deploy Frontend build
 
 on:
   push:
