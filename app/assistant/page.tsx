@@ -466,28 +466,46 @@ export default function AssistantPage() {
                             if (contentToAppend) {
                                 // Process thinking tags: extract thinking content, keep answer separate
                                 let remaining = contentToAppend;
+                                let currentTagFormat = { open: '', close: '' };
+
+                                const thinkingTags = [
+                                    { open: '<thinking>', close: '</thinking>' },
+                                    { open: '<think>', close: '</think>' }
+                                ];
                                 
                                 while (remaining.length > 0) {
                                     if (isInsideThinkingTag) {
                                         // Look for closing thinking tag
-                                        const closeIdx = remaining.indexOf('</thinking>');
+                                        const closeIdx = remaining.indexOf(currentTagFormat.close);
                                         if (closeIdx !== -1) {
                                             // Found closing tag - extract thinking content
                                             thinkingBuffer += remaining.substring(0, closeIdx);
-                                            remaining = remaining.substring(closeIdx + '</thinking>'.length);
+                                            remaining = remaining.substring(closeIdx + currentTagFormat.close.length);
                                             isInsideThinkingTag = false;
+                                            currentTagFormat = { open: '', close: '' };
                                         } else {
                                             // No closing tag - everything is thinking
                                             thinkingBuffer += remaining;
                                             remaining = '';
                                         }
                                     } else {
-                                        // Look for opening thinking tag
-                                        const openIdx = remaining.indexOf('<thinking>');
-                                        if (openIdx !== -1) {
+                                        // Look for opening thinking tag (check both formats)
+                                        let openIdx = -1;
+                                        let foundTag = null;
+
+                                        for (const tag of thinkingTags) {
+                                            const idx = remaining.indexOf(tag.open);
+                                            if (idx !== -1 && (openIdx === -1 || idx < openIdx)) {
+                                                openIdx = idx;
+                                                foundTag = tag;
+                                            }
+                                        }
+
+                                        if (openIdx !== -1 && foundTag) {
                                             // Found opening tag - add content before it to answer
                                             answerBuffer += remaining.substring(0, openIdx);
-                                            remaining = remaining.substring(openIdx + '<thinking>'.length);
+                                            remaining = remaining.substring(openIdx + foundTag.open.length);
+                                            currentTagFormat = foundTag;
                                             isInsideThinkingTag = true;
                                         } else {
                                             // No opening tag - everything is answer

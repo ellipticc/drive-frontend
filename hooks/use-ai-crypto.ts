@@ -196,21 +196,38 @@ export function useAICrypto(): UseAICryptoReturn {
         }
     }, [loadChats]);
 
-    // Helper: Parse thinking tags from content and move to reasoning
+    // Helper: Parse thinking tags from content and move to reasoning (supports both <thinking> and <think>)
     const parseThinkingFromContent = (content: string, existingReasoning?: string): { content: string; reasoning: string } => {
         let thinkingBuffer = "";
         let displayContent = "";
         let isInsideThinkingTag = false;
         let i = 0;
+        let currentTagFormat = { open: '', close: '' };
+
+        const thinkingTags = [
+            { open: '<thinking>', close: '</thinking>' },
+            { open: '<think>', close: '</think>' }
+        ];
 
         while (i < content.length) {
             if (!isInsideThinkingTag) {
-                // Look for opening tag
-                const openIdx = content.indexOf("<thinking>", i);
-                if (openIdx !== -1) {
+                // Look for opening tag (check both formats)
+                let openIdx = -1;
+                let foundTag = null;
+
+                for (const tag of thinkingTags) {
+                    const idx = content.indexOf(tag.open, i);
+                    if (idx !== -1 && (openIdx === -1 || idx < openIdx)) {
+                        openIdx = idx;
+                        foundTag = tag;
+                    }
+                }
+
+                if (openIdx !== -1 && foundTag) {
                     // Add everything before tag to display content
                     displayContent += content.substring(i, openIdx);
-                    i = openIdx + "<thinking>".length;
+                    i = openIdx + foundTag.open.length;
+                    currentTagFormat = foundTag;
                     isInsideThinkingTag = true;
                 } else {
                     // No opening tag found, add everything from i to end
@@ -219,11 +236,11 @@ export function useAICrypto(): UseAICryptoReturn {
                 }
             } else {
                 // Inside thinking tag, look for closing tag
-                const closeIdx = content.indexOf("</thinking>", i);
+                const closeIdx = content.indexOf(currentTagFormat.close, i);
                 if (closeIdx !== -1) {
                     // Add thinking content to buffer
                     thinkingBuffer += content.substring(i, closeIdx);
-                    i = closeIdx + "</thinking>".length;
+                    i = closeIdx + currentTagFormat.close.length;
                     isInsideThinkingTag = false;
                 } else {
                     // Closing tag not found, rest is thinking
