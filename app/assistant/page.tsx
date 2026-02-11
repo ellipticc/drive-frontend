@@ -1,7 +1,6 @@
 "use client"
 
 import * as React from "react"
-import { flushSync } from "react-dom"
 import { useUser } from "@/components/user-context"
 import { IconSparkles, IconBookmark, IconRotateClockwise } from "@tabler/icons-react"
 import { Checkpoint, CheckpointIcon, CheckpointTrigger } from "@/components/ai-elements/checkpoint"
@@ -41,6 +40,7 @@ interface Message {
     currentVersionIndex?: number;
     isCheckpoint?: boolean;
     reasoning?: string;
+    reasoningDuration?: number;
 }
 
 
@@ -847,28 +847,34 @@ export default function AssistantPage() {
                     reasoningPreview: finalReasoningContent.substring(0, 100)
                 });
                 
-                // Use flushSync to force immediate React re-render (critical for completing stream)
-                flushSync(() => {
-                    setMessages(prev => {
-                        console.log('[Stream Final] Inside setMessages callback, prev.length:', prev.length);
-                        const newMessages = [...prev];
-                        const lastIdx = newMessages.length - 1;
-                        const lastMessage = newMessages[lastIdx];
-                        console.log('[Stream Final] lastMessage:', lastMessage?.role, 'content.length:', lastMessage?.content?.length);
-                        if (lastMessage && lastMessage.role === 'assistant') {
-                            newMessages[lastIdx] = {
-                                ...lastMessage,
-                                content: answerBuffer.trim(),
-                                reasoning: finalReasoningContent,
-                                sources: messageSources.length > 0 ? messageSources : lastMessage.sources,
-                                isThinking: false
-                            };
-                            console.log('[Stream Final] Updated lastMessage, new content.length:', newMessages[lastIdx].content.length, 'sources:', messageSources.length);
-                        }
-                        return newMessages;
-                    });
+                // Create completely new message object to force React re-render without memo blocking
+                setMessages(prev => {
+                    console.log('[Stream Final] Inside setMessages callback, prev.length:', prev.length);
+                    const newMessages = [...prev];
+                    const lastIdx = newMessages.length - 1;
+                    const lastMessage = newMessages[lastIdx];
+                    console.log('[Stream Final] lastMessage:', lastMessage?.role, 'content.length:', lastMessage?.content?.length);
+                    if (lastMessage && lastMessage.role === 'assistant') {
+                        // Create a completely new object to force React to detect the change
+                        newMessages[lastIdx] = {
+                            id: lastMessage.id,
+                            role: 'assistant',
+                            content: answerBuffer.trim(),
+                            reasoning: finalReasoningContent,
+                            sources: messageSources.length > 0 ? messageSources : lastMessage.sources,
+                            isThinking: false,
+                            createdAt: lastMessage.createdAt,
+                            feedback: lastMessage.feedback,
+                            toolCalls: lastMessage.toolCalls,
+                            versions: lastMessage.versions,
+                            currentVersionIndex: lastMessage.currentVersionIndex,
+                            reasoningDuration: lastMessage.reasoningDuration,
+                        };
+                        console.log('[Stream Final] Updated lastMessage, new content.length:', newMessages[lastIdx].content.length, 'sources:', messageSources.length);
+                    }
+                    return newMessages;
                 });
-                console.log('[Stream Final] flushSync completed, message should now be visible');
+                console.log('[Stream Final] setState completed');
                 
                 // Force scroll to bottom if user was following along
                 if (shouldAutoScrollRef.current) {

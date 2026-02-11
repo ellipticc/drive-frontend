@@ -157,8 +157,7 @@ function InlineCitationRenderer({ content, sources = [] }: { content: string; so
 }
 
 
-export const ChatMessage = React.memo(
-    function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedback, onRegenerate, onVersionChange, onCheckpoint, availableModels = [], onRerunSystemWithModel, onAddToChat }: ChatMessageProps) {
+export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedback, onRegenerate, onVersionChange, onCheckpoint, availableModels = [], onRerunSystemWithModel, onAddToChat }: ChatMessageProps) {
     // ... existing state ...
     const isUser = message.role === 'user';
     const isAssistant = message.role === 'assistant';
@@ -507,25 +506,7 @@ export const ChatMessage = React.memo(
             </div>
         </div>
     );
-    },
-    (prevProps, nextProps) => {
-        // Custom memo comparison: return true if props are equal (skip re-render)
-        return (
-            prevProps.message.id === nextProps.message.id &&
-            prevProps.message.content === nextProps.message.content &&
-            prevProps.message.reasoning === nextProps.message.reasoning &&
-            prevProps.message.isThinking === nextProps.message.isThinking &&
-            prevProps.message.reasoningDuration === nextProps.message.reasoningDuration &&
-            prevProps.isLast === nextProps.isLast &&
-            prevProps.message.feedback === nextProps.message.feedback &&
-            prevProps.message.toolCalls === nextProps.message.toolCalls &&
-            prevProps.message.versions === nextProps.message.versions &&
-            prevProps.message.currentVersionIndex === nextProps.message.currentVersionIndex
-        );
-    }
-);
-
-ChatMessage.displayName = 'ChatMessage';
+}
 
 function RegeneratePanel({ isOpen, onOpenChange, onSubmit }: { isOpen: boolean, onOpenChange: (open: boolean) => void, onSubmit: (instruction?: string) => void }) {
     const [instruction, setInstruction] = React.useState("");
