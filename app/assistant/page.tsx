@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { flushSync } from "react-dom"
 import { useUser } from "@/components/user-context"
 import { IconSparkles, IconBookmark, IconRotateClockwise } from "@tabler/icons-react"
 import { Checkpoint, CheckpointIcon, CheckpointTrigger } from "@/components/ai-elements/checkpoint"
@@ -806,7 +807,7 @@ export default function AssistantPage() {
                     }
 
                     // Process final buffered event
-                    if (dataStr && eventType === 'data') {
+                    if (dataStr && eventType === 'data' && dataStr !== '[DONE]') {
                         try {
                             const data = JSON.parse(dataStr);
                             let contentToAppend = "";
@@ -832,6 +833,10 @@ export default function AssistantPage() {
                     }
                 }
 
+                // CRITICAL: Wait for all async operations to settle before final update
+                // This ensures all decryption is complete before we save state
+                await new Promise(resolve => setTimeout(resolve, 50));
+
                 // Final update: ensure stream is fully complete
                 const finalReasoningContent = assistantReasoningContent || thinkingBuffer;
                 console.log('[Stream Final] About to call final setMessages:', {
@@ -841,25 +846,35 @@ export default function AssistantPage() {
                     answerPreview: answerBuffer.trim().substring(0, 100),
                     reasoningPreview: finalReasoningContent.substring(0, 100)
                 });
-                setMessages(prev => {
-                    console.log('[Stream Final] Inside setMessages callback, prev.length:', prev.length);
-                    const newMessages = [...prev];
-                    const lastIdx = newMessages.length - 1;
-                    const lastMessage = newMessages[lastIdx];
-                    console.log('[Stream Final] lastMessage:', lastMessage?.role, 'content.length:', lastMessage?.content?.length);
-                    if (lastMessage && lastMessage.role === 'assistant') {
-                        newMessages[lastIdx] = {
-                            ...lastMessage,
-                            content: answerBuffer.trim(),
-                            reasoning: finalReasoningContent,
-                            sources: messageSources.length > 0 ? messageSources : lastMessage.sources,
-                            isThinking: false
-                        };
-                        console.log('[Stream Final] Updated lastMessage, new content.length:', newMessages[lastIdx].content.length, 'sources:', messageSources.length);
-                    }
-                    return newMessages;
+                
+                // Use flushSync to force immediate React re-render (critical for completing stream)
+                flushSync(() => {
+                    setMessages(prev => {
+                        console.log('[Stream Final] Inside setMessages callback, prev.length:', prev.length);
+                        const newMessages = [...prev];
+                        const lastIdx = newMessages.length - 1;
+                        const lastMessage = newMessages[lastIdx];
+                        console.log('[Stream Final] lastMessage:', lastMessage?.role, 'content.length:', lastMessage?.content?.length);
+                        if (lastMessage && lastMessage.role === 'assistant') {
+                            newMessages[lastIdx] = {
+                                ...lastMessage,
+                                content: answerBuffer.trim(),
+                                reasoning: finalReasoningContent,
+                                sources: messageSources.length > 0 ? messageSources : lastMessage.sources,
+                                isThinking: false
+                            };
+                            console.log('[Stream Final] Updated lastMessage, new content.length:', newMessages[lastIdx].content.length, 'sources:', messageSources.length);
+                        }
+                        return newMessages;
+                    });
                 });
-                console.log('[Stream Final] setMessages call completed');
+                console.log('[Stream Final] flushSync completed, message should now be visible');
+                
+                // Force scroll to bottom if user was following along
+                if (shouldAutoScrollRef.current) {
+                    setTimeout(() => scrollToBottom('smooth'), 10);
+                    setShowScrollToBottom(false);
+                }
 
             } catch (streamError) {
                 // Catch stream reading errors (abort, timeout, connection loss, etc.)
