@@ -18,10 +18,16 @@ export function ChatScrollNavigation({ messages }: ChatScrollNavigationProps) {
     const [activeId, setActiveId] = useState<string | null>(null);
     const [isHovered, setIsHovered] = useState(false);
 
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
     // Filter only user messages that have IDs
     const userMessages = messages.filter(m => m.role === 'user' && m.id && m.content);
 
-    if (userMessages.length === 0) return null;
+    if (!mounted || userMessages.length === 0) return null;
 
     const handleScrollTo = (id: string) => {
         const element = document.getElementById(id);
