@@ -11,19 +11,19 @@ import { Input } from "@/components/ui/input"
 import { Reasoning, ReasoningTrigger, ReasoningContent, detectThinkingTagType } from "@/components/ai-elements/reasoning"
 import { TextSelectionMenu } from "@/components/ai-elements/text-selection-menu"
 import {
-  InlineCitation,
-  InlineCitationText,
-  InlineCitationCard,
-  InlineCitationCardTrigger,
-  InlineCitationCardBody,
-  InlineCitationCarousel,
-  InlineCitationCarouselContent,
-  InlineCitationCarouselItem,
-  InlineCitationCarouselHeader,
-  InlineCitationCarouselIndex,
-  InlineCitationCarouselPrev,
-  InlineCitationCarouselNext,
-  InlineCitationSource,
+    InlineCitation,
+    InlineCitationText,
+    InlineCitationCard,
+    InlineCitationCardTrigger,
+    InlineCitationCardBody,
+    InlineCitationCarousel,
+    InlineCitationCarouselContent,
+    InlineCitationCarouselItem,
+    InlineCitationCarouselHeader,
+    InlineCitationCarouselIndex,
+    InlineCitationCarouselPrev,
+    InlineCitationCarouselNext,
+    InlineCitationSource,
 } from "@/components/ai-elements/inline-citation"
 import { MarkdownRenderer } from "@/components/ai-elements/markdown-renderer"
 
@@ -216,16 +216,18 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
     const currentVersion = (message.currentVersionIndex || 0) + 1;
 
     return (
-        <div className={cn(
-            "flex w-full gap-3 group",
-            isUser ? "justify-end" : "justify-start"
-        )}> 
+        <div
+            id={message.id}
+            className={cn(
+                "flex w-full gap-3 group scroll-mt-24", // optimized scroll margin for sticky header
+                isUser ? "justify-end" : "justify-start"
+            )}>
 
             {/* Message Content */}
             <div className={cn(
                 "flex flex-col flex-1",
                 isUser ? "items-end" : "items-start"
-            )}> 
+            )}>
                 {isUser ? (
                     // ... User Message Render ...
                     <>
@@ -297,7 +299,7 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                         </div>
                                     </div>
                                     */}
-                                </div> 
+                                </div>
 
                                 <div className="flex items-center gap-1 mt-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
                                     <ActionButton
@@ -323,7 +325,7 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                             onClick={() => onRegenerate?.('continue')}
                                         />
                                     )}
-                                </div> 
+                                </div>
                             </>
                         )}
                     </>
@@ -333,7 +335,7 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                             (() => {
                                 const reasoningContent = message.reasoning;
                                 const tagType = detectThinkingTagType(reasoningContent);
-                                
+
                                 return (
                                     <Reasoning
                                         key={`reasoning-${message.id}-${message.reasoningDuration ?? 'none'}`}
@@ -393,87 +395,87 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                         {/* Actions Footer - Always Visible for Assistant */}
                         {/* Only show assistant actions when this is an assistant message */}
                         {isAssistant && (
-                        <div className="flex items-center justify-between mt-2 select-none">
-                            {/* Left Actions */}
-                            <div className="flex items-center gap-0.5">
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className={cn("h-6 w-6", feedbackGiven && message.feedback === 'like' ? "text-green-500" : "text-muted-foreground hover:text-green-500")}
-                                            onClick={() => handleFeedback('like')}
-                                            disabled={feedbackGiven}
-                                        >
-                                            <IconThumbUp className="size-3.5" />
-                                        </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="bottom">
-                                        <p>Like</p>
-                                    </TooltipContent>
-                                </Tooltip>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className={cn("h-6 w-6", feedbackGiven && message.feedback === 'dislike' ? "text-red-500" : "text-muted-foreground hover:text-red-500")}
-                                            onClick={() => handleFeedback('dislike')}
-                                            disabled={feedbackGiven}
-                                        >
-                                            <IconThumbDown className="size-3.5" />
-                                        </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="bottom">
-                                        <p>Dislike</p>
-                                    </TooltipContent>
-                                </Tooltip> 
-                                <ActionButton
-                                    icon={copied ? IconCheck : IconCopy}
-                                    label="Copy"
-                                    onClick={handleCopy}
-                                />
+                            <div className="flex items-center justify-between mt-2 select-none">
+                                {/* Left Actions */}
+                                <div className="flex items-center gap-0.5">
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className={cn("h-6 w-6", feedbackGiven && message.feedback === 'like' ? "text-green-500" : "text-muted-foreground hover:text-green-500")}
+                                                onClick={() => handleFeedback('like')}
+                                                disabled={feedbackGiven}
+                                            >
+                                                <IconThumbUp className="size-3.5" />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="bottom">
+                                            <p>Like</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className={cn("h-6 w-6", feedbackGiven && message.feedback === 'dislike' ? "text-red-500" : "text-muted-foreground hover:text-red-500")}
+                                                onClick={() => handleFeedback('dislike')}
+                                                disabled={feedbackGiven}
+                                            >
+                                                <IconThumbDown className="size-3.5" />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="bottom">
+                                            <p>Dislike</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                    <ActionButton
+                                        icon={copied ? IconCheck : IconCopy}
+                                        label="Copy"
+                                        onClick={handleCopy}
+                                    />
 
-                                <RegeneratePanel
-                                    isOpen={isRegenPanelOpen}
-                                    onOpenChange={setIsRegenPanelOpen}
-                                    onSubmit={handleRegenerateSubmit}
-                                />
+                                    <RegeneratePanel
+                                        isOpen={isRegenPanelOpen}
+                                        onOpenChange={setIsRegenPanelOpen}
+                                        onSubmit={handleRegenerateSubmit}
+                                    />
 
-                                <ActionButton
-                                    icon={IconDownload}
-                                    label="Download"
-                                    onClick={handleDownload}
-                                />
-                            </div>
-
-                            {/* Right Actions - Version Navigation */}
-                            {versionCount > 1 && (
-                                <div className="flex items-center gap-1 text-xs text-muted-foreground bg-muted/30 rounded-md px-1">
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-5 w-5"
-                                        onClick={() => onVersionChange?.('prev')}
-                                        disabled={currentVersion <= 1}
-                                    >
-                                        <IconChevronLeft className="size-3" />
-                                    </Button>
-                                    <span className="px-1 min-w-[30px] text-center font-mono">
-                                        {currentVersion} / {versionCount}
-                                    </span>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-5 w-5"
-                                        onClick={() => onVersionChange?.('next')}
-                                        disabled={currentVersion >= versionCount}
-                                    >
-                                        <IconChevronRight className="size-3" />
-                                    </Button>
+                                    <ActionButton
+                                        icon={IconDownload}
+                                        label="Download"
+                                        onClick={handleDownload}
+                                    />
                                 </div>
-                            )}
-                        </div>
+
+                                {/* Right Actions - Version Navigation */}
+                                {versionCount > 1 && (
+                                    <div className="flex items-center gap-1 text-xs text-muted-foreground bg-muted/30 rounded-md px-1">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-5 w-5"
+                                            onClick={() => onVersionChange?.('prev')}
+                                            disabled={currentVersion <= 1}
+                                        >
+                                            <IconChevronLeft className="size-3" />
+                                        </Button>
+                                        <span className="px-1 min-w-[30px] text-center font-mono">
+                                            {currentVersion} / {versionCount}
+                                        </span>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-5 w-5"
+                                            onClick={() => onVersionChange?.('next')}
+                                            disabled={currentVersion >= versionCount}
+                                        >
+                                            <IconChevronRight className="size-3" />
+                                        </Button>
+                                    </div>
+                                )}
+                            </div>
                         )}
 
                         {/* System message actions */}
@@ -500,7 +502,7 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                 </Popover>
                                 */}
                             </div>
-                        )} 
+                        )}
                     </div>
                 )}
             </div>

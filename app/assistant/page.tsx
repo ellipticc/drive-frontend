@@ -16,6 +16,7 @@ import { parseFile } from "@/lib/file-parser";
 import { useRouter, useSearchParams } from "next/navigation"
 import { Suggestions, Suggestion } from "@/components/ai-elements/suggestion"
 import { ChatMessage } from "@/components/ai-elements/chat-message"
+import { ChatScrollNavigation } from "@/components/ai-elements/chat-navigation"
 import { toast } from "sonner"
 
 interface MessageVersion {
@@ -1478,6 +1479,7 @@ export default function AssistantPage() {
                         </div>
                     </div>
                 )}
+                <ChatScrollNavigation messages={messages} />
             </div>
         </div >
     );

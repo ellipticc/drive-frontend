@@ -80,7 +80,7 @@ export const CodeBlock = React.forwardRef<
         'group w-full max-w-full',
         className
       )}
-      style={{ backgroundColor: bgColor }}
+      style={{ backgroundColor: bgColor, maxWidth: '100%' }}
     >
       {/* Header with Language Label */}
       <div className="flex items-center justify-between px-4 py-2.5">
@@ -212,11 +212,12 @@ export const InlineCode: React.FC<{
   <code
     className={cn(
       'inline align-baseline px-1.5 py-0.5 rounded-md break-words',
-      'bg-muted text-xs font-mono text-foreground/90',
+      'bg-muted/50 text-xs font-mono text-foreground/90',
       'border border-border/50',
+      'mx-0.5',
       className
     )}
-    style={{ display: 'inline' }}
+    style={{ display: 'inline', fontSize: '0.85em' }}
   >
     {children}
   </code>

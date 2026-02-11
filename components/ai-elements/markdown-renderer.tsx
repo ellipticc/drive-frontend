@@ -70,11 +70,15 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   className,
   compact = false,
 }) => {
-  // Normalize problematic unicode characters (e.g., en-dash) to avoid strict LaTeX warnings in rehype-katex
+  // Normalize problematic unicode characters and HTML line breaks
   const safeContent = React.useMemo(() => {
     if (!content) return content;
-    return content.replace(/\u2013|\u2014/g, '-');
+    // Replace <br>, <br/>, <br /> with newlines
+    let processed = content.replace(/<br\s*\/?>/gi, '\n');
+    // Normalize dashes
+    return processed.replace(/\u2013|\u2014/g, '-');
   }, [content]);
+
   // Components mapping for react-markdown
   const components = useMemo(
     () => ({
@@ -100,10 +104,13 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
         }
 
         return (
-          <CodeBlock
-            language={language || 'plain'}
-            code={content}
-          />
+          <div className="w-full max-w-full overflow-hidden my-4 rounded-lg">
+            <CodeBlock
+              language={language || 'plain'}
+              code={content}
+              className="my-0 w-full max-w-full"
+            />
+          </div>
         );
       },
 
@@ -163,7 +170,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
         'prose dark:prose-invert prose-base max-w-none w-full overflow-hidden',
         '[&_pre]:overflow-x-auto [&_pre]:max-w-full [&_pre]:w-full',
         '[&_code]:break-words',
-        
+
         // Remove margins if compact
         compact && [
           '[&>*:first-child]:mt-0',
@@ -176,10 +183,10 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
           '[&_blockquote]:my-2',
           '[&_pre]:my-2',
         ],
-        
+
         // Custom overrides
         'text-foreground',
-        
+
         className
       )}
     >

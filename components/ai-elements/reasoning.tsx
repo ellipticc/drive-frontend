@@ -64,7 +64,7 @@ const MS_IN_S = 1000;
 export const parseThinkingStats = (content: string) => {
   const lines = content.split('\n');
   const tokenCount = content.split(/\s+/).length;
-  
+
   return {
     tokenCount,
     lineCount: lines.length,
@@ -188,14 +188,14 @@ const defaultGetThinkingMessage = (isStreaming: boolean, duration?: number, toke
   if (isStreaming) {
     return <Shimmer duration={1}>Thinking...</Shimmer>;
   }
-  
-  // If we have any duration (even 0), show it explicitly to avoid stale "Thinking..." UI
-  if (duration !== undefined) {
+
+  // Only show duration if there was actual reasoning
+  if (duration !== undefined && duration > 0) {
     return <p>Thought for {duration}s</p>;
   }
-  
-  // Old message without stored duration - show placeholder
-  return <p>Thought...</p>;
+
+  // If no duration and not streaming, return null to hide the trigger content
+  return null;
 };
 
 export const ReasoningTrigger = memo(
