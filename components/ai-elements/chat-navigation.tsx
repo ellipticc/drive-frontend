@@ -27,7 +27,8 @@ export function ChatScrollNavigation({ messages }: ChatScrollNavigationProps) {
     // Filter only user messages that have IDs
     const userMessages = messages.filter(m => m.role === 'user' && m.id && m.content);
 
-    if (!mounted || userMessages.length === 0) return null;
+    // Determine if we should render content based on hydration state
+    const shouldRender = mounted && userMessages.length > 0;
 
     const handleScrollTo = (id: string) => {
         const element = document.getElementById(id);
@@ -64,46 +65,49 @@ export function ChatScrollNavigation({ messages }: ChatScrollNavigationProps) {
             className={cn(
                 "fixed right-0 top-1/2 -translate-y-1/2 z-40 flex items-center justify-end pr-2 pl-8 py-8 transition-all duration-300",
                 "h-[80vh] w-auto max-w-[300px]",
-                isHovered ? "bg-gradient-to-l from-background via-background/90 to-transparent" : "pointer-events-none"
+                shouldRender && isHovered ? "bg-gradient-to-l from-background via-background/90 to-transparent" : "pointer-events-none",
+                !shouldRender && "hidden pointer-events-none"
             )}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
         >
-            <div
-                className={cn(
-                    "flex flex-col gap-1 items-end transition-all duration-300 pointer-events-auto",
-                    isHovered ? "opacity-100 translate-x-0" : "opacity-30 translate-x-4 hover:opacity-100 hover:translate-x-0"
-                )}
-            >
-                {userMessages.map((msg, idx) => (
-                    <button
-                        key={msg.id || idx}
-                        onClick={() => msg.id && handleScrollTo(msg.id)}
-                        className={cn(
-                            "group flex items-center gap-3 py-1 pl-4 pr-1 transition-all rounded-l-full",
-                            "hover:bg-muted/50",
-                            activeId === msg.id ? "opacity-100" : "opacity-40 hover:opacity-100"
-                        )}
-                    >
-                        <span
+            {shouldRender && (
+                <div
+                    className={cn(
+                        "flex flex-col gap-1 items-end transition-all duration-300 pointer-events-auto",
+                        isHovered ? "opacity-100 translate-x-0" : "opacity-30 translate-x-4 hover:opacity-100 hover:translate-x-0"
+                    )}
+                >
+                    {userMessages.map((msg, idx) => (
+                        <button
+                            key={msg.id || idx}
+                            onClick={() => msg.id && handleScrollTo(msg.id)}
                             className={cn(
-                                "text-xs font-medium truncate max-w-[200px] text-right transition-all duration-300 hidden sm:block",
-                                isHovered ? "w-auto opacity-100 scale-100" : "w-0 opacity-0 scale-95 origin-right overflow-hidden"
+                                "group flex items-center gap-3 py-1 pl-4 pr-1 transition-all rounded-l-full",
+                                "hover:bg-muted/50",
+                                activeId === msg.id ? "opacity-100" : "opacity-40 hover:opacity-100"
                             )}
                         >
-                            {msg.content.slice(0, 30)}{msg.content.length > 30 ? '...' : ''}
-                        </span>
-                        <div
-                            className={cn(
-                                "w-1.5 h-1.5 rounded-full transition-all duration-300 shadow-sm",
-                                activeId === msg.id
-                                    ? "bg-primary scale-125"
-                                    : "bg-muted-foreground/40 group-hover:bg-primary/70"
-                            )}
-                        />
-                    </button>
-                ))}
-            </div>
+                            <span
+                                className={cn(
+                                    "text-xs font-medium truncate max-w-[200px] text-right transition-all duration-300 hidden sm:block",
+                                    isHovered ? "w-auto opacity-100 scale-100" : "w-0 opacity-0 scale-95 origin-right overflow-hidden"
+                                )}
+                            >
+                                {msg.content.slice(0, 30)}{msg.content.length > 30 ? '...' : ''}
+                            </span>
+                            <div
+                                className={cn(
+                                    "w-1.5 h-1.5 rounded-full transition-all duration-300 shadow-sm",
+                                    activeId === msg.id
+                                        ? "bg-primary scale-125"
+                                        : "bg-muted-foreground/40 group-hover:bg-primary/70"
+                                )}
+                            />
+                        </button>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }
