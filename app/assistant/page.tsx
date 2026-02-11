@@ -162,7 +162,7 @@ export default function AssistantPage() {
         if (typeof window !== 'undefined') {
             let title = 'New Chat | Ellipticc';
             let chatTitle = 'New Chat';
-            
+
             if (conversationId) {
                 const currentChat = chats.find(chat => chat.id === conversationId);
                 if (currentChat) {
@@ -173,7 +173,7 @@ export default function AssistantPage() {
                     chatTitle = 'Chat';
                 }
             }
-            
+
             document.title = title;
             setChatTitle(chatTitle);
         }
@@ -496,8 +496,7 @@ export default function AssistantPage() {
             let isInsideThinkingTag = false;
             let currentSessionKey: Uint8Array | undefined;
             let buffer = ""; // Buffer for incomplete SSE events
-            let lastUpdateTime = 0;
-            const UPDATE_INTERVAL = 30; // Throttle UI updates to ~30ms for smooth token rendering (balanced between smoothness and re-render cost)
+            let pendingRafId: number | null = null; // requestAnimationFrame ID for batched UI updates
 
             try {
                 while (true) {
@@ -550,23 +549,24 @@ export default function AssistantPage() {
                                 if (chunkReasoning) {
                                     assistantReasoningContent += chunkReasoning;
 
-                                    // Update message with reasoning
-                                    const now = Date.now();
-                                    if (now - lastUpdateTime > UPDATE_INTERVAL) {
-                                        setMessages(prev => {
-                                            const newMessages = [...prev];
-                                            const lastIdx = newMessages.length - 1;
-                                            const lastMessage = newMessages[lastIdx];
-                                            if (lastMessage && lastMessage.role === 'assistant') {
-                                                newMessages[lastIdx] = {
-                                                    ...lastMessage,
-                                                    reasoning: assistantReasoningContent,
-                                                    isThinking: true
-                                                };
-                                            }
-                                            return newMessages;
+                                    // Schedule UI update (batched per animation frame)
+                                    if (pendingRafId === null) {
+                                        pendingRafId = requestAnimationFrame(() => {
+                                            pendingRafId = null;
+                                            setMessages(prev => {
+                                                const newMessages = [...prev];
+                                                const lastIdx = newMessages.length - 1;
+                                                const lastMessage = newMessages[lastIdx];
+                                                if (lastMessage && lastMessage.role === 'assistant') {
+                                                    newMessages[lastIdx] = {
+                                                        ...lastMessage,
+                                                        reasoning: assistantReasoningContent,
+                                                        isThinking: true
+                                                    };
+                                                }
+                                                return newMessages;
+                                            });
                                         });
-                                        lastUpdateTime = now;
                                     }
                                 }
                             } catch (e) {
@@ -761,27 +761,25 @@ export default function AssistantPage() {
                                         }
                                     }
 
-                                    // Use backend reasoning if available, otherwise use extracted thinking
-                                    const finalReasoningContent = assistantReasoningContent || thinkingBuffer;
-
-                                    // Throttle state updates
-                                    const now = Date.now();
-                                    if (now - lastUpdateTime > UPDATE_INTERVAL) {
-                                        setMessages(prev => {
-                                            const newMessages = [...prev];
-                                            const lastIdx = newMessages.length - 1;
-                                            const lastMessage = newMessages[lastIdx];
-                                            if (lastMessage && lastMessage.role === 'assistant') {
-                                                newMessages[lastIdx] = {
-                                                    ...lastMessage,
-                                                    content: answerBuffer.trim(),
-                                                    reasoning: finalReasoningContent,
-                                                    isThinking: isInsideThinkingTag
-                                                };
-                                            }
-                                            return newMessages;
+                                    // Schedule UI update (batched per animation frame — no tokens dropped)
+                                    if (pendingRafId === null) {
+                                        pendingRafId = requestAnimationFrame(() => {
+                                            pendingRafId = null;
+                                            setMessages(prev => {
+                                                const newMessages = [...prev];
+                                                const lastIdx = newMessages.length - 1;
+                                                const lastMessage = newMessages[lastIdx];
+                                                if (lastMessage && lastMessage.role === 'assistant') {
+                                                    newMessages[lastIdx] = {
+                                                        ...lastMessage,
+                                                        content: answerBuffer.trim(),
+                                                        reasoning: assistantReasoningContent || thinkingBuffer,
+                                                        isThinking: isInsideThinkingTag
+                                                    };
+                                                }
+                                                return newMessages;
+                                            });
                                         });
-                                        lastUpdateTime = now;
                                     }
                                 }
                             } catch (e) {
@@ -833,6 +831,12 @@ export default function AssistantPage() {
                     }
                 }
 
+                // Cancel any pending rAF so it doesn't overwrite the final sync flush
+                if (pendingRafId !== null) {
+                    cancelAnimationFrame(pendingRafId);
+                    pendingRafId = null;
+                }
+
                 // CRITICAL: Wait for all async operations to settle before final update
                 // This ensures all decryption is complete before we save state
                 await new Promise(resolve => setTimeout(resolve, 50));
@@ -846,7 +850,7 @@ export default function AssistantPage() {
                     answerPreview: answerBuffer.trim().substring(0, 100),
                     reasoningPreview: finalReasoningContent.substring(0, 100)
                 });
-                
+
                 // Create completely new message object to force React re-render without memo blocking
                 setMessages(prev => {
                     console.log('[Stream Final] Inside setMessages callback, prev.length:', prev.length);
@@ -875,7 +879,7 @@ export default function AssistantPage() {
                     return newMessages;
                 });
                 console.log('[Stream Final] setState completed');
-                
+
                 // Force scroll to bottom if user was following along
                 if (shouldAutoScrollRef.current) {
                     setTimeout(() => scrollToBottom('smooth'), 10);
