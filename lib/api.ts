@@ -481,15 +481,6 @@ export interface ShareCommentsResponse {
   };
 }
 
-export interface Referral {
-  referred_user_id: string;
-  referred_name: string;
-  referred_email: string;
-  avatar_url: string;
-  status: string;
-  created_at: string;
-  completed_at: string | null;
-}
 
 export interface Subscription {
   id: string;
@@ -1308,7 +1299,7 @@ class ApiClient {
     recoveryKeyNonce?: string;     // Nonce for decrypting recovery key
     encryptedMasterKeyPassword?: string;  // MK encrypted with password-derived key (for login)
     masterKeyPasswordNonce?: string;      // Nonce for password-encrypted MK
-    referralCode?: string;         // Referral code for signup attribution
+
   }): Promise<ApiResponse> {
     return this.request('/auth/crypto/setup', {
       method: 'POST',
@@ -3049,74 +3040,7 @@ class ApiClient {
     });
   }
 
-  // Referral endpoints
-  async getReferralInfo(page = 1, limit = 5): Promise<ApiResponse<{
-    referralCode: string;
-    stats: {
-      completedReferrals: number;
-      pendingReferrals: number;
-      totalEarningsMB: number;
-      currentBonusMB: number;
-      maxBonusMB: number;
-      maxReferrals: number;
-      totalReferralsCount: number;
-    };
-    recentReferrals: Array<{
-      referred_user_id: string;
-      referred_name: string;
-      referred_email: string;
-      avatar_url: string;
-      status: string;
-      created_at: string;
-      completed_at: string | null;
-    }>;
-    pagination: {
-      total: number;
-      page: number;
-      limit: number;
-    };
-  }>> {
-    return this.request(`/referrals/info?page=${page}&limit=${limit}`);
-  }
 
-  async getReferralLeaderboard(limit?: number): Promise<ApiResponse<{
-    leaderboard: Array<{
-      rank: number;
-      name: string;
-      email: string;
-      totalReferrals: number;
-      totalEarningsMB: number;
-      codeCreatedAt: string;
-    }>;
-  }>> {
-    return this.request(`/referrals/leaderboard${limit ? `?limit=${limit}` : ''}`);
-  }
-
-  async getReferralEarningsHistory(limit?: number): Promise<ApiResponse<{
-    earnings: Array<{
-      id: string;
-      earningsMB: number;
-      description: string;
-      createdAt: string;
-      referredUser: {
-        name: string;
-        email: string;
-      };
-    }>;
-  }>> {
-    return this.request(`/referrals/earnings${limit ? `?limit=${limit}` : ''}`);
-  }
-
-  async validateReferralCode(code: string): Promise<ApiResponse<{
-    valid: boolean;
-    referrer: {
-      id: string;
-      name: string;
-      email: string;
-    };
-  }>> {
-    return this.request(`/referrals/validate/${code}`);
-  }
 
   async verifyDeviceToken(deviceToken: string): Promise<ApiResponse<{
     isValidDevice: boolean;

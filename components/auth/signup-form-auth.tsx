@@ -89,15 +89,7 @@ export function SignupFormAuth({
     checkAndRedirect()
   }, [router])
 
-  // Capture referral code from URL on mount
-  useEffect(() => {
-    const ref = searchParams.get('ref')
-    if (ref) {
-      // Store referral code in sessionStorage so it persists across redirects
-      sessionStorage.setItem('referral_code', ref)
-      console.log('Referral code captured:', ref)
-    }
-  }, [searchParams])
+
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -265,22 +257,18 @@ export function SignupFormAuth({
       // Now store the PQC keypairs in individual database columns
       // CRITICAL: Store accountSalt as HEX (same format used for key derivation)
       try {
-        // Retrieve referral code from sessionStorage if it exists
-        const referralCode = sessionStorage.getItem('referral_code')
 
         const cryptoSetupResponse = await apiClient.storeCryptoKeypairs({
           userId,
           accountSalt: tempAccountSaltHex,  // Store as HEX, not base64
           pqcKeypairs: keypairs.pqcKeypairs,
           mnemonicHash,  // SHA256(mnemonic) for zero-knowledge verification
-          masterKeyVerificationHash,  // HMAC for master key integrity validation
           encryptedRecoveryKey,  // RK encrypted with RKEK(mnemonic)
           recoveryKeyNonce,      // Nonce for decrypting recovery key
           encryptedMasterKey,    // MK encrypted with RK
           masterKeySalt,         // JSON stringified with salt and algorithm
           encryptedMasterKeyPassword,  // MK encrypted with password-derived key
           masterKeyPasswordNonce,      // Nonce for password-encrypted MK
-          referralCode: referralCode || undefined  // Pass referral code if available
         })
 
         if (!cryptoSetupResponse.success) {

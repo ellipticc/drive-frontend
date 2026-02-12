@@ -68,7 +68,7 @@ export function SiteHeader({ className, onSearch, onFileUpload, onFolderUpload, 
   const [autoSticky, setAutoSticky] = useState(false)
   useEffect(() => {
     try {
-      const dashboardPaths = ['/insights', '/analytics', '/dashboard', '/commissions', '/backup']
+      const dashboardPaths = ['/insights', '/analytics', '/dashboard', '/backup']
       const p = typeof window !== 'undefined' ? window.location.pathname : ''
       setAutoSticky(dashboardPaths.some(dp => p.startsWith(dp)))
     } catch (err) {

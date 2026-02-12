@@ -59,7 +59,6 @@ export const dictionaries = {
                 desc: "Manually select your time zone",
             },
             notifications: "Notifications",
-            referrals: "Referrals",
             close: "Close settings",
             accountInfo: {
                 label: "Account Information",
@@ -218,7 +217,6 @@ export const dictionaries = {
                 desc: "Sélectionnez manuellement votre fuseau horaire",
             },
             notifications: "Notifications",
-            referrals: "Parrainages",
             close: "Fermer les paramètres",
             accountInfo: {
                 label: "Informations du compte",
@@ -375,7 +373,6 @@ export const dictionaries = {
                 desc: "Seleccione manualmente su zona horaria",
             },
             notifications: "Notificaciones",
-            referrals: "Referidos",
             close: "Cerrar configuración",
             accountInfo: {
                 label: "Información de la cuenta",
@@ -531,7 +528,6 @@ export const dictionaries = {
                 desc: "Wählen Sie Ihre Zeitzone manuell aus",
             },
             notifications: "Benachrichtigungen",
-            referrals: "Empfehlungen",
             close: "Einstellungen schließen",
             accountInfo: {
                 label: "Kontoinformationen",

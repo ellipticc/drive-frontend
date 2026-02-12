@@ -77,14 +77,12 @@ import {
 import {
   BillingTab
 } from "./settings/billing-tab"
-import {
-  ReferralsTab
-} from "./settings/referrals-tab"
+
 import {
   DeveloperTab
 } from "./settings/developer-tab"
 import { AITab } from "./settings/ai-tab"
-import { apiClient, Referral, Subscription, BillingUsage, PricingPlan, SubscriptionHistory, SecurityEvent } from "@/lib/api"
+import { apiClient, Subscription, BillingUsage, PricingPlan, SubscriptionHistory, SecurityEvent } from "@/lib/api"
 import { useTheme } from "next-themes"
 import { useUser } from "@/components/user-context"
 import { useGlobalUpload } from "@/components/global-upload-context"
@@ -119,7 +117,6 @@ const data = {
     { name: "Billing", icon: IconCoin, id: "billing" },
     { name: "Notifications", icon: IconBell, id: "notifications" },
     { name: "Developer", icon: IconCode, id: "developer" },
-    { name: "Referrals", icon: IconGift, id: "referrals" },
   ],
 }
 
@@ -147,7 +144,7 @@ export function SettingsModal({
     { name: t("settings.billing"), icon: IconCoin, id: "billing" },
     { name: t("settings.notifications"), icon: IconBell, id: "notifications" },
     { name: t("settings.developer") || "Developer", icon: IconCode, id: "developer" },
-    { name: t("settings.referrals"), icon: IconGift, id: "referrals" },
+
   ]
 
   // Helper to return filled icon variants for active/focused state (mirrors app sidebar logic)
@@ -162,8 +159,6 @@ export function SettingsModal({
         return IconCoinFilled
       case 'notifications':
         return IconBellFilled
-      case 'referrals':
-        return IconGiftFilled
       default:
         return item.icon
     }
@@ -491,26 +486,7 @@ export function SettingsModal({
   const [aiTabLoading, setAiTabLoading] = useState(true)
   const [notificationsTabLoading, setNotificationsTabLoading] = useState(true)
   const [billingTabLoading, setBillingTabLoading] = useState(true)
-  const [referralsTabLoading, setReferralsTabLoading] = useState(true)
 
-  // Referral state
-  const [referralCode, setReferralCode] = useState("")
-  const [referralLink, setReferralLink] = useState("")
-  const [copiedLink, setCopiedLink] = useState(false)
-  const [referralStats, setReferralStats] = useState<{
-    completedReferrals: number
-    pendingReferrals: number
-    totalEarningsMB: number
-    currentBonusMB: number
-    maxBonusMB: number
-    maxReferrals: number
-    totalReferralsCount: number
-  } | null>(null)
-  const [recentReferrals, setRecentReferrals] = useState<Referral[]>([])
-  const [isLoadingReferrals, setIsLoadingReferrals] = useState(false)
-  const [copiedCode, setCopiedCode] = useState(false)
-  const [referralsPage, setReferralsPage] = useState(1)
-  const [referralsTotal, setReferralsTotal] = useState(0)
 
   // Billing state
   const [subscription, setSubscription] = useState<Subscription | null>(null)
@@ -584,13 +560,9 @@ export function SettingsModal({
     }
   }, [isEditingName])
 
-  // Register upload completion callback to refresh referral data
+
   useEffect(() => {
     const handleUploadComplete = () => {
-      // Refresh referral data when any upload completes
-      if (activeTab === "referrals") {
-        loadReferralData()
-      }
       // Refresh billing data when any upload completes (for usage updates)
       if (activeTab === "billing") {
         loadBillingData()
@@ -637,11 +609,7 @@ export function SettingsModal({
     setTimeout(() => setNotificationsTabLoading(false), 100)
   }, [])
 
-  const loadReferralsData = useCallback(() => {
-    loadReferralData(1)
-    // Referral data load complete
-    setTimeout(() => setReferralsTabLoading(false), 100)
-  }, [])
+
 
   // Master load function that delegates to specific tab loaders
   const loadTabData = useCallback((tab: string) => {
@@ -672,13 +640,11 @@ export function SettingsModal({
       case 'notifications':
         loadNotificationsData()
         break
-      case 'referrals':
-        loadReferralsData()
-        break
+
     }
 
     loadedTabsRef.current.add(tab)
-  }, [loadGeneralData, loadSecurityData, loadBillingDataTab, loadNotificationsData, loadReferralsData])
+  }, [loadGeneralData, loadSecurityData, loadBillingDataTab, loadNotificationsData])
 
   // Load initial data when modal opens
   useEffect(() => {
@@ -829,38 +795,7 @@ export function SettingsModal({
     }
   }
 
-  // Load referral data
-  const loadReferralData = async (page = referralsPage) => {
-    setIsLoadingReferrals(true)
-    try {
-      const response = await apiClient.getReferralInfo(page, 5)
-      if (response.success && response.data) {
-        setReferralCode(response.data.referralCode)
-        // Generate referral link from code
-        const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
-        setReferralLink(`${baseUrl}/register?ref=${response.data.referralCode}`)
-        setReferralStats(response.data.stats)
-        setRecentReferrals(response.data.recentReferrals || [])
-        setReferralsTotal(response.data.pagination?.total || 0)
-        setReferralsPage(page)
-      } else if (response.error) {
-        // Log error but don't crash - set empty defaults
-        console.warn('Failed to load referral data:', response.error)
-        setReferralCode('')
-        setReferralLink('')
-        setReferralStats(null)
-        setRecentReferrals([])
-      }
-    } catch (error) {
-      console.error('Failed to load referral data:', error)
-      setReferralCode('')
-      setReferralLink('')
-      setReferralStats(null)
-      setRecentReferrals([])
-    } finally {
-      setIsLoadingReferrals(false)
-    }
-  }
+
 
   // Load billing data
   const loadBillingData = async () => {
@@ -1368,31 +1303,7 @@ export function SettingsModal({
     }
   }
 
-  // Copy referral code to clipboard
-  const handleCopyReferralCode = async () => {
-    try {
-      await navigator.clipboard.writeText(referralCode)
-      setCopiedCode(true)
-      toast.success("Referral code copied!")
-      setTimeout(() => setCopiedCode(false), 2000)
-    } catch (error) {
-      console.error('Failed to copy referral code:', error)
-      toast.error("Failed to copy referral code")
-    }
-  }
 
-  // Copy referral link to clipboard
-  const handleCopyReferralLink = async () => {
-    try {
-      await navigator.clipboard.writeText(referralLink)
-      setCopiedLink(true)
-      toast.success("Referral link copied!")
-      setTimeout(() => setCopiedLink(false), 2000)
-    } catch (error) {
-      console.error('Failed to copy referral link:', error)
-      toast.error("Failed to copy referral link")
-    }
-  }
 
   // Cancel subscription
   const handleCancelSubscription = async () => {
@@ -2324,59 +2235,7 @@ export function SettingsModal({
                 </>
               )}
 
-              {activeTab === "referrals" && (
-                <>
-                  {referralsTabLoading ? (
-                    <div className="space-y-6">
-                      <div>
-                        <Skeleton className="h-6 w-32 mb-2" />
-                        <Skeleton className="h-4 w-80 mb-4" />
-                      </div>
-                      {/* Stats Cards Skeleton */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {[1, 2, 3].map((i) => (
-                          <div key={i} className="p-4 border rounded-lg">
-                            <Skeleton className="h-4 w-24 mb-2" />
-                            <Skeleton className="h-8 w-16" />
-                          </div>
-                        ))}
-                      </div>
-                      {/* Referral Code Skeleton */}
-                      <div className="space-y-2">
-                        <Skeleton className="h-4 w-32" />
-                        <Skeleton className="h-10 w-full max-w-md" />
-                      </div>
-                      {/* Table Skeleton */}
-                      <div className="space-y-2">
-                        <Skeleton className="h-5 w-40" />
-                        <div className="border rounded-lg">
-                          {[1, 2, 3].map((i) => (
-                            <div key={i} className="p-4 border-b last:border-b-0">
-                              <Skeleton className="h-4 w-2/3 mb-2" />
-                              <Skeleton className="h-3 w-1/3" />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <ReferralsTab
-                      referralCode={referralCode}
-                      referralLink={referralLink}
-                      isLoadingReferrals={isLoadingReferrals}
-                      handleCopyReferralCode={handleCopyReferralCode}
-                      handleCopyReferralLink={handleCopyReferralLink}
-                      copiedCode={copiedCode}
-                      copiedLink={copiedLink}
-                      recentReferrals={recentReferrals}
-                      referralsPage={referralsPage}
-                      referralsTotal={referralsTotal}
-                      loadReferralData={loadReferralData}
-                      referralStats={referralStats}
-                    />
-                  )}
-                </>
-              )}
+
 
               {activeTab === "developer" && (
                 <DeveloperTab user={user || undefined} userPlan={user?.plan || "Free"} />
