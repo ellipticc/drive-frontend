@@ -74,15 +74,9 @@ import {
 import {
   NotificationsTab
 } from "./settings/notifications-tab"
-import {
-  BillingTab
-} from "./settings/billing-tab"
 
-import {
-  DeveloperTab
-} from "./settings/developer-tab"
 import { AITab } from "./settings/ai-tab"
-import { apiClient, Subscription, BillingUsage, PricingPlan, SubscriptionHistory, SecurityEvent } from "@/lib/api"
+import { apiClient, SecurityEvent } from "@/lib/api"
 import { useTheme } from "next-themes"
 import { useUser } from "@/components/user-context"
 import { useGlobalUpload } from "@/components/global-upload-context"
@@ -114,9 +108,7 @@ const data = {
     { name: "Preferences", icon: IconPalette, id: "preferences" },
     { name: "Language & Time", icon: IconLanguage, id: "language" },
     { name: "Security & Privacy", icon: IconLockSquareRounded, id: "security" },
-    { name: "Billing", icon: IconCoin, id: "billing" },
     { name: "Notifications", icon: IconBell, id: "notifications" },
-    { name: "Developer", icon: IconCode, id: "developer" },
   ],
 }
 
@@ -141,13 +133,9 @@ export function SettingsModal({
     { name: t("settings.ai") || "AI", icon: IconBrain, id: "ai" },
     { name: t("settings.languageTime") || "Language & Time", icon: IconLanguage, id: "language" },
     { name: t("settings.security") || "Security & Privacy", icon: IconLockSquareRounded, id: "security" },
-    { name: t("settings.billing"), icon: IconCoin, id: "billing" },
     { name: t("settings.notifications"), icon: IconBell, id: "notifications" },
-    { name: t("settings.developer") || "Developer", icon: IconCode, id: "developer" },
-
   ]
 
-  // Helper to return filled icon variants for active/focused state (mirrors app sidebar logic)
   const getIcon = (item: { name: string; icon?: any; id?: string }, isActive: boolean) => {
     if (!item.icon || !isActive) return item.icon
     switch (item.id) {
@@ -155,8 +143,6 @@ export function SettingsModal({
         return IconPaletteFilled
       case 'security':
         return IconLockSquareRoundedFilled
-      case 'billing':
-        return IconCoinFilled
       case 'notifications':
         return IconBellFilled
       default:
@@ -485,33 +471,11 @@ export function SettingsModal({
   const [languageTabLoading, setLanguageTabLoading] = useState(true)
   const [aiTabLoading, setAiTabLoading] = useState(true)
   const [notificationsTabLoading, setNotificationsTabLoading] = useState(true)
-  const [billingTabLoading, setBillingTabLoading] = useState(true)
-
-
-  // Billing state
-  const [subscription, setSubscription] = useState<Subscription | null>(null)
-  const [billingUsage, setBillingUsage] = useState<BillingUsage | null>(null)
-  const [pricingPlans, setPricingPlans] = useState<PricingPlan[]>([])
-  const [isLoadingBilling, setIsLoadingBilling] = useState(false)
-  const [showCancelDialog, setShowCancelDialog] = useState(false)
-  const [showCancelReasonDialog, setShowCancelReasonDialog] = useState(false)
-  const [isCancellingSubscription, setIsCancellingSubscription] = useState(false)
-  const [subscriptionHistory, setSubscriptionHistory] = useState<SubscriptionHistory | null>(null)
-  const [isLoadingHistory, setIsLoadingHistory] = useState(false)
-  const [cancelReason, setCancelReason] = useState<string>("")
-  const [cancelReasonDetails, setCancelReasonDetails] = useState<string>("")
-  const [isRedirectingToPortal, setIsRedirectingToPortal] = useState(false)
-  const [subsPage, setSubsPage] = useState(1)
-  const [subsTotalPages, setSubsTotalPages] = useState(1)
-  const [invoicesPage, setInvoicesPage] = useState(1)
-  const [invoicesTotalPages, setInvoicesTotalPages] = useState(1)
 
   // Notification preferences state
   const [inAppNotifications, setInAppNotifications] = useState(true)
   const [emailNotifications, setEmailNotifications] = useState(true)
   const [loginNotifications, setLoginNotifications] = useState(true)
-  const [fileShareNotifications, setFileShareNotifications] = useState(true)
-  const [billingNotifications, setBillingNotifications] = useState(true)
   const [isLoadingNotificationPrefs, setIsLoadingNotificationPrefs] = useState(false)
 
   // Initialize display name from user data
@@ -561,21 +525,6 @@ export function SettingsModal({
   }, [isEditingName])
 
 
-  useEffect(() => {
-    const handleUploadComplete = () => {
-      // Refresh billing data when any upload completes (for usage updates)
-      if (activeTab === "billing") {
-        loadBillingData()
-        loadSubscriptionHistory()
-      }
-    }
-
-    registerOnUploadComplete(handleUploadComplete)
-
-    return () => {
-      unregisterOnUploadComplete(handleUploadComplete)
-    }
-  }, [activeTab, registerOnUploadComplete, unregisterOnUploadComplete])
 
   // Data loading functions organized by tab
   const loadGeneralData = useCallback(() => {
@@ -596,12 +545,6 @@ export function SettingsModal({
     setTimeout(() => setSecurityTabLoading(false), 100)
   }, [])
 
-  const loadBillingDataTab = useCallback(() => {
-    loadBillingData()
-    loadSubscriptionHistory(1, 1)
-    // Billing loads complete when data arrives
-    setTimeout(() => setBillingTabLoading(false), 100)
-  }, [])
 
   const loadNotificationsData = useCallback(() => {
     loadNotificationPreferences()
@@ -634,9 +577,6 @@ export function SettingsModal({
       case 'security':
         loadSecurityData()
         break
-      case 'billing':
-        loadBillingDataTab()
-        break
       case 'notifications':
         loadNotificationsData()
         break
@@ -644,7 +584,7 @@ export function SettingsModal({
     }
 
     loadedTabsRef.current.add(tab)
-  }, [loadGeneralData, loadSecurityData, loadBillingDataTab, loadNotificationsData])
+  }, [loadGeneralData, loadSecurityData, loadNotificationsData])
 
   // Load initial data when modal opens
   useEffect(() => {
@@ -731,13 +671,6 @@ export function SettingsModal({
       setShowRecoveryCodesModal(false)
       setRecoveryCodes([])
 
-      // Reset Billing
-      setShowCancelDialog(false)
-      setShowCancelReasonDialog(false)
-      setIsCancellingSubscription(false)
-      setCancelReason("")
-      setCancelReasonDetails("")
-
       // Reset Security
       setSecurityEventsPage(1)
       setShowRevoked(false)
@@ -796,66 +729,6 @@ export function SettingsModal({
   }
 
 
-
-  // Load billing data
-  const loadBillingData = async () => {
-    setIsLoadingBilling(true)
-    try {
-      // Load subscription status
-      const subscriptionResponse = await apiClient.getSubscriptionStatus()
-      if (subscriptionResponse.success && subscriptionResponse.data) {
-        setSubscription(subscriptionResponse.data.subscription)
-        setBillingUsage(subscriptionResponse.data.usage)
-      } else {
-        setSubscription(null)
-        setBillingUsage(null)
-      }
-
-      // Load pricing plans
-      const plansResponse = await apiClient.getPricingPlans()
-      if (plansResponse.success && plansResponse.data) {
-        setPricingPlans(plansResponse.data.plans || [])
-      } else {
-        setPricingPlans([])
-      }
-    } catch (error) {
-      console.error('Failed to load billing data:', error)
-      setSubscription(null)
-      setBillingUsage(null)
-      setPricingPlans([])
-    } finally {
-      setIsLoadingBilling(false)
-    }
-  }
-
-  // Load subscription history
-  const loadSubscriptionHistory = async (sPage = subsPage, iPage = invoicesPage) => {
-    setIsLoadingHistory(true)
-    try {
-      const response = await apiClient.getSubscriptionHistory({
-        subsPage: sPage,
-        subsLimit: 5,
-        invoicesPage: iPage,
-        invoicesLimit: 5
-      })
-      if (response.success && response.data) {
-        setSubscriptionHistory(response.data)
-        setSubsTotalPages(response.data.pagination?.subs?.totalPages || 1)
-        setInvoicesTotalPages(response.data.pagination?.invoices?.totalPages || 1)
-        setSubsPage(sPage)
-        setInvoicesPage(iPage)
-      } else {
-        setSubscriptionHistory(null)
-      }
-    } catch (error) {
-      console.error('Failed to load subscription history:', error)
-      setSubscriptionHistory(null)
-    } finally {
-      setIsLoadingHistory(false)
-    }
-  }
-
-  // Load notification preferences
   const loadNotificationPreferences = async () => {
     setIsLoadingNotificationPrefs(true)
     try {
@@ -864,8 +737,6 @@ export function SettingsModal({
         setInAppNotifications(response.data.inApp ?? true)
         setEmailNotifications(response.data.email ?? true)
         setLoginNotifications(response.data.login ?? true)
-        setFileShareNotifications(response.data.fileShare ?? true)
-        setBillingNotifications(response.data.billing ?? true)
       }
     } catch (error) {
       console.error('Failed to load notification preferences:', error)
@@ -873,20 +744,15 @@ export function SettingsModal({
       setInAppNotifications(true)
       setEmailNotifications(true)
       setLoginNotifications(true)
-      setFileShareNotifications(true)
-      setBillingNotifications(true)
     } finally {
       setIsLoadingNotificationPrefs(false)
     }
   }
 
-  // Save notification preferences immediately with provided values (prevents stale closure)
   const saveNotificationPreferences = async (preferences?: {
     inApp?: boolean;
     email?: boolean;
     login?: boolean;
-    fileShare?: boolean;
-    billing?: boolean;
   }) => {
     try {
       // Use provided values or fall back to current state
@@ -894,8 +760,6 @@ export function SettingsModal({
         inApp: preferences?.inApp ?? inAppNotifications,
         email: preferences?.email ?? emailNotifications,
         login: preferences?.login ?? loginNotifications,
-        fileShare: preferences?.fileShare ?? fileShareNotifications,
-        billing: preferences?.billing ?? billingNotifications
       }
 
       const response = await apiClient.updateNotificationPreferences(preferencesToSave)
@@ -1283,88 +1147,6 @@ export function SettingsModal({
       toast.error("Failed to update device name")
     } finally {
       setEditingDeviceId(null)
-    }
-  }
-
-
-
-  // Cancel subscription
-  const handleCancelSubscription = async () => {
-    setIsCancellingSubscription(true)
-    try {
-      // Cancel the subscription first
-      const response = await apiClient.cancelSubscription()
-      if (response.success) {
-        toast.success('Subscription cancelled successfully. You will retain access until the end of your billing period.')
-        // Reload billing data
-        await loadBillingData()
-        // Now show the cancellation reason dialog
-        setShowCancelDialog(false)
-        setShowCancelReasonDialog(true)
-      } else {
-        toast.error(response.error || 'Failed to cancel subscription')
-      }
-    } catch (error) {
-      console.error('Cancel subscription error:', error)
-      toast.error('Failed to cancel subscription')
-    } finally {
-      setIsCancellingSubscription(false)
-    }
-  }
-
-  // Submit cancellation reason (subscription already cancelled)
-  const handleConfirmCancelSubscription = async () => {
-    if (!cancelReason.trim()) {
-      toast.error('Please select a reason for cancellation')
-      return
-    }
-
-    setIsCancellingSubscription(true)
-    try {
-      // Send cancellation reason to backend (will webhook to Discord)
-      const cancelResponse = await apiClient.cancelSubscriptionWithReason({
-        reason: cancelReason,
-        details: cancelReasonDetails
-      })
-
-      if (cancelResponse.success) {
-        toast.success('Thank you for your feedback!')
-      } else {
-        toast.error(cancelResponse.error || 'Failed to submit feedback')
-      }
-    } catch (error) {
-      console.error('Submit cancellation reason error:', error)
-      toast.error('Failed to submit feedback')
-    } finally {
-      setIsCancellingSubscription(false)
-      setShowCancelReasonDialog(false)
-      setCancelReason("")
-      setCancelReasonDetails("")
-    }
-  }
-
-  // Manage subscription (redirect to Stripe portal)
-  const handleManageSubscription = async () => {
-    setIsRedirectingToPortal(true)
-    try {
-      // Clean return URL to avoid parameter accumulation and loops
-      // Always redirects to the billing settings tab
-      const returnUrl = typeof window !== 'undefined'
-        ? `${window.location.origin}/#settings/Billing`
-        : 'https://app.ellipticc.com/#settings/Billing'
-
-      const response = await apiClient.createPortalSession({ returnUrl })
-
-      if (response.success && response.data?.url) {
-        window.location.href = response.data.url
-      } else {
-        toast.error(response.error || "Failed to create portal session")
-        setIsRedirectingToPortal(false)
-      }
-    } catch (error) {
-      console.error('Portal session error:', error)
-      toast.error("Failed to redirect to billing portal")
-      setIsRedirectingToPortal(false)
     }
   }
 
@@ -2207,10 +1989,6 @@ export function SettingsModal({
                       setEmailNotifications={setEmailNotifications}
                       loginNotifications={loginNotifications}
                       setLoginNotifications={setLoginNotifications}
-                      fileShareNotifications={fileShareNotifications}
-                      setFileShareNotifications={setFileShareNotifications}
-                      billingNotifications={billingNotifications}
-                      setBillingNotifications={setBillingNotifications}
                       isLoadingNotificationPrefs={isLoadingNotificationPrefs}
                       saveNotificationPreferences={saveNotificationPreferences}
                     />
@@ -2220,62 +1998,7 @@ export function SettingsModal({
 
 
 
-              {activeTab === "developer" && (
-                <DeveloperTab user={user || undefined} userPlan={user?.plan || "Free"} />
-              )}
 
-              {activeTab === "billing" && (
-                <>
-                  {billingTabLoading ? (
-                    <div className="space-y-6">
-                      <div>
-                        <Skeleton className="h-6 w-32 mb-2" />
-                        <Skeleton className="h-4 w-96 mb-4" />
-                      </div>
-                      {/* Current Plan Card Skeleton */}
-                      <div className="p-6 border rounded-lg space-y-4">
-                        <Skeleton className="h-6 w-40 mb-2" />
-                        <Skeleton className="h-8 w-32 mb-3" />
-                        <div className="space-y-2">
-                          <Skeleton className="h-4 w-full" />
-                          <Skeleton className="h-2 w-full rounded-full" />
-                        </div>
-                        <Skeleton className="h-9 w-32" />
-                      </div>
-                      {/* Usage Stats Skeleton */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {[1, 2].map((i) => (
-                          <div key={i} className="p-4 border rounded-lg">
-                            <Skeleton className="h-4 w-24 mb-2" />
-                            <Skeleton className="h-6 w-32 mb-2" />
-                            <Skeleton className="h-2 w-full rounded-full" />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : (
-                    <BillingTab
-                      isLoadingBilling={isLoadingBilling}
-                      subscription={subscription}
-                      billingUsage={billingUsage}
-                      showCancelDialog={showCancelDialog}
-                      setShowCancelDialog={setShowCancelDialog}
-                      isCancellingSubscription={isCancellingSubscription}
-                      handleCancelSubscription={handleCancelSubscription}
-                      handleManageSubscription={handleManageSubscription}
-                      isRedirectingToPortal={isRedirectingToPortal}
-                      loadSubscriptionHistory={loadSubscriptionHistory}
-                      isLoadingHistory={isLoadingHistory}
-                      subscriptionHistory={subscriptionHistory}
-                      subsPage={subsPage}
-                      invoicesPage={invoicesPage}
-                      subsTotalPages={subsTotalPages}
-                      invoicesTotalPages={invoicesTotalPages}
-                      pricingPlans={pricingPlans}
-                    />
-                  )}
-                </>
-              )}
             </div>
           </main>
         </SidebarProvider>
@@ -2723,88 +2446,6 @@ export function SettingsModal({
         </Dialog>
 
 
-
-        {/* Cancellation Reason Dialog */}
-        <Dialog open={showCancelReasonDialog} onOpenChange={setShowCancelReasonDialog}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Help us improve</DialogTitle>
-              <DialogDescription>
-                Your subscription has been cancelled. Your feedback helps us improve our service.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-3">
-                <Label className="text-sm font-medium">Cancellation Reason</Label>
-                <div className="space-y-2">
-                  {[
-                    { value: 'too_expensive', label: 'Too expensive' },
-                    { value: 'not_enough_storage', label: 'Not enough storage' },
-                    { value: 'switching_services', label: 'Switching to another service' },
-                    { value: 'not_using_features', label: 'Not using the features' },
-                    { value: 'performance_issues', label: 'Performance issues' },
-                    { value: 'other', label: 'Other' }
-                  ].map((option) => (
-                    <div key={option.value} className="flex items-center">
-                      <input
-                        id={`reason-${option.value}`}
-                        type="radio"
-                        name="cancelReason"
-                        value={option.value}
-                        checked={cancelReason === option.value}
-                        onChange={(e) => setCancelReason(e.target.value)}
-                        className="h-4 w-4 border-gray-300 text-primary focus:ring-primary"
-                      />
-                      <label htmlFor={`reason-${option.value}`} className="ml-3 block text-sm font-medium">
-                        {option.label}
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {cancelReason && (
-                <div className="space-y-2">
-                  <Label htmlFor="reason-details" className="text-sm font-medium">
-                    Additional Details (Optional)
-                  </Label>
-                  <textarea
-                    id="reason-details"
-                    value={cancelReasonDetails}
-                    onChange={(e) => setCancelReasonDetails(e.target.value)}
-                    placeholder="Help us understand better..."
-                    className="w-full h-24 p-2 border border-input rounded-md bg-background text-foreground resize-none text-sm"
-                  />
-                </div>
-              )}
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowCancelReasonDialog(false)
-                  setCancelReason("")
-                  setCancelReasonDetails("")
-                }}
-              >
-                Skip Feedback
-              </Button>
-              <Button
-                onClick={handleConfirmCancelSubscription}
-                disabled={isCancellingSubscription || !cancelReason.trim()}
-              >
-                {isCancellingSubscription ? (
-                  <>
-                    <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
-                    Submitting...
-                  </>
-                ) : (
-                  'Submit Feedback'
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
 
 
       </DialogContent>

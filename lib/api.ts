@@ -51,19 +51,6 @@ export interface UserData {
     used_readable: string;
     quota_readable: string;
   };
-  subscription?: {
-    id: string;
-    status: string;
-    currentPeriodStart: string | Date;
-    currentPeriodEnd: string | Date;
-    cancelAtPeriodEnd: number;
-    plan: {
-      id: string;
-      name: string;
-      storageQuota: number;
-      interval: string;
-    };
-  } | null;
   crypto_keypairs?: {
     accountSalt?: string;
     pqcKeypairs?: PQCKeypairs;
@@ -323,71 +310,6 @@ export interface Paper {
 
 
 
-export interface Subscription {
-  id: string;
-  status: string;
-  currentPeriodStart: number;
-  currentPeriodEnd: number;
-  cancelAtPeriodEnd: boolean;
-  plan: {
-    id: string;
-    name: string;
-    storageQuota: number;
-    // Optional interval (e.g., 'monthly', 'yearly')
-    interval?: string | number | null;
-  };
-}
-
-export interface BillingUsage {
-  usedBytes: number;
-  quotaBytes: number;
-  percentUsed: number;
-}
-
-export interface PricingPlan {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  currency: string;
-  interval: string;
-  storageQuota: number;
-  features: string[];
-  stripePriceId: string;
-  popular?: boolean;
-}
-
-export interface SubscriptionHistory {
-  history: Array<{
-    id: string;
-    status: string;
-    planName: string;
-    amount: number;
-    currency: string;
-    interval: string;
-    currentPeriodStart: number;
-    currentPeriodEnd: number;
-    cancelAtPeriodEnd: boolean;
-    canceledAt: number | null;
-    created: number;
-    endedAt: number | null;
-    provider?: string;
-  }>;
-  invoices: Array<{
-    id: string;
-    number: string;
-    status: string;
-    amount: number;
-    currency: string;
-    created: number;
-    dueDate: number | null;
-    paidAt: number | null;
-    invoicePdf: string;
-    hostedInvoiceUrl: string;
-    subscriptionId: string | null;
-    provider?: string;
-  }>;
-}
 
 export interface SecurityEvent {
   id: string;
@@ -2229,153 +2151,6 @@ class ApiClient {
     return this.request(`/files/download/${fileId}/urls`, {}, 'low');
   }
 
-  // Billing endpoints
-  async getPricingPlans(): Promise<ApiResponse<{
-    plans: Array<{
-      id: string;
-      name: string;
-      description: string;
-      price: number;
-      currency: string;
-      interval: string;
-      storageQuota: number;
-      features: string[];
-      stripePriceId: string;
-      popular?: boolean;
-    }>;
-  }>> {
-    return this.request('/billing/plans');
-  }
-
-  async getSubscriptionStatus(): Promise<ApiResponse<{
-    subscription: {
-      id: string;
-      status: string;
-      currentPeriodStart: number;
-      currentPeriodEnd: number;
-      cancelAtPeriodEnd: boolean;
-      plan: {
-        id: string;
-        name: string;
-        storageQuota: number;
-      };
-    } | null;
-    usage: {
-      usedBytes: number;
-      quotaBytes: number;
-      percentUsed: number;
-    };
-    hasUsedTrial: boolean;
-  }>> {
-    return this.request('/billing/subscription');
-  }
-
-  async cancelSubscription(): Promise<ApiResponse<{
-    success: boolean;
-    message: string;
-    cancelledAt?: number;
-  }>> {
-    return this.request('/billing/subscription', {
-      method: 'DELETE'
-    });
-  }
-
-  async cancelSubscriptionWithReason(data: {
-    reason: string;
-    details: string;
-  }): Promise<ApiResponse<{ success: boolean; message: string }>> {
-    return this.request('/billing/subscription/cancel-reason', {
-      method: 'POST',
-      body: JSON.stringify(data)
-    });
-  }
-
-  async getSubscriptionHistory(params?: {
-    subsPage?: number;
-    subsLimit?: number;
-    invoicesPage?: number;
-    invoicesLimit?: number;
-  }): Promise<ApiResponse<{
-    history: Array<{
-      id: string;
-      status: string;
-      planName: string;
-      amount: number;
-      currency: string;
-      interval: string;
-      currentPeriodStart: number;
-      currentPeriodEnd: number;
-      cancelAtPeriodEnd: boolean;
-      canceledAt: number | null;
-      created: number;
-      endedAt: number | null;
-      provider?: string;
-    }>;
-    invoices: Array<{
-      id: string;
-      number: string;
-      status: string;
-      amount: number;
-      currency: string;
-      created: number;
-      dueDate: number | null;
-      paidAt: number | null;
-      invoicePdf: string;
-      hostedInvoiceUrl: string;
-      subscriptionId: string | null;
-      provider?: string;
-    }>;
-    pagination: {
-      subs: {
-        total: number;
-        page: number;
-        limit: number;
-        totalPages: number;
-      };
-      invoices: {
-        total: number;
-        page: number;
-        limit: number;
-        totalPages: number;
-      };
-    };
-  }>> {
-    const queryParams = new URLSearchParams();
-    if (params?.subsPage) queryParams.append('subsPage', params.subsPage.toString());
-    if (params?.subsLimit) queryParams.append('subsLimit', params.subsLimit.toString());
-    if (params?.invoicesPage) queryParams.append('invoicesPage', params.invoicesPage.toString());
-    if (params?.invoicesLimit) queryParams.append('invoicesLimit', params.invoicesLimit.toString());
-
-    const queryString = queryParams.toString();
-    return this.request(`/billing/history${queryString ? `?${queryString}` : ''}`);
-  }
-
-  async createCheckoutSession(data: {
-    priceId: string;
-    successUrl: string;
-    cancelUrl: string;
-  }): Promise<ApiResponse<{
-    sessionId?: string;
-    url: string;
-  }>> {
-    return this.request('/billing/create-checkout-session', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async createPortalSession(data: {
-    returnUrl: string;
-  }): Promise<ApiResponse<{
-    url: string;
-  }>> {
-    return this.request('/billing/create-portal-session', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-
 
   // TOTP endpoints
   async getTOTPStatus(userId?: string): Promise<ApiResponse<{
@@ -2819,7 +2594,6 @@ class ApiClient {
     inApp: boolean;
     email: boolean;
     login: boolean;
-    billing: boolean;
   }>> {
     return this.request('/notifications/preferences');
   }
@@ -2828,7 +2602,6 @@ class ApiClient {
     inApp: boolean;
     email: boolean;
     login: boolean;
-    billing: boolean;
   }): Promise<ApiResponse<{
     success: boolean;
     message: string;
