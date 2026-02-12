@@ -68,10 +68,10 @@ export function NavSecondary({
                         <TooltipTrigger asChild>
                           <DropdownMenuTrigger asChild>
                             <SidebarMenuButton isActive={helpOpen}>
-                            {(() => {
-                              const IconComponent = getIcon(item, helpOpen)
-                              return <IconComponent />
-                            })()}
+                              {(() => {
+                                const IconComponent = getIcon(item, helpOpen)
+                                return <IconComponent />
+                              })()}
                               <span>{item.title}</span>
                             </SidebarMenuButton>
                           </DropdownMenuTrigger>
@@ -134,7 +134,6 @@ export function NavSecondary({
                             const tab = 'General';
                             window.location.hash = `#settings/${tab}`;
                           }}
-                          id="tour-settings"
                           isActive={settingsOpen}
                         >
                           {(() => {
@@ -152,7 +151,6 @@ export function NavSecondary({
                         const tab = 'General';
                         window.location.hash = `#settings/${tab}`;
                       }}
-                      id="tour-settings"
                       isActive={settingsOpen}
                     >
                       {(() => {

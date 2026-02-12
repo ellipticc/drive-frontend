@@ -3,22 +3,17 @@
 import * as React from "react"
 import { useRouter } from "next/navigation"
 import {
-  IconDatabase,
   IconHelpCircle,
   IconCaretLeftRightFilled,
   IconAdjustments,
   IconTrash,
   IconLink,
-  IconDatabaseImport,
   IconPhoto,
   IconStack2,
   IconBubbleText,
   IconChartAreaLine,
   IconUsers,
-  IconSignature,
   IconClockHour9,
-
-  IconWritingSign,
   IconBrain,
   IconDotsVertical,
   IconLoader2,
@@ -41,9 +36,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Switch } from "@/components/ui/switch"
 import { useGlobalUpload } from "@/components/global-upload-context"
 import { useUser } from "@/components/user-context"
 import { useAIMode } from "@/components/ai-mode-context"
@@ -53,7 +46,7 @@ import { useLanguage } from "@/lib/i18n/language-context"
 import { apiClient } from "@/lib/api"
 import { getAllIndexedChats, getIndexedChatsPaginated } from "@/lib/indexeddb"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useAICrypto } from "@/hooks/use-ai-crypto"
 import { toast } from "sonner"
 import {

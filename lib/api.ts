@@ -21,7 +21,7 @@ export interface UserData {
   masterKeyVersion?: number;
   sessionDuration?: number;
   authMethod?: string;
-  onboarding_completed?: boolean;
+
   language?: string;
   appearance_theme?: string;
   theme_sync?: boolean;
@@ -1143,12 +1143,7 @@ class ApiClient {
     return this.request('/auth/me');
   }
 
-  async completeOnboarding(): Promise<ApiResponse> {
-    return this.request('/auth/onboarding/complete', {
-      method: 'POST',
-      body: JSON.stringify({}),
-    });
-  }
+
 
   async updateProfile(data: {
     name?: string;

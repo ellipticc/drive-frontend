@@ -17,7 +17,6 @@ import { ThemeConfiguration } from "@/components/theme-configuration";
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
 import { IconLoader2 as Loader2 } from "@tabler/icons-react";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { OnboardingTourProvider } from "@/components/onboarding/onboarding-tour-provider";
 import { AIPreferencesSync } from "@/components/ai-preferences-sync";
 import "./globals.css";
 import "katex/dist/katex.min.css";
@@ -273,20 +272,18 @@ export default function RootLayout({
                       <LanguageProvider>
                         <GlobalUploadProvider>
                           <TooltipProvider>
-                            <OnboardingTourProvider>
-                              <ThemeConfiguration />
-                              <ServiceWorkerRegister />
+                            <ThemeConfiguration />
+                            <ServiceWorkerRegister />
 
-                              <ConditionalLayout>{children}</ConditionalLayout>
-                              <Toaster
-                                position="bottom-right"
-                                richColors
-                                duration={5000}
-                                style={{
-                                  fontFamily: 'var(--font-roboto)',
-                                }}
-                              />
-                            </OnboardingTourProvider>
+                            <ConditionalLayout>{children}</ConditionalLayout>
+                            <Toaster
+                              position="bottom-right"
+                              richColors
+                              duration={5000}
+                              style={{
+                                fontFamily: 'var(--font-roboto)',
+                              }}
+                            />
                           </TooltipProvider>
                         </GlobalUploadProvider>
                       </LanguageProvider>

@@ -215,37 +215,37 @@ export function SiteHeader({ className, onSearch, onFileUpload, onFolderUpload, 
 
           {!isAIMode && (
             <DropdownMenu>
-              <DropdownMenuTrigger asChild id="tour-new-button">
+              <DropdownMenuTrigger asChild>
                 <Button size="sm" className="h-8 dark:bg-white dark:text-black dark:hover:bg-gray-200">
                   <IconPlus className="h-4 w-4 mr-2" />
                   New
                 </Button>
               </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={onFileUpload}>
-                <IconFileUpload className="h-4 w-4 mr-2" />
-                Upload Files
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={onFolderUpload}>
-                <IconFolderDown className="h-4 w-4 mr-2" />
-                Upload Folder
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={openPicker}>
-                <IconBrandGoogleDrive className="h-4 w-4 mr-2" stroke={1.5} />
-                Import from Google Drive
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setIsCreateFolderOpen(true)}>
-                <IconFolderPlus className="h-4 w-4 mr-2" />
-                New Folder
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleNewPaper}>
-                <IconStackFilled className="h-4 w-4 mr-2" />
-                New Paper
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={onFileUpload}>
+                  <IconFileUpload className="h-4 w-4 mr-2" />
+                  Upload Files
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={onFolderUpload}>
+                  <IconFolderDown className="h-4 w-4 mr-2" />
+                  Upload Folder
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={openPicker}>
+                  <IconBrandGoogleDrive className="h-4 w-4 mr-2" stroke={1.5} />
+                  Import from Google Drive
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setIsCreateFolderOpen(true)}>
+                  <IconFolderPlus className="h-4 w-4 mr-2" />
+                  New Folder
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleNewPaper}>
+                  <IconStackFilled className="h-4 w-4 mr-2" />
+                  New Paper
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
 
           <CreateFolderModal

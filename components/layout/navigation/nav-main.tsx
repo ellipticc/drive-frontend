@@ -689,7 +689,6 @@ export function NavMain({
                     isActive={pathname === item.url}
                     onClick={() => handleNavigate(item.url)}
                     className="cursor-pointer"
-                    id="tour-trash"
                     data-space-id="trash"
                     data-space-name={t("sidebar.trash")}
                   >
@@ -707,7 +706,7 @@ export function NavMain({
             if (item.id === "settings") {
               return (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton onClick={() => window.location.hash = '#settings/General'} id="tour-settings">
+                  <SidebarMenuButton onClick={() => window.location.hash = '#settings/General'}>
                     {(() => {
                       const IconComponent = getIcon(item, false) as any
                       return IconComponent && <IconComponent />

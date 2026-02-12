@@ -1497,7 +1497,7 @@ export const Table01DividerLineSm = ({
         setTotalItems(prev => Math.max(0, prev - 1));
     }, []));
 
-    // Listen for file-created events (e.g., from onboarding welcome paper creation)
+    // Listen for file-created events
     useEffect(() => {
         const handleFileCreated = (event: CustomEvent) => {
             const { fileId, type } = event.detail || {};
@@ -2799,19 +2799,6 @@ export const Table01DividerLineSm = ({
                     </Tooltip>
                     <DropdownMenuContent align="end" className="w-56">
                         <DropdownMenuCheckboxItem
-                            checked={visibleColumns.has('starred')}
-                            onCheckedChange={(checked) => {
-                                setVisibleColumns(prev => {
-                                    const next = new Set(prev);
-                                    if (checked) next.add('starred');
-                                    else next.delete('starred');
-                                    return next;
-                                });
-                            }}
-                        >
-                            Spaced
-                        </DropdownMenuCheckboxItem>
-                        <DropdownMenuCheckboxItem
                             checked={visibleColumns.has('modified')}
                             onCheckedChange={(checked) => {
                                 setVisibleColumns(prev => {
@@ -3408,7 +3395,7 @@ export const Table01DividerLineSm = ({
                                                         <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto">{t("files.name")}</span>
                                                     )}
                                                 </Table.Head>
-                                                <Table.Head id="starred" align="center" className={`hidden md:table-cell w-16 ${visibleColumns.has('starred') ? '' : '[&>*]:invisible pointer-events-none cursor-default'}`} />
+
                                                 <Table.Head id="modified" allowsSorting={true} align="right" className={`hidden md:table-cell w-40 ${visibleColumns.has('modified') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
                                                     <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>{t("files.modified")}</span>
                                                 </Table.Head>
@@ -3549,7 +3536,7 @@ export const Table01DividerLineSm = ({
                                                             <Table.Cell className="px-2 md:px-3 w-10 md:w-12">
                                                                 <div className={`flex justify-end gap-0.5 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-200`}>
                                                                     <DropdownMenu>
-                                                                        <DropdownMenuTrigger asChild id={filteredItems.indexOf(item) === 0 ? "tour-file-actions" : undefined}>
+                                                                        <DropdownMenuTrigger asChild>
                                                                             <Button
                                                                                 size="sm"
                                                                                 variant="ghost"
@@ -3796,7 +3783,7 @@ export const Table01DividerLineSm = ({
                                             {/* Actions menu */}
                                             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                                                 <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild id={filteredItems.indexOf(item) === 0 ? "tour-file-actions" : undefined}>
+                                                    <DropdownMenuTrigger asChild>
                                                         <Button
                                                             size="sm"
                                                             variant="ghost"
