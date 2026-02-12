@@ -1,10 +1,9 @@
 import { useState, useEffect, useCallback } from "react"
-import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
-import { IconSearch, IconFileUpload, IconFolderDown, IconPlus, IconFolderPlus, IconBrandGoogleDrive, IconStackFilled } from "@tabler/icons-react"
+import { IconFileUpload, IconFolderDown, IconPlus, IconFolderPlus, IconBrandGoogleDrive, IconStackFilled } from "@tabler/icons-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,55 +19,33 @@ import { useGlobalUpload } from "@/components/global-upload-context"
 import { useCurrentFolder } from "@/components/current-folder-context"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
-import { useDebounce } from "@/hooks/use-debounce"
-import { useAIMode } from "@/components/ai-mode-context"
 import { masterKeyManager } from "@/lib/master-key"
 import { toast } from "sonner"
 import { paperService } from "@/lib/paper-service"
 
-// Use a module-level variable to persist dismissal across SPA navigation but reset on page refresh
-let isUpgradeDismissedGlobal = false;
-
 interface SiteHeaderProps {
   className?: string
+  sticky?: boolean
   onSearch?: (query: string) => void
   onFileUpload?: () => void
   onFolderUpload?: () => void
-  searchValue?: string
-  sticky?: boolean
   customTitle?: React.ReactNode
 }
 
-export function SiteHeader({ className, onSearch, onFileUpload, onFolderUpload, searchValue, sticky = false, customTitle }: SiteHeaderProps) {
+export function SiteHeader({ className, sticky = false, onSearch, onFileUpload, onFolderUpload, customTitle }: SiteHeaderProps) {
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false)
-  const [, setForceUpdate] = useState(0)
-  const [localSearchValue, setLocalSearchValue] = useState(searchValue || "")
-  const debouncedSearch = useDebounce(localSearchValue, 150)
   const { user } = useUser()
   const router = useRouter()
   const pathname = usePathname()
   const { openPicker } = useGoogleDrive()
   const { notifyFileAdded } = useGlobalUpload()
   const { currentFolderId } = useCurrentFolder()
-  const { isAIMode } = useAIMode()
-
-  // Sync external searchValue prop to local state
-  useEffect(() => {
-    setLocalSearchValue(searchValue || "")
-  }, [searchValue])
-
-  // Trigger onSearch callback when debounced value changes
-  useEffect(() => {
-    if (onSearch && debouncedSearch !== searchValue) {
-      onSearch(debouncedSearch)
-    }
-  }, [debouncedSearch, onSearch, searchValue])
 
   // Auto-enable sticky on common dashboard routes unless explicitly set
   const [autoSticky, setAutoSticky] = useState(false)
   useEffect(() => {
     try {
-      const dashboardPaths = ['/insights', '/analytics', '/dashboard', '/backup']
+      const dashboardPaths = ['/analytics', '/dashboard', '/backup']
       const p = typeof window !== 'undefined' ? window.location.pathname : ''
       setAutoSticky(dashboardPaths.some(dp => p.startsWith(dp)))
     } catch (err) {
@@ -77,13 +54,6 @@ export function SiteHeader({ className, onSearch, onFileUpload, onFolderUpload, 
   }, [])
 
   const effectiveSticky = sticky || autoSticky
-
-
-  const handleUpgradeClick = () => {
-    isUpgradeDismissedGlobal = true
-    setForceUpdate(prev => prev + 1)
-    window.open('/pricing', '_blank')
-  }
 
   const { startUploadWithFiles, registerOnFileAdded, unregisterOnFileAdded } = useGlobalUpload();
   const [cleanUpCallback, setCleanUpCallback] = useState<(() => void) | null>(null);
@@ -147,9 +117,6 @@ export function SiteHeader({ className, onSearch, onFileUpload, onFolderUpload, 
     }
   }, [currentFolderId, notifyFileAdded]);
 
-  const isFreePlan = (!user?.subscription) && user?.plan !== 'pro' && user?.plan !== 'plus' && user?.plan !== 'unlimited';
-  const showUpgrade = isFreePlan && !isUpgradeDismissedGlobal
-
   return (
     <header
       data-site-header
@@ -181,72 +148,46 @@ export function SiteHeader({ className, onSearch, onFileUpload, onFolderUpload, 
           <div className="flex items-center gap-2">
             {customTitle}
           </div>
-        ) : pathname?.startsWith('/attestations') ? (
-          <h2 className="text-lg font-semibold tracking-tight">Attestations</h2>
         ) : pathname?.startsWith('/assistant') ? (
           <h2 className="text-lg font-semibold tracking-tight">Assistant</h2>
         ) : (
           <div className="relative flex-1 max-w-md">
-            {!isAIMode && !['/insights'].some(path => pathname?.startsWith(path)) && (
-              <>
-                <IconSearch className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Search files and folders..."
-                  className="pl-9 pr-4 bg-card"
-                  value={localSearchValue}
-                  onChange={(e) => setLocalSearchValue(e.target.value)}
-                />
-              </>
-            )}
+            {/* Search removed */}
           </div>
         )}
         <div className="ml-auto flex items-center gap-2">
-          {!isAIMode && showUpgrade && (
-            <Button
-              size="sm"
-              className="hidden md:inline-flex h-8 text-white font-medium hover:opacity-90 transition-opacity"
-              style={{ backgroundColor: '#704dff' }}
-              onClick={handleUpgradeClick}
-            >
-              Click to upgrade
-            </Button>
-          )}
-
-          {!isAIMode && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button size="sm" className="h-8 dark:bg-white dark:text-black dark:hover:bg-gray-200">
-                  <IconPlus className="h-4 w-4 mr-2" />
-                  New
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={onFileUpload}>
-                  <IconFileUpload className="h-4 w-4 mr-2" />
-                  Upload Files
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={onFolderUpload}>
-                  <IconFolderDown className="h-4 w-4 mr-2" />
-                  Upload Folder
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={openPicker}>
-                  <IconBrandGoogleDrive className="h-4 w-4 mr-2" stroke={1.5} />
-                  Import from Google Drive
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setIsCreateFolderOpen(true)}>
-                  <IconFolderPlus className="h-4 w-4 mr-2" />
-                  New Folder
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleNewPaper}>
-                  <IconStackFilled className="h-4 w-4 mr-2" />
-                  New Paper
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" className="h-8 dark:bg-white dark:text-black dark:hover:bg-gray-200">
+                <IconPlus className="h-4 w-4 mr-2" />
+                New
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={onFileUpload}>
+                <IconFileUpload className="h-4 w-4 mr-2" />
+                Upload Files
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onFolderUpload}>
+                <IconFolderDown className="h-4 w-4 mr-2" />
+                Upload Folder
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={openPicker}>
+                <IconBrandGoogleDrive className="h-4 w-4 mr-2" stroke={1.5} />
+                Import from Google Drive
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setIsCreateFolderOpen(true)}>
+                <IconFolderPlus className="h-4 w-4 mr-2" />
+                New Folder
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleNewPaper}>
+                <IconStackFilled className="h-4 w-4 mr-2" />
+                New Paper
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <CreateFolderModal
             open={isCreateFolderOpen}

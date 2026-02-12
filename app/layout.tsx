@@ -8,7 +8,6 @@ import { UserProvider } from "@/components/user-context";
 import { GlobalUploadProvider } from "@/components/global-upload-context";
 import { CurrentFolderProvider } from "@/components/current-folder-context";
 import { BillingProvider } from "@/components/billing-context";
-import { AIModeProvider } from "@/components/ai-mode-context";
 import { ConditionalLayout } from "@/components/layout/conditional-layout";
 
 import { NotificationProvider } from "@/components/notifications/notification-provider";
@@ -17,7 +16,6 @@ import { ThemeConfiguration } from "@/components/theme-configuration";
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
 import { IconLoader2 as Loader2 } from "@tabler/icons-react";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AIPreferencesSync } from "@/components/ai-preferences-sync";
 import "./globals.css";
 import "katex/dist/katex.min.css";
 
@@ -262,37 +260,34 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange={false}
         >
-          <AIModeProvider>
-            <AuthGuard>
-              <NotificationProvider>
-                <CurrentFolderProvider>
-                  <UserProvider>
-                    <AIPreferencesSync />
-                    <BillingProvider>
-                      <LanguageProvider>
-                        <GlobalUploadProvider>
-                          <TooltipProvider>
-                            <ThemeConfiguration />
-                            <ServiceWorkerRegister />
+          <AuthGuard>
+            <NotificationProvider>
+              <CurrentFolderProvider>
+                <UserProvider>
+                  <BillingProvider>
+                    <LanguageProvider>
+                      <GlobalUploadProvider>
+                        <TooltipProvider>
+                          <ThemeConfiguration />
+                          <ServiceWorkerRegister />
 
-                            <ConditionalLayout>{children}</ConditionalLayout>
-                            <Toaster
-                              position="bottom-right"
-                              richColors
-                              duration={5000}
-                              style={{
-                                fontFamily: 'var(--font-roboto)',
-                              }}
-                            />
-                          </TooltipProvider>
-                        </GlobalUploadProvider>
-                      </LanguageProvider>
-                    </BillingProvider>
-                  </UserProvider>
-                </CurrentFolderProvider>
-              </NotificationProvider>
-            </AuthGuard>
-          </AIModeProvider>
+                          <ConditionalLayout>{children}</ConditionalLayout>
+                          <Toaster
+                            position="bottom-right"
+                            richColors
+                            duration={5000}
+                            style={{
+                              fontFamily: 'var(--font-roboto)',
+                            }}
+                          />
+                        </TooltipProvider>
+                      </GlobalUploadProvider>
+                    </LanguageProvider>
+                  </BillingProvider>
+                </UserProvider>
+              </CurrentFolderProvider>
+            </NotificationProvider>
+          </AuthGuard>
         </ThemeProvider>
       </body>
     </html>
