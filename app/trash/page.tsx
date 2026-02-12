@@ -39,8 +39,6 @@ function TrashContent() {
   return (
     <div className="flex w-full h-full flex-col overflow-hidden">
       <SiteHeader
-        onSearch={handleSearch}
-        searchValue={searchQuery}
         onFileUpload={handleFileUpload}
         onFolderUpload={handleFolderUpload}
         sticky
