@@ -128,7 +128,7 @@ export function SettingsModal({
   initialTab,
 }: SettingsModalProps) {
   const [internalOpen, setInternalOpen] = useState(false)
-  const { user, refetch, deviceLimitReached, updateUser } = useUser()
+  const { user, refetch, updateUser } = useUser()
   const { theme, setTheme } = useTheme()
 
   const nameInputRef = useRef<HTMLInputElement>(null)
@@ -1004,15 +1004,6 @@ export function SettingsModal({
       if (response.success) {
         toast.success("Device revoked")
         loadUserDevices()
-        if (deviceLimitReached) {
-          toast.info("Access Restored? Please refresh the page to regain full access.", {
-            duration: 10000,
-            action: {
-              label: "Refresh Now",
-              onClick: () => window.location.reload()
-            }
-          })
-        }
       } else {
         toast.error(response.error || "Failed to revoke device")
       }
@@ -1055,15 +1046,7 @@ export function SettingsModal({
         toast.success(`Successfully revoked ${successCount} device${successCount !== 1 ? 's' : ''}`);
         loadUserDevices();
 
-        if (deviceLimitReached) {
-          toast.info("Access Restored? Please refresh the page to regain full access.", {
-            duration: 10000,
-            action: {
-              label: "Refresh Now",
-              onClick: () => window.location.reload()
-            }
-          })
-        }
+
       }
 
       if (failCount > 0) {
@@ -1835,7 +1818,7 @@ export function SettingsModal({
                 <SidebarGroupContent>
                   <SidebarMenu>
                     {navItems.map((item) => {
-                      const isDisabled = deviceLimitReached && item.id !== "security" && item.id !== "billing";
+                      const isDisabled = false;
                       return (
                         <SidebarMenuItem key={item.name}>
                           <SidebarMenuButton

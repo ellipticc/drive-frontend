@@ -241,36 +241,6 @@ export interface PQCKeypairs {
   };
 }
 
-export interface Space {
-  id: string;
-  owner_user_id: string;
-  encrypted_name: string;
-  name_salt: string;
-  icon?: string;
-  color?: string;
-  created_at: string;
-  updated_at: string;
-  items?: SpaceItem[];
-  decryptedName?: string;
-}
-
-export interface SpaceItem {
-  id: string;
-  space_id: string;
-  file_id?: string;
-  folder_id?: string;
-  created_at: string;
-  // Metadata for display
-  encrypted_filename?: string;
-  filename_salt?: string;
-  mimetype?: string;
-  size?: number;
-  encrypted_name?: string;
-  name_salt?: string;
-  file_folder_id?: string;
-  decryptedName?: string;
-}
-
 export interface FileItem {
   id: string;
   name: string; // Display name (decrypted filename for files, plain name for folders)
@@ -288,7 +258,7 @@ export interface FileItem {
   shaHash?: string | null; // File hash (SHA512)
   sessionSalt?: string;
   is_shared?: boolean; // Whether this file/folder is currently shared
-  is_starred?: boolean; // Whether this file/folder is currently in a space (starred)
+
   encryption?: {
     iv: string;
     salt: string;
@@ -319,7 +289,7 @@ export interface FolderContentItem {
   updatedAt: string;
   deletedAt?: string;
   is_shared: boolean;
-  is_starred: boolean;
+
   lockedUntil?: string | null;
   retentionMode?: string | null;
   tags?: Tag[];
@@ -347,7 +317,7 @@ export interface FileContentItem {
   shaHash: string | null;
   sha_hash?: string | null;
   is_shared: boolean;
-  is_starred: boolean;
+
   lockedUntil?: string | null;
   tags?: Tag[];
 }
@@ -1169,8 +1139,6 @@ class ApiClient {
 
   async getProfile(): Promise<ApiResponse<{
     user: UserData;
-    limitReached: boolean;
-    deviceQuota: { planName: string; maxDevices: number } | null;
   }>> {
     return this.request('/auth/me');
   }
@@ -1756,19 +1724,7 @@ class ApiClient {
 
   // Spaces & Starring
 
-  async starFile(fileId: string): Promise<ApiResponse<{ success: boolean }>> {
-    return this.request('/files/spaced', {
-      method: 'POST',
-      body: JSON.stringify({ fileId, isStarred: true }),
-    });
-  }
 
-  async unstarFile(fileId: string): Promise<ApiResponse<{ success: boolean }>> {
-    return this.request('/files/spaced', {
-      method: 'POST',
-      body: JSON.stringify({ fileId, isStarred: false }),
-    });
-  }
 
   // Renaming Alias (for consistency with frontend calls)
   async updateFile(fileId: string, data: {
@@ -2132,28 +2088,7 @@ class ApiClient {
   }
 
   // Spaces Management
-  async getSpaces(): Promise<ApiResponse<Space[]>> {
-    return this.request('/spaces');
-  }
 
-  async createSpace(data: {
-    encryptedName: string;
-    nameSalt: string;
-    icon?: string;
-    color?: string;
-  }): Promise<ApiResponse<{ id: string }>> {
-    return this.request('/spaces', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async reorderSpaces(spaceIds: string[]): Promise<ApiResponse<unknown>> {
-    return this.request('/spaces/reorder', {
-      method: 'POST',
-      body: JSON.stringify({ spaceIds })
-    });
-  }
 
   async getPhotos(limit = 100, offset = 0): Promise<ApiResponse<unknown[]>> {
     return this.request(`/photos?limit=${limit}&offset=${offset}`, {
@@ -2167,42 +2102,7 @@ class ApiClient {
     });
   }
 
-  async getStarredItems(): Promise<ApiResponse<SpaceItem[]>> {
-    return this.request('/files/spaced', { method: 'GET' });
-  }
 
-  async setItemStarred(data: {
-    fileId?: string;
-    folderId?: string;
-    paperId?: string;
-    fileIds?: string[];
-    folderIds?: string[];
-    paperIds?: string[];
-    isStarred: boolean
-  }): Promise<ApiResponse<unknown>> {
-    return this.request('/files/spaced', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async renameSpace(spaceId: string, data: {
-    encryptedName: string;
-    nameSalt: string;
-    icon?: string;
-    color?: string;
-  }): Promise<ApiResponse<{ success: boolean }>> {
-    return this.request(`/spaces/${spaceId}`, {
-      method: 'PATCH',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async deleteSpace(spaceId: string): Promise<ApiResponse<{ success: boolean }>> {
-    return this.request(`/spaces/${spaceId}`, {
-      method: 'DELETE',
-    });
-  }
 
   async getRecipientPublicKey(email: string): Promise<ApiResponse<{ email: string; kyberPublicKey: string }>> {
     return this.request<{ email: string; kyberPublicKey: string }>(`/user/public-key?email=${encodeURIComponent(email)}`);
@@ -2273,34 +2173,7 @@ class ApiClient {
     });
   }
 
-  async getSpaceItems(spaceId: string): Promise<ApiResponse<SpaceItem[]>> {
-    return this.request(`/spaces/${spaceId}/items`);
-  }
 
-  async addItemToSpace(spaceId: string, data: {
-    fileId?: string;
-    folderId?: string;
-    fileIds?: string[];
-    folderIds?: string[];
-  }): Promise<ApiResponse<{ id: string }>> {
-    return this.request(`/spaces/${spaceId}/items`, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async removeItemFromSpace(spaceId: string, itemId: string): Promise<ApiResponse<unknown>> {
-    return this.request(`/spaces/${spaceId}/items/${itemId}`, {
-      method: 'DELETE',
-    });
-  }
-
-  async moveItemToSpace(spaceId: string, itemId: string, targetSpaceId: string): Promise<ApiResponse<unknown>> {
-    return this.request(`/spaces/${spaceId}/items/${itemId}/move`, {
-      method: 'POST',
-      body: JSON.stringify({ targetSpaceId }),
-    });
-  }
 
   // Trash operations
   async getTrashFiles(params?: {
@@ -3135,12 +3008,6 @@ class ApiClient {
     deviceId: string;
     message: string;
     warning?: string;
-    limitReached?: boolean;
-    deviceQuota?: {
-      maxDevices: number;
-      planName: string;
-      currentDevices: number;
-    };
   }>> {
     // Device Recognition (UX only)
     //
@@ -4146,7 +4013,7 @@ class ApiClient {
     }
 
     const data = await response.json();
-    
+
     if (!data.success && data.error) {
       throw new Error(`Failed to fetch chat messages: ${data.error}`);
     }

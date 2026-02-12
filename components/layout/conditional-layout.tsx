@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { AppSidebar } from "@/components/layout/sidebar/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { useUser } from "@/components/user-context";
-import { DeviceLimitOverlay } from "@/components/modals/device-limit-overlay";
 import { useLanguage } from "@/lib/i18n/language-context";
 import { toast } from 'sonner';
 
@@ -15,7 +14,6 @@ interface ConditionalLayoutProps {
 
 export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   const pathname = usePathname();
-  const { deviceLimitReached } = useUser();
   const { dir } = useLanguage();
 
   // Normalize pathname to remove trailing slash for comparison
@@ -35,20 +33,6 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
     return <>{children}</>;
   }
 
-  // If device limit reached, only show overlay (don't render dashboard at all)
-  // Allow /pricing page to render normally when device limit reached
-  const isLockedOnBilling = deviceLimitReached && pathname === '/pricing';
-
-  if (deviceLimitReached && !isLockedOnBilling) {
-    // Prevent body scroll when overlay is shown
-    if (typeof document !== 'undefined') {
-      document.documentElement.style.overflow = 'hidden';
-      document.body.style.overflow = 'hidden';
-    }
-    return <DeviceLimitOverlay />;
-  }
-
-  // Re-enable scroll when not showing overlay
   if (typeof document !== 'undefined') {
     document.documentElement.style.overflow = '';
     document.body.style.overflow = '';

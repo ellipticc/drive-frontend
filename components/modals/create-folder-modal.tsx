@@ -44,7 +44,7 @@ interface UserData {
       ed25519: { publicKey: string; encryptedPrivateKey: string; privateKeyNonce: string; encryptionKey: string; encryptionNonce: string }
     }
   }
-} 
+}
 
 export function CreateFolderModal({ children, parentId = null, onFolderCreated, open: controlledOpen, onOpenChange: controlledOnOpenChange }: CreateFolderModalProps & { open?: boolean; onOpenChange?: (open: boolean) => void }) {
   const { t } = useLanguage()
@@ -152,7 +152,6 @@ export function CreateFolderModal({ children, parentId = null, onFolderCreated, 
           createdAt: response.data.createdAt,
           updatedAt: response.data.updatedAt,
           is_shared: false,
-          is_starred: false
         }
 
         setFolderName("")

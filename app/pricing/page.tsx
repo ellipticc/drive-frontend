@@ -121,8 +121,6 @@ const staticPlans: TransformedPlan[] = [
     quotaBytes: 2 * 1024 * 1024 * 1024,
     features: {
       'Storage Quota': '2 GB',
-      'Spaces': '2',
-      'Devices Limit': '2',
       'Device Labeling': false,
       'Trash Retention': '30 days',
       'Zero Knowledge Architecture': true,
@@ -176,8 +174,6 @@ const staticPlans: TransformedPlan[] = [
     quotaBytes: 200 * 1024 * 1024 * 1024,
     features: {
       'Storage Quota': '200 GB',
-      'Spaces': '5',
-      'Devices Limit': '5',
       'Device Labeling': true,
       'Trash Retention': '60 days',
       'Zero Knowledge Architecture': true,
@@ -232,8 +228,6 @@ const staticPlans: TransformedPlan[] = [
     popular: true,
     features: {
       'Storage Quota': '500 GB',
-      'Spaces': '10',
-      'Devices Limit': '10',
       'Device Labeling': true,
       'Trash Retention': '90 days',
       'Zero Knowledge Architecture': true,
@@ -288,8 +282,6 @@ const staticPlans: TransformedPlan[] = [
     quotaBytes: 2048 * 1024 * 1024 * 1024,
     features: {
       'Storage Quota': '2 TB',
-      'Spaces': 'Unlimited',
-      'Devices Limit': 'Unlimited',
       'Device Labeling': true,
       'Trash Retention': 'No limit',
       'Zero Knowledge Architecture': true,
@@ -335,7 +327,7 @@ const staticPlans: TransformedPlan[] = [
 const featureCategories = [
   {
     name: 'Storage & Capacity',
-    features: ['Storage Quota', 'Spaces', 'Devices Limit', 'Trash Retention']
+    features: ['Storage Quota', 'Trash Retention']
   },
   {
     name: 'Security & Privacy',
@@ -365,7 +357,7 @@ const featureCategories = [
 
 const featureTooltips: Record<string, string> = {
   'Storage Quota': 'The total amount of encrypted storage space allocated to your account.',
-  'Spaces': 'Dedicated environments to organize projects and collaborate with specific sets of users.',
+  /* spaces feature omitted from pricing */
   'Devices Limit': 'The maximum number of devices you can use to access your account simultaneously.',
   'Device Labeling': 'Assign custom names to your devices for easier identification in the dashboard.',
   'Trash Retention': 'How long deleted files are kept in the trash before being permanently removed.',

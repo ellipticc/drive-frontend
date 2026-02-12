@@ -6,7 +6,6 @@ import {
   type Icon,
   IconChevronDown,
   IconChevronUp,
-  IconStarFilled,
   IconStack2Filled,
   IconTrashFilled,
   IconClockHour9Filled,
@@ -235,8 +234,6 @@ export function NavMain({
         return IconStack2Filled
       case 'recents':
         return IconClockHour9Filled
-      case 'starred':
-        return IconStarFilled
       case 'photos':
         return IconPhotoFilled
       case 'insights':

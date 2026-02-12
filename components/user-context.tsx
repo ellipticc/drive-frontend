@@ -10,8 +10,6 @@ interface UserContextType {
   user: UserData | null;
   loading: boolean;
   error: string | null;
-  deviceLimitReached: boolean;
-  deviceQuota: { planName: string; maxDevices: number } | null;
   preferences: any | null; // Using any for simplicity as it's defined in api.ts
   refetch: () => Promise<void>;
   updateStorage: (delta: number) => void;
@@ -66,8 +64,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [deviceLimitReached, setDeviceLimitReached] = useState(false);
-  const [deviceQuota, setDeviceQuota] = useState<{ planName: string; maxDevices: number } | null>(null);
   const [preferences, setPreferences] = useState<any | null>(null);
   const [hasFetched, setHasFetched] = useState(false);
   const lastSubFetchTime = useRef<number>(0);
@@ -132,15 +128,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
       const response = profileResponse;
       if (preferencesResponse.success) {
         setPreferences(preferencesResponse.data);
-      }
-
-      // Extract device quota and limit status
-      const limitReached = response.data?.limitReached || false;
-      const quota = response.data?.deviceQuota;
-
-      setDeviceLimitReached(limitReached);
-      if (quota) {
-        setDeviceQuota(quota);
       }
 
       if (response.success && response.data?.user) {
@@ -230,10 +217,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       } else {
         console.log('UserProvider: Failed to fetch user profile:', response.error);
 
-        // If it's just a device limit, we continue but mark it
-        if (!response.data?.limitReached) {
-          throw new Error(response.error || 'Failed to fetch user');
-        }
+        throw new Error(response.error || 'Failed to fetch user');
       }
     } catch (err) {
       console.log('UserProvider: Error fetching user profile:', err);
@@ -342,7 +326,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   }, [refetch]);
 
   return (
-    <UserContext.Provider value={{ user, loading, error, deviceLimitReached, deviceQuota, preferences, refetch, updateStorage, updateUser, updatePreferences }}>
+    <UserContext.Provider value={{ user, loading, error, preferences, refetch, updateStorage, updateUser, updatePreferences }}>
       {children}
     </UserContext.Provider>
   );

@@ -83,7 +83,7 @@ export const dictionaries = {
             shared: "Shared",
             sharedWithMe: "Shared with me",
             recents: "Recents",
-            starred: "Starred",
+
             trash: "Trash",
             settings: "Settings",
             getHelp: "Get Help",
@@ -92,12 +92,7 @@ export const dictionaries = {
             used: "Used",
             getMore: "Get more storage",
             logout: "Logout",
-            quickSpaces: "Quick Spaces",
-            spaced: "Space",
-            newSpace: "New Space",
-            addItem: "Add Item",
-            moveToSpace: "Move to Space",
-            removeFromSpace: "Remove from Space",
+            // Spaces UI strings (kept for compatibility)
             loading: "Loading...",
             empty: "Empty",
         },
@@ -107,11 +102,7 @@ export const dictionaries = {
             modified: "Last Modified",
             checksum: "Checksum",
             shared: "Shared",
-            starred: {
-                label: "Starred",
-                add: "Add to Starred",
-                remove: "Remove from Starred",
-            },
+
             actions: "Actions",
             empty: "No files found",
             search: "Search files...",
@@ -240,7 +231,7 @@ export const dictionaries = {
             shared: "Partagés",
             sharedWithMe: "Partagé avec moi",
             recents: "Récents",
-            starred: "Favoris",
+
             trash: "Corbeille",
             settings: "Paramètres",
             getHelp: "Aide",
@@ -249,12 +240,7 @@ export const dictionaries = {
             used: "Utilisé",
             getMore: "Obtenir plus d'espace",
             logout: "Déconnexion",
-            quickSpaces: "Espaces Rapides",
-            spaced: "Space",
-            newSpace: "Nouvel Espace",
-            addItem: "Ajouter un élément",
-            moveToSpace: "Déplacer vers l'espace",
-            removeFromSpace: "Retirer de l'espace",
+
             loading: "Chargement...",
             empty: "Vide",
         },
@@ -264,11 +250,7 @@ export const dictionaries = {
             modified: "Dernière modification",
             checksum: "Somme de contrôle",
             shared: "Partagé",
-            starred: {
-                label: "Favori",
-                add: "Ajouter aux favoris",
-                remove: "Retirer des favoris",
-            },
+
             actions: "Actions",
             empty: "Aucun fichier trouvé",
             search: "Rechercher des fichiers...",
@@ -396,7 +378,7 @@ export const dictionaries = {
             shared: "Compartidos",
             sharedWithMe: "Compartido conmigo",
             recents: "Recientes",
-            starred: "Destacados",
+
             trash: "Papelera",
             settings: "Configuración",
             getHelp: "Ayuda",
@@ -405,12 +387,7 @@ export const dictionaries = {
             used: "Usado",
             getMore: "Obtener más espacio",
             logout: "Cerrar sesión",
-            quickSpaces: "Espacios Rápidos",
-            spaced: "Space",
-            newSpace: "Nuevo Espacio",
-            addItem: "Agregar elemento",
-            moveToSpace: "Mover al espacio",
-            removeFromSpace: "Quitar del espacio",
+
             loading: "Cargando...",
             empty: "Vacío",
         },
@@ -420,11 +397,7 @@ export const dictionaries = {
             modified: "Última modificación",
             checksum: "Suma de verificación",
             shared: "Compartido",
-            starred: {
-                label: "Destacado",
-                add: "Agregar a destacados",
-                remove: "Quitar de destacados",
-            },
+
             actions: "Acciones",
             empty: "No se encontraron archivos",
             search: "Buscar archivos...",
@@ -550,7 +523,7 @@ export const dictionaries = {
             shared: "Freigegeben",
             sharedWithMe: "Freigegeben mit mir",
             recents: "Zuletzt",
-            starred: "Markiert",
+
             trash: "Papierkorb",
             settings: "Einstellungen",
             getHelp: "Hilfe erhalten",
@@ -559,12 +532,7 @@ export const dictionaries = {
             used: "Belegt",
             getMore: "Mehr Speicherplatz erhalten",
             logout: "Abmelden",
-            quickSpaces: "Schnellzugriffe",
-            spaced: "Space",
-            newSpace: "Neuer Bereich",
-            addItem: "Element hinzufügen",
-            moveToSpace: "In Bereich verschieben",
-            removeFromSpace: "Aus Bereich entfernen",
+
             loading: "Wird geladen...",
             empty: "Leer",
         },
@@ -574,11 +542,7 @@ export const dictionaries = {
             modified: "Zuletzt geändert",
             checksum: "Prüfsumme",
             shared: "Freigegeben",
-            starred: {
-                label: "Markiert",
-                add: "Zu Favoriten hinzufügen",
-                remove: "Aus Favoriten entfernen",
-            },
+
             actions: "Aktionen",
             empty: "Keine Dateien gefunden",
             search: "Dateien suchen...",

@@ -108,18 +108,6 @@ export function useOnboarding() {
         {
             content: (
                 <div>
-                    <h3 className="text-lg font-semibold mb-2">Your Private Spaces</h3>
-                    <p className="text-sm text-muted-foreground">
-                        Spaces are more than just folders. They are dedicated encrypted environments for projects or teams. Create one to stay organized.
-                    </p>
-                </div>
-            ),
-            selectorId: TOUR_STEP_IDS.CREATE_SPACE,
-            position: "right",
-        },
-        {
-            content: (
-                <div>
                     <h3 className="text-lg font-semibold mb-2">Powerful File Actions</h3>
                     <p className="text-sm text-muted-foreground">
                         Once you have files here, use this menu to share, rename, or preview them. Even we can't see what's inside!

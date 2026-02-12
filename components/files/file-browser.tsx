@@ -14,7 +14,7 @@ interface ExtendedFile extends File {
 }
 
 interface FileBrowserProps {
-    filterMode?: 'default' | 'starred' | 'recents';
+    filterMode?: 'default' | 'recents';
     pageTitle?: string;
 }
 

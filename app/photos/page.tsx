@@ -18,14 +18,6 @@ import { useGallerySelection } from "./hooks/use-gallery-selection"
 import { GalleryGrid } from "./components/gallery-grid"
 import { GalleryToolbar } from "./components/gallery-toolbar"
 import { useGlobalUpload } from "@/components/global-upload-context"
-import {
-    ActionBar,
-    ActionBarSelection,
-    ActionBarGroup,
-    ActionBarItem,
-    ActionBarClose,
-    ActionBarSeparator,
-} from "@/components/ui/action-bar"
 
 // Import Modals
 import { MoveToTrashModal } from "@/components/modals/move-to-trash-modal"
@@ -33,7 +25,6 @@ import { MoveToFolderModal } from "@/components/modals/move-to-folder-modal"
 import { CopyModal } from "@/components/modals/copy-modal"
 import { RenameModal } from "@/components/modals/rename-modal"
 import { ShareModal } from "@/components/modals/share-modal"
-import { SpacePickerModal } from "@/components/modals/space-picker-modal"
 
 interface RawPhotoItem {
     id: string
@@ -56,7 +47,7 @@ interface RawPhotoItem {
         nonceWrapKyber: string
     }
     tags?: Tag[]
-    isStarred?: boolean
+
 }
 
 interface MediaItem extends RawPhotoItem {
@@ -67,8 +58,8 @@ function PhotosPageContent() {
     const router = useRouter()
     const pathname = usePathname()
     const searchParams = useSearchParams()
-    const { user, deviceQuota } = useUser()
-    const isFreePlan = (deviceQuota?.planName === 'Free' || !user?.subscription) && user?.plan !== 'pro' && user?.plan !== 'plus' && user?.plan !== 'unlimited';
+    const { user } = useUser()
+    const isFreePlan = (!user?.subscription) && user?.plan !== 'pro' && user?.plan !== 'plus' && user?.plan !== 'unlimited';
     const { handleFileUpload, handleFolderUpload } = useGlobalUpload()
 
     // Data State
@@ -78,7 +69,7 @@ function PhotosPageContent() {
     const [searchQuery, setSearchQuery] = useState("")
 
     // View State
-    const [viewMode, setViewMode] = useState<'all' | 'photos' | 'videos' | 'starred'>('all')
+    const [viewMode, setViewMode] = useState<'all' | 'photos' | 'videos'>('all')
     const [timeScale, setTimeScale] = useState<'years' | 'months' | 'days'>('days')
     const [zoomLevel, setZoomLevel] = useState(4) // Default column count
 
@@ -92,7 +83,6 @@ function PhotosPageContent() {
     const [isCopyOpen, setIsCopyOpen] = useState(false)
     const [isRenameOpen, setIsRenameOpen] = useState(false)
     const [isShareOpen, setIsShareOpen] = useState(false)
-    const [isAddToSpaceOpen, setIsAddToSpaceOpen] = useState(false)
 
     // Active Item(s) State for Modals
     const [activeItem, setActiveItem] = useState<MediaItem | null>(null)
@@ -214,8 +204,7 @@ function PhotosPageContent() {
             items = items.filter(item => item.mimeType.startsWith('image/'))
         } else if (viewMode === 'videos') {
             items = items.filter(item => item.mimeType.startsWith('video/'))
-        } else if (viewMode === 'starred') {
-            items = items.filter(item => item.isStarred)
+
         }
 
         return items;
@@ -312,31 +301,7 @@ function PhotosPageContent() {
             case 'share':
                 setIsShareOpen(true);
                 break;
-            case 'addToSpace':
-                setIsAddToSpaceOpen(true);
-                break;
-            case 'star':
-                try {
-                    // Optimistic update
-                    setMediaItems(prev => prev.map(i =>
-                        i.id === item.id ? { ...i, isStarred: !i.isStarred } : i
-                    ));
 
-                    if (item.isStarred) {
-                        await apiClient.unstarFile(item.id);
-                        toast.success("Removed from favorites");
-                    } else {
-                        await apiClient.starFile(item.id);
-                        toast.success("Added to favorites");
-                    }
-                } catch {
-                    toast.error("Failed to update favorite status");
-                    // Revert optimistic update
-                    setMediaItems(prev => prev.map(i =>
-                        i.id === item.id ? { ...i, isStarred: !i.isStarred } : i
-                    ));
-                }
-                break;
         }
     }, [handlePreview])
 
@@ -638,14 +603,7 @@ function PhotosPageContent() {
                         itemType="file"
                     />
 
-                    <SpacePickerModal
-                        open={isAddToSpaceOpen}
-                        onOpenChange={setIsAddToSpaceOpen}
-                        fileIds={activeItem ? [activeItem.id] : []}
-                        onAdded={() => {
-                            // Refresh handled by toast
-                        }}
-                    />
+
                 </div>
             </main>
         </div>

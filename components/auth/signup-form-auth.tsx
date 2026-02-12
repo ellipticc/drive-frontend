@@ -213,17 +213,8 @@ export function SignupFormAuth({
           // Store device ID for authenticated requests
           localStorage.setItem('device_id', deviceAuth.data.deviceId);
 
-          if (deviceAuth.data.limitReached) {
-            try {
-              const { toast } = await import("sonner");
-              toast.error("Device Limit Reached", {
-                description: `Your ${deviceAuth.data.deviceQuota?.planName || 'Free'} plan limit has been reached. You will have restricted access until you upgrade or revoke a device.`,
-                duration: 10000,
-              });
-            } catch (e) {
-              console.warn("Toast error", e);
-            }
-          } else if (deviceAuth.data.warning) {
+          // Treat as normal authorization
+          if (deviceAuth.data?.warning) {
             try {
               const { toast } = await import("sonner");
               toast.warning("Device Limit Notice", {
@@ -237,12 +228,7 @@ export function SignupFormAuth({
         } else {
           apiClient.setAuthToken(null)
 
-          if (deviceAuth.data?.limitReached) {
-            const quota = deviceAuth.data.deviceQuota;
-            setError(`Device limit reached. Your ${quota?.planName || 'current'} plan only allows up to ${quota?.maxDevices || 'limited'} devices. Please logout from another device or upgrade your plan.`);
-          } else {
-            setError(deviceAuth.error || "Device security verification failed");
-          }
+          setError(deviceAuth.error || "Device security verification failed");
           return;
         }
       }

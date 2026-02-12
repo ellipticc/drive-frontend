@@ -17,7 +17,7 @@ import {
   IconUsers,
   IconSignature,
   IconClockHour9,
-  IconStar,
+
   IconWritingSign,
   IconBrain,
   IconDotsVertical,
@@ -29,7 +29,7 @@ import { NavMain } from "@/components/layout/navigation/nav-main"
 import { NavAI } from "@/components/layout/navigation/nav-ai"
 import { NavSecondary } from "@/components/layout/navigation/nav-secondary"
 import { NavUser } from "@/components/layout/navigation/nav-user"
-import { NavSpaces } from "@/components/layout/navigation/nav-spaces"
+
 import { NavNew } from "@/components/layout/navigation/nav-new"
 import {
   Sidebar,
@@ -125,12 +125,7 @@ export const AppSidebar = React.memo(function AppSidebar({
         icon: IconClockHour9,
         id: "recents",
       },
-      {
-        title: t("sidebar.starred") || "Starred",
-        url: "/starred",
-        icon: IconStar,
-        id: "starred",
-      },
+
       {
         title: "Assistant",
         url: "/assistant",
@@ -308,7 +303,7 @@ export const AppSidebar = React.memo(function AppSidebar({
       try {
         const chats = await getAllIndexedChats()
         if (!mounted) return
-        const sorted = chats.sort((a:any,b:any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        const sorted = chats.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         setRecentChats(sorted.slice(0, 6))
       } catch (e) {
         console.error('Failed to load indexed history', e)
@@ -474,9 +469,8 @@ export const AppSidebar = React.memo(function AppSidebar({
               className="flex items-center gap-2 px-2 py-2 rounded-md hover:bg-accent transition-colors w-full"
             >
               <IconChevronDown
-                className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${
-                  historyExpanded ? 'rotate-0' : '-rotate-90'
-                }`}
+                className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${historyExpanded ? 'rotate-0' : '-rotate-90'
+                  }`}
               />
               <span className="text-xs font-medium text-muted-foreground flex-1">History</span>
             </button>
@@ -643,45 +637,13 @@ export const AppSidebar = React.memo(function AppSidebar({
         ) : (
           <>
             <NavMain items={data.navMain} />
-            <NavSpaces />
+            {/* spaces placeholder */}
             <NavSecondary items={data.navSecondary} className="mt-auto" />
           </>
         )}
       </SidebarContent>
       <SidebarFooter>
-        {!isAIMode && state !== "collapsed" && (
-          <div className="px-3 py-3 mx-2 mb-2 text-xs text-muted-foreground w-auto space-y-3 bg-muted/30 rounded-lg border border-border/30">
-            <div className="flex items-center gap-2 mb-2">
-              <IconDatabase className="!size-4 text-muted-foreground transition-colors duration-200" stroke={1.8} />
-              <span className="font-semibold text-sm font-sans">{t("sidebar.storage")}</span>
-            </div>
-            <div className="flex justify-between mb-1">
-              <span className="font-medium">{t("sidebar.used")}</span>
-              <span className="font-mono text-xs">
-                {storage.used_readable} / {storage.quota_readable}
-              </span>
-            </div>
-            <div className="w-full bg-muted rounded-full h-2 transition-all duration-300">
-              <div className="bg-primary h-2 rounded-full" style={{ width: `${storage.percent_used}%` }}></div>
-            </div>
-            <div className="text-center mt-1 text-xs font-medium">
-              {storage.percent_used.toFixed(1)}% {t("sidebar.used").toLowerCase()}
-            </div>
 
-            {/* Get more storage button */}
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full mt-3 text-xs bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground duration-200 ease-linear dark:bg-white dark:text-black dark:hover:bg-gray-200"
-              onClick={() => {
-                router.push('/pricing')
-              }}
-            >
-              <IconDatabaseImport className="size-4" />
-              {t("sidebar.getMore")}
-            </Button>
-          </div>
-        )}
         <NavUser user={data.user} />
       </SidebarFooter>
     </Sidebar>

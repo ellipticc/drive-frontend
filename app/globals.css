@@ -1084,17 +1084,17 @@ button {
     transition: none;
   }
 
-  [data-space-id].space-dnd-over {
+  [data-space-id].star-dnd-over {
     outline: 2px solid var(--accent);
     outline-offset: -2px;
     border-radius: 0.375rem;
   }
 
-  [data-space-id].space-dnd-success {
-    animation: space-dnd-success-pulse 0.9s cubic-bezier(0.34, 1.56, 0.64, 1);
+  [data-space-id].star-dnd-success {
+    animation: star-dnd-success-pulse 0.9s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 
-  @keyframes space-dnd-success-pulse {
+  @keyframes star-dnd-success-pulse {
     0% {
       box-shadow: 0 0 0 0 var(--accent);
     }
@@ -1110,14 +1110,14 @@ button {
 }
 
 /* Drag & Drop Styles - Precise Pixel Perfect */
-.space-dnd-over {
+.star-dnd-over {
   position: relative;
   z-index: 50;
   /* Ensure the element itself shows the border if possible, or use after for overlay */
 }
 
-/* Delimiting rectangle for Space drop targets */
-.space-dnd-over::after {
+/* Delimiting rectangle for Starred drop targets */
+.star-dnd-over::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -1130,7 +1130,7 @@ button {
 }
 
 /* Success flash */
-.space-dnd-success {
+.star-dnd-success {
   animation: dnd-success 0.5s ease-out forwards;
 }
 

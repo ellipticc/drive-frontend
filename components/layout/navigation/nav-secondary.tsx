@@ -31,7 +31,6 @@ export function NavSecondary({
     id?: string
   }[]
 } & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
-  const { deviceLimitReached } = useUser();
   const { state, isMobile } = useSidebar();
   const [feedbackOpen, setFeedbackOpen] = React.useState(false)
   const [helpOpen, setHelpOpen] = React.useState(false)
@@ -132,7 +131,7 @@ export function NavSecondary({
                       <TooltipTrigger asChild>
                         <SidebarMenuButton
                           onClick={() => {
-                            const tab = deviceLimitReached ? 'Security?scroll=device-manager' : 'General';
+                            const tab = 'General';
                             window.location.hash = `#settings/${tab}`;
                           }}
                           id="tour-settings"
@@ -150,7 +149,7 @@ export function NavSecondary({
                   ) : (
                     <SidebarMenuButton
                       onClick={() => {
-                        const tab = deviceLimitReached ? 'Security?scroll=device-manager' : 'General';
+                        const tab = 'General';
                         window.location.hash = `#settings/${tab}`;
                       }}
                       id="tour-settings"

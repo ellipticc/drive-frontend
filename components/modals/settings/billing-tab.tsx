@@ -109,12 +109,6 @@ export function BillingTab({
         });
 
         resources.push({
-            name: 'Spaces',
-            used: usageData.spaces.used,
-            limit: usageData.spaces.limit,
-        });
-
-        resources.push({
             name: 'Webhook Events (30d)',
             used: usageData.webhookEvents.used,
             limit: usageData.webhookEvents.limit,
@@ -306,16 +300,16 @@ export function BillingTab({
                                     const activeSubscription = subscriptionHistory?.history?.find(h => h.status === 'active');
                                     let monthlyPrice = '0';
                                     let yearlyPrice = '0';
-                                    
+
                                     if (activeSubscription?.amount) {
                                         monthlyPrice = activeSubscription.amount.toFixed(2);
                                     } else if (pricingPlans && subscription?.plan) {
-                                        const matchingPlan = pricingPlans.find(p => 
+                                        const matchingPlan = pricingPlans.find(p =>
                                             p.id === (subscription.plan as any).id || p.name === subscription.plan?.name
                                         );
                                         if (matchingPlan?.price) {
-                                            const price = Number.isInteger(matchingPlan.price) && matchingPlan.price > 1000 
-                                                ? matchingPlan.price / 100 
+                                            const price = Number.isInteger(matchingPlan.price) && matchingPlan.price > 1000
+                                                ? matchingPlan.price / 100
                                                 : matchingPlan.price;
                                             monthlyPrice = price.toFixed(2);
                                             yearlyPrice = price.toFixed(2);
@@ -462,7 +456,7 @@ export function BillingTab({
                                             onPageChange={(page) => loadSubscriptionHistory(page, invoicesPage)}
                                         />
                                     </div>
-                                )} 
+                                )}
 
                                 {/* Invoices (using shared component) */}
                                 {subscriptionHistory?.invoices && subscriptionHistory.invoices.length > 0 && (

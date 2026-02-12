@@ -123,7 +123,7 @@ export function DetailsModal({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const isMobile = useIsMobile();
-  const { user, deviceQuota } = useUser()
+  const { user } = useUser()
   const { formatDate } = useFormatter()
   const [internalOpen, setInternalOpen] = useState(false)
   const [itemDetails, setItemDetails] = useState<ItemDetails | null>(null)
@@ -149,7 +149,7 @@ export function DetailsModal({
   const open = externalOpen ?? internalOpen
   const setOpen = externalOnOpenChange ?? setInternalOpen
 
-  const isFreePlan = (deviceQuota?.planName === 'Free' || !user?.subscription) && user?.plan !== 'pro' && user?.plan !== 'plus' && user?.plan !== 'unlimited';
+  const isFreePlan = (!user?.subscription) && user?.plan !== 'pro' && user?.plan !== 'plus' && user?.plan !== 'unlimited';
 
   useEffect(() => {
     if (open && itemId) {

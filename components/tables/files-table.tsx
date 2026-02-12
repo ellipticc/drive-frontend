@@ -8,7 +8,7 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import type { SortDescriptor, Selection } from "react-aria-components";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Button } from "@/components/ui/button";
-import { IconFolderPlus, IconFolderDown, IconFileUpload, IconFolderUp, IconStackFilled, IconDotsVertical, IconShare3, IconListDetails, IconDownload, IconFolder, IconEdit, IconInfoCircle, IconTrash, IconChevronRight, IconLink, IconEye, IconLayoutColumns, IconCopy, IconStar, IconStarFilled, IconLoader2, IconGrid3x3, IconLock, IconX, IconStack, IconUpload, IconChevronDown, IconFileText, IconBrandGoogleDrive } from "@tabler/icons-react";
+import { IconFolderPlus, IconFolderDown, IconFileUpload, IconFolderUp, IconDotsVertical, IconShare3, IconListDetails, IconDownload, IconFolder, IconEdit, IconInfoCircle, IconTrash, IconChevronRight, IconLink, IconEye, IconLayoutColumns, IconCopy, IconLoader2, IconGrid3x3, IconLock, IconX, IconUpload, IconChevronDown, IconFileText, IconBrandGoogleDrive } from "@tabler/icons-react";
 
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import dynamic from "next/dynamic";
@@ -217,7 +217,7 @@ const DraggableDroppableRow = React.memo(React.forwardRef<HTMLTableRowElement, {
             className={cx(
                 props.className,
                 // Pointed border indicator for folders when hovering
-                isOver && item.type === 'folder' && "space-dnd-over",
+                isOver && item.type === 'folder' && "star-dnd-over",
                 isDragging && "opacity-50"
             )}
             onContextMenu={(e) => onContextMenu(e, item)}
@@ -297,17 +297,17 @@ export const Table01DividerLineSm = ({
     onFileInputRef?: (ref: HTMLInputElement | null) => void
     onFolderInputRef?: (ref: HTMLInputElement | null) => void
     onUploadHandlersReady?: (handlers: { handleFileUpload: () => void; handleFolderUpload: () => void }) => void
-    filterMode?: 'default' | 'starred' | 'recents'
+    filterMode?: 'default' | 'recents'
 }) => {
     const { t } = useLanguage();
-    const { user, deviceQuota } = useUser();
+    const { user } = useUser();
     const router = useRouter();
     const pathname = usePathname();
     const isMobile = useIsMobile();
     const searchParams = useSearchParams();
     const STORAGE_KEY = 'files-table-visible-columns';
 
-    const isFreePlan = (deviceQuota?.planName === 'Free' || !user?.subscription) && user?.plan !== 'pro' && user?.plan !== 'plus' && user?.plan !== 'unlimited';
+    const isFreePlan = (!user?.subscription) && user?.plan !== 'pro' && user?.plan !== 'plus' && user?.plan !== 'unlimited';
 
     useEffect(() => {
         if (searchQuery?.startsWith('#') && isFreePlan) {
@@ -334,7 +334,7 @@ export const Table01DividerLineSm = ({
     }, [searchQuery]);
 
     // Column visibility state
-    const [visibleColumns, setVisibleColumns] = useState<Set<string>>(new Set(['starred', 'modified', 'size', 'shared']));
+    const [visibleColumns, setVisibleColumns] = useState<Set<string>>(new Set(['modified', 'size', 'shared']));
     const [isPreferencesLoaded, setIsPreferencesLoaded] = useState(false);
 
     // Load preferences from local storage
@@ -436,7 +436,7 @@ export const Table01DividerLineSm = ({
 
     // Reset folder ID when filterMode changes to avoid sticking to a folder in a filtered view
     useEffect(() => {
-        if (filterMode === 'starred' || filterMode === 'recents') {
+        if (filterMode === 'recents') {
             setCurrentFolderId('root');
         }
     }, [filterMode]);
@@ -479,10 +479,6 @@ export const Table01DividerLineSm = ({
     const [activeDragItem, setActiveDragItem] = useState<FileItem | null>(null);
     const [currentDropTarget, setCurrentDropTarget] = useState<FileItem | null>(null);
     const [isDragging, setIsDragging] = useState(false);
-    // Hovered Space (drop target in Nav Spaces)
-    const [hoveredSpace, setHoveredSpace] = useState<{ id: string; name: string; el?: Element } | null>(null);
-    const hoveredSpaceElRef = useRef<Element | null>(null);
-
     // Custom Collision Detection Cache
     const cachedDropTargets = useRef<{ id: string; name: string; rect: DOMRect; el: Element; type: 'space' | 'folder' }[]>([]);
 
@@ -527,20 +523,6 @@ export const Table01DividerLineSm = ({
         })
     );
 
-    // Helper: Optimized custom collision detection using cached rects
-    const detectTargetAtPoint = (x: number, y: number) => {
-        // Iterate through CACHED targets only (no DOM queries)
-        // Reverse order to prioritize z-index/nested items if any (though usually flat list here)
-        for (let i = cachedDropTargets.current.length - 1; i >= 0; i--) {
-            const target = cachedDropTargets.current[i];
-            if (isPointInRect(x, y, target.rect)) {
-                return target;
-            }
-        }
-        return null;
-    };
-
-
     const handleDragStart = (event: DragStartEvent) => {
         const { active } = event;
         const item = active.data.current?.item as FileItem;
@@ -551,29 +533,6 @@ export const Table01DividerLineSm = ({
 
         // Cache ALL drop targets (Spaces + Visible Folders) once at start
         const targets: typeof cachedDropTargets.current = [];
-
-        // 1. Sidebar Spaces
-        const spaceElements = document.querySelectorAll('[data-space-id]');
-        console.log('[DragStart] Found space elements:', spaceElements.length);
-        spaceElements.forEach(el => {
-            const rect = el.getBoundingClientRect();
-            const spaceData = {
-                id: el.getAttribute('data-space-id') || '',
-                name: el.getAttribute('data-space-name') || '',
-                rect: rect,
-                el: el,
-                type: 'space' as const
-            };
-            console.log('[DragStart] Caching space:', spaceData.id, spaceData.name, 'rect:', rect);
-            targets.push(spaceData);
-        });
-
-        // 2. Visible Table Folders
-        document.querySelectorAll('[data-droppable="true"]').forEach(el => {
-        });
-
-        cachedDropTargets.current = targets;
-        console.log('[DragStart] Cached', targets.length, 'drop targets');
 
         // Try an initial detection
         try {
@@ -586,15 +545,6 @@ export const Table01DividerLineSm = ({
                 } else if ((sensorEvent as PointerEvent).clientX !== undefined) {
                     clientX = (sensorEvent as PointerEvent).clientX;
                     clientY = (sensorEvent as PointerEvent).clientY;
-                }
-            }
-            if (typeof clientX === 'number' && typeof clientY === 'number') {
-                const detected = detectTargetAtPoint(clientX, clientY);
-                if (detected && detected.type === 'space') {
-                    if (hoveredSpaceElRef.current) hoveredSpaceElRef.current.classList.remove('space-dnd-over');
-                    detected.el.classList.add('space-dnd-over');
-                    hoveredSpaceElRef.current = detected.el;
-                    setHoveredSpace({ id: detected.id, name: detected.name, el: detected.el });
                 }
             }
         } catch (err) {
@@ -623,56 +573,13 @@ export const Table01DividerLineSm = ({
 
         // 1. Prefer direct folder targets first (closest center strategy handled by dnd-kit usually)
         if (target && target.type === 'folder' && target.id !== activeDragItem?.id) {
-            // Check if we need to clean up space hover
-            if (hoveredSpaceElRef.current) {
-                hoveredSpaceElRef.current.classList.remove('space-dnd-over');
-                hoveredSpaceElRef.current = null;
-                setHoveredSpace(null);
-            }
             if (currentDropTarget?.id !== target.id) {
                 setCurrentDropTarget(target);
             }
             return;
         }
 
-        // 2. Custom Collision for "Spaces" (and potentially folders if we cached them)
-        if (typeof clientX === 'number' && typeof clientY === 'number') {
-            // RAF throttle for smoothness
-            if (rafIdRef.current) {
-                cancelAnimationFrame(rafIdRef.current);
-            }
-
-            rafIdRef.current = requestAnimationFrame(() => {
-                const detected = detectTargetAtPoint(clientX, clientY);
-
-                if (detected && detected.type === 'space') {
-                    console.log('[Drag] Space detected:', detected.id, detected.name);
-                    // Handle Space Hover
-                    if (hoveredSpaceElRef.current !== detected.el) {
-                        if (hoveredSpaceElRef.current) {
-                            hoveredSpaceElRef.current.classList.remove('space-dnd-over');
-                            console.log('[Drag] Removed class from previous space');
-                        }
-                        detected.el.classList.add('space-dnd-over');
-                        console.log('[Drag] Added space-dnd-over class to:', detected.el);
-                        hoveredSpaceElRef.current = detected.el;
-                        setHoveredSpace({ id: detected.id, name: detected.name, el: detected.el });
-                    }
-                    if (currentDropTarget) setCurrentDropTarget(null); // Clear folder drop
-                } else {
-                    console.log('[Drag] No space detected at', clientX, clientY, 'cached targets:', cachedDropTargets.current.length);
-                }
-            });
-            return;
-        }
-
-        // 3. Cleanup if nothing hit
-        if (hoveredSpaceElRef.current) {
-            hoveredSpaceElRef.current.classList.remove('space-dnd-over');
-            hoveredSpaceElRef.current = null;
-            setHoveredSpace(null);
-        }
-        // Only clear currentDropTarget if we didn't hit a folder via dnd-kit AND didn't hit a space
+        // Only clear currentDropTarget if we didn't hit a folder via dnd-kit
         if (currentDropTarget && (!target || target.type !== 'folder')) {
             setCurrentDropTarget(null);
         }
@@ -686,109 +593,6 @@ export const Table01DividerLineSm = ({
         setActiveDragItem(null);
         setCurrentDropTarget(null);
         setIsDragging(false);
-
-        // If we were hovering a space, handle space drop
-        // If hoveredSpace is not set for some reason, attempt final detection at pointer location
-        let effectiveHovered = hoveredSpace;
-        if (!effectiveHovered) {
-            try {
-                const sensorEvent = (event as any).sensorEvent as PointerEvent | TouchEvent | undefined;
-                let clientX: number | undefined, clientY: number | undefined;
-                if (sensorEvent) {
-                    if ((sensorEvent as TouchEvent).changedTouches && (sensorEvent as TouchEvent).changedTouches.length) {
-                        clientX = (sensorEvent as TouchEvent).changedTouches[0].clientX;
-                        clientY = (sensorEvent as TouchEvent).changedTouches[0].clientY;
-                    } else if ((sensorEvent as PointerEvent).clientX !== undefined) {
-                        clientX = (sensorEvent as PointerEvent).clientX;
-                        clientY = (sensorEvent as PointerEvent).clientY;
-                    }
-                }
-                if (typeof clientX === 'number' && typeof clientY === 'number') {
-                    const detected = detectTargetAtPoint(clientX, clientY);
-                    if (detected && detected.type === 'space') {
-                        effectiveHovered = { id: detected.id, name: detected.name, el: detected.el };
-                    }
-                }
-            } catch (err) {
-                // ignore
-            }
-        }
-
-        if (effectiveHovered) {
-            const spaceId = effectiveHovered.id;
-
-            const draggedItem = active.data.current?.item as FileItem | undefined;
-            if (!draggedItem) {
-                // cleanup
-                if (hoveredSpaceElRef.current) {
-                    hoveredSpaceElRef.current.classList.remove('space-dnd-over');
-                    hoveredSpaceElRef.current = null;
-                }
-                setHoveredSpace(null);
-                return;
-            }
-
-            // Determine items to add (support multi-select)
-            const itemsToAdd = selectedItems.has(draggedItem.id)
-                ? Array.from(selectedItems).map(id => filesMap.get(id)).filter(Boolean) as FileItem[]
-                : [draggedItem];
-
-            let successCount = 0;
-            let errorCount = 0;
-
-            for (const item of itemsToAdd) {
-                try {
-                    if (spaceId === 'spaced-fixed') {
-                        // Starred/Spaced behaviour
-                        const response = await apiClient.setItemStarred({ fileId: item.type === 'file' ? item.id : undefined, folderId: item.type === 'folder' ? item.id : undefined, isStarred: true });
-                        if (response.success) successCount++; else errorCount++;
-                    } else {
-                        const body: any = {};
-                        if (item.type === 'file') body.fileId = item.id;
-                        if (item.type === 'folder') body.folderId = item.id;
-                        const response = await apiClient.addItemToSpace(spaceId, body);
-                        if (response.success) successCount++; else {
-                            // treat duplicate index as not-fatal
-                            if (response.error && /already|duplicate/i.test((response.error || ''))) {
-                                // ignore duplicate
-                            } else {
-                                errorCount++;
-                            }
-                        }
-                    }
-                } catch (err) {
-                    console.error('Failed to add item to space', err);
-                    errorCount++;
-                }
-            }
-
-            // Feedback & refresh
-            if (successCount > 0) {
-                toast.success(`Added ${successCount} item${successCount > 1 ? 's' : ''} to space`);
-                window.dispatchEvent(new CustomEvent('space:item-added', { detail: { spaceId } }));
-
-                // Visual success pulse on the space
-                try {
-                    if (effectiveHovered && (effectiveHovered as any).el) {
-                        const el = (effectiveHovered as any).el as Element;
-                        el.classList.add('space-dnd-success');
-                        setTimeout(() => el.classList.remove('space-dnd-success'), 900);
-                    }
-                } catch (err) { /* ignore */ }
-            }
-            if (errorCount > 0) {
-                toast.error(`Failed to add ${errorCount} item${errorCount > 1 ? 's' : ''} to space`);
-            }
-
-            // cleanup highlight
-            if (hoveredSpaceElRef.current) {
-                hoveredSpaceElRef.current.classList.remove('space-dnd-over');
-                hoveredSpaceElRef.current = null;
-            }
-            setHoveredSpace(null);
-
-            return;
-        }
 
         if (!over) return;
 
@@ -1211,7 +1015,6 @@ export const Table01DividerLineSm = ({
                     createdAt: fileData.createdAt || new Date().toISOString(),
                     updatedAt: fileData.updatedAt || new Date().toISOString(),
                     is_shared: fileData.is_shared || false,
-                    is_starred: fileData.is_starred || false
                 };
 
                 // Add folder to beginning of list
@@ -1244,7 +1047,7 @@ export const Table01DividerLineSm = ({
                     updatedAt: fileData.updatedAt || new Date().toISOString(),
                     shaHash: fileData.shaHash,
                     is_shared: fileData.is_shared || false,
-                    is_starred: fileData.is_starred || false
+
                 };
 
                 // Add to beginning of files list for visibility
@@ -1321,62 +1124,7 @@ export const Table01DividerLineSm = ({
             let allFiles: FileContentItem[] = [];
             let allFolders: FolderContentItem[] = [];
 
-            if (filterMode === 'starred') {
-                // STARRED ITEMS MODE
-                const response = await apiClient.getStarredItems();
-                // Parse result safely
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const items = (response.success && response.data) ? (response.data || []) : [];
-
-                const masterKey = masterKeyManager.hasMasterKey() ? masterKeyManager.getMasterKey() : null;
-
-                // Decrypt folder names for starred items if needed
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const decryptedItems = await Promise.all(items.map(async (item: any) => {
-                    let name = item.filename || item.name || t('common.untitled');
-                    if (item.encrypted_name && item.name_salt && masterKey) {
-                        try {
-                            name = await getCachedDecryptedFilename(item.encrypted_name, item.name_salt, masterKey);
-                        } catch (e) {
-                            console.error("Failed to decrypt starred folder name", e);
-                        }
-                    }
-                    return { ...item, name, decryptedName: name };
-                }));
-
-                allFiles = decryptedItems.filter((i: any) => i.file_id).map((i: any) => ({
-                    id: i.file_id,
-                    name: i.decryptedName || i.filename || t('common.untitled'),
-                    // Map other properties...
-                    encryptedFilename: i.encrypted_filename,
-                    filenameSalt: i.filename_salt,
-                    type: 'file',
-                    size: i.size || 0,
-                    mimeType: i.mimetype || 'application/octet-stream',
-                    folderId: i.file_folder_id || null, // Map to parent
-                    createdAt: i.created_at,
-                    updatedAt: i.updated_at,
-                    is_starred: true,
-                    is_shared: false
-                })) as any;
-
-                allFolders = decryptedItems.filter((i: any) => !i.file_id).map((i: any) => ({
-                    id: i.folder_id || i.id,
-                    name: i.decryptedName || t('common.untitledFolder'),
-                    encryptedName: i.encrypted_name,
-                    nameSalt: i.name_salt,
-                    type: 'folder',
-                    parentId: i.file_folder_id || null,
-                    path: '',
-                    createdAt: i.created_at,
-                    updatedAt: i.updated_at,
-                    is_starred: true,
-                    is_shared: false
-                })) as any;
-
-                setTotalPages(1);
-                setTotalItems(allFiles.length + allFolders.length);
-            } else if (filterMode === 'recents') {
+            if (filterMode === 'recents') {
                 // RECENTS MODE
                 // Fetch latest files and folders via folder contents API
                 const response = await apiClient.getFolderContents("root", { page: 1, limit: 50 });
@@ -1418,7 +1166,6 @@ export const Table01DividerLineSm = ({
                             decryptedName: name,
                             folderId: f.folderId || null,
                             type: 'file' as const,
-                            is_starred: f.is_starred || false,
                             tags: []
                         };
                     })) as any;
@@ -1449,7 +1196,7 @@ export const Table01DividerLineSm = ({
                             decryptedName: name,
                             parentId: f.parentId || null,
                             type: 'folder' as const,
-                            is_starred: f.is_starred || false,
+
                             tags: []
                         };
                     })) as any;
@@ -1589,7 +1336,6 @@ export const Table01DividerLineSm = ({
                     createdAt: folder.createdAt,
                     updatedAt: folder.updatedAt,
                     is_shared: folder.is_shared || false,
-                    is_starred: folder.is_starred || false,
                     tags: folder.tags ? await Promise.all(folder.tags.map(async (tag: Tag) => {
                         if (tag.decryptedName) return tag;
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1643,7 +1389,7 @@ export const Table01DividerLineSm = ({
                     updatedAt: file.updatedAt,
                     shaHash: file.shaHash,
                     is_shared: file.is_shared || false,
-                    is_starred: file.is_starred || false,
+
                     tags: file.tags ? await Promise.all(file.tags.map(async (tag: Tag) => {
                         // Already decrypted?
                         if (tag.decryptedName) return tag;
@@ -1913,30 +1659,7 @@ export const Table01DividerLineSm = ({
         setShareModalOpen(true);
     }, [setSelectedItemForShare, setShareModalOpen]);
 
-    const handleStarClick = useCallback(async (itemId: string, itemType: "file" | "folder" | "paper", currentStarred: boolean) => {
-        try {
-            const isStarred = !currentStarred;
-            const res = await apiClient.setItemStarred({
-                fileId: itemType === 'file' ? itemId : undefined,
-                folderId: itemType === 'folder' ? itemId : undefined,
-                paperId: itemType === 'paper' ? itemId : undefined,
-                isStarred
-            });
 
-            if (res.success) {
-                // Update local state
-                setFiles(prev => prev.map(f =>
-                    f.id === itemId ? { ...f, is_starred: isStarred } : f
-                ));
-                toast.success(isStarred ? 'Added to Spaced' : 'Removed from Spaced');
-            } else {
-                toast.error(res.error || `Failed to ${isStarred ? 'star' : 'unstar'} item`);
-            }
-        } catch (error) {
-            console.error('Star error:', error);
-            toast.error('An error occurred while updating starred status');
-        }
-    }, [apiClient, setFiles]);
 
     const handleDetailsClick = useCallback(async (itemId: string, itemName: string, itemType: "file" | "folder" | "paper") => {
         try {
@@ -2267,9 +1990,7 @@ export const Table01DividerLineSm = ({
                 case 'share':
                     handleShareClick(item.id, item.name, item.type as any);
                     break;
-                case 'star':
-                    handleStarClick(item.id, item.type as any, item.is_starred || false);
-                    break;
+
                 case 'moveToFolder':
                     handleMoveToFolderClick(item.id, item.name, item.type as any);
                     break;
@@ -2756,16 +2477,14 @@ export const Table01DividerLineSm = ({
     const emptyState = (
         <EmptyState
             title={
-                filterMode === 'starred' ? "No starred files" :
-                    filterMode === 'recents' ? "No recent files" :
-                        isInitialLoad ? "Loading..." :
-                            searchQuery ? "No results found" :
-                                "No files found"
+                filterMode === 'recents' ? "No recent files" :
+                    isInitialLoad ? "Loading..." :
+                        searchQuery ? "No results found" :
+                            "No files found"
             }
             description={
-                filterMode === 'starred' ? "Mark files as starred to see them here" :
-                    filterMode === 'recents' ? "Files you've edited recently will appear here" :
-                        "Get started by adding content."
+                filterMode === 'recents' ? "Files you've edited recently will appear here" :
+                    "Get started by adding content."
             }
             onCreateFolder={() => setCreateFolderOpen(true)}
             onCreatePaper={handleCreatePaper}
@@ -3194,7 +2913,7 @@ export const Table01DividerLineSm = ({
                                 onClick={() => handleCreatePaper()}
                                 aria-label={t("files.newPaper") || "New Paper"}
                             >
-                                <IconStack className="h-3.5 w-3.5" />
+                                <IconFileText className="h-3.5 w-3.5" />
                             </Button>
                         </TooltipTrigger>
                         <TooltipContent>{t("files.newPaper") || "New Paper"}</TooltipContent>
@@ -3794,30 +3513,7 @@ export const Table01DividerLineSm = ({
                                                                     )}
                                                                 </div>
                                                             </Table.Cell>
-                                                            <Table.Cell className={`hidden md:table-cell px-1 w-16 text-center ${visibleColumns.has('starred') ? '' : '[&>*]:invisible'}`}>
-                                                                <Tooltip>
-                                                                    <TooltipTrigger asChild>
-                                                                        <button
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                handleStarClick(item.id, item.type as any, item.is_starred || false);
-                                                                            }}
-                                                                            onMouseDown={(e) => e.stopPropagation()}
-                                                                            onPointerDown={(e) => e.stopPropagation()}
-                                                                            className="flex items-center justify-center cursor-pointer hover:bg-accent rounded-sm p-1 transition-colors ml-auto mr-2"
-                                                                        >
-                                                                            {item.is_starred ? (
-                                                                                <IconStarFilled className="h-4 w-4 text-foreground" />
-                                                                            ) : (
-                                                                                <IconStar className="h-4 w-4 text-muted-foreground/40 hover:text-foreground/80" />
-                                                                            )}
-                                                                        </button>
-                                                                    </TooltipTrigger>
-                                                                    <TooltipContent>
-                                                                        <p>{item.is_starred ? t("files.starred.remove") : t("files.starred.add")}</p>
-                                                                    </TooltipContent>
-                                                                </Tooltip>
-                                                            </Table.Cell>
+
                                                             <Table.Cell className={`hidden md:table-cell text-right w-40 ${visibleColumns.has('modified') ? '' : '[&>*]:invisible'} px-4`}>
                                                                 <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
                                                                     {formatDate(item.updatedAt || item.createdAt)}
@@ -3882,19 +3578,7 @@ export const Table01DividerLineSm = ({
                                                                                 <IconShare3 className="h-4 w-4 mr-2" />
                                                                                 {t("files.share")}
                                                                             </DropdownMenuItem>
-                                                                            <DropdownMenuItem onClick={() => handleStarClick(item.id, item.type as any, item.is_starred || false)}>
-                                                                                {item.is_starred ? (
-                                                                                    <>
-                                                                                        <IconStarFilled className="h-4 w-4 mr-2 text-foreground" />
-                                                                                        {t("files.starred.remove")}
-                                                                                    </>
-                                                                                ) : (
-                                                                                    <>
-                                                                                        <IconStar className="h-4 w-4 mr-2" />
-                                                                                        {t("files.starred.add")}
-                                                                                    </>
-                                                                                )}
-                                                                            </DropdownMenuItem>
+
                                                                             <DropdownMenuSeparator />
                                                                             <DropdownMenuItem onClick={() => handleMoveToFolderClick(item.id, item.name, item.type as any)}>
                                                                                 <IconFolder className="h-4 w-4 me-2" />
@@ -3966,8 +3650,8 @@ export const Table01DividerLineSm = ({
                                     )}
                                 </DragOverlay>
                                 <DropHelper
-                                    isVisible={!!currentDropTarget || !!hoveredSpace}
-                                    folderName={currentDropTarget?.name || hoveredSpace?.name || null}
+                                    isVisible={!!currentDropTarget}
+                                    folderName={currentDropTarget?.name || null}
                                 />
                                 <AutoScroller />
                             </DndContext>
@@ -4041,31 +3725,7 @@ export const Table01DividerLineSm = ({
                                                 />
                                             </div>
 
-                                            {/* Star button */}
-                                            <div className={`absolute top-2 left-9 z-10 flex items-center transition-opacity duration-200 ${item.is_starred ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleStarClick(item.id, item.type as any, item.is_starred || false);
-                                                            }}
-                                                            onMouseDown={(e) => e.stopPropagation()}
-                                                            onPointerDown={(e) => e.stopPropagation()}
-                                                            className="focus:outline-none transition-transform hover:scale-110 active:scale-95"
-                                                        >
-                                                            {item.is_starred ? (
-                                                                <IconStarFilled className="h-4 w-4 text-foreground" />
-                                                            ) : (
-                                                                <IconStar className="h-4 w-4 text-muted-foreground/40 hover:text-foreground/80" />
-                                                            )}
-                                                        </button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>
-                                                        <p>{item.is_starred ? "Remove from Spaced" : "Add to Spaced"}</p>
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                            </div>
+
 
                                             {/* File/Folder icon */}
                                             <div className="flex flex-col items-center gap-3 pt-6">
@@ -4164,19 +3824,6 @@ export const Table01DividerLineSm = ({
                                                         <DropdownMenuItem onClick={() => handleShareClick(item.id, item.name, item.type as any)}>
                                                             <IconShare3 className="h-4 w-4 mr-2" />
                                                             Share
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => handleStarClick(item.id, item.type as any, item.is_starred || false)}>
-                                                            {item.is_starred ? (
-                                                                <>
-                                                                    <IconStarFilled className="h-4 w-4 mr-2 text-foreground" />
-                                                                    Remove from Spaced
-                                                                </>
-                                                            ) : (
-                                                                <>
-                                                                    <IconStar className="h-4 w-4 mr-2" />
-                                                                    Add to Spaced
-                                                                </>
-                                                            )}
                                                         </DropdownMenuItem>
                                                         <DropdownMenuSeparator />
                                                         <DropdownMenuItem onClick={() => handleMoveToFolderClick(item.id, item.name, item.type as any)}>
@@ -4480,22 +4127,6 @@ export const Table01DividerLineSm = ({
                                         <IconShare3 className="h-4 w-4" />
                                         Share
                                     </button>
-                                    <button
-                                        className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
-                                        onClick={() => handleContextMenuAction('star', contextMenu.targetItem)}
-                                    >
-                                        {contextMenu.targetItem?.is_starred ? (
-                                            <>
-                                                <IconStarFilled className="h-4 w-4 text-foreground" />
-                                                Remove from Spaced
-                                            </>
-                                        ) : (
-                                            <>
-                                                <IconStar className="h-4 w-4" />
-                                                Add to Spaced
-                                            </>
-                                        )}
-                                    </button>
                                     <div className="h-px bg-border mx-2 my-1" />
                                     <button
                                         className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
@@ -4701,7 +4332,7 @@ function EmptyState({ title, description, icon, onCreateFolder, onCreatePaper, o
                             </Button>
 
                             <Button variant="secondary" size="sm" onClick={() => onCreatePaper?.()} className="inline-flex items-center gap-2 px-2 py-1.5 text-sm hover:bg-secondary/50 hover:text-muted-foreground transition-colors">
-                                <IconStackFilled data-icon="inline-start" className="w-4 h-4" />
+                                <IconFileText data-icon="inline-start" className="w-4 h-4" />
                                 Create a Paper
                             </Button>
 

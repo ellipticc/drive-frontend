@@ -44,7 +44,7 @@ export function SiteHeader({ className, onSearch, onFileUpload, onFolderUpload, 
   const [, setForceUpdate] = useState(0)
   const [localSearchValue, setLocalSearchValue] = useState(searchValue || "")
   const debouncedSearch = useDebounce(localSearchValue, 150)
-  const { deviceQuota } = useUser()
+  const { user } = useUser()
   const router = useRouter()
   const pathname = usePathname()
   const { openPicker } = useGoogleDrive()
@@ -147,7 +147,7 @@ export function SiteHeader({ className, onSearch, onFileUpload, onFolderUpload, 
     }
   }, [currentFolderId, notifyFileAdded]);
 
-  const isFreePlan = deviceQuota?.planName === 'Free'
+  const isFreePlan = (!user?.subscription) && user?.plan !== 'pro' && user?.plan !== 'plus' && user?.plan !== 'unlimited';
   const showUpgrade = isFreePlan && !isUpgradeDismissedGlobal
 
   return (

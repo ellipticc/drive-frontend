@@ -9,8 +9,8 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 interface GalleryToolbarProps {
-    viewMode: 'all' | 'photos' | 'videos' | 'starred'
-    setViewMode: (mode: 'all' | 'photos' | 'videos' | 'starred') => void
+    viewMode: 'all' | 'photos' | 'videos'
+    setViewMode: (mode: 'all' | 'photos' | 'videos') => void
     timeScale: 'years' | 'months' | 'days'
     setTimeScale: (scale: 'years' | 'months' | 'days') => void
     zoomLevel: number
@@ -51,11 +51,11 @@ export function GalleryToolbar({
 
             {/* View Filter Group */}
             <div className="flex items-center gap-2">
-                <ToggleGroup type="single" value={viewMode} onValueChange={(val) => val && setViewMode(val as 'all' | 'photos' | 'videos' | 'starred')}>
+                <ToggleGroup type="single" value={viewMode} onValueChange={(val) => val && setViewMode(val as 'all' | 'photos' | 'videos')}>
                     <ToggleGroupItem value="all" size="sm" className="data-[state=on]:bg-muted data-[state=on]:text-foreground text-muted-foreground hover:bg-transparent hover:text-foreground transition-all rounded-full px-4 h-8 text-xs font-medium">All Items</ToggleGroupItem>
                     <ToggleGroupItem value="photos" size="sm" className="data-[state=on]:bg-muted data-[state=on]:text-foreground text-muted-foreground hover:bg-transparent hover:text-foreground transition-all rounded-full px-4 h-8 text-xs font-medium">Photos</ToggleGroupItem>
                     <ToggleGroupItem value="videos" size="sm" className="data-[state=on]:bg-muted data-[state=on]:text-foreground text-muted-foreground hover:bg-transparent hover:text-foreground transition-all rounded-full px-4 h-8 text-xs font-medium">Videos</ToggleGroupItem>
-                    <ToggleGroupItem value="starred" size="sm" className="data-[state=on]:bg-muted data-[state=on]:text-foreground text-muted-foreground hover:bg-transparent hover:text-foreground transition-all rounded-full px-4 h-8 text-xs font-medium">Starred</ToggleGroupItem>
+
                 </ToggleGroup>
             </div>
 

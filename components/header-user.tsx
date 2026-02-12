@@ -73,7 +73,7 @@ function getDisplayName(user: { name: string; email: string }): string {
 export function HeaderUser() {
     const { t } = useLanguage()
     const { setTheme, theme } = useTheme()
-    const { user, updateUser, refetch, deviceLimitReached } = useUser()
+    const { user, updateUser, refetch } = useUser()
 
     // Default user if context not loaded yet
     const safeUser = user || {
@@ -161,7 +161,7 @@ export function HeaderUser() {
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={() => {
-                            const tab = deviceLimitReached ? 'Security?scroll=device-manager' : 'General';
+                            const tab = 'General';
                             window.location.hash = `#settings/${tab}`;
                             setSettingsOpen(true)
                         }}>

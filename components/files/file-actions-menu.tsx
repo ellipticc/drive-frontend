@@ -8,11 +8,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import {
-    IconDotsVertical,
     IconEye,
     IconShare3,
-    IconStar,
-    IconStarFilled,
     IconFolder,
     IconCopy,
     IconEdit,
@@ -27,11 +24,10 @@ export interface FileActionsMenuProps {
         name: string;
         type: "file" | "folder";
         mimeType?: string;
-        is_starred?: boolean;
+
     };
     onPreview?: (id: string, name: string, mimeType: string) => void;
     onShare: (id: string, name: string, type: "file" | "folder") => void;
-    onStar: (id: string, type: "file" | "folder", isStarred: boolean) => void;
     onMoveToFolder: (id: string, name: string, type: "file" | "folder") => void;
     onCopy: (id: string, name: string, type: "file" | "folder") => void;
     onRename: (id: string, name: string, type: "file" | "folder") => void;
@@ -45,7 +41,7 @@ export const FileActionsMenu = ({
     item,
     onPreview,
     onShare,
-    onStar,
+
     onMoveToFolder,
     onCopy,
     onRename,
@@ -73,19 +69,6 @@ export const FileActionsMenu = ({
                 <DropdownMenuItem onClick={() => onShare(item.id, item.name, item.type)}>
                     <IconShare3 className="h-4 w-4 mr-2" />
                     Share
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onStar(item.id, item.type, item.is_starred || false)}>
-                    {item.is_starred ? (
-                        <>
-                            <IconStarFilled className="h-4 w-4 mr-2 text-foreground" />
-                            Remove from Spaced
-                        </>
-                    ) : (
-                        <>
-                            <IconStar className="h-4 w-4 mr-2" />
-                            Add to Spaced
-                        </>
-                    )}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => onMoveToFolder(item.id, item.name, item.type)}>
