@@ -413,7 +413,7 @@ const BillingPage = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
-  const [isCryptoLoading, setIsCryptoLoading] = useState(false);
+
 
   // Cancellation Flow State
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -468,14 +468,11 @@ const BillingPage = () => {
     setShowPaymentModal(true);
   };
 
-  const handlePaymentMethodSelect = async (method: 'stripe' | 'crypto' | 'paypal') => {
+  const handlePaymentMethodSelect = async (method: 'stripe' | 'paypal') => {
     if (!selectedPlanId) return;
 
     setIsProcessingPayment(true);
-    if (method === 'crypto') {
-      setIsCryptoLoading(true);
-      setShowPaymentModal(false);
-    }
+
 
     try {
       const plan = staticPlans.find(p => p.id === selectedPlanId);
@@ -494,28 +491,12 @@ const BillingPage = () => {
         } else {
           toast.error(response.error || 'Failed to process request');
         }
-      } else if (method === 'crypto') {
-        const price = plan.price[frequency];
-        const response = await apiClient.createCryptoCheckoutSession({
-          planId: plan.id,
-          price,
-          currency: 'USD',
-          period: frequency === 'yearly' ? 'year' : 'month'
-        });
-
-        if (response.success && response.data?.url) {
-          window.location.href = response.data.url;
-        } else {
-          toast.error(response.error || 'Failed to create crypto checkout');
-          setIsCryptoLoading(false);
-        }
       } else {
         toast.info('PayPal checkout coming soon!');
       }
     } catch (error) {
       console.error('Action error:', error);
       toast.error('Failed to process request');
-      setIsCryptoLoading(false);
     } finally {
       setIsProcessingPayment(false);
     }
@@ -1150,34 +1131,7 @@ const BillingPage = () => {
         </DialogContent>
       </Dialog>
 
-      {isCryptoLoading && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background animate-in fade-in duration-300">
-          <div className="flex flex-col items-center gap-8 max-w-sm w-full px-6 text-center">
-            <div className="relative">
-              <div className="absolute inset-0 blur-3xl bg-primary/10 rounded-full animate-pulse" />
-              <div className="relative h-20 w-20 flex items-center justify-center rounded-full border border-primary/20 bg-card shadow-xl">
-                <Loader2 className="h-10 w-10 animate-spin text-primary relative z-10" />
-              </div>
-            </div>
 
-            <div className="space-y-3">
-              <h2 className="text-2xl font-medium tracking-tight font-sans">Preparing Secure Gateway</h2>
-              <p className="text-sm text-muted-foreground font-mono leading-relaxed opacity-80">
-                Generating your unique crypto payment gateway, please wait a moment.
-              </p>
-            </div>
-
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-10 px-8 text-xs font-bold tracking-widest rounded-full shadow-sm hover:shadow-md transition-all"
-              onClick={() => setIsCryptoLoading(false)}
-            >
-              Cancel
-            </Button>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

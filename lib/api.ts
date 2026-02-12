@@ -2964,20 +2964,7 @@ class ApiClient {
     });
   }
 
-  async createCryptoCheckoutSession(data: {
-    planId: string;
-    price: number;
-    currency?: string;
-    period: 'month' | 'year';
-  }): Promise<ApiResponse<{
-    url: string;
-    qr_code?: string;
-  }>> {
-    return this.request('/billing/crypto/checkout', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
+
 
   // TOTP endpoints
   async getTOTPStatus(userId?: string): Promise<ApiResponse<{

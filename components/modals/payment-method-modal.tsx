@@ -5,13 +5,13 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
-import { IconCreditCard, IconCurrencyBitcoin, IconBrandPaypal } from "@tabler/icons-react"
+import { IconCreditCard, IconBrandPaypal } from "@tabler/icons-react"
 import { Button } from "@/components/ui/button"
 
 interface PaymentMethodModalProps {
     isOpen: boolean
     onOpenChange: (open: boolean) => void
-    onSelectMethod: (method: 'stripe' | 'crypto' | 'paypal') => void
+    onSelectMethod: (method: 'stripe' | 'paypal') => void
     isLoading?: boolean
     planFrequency?: string
 }
@@ -58,18 +58,7 @@ export function PaymentMethodModal({
                         </div>
                     </Button>
 
-                    <Button
-                        variant="outline"
-                        onClick={() => onSelectMethod('crypto')}
-                        disabled={isLoading}
-                        className="w-full justify-start h-14 px-4 border-muted hover:bg-accent hover:text-accent-foreground"
-                    >
-                        <IconCurrencyBitcoin className="mr-3 h-5 w-5 text-muted-foreground" />
-                        <div className="flex flex-col items-start gap-0.5">
-                            <span className="font-medium text-base">Cryptocurrency</span>
-                            <span className="text-xs text-muted-foreground font-normal">Bitcoin, ETH, USDT & more (no trial)</span>
-                        </div>
-                    </Button>
+
 
                 </div>
             </DialogContent>
