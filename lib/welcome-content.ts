@@ -129,7 +129,7 @@ Ellipticc Papers are built for **security, performance, and reliability**:
   - _Plus_ users: 14 days
   - _Pro_ users: 30 days
   - _Unlimited_ users: 90 days
-  [Upgrade your plan →](https://drive.ellipticc.com/pricing)
+  [Upgrade your plan →](https://app.ellipticc.com/pricing)
 * **Secure diffing** - Block changes are hashed using **SHA-256** to detect modifications safely and efficiently.
 * **Encryption & performance** - All content is encrypted client-side with **XChaCha20-Poly1305**. Heavy cryptography operations run in **Web Workers** for smooth editing without lag.
 

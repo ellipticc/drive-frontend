@@ -395,7 +395,7 @@ export const SharesTable = ({ searchQuery, mode = 'sent' }: { searchQuery?: stri
                 const cekHash = await crypto.subtle.digest('SHA-256', derivationBytes);
                 const shareCek = new Uint8Array(cekHash);
                 const shareCekHex = btoa(String.fromCharCode(...shareCek));
-                const finalShareUrl = existing.has_password ? `https://drive.ellipticc.com/s/${existing.id}` : `https://drive.ellipticc.com/s/${existing.id}#${shareCekHex}`;
+                const finalShareUrl = existing.has_password ? `https://app.ellipticc.com/s/${existing.id}` : `https://app.ellipticc.com/s/${existing.id}#${shareCekHex}`;
                 await navigator.clipboard.writeText(finalShareUrl);
                 toast.success('Share link copied to clipboard');
             } else {

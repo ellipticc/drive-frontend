@@ -1368,7 +1368,7 @@ export function SettingsModal({
       // Always redirects to the billing settings tab
       const returnUrl = typeof window !== 'undefined'
         ? `${window.location.origin}/#settings/Billing`
-        : 'https://drive.ellipticc.com/#settings/Billing'
+        : 'https://app.ellipticc.com/#settings/Billing'
 
       const response = await apiClient.createPortalSession({ returnUrl })
 

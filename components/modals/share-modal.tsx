@@ -620,8 +620,8 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
             // Show existing share link with deterministically derived CEK in fragment
             // SECURITY: ONLY include CEK if no password is set
             const finalShareUrl = existingShare.has_password
-              ? `https://drive.ellipticc.com/s/${existingShare.id}`
-              : `https://drive.ellipticc.com/s/${existingShare.id}#${shareCekHex}`
+              ? `https://app.ellipticc.com/s/${existingShare.id}`
+              : `https://app.ellipticc.com/s/${existingShare.id}#${shareCekHex}`
 
             setShareLink(finalShareUrl)
           }
@@ -986,8 +986,8 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
           } else {
             const basePath = itemType === 'paper' ? '/p/' : '/s/';
             const finalShareUrl = existingShare.has_password
-              ? `https://drive.ellipticc.com${basePath}${existingShare.id}`
-              : `https://drive.ellipticc.com${basePath}${existingShare.id}#${shareCekHex}`
+              ? `https://app.ellipticc.com${basePath}${existingShare.id}`
+              : `https://app.ellipticc.com${basePath}${existingShare.id}#${shareCekHex}`
 
             setShareLink(finalShareUrl)
             setExistingShareId(existingShare.id)
@@ -1187,7 +1187,7 @@ export function ShareModal({ children, itemId = "", itemName = "item", itemType 
       setExistingShareId(shareId)
 
       const basePath = itemType === 'paper' ? '/p/' : '/s/';
-      const shareUrl = `https://drive.ellipticc.com${basePath}${shareId}${finalShareCekHex ? '#' + finalShareCekHex : ''}`
+      const shareUrl = `https://app.ellipticc.com${basePath}${shareId}${finalShareCekHex ? '#' + finalShareCekHex : ''}`
       setShareLink(shareUrl)
       toast.success("Public link created successfully")
       onShareUpdate?.()

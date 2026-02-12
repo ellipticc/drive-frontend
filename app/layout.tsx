@@ -76,7 +76,7 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
-  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://drive.ellipticc.com'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://app.ellipticc.com'),
   alternates: {
     canonical: '/',
   },
@@ -151,7 +151,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://ellipticc.com'
-  const plausibleDomain = process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN || (process.env.NEXT_PUBLIC_BASE_URL ? new URL(process.env.NEXT_PUBLIC_BASE_URL).hostname : 'drive.ellipticc.com');
+  const plausibleDomain = process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN || (process.env.NEXT_PUBLIC_BASE_URL ? new URL(process.env.NEXT_PUBLIC_BASE_URL).hostname : 'app.ellipticc.com');
 
   const structuredData = {
     "@context": "https://schema.org",

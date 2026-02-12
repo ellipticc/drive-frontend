@@ -3,7 +3,7 @@ import { getDevicePublicKey, signWithDeviceKey } from './device-keys';
 import { getRequestQueue } from './request-queue';
 import { requestDeduper } from './request-deduper';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://drive.ellipticc.com/api/v1';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://app.ellipticc.com/api/v1';
 
 export interface UserData {
   id: string;

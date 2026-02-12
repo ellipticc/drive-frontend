@@ -979,7 +979,7 @@ export async function downloadMultipleItemsAsZip(
         // Construct a safe filename and an internet shortcut with the paper link
         const safeName = paper.name.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_').trim() || 'paper';
         const filename = `${safeName}.url`;
-        const url = `https://drive.ellipticc.com/paper?fileId=${encodeURIComponent(paper.paperId)}`;
+        const url = `https://app.ellipticc.com/paper?fileId=${encodeURIComponent(paper.paperId)}`;
         const content = `[InternetShortcut]\r\nURL=${url}\r\n`;
         downloadedFiles.push({ relativePath: '', filename, blob: new Blob([content], { type: 'text/plain' }) });
       }

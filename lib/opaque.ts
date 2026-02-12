@@ -1,7 +1,7 @@
 ﻿'use client';
 import * as opaque from '@serenity-kit/opaque';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://drive.ellipticc.com/api/v1';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://app.ellipticc.com/api/v1';
 
 type ApiJson = Record<string, unknown>;
 
