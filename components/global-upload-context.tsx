@@ -438,7 +438,6 @@ export function GlobalUploadProvider({ children }: GlobalUploadProviderProps) {
             type: 'folder',
             createdAt: folder.createdAt,
             updatedAt: folder.updatedAt,
-            is_shared: false
           });
         });
       })) as Array<{ file: File; folderId: string | null }>;
