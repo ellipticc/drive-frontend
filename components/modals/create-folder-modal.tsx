@@ -151,7 +151,6 @@ export function CreateFolderModal({ children, parentId = null, onFolderCreated, 
           path: response.data.path,
           createdAt: response.data.createdAt,
           updatedAt: response.data.updatedAt,
-          is_shared: false,
         }
 
         setFolderName("")
