@@ -8,7 +8,7 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import type { SortDescriptor, Selection } from "react-aria-components";
 import { Table, TableCard } from "@/components/application/table/table";
 import { Button } from "@/components/ui/button";
-import { IconFolderPlus, IconFolderDown, IconFileUpload, IconFolderUp, IconDotsVertical, IconShare3, IconListDetails, IconDownload, IconFolder, IconEdit, IconInfoCircle, IconTrash, IconChevronRight, IconLink, IconEye, IconLayoutColumns, IconCopy, IconLoader2, IconGrid3x3, IconLock, IconX, IconUpload, IconChevronDown, IconFileText, IconBrandGoogleDrive } from "@tabler/icons-react";
+import { IconFolderPlus, IconFolderDown, IconFileUpload, IconFolderUp, IconDotsVertical, IconListDetails, IconDownload, IconFolder, IconEdit, IconInfoCircle, IconTrash, IconChevronRight, IconLink, IconEye, IconLayoutColumns, IconCopy, IconLoader2, IconGrid3x3, IconLock, IconX, IconUpload, IconChevronDown, IconFileText, IconBrandGoogleDrive } from "@tabler/icons-react";
 
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import dynamic from "next/dynamic";
@@ -16,8 +16,6 @@ import dynamic from "next/dynamic";
 const CreateFolderModal = dynamic(() => import("@/components/modals/create-folder-modal").then(mod => mod.CreateFolderModal));
 const MoveToFolderModal = dynamic(() => import("@/components/modals/move-to-folder-modal").then(mod => mod.MoveToFolderModal));
 const CopyModal = dynamic(() => import("@/components/modals/copy-modal").then(mod => mod.CopyModal));
-const ShareModal = dynamic(() => import("@/components/modals/share-modal").then(mod => mod.ShareModal));
-const SharePickerModal = dynamic(() => import("@/components/modals/share-picker-modal").then(mod => mod.SharePickerModal));
 const DetailsModal = dynamic(() => import("@/components/modals/details-modal").then(mod => mod.DetailsModal));
 const MoveToTrashModal = dynamic(() => import("@/components/modals/move-to-trash-modal").then(mod => mod.MoveToTrashModal));
 const RenameModal = dynamic(() => import("@/components/modals/rename-modal").then(mod => mod.RenameModal));
@@ -46,7 +44,6 @@ import { useOnFileAdded, useOnFileDeleted, useOnFileReplaced, useGlobalUpload } 
 import { FileThumbnail } from "../files/file-thumbnail";
 import { FileIcon } from "@/components/file-icon";
 import { decryptData } from '@/lib/crypto';
-import { encryptShareFilename } from '@/lib/share-crypto';
 import { masterKeyManager } from "@/lib/master-key";
 import { paperService } from "@/lib/paper-service";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -334,7 +331,7 @@ export const Table01DividerLineSm = ({
     }, [searchQuery]);
 
     // Column visibility state
-    const [visibleColumns, setVisibleColumns] = useState<Set<string>>(new Set(['modified', 'size', 'shared']));
+    const [visibleColumns, setVisibleColumns] = useState<Set<string>>(new Set(['modified', 'size']));
     const [isPreferencesLoaded, setIsPreferencesLoaded] = useState(false);
 
     // Load preferences from local storage
@@ -687,9 +684,6 @@ export const Table01DividerLineSm = ({
     } | null>(null);
     const [renameModalInitialName, setRenameModalInitialName] = useState<string | undefined>(undefined);
 
-    const [shareModalOpen, setShareModalOpen] = useState(false);
-    const [selectedItemForShare, setSelectedItemForShare] = useState<{ id: string; name: string; type: "file" | "folder" | "paper" } | null>(null);
-    const [sharePickerModalOpen, setSharePickerModalOpen] = useState(false);
     const [detailsModalOpen, setDetailsModalOpen] = useState(false);
     const [selectedItemForDetails, setSelectedItemForDetails] = useState<{ id: string; name: string; type: "file" | "folder" | "paper" } | null>(null);
     const [moveToFolderModalOpen, setMoveToFolderModalOpen] = useState(false);
@@ -1014,7 +1008,6 @@ export const Table01DividerLineSm = ({
                     type: 'folder' as const,
                     createdAt: fileData.createdAt || new Date().toISOString(),
                     updatedAt: fileData.updatedAt || new Date().toISOString(),
-                    is_shared: fileData.is_shared || false,
                 };
 
                 // Add folder to beginning of list
@@ -1046,7 +1039,6 @@ export const Table01DividerLineSm = ({
                     createdAt: fileData.createdAt || new Date().toISOString(),
                     updatedAt: fileData.updatedAt || new Date().toISOString(),
                     shaHash: fileData.shaHash,
-                    is_shared: fileData.is_shared || false,
 
                 };
 
@@ -1335,7 +1327,6 @@ export const Table01DividerLineSm = ({
                     type: 'folder' as const,
                     createdAt: folder.createdAt,
                     updatedAt: folder.updatedAt,
-                    is_shared: folder.is_shared || false,
                     tags: folder.tags ? await Promise.all(folder.tags.map(async (tag: Tag) => {
                         if (tag.decryptedName) return tag;
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1388,7 +1379,6 @@ export const Table01DividerLineSm = ({
                     createdAt: file.createdAt,
                     updatedAt: file.updatedAt,
                     shaHash: file.shaHash,
-                    is_shared: file.is_shared || false,
 
                     tags: file.tags ? await Promise.all(file.tags.map(async (tag: Tag) => {
                         // Already decrypted?
@@ -1654,10 +1644,6 @@ export const Table01DividerLineSm = ({
         setRenameModalOpen(true);
     }, [setSelectedItemForRename, setRenameModalOpen]);
 
-    const handleShareClick = useCallback((itemId: string, itemName: string, itemType: "file" | "folder" | "paper") => {
-        setSelectedItemForShare({ id: itemId, name: itemName, type: itemType });
-        setShareModalOpen(true);
-    }, [setSelectedItemForShare, setShareModalOpen]);
 
 
 
@@ -1964,9 +1950,6 @@ export const Table01DividerLineSm = ({
                 case 'importFolder':
                     handleFolderUpload();
                     break;
-                case 'share':
-                    setSharePickerModalOpen(true);
-                    break;
             }
         } else {
             // Item actions
@@ -1987,8 +1970,12 @@ export const Table01DividerLineSm = ({
                     // TODO: Implement copy link functionality
                     toast.info('Copy link functionality coming soon');
                     break;
-                case 'share':
-                    handleShareClick(item.id, item.name, item.type as any);
+                case 'preview':
+                    if (item.type === 'file') {
+                        handlePreviewClick(item.id, item.name, item.mimeType);
+                    } else if (item.type === 'paper') {
+                        window.open(`/paper?fileId=${item.id}`, '_blank');
+                    }
                     break;
 
                 case 'moveToFolder':
@@ -2143,41 +2130,6 @@ export const Table01DividerLineSm = ({
                 if (typeof data !== 'string' && data.requestedName) {
                     const newName = data.requestedName;
 
-                    // Update any shares for this file to reflect the new filename
-                    // This ensures public download pages show the current filename, not the old one
-                    if (targetItem.type === 'file') {
-                        // Background update - don't block UI
-                        (async () => {
-                            try {
-                                const sharesResponse = await apiClient.getMyShares({ fileId: targetItem.id });
-                                if (sharesResponse.success && sharesResponse.data && 'pagination' in sharesResponse.data) {
-                                    const shares = sharesResponse.data.data;
-                                    if (shares.length > 0) {
-                                        const masterKey = masterKeyManager.getMasterKey();
-                                        if (masterKey) {
-                                            for (const share of shares) {
-                                                if (share.wrappedCek && share.nonceWrap) {
-                                                    try {
-                                                        const shareCek = decryptData(share.wrappedCek, masterKey, share.nonceWrap);
-                                                        const { encryptedFilename, nonce } = await encryptShareFilename(newName, shareCek);
-
-                                                        await apiClient.updateShareSettings(share.id, {
-                                                            encrypted_filename: encryptedFilename,
-                                                            nonce_filename: nonce
-                                                        });
-                                                    } catch (err) {
-                                                        console.warn(`[SHARE-UPDATE] Failed to update filename for share ${share.id}:`, err);
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            } catch (err) {
-                                console.error('[SHARE-UPDATE] Failed to update shares with new filename:', err);
-                            }
-                        })();
-                    }
 
                     setFiles(prev => prev.map(f => f.id === targetItem.id ? { ...f, name: newName } : f));
                     if (targetItemArg) {
@@ -2766,10 +2718,6 @@ export const Table01DividerLineSm = ({
                 <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
                     <IconFileUpload className="h-3.5 w-3.5" />
                 </Button>
-                <div className="h-5 w-px bg-border mx-1" />
-                <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
-                    <IconShare3 className="h-3.5 w-3.5" />
-                </Button>
                 <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
                     <IconListDetails className="h-3.5 w-3.5" />
                 </Button>
@@ -2823,19 +2771,6 @@ export const Table01DividerLineSm = ({
                             }}
                         >
                             Size
-                        </DropdownMenuCheckboxItem>
-                        <DropdownMenuCheckboxItem
-                            checked={visibleColumns.has('shared')}
-                            onCheckedChange={(checked) => {
-                                setVisibleColumns(prev => {
-                                    const next = new Set(prev);
-                                    if (checked) next.add('shared');
-                                    else next.delete('shared');
-                                    return next;
-                                });
-                            }}
-                        >
-                            Shared
                         </DropdownMenuCheckboxItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
@@ -2912,23 +2847,6 @@ export const Table01DividerLineSm = ({
                                 size="sm"
                                 variant="ghost"
                                 className="h-7 w-7 p-0"
-                                onClick={() => {
-                                    // Open Share Picker Modal when no files are selected
-                                    setSharePickerModalOpen(true);
-                                }}
-                                aria-label={t("files.share")}
-                            >
-                                <IconShare3 className="h-3.5 w-3.5" />
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>{t("files.share")}</TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-7 w-7 p-0"
                                 onClick={() => handleViewModeChange(viewMode === 'table' ? 'grid' : 'table')}
                                 aria-label={viewMode === 'table' ? 'Switch to grid view' : 'Switch to table view'}
                             >
@@ -2980,29 +2898,6 @@ export const Table01DividerLineSm = ({
                             </Tooltip>
                         ) : null;
                     })()}
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-7 w-7 p-0"
-                                disabled={hasMultipleSelection}
-                                onClick={() => {
-                                    if (!hasMultipleSelection) {
-                                        const firstItemId = Array.from(selectedItems)[0];
-                                        const firstItem = filesMap.get(firstItemId);
-                                        if (firstItem) {
-                                            handleShareClick(firstItem.id, firstItem.name, firstItem.type as any);
-                                        }
-                                    }
-                                }}
-                                aria-label={hasMultipleSelection ? "Share not available for multiple items" : "Share"}
-                            >
-                                <IconShare3 className="h-4 w-4" />
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>{hasMultipleSelection ? "Share not available for multiple items" : "Share"}</TooltipContent>
-                    </Tooltip>
                     {/* Move to folder */}
                     <Tooltip>
                         <TooltipTrigger asChild>
@@ -3176,7 +3071,7 @@ export const Table01DividerLineSm = ({
                 </>
             );
         }
-    }, [selectedItems, filesMap, viewMode, currentFolderId, refreshFiles, handleFolderUpload, handleFileUpload, handleBulkDownload, handlePreviewClick, handleShareClick, handleBulkMoveToTrash, handleViewModeChange, handleRenameClick, handleDetailsClick, setSharePickerModalOpen, setSelectedItemsForMoveToFolder, setMoveToFolderModalOpen, visibleColumns, isMobile, notifyFileAdded]);
+    }, [selectedItems, filesMap, viewMode, currentFolderId, refreshFiles, handleFolderUpload, handleFileUpload, handleBulkDownload, handlePreviewClick, handleBulkMoveToTrash, handleViewModeChange, handleRenameClick, handleDetailsClick, setSelectedItemsForMoveToFolder, setMoveToFolderModalOpen, visibleColumns, isMobile, notifyFileAdded]);
 
     // Memoize the onSelectionChange callback to prevent unnecessary re-renders
     const handleTableSelectionChange = useCallback((keys: Selection) => {
@@ -3511,28 +3406,6 @@ export const Table01DividerLineSm = ({
                                                                     {item.type === 'folder' ? '--' : formatFileSize(item.size || 0)}
                                                                 </span>
                                                             </Table.Cell>
-                                                            <Table.Cell className={`hidden md:table-cell px-1 w-16 text-center ${visibleColumns.has('shared') ? '' : '[&>*]:invisible'}`}>
-                                                                {item.is_shared && (
-                                                                    <Tooltip>
-                                                                        <TooltipTrigger asChild>
-                                                                            <button
-                                                                                onClick={(e) => {
-                                                                                    e.stopPropagation();
-                                                                                    handleShareClick(item.id, item.name, item.type as any);
-                                                                                }}
-                                                                                onMouseDown={(e) => e.stopPropagation()}
-                                                                                onPointerDown={(e) => e.stopPropagation()}
-                                                                                className="flex items-center justify-center cursor-pointer hover:bg-accent rounded-sm p-1 transition-colors ml-auto mr-2"
-                                                                            >
-                                                                                <IconShare3 className="h-4 w-4 text-blue-500" />
-                                                                            </button>
-                                                                        </TooltipTrigger>
-                                                                        <TooltipContent>
-                                                                            <p>{t("files.manageShare")}</p>
-                                                                        </TooltipContent>
-                                                                    </Tooltip>
-                                                                )}
-                                                            </Table.Cell>
                                                             <Table.Cell className="px-2 md:px-3 w-10 md:w-12">
                                                                 <div className={`flex justify-end gap-0.5 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-200`}>
                                                                     <DropdownMenu>
@@ -3561,10 +3434,6 @@ export const Table01DividerLineSm = ({
                                                                                     {t("files.preview")}
                                                                                 </DropdownMenuItem>
                                                                             )}
-                                                                            <DropdownMenuItem onClick={() => handleShareClick(item.id, item.name, item.type as any)}>
-                                                                                <IconShare3 className="h-4 w-4 mr-2" />
-                                                                                {t("files.share")}
-                                                                            </DropdownMenuItem>
 
                                                                             <DropdownMenuSeparator />
                                                                             <DropdownMenuItem onClick={() => handleMoveToFolderClick(item.id, item.name, item.type as any)}>
@@ -3808,10 +3677,6 @@ export const Table01DividerLineSm = ({
                                                                 Preview
                                                             </DropdownMenuItem>
                                                         )}
-                                                        <DropdownMenuItem onClick={() => handleShareClick(item.id, item.name, item.type as any)}>
-                                                            <IconShare3 className="h-4 w-4 mr-2" />
-                                                            Share
-                                                        </DropdownMenuItem>
                                                         <DropdownMenuSeparator />
                                                         <DropdownMenuItem onClick={() => handleMoveToFolderClick(item.id, item.name, item.type as any)}>
                                                             <IconFolder className="h-4 w-4 mr-2" />
@@ -3918,24 +3783,6 @@ export const Table01DividerLineSm = ({
                 operation="rename"
             />
 
-            <ShareModal
-                itemId={selectedItemForShare?.id || ""}
-                itemName={selectedItemForShare?.name || ""}
-                itemType={selectedItemForShare?.type || "file"}
-                open={shareModalOpen}
-                onOpenChange={setShareModalOpen}
-                onShareUpdate={refreshFiles}
-            />
-
-            <SharePickerModal
-                open={sharePickerModalOpen}
-                onOpenChange={setSharePickerModalOpen}
-                onFileSelected={(fileId, fileName, fileType) => {
-                    setSelectedItemForShare({ id: fileId, name: fileName, type: fileType });
-                    setShareModalOpen(true);
-                    setSharePickerModalOpen(false);
-                }}
-            />
 
             <DetailsModal
                 itemId={selectedItemForDetails?.id || ""}
@@ -4065,13 +3912,6 @@ export const Table01DividerLineSm = ({
                                         Import Folder
                                     </button>
                                     <div className="h-px bg-border mx-2 my-1" />
-                                    <button
-                                        className="w-full px-3 py-2 text-start hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
-                                        onClick={() => handleContextMenuAction('share')}
-                                    >
-                                        <IconShare3 className="h-4 w-4" />
-                                        Share
-                                    </button>
                                 </>
                             ) : (
                                 // Context menu for items
@@ -4099,21 +3939,6 @@ export const Table01DividerLineSm = ({
                                             Preview
                                         </div>
                                     )}
-                                    {/* TODO: Only show Copy Link if item is shared */}
-                                    <button
-                                        className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
-                                        onClick={() => handleContextMenuAction('copyLink', contextMenu.targetItem)}
-                                    >
-                                        <IconLink className="h-4 w-4" />
-                                        Copy Link
-                                    </button>
-                                    <button
-                                        className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
-                                        onClick={() => handleContextMenuAction('share', contextMenu.targetItem)}
-                                    >
-                                        <IconShare3 className="h-4 w-4" />
-                                        Share
-                                    </button>
                                     <div className="h-px bg-border mx-2 my-1" />
                                     <button
                                         className="w-full px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm"
@@ -4208,7 +4033,6 @@ export const Table01DividerLineSm = ({
                 }}
                 onDownload={(file) => handleDownloadClick(file.id, file.name, 'file')}
                 onNavigate={handlePreviewNavigate}
-                onShare={(file) => handleShareClick(file.id, file.name, 'file')}
                 onDetails={(file) => handleDetailsClick(file.id, file.name, 'file')}
                 hasPrev={previewNavigationState.hasPrev}
                 hasNext={previewNavigationState.hasNext}

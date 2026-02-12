@@ -102,7 +102,6 @@ export interface FileInfo {
   updatedAt: string;
   shaHash: string | null;
   folderId: string | null;
-  is_shared: boolean;
   tags?: Tag[];
   encryption?: {
     iv: string;
@@ -123,7 +122,6 @@ export interface FolderInfo {
   createdAt: string;
   updatedAt: string;
   deletedAt?: string;
-  is_shared: boolean;
   tags?: Tag[];
 }
 
@@ -164,28 +162,7 @@ export interface DownloadUrlsResponse {
   storageType: string;
 }
 
-export interface CreateShareParams {
-  file_id?: string;
-  folder_id?: string;
-  paper_id?: string;
-  wrapped_cek?: string;
-  nonce_wrap?: string;
-  has_password: boolean;
-  salt_pw?: string;
-  expires_at?: string;
-  max_views?: number;
-  max_downloads?: number;
-  permissions?: 'read' | 'write' | 'admin';
-  kyberCiphertext?: string;
-  encryptedCek?: string;
-  nonce?: string;
-  comments_enabled?: boolean;
-  encrypted_filename?: string;
-  nonce_filename?: string;
-  encrypted_foldername?: string;
-  nonce_foldername?: string;
-  encrypted_manifest?: { encryptedData: string; nonce: string };
-}
+
 
 export interface ApiResponse<T = unknown> {
   success: boolean;
@@ -257,7 +234,6 @@ export interface FileItem {
   updatedAt: string;
   shaHash?: string | null; // File hash (SHA512)
   sessionSalt?: string;
-  is_shared?: boolean; // Whether this file/folder is currently shared
 
   encryption?: {
     iv: string;
@@ -288,7 +264,6 @@ export interface FolderContentItem {
   createdAt: string;
   updatedAt: string;
   deletedAt?: string;
-  is_shared: boolean;
 
   lockedUntil?: string | null;
   retentionMode?: string | null;
@@ -316,112 +291,16 @@ export interface FileContentItem {
   size?: number;
   shaHash: string | null;
   sha_hash?: string | null;
-  is_shared: boolean;
 
   lockedUntil?: string | null;
   tags?: Tag[];
 }
 
-export interface ShareItem {
-  id: string;
-  fileId?: string;
-  folderId?: string;
-  paperId?: string;
-  wrappedCek?: string;
-  nonceWrap?: string;
-  has_password: boolean;
-  salt_pw?: string;
-  expires_at?: string;
-  max_views?: number;
-  max_downloads?: number;
-  view_count: number;
-  download_count: number;
-  permissions: 'read' | 'write' | 'admin';
-  revoked: boolean;
-  comments_enabled?: boolean;
-  encrypted_filename?: string;
-  nonce_filename?: string;
-  encrypted_foldername?: string;
-  nonce_foldername?: string;
 
-  // CamelCase aliases for UI compatibility
-  fileName?: string;
-  fileSize?: number;
-  createdAt?: string;
-  linkSecret?: string;
-  folderPath?: string;
-  folderPathSalt?: string;
-  isFolder?: boolean;
-  encryptedFilename?: string;
-  filenameSalt?: string;
-  expiresAt?: string;
-  views?: number;
-  downloads?: number;
-  mimeType?: string;
 
-  recipients: Array<{
-    id: string;
-    userId?: string;
-    email?: string;
-    name?: string;
-    status: string;
-    createdAt: string;
-    revokedAt?: string;
-  }>;
-}
 
-export interface ShareComment {
-  id: string;
-  shareId: string;
-  userId: string;
-  parentId: string | null;
-  content: string; // Encrypted (base64)
-  createdAt: string;
-  updatedAt: string;
-  userName: string;
-  userEmail?: string;
-  avatarUrl: string;
-  fingerprint?: string; // HMAC-SHA512 hex
-  signature?: string;   // ed25519 signature hex
-  publicKey?: string;   // ed25519 public key hex
-  attachments?: Array<{
-    id: string;
-    fileSize: number;
-    encryptedFilename: string;
-    nonceFilename: string;
-    mimetype: string;
-    encryptionNonce: string;
-    createdAt: string;
-  }>;
-}
 
-export interface SharedItem {
-  id: string;
-  status: 'pending' | 'accepted' | 'declined' | 'removed';
-  permissions: 'read' | 'write' | 'admin';
-  createdAt: string;
-  updatedAt: string;
-  encapsulatedSecret?: string; // Legacy
-  kyberCiphertext?: string;
-  encryptedCek?: string;
-  encryptedCekNonce?: string;
-  owner: {
-    id: string;
-    name: string;
-    email: string;
-    avatar: string;
-  };
-  item: {
-    id: string;
-    type: 'file' | 'folder' | 'paper';
-    encryptedName: string;
-    nameSalt: string;
-    size?: number;
-    mimeType?: string;
-    createdAt: string;
-    name?: string; // Decrypted on client
-  };
-}
+
 
 export interface Paper {
   id: string;
@@ -441,15 +320,7 @@ export interface Paper {
   customNameSalt?: string;
 }
 
-export interface ShareCommentsResponse {
-  comments: ShareComment[];
-  pagination: {
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-  };
-}
+
 
 
 export interface Subscription {
@@ -544,17 +415,7 @@ export interface SecurityEvent {
   summary?: string;
 }
 
-export interface ShareAccessLog {
-  id: string;
-  session_id: string;
-  action: 'VIEW' | 'DOWNLOAD';
-  country: string | null;
-  device_type: string | null;
-  browser: string | null;
-  os: string | null;
-  user_agent: string | null;
-  created_at: string;
-}
+
 
 class ApiClient {
   private baseURL: string;
@@ -1493,17 +1354,6 @@ class ApiClient {
     return this.request(endpoint, {}, 'high');
   }
 
-  // Get folder contents recursively (including all nested folders and files)
-  async getFolderContentsRecursive(folderId: string = 'root'): Promise<ApiResponse<{
-    folder: FolderTreeItem;
-    allFiles: FileTreeItem[];
-    totalFiles: number;
-    totalFolders: number;
-  }>> {
-    const normalizedFolderId = folderId === 'root' ? 'root' : folderId;
-    return this.request(`/folders/${normalizedFolderId}/contents/recursive`);
-  }
-
 
   // File operations
   async renameFile(fileId: string, data: {
@@ -1659,63 +1509,7 @@ class ApiClient {
     return this.request(`/folders/${folderId}/path`);
   }
 
-  async createShare(data: CreateShareParams): Promise<ApiResponse<{
-    id: string;
-    encryption_version?: number;
-    reused?: boolean;
-    sharedFiles?: number;
-  }>> {
-    // Use shares endpoint directly for files/papers, shares/folder for folders
-    const endpoint = data.folder_id ? '/shares/folder' : '/shares';
-    return this.request(endpoint, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
 
-  async getShare(shareId: string): Promise<ApiResponse<{
-    id: string;
-    file_id: string;
-    folder_id?: string;
-    is_folder: boolean;
-    has_password: boolean;
-    salt_pw?: string;
-    expires_at?: string;
-    max_views?: number;
-    views: number;
-    disabled: boolean;
-    wrapped_cek?: string; // Optional for true E2EE
-    nonce_wrap?: string; // Optional for true E2EE
-    kyber_ciphertext?: string;
-    kyber_public_key?: string;
-    kyber_wrapped_cek?: string;
-    nonce_wrap_kyber?: string;
-    encryption_version?: number;
-    encrypted_filename?: string; // Filename encrypted with share CEK
-    nonce_filename?: string; // Nonce for filename encryption
-    encrypted_foldername?: string; // Folder name encrypted with share CEK
-    nonce_foldername?: string; // Nonce for folder name encryption
-    encrypted_manifest?: { encryptedData: string; nonce: string } | string; // E2EE folder manifest
-    file?: {
-      id: string;
-      filename: string;
-      size: number;
-      mimetype: string;
-      created_at: string;
-    };
-    folder?: {
-      id: string;
-      name: string;
-      created_at: string;
-      encrypted_name?: string;
-      nonce_name?: string;
-    };
-    comments_enabled?: boolean;
-    comments_locked?: boolean;
-    owner_is_checkmarked?: boolean;
-  }>> {
-    return this.request(`/shares/${shareId}`);
-  }
 
   // Spaces & Starring
 
@@ -1928,159 +1722,11 @@ class ApiClient {
     return this.request(`/papers/trash?${query.toString()}`);
   }
 
-  async getShareKeyWrap(shareId: string): Promise<ApiResponse<{
-    file_id: string;
-    wrapped_cek: string;
-    nonce_wrap: string;
-    encryption_version?: number;
-    kyber_ciphertext?: string;
-    kyber_public_key?: string;
-  }>> {
-    return this.request(`/shares/${shareId}/keywrap`);
-  }
 
-  async getShareManifest(shareId: string): Promise<ApiResponse<unknown>> {
-    return this.request(`/shares/${shareId}/manifest`);
-  }
 
-  async trackShareDownload(shareId: string): Promise<ApiResponse<{ success: boolean }>> {
-    return this.request(`/shares/${shareId}/download`, {
-      method: 'POST',
-    });
-  }
 
-  async trackShareView(shareId: string): Promise<ApiResponse<{ success: boolean }>> {
-    return this.request(`/shares/${shareId}/view`, {
-      method: 'POST',
-    });
-  }
 
-  async disableShare(shareIdOrIds: string | string[]): Promise<ApiResponse<{ success: boolean; revokedCount?: number; cascadedFileShares?: number }>> {
-    const shareIds = Array.isArray(shareIdOrIds) ? shareIdOrIds : [shareIdOrIds];
 
-    return this.request('/shares/delete', {
-      method: 'POST',
-      body: JSON.stringify({ shareIds }),
-    });
-  }
-
-  async revokeShareForUser(shareId: string, userId: string): Promise<ApiResponse<{ success: boolean }>> {
-    return this.request(`/shares/${shareId}/user/${userId}`, {
-      method: 'DELETE',
-    });
-  }
-
-  async sendShareEmails(shareId: string, data: {
-    recipients: string[];
-    share_url: string;
-    file_name: string;
-    message?: string;
-  }): Promise<ApiResponse<{
-    success: boolean;
-    results: Array<{ email: string; status: string }>;
-    errors: Array<{ email: string; error: string }>;
-    summary: {
-      total: number;
-      sent: number;
-      failed: number;
-    };
-  }>> {
-    return this.request(`/shares/${shareId}/send`, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async getMyShares(params?: {
-    page?: number;
-    limit?: number;
-    fileId?: string;
-  }): Promise<ApiResponse<{
-    data: ShareItem[];
-    pagination: {
-      page: number;
-      limit: number;
-      total: number;
-      totalPages: number;
-    };
-  }>> {
-    const queryParams = new URLSearchParams();
-    if (params?.page) queryParams.append('page', params.page.toString());
-    if (params?.limit) queryParams.append('limit', params.limit.toString());
-    if (params?.fileId) queryParams.append('fileId', params.fileId);
-
-    const queryString = queryParams.toString();
-    return this.request(`/shares/mine${queryString ? `?${queryString}` : ''}`);
-  }
-
-  async getReceivedShares(params?: { page?: number; limit?: number }): Promise<ApiResponse<{
-    data: {
-      id: string;
-      fileId: string;
-      fileName: string;
-      fileSize: number;
-      sharedAt: string;
-      sharedBy: {
-        id: string;
-        name?: string;
-        email: string;
-      };
-      permissions: string;
-      revoked: boolean;
-      linkSecret?: string;
-    }[];
-    pagination: {
-      page: number;
-      limit: number;
-      total: number;
-      totalPages: number;
-    };
-  }>> {
-    const query = new URLSearchParams();
-    if (params?.page) query.append('page', params.page.toString());
-    if (params?.limit) query.append('limit', params.limit.toString());
-    return this.request(`/shares/received?${query.toString()}`);
-  }
-
-  async reportShare(shareId: string, data: {
-    reportType: string;
-    description?: string;
-    email?: string;
-    turnstileToken: string;
-  }): Promise<ApiResponse<{
-    success: boolean;
-    autoDeactivated?: boolean;
-    duplicate?: boolean;
-  }>> {
-    // Use ThumbmarkJS for robust fingerprinting (Exact same process as /authorize device)
-    const { getThumbmark } = await import('@thumbmarkjs/thumbmarkjs');
-    const fingerprint = await getThumbmark();
-
-    // Hash the fingerprint for storage
-    const fingerprintStr = typeof fingerprint === 'string' ? fingerprint : JSON.stringify(fingerprint);
-    const fingerprintHash = await this.hashFingerprint(fingerprintStr);
-
-    const metadata = {
-      screenRes: `${window.screen.width}x${window.screen.height}`,
-      colorDepth: window.screen.colorDepth,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      language: navigator.language,
-      platform: navigator.platform,
-      hardwareConcurrency: navigator.hardwareConcurrency,
-      deviceMemory: (navigator as Navigator & { deviceMemory?: number }).deviceMemory,
-      touchSupport: 'ontouchstart' in window || navigator.maxTouchPoints > 0,
-      fingerprint: fingerprint
-    };
-
-    return this.request(`/shares/${shareId}/report`, {
-      method: 'POST',
-      body: JSON.stringify({
-        ...data,
-        fingerprintHash,
-        metadata
-      }),
-    });
-  }
 
   // Spaces Management
 
@@ -2103,70 +1749,7 @@ class ApiClient {
     return this.request<{ email: string; kyberPublicKey: string }>(`/user/public-key?email=${encodeURIComponent(email)}`);
   }
 
-  async getSharedWithMe(status?: string): Promise<ApiResponse<SharedItem[]>> {
-    const query = status ? `?status=${status}` : '';
-    return this.request<SharedItem[]>(`/shared/received${query}`);
-  }
 
-  async createSharedItem(payload: {
-    fileId?: string;
-    folderId?: string;
-    recipientEmail?: string;
-    recipientUserId?: string;
-    permissions?: string;
-    // Optional encryption fields for KEM-based sharing (kyber)
-    kyberCiphertext?: string;
-    encryptedCek?: string;
-    nonce?: string;
-    // Optional encrypted metadata for recipient (email share)
-    encrypted_filename?: string;
-    nonce_filename?: string;
-    encrypted_foldername?: string;
-    nonce_foldername?: string;
-    // Backwards compatible encapsulated secret field
-    encapsulatedSecret?: string;
-  }): Promise<ApiResponse<{ id: string; status: string }>> {
-    return this.request<{ id: string; status: string }>('/shared/create', {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    });
-  }
-
-  async acceptSharedItem(id: string): Promise<ApiResponse<void>> {
-    return this.request<void>(`/shared/${id}/accept`, { method: 'POST' });
-  }
-
-  async declineSharedItem(id: string): Promise<ApiResponse<void>> {
-    return this.request<void>(`/shared/${id}/decline`, { method: 'POST' });
-  }
-
-  async removeSharedItem(id: string): Promise<ApiResponse<void>> {
-    return this.request<void>(`/shared/${id}`, { method: 'DELETE' });
-  }
-
-  async getPendingSharedCount(): Promise<ApiResponse<{ count: number }>> {
-    return this.request<{ count: number }>('/shared/count');
-  }
-
-  async getSharedUsers(itemId: string, itemType: 'file' | 'folder'): Promise<ApiResponse<{
-    id: string;
-    userId: string;
-    name: string;
-    email: string;
-    avatar: string;
-    status: 'pending' | 'accepted' | 'declined' | 'removed';
-    permissions: 'read' | 'write' | 'admin';
-    sharedAt: string;
-  }[]>> {
-    return this.request(`/shared/users?itemId=${itemId}&itemType=${itemType}`);
-  }
-
-  async updateSharedUserPermissions(sharedItemId: string, permissions: 'read' | 'write' | 'admin'): Promise<ApiResponse<void>> {
-    return this.request<void>(`/shared/${sharedItemId}/permissions`, {
-      method: 'PATCH',
-      body: JSON.stringify({ permissions })
-    });
-  }
 
 
 
@@ -2359,47 +1942,7 @@ class ApiClient {
     });
   }
 
-  async getShareAttachmentUploadUrl(shareId: string, data: {
-    commentId: string;
-    filename: string;
-    encryptedFilename: string;
-    nonceFilename: string;
-    fileSize: number;
-    mimetype: string;
-    encryptionNonce: string;
-    contentMd5?: string;
-  }): Promise<ApiResponse<{
-    attachmentId: string;
-    uploadUrl: string;
-    requiredHeaders?: Record<string, string>;
-  }>> {
-    return this.request(`/shares/${shareId}/comments/attachments/s3`, {
-      method: 'POST',
-      body: JSON.stringify(data)
-    });
-  }
 
-  async confirmShareAttachment(shareId: string, attachmentId: string): Promise<ApiResponse> {
-    return this.request(`/shares/${shareId}/comments/attachments/${attachmentId}/confirm`, {
-      method: 'POST'
-    });
-  }
-
-  async getShareAttachmentDownloadUrl(shareId: string, attachmentId: string): Promise<ApiResponse<{
-    downloadUrl: string;
-    filename: string;
-    mimetype: string;
-  }>> {
-    return this.request(`/shares/${shareId}/comments/attachments/${attachmentId}/s3`, {
-      method: 'GET'
-    });
-  }
-
-  async deleteShareAttachment(shareId: string, attachmentId: string): Promise<ApiResponse> {
-    return this.request(`/shares/${shareId}/comments/attachments/${attachmentId}`, {
-      method: 'DELETE'
-    });
-  }
 
   // Upload operations
   async initializeUploadSession(data: {
@@ -3150,42 +2693,6 @@ class ApiClient {
     });
   }
 
-  // Shared file endpoints
-  async getSharedFile(shareId: string): Promise<ApiResponse<{
-    id: string;
-    name: string;
-    mime_type: string;
-    size: number;
-    encrypted_cek: string;
-    encrypted_name: string;
-    has_password: boolean;
-  }>> {
-    return this.request(`/shares/${shareId}`, {
-      method: 'GET',
-    });
-  }
-
-  async downloadSharedFile(
-    shareId: string,
-    keyOrPassword: string,
-    isPassword: boolean = false
-  ): Promise<ApiResponse<ArrayBuffer>> {
-    const body: Record<string, string> = {};
-
-    if (isPassword) {
-      body.password = keyOrPassword;
-    } else {
-      body.cek = keyOrPassword;
-    }
-
-    return this.request(`/shares/${shareId}/download`, {
-      method: 'POST',
-      body: JSON.stringify(body),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-  }
 
   private async hashFingerprint(data: string): Promise<string> {
     const msgBuffer = new TextEncoder().encode(data);
@@ -3312,7 +2819,6 @@ class ApiClient {
     inApp: boolean;
     email: boolean;
     login: boolean;
-    fileShare: boolean;
     billing: boolean;
   }>> {
     return this.request('/notifications/preferences');
@@ -3322,7 +2828,6 @@ class ApiClient {
     inApp: boolean;
     email: boolean;
     login: boolean;
-    fileShare: boolean;
     billing: boolean;
   }): Promise<ApiResponse<{
     success: boolean;
@@ -3334,118 +2839,6 @@ class ApiClient {
     });
   }
 
-  // Share comment endpoints
-  async getShareComments(shareId: string, page = 1, limit = 20): Promise<ApiResponse<ShareCommentsResponse>> {
-    return this.request(`/shares/${shareId}/comments?page=${page}&limit=${limit}`);
-  }
-
-  async addShareComment(shareId: string, data: {
-    content: string;
-    parentId?: string | null;
-    fingerprint?: string;
-    signature?: string;
-    publicKey?: string;
-  }): Promise<ApiResponse<{ success: boolean; comment: ShareComment }>> {
-    return this.request(`/shares/${shareId}/comments`, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async updateShareComment(shareId: string, commentId: string, data: {
-    content: string;
-    fingerprint?: string;
-    signature?: string;
-    publicKey?: string;
-  }): Promise<ApiResponse<{ success: boolean; message: string }>> {
-    return this.request(`/shares/${shareId}/comments/${commentId}`, {
-      method: 'PATCH',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async deleteShareComment(shareId: string, commentId: string): Promise<ApiResponse<{ success: boolean; message: string }>> {
-    return this.request(`/shares/${shareId}/comments/${commentId}`, {
-      method: 'DELETE',
-    });
-  }
-
-  async getShareCommentCount(shareId: string): Promise<ApiResponse<{ count: number; isOwner?: boolean; isLocked?: boolean; isEnabled?: boolean }>> {
-    return this.request(`/shares/${shareId}/comments/count`);
-  }
-
-  async updateShareSettings(shareId: string, settings: {
-    comments_enabled?: boolean;
-    detailed_logging_enabled?: boolean;
-    encrypted_filename?: string;
-    nonce_filename?: string;
-  }): Promise<ApiResponse<{ success: boolean; message: string }>> {
-    return this.request(`/shares/${shareId}/settings`, {
-      method: 'PATCH',
-      body: JSON.stringify(settings),
-    });
-  }
-
-  async getShareLogs(shareId: string, page: number = 1, limit: number = 50): Promise<ApiResponse<{
-    logs: ShareAccessLog[];
-    pagination: {
-      total: number;
-      page: number;
-      limit: number;
-      totalPages: number;
-    };
-    settings: {
-      detailed_logging_enabled: boolean;
-    };
-  }>> {
-    return this.request(`/shares/${shareId}/logs?page=${page}&limit=${limit}`);
-  }
-
-  async wipeShareLogs(shareId: string): Promise<ApiResponse<{ success: boolean; message: string }>> {
-    return this.request(`/shares/${shareId}/logs`, {
-      method: 'DELETE',
-    });
-  }
-
-  async lockComments(shareId: string, locked: boolean): Promise<ApiResponse<{ success: boolean; locked: boolean }>> {
-    return this.request(`/shares/${shareId}/comments/lock`, {
-      method: 'POST',
-      body: JSON.stringify({ locked }),
-    });
-  }
-
-  async setCommentsEnabled(shareId: string, enabled: boolean): Promise<ApiResponse<{ success: boolean; enabled: boolean }>> {
-    return this.request(`/shares/${shareId}/comments/enable`, {
-      method: 'POST',
-      body: JSON.stringify({ enabled }),
-    });
-  }
-
-  async banShareUser(shareId: string, userId: string): Promise<ApiResponse<{ success: boolean; message: string }>> {
-    return this.request(`/shares/${shareId}/comments/ban`, {
-      method: 'POST',
-      body: JSON.stringify({ userId }),
-    });
-  }
-
-  async unbanShareUser(shareId: string, userId: string): Promise<ApiResponse<{ success: boolean; message: string }>> {
-    return this.request(`/shares/${shareId}/comments/unban`, {
-      method: 'POST',
-      body: JSON.stringify({ userId }),
-    });
-  }
-
-  async getShareBannedUsers(shareId: string): Promise<ApiResponse<{
-    banned: Array<{
-      id: string;
-      name: string;
-      email: string;
-      avatarUrl: string;
-      bannedAt: string;
-    }>
-  }>> {
-    return this.request(`/shares/${shareId}/comments/banned`);
-  }
 
   async getSecurityEvents(limit = 10, offset = 0, format?: string, startDate?: string, endDate?: string, eventType?: string): Promise<ApiResponse<{
     events: SecurityEvent[];
